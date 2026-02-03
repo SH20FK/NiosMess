@@ -1,0 +1,1814 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NiosMess - Добро пожаловать</title>
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #0e1621;
+            --bg-secondary: #17212b;
+            --accent: #5288c1;
+            --accent-hover: #6a9dd4;
+            --text-primary: #ffffff;
+            --text-secondary: #8b98a8;
+            --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: "Inter", -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0e1621 0%, #1a2332 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .particles {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(82, 136, 193, 0.3);
+            border-radius: 50%;
+            animation: float-particle 20s infinite;
+        }
+
+        @keyframes float-particle {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) translateX(50px); opacity: 0; }
+        }
+
+        .onboarding-container {
+            width: 100%;
+            max-width: 440px;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .mascot {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 40px;
+            position: relative;
+            transition: all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            animation: float-mascot 3s ease-in-out infinite;
+        }
+
+        @keyframes float-mascot {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .mascot.happy { animation: happy-bounce 0.6s ease; }
+
+        @keyframes happy-bounce {
+            0%, 100% { transform: scale(1) translateY(0); }
+            25% { transform: scale(1.15) translateY(-20px); }
+            50% { transform: scale(0.95) translateY(-5px); }
+            75% { transform: scale(1.05) translateY(-10px); }
+        }
+
+        .mascot.thinking { animation: think-sway 2s ease-in-out infinite; }
+
+        @keyframes think-sway {
+            0%, 100% { transform: rotate(0deg) translateY(0); }
+            25% { transform: rotate(-3deg) translateY(-5px); }
+            75% { transform: rotate(3deg) translateY(-5px); }
+        }
+
+        .mascot.password-mode { animation: shy-wiggle 0.5s ease; }
+
+        @keyframes shy-wiggle {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .fox-head {
+            width: 130px;
+            height: 130px;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border-radius: 50% 50% 48% 48%;
+            position: relative;
+            margin: 0 auto;
+            box-shadow: 0 20px 60px rgba(255, 107, 53, 0.4);
+            animation: head-tilt 4s ease-in-out infinite;
+        }
+
+        @keyframes head-tilt {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-2deg); }
+            75% { transform: rotate(2deg); }
+        }
+
+        .fox-ear {
+            width: 45px;
+            height: 65px;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border-radius: 80% 20% 0 0;
+            position: absolute;
+            top: -28px;
+            transition: all 0.3s ease;
+            animation: ear-wiggle 3s ease-in-out infinite;
+        }
+
+        @keyframes ear-wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(-5deg); }
+        }
+
+        .fox-ear.left { left: 8px; transform-origin: bottom center; animation-delay: 0s; }
+        .fox-ear.right { right: 8px; transform-origin: bottom center; animation-delay: 1.5s; }
+        .fox-ear:hover { transform: rotate(-15deg) scale(1.05); }
+
+        .ear-inner {
+            width: 22px;
+            height: 32px;
+            background: linear-gradient(135deg, #ffc09f 0%, #ffb88c 100%);
+            border-radius: 80% 20% 0 0;
+            position: absolute;
+            top: 10px;
+            left: 12px;
+        }
+
+        .fox-eyes {
+            display: flex;
+            justify-content: space-between;
+            width: 75px;
+            margin: 38px auto 0;
+            position: relative;
+            z-index: 10;
+        }
+
+        .fox-eye {
+            width: 30px;
+            height: 30px;
+            background: white;
+            border-radius: 50%;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .fox-eye::after {
+            content: "";
+            width: 15px;
+            height: 15px;
+            background: #1a1a1a;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .fox-eye::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 25%;
+            left: 30%;
+            z-index: 10;
+            opacity: 0.8;
+        }
+
+        .fox-eyes.blinking .fox-eye { animation: realistic-blink 4s infinite; }
+
+        @keyframes realistic-blink {
+            0%, 96%, 100% { height: 30px; transform: scaleY(1); }
+            98% { height: 3px; transform: scaleY(0.1); }
+        }
+
+        .fox-eyes.closed .fox-eye {
+            height: 4px;
+            background: #ff8c5a;
+            border-radius: 50% 50% 0 0;
+            animation: none;
+            transform: scaleY(0.15);
+        }
+
+        .fox-eyes.closed .fox-eye::after,
+        .fox-eyes.closed .fox-eye::before { display: none; }
+
+        .fox-eyes.surprised .fox-eye {
+            width: 35px;
+            height: 35px;
+            animation: none;
+        }
+
+        .fox-eyes.surprised .fox-eye::after {
+            width: 18px;
+            height: 18px;
+        }
+
+        .fox-eyes.happy .fox-eye {
+            height: 8px;
+            border-radius: 50% 50% 0 0;
+            animation: none;
+        }
+
+        .fox-eyes.tracking .fox-eye::after { animation: eye-track 3s ease-in-out infinite; }
+
+        @keyframes eye-track {
+            0%, 100% { transform: translate(-50%, -50%); }
+            25% { transform: translate(-65%, -50%); }
+            75% { transform: translate(-35%, -50%); }
+        }
+
+        .fox-nose {
+            width: 18px;
+            height: 14px;
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            margin: 12px auto 0;
+            position: relative;
+            animation: nose-twitch 3s ease-in-out infinite;
+        }
+
+        @keyframes nose-twitch {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .fox-mouth {
+            width: 45px;
+            height: 22px;
+            border: 3px solid #1a1a1a;
+            border-top: none;
+            border-radius: 0 0 50% 50%;
+            margin: 6px auto 0;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .mascot.happy .fox-mouth {
+            width: 60px;
+            height: 30px;
+            animation: smile-wide 0.6s ease;
+        }
+
+        @keyframes smile-wide {
+            0% { width: 45px; }
+            50% { width: 65px; }
+            100% { width: 60px; }
+        }
+
+        .mascot.sad .fox-mouth {
+            width: 40px;
+            height: 18px;
+            border-radius: 50% 50% 0 0;
+            border-top: 3px solid #1a1a1a;
+            border-bottom: none;
+            margin-top: 10px;
+        }
+
+        .fox-cheek {
+            width: 20px;
+            height: 15px;
+            background: rgba(255, 107, 53, 0.3);
+            border-radius: 50%;
+            position: absolute;
+            bottom: 35px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            filter: blur(3px);
+        }
+
+        .fox-cheek.left { left: 15px; }
+        .fox-cheek.right { right: 15px; }
+
+        .mascot.happy .fox-cheek,
+        .mascot.password-mode .fox-cheek {
+            opacity: 0.6;
+            animation: blush 2s ease-in-out infinite;
+        }
+
+        @keyframes blush {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+
+        .sparkle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .mascot.happy .sparkle { animation: sparkle-pop 0.8s ease-out; }
+
+        @keyframes sparkle-pop {
+            0% { opacity: 0; transform: scale(0) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1.5) rotate(180deg); }
+            100% { opacity: 0; transform: scale(0) rotate(360deg); }
+        }
+
+        .sparkle:nth-child(1) { top: -10px; left: -10px; animation-delay: 0s; }
+        .sparkle:nth-child(2) { top: -10px; right: -10px; animation-delay: 0.1s; }
+        .sparkle:nth-child(3) { top: 50%; right: -15px; animation-delay: 0.2s; }
+        .sparkle:nth-child(4) { bottom: -10px; right: -10px; animation-delay: 0.3s; }
+        .sparkle:nth-child(5) { bottom: -10px; left: -10px; animation-delay: 0.4s; }
+        .sparkle:nth-child(6) { top: 50%; left: -15px; animation-delay: 0.5s; }
+
+        .onboarding-content {
+            background: rgba(23, 33, 43, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .step {
+            display: none;
+            animation: fadeInUp 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .step.active { display: block; }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 30px;
+        }
+
+        .step-dot {
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .step-dot.active {
+            width: 32px;
+            border-radius: 4px;
+            background: var(--accent);
+            box-shadow: 0 4px 12px rgba(82, 136, 193, 0.4);
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        .input-group { margin-bottom: 20px; }
+
+        .input-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input {
+            width: 100%;
+            padding: 16px 18px;
+            background: rgba(30, 39, 50, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: inherit;
+            transition: all var(--transition);
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(36, 47, 61, 0.9);
+            box-shadow: 0 0 0 4px rgba(82, 136, 193, 0.1);
+            transform: translateY(-2px);
+        }
+
+        input::placeholder { color: rgba(139, 152, 168, 0.5); }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition);
+            position: relative;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before { left: 100%; }
+        .btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(82, 136, 193, 0.4);
+        }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: none;
+            box-shadow: none;
+        }
+
+
+        .btn-group { display: flex; gap: 12px; margin-top: 20px; }
+        .btn-back { flex: 0 0 auto; width: 50px; padding: 16px; }
+        .btn-next { flex: 1; }
+
+        .legal-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .legal-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(30, 39, 50, 0.6);
+        }
+
+        .legal-item.read {
+            border-color: rgba(74, 222, 128, 0.4);
+            background: rgba(34, 197, 94, 0.08);
+        }
+
+        .legal-link {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+            padding: 0;
+        }
+
+        .legal-item.read .legal-link {
+            color: #9de0b0;
+        }
+
+        .legal-status {
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .legal-item.read .legal-status {
+            color: #4ade80;
+        }
+
+        .legal-accept {
+            margin-top: 14px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .legal-accept input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .legal-box {
+            width: 18px;
+            height: 18px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.06);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            margin-top: 2px;
+            transition: all var(--transition);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+            position: relative;
+        }
+
+        .legal-box::after {
+            content: "";
+            width: 9px;
+            height: 5px;
+            border-right: 2px solid #fff;
+            border-bottom: 2px solid #fff;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg) scaleX(-1) scale(0);
+            transition: transform var(--transition);
+        }
+
+        .legal-accept input:checked + .legal-box {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 6px 16px rgba(82, 136, 193, 0.35);
+        }
+
+        .legal-accept input:checked + .legal-box::after {
+            transform: translate(-50%, -50%) rotate(45deg) scaleX(-1) scale(1);
+        }
+
+        .legal-accept input:disabled + .legal-box {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .legal-text {
+            flex: 1;
+            line-height: 1.4;
+        }
+
+        .legal-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition);
+            z-index: 20;
+        }
+
+        .legal-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .legal-modal-card {
+            width: min(720px, 92vw);
+            max-height: 80vh;
+            background: var(--bg-secondary);
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .legal-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .legal-modal-header h2 {
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .legal-modal-body {
+            padding: 16px 20px;
+            overflow-y: auto;
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.55;
+            white-space: normal;
+        }
+
+        .legal-modal-body h1 {
+            font-size: 18px;
+            margin: 0 0 10px;
+        }
+
+        .legal-modal-body h2 {
+            font-size: 16px;
+            margin: 16px 0 8px;
+            color: var(--text-primary);
+        }
+
+        .legal-modal-body h3 {
+            font-size: 14px;
+            margin: 12px 0 6px;
+            color: var(--text-primary);
+        }
+
+        .legal-modal-body p {
+            margin: 6px 0;
+            color: var(--text-secondary);
+        }
+
+        .legal-modal-body strong {
+            color: var(--text-primary);
+        }
+
+        .legal-modal-body ul,
+        .legal-modal-body ol {
+            margin: 8px 0 8px 18px;
+            color: var(--text-secondary);
+        }
+
+        .legal-modal-body li {
+            margin: 4px 0;
+        }
+
+        .legal-modal-body hr {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            margin: 12px 0;
+        }
+
+        .legal-modal-body a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .legal-modal-body a:hover {
+            text-decoration: underline;
+        }
+
+        .frozen-card {
+            background: rgba(23, 33, 43, 0.92);
+            border-radius: 20px;
+            padding: 32px;
+            text-align: center;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .mascot.frozen {
+            animation: frozen-shiver 2.4s ease-in-out infinite;
+        }
+
+        .mascot.frozen::after {
+            content: "❄️";
+            position: absolute;
+            top: -6px;
+            right: 6px;
+            font-size: 22px;
+            opacity: 0.9;
+        }
+
+        @keyframes frozen-shiver {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        .mascot.frozen .fox-head {
+            width: 130px;
+            height: 130px;
+            background: linear-gradient(135deg, #7cc5ff 0%, #3e7bb8 100%);
+            box-shadow: 0 14px 32px rgba(82, 136, 193, 0.45);
+        }
+
+        .mascot.frozen .fox-ear {
+            background: linear-gradient(135deg, #7cc5ff 0%, #3e7bb8 100%);
+        }
+
+        .mascot.frozen .ear-inner {
+            background: linear-gradient(135deg, #e6f6ff 0%, #bcdffb 100%);
+        }
+
+        .mascot.frozen .fox-eye {
+            background: #f7fbff;
+        }
+
+        .mascot.frozen .fox-eye::after {
+            background: #1b2b3a;
+        }
+
+        .mascot.frozen .fox-eye::before {
+            background: #ffffff;
+        }
+
+        .mascot.frozen .fox-cheek {
+            background: rgba(160, 210, 255, 0.35);
+        }
+
+        .mascot.frozen .fox-nose {
+            background: linear-gradient(135deg, #1f2a33 0%, #0f151b 100%);
+        }
+
+        .mascot.frozen .fox-mouth {
+            border-color: #1b2b3a;
+        }
+
+        .mascot.frozen .sparkle {
+            display: none;
+        }
+
+        .frozen-reason {
+            margin-top: 16px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(82, 136, 193, 0.15);
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.5;
+            text-align: left;
+        }
+
+        .frozen-help {
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .legal-modal-actions {
+            padding: 12px 20px 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .legal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .error-message {
+            padding: 12px;
+            background: rgba(248, 113, 113, 0.15);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            border-radius: 10px;
+            color: #f87171;
+            font-size: 14px;
+            margin-top: 16px;
+            display: none;
+            animation: shake 0.5s ease;
+        }
+
+        .error-message.show { display: block; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+            20%, 40%, 60%, 80% { transform: translateX(8px); }
+        }
+
+        .success-checkmark {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            animation: checkmark-pop 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 10px 40px rgba(34, 197, 94, 0.4);
+        }
+
+        @keyframes checkmark-pop {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+            50% { transform: scale(1.2) rotate(10deg); }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
+        }
+
+        .loader {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: inline-block;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .link-text {
+            color: var(--accent);
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .link-text:hover {
+            color: var(--accent-hover);
+            text-decoration: underline;
+        }
+
+        @media (max-width: 520px) {
+            body {
+                padding: 12px;
+            }
+
+            .onboarding-container {
+                max-width: 100%;
+                padding: 12px;
+            }
+
+            .onboarding-content {
+                padding: 28px;
+            }
+
+            .mascot {
+                width: 160px;
+                height: 160px;
+                margin-bottom: 24px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .subtitle {
+                font-size: 14px;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn-back,
+            .btn-next {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+
+    <div class="onboarding-container">
+        <div class="mascot" id="mascot">
+            <div class="sparkle">✨</div>
+            <div class="sparkle">✨</div>
+            <div class="sparkle">✨</div>
+            <div class="sparkle">✨</div>
+            <div class="sparkle">✨</div>
+            <div class="sparkle">✨</div>
+
+            <div class="fox-head">
+                <div class="fox-ear left"><div class="ear-inner"></div></div>
+                <div class="fox-ear right"><div class="ear-inner"></div></div>
+                <div class="fox-cheek left"></div>
+                <div class="fox-cheek right"></div>
+                <div class="fox-eyes blinking" id="foxEyes">
+                    <div class="fox-eye"></div>
+                    <div class="fox-eye"></div>
+                </div>
+                <div class="fox-nose"></div>
+                <div class="fox-mouth"></div>
+            </div>
+        </div>
+
+        <div class="onboarding-content">
+            <div class="step-indicator" id="stepIndicator">
+                <div class="step-dot active"></div>
+            </div>
+
+            <div class="step active" data-step="welcome">
+                <h1>Добро пожаловать в NiosMess! 💬</h1>
+                <p class="subtitle">Современный мессенджер с красивым дизайном и мощными возможностями</p>
+                <button class="btn" onclick="startSignup()">Создать аккаунт</button>
+                <button class="btn btn-secondary" onclick="startLogin()">У меня есть аккаунт</button>
+            </div>
+
+            <div class="step" data-step="signup-email">
+                <h1>Ваш Email</h1>
+                <p class="subtitle">Мы отправим код подтверждения на вашу почту</p>
+                <div class="input-group">
+                    <label class="input-label">Email адрес</label>
+                    <input type="email" id="signupEmailInput" placeholder="example@mail.com">
+                </div>
+                <div class="error-message" id="signupEmailError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="goToWelcome()">←</button>
+                    <button class="btn btn-next" onclick="submitSignupEmail()">Продолжить</button>
+                </div>
+            </div>
+
+            <div class="step" data-step="signup-name">
+                <h1>Как вас зовут?</h1>
+                <p class="subtitle">Ваше имя будут видеть другие пользователи</p>
+                <div class="input-group">
+                    <label class="input-label">Ваше имя</label>
+                    <input type="text" id="nameInput" placeholder="Александр">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Имя пользователя (username)</label>
+                    <input type="text" id="usernameInput" placeholder="alexander_89">
+                </div>
+                <div class="error-message" id="nameError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="prevSignupStep()">←</button>
+                    <button class="btn btn-next" onclick="submitName()">Продолжить</button>
+                </div>
+            </div>
+
+            <div class="step" data-step="signup-password">
+                <h1>Придумайте пароль</h1>
+                <p class="subtitle">Минимум 6 символов для безопасности</p>
+                <div class="input-group">
+                    <label class="input-label">Пароль</label>
+                    <input type="password" id="signupPasswordInput" placeholder="••••••••" onfocus="closeEyes()" onblur="openEyes()">
+                </div>
+                <div class="error-message" id="signupPasswordError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="prevSignupStep()">←</button>
+                    <button class="btn btn-next" onclick="submitSignupPassword()">Продолжить</button>
+                </div>
+            </div>
+
+            
+            
+            <div class="step" data-step="signup-legal">
+                <h1>Документы и согласие</h1>
+                <p class="subtitle">Пожалуйста ознакомьтесь с документами и подтвердите согласие</p>
+                <div class="legal-list">
+                    <div class="legal-item" id="legalItem-terms">
+                        <button class="legal-link" type="button" data-legal-doc="terms">Условия использования</button>
+                        <span class="legal-status" id="legalStatus-terms">Не прочитано</span>
+                    </div>
+                    <div class="legal-item" id="legalItem-privacy">
+                        <button class="legal-link" type="button" data-legal-doc="privacy">Политика конфиденциальности</button>
+                        <span class="legal-status" id="legalStatus-privacy">Не прочитано</span>
+                    </div>
+                    <div class="legal-item" id="legalItem-cookies">
+                        <button class="legal-link" type="button" data-legal-doc="cookies">Политика cookie</button>
+                        <span class="legal-status" id="legalStatus-cookies">Не прочитано</span>
+                    </div>
+                    <div class="legal-item" id="legalItem-consent">
+                        <button class="legal-link" type="button" data-legal-doc="consent">Согласие на обработку персональных данных</button>
+                        <span class="legal-status" id="legalStatus-consent">Не прочитано</span>
+                    </div>
+                </div>
+                <label class="legal-accept">
+                    <input type="checkbox" id="legalAccept" disabled>
+                    <span class="legal-box" aria-hidden="true"></span>
+                    <span class="legal-text">Я прочитал(а) все документы и согласен(на) с их условиями</span>
+                </label>
+                <div class="error-message" id="signupLegalError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="prevSignupStep()">←</button>
+                    <button class="btn btn-next" onclick="submitSignupLegal()">Продолжить</button>
+                </div>
+            </div>
+
+<div class="step" data-step="signup-code">
+                <h1>Введите код</h1>
+                <p class="subtitle">Мы отправили 6-значный код на <strong id="emailDisplay"></strong></p>
+                <div class="input-group">
+                    <label class="input-label">Код подтверждения</label>
+                    <input type="text" id="signupCodeInput" placeholder="123456" maxlength="6">
+                </div>
+                <div class="error-message" id="signupCodeError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="prevSignupStep()">←</button>
+                    <button class="btn btn-next" onclick="submitSignupCode()">Завершить регистрацию</button>
+                </div>
+            </div>
+
+            <div class="step" data-step="login-email">
+                <h1>Вход в аккаунт</h1>
+                <p class="subtitle">Введите ваш username для входа</p>
+                <div class="input-group">
+                    <label class="input-label">Имя пользователя</label>
+                    <input type="text" id="loginEmailInput" placeholder="username">
+                </div>
+                <div class="error-message" id="loginEmailError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="goToWelcome()">←</button>
+                    <button class="btn btn-next" onclick="submitLoginEmail()">Продолжить</button>
+                </div>
+                <p class="subtitle" style="margin-top: 20px; margin-bottom: 0;">
+                    Нет аккаунта? <span class="link-text" onclick="startSignup()">Зарегистрироваться</span>
+                </p>
+            </div>
+
+            <div class="step" data-step="login-password">
+                <h1>Введите пароль</h1>
+                <p class="subtitle">Пароль для <strong id="loginEmailDisplay"></strong></p>
+                <div class="input-group">
+                    <label class="input-label">Пароль</label>
+                    <input type="password" id="loginPasswordInput" placeholder="••••••••" onfocus="closeEyes()" onblur="openEyes()">
+                </div>
+                <div class="error-message" id="loginPasswordError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="prevLoginStep()">←</button>
+                    <button class="btn btn-next" onclick="submitLoginPassword()">Войти</button>
+                </div>
+                <p class="subtitle" style="margin-top: 20px; margin-bottom: 0;">
+                    <span class="link-text" onclick="openForgotPassword()">Забыли пароль?</span>
+                </p>
+            </div>
+
+            <div class="step" data-step="success">
+                <div class="success-checkmark">✓</div>
+                <h1 id="successTitle">Добро пожаловать!</h1>
+                <p class="subtitle" id="successSubtitle">Сейчас мы перенаправим вас в мессенджер...</p>
+            </div>
+
+            <div class="step" data-step="frozen">
+                <div class="frozen-card">
+                    <h1>Аккаунт заморожен</h1>
+                    <p class="subtitle">Ваш аккаунт был заморожен администрацией.</p>
+                    <div class="frozen-reason" id="frozenReason">Причина: —</div>
+                    <p class="frozen-help">Если это ошибка, обратитесь в поддержку.</p>
+                    <button class="btn btn-secondary" onclick="goToWelcome()">Назад</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    
+    <div class="legal-modal" id="legalModal">
+        <div class="legal-modal-card">
+            <div class="legal-modal-header">
+                <h2 id="legalModalTitle">Документ</h2>
+                <button class="legal-close" id="legalModalClose" aria-label="Закрыть">×</button>
+            </div>
+            <div class="legal-modal-body" id="legalModalContent">Загрузка...</div>
+            <div class="legal-modal-actions">
+                <button class="btn btn-secondary" type="button" id="legalModalCancel">Закрыть</button>
+                <button class="btn" type="button" id="legalModalAccept" disabled>Я прочитал(а)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="legal-modal" id="forgotModal">
+        <div class="legal-modal-card">
+            <div class="legal-modal-header">
+                <h2>Восстановление доступа</h2>
+                <button class="legal-close" id="forgotClose" aria-label="Закрыть">×</button>
+            </div>
+            <div class="legal-modal-body">
+                <p>Сброс пароля пока недоступен в приложении.</p>
+                <p>Напишите администратору, указав ваш логин и почту.</p>
+            </div>
+            <div class="legal-modal-actions">
+                <button class="btn btn-secondary" type="button" id="forgotCancel">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+    const API_BASE = "https://web.sa2rn.fun";
+
+        let mode = 'welcome';
+        let currentStep = '';
+        const userData = {};
+        const legalDocs = [
+            { id: 'terms', title: 'Условия использования', file: 'Условия Использования.txt' },
+            { id: 'privacy', title: 'Политика конфиденциальности', file: 'Политика кондефициальности.txt' },
+            { id: 'cookies', title: 'Политика cookie', file: 'куки файлы полит.txt' },
+            { id: 'consent', title: 'Согласие на обработку персональных данных', file: 'согласие_ан_обработку_персональных_данных (2).txt' }
+        ];
+        const legalRead = new Set();
+        let activeLegalDoc = null;
+
+        async function apiRequest(path, payload) {
+            const res = await fetch(`${API_BASE}${path}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) {
+                let msg = "Ошибка сервера";
+                try {
+                    const data = await res.json();
+                    msg = data.detail || data.error || msg;
+                } catch {}
+                if (/account\s*frozen/i.test(msg)) {
+                    const reason = msg.split(':').slice(1).join(':').trim();
+                    showFrozen(reason);
+                    return { frozen: true };
+                }
+                throw new Error(msg);
+            }
+
+            const text = await res.text();
+            return text ? JSON.parse(text) : {};
+        }
+
+        function saveSessionFromResponse(data) {
+            const token = data.token || data.access_token || "";
+            const username = data.username || userData.username || "";
+            const name = data.name || userData.name || "";
+            if (token && username) {
+                localStorage.setItem("niosmess_session", JSON.stringify({ token, username, name }));
+                return true;
+            }
+            return false;
+        }
+
+        function createParticles() {
+            const particles = document.getElementById('particles');
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+                particles.appendChild(particle);
+            }
+        }
+
+        createParticles();
+
+        function switchStep(stepName) {
+            document.querySelectorAll('.step').forEach(step => step.classList.remove('active'));
+            const step = document.querySelector('[data-step="' + stepName + '"]');
+            if (step) {
+                step.classList.add('active');
+                currentStep = stepName;
+                updateMascotEmotion();
+                updateStepIndicator();
+                if (stepName === 'signup-legal') {
+                    updateLegalUI();
+                }
+            }
+        }
+
+        function updateStepIndicator() {
+            const indicator = document.getElementById('stepIndicator');
+            indicator.innerHTML = '';
+
+            let steps = [];
+            if (mode === 'signup') {
+                steps = ['signup-email', 'signup-name', 'signup-password', 'signup-legal', 'signup-code'];
+            } else if (mode === 'login') {
+                steps = ['login-email', 'login-password'];
+            } else if (mode === 'frozen') {
+                steps = ['frozen'];
+            } else {
+                steps = ['welcome'];
+            }
+
+            const currentIndex = steps.indexOf(currentStep);
+            steps.forEach((step, index) => {
+                const dot = document.createElement('div');
+                dot.className = 'step-dot';
+                if (index === currentIndex) dot.classList.add('active');
+                indicator.appendChild(dot);
+            });
+        }
+
+        function setMascotEmotion(emotion) {
+            const mascot = document.getElementById('mascot');
+            const eyes = document.getElementById('foxEyes');
+            mascot.className = 'mascot ' + emotion;
+            eyes.className = 'fox-eyes';
+
+            switch(emotion) {
+                case 'happy': eyes.classList.add('happy'); break;
+                case 'thinking': eyes.classList.add('tracking'); break;
+                case 'surprised': eyes.classList.add('surprised'); break;
+                case 'frozen': eyes.classList.add('blinking'); break;
+                default: eyes.classList.add('blinking');
+            }
+        }
+
+        function updateMascotEmotion() {
+            if (currentStep === 'welcome' || currentStep === 'success') {
+                setMascotEmotion('happy');
+            } else if (currentStep === 'frozen') {
+                setMascotEmotion('frozen');
+            } else if (currentStep.includes('email') || currentStep.includes('name') || currentStep.includes('legal')) {
+                setMascotEmotion('thinking');
+            } else if (currentStep.includes('code')) {
+                setMascotEmotion('surprised');
+            } else {
+                setMascotEmotion('default');
+            }
+        }
+
+        function closeEyes() {
+            const mascot = document.getElementById('mascot');
+            const eyes = document.getElementById('foxEyes');
+            mascot.classList.add('password-mode');
+            eyes.classList.add('closed');
+            eyes.classList.remove('blinking', 'tracking', 'surprised', 'happy');
+        }
+
+        function openEyes() {
+            const mascot = document.getElementById('mascot');
+            const eyes = document.getElementById('foxEyes');
+            mascot.classList.remove('password-mode');
+            eyes.classList.remove('closed');
+            setTimeout(() => eyes.classList.add('blinking'), 300);
+        }
+
+        function startSignup() {
+            mode = 'signup';
+            switchStep('signup-email');
+        }
+
+        function submitSignupEmail() {
+            const email = document.getElementById('signupEmailInput').value.trim();
+            const error = document.getElementById('signupEmailError');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (!email) {
+                error.textContent = 'Введите email';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            if (!emailRegex.test(email)) {
+                error.textContent = 'Введите корректный email';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            error.classList.remove('show');
+            userData.email = email;
+            document.getElementById('emailDisplay').textContent = email;
+            setMascotEmotion('happy');
+            setTimeout(() => switchStep('signup-name'), 500);
+        }
+
+        function submitName() {
+            const name = document.getElementById('nameInput').value.trim();
+            const username = document.getElementById('usernameInput').value.trim();
+            const error = document.getElementById('nameError');
+            const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+
+            if (!name || !username) {
+                error.textContent = 'Заполните все поля';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            if (name.length < 2) {
+                error.textContent = 'Имя должно быть не менее 2 символов';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            if (!usernameRegex.test(username)) {
+                error.textContent = 'Username: 3-20 символов, только латиница, цифры и _';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            error.classList.remove('show');
+            userData.name = name;
+            userData.username = username;
+            setMascotEmotion('happy');
+            setTimeout(() => switchStep('signup-password'), 500);
+        }
+
+        function submitSignupPassword() {
+            const password = document.getElementById('signupPasswordInput').value;
+            const error = document.getElementById('signupPasswordError');
+
+            if (!password) {
+                error.textContent = 'Введите пароль';
+                error.classList.add('show');
+                return;
+            }
+
+            if (password.length < 6) {
+                error.textContent = 'Пароль должен быть не менее 6 символов';
+                error.classList.add('show');
+                return;
+            }
+
+            error.classList.remove('show');
+            userData.password = password;
+            openEyes();
+            setMascotEmotion('happy');
+            setTimeout(() => switchStep('signup-legal'), 500);
+        }
+
+        async function submitSignupLegal() {
+            const error = document.getElementById('signupLegalError');
+            const accept = document.getElementById('legalAccept');
+
+            if (legalDocs.some(doc => !legalRead.has(doc.id))) {
+                error.textContent = 'Откройте и прочитайте все документы';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            if (!accept.checked) {
+                error.textContent = 'Подтвердите согласие с документами';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            error.classList.remove('show');
+            userData.legalAccepted = true;
+
+            const btn = event?.target;
+            if (btn) {
+                btn.innerHTML = 'Отправляем код... <span class="loader"></span>';
+                btn.disabled = true;
+            }
+
+            try {
+                const data = await apiRequest('/register', {
+                    email: userData.email,
+                    password: userData.password,
+                    username: userData.username,
+                    name: userData.name,
+                    code: null,
+                });
+
+                if (!data || data.frozen) {
+                    return;
+                }
+
+                if (data.status === 'wait_code') {
+                    if (btn) {
+                        btn.innerHTML = 'Продолжить';
+                        btn.disabled = false;
+                    }
+                    switchStep('signup-code');
+                    return;
+                }
+
+                if (saveSessionFromResponse(data)) {
+                    showSuccess('Ваш аккаунт успешно создан.');
+                    return;
+                }
+
+                throw new Error('Неожиданный ответ сервера');
+            } catch (err) {
+                error.textContent = err.message || 'Ошибка регистрации';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+            } finally {
+                if (btn) {
+                    btn.innerHTML = 'Продолжить';
+                    btn.disabled = false;
+                }
+            }
+        }
+
+        async function submitSignupCode() {
+            const code = document.getElementById('signupCodeInput').value;
+            const error = document.getElementById('signupCodeError');
+            const btn = event?.target;
+
+            if (!code) {
+                error.textContent = 'Введите код';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            if (!/^\d{6}$/.test(code)) {
+                error.textContent = 'Код должен содержать 6 цифр';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            error.classList.remove('show');
+            if (btn) {
+                btn.innerHTML = 'Проверка кода... <span class="loader"></span>';
+                btn.disabled = true;
+            }
+
+            try {
+                const data = await apiRequest('/register', {
+                    email: userData.email,
+                    password: userData.password,
+                    username: userData.username,
+                    name: userData.name,
+                    code: code,
+                });
+
+                if (saveSessionFromResponse(data)) {
+                    showSuccess('Ваш аккаунт успешно создан.');
+                    return;
+                }
+
+                throw new Error('Не удалось подтвердить код');
+            } catch (err) {
+                error.textContent = err.message || 'Ошибка подтверждения';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+            } finally {
+                if (btn) {
+                    btn.innerHTML = 'Завершить регистрацию';
+                    btn.disabled = false;
+                }
+            }
+        }
+
+        function prevSignupStep() {
+            const steps = ['signup-email', 'signup-name', 'signup-password', 'signup-legal', 'signup-code'];
+            const currentIndex = steps.indexOf(currentStep);
+            if (currentIndex > 0) {
+                switchStep(steps[currentIndex - 1]);
+            }
+        }
+
+        function startLogin() {
+            mode = 'login';
+            switchStep('login-email');
+        }
+
+        function submitLoginEmail() {
+            const username = document.getElementById('loginEmailInput').value.trim();
+            const error = document.getElementById('loginEmailError');
+
+            if (!username) {
+                error.textContent = 'Введите имя пользователя';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            error.classList.remove('show');
+            userData.username = username;
+            document.getElementById('loginEmailDisplay').textContent = username;
+            setMascotEmotion('happy');
+            setTimeout(() => switchStep('login-password'), 500);
+        }
+
+        async function submitLoginPassword() {
+            const password = document.getElementById('loginPasswordInput').value;
+            const error = document.getElementById('loginPasswordError');
+            const btn = event?.target;
+
+            if (!password) {
+                error.textContent = 'Введите пароль';
+                error.classList.add('show');
+                return;
+            }
+
+            error.classList.remove('show');
+            openEyes();
+            if (btn) {
+                btn.innerHTML = 'Вход... <span class="loader"></span>';
+                btn.disabled = true;
+            }
+
+            try {
+                const loginId = (userData.username || document.getElementById('loginEmailInput').value.trim());
+                const form = new FormData();
+                form.append('username', loginId);
+                form.append('password', password);
+
+                let res;
+                try {
+                    res = await fetch(API_BASE + '/login', {
+                        method: 'POST',
+                        body: form
+                    });
+                } catch (fetchErr) {
+                    throw new Error('Не удалось соединиться с сервером');
+                }
+
+                let data = null;
+                let text = '';
+                try {
+                    data = await res.json();
+                } catch {
+                    try {
+                        text = await res.text();
+                    } catch {}
+                }
+
+                if (!res.ok) {
+                    const msg = (data && (data.detail || data.error)) || text || 'Ошибка входа';
+                    if (/account\s*frozen/i.test(msg)) {
+                        const reason = msg.split(':').slice(1).join(':').trim();
+                        showFrozen(reason);
+                        return;
+                    }
+                    throw new Error(msg);
+                }
+
+                if (!data || data.frozen) {
+                    return;
+                }
+
+                if (saveSessionFromResponse(data)) {
+                    showSuccess('С возвращением!');
+                    return;
+                }
+
+                throw new Error('Не удалось войти');
+            } catch (err) {
+                error.textContent = err.message || 'Ошибка входа';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+            } finally {
+                if (btn) {
+                    btn.innerHTML = 'Войти';
+                    btn.disabled = false;
+                }
+            }
+        }
+
+        function prevLoginStep() {
+            if (currentStep === 'login-password') {
+                switchStep('login-email');
+            }
+        }
+
+        function goToWelcome() {
+            mode = 'welcome';
+            switchStep('welcome');
+        }
+
+        function showFrozen(reason) {
+            const reasonText = reason && reason.trim() ? reason.trim() : 'Причина не указана';
+            const reasonEl = document.getElementById('frozenReason');
+            reasonEl.textContent = `Причина: ${reasonText}`;
+            mode = 'frozen';
+            switchStep('frozen');
+        }
+
+        function showSuccess(subtitle) {
+            document.getElementById('successSubtitle').textContent = subtitle + ' Сейчас мы перенаправим вас в мессенджер...';
+            switchStep('success');
+
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 2000);
+        }
+
+        function initLegalDocs() {
+            document.querySelectorAll('[data-legal-doc]').forEach(btn => {
+                btn.addEventListener('click', () => openLegalDoc(btn.dataset.legalDoc));
+            });
+
+            const close = document.getElementById('legalModalClose');
+            const cancel = document.getElementById('legalModalCancel');
+            close.addEventListener('click', closeLegalModal);
+            cancel.addEventListener('click', closeLegalModal);
+
+            const acceptBtn = document.getElementById('legalModalAccept');
+            acceptBtn.addEventListener('click', () => {
+                if (!activeLegalDoc) return;
+                legalRead.add(activeLegalDoc.id);
+                updateLegalUI();
+                closeLegalModal();
+            });
+
+            const modal = document.getElementById('legalModal');
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    closeLegalModal();
+                }
+            });
+        }
+
+        function escapeHtml(value) {
+            return value
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function renderLegalMarkdown(raw) {
+            const escaped = escapeHtml(raw || '');
+            const lines = escaped.split(/\r?\n/);
+            const out = [];
+            let inUl = false;
+            let inOl = false;
+
+            const closeLists = () => {
+                if (inUl) {
+                    out.push('</ul>');
+                    inUl = false;
+                }
+                if (inOl) {
+                    out.push('</ol>');
+                    inOl = false;
+                }
+            };
+
+            lines.forEach((line) => {
+                const trimmed = line.trim();
+                if (!trimmed) {
+                    closeLists();
+                    out.push('<p></p>');
+                    return;
+                }
+
+                if (/^---+$/.test(trimmed)) {
+                    closeLists();
+                    out.push('<hr>');
+                    return;
+                }
+
+                let match;
+                if ((match = /^###\s+(.*)/.exec(trimmed))) {
+                    closeLists();
+                    out.push(`<h3>${match[1]}</h3>`);
+                    return;
+                }
+                if ((match = /^##\s+(.*)/.exec(trimmed))) {
+                    closeLists();
+                    out.push(`<h2>${match[1]}</h2>`);
+                    return;
+                }
+                if ((match = /^#\s+(.*)/.exec(trimmed))) {
+                    closeLists();
+                    out.push(`<h1>${match[1]}</h1>`);
+                    return;
+                }
+                if ((match = /^\d+\.\s+(.*)/.exec(trimmed))) {
+                    if (!inOl) {
+                        closeLists();
+                        out.push('<ol>');
+                        inOl = true;
+                    }
+                    out.push(`<li>${match[1]}</li>`);
+                    return;
+                }
+                if ((match = /^[-*•]\s+(.*)/.exec(trimmed))) {
+                    if (!inUl) {
+                        closeLists();
+                        out.push('<ul>');
+                        inUl = true;
+                    }
+                    out.push(`<li>${match[1]}</li>`);
+                    return;
+                }
+
+                closeLists();
+                out.push(`<p>${trimmed}</p>`);
+            });
+
+            closeLists();
+
+            return out
+                .join('\n')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+        }
+
+        function openLegalDoc(docId) {
+            const doc = legalDocs.find(item => item.id === docId);
+            if (!doc) return;
+
+            activeLegalDoc = doc;
+            const modal = document.getElementById('legalModal');
+            const title = document.getElementById('legalModalTitle');
+            const content = document.getElementById('legalModalContent');
+            const acceptBtn = document.getElementById('legalModalAccept');
+
+            title.textContent = doc.title;
+            content.textContent = 'Загрузка...';
+            acceptBtn.disabled = true;
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+
+            fetch(`legal/${encodeURIComponent(doc.file)}`)
+                .then(res => res.text())
+                .then(text => {
+                    const markup = renderLegalMarkdown(text || 'Документ пуст');
+                    content.innerHTML = markup;
+                    requestAnimationFrame(() => {
+                        content.scrollTop = 0;
+                        checkLegalScroll();
+                    });
+                })
+                .catch(() => {
+                    content.textContent = 'Не удалось загрузить документ';
+                });
+
+            function checkLegalScroll() {
+                const threshold = 12;
+                if (content.scrollTop + content.clientHeight >= content.scrollHeight - threshold) {
+                    acceptBtn.disabled = false;
+                }
+            }
+
+            content.onscroll = checkLegalScroll;
+        }
+
+        function closeLegalModal() {
+            const modal = document.getElementById('legalModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        function updateLegalUI() {
+            legalDocs.forEach(doc => {
+                const item = document.getElementById(`legalItem-${doc.id}`);
+                const status = document.getElementById(`legalStatus-${doc.id}`);
+                if (!item || !status) return;
+                const isRead = legalRead.has(doc.id);
+                item.classList.toggle('read', isRead);
+                status.textContent = isRead ? 'Прочитано' : 'Не прочитано';
+            });
+
+            const accept = document.getElementById('legalAccept');
+            const allRead = legalDocs.every(doc => legalRead.has(doc.id));
+            accept.disabled = !allRead;
+            if (!allRead) {
+                accept.checked = false;
+            }
+        }
+
+        function openForgotPassword() {
+            const modal = document.getElementById('forgotModal');
+            if (modal) modal.classList.add('show');
+        }
+
+        function closeForgotPassword() {
+            const modal = document.getElementById('forgotModal');
+            if (modal) modal.classList.remove('show');
+        }
+
+        document.getElementById('forgotClose')?.addEventListener('click', closeForgotPassword);
+        document.getElementById('forgotCancel')?.addEventListener('click', closeForgotPassword);
+
+        setMascotEmotion('happy');
+        updateStepIndicator();
+        initLegalDocs();
+    </script>
+
+
+</body>
+</html>

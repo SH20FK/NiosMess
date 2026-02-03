@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NiosMess - Добро пожаловать</title>
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #0e1621;
+            --bg-secondary: #17212b;
+            --accent: #5288c1;
+            --accent-hover: #6a9dd4;
+            --text-primary: #ffffff;
+            --text-secondary: #8b98a8;
+            --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: "Inter", -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0e1621 0%, #1a2332 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .particles {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(82, 136, 193, 0.3);
+            border-radius: 50%;
+            animation: float-particle 20s infinite;
+        }
+
+        @keyframes float-particle {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) translateX(50px); opacity: 0; }
+        }
+
+        .onboarding-container {
+            width: 100%;
+            max-width: 440px;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .mascot {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 40px;
+            position: relative;
+            transition: all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            animation: float-mascot 3s ease-in-out infinite;
+        }
+
+        @keyframes float-mascot {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .mascot.happy { animation: happy-bounce 0.6s ease; }
+
+        @keyframes happy-bounce {
+            0%, 100% { transform: scale(1) translateY(0); }
+            25% { transform: scale(1.15) translateY(-20px); }
+            50% { transform: scale(0.95) translateY(-5px); }
+            75% { transform: scale(1.05) translateY(-10px); }
+        }
+
+        .mascot.thinking { animation: think-sway 2s ease-in-out infinite; }
+
+        @keyframes think-sway {
+            0%, 100% { transform: rotate(0deg) translateY(0); }
+            25% { transform: rotate(-3deg) translateY(-5px); }
+            75% { transform: rotate(3deg) translateY(-5px); }
+        }
+
+        .mascot.password-mode { animation: shy-wiggle 0.5s ease; }
+
+        @keyframes shy-wiggle {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .mascot.sad { animation: sad-droop 1s ease; }
+
+        @keyframes sad-droop {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(10px); }
+        }
+
+        .fox-head {
+            width: 130px;
+            height: 130px;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border-radius: 50% 50% 48% 48%;
+            position: relative;
+            margin: 0 auto;
+            box-shadow: 0 20px 60px rgba(255, 107, 53, 0.4);
+            animation: head-tilt 4s ease-in-out infinite;
+        }
+
+        @keyframes head-tilt {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-2deg); }
+            75% { transform: rotate(2deg); }
+        }
+
+        .fox-ear {
+            width: 45px;
+            height: 65px;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border-radius: 80% 20% 0 0;
+            position: absolute;
+            top: -28px;
+            transition: all 0.3s ease;
+            animation: ear-wiggle 3s ease-in-out infinite;
+        }
+
+        @keyframes ear-wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(-5deg); }
+        }
+
+        .fox-ear.left { left: 8px; transform-origin: bottom center; animation-delay: 0s; }
+        .fox-ear.right { right: 8px; transform-origin: bottom center; animation-delay: 1.5s; }
+        .fox-ear:hover { transform: rotate(-15deg) scale(1.05); }
+
+        .ear-inner {
+            width: 22px;
+            height: 32px;
+            background: linear-gradient(135deg, #ffc09f 0%, #ffb88c 100%);
+            border-radius: 80% 20% 0 0;
+            position: absolute;
+            top: 10px;
+            left: 12px;
+        }
+
+        .fox-eyes {
+            display: flex;
+            justify-content: space-between;
+            width: 75px;
+            margin: 38px auto 0;
+            position: relative;
+            z-index: 10;
+        }
+
+        .fox-eye {
+            width: 30px;
+            height: 30px;
+            background: white;
+            border-radius: 50%;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .fox-eye::after {
+            content: "";
+            width: 15px;
+            height: 15px;
+            background: #1a1a1a;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .fox-eye::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 25%;
+            left: 30%;
+            z-index: 10;
+            opacity: 0.8;
+        }
+
+        .fox-eyes.blinking .fox-eye { animation: realistic-blink 4s infinite; }
+
+        @keyframes realistic-blink {
+            0%, 96%, 100% { height: 30px; transform: scaleY(1); }
+            98% { height: 3px; transform: scaleY(0.1); }
+        }
+
+        .fox-eyes.closed .fox-eye {
+            height: 4px;
+            background: #ff8c5a;
+            border-radius: 50% 50% 0 0;
+            animation: none;
+            transform: scaleY(0.15);
+        }
+
+        .fox-eyes.closed .fox-eye::after,
+        .fox-eyes.closed .fox-eye::before { display: none; }
+
+        .fox-eyes.surprised .fox-eye {
+            width: 35px;
+            height: 35px;
+            animation: none;
+        }
+
+        .fox-eyes.surprised .fox-eye::after {
+            width: 18px;
+            height: 18px;
+        }
+
+        .fox-eyes.happy .fox-eye {
+            height: 8px;
+            border-radius: 50% 50% 0 0;
+            animation: none;
+        }
+
+        .fox-eyes.tracking .fox-eye::after { animation: eye-track 3s ease-in-out infinite; }
+
+        @keyframes eye-track {
+            0%, 100% { transform: translate(-50%, -50%); }
+            25% { transform: translate(-65%, -50%); }
+            75% { transform: translate(-35%, -50%); }
+        }
+
+        .fox-nose {
+            width: 18px;
+            height: 14px;
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            margin: 12px auto 0;
+            position: relative;
+            animation: nose-twitch 3s ease-in-out infinite;
+        }
+
+        @keyframes nose-twitch {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .fox-mouth {
+            width: 45px;
+            height: 22px;
+            border: 3px solid #1a1a1a;
+            border-top: none;
+            border-radius: 0 0 50% 50%;
+            margin: 6px auto 0;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .mascot.happy .fox-mouth {
+            width: 60px;
+            height: 30px;
+            animation: smile-wide 0.6s ease;
+        }
+
+        @keyframes smile-wide {
+            0% { width: 45px; }
+            50% { width: 65px; }
+            100% { width: 60px; }
+        }
+
+        .mascot.sad .fox-mouth {
+            width: 40px;
+            height: 18px;
+            border-radius: 50% 50% 0 0;
+            border-top: 3px solid #1a1a1a;
+            border-bottom: none;
+            margin-top: 10px;
+        }
+
+        .fox-cheek {
+            width: 20px;
+            height: 15px;
+            background: rgba(255, 107, 53, 0.3);
+            border-radius: 50%;
+            position: absolute;
+            bottom: 35px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            filter: blur(3px);
+        }
+
+        .fox-cheek.left { left: 15px; }
+        .fox-cheek.right { right: 15px; }
+
+        .mascot.happy .fox-cheek,
+        .mascot.password-mode .fox-cheek {
+            opacity: 0.6;
+            animation: blush 2s ease-in-out infinite;
+        }
+
+        @keyframes blush {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+
+        .sparkle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .mascot.happy .sparkle { animation: sparkle-pop 0.8s ease-out; }
+
+        @keyframes sparkle-pop {
+            0% { opacity: 0; transform: scale(0) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1.5) rotate(180deg); }
+            100% { opacity: 0; transform: scale(0) rotate(360deg); }
+        }
+
+        .sparkle:nth-child(1) { top: -10px; left: -10px; animation-delay: 0s; }
+        .sparkle:nth-child(2) { top: -10px; right: -10px; animation-delay: 0.1s; }
+        .sparkle:nth-child(3) { top: 50%; right: -15px; animation-delay: 0.2s; }
+        .sparkle:nth-child(4) { bottom: -10px; right: -10px; animation-delay: 0.3s; }
+        .sparkle:nth-child(5) { bottom: -10px; left: -10px; animation-delay: 0.4s; }
+        .sparkle:nth-child(6) { top: 50%; left: -15px; animation-delay: 0.5s; }
+
+        .onboarding-content {
+            background: rgba(23, 33, 43, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .step {
+            display: none;
+            animation: fadeInUp 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .step.active { display: block; }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 30px;
+        }
+
+        .step-dot {
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .step-dot.active {
+            width: 32px;
+            border-radius: 4px;
+            background: var(--accent);
+            box-shadow: 0 4px 12px rgba(82, 136, 193, 0.4);
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        .input-group { margin-bottom: 20px; }
+
+        .input-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input {
+            width: 100%;
+            padding: 16px 18px;
+            background: rgba(30, 39, 50, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: inherit;
+            transition: all var(--transition);
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(36, 47, 61, 0.9);
+            box-shadow: 0 0 0 4px rgba(82, 136, 193, 0.1);
+            transform: translateY(-2px);
+        }
+
+        input::placeholder { color: rgba(139, 152, 168, 0.5); }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition);
+            position: relative;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before { left: 100%; }
+        .btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(82, 136, 193, 0.4);
+        }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-group { display: flex; gap: 12px; margin-top: 20px; }
+        .btn-back { flex: 0 0 auto; width: 50px; padding: 16px; }
+        .btn-next { flex: 1; }
+
+        .error-message {
+            padding: 12px;
+            background: rgba(248, 113, 113, 0.15);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            border-radius: 10px;
+            color: #f87171;
+            font-size: 14px;
+            margin-top: 16px;
+            display: none;
+            animation: shake 0.5s ease;
+        }
+
+        .error-message.show { display: block; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+            20%, 40%, 60%, 80% { transform: translateX(8px); }
+        }
+
+        .success-checkmark {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            animation: checkmark-pop 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 10px 40px rgba(34, 197, 94, 0.4);
+        }
+
+        @keyframes checkmark-pop {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+            50% { transform: scale(1.2) rotate(10deg); }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
+        }
+
+        .loader {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: inline-block;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .link-text {
+            color: var(--accent);
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .link-text:hover {
+            color: var(--accent-hover);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+
+    <div class="onboarding-container">
+        <div class="mascot" id="mascot">
+            <div class="sparkle">✨</div>
+            <div class="sparkle">✨</div>
+            <div class="sparkle">✨</div>
+            <div class="sparkle">✨</div>
+            <div class="sparkle">✨</div>
+            <div class="sparkle">✨</div>
+
+            <div class="fox-head">
+                <div class="fox-ear left"><div class="ear-inner"></div></div>
+                <div class="fox-ear right"><div class="ear-inner"></div></div>
+                <div class="fox-cheek left"></div>
+                <div class="fox-cheek right"></div>
+                <div class="fox-eyes blinking" id="foxEyes">
+                    <div class="fox-eye"></div>
+                    <div class="fox-eye"></div>
+                </div>
+                <div class="fox-nose"></div>
+                <div class="fox-mouth"></div>
+            </div>
+        </div>
+
+        <div class="onboarding-content">
+            <div class="step-indicator" id="stepIndicator">
+                <div class="step-dot active"></div>
+            </div>
+
+            <div class="step active" data-step="welcome">
+                <h1>Добро пожаловать в NiosMess! 💬</h1>
+                <p class="subtitle">Современный мессенджер с красивым дизайном и мощными возможностями</p>
+                <button class="btn" onclick="startSignup()">Создать аккаунт</button>
+                <button class="btn btn-secondary" onclick="startLogin()">У меня есть аккаунт</button>
+            </div>
+
+            <div class="step" data-step="signup-email">
+                <h1>Ваш Email</h1>
+                <p class="subtitle">Мы отправим код подтверждения на вашу почту</p>
+                <div class="input-group">
+                    <label class="input-label">Email адрес</label>
+                    <input type="email" id="signupEmailInput" placeholder="example@mail.com">
+                </div>
+                <div class="error-message" id="signupEmailError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="goToWelcome()">←</button>
+                    <button class="btn btn-next" onclick="submitSignupEmail()">Продолжить</button>
+                </div>
+            </div>
+
+            <div class="step" data-step="signup-name">
+                <h1>Как вас зовут?</h1>
+                <p class="subtitle">Ваше имя будут видеть другие пользователи</p>
+                <div class="input-group">
+                    <label class="input-label">Ваше имя</label>
+                    <input type="text" id="nameInput" placeholder="Александр">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Имя пользователя (username)</label>
+                    <input type="text" id="usernameInput" placeholder="alexander_89">
+                </div>
+                <div class="error-message" id="nameError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="prevSignupStep()">←</button>
+                    <button class="btn btn-next" onclick="submitName()">Продолжить</button>
+                </div>
+            </div>
+
+            <div class="step" data-step="signup-password">
+                <h1>Придумайте пароль</h1>
+                <p class="subtitle">Минимум 6 символов для безопасности</p>
+                <div class="input-group">
+                    <label class="input-label">Пароль</label>
+                    <input type="password" id="signupPasswordInput" placeholder="••••••••" onfocus="closeEyes()" onblur="openEyes()">
+                </div>
+                <div class="error-message" id="signupPasswordError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="prevSignupStep()">←</button>
+                    <button class="btn btn-next" onclick="submitSignupPassword()">Продолжить</button>
+                </div>
+            </div>
+
+            <div class="step" data-step="signup-code">
+                <h1>Введите код</h1>
+                <p class="subtitle">Мы отправили 6-значный код на <strong id="emailDisplay"></strong></p>
+                <div class="input-group">
+                    <label class="input-label">Код подтверждения</label>
+                    <input type="text" id="signupCodeInput" placeholder="123456" maxlength="6">
+                </div>
+                <div class="error-message" id="signupCodeError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="prevSignupStep()">←</button>
+                    <button class="btn btn-next" onclick="submitSignupCode()">Завершить регистрацию</button>
+                </div>
+            </div>
+
+            <div class="step" data-step="login-email">
+                <h1>Вход в аккаунт</h1>
+                <p class="subtitle">Введите ваш email для входа</p>
+                <div class="input-group">
+                    <label class="input-label">Email адрес</label>
+                    <input type="email" id="loginEmailInput" placeholder="example@mail.com">
+                </div>
+                <div class="error-message" id="loginEmailError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="goToWelcome()">←</button>
+                    <button class="btn btn-next" onclick="submitLoginEmail()">Продолжить</button>
+                </div>
+                <p class="subtitle" style="margin-top: 20px; margin-bottom: 0;">
+                    Нет аккаунта? <span class="link-text" onclick="startSignup()">Зарегистрироваться</span>
+                </p>
+            </div>
+
+            <div class="step" data-step="login-password">
+                <h1>Введите пароль</h1>
+                <p class="subtitle">Пароль для <strong id="loginEmailDisplay"></strong></p>
+                <div class="input-group">
+                    <label class="input-label">Пароль</label>
+                    <input type="password" id="loginPasswordInput" placeholder="••••••••" onfocus="closeEyes()" onblur="openEyes()">
+                </div>
+                <div class="error-message" id="loginPasswordError"></div>
+                <div class="btn-group">
+                    <button class="btn btn-back btn-secondary" onclick="prevLoginStep()">←</button>
+                    <button class="btn btn-next" onclick="submitLoginPassword()">Войти</button>
+                </div>
+                <p class="subtitle" style="margin-top: 20px; margin-bottom: 0;">
+                    <span class="link-text" onclick="alert('Функция восстановления пароля')">Забыли пароль?</span>
+                </p>
+            </div>
+
+            <div class="step" data-step="success">
+                <div class="success-checkmark">✓</div>
+                <h1 id="successTitle">Добро пожаловать!</h1>
+                <p class="subtitle" id="successSubtitle">Сейчас мы перенаправим вас в мессенджер...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_API = "http://144.31.1.79:27580";
+
+        let mode = 'welcome';
+        let currentStep = '';
+        const userData = {};
+
+        function createParticles() {
+            const particles = document.getElementById('particles');
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+                particles.appendChild(particle);
+            }
+        }
+
+        createParticles();
+
+        function switchStep(stepName) {
+            document.querySelectorAll('.step').forEach(step => step.classList.remove('active'));
+            const step = document.querySelector('[data-step="' + stepName + '"]');
+            if (step) {
+                step.classList.add('active');
+                currentStep = stepName;
+                updateMascotEmotion();
+                updateStepIndicator();
+            }
+        }
+
+        function updateStepIndicator() {
+            const indicator = document.getElementById('stepIndicator');
+            indicator.innerHTML = '';
+
+            let steps = [];
+            if (mode === 'signup') {
+                steps = ['signup-email', 'signup-name', 'signup-password', 'signup-code'];
+            } else if (mode === 'login') {
+                steps = ['login-email', 'login-password'];
+            } else {
+                steps = ['welcome'];
+            }
+
+            const currentIndex = steps.indexOf(currentStep);
+            steps.forEach((step, index) => {
+                const dot = document.createElement('div');
+                dot.className = 'step-dot';
+                if (index === currentIndex) dot.classList.add('active');
+                indicator.appendChild(dot);
+            });
+        }
+
+        function setMascotEmotion(emotion) {
+            const mascot = document.getElementById('mascot');
+            const eyes = document.getElementById('foxEyes');
+            mascot.className = 'mascot ' + emotion;
+            eyes.className = 'fox-eyes';
+
+            switch(emotion) {
+                case 'happy': eyes.classList.add('happy'); break;
+                case 'thinking': eyes.classList.add('tracking'); break;
+                case 'surprised': eyes.classList.add('surprised'); break;
+                case 'sad': break;
+                default: eyes.classList.add('blinking');
+            }
+        }
+
+        function updateMascotEmotion() {
+            if (currentStep === 'welcome' || currentStep === 'success') {
+                setMascotEmotion('happy');
+            } else if (currentStep.includes('email') || currentStep.includes('name')) {
+                setMascotEmotion('thinking');
+            } else if (currentStep.includes('code')) {
+                setMascotEmotion('surprised');
+            } else {
+                setMascotEmotion('default');
+            }
+        }
+
+        function closeEyes() {
+            const mascot = document.getElementById('mascot');
+            const eyes = document.getElementById('foxEyes');
+            mascot.classList.add('password-mode');
+            eyes.classList.add('closed');
+            eyes.classList.remove('blinking', 'tracking', 'surprised', 'happy');
+        }
+
+        function openEyes() {
+            const mascot = document.getElementById('mascot');
+            const eyes = document.getElementById('foxEyes');
+            mascot.classList.remove('password-mode');
+            eyes.classList.remove('closed');
+            setTimeout(() => eyes.classList.add('blinking'), 300);
+        }
+
+        function startSignup() {
+            mode = 'signup';
+            switchStep('signup-email');
+        }
+
+        function submitSignupEmail() {
+            const email = document.getElementById('signupEmailInput').value.trim();
+            const error = document.getElementById('signupEmailError');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (!email) {
+                error.textContent = 'Введите email';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            if (!emailRegex.test(email)) {
+                error.textContent = 'Введите корректный email';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            error.classList.remove('show');
+            userData.email = email;
+            document.getElementById('emailDisplay').textContent = email;
+            setMascotEmotion('happy');
+            setTimeout(() => switchStep('signup-name'), 500);
+        }
+
+        function submitName() {
+            const name = document.getElementById('nameInput').value.trim();
+            const username = document.getElementById('usernameInput').value.trim();
+            const error = document.getElementById('nameError');
+            const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+
+            if (!name || !username) {
+                error.textContent = 'Заполните все поля';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            if (name.length < 2) {
+                error.textContent = 'Имя должно быть не менее 2 символов';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            if (!usernameRegex.test(username)) {
+                error.textContent = 'Username: 3-20 символов, только латиница, цифры и _';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            error.classList.remove('show');
+            userData.name = name;
+            userData.username = username;
+            setMascotEmotion('happy');
+            setTimeout(() => switchStep('signup-password'), 500);
+        }
+
+        function submitSignupPassword() {
+            const password = document.getElementById('signupPasswordInput').value;
+            const error = document.getElementById('signupPasswordError');
+
+            if (!password) {
+                error.textContent = 'Введите пароль';
+                error.classList.add('show');
+                return;
+            }
+
+            if (password.length < 6) {
+                error.textContent = 'Пароль должен быть не менее 6 символов';
+                error.classList.add('show');
+                return;
+            }
+
+            error.classList.remove('show');
+            userData.password = password;
+            openEyes();
+            setMascotEmotion('happy');
+            setTimeout(() => switchStep('signup-code'), 500);
+        }
+
+        async function submitSignupCode() {
+            const code = document.getElementById('signupCodeInput').value;
+            const error = document.getElementById('signupCodeError');
+            const btn = event.target;
+
+            if (!code) {
+                error.textContent = 'Введите код';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            if (!/^\d{6}$/.test(code)) {
+                error.textContent = 'Код должен содержать 6 цифр';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            error.classList.remove('show');
+            btn.innerHTML = 'Проверка кода... <span class="loader"></span>';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${DEFAULT_API}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: userData.email,
+                        password: userData.password,
+                        username: userData.username,
+                        name: userData.name,
+                        code: code
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.token) {
+                    localStorage.setItem('niosmess_session', JSON.stringify({
+                        token: data.token,
+                        username: userData.username
+                    }));
+
+                    userData.code = code;
+                    console.log('✅ Регистрация завершена:', userData);
+                    showSuccess('Ваш аккаунт успешно создан.');
+                } else {
+                    throw new Error(data.detail || data.error || 'Ошибка регистрации');
+                }
+            } catch (err) {
+                error.textContent = err.message;
+                error.classList.add('show');
+                btn.innerHTML = 'Завершить регистрацию';
+                btn.disabled = false;
+                setMascotEmotion('sad');
+            }
+        }
+
+        function prevSignupStep() {
+            const steps = ['signup-email', 'signup-name', 'signup-password', 'signup-code'];
+            const currentIndex = steps.indexOf(currentStep);
+            if (currentIndex > 0) {
+                switchStep(steps[currentIndex - 1]);
+            }
+        }
+
+        function startLogin() {
+            mode = 'login';
+            switchStep('login-email');
+        }
+
+        function submitLoginEmail() {
+            const email = document.getElementById('loginEmailInput').value.trim();
+            const error = document.getElementById('loginEmailError');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (!email) {
+                error.textContent = 'Введите email';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            if (!emailRegex.test(email)) {
+                error.textContent = 'Введите корректный email';
+                error.classList.add('show');
+                setMascotEmotion('sad');
+                return;
+            }
+
+            error.classList.remove('show');
+            userData.email = email;
+            document.getElementById('loginEmailDisplay').textContent = email;
+            setMascotEmotion('happy');
+            setTimeout(() => switchStep('login-password'), 500);
+        }
+
+        async function submitLoginPassword() {
+            const password = document.getElementById('loginPasswordInput').value;
+            const error = document.getElementById('loginPasswordError');
+            const btn = event.target;
+
+            if (!password) {
+                error.textContent = 'Введите пароль';
+                error.classList.add('show');
+                return;
+            }
+
+            error.classList.remove('show');
+            openEyes();
+            btn.innerHTML = 'Вход... <span class="loader"></span>';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${DEFAULT_API}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: userData.email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.token) {
+                    localStorage.setItem('niosmess_session', JSON.stringify({
+                        token: data.token,
+                        username: data.username
+                    }));
+
+                    userData.password = password;
+                    console.log('✅ Вход выполнен:', userData);
+                    showSuccess('С возвращением!');
+                } else {
+                    throw new Error(data.detail || data.error || 'Неверный email или пароль');
+                }
+            } catch (err) {
+                error.textContent = err.message;
+                error.classList.add('show');
+                btn.innerHTML = 'Войти';
+                btn.disabled = false;
+                setMascotEmotion('sad');
+            }
+        }
+
+        function prevLoginStep() {
+            if (currentStep === 'login-password') {
+                switchStep('login-email');
+            }
+        }
+
+        function goToWelcome() {
+            mode = 'welcome';
+            switchStep('welcome');
+        }
+
+        function showSuccess(subtitle) {
+            document.getElementById('successSubtitle').textContent = subtitle + ' Сейчас мы перенаправим вас в мессенджер...';
+            switchStep('success');
+
+            console.log('🔄 РЕДИРЕКТ через 2 секунды...');
+
+            setTimeout(() => {
+                console.log('🚀 ВЫПОЛНЯЮ РЕДИРЕКТ НА index.html');
+                window.location.href = 'index.html';
+            }, 2000);
+        }
+
+        setMascotEmotion('happy');
+        updateStepIndicator();
+    </script>
+</body>
+</html>

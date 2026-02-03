@@ -1,0 +1,106 @@
+{
+  "nav": {
+    "logo": "NiosMess",
+    "title": "NiosMess",
+    "description": "Fast and private messenger for friends, teams, and communities.",
+    "team": "Team",
+    "features": "Features",
+    "download": "Download",
+    "privacy": "Privacy",
+    "source": "GitHub",
+    "chats": "Community",
+    "credits": {
+      "dev": "Built by",
+      "design": "Design"
+    }
+  },
+  "home": {
+    "eyebrow": "Next?gen messenger",
+    "title": "NiosMess",
+    "description": "Lightweight, fast, and beautiful messenger with groups, channels, media, and themes.",
+    "openWeb": "Open web app",
+    "webHref": "https://web.sa2rn.fun",
+    "phone": {
+      "phone": "NiosMess on mobile",
+      "emojis": "Emoji panel and quick reactions",
+      "update": "Updates and improvements",
+      "speed": "Fast media sharing",
+      "icons": "Icons and themes",
+      "settings": "Flexible settings"
+    },
+    "features": {
+      "title": "Core features",
+      "description": "Everything you need for comfortable chats and team work.",
+      "settings": "Flexible\nsettings",
+      "music": "Media\nand voice",
+      "customization": "Themes\nand personalization",
+      "more": "More\nfeatures",
+      "button": "See more"
+    },
+    "more": {
+      "title": "Features you will actually use",
+      "description": "We keep polishing NiosMess to feel fast, clean, and friendly.",
+      "theme": {
+        "title": "Themes you like",
+        "description": "Pick the look that fits your mood: dark, light, and colorful palettes.",
+        "note": "*in progress",
+        "alt": "Themes preview"
+      },
+      "ui": {
+        "title": "Clean interface",
+        "description": "Minimal UI, readable messages, and comfortable spacing.",
+        "alt": "NiosMess interface"
+      },
+      "design": {
+        "title": "Modern design",
+        "description": "Soft shadows, tidy cards, and subtle accents without clutter.",
+        "alt": "NiosMess design"
+      },
+      "speed": {
+        "title": "Fast sharing",
+        "description": "Send photos, videos, and files with instant previews.",
+        "alt": "Sharing speed"
+      },
+      "camera": {
+        "title": "Photo and video",
+        "description": "Convenient media sending and previews for everyday moments.",
+        "alt": "Chat media"
+      },
+      "download": "Download"
+    },
+    "team": {
+      "title": "NiosMess team",
+      "contact": "Contact",
+      "roles": {
+        "ceo": "Founder",
+        "leadDev": "Lead developer",
+        "dev": "Developer",
+        "leadDesigner": "Lead designer",
+        "designer": "Designer",
+        "founder": "Founder",
+        "web": "Web developer",
+        "python": "Backend developer",
+        "themer": "Theme designer",
+        "moe": "Developer"
+      }
+    },
+    "download": {
+      "title": "Download NiosMess",
+      "store": "Get it on",
+      "file": "Download",
+      "link": "Open",
+      "unavailable": "Coming to"
+    }
+  },
+  "errors": {
+    "notFound": {
+      "description": "This page does not exist. Try going back home.",
+      "button": "Back home"
+    }
+  },
+  "meta": {
+    "fullTitle": "NiosMess — fast and private messenger",
+    "title": "NiosMess",
+    "description": "Messenger for personal chats, groups, and channels with modern design."
+  }
+}

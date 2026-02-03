@@ -1,0 +1,1077 @@
+<!doctype html>
+<html lang="ru" data-theme="dark" data-accent="blue">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NiosMess</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    
+    <div id="loadingOverlay" class="loading-overlay is-hidden">
+        <div class="spinner"></div>
+        <div class="upload-progress hidden" id="uploadProgress">
+            <div class="upload-title" id="uploadTitle">&#1047;&#1072;&#1075;&#1088;&#1091;&#1079;&#1082;&#1072; &#1092;&#1072;&#1081;&#1083;&#1072;</div>
+            <div class="upload-name" id="uploadName"></div>
+            <div class="upload-bar">
+                <div class="upload-bar-fill" id="uploadProgressBar"></div>
+            </div>
+            <div class="upload-meta">
+                <span id="uploadProgressPercent">0%</span>
+                <span id="uploadProgressBytes">0 / 0</span>
+            </div>
+        </div>
+    </div>
+
+    
+    <div id="dropZone" class="drop-zone hidden">
+        <div class="drop-zone-content">
+            <div class="drop-icon">📎</div>
+            <div>Отпустите для загрузки</div>
+        </div>
+    </div>
+
+    
+    <div id="contextMenu" class="context-menu hidden">
+        <button class="context-item" id="ctxCopy">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <span>Копировать</span>
+        </button>
+        <button class="context-item" id="ctxReply">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M9 14l-4-4 4-4M5 10h11a4 4 0 014 4v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Ответить</span>
+        </button>
+        <button class="context-item" id="ctxForward">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M15 7l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M20 12H9a5 5 0 00-5 5v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Переслать</span>
+        </button>
+        
+        <button class="context-item" id="ctxEdit">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>&#1056;&#1077;&#1076;&#1072;&#1082;&#1090;&#1080;&#1088;&#1086;&#1074;&#1072;&#1090;&#1100;</span>
+        </button>
+        <div class="context-reactions" id="ctxReactions">
+            <button class="context-reaction" data-emoji="&#128077;">&#128077;</button>
+            <button class="context-reaction" data-emoji="&#10084;&#65039;">&#10084;&#65039;</button>
+            <button class="context-reaction" data-emoji="&#128514;">&#128514;</button>
+            <button class="context-reaction" data-emoji="&#128558;">&#128558;</button>
+            <button class="context-reaction" data-emoji="&#128546;">&#128546;</button>
+            <button class="context-reaction" data-emoji="&#128545;">&#128545;</button>
+        </div>
+<button class="context-item" id="ctxFavorite">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <span>Избранное</span>
+        </button>
+        <button class="context-item" id="ctxPin">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M14 4l6 6-3 1-2 5-4-4-5 2 1-3-6-6 3-1 5-2 5 4 1-3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+            <span>Закрепить сообщение</span>
+        </button>
+        <button class="context-item hidden" id="ctxScheduleCancel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                <path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Отменить отправку</span>
+        </button>
+        <div class="context-divider"></div>
+        <button class="context-item" id="ctxBold">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M6 4h8a4 4 0 014 4 4 4 0 01-4 4H6zM6 12h9a4 4 0 014 4 4 4 0 01-4 4H6z" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <span>Жирный</span>
+        </button>
+        <button class="context-item" id="ctxItalic">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M19 4h-9M14 20H5M15 4L9 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Курсив</span>
+        </button>
+        <button class="context-item" id="ctxCode">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M16 18l6-6-6-6M8 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Код</span>
+        </button>
+        <div class="context-divider"></div>
+        
+        <button class="context-item danger" id="ctxDelete">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>&#1059;&#1076;&#1072;&#1083;&#1080;&#1090;&#1100; &#1091; &#1084;&#1077;&#1085;&#1103;</span>
+        </button>
+        <button class="context-item danger" id="ctxDeleteAll">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M9 10l6 6M15 10l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>&#1059;&#1076;&#1072;&#1083;&#1080;&#1090;&#1100; &#1091; &#1074;&#1089;&#1077;&#1093;</span>
+        </button>
+</div>
+
+    <div id="chatContextMenu" class="chat-context-menu hidden">
+        <button class="chat-context-item danger" id="chatCtxDelete">
+            Удалить чат
+        </button>
+    </div>
+
+    
+    <div id="emojiPicker" class="emoji-picker hidden">
+        <div class="emoji-header">
+            <input id="emojiSearch" type="text" placeholder="Поиск эмодзи..." />
+        </div>
+        <div class="emoji-grid" id="emojiGrid"></div>
+    </div>
+
+    <div class="app">
+        
+        <div id="appView" class="main-view">
+            
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <button class="menu-btn" id="menuBtn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <div class="search-box">
+                        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                            <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <input id="searchInput" type="text" placeholder="Поиск" />
+                        <button id="clearSearch" class="clear-btn hidden">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div id="chatList" class="chat-list">
+                    <div class="skeleton-item"></div>
+                    <div class="skeleton-item"></div>
+                    <div class="skeleton-item"></div>
+                </div>
+                <div id="chatEmpty" class="empty-state hidden">
+                    <div class="empty-icon">💬</div>
+                    <div>Нет чатов</div>
+                </div>
+            </aside>
+
+            
+            <main class="chat-area">
+                <div class="chat-header">
+                    <button class="icon-btn mobile-back" id="mobileBackBtn" title="Назад">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <div class="chat-info">
+                        <div class="chat-avatar" id="chatAvatar">?</div>
+                        <div class="chat-details">
+                            <div class="chat-name" id="chatTitle">Выберите чат</div>
+                            <div class="chat-status" id="chatSubtitle"></div>
+                        </div>
+                    </div>
+                    <div class="chat-actions">
+                        <button class="icon-btn" id="pinChatBtn" disabled title="&#1047;&#1072;&#1082;&#1088;&#1077;&#1087;&#1080;&#1090;&#1100; &#1095;&#1072;&#1090;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                                <path d="M14 4l6 6-3 1-2 5-4-4-5 2 1-3-6-6 3-1 5-2 5 4 1-3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <button class="icon-btn" id="searchMessagesBtn" disabled title="Поиск">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                                <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                        <button class="icon-btn" id="mediaGalleryBtn" disabled title="&#1052;&#1077;&#1076;&#1080;&#1072;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+                                <path d="M8 11l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+
+                        <button class="icon-btn" id="profileBtn" disabled title="Профиль">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+                                <path d="M5 20c0-4 3-7 7-7s7 3 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                        <button class="icon-btn" id="inviteBtn" disabled title="&#1055;&#1088;&#1080;&#1075;&#1083;&#1072;&#1089;&#1080;&#1090;&#1100;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M16 19v-2a4 4 0 0 0-4-4H5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
+                                <path d="M20 8v6M23 11h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="messageSearchBar" class="message-search hidden">
+                    <div class="message-search-input">
+                        <input id="messageSearchInput" type="text" placeholder="Поиск в чате..." />
+                        <button class="message-search-clear" id="messageSearchClear" title="Очистить">x</button>
+                    </div>
+                    <div class="message-search-actions">
+                        <span id="messageSearchCount">0/0</span>
+                        <button class="icon-btn" id="messageSearchPrev" title="Предыдущее">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M18 15l-6-6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <button class="icon-btn" id="messageSearchNext" title="Следующее">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <button class="icon-btn" id="messageSearchClose" title="Закрыть">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="pinnedBar" class="pinned-bar hidden">
+                    <div class="pinned-content">
+                        <div class="pinned-label">&#1047;&#1072;&#1082;&#1088;&#1077;&#1087;&#1083;&#1077;&#1085;&#1085;&#1086;&#1077; &#1089;&#1086;&#1086;&#1073;&#1097;&#1077;&#1085;&#1080;&#1077;</div>
+                        <div class="pinned-text" id="pinnedText"></div>
+                    </div>
+                    <button class="icon-btn pinned-close" id="pinnedClose" title="&#1054;&#1090;&#1082;&#1088;&#1077;&#1087;&#1080;&#1090;&#1100;">&times;</button>
+                </div>
+
+                <div class="messages-container">
+                    <div id="messageList" class="message-list"></div>
+                    <div id="messagesEmpty" class="empty-chat-state">
+                        <img src="https://i.imgur.com/4K0Huki.png" alt="Empty" class="empty-chat-image" />
+                        <div class="empty-chat-title" id="messagesEmptyTitle">Выберите чат</div>
+                        <div class="empty-chat-subtitle" id="messagesEmptySubtitle">Нажмите на контакт, чтобы начать общение</div>
+                    </div>
+                </div>
+
+                <div class="message-input-wrapper">
+                    <button class="icon-btn" id="attachBtn" disabled title="Прикрепить файл">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <input id="fileInput" type="file" class="hidden" />
+                    <div class="attach-menu hidden" id="attachMenu">
+                        <button class="attach-item" id="attachFileBtn" type="button">&#1060;&#1072;&#1081;&#1083;</button>
+                        <button class="attach-item" id="attachLocationBtn" type="button">&#1043;&#1077;&#1086;&#1083;&#1086;&#1082;&#1072;&#1094;&#1080;&#1103;</button>
+                        <button class="attach-item" id="attachContactBtn" type="button">&#1050;&#1086;&#1085;&#1090;&#1072;&#1082;&#1090;</button>
+                    </div>
+                    <div class="input-container">
+                        <textarea id="messageInput" placeholder="Введите сообщение..." disabled rows="1"></textarea>
+                    </div>
+                    <span id="ttlIndicator" class="ttl-indicator hidden"></span>
+                    <button class="icon-btn" id="scheduleBtn" disabled title="&#1054;&#1090;&#1083;&#1086;&#1078;&#1080;&#1090;&#1100;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <button class="icon-btn" id="pollBtn" disabled title="&#1054;&#1087;&#1088;&#1086;&#1089;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                            <rect x="4" y="5" width="4" height="14" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                            <rect x="10" y="9" width="4" height="10" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                            <rect x="16" y="3" width="4" height="16" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <button class="icon-btn" id="ttlBtn" disabled title="&#1058;&#1072;&#1081;&#1084;&#1077;&#1088;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="13" r="7" stroke="currentColor" stroke-width="2"/>
+                            <path d="M9 2h6M12 6v4l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    
+                    <button class="icon-btn" id="voiceBtn" disabled title="&#1043;&#1086;&#1083;&#1086;&#1089;&#1086;&#1074;&#1086;&#1077;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" stroke-width="2"/>
+                            <path d="M5 11v1a7 7 0 0014 0v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M12 19v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+<button class="icon-btn" id="emojiBtn" disabled title="Эмодзи">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <button class="icon-btn send-btn" id="sendBtn" disabled title="Отправить">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="recording-indicator hidden" id="recordingIndicator">
+                    <span class="recording-dot"></span>
+                    <span class="recording-text">&#1047;&#1072;&#1087;&#1080;&#1089;&#1100; &#1075;&#1086;&#1083;&#1086;&#1089;&#1072;... &#1053;&#1072;&#1078;&#1084;&#1080;&#1090;&#1077; &#1077;&#1097;&#1077; &#1088;&#1072;&#1079; &#1076;&#1083;&#1103; &#1086;&#1089;&#1090;&#1072;&#1085;&#1086;&#1074;&#1082;&#1080;</span>
+                </div>
+            </main>
+
+            
+            <aside id="profilePanel" class="right-panel">
+                <div class="panel-header">
+                    <button class="icon-btn" id="closeProfileBtn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="profile-content">
+                    <div class="profile-avatar" id="profileAvatar">?</div>
+                    <h2 id="profileName"></h2>
+                    <div class="profile-username" id="profileUser">@username</div>
+                    <div class="profile-section">
+                        <div class="profile-item">
+                            <div class="profile-label">Email</div>
+                            <div class="profile-value" id="profileMail"></div>
+                        </div>
+                        <div class="profile-item">
+                            <div class="profile-label">О себе</div>
+                            <div class="profile-value" id="profileStatus"></div>
+                        </div>
+                        <div class="profile-item">
+                            <div class="profile-label">Дата регистрации</div>
+                            <div class="profile-value" id="profileDate"></div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        
+        <div id="myProfileView" class="profile-view hidden">
+            <div class="profile-page">
+                <div class="profile-page-header">
+                    <button class="icon-btn" id="backFromProfileBtn" title="Назад">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <h1>Настройки профиля</h1>
+                    <button class="icon-btn" id="logoutBtn" title="Выйти">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="profile-page-content">
+                    <div class="tg-settings-header">
+                        <div class="tg-settings-avatar" id="myProfileAvatar">?</div>
+                        <div class="tg-settings-user">
+                            <div class="tg-settings-name" id="tgSettingsName">Пользователь</div>
+                            <div class="tg-settings-meta" id="tgSettingsMeta">@username</div>
+                        </div>
+                        <button class="tg-settings-edit" id="changeAvatarBtn" title="Изменить фото">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="currentColor" stroke-width="2"/>
+                                <circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                        <input id="avatarInput" type="file" accept="image/*" class="hidden">
+                    </div>
+
+                    <div class="settings-layout">
+                        <aside class="settings-sidebar">
+                            <div class="settings-tabs" id="settingsTabs">
+                        <button class="settings-tab active" data-tab="account">Аккаунт</button>
+                        <button class="settings-tab" data-tab="personalization">Персонализация</button>
+                        <button class="settings-tab" data-tab="notifications">Уведомления</button>
+                        <button class="settings-tab" data-tab="privacy">Конфиденциальность</button>
+                        <button class="settings-tab" data-tab="advanced">Дополнительно</button>
+                    </div>
+                        </aside>
+                        <div class="settings-body">
+
+                    <div class="tg-settings-section" data-tab="account">
+                        <div class="tg-settings-group">
+                            <div class="tg-settings-group-header">Мой аккаунт</div>
+                            <div class="tg-settings-form-body">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label class="form-label">Имя</label>
+                                        <input id="myProfileName" type="text" class="form-input" placeholder="Ваше имя" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Имя пользователя</label>
+                                        <input id="myProfileUsername" type="text" class="form-input" disabled />
+                                    </div>
+                                    <div class="form-group full-width">
+                                        <label class="form-label">Email</label>
+                                        <input id="myProfileEmail" type="email" class="form-input" placeholder="mail@example.com" />
+                                    </div>
+                                    <div class="form-group full-width">
+                                        <label class="form-label">О себе</label>
+                                        <textarea id="myProfileBio" class="form-textarea" rows="3" placeholder="Расскажите о себе..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="settings-save-block">
+                                    <div class="settings-save-label">&#1057;&#1086;&#1093;&#1088;&#1072;&#1085;&#1077;&#1085;&#1080;&#1077; &#1076;&#1072;&#1085;&#1085;&#1099;&#1093;</div>
+                                    <button id="exportSessionBtn" class="btn-primary btn-inline">
+                                        <span class="btn-text">&#1057;&#1086;&#1093;&#1088;&#1072;&#1085;&#1080;&#1090;&#1100; &#1089;&#1077;&#1089;&#1089;&#1080;&#1102; &#1080; &#1090;&#1077;&#1084;&#1091; (JSON)</span>
+                                    </button>
+                                    <button id="clearMediaCacheBtn" class="btn-secondary btn-inline">
+                                        <span class="btn-text">&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1082;&#1077;&#1096; &#1084;&#1077;&#1076;&#1080;&#1072;</span>
+                                    </button>
+                                    <div class="settings-save-hint">&#1060;&#1072;&#1081;&#1083; &#1089;&#1086;&#1093;&#1088;&#1072;&#1085;&#1080;&#1090;&#1089;&#1103; &#1085;&#1072; &#1091;&#1089;&#1090;&#1088;&#1086;&#1081;&#1089;&#1090;&#1074;&#1086;</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tg-settings-section" data-tab="personalization">
+                        <div class="tg-settings-group">
+                            <div class="tg-settings-group-header">Внешний вид</div>
+                            <div class="tg-settings-form-body">
+                                <div class="theme-carousel">
+                                    <button class="theme-nav prev" id="themePrevBtn" aria-label="Prev themes">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+                                    <div class="theme-viewport">
+                                        <div class="theme-track theme-grid" id="themeTrack">
+                                    <div class="theme-card active" data-theme="dark" data-accent="blue">
+                                        <div class="theme-preview dark-blue">
+                                            <div class="theme-header"></div>
+                                            <div class="theme-content">
+                                                <div class="theme-bubble left"></div>
+                                                <div class="theme-bubble right"></div>
+                                            </div>
+                                        </div>
+                                        <div class="theme-name">Тёмная</div>
+                                    </div>
+                                    <div class="theme-card" data-theme="light" data-accent="blue">
+                                        <div class="theme-preview light-blue">
+                                            <div class="theme-header"></div>
+                                            <div class="theme-content">
+                                                <div class="theme-bubble left"></div>
+                                                <div class="theme-bubble right"></div>
+                                            </div>
+                                        </div>
+                                        <div class="theme-name">Светлая</div>
+                                    </div>
+                                    <div class="theme-card" data-theme="dark" data-accent="purple">
+                                        <div class="theme-preview dark-purple">
+                                            <div class="theme-header"></div>
+                                            <div class="theme-content">
+                                                <div class="theme-bubble left"></div>
+                                                <div class="theme-bubble right"></div>
+                                            </div>
+                                        </div>
+                                        <div class="theme-name">Фиолетовая</div>
+                                    </div>
+                                    <div class="theme-card" data-theme="dark" data-accent="green">
+                                        <div class="theme-preview dark-green">
+                                            <div class="theme-header"></div>
+                                            <div class="theme-content">
+                                                <div class="theme-bubble left"></div>
+                                                <div class="theme-bubble right"></div>
+                                            </div>
+                                        </div>
+                                        <div class="theme-name">Зелёная</div>
+                                    </div>
+                                    <div class="theme-card" data-theme="dark" data-accent="pink">
+                                        <div class="theme-preview dark-pink">
+                                            <div class="theme-header"></div>
+                                            <div class="theme-content">
+                                                <div class="theme-bubble left"></div>
+                                                <div class="theme-bubble right"></div>
+                                            </div>
+                                        </div>
+                                        <div class="theme-name">Розовая</div>
+                                    </div>
+                                    <div class="theme-card" data-theme="dark" data-accent="orange">
+                                        <div class="theme-preview dark-orange">
+                                            <div class="theme-header"></div>
+                                            <div class="theme-content">
+                                                <div class="theme-bubble left"></div>
+                                                <div class="theme-bubble right"></div>
+                                            </div>
+                                        </div>
+                                        <div class="theme-name">Оранжевая</div>
+                                    </div>
+                                    <div class="theme-card" data-theme="light" data-accent="teal">
+                                        <div class="theme-preview light-teal">
+                                            <div class="theme-header"></div>
+                                            <div class="theme-content">
+                                                <div class="theme-bubble left"></div>
+                                                <div class="theme-bubble right"></div>
+                                            </div>
+                                        </div>
+                                        <div class="theme-name">Бирюзовая</div>
+                                    </div>
+                                
+                                        </div>
+                                    </div>
+                                    <button class="theme-nav next" id="themeNextBtn" aria-label="Next themes">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                
+                                <div class="privacy-list">
+                                    <div class="privacy-item">
+                                        <div class="privacy-info">
+                                            <div class="privacy-label">Снизить анимации</div>
+                                            <div class="privacy-hint">Меньше эффектов в интерфейсе</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" id="reduceMotionToggle" />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="privacy-item">
+                                        <div class="privacy-info">
+                                            <div class="privacy-label">Компактные сообщения</div>
+                                            <div class="privacy-hint">Меньше отступов в чате</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" id="compactModeToggle" />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="privacy-item">
+                                        <div class="privacy-info">
+                                            <div class="privacy-label">Превью ссылок</div>
+                                            <div class="privacy-hint">Карточки для ссылок в чате</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" id="linkPreviewsToggle" />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tg-settings-section" data-tab="notifications">
+                        <div class="tg-settings-group">
+                            <div class="tg-settings-group-header">Уведомления</div>
+                            <div class="tg-settings-form-body">
+                                <div class="privacy-list">
+                                    <div class="privacy-item">
+                                        <div class="privacy-info">
+                                            <div class="privacy-label">Звуки сообщений</div>
+                                            <div class="privacy-hint">Звук при новых сообщениях</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" id="notificationSoundToggle" />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="privacy-item">
+                                        <div class="privacy-info">
+                                            <div class="privacy-label">Desktop-уведомления</div>
+                                            <div class="privacy-hint">Показывать в браузере</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" id="desktopNotificationsToggle" />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="privacy-item">
+                                        <div class="privacy-info">
+                                            <div class="privacy-label">Превью текста</div>
+                                            <div class="privacy-hint">Показывать текст сообщений</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" id="notificationPreviewToggle" />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tg-settings-section" data-tab="privacy">
+                        <div class="tg-settings-group">
+                            <div class="tg-settings-group-header">Конфиденциальность</div>
+                            <div class="tg-settings-form-body">
+                                <div class="privacy-list">
+                                    <div class="privacy-item">
+                                        <div class="privacy-info">
+                                            <div class="privacy-label">Показывать статус</div>
+                                            <div class="privacy-hint">Когда вы в сети</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" id="showOnlineStatus" checked />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="privacy-item">
+                                        <div class="privacy-info">
+                                            <div class="privacy-label">Последний раз в сети</div>
+                                            <div class="privacy-hint">Время последнего входа</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" id="showLastSeen" checked />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="privacy-item">
+                                        <div class="privacy-info">
+                                            <div class="privacy-label">Индикатор набора</div>
+                                            <div class="privacy-hint">Когда вы печатаете</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" id="showTyping" checked />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Кто может писать мне</label>
+                                    <select id="whoCanMessage" class="form-input">
+                                        <option value="everyone">Все</option>
+                                        <option value="contacts">Только контакты</option>
+                                        <option value="nobody">Никто</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tg-settings-section" data-tab="advanced">
+                        <div class="tg-settings-group">
+                            <div class="tg-settings-group-header">Дополнительно</div>
+                            <div class="tg-settings-form-body">
+                                <div class="privacy-list">
+                                    <div class="privacy-item">
+                                        <div class="privacy-info">
+                                            <div class="privacy-label">Автосохранение черновиков</div>
+                                            <div class="privacy-hint">Сохранять неотправленные сообщения</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" id="draftsToggle" />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="privacy-item">
+                                        <div class="privacy-info">
+                                            <div class="privacy-label">Сокращать пробелы</div>
+                                            <div class="privacy-hint">Убирать лишние пробелы в сообщениях</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" id="trimSpacesToggle" />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tg-settings-group">
+                            <div class="tg-settings-group-header">Устройства</div>
+                            <div class="tg-settings-form-body">
+                                <div class="device-actions">
+                                    <button class="btn btn-secondary btn-small" id="sessionsRefresh" type="button">Обновить</button>
+                                    <button class="btn btn-danger btn-small" id="sessionsLogoutAll" type="button">Выйти на других</button>
+                                </div>
+                                <div id="sessionsList" class="device-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-actions" data-tab="account">
+                        <button id="saveProfileBtn" class="btn-primary">
+                            <span class="btn-text">Сохранить изменения</span>
+                            <span class="btn-loader hidden"></span>
+                        </button>
+                    </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+        <div id="sideMenu" class="side-menu hidden">
+            <div class="side-menu-backdrop"></div>
+            <div class="side-menu-content">
+                <div class="tg-menu-header" id="menuUserBtn">
+                    <div class="tg-menu-avatar" id="menuAvatar">?</div>
+                    <div class="tg-menu-user">
+                        <div class="tg-menu-name" id="menuName">Пользователь</div>
+                        <div class="tg-menu-sub" id="menuUsername">@username</div>
+                    </div>
+                    <button class="tg-menu-chevron" aria-label="expand">⌄</button>
+                </div>
+
+                <div class="tg-menu-list">
+                    <button class="tg-menu-item" id="menuProfileBtn">
+                        <span>Мой профиль</span>
+                    </button>
+                    <button class="tg-menu-item" id="favoritesMenuBtn">
+                        <span>Избранное</span>
+                    </button>
+                    <button class="tg-menu-item" id="createGroupMenuBtn">
+                        <span>Создать группу</span>
+                    </button>
+                    <button class="tg-menu-item" id="createChannelMenuBtn">
+                        <span>Создать канал</span>
+                    </button>
+                    <button class="tg-menu-item" id="settingsMenuBtn">
+                        <span>Настройки</span>
+                    </button>
+                    <button class="tg-menu-item" id="menuMusicBtn">
+                        <span>&#1052;&#1091;&#1079;&#1099;&#1082;&#1072;</span>
+                    </button>
+                    <button class="tg-menu-item" id="menuPersonalizationBtn">
+                        <span>Персонализация</span>
+                    </button>
+                    <div class="tg-menu-divider"></div>
+                    <button class="tg-menu-item" id="helpMenuBtn">
+                        <span>Помощь</span>
+                    </button>
+                    <button class="tg-menu-item" id="aboutMenuBtn">
+                        <span>О NiosMess</span>
+                    </button>
+                    <button class="tg-menu-item" id="logoutMenuBtn">
+                        <span>Выйти</span>
+                    </button>
+                </div>
+
+                <div class="tg-menu-footer">NiosMess Desktop</div>
+            </div>
+        </div>
+
+
+        <div id="musicPlayer" class="music-player hidden">
+            <div class="music-player-backdrop"></div>
+            <div class="music-player-panel">
+                <div class="music-player-header">
+                    <div class="music-player-title">&#1052;&#1091;&#1079;&#1099;&#1082;&#1072;&#1083;&#1100;&#1085;&#1099;&#1081; &#1087;&#1083;&#1077;&#1077;&#1088;</div>
+                    <button class="icon-btn" id="musicPlayerClose" title="&#1047;&#1072;&#1082;&#1088;&#1099;&#1090;&#1100;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="music-player-cover" id="musicCover">
+                    <div class="music-cover-fox"></div>
+                </div>
+                <div class="music-player-meta">
+                    <div class="music-title" id="musicTitle">&#1053;&#1077;&#1090; &#1090;&#1088;&#1077;&#1082;&#1072;</div>
+                    <div class="music-artist" id="musicArtist">&#1054;&#1090;&#1082;&#1088;&#1086;&#1081;&#1090;&#1077; &#1072;&#1091;&#1076;&#1080;&#1086;&#1092;&#1072;&#1081;&#1083;</div>
+                </div>
+                <div class="music-progress">
+                    <span id="musicCurrent">0:00</span>
+                    <input type="range" min="0" max="100" value="0" id="musicProgress" />
+                    <span id="musicDuration">0:00</span>
+                </div>
+                <div class="music-controls">
+                    <button class="music-btn" id="musicPrevBtn" title="&#1055;&#1088;&#1077;&#1076;&#1099;&#1076;&#1091;&#1097;&#1080;&#1081;" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M19 20L9 12l10-8v16zM5 4v16" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <button class="music-btn play" id="musicPlayBtn" title="&#1042;&#1086;&#1089;&#1087;&#1088;&#1086;&#1080;&#1079;&#1074;&#1077;&#1089;&#1090;&#1080;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                            <path d="M8 5l11 7-11 7V5z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <button class="music-btn" id="musicNextBtn" title="&#1057;&#1083;&#1077;&#1076;&#1091;&#1102;&#1097;&#1080;&#1081;" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 4l10 8-10 8V4zM19 4v16" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="music-player-signature">NiosWave</div>
+                <audio id="musicPlayerAudio" preload="metadata"></audio>
+            </div>
+        </div>
+
+        <div id="mediaViewer" class="media-viewer hidden">
+            <div class="media-viewer-backdrop"></div>
+            <div class="media-viewer-content">
+                <button class="media-viewer-close" id="mediaViewerClose" title="&#1047;&#1072;&#1082;&#1088;&#1099;&#1090;&#1100;">&times;</button>
+                <div class="media-viewer-body" id="mediaViewerBody"></div>
+                <a class="media-viewer-download" id="mediaViewerDownload" target="_blank" rel="noreferrer">&#1057;&#1082;&#1072;&#1095;&#1072;&#1090;&#1100;</a>
+            </div>
+        </div>
+
+        <div id="mediaGallery" class="media-gallery hidden">
+            <div class="media-gallery-backdrop"></div>
+            <div class="media-gallery-content">
+                <div class="media-gallery-header">
+                    <h2>&#1052;&#1077;&#1076;&#1080;&#1072;</h2>
+                    <button class="icon-btn" id="mediaGalleryClose" title="&#1047;&#1072;&#1082;&#1088;&#1099;&#1090;&#1100;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="media-gallery-grid" id="mediaGalleryGrid"></div>
+            </div>
+        </div>
+
+        
+        <div id="helpModal" class="help-modal hidden">
+            <div class="help-modal-backdrop"></div>
+            <div class="help-modal-content">
+                <div class="help-modal-header">
+                    <h2>Помощь</h2>
+                    <button class="icon-btn" id="helpModalClose" title="Закрыть">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="help-modal-body">
+                    <div class="help-section">
+                        <h3>Форматирование текста</h3>
+                        <ul>
+                            <li><strong>Жирный</strong>: окружите текст *звездочками*</li>
+                            <li><em>Курсив</em>: окружите текст _подчеркиваниями_</li>
+                            <li><code>Код</code>: окружите текст `обратными кавычками`</li>
+                            <li><del>Зачеркнутый</del>: окружите текст ~тильдами~</li>
+                        </ul>
+                    </div>
+                    <div class="help-section">
+                        <h3>Горячие клавиши</h3>
+                        <ul>
+                            <li>Enter - отправить сообщение</li>
+                            <li>Ctrl + Enter - новая строка</li>
+                            <li>Esc - закрыть модальные окна</li>
+                        </ul>
+                    </div>
+                    <div class="help-section">
+                        <h3>Версия</h3>
+                        <ul>
+                            <li><strong>NiosMess</strong> v1.0.1</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+        <div id="toastContainer" class="toast-container"></div>
+    </div>
+
+    <div class="modal-backdrop hidden" id="createChatModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="createChatTitle">Create</h3>
+                <button class="modal-close" id="createChatClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="avatar-picker">
+                    <div class="avatar-preview" id="createChatAvatarPreview">?</div>
+                    <div class="avatar-actions">
+                        <button class="btn btn-secondary" id="createChatAvatarBtn" type="button">Upload avatar</button>
+                        <input id="createChatAvatarInput" type="file" accept="image/*" hidden />
+                    </div>
+                </div>
+                <label class="form-label">Name</label>
+                <input id="createChatName" class="form-input" type="text" placeholder="&#1053;&#1072;&#1079;&#1074;&#1072;&#1085;&#1080;&#1077; &#1095;&#1072;&#1090;&#1072;" />
+                <label class="form-label">Description</label>
+                <textarea id="createChatDescription" class="form-input" rows="3" placeholder="&#1050;&#1086;&#1088;&#1086;&#1090;&#1082;&#1086;&#1077; &#1086;&#1087;&#1080;&#1089;&#1072;&#1085;&#1080;&#1077;"></textarea>
+                <label class="form-label">Invite link</label>
+                <input id="createChatLink" class="form-input" type="text" placeholder="https://..." />
+                <div id="createChatMembersWrap">
+                    <label class="form-label">Members (comma separated)</label>
+                    <input id="createChatMembers" class="form-input" type="text" placeholder="username1, username2" />
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="createChatCancel">&#1054;&#1090;&#1084;&#1077;&#1085;&#1072;</button>
+                <button class="btn" id="createChatSubmit">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop hidden" id="inviteModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="inviteTitle">&#1055;&#1088;&#1080;&#1075;&#1083;&#1072;&#1089;&#1080;&#1090;&#1100; &#1091;&#1095;&#1072;&#1089;&#1090;&#1085;&#1080;&#1082;&#1086;&#1074;</h3>
+                <button class="modal-close" id="inviteClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">Action</label>
+                <select id="inviteAction" class="form-input">
+                    <option value="add">Add members</option>
+                    <option value="remove">Remove members</option>
+                </select>
+                <label class="form-label">Usernames (comma or newline separated)</label>
+                <textarea id="inviteMembers" class="form-input" rows="3" placeholder="username1, username2"></textarea>
+                <label class="form-label">Quick add</label>
+                <input id="inviteSearchInput" class="form-input" type="text" placeholder="&#1055;&#1086;&#1080;&#1089;&#1082; &#1087;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1090;&#1077;&#1083;&#1077;&#1081;" />
+                <div id="inviteSuggestions" class="invite-suggestions"></div>
+                <div id="inviteSelected" class="invite-selected"></div>
+                <div class="members-header">
+                    <span>Members</span>
+                    <button class="btn btn-secondary" id="inviteRefresh" type="button">&#1054;&#1073;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100;</button>
+                </div>
+                <div id="inviteMembersList" class="members-list"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="inviteCancel">&#1054;&#1090;&#1084;&#1077;&#1085;&#1072;</button>
+                <button class="btn" id="inviteSubmit">&#1055;&#1088;&#1080;&#1084;&#1077;&#1085;&#1080;&#1090;&#1100;</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop hidden" id="forwardModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="forwardTitle">Переслать сообщение</h3>
+                <button class="modal-close" id="forwardClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input id="forwardSearch" class="form-input forward-search" type="text" placeholder="Поиск чатов" />
+                <div id="forwardList" class="forward-list"></div>
+                <label class="form-label">Комментарий (необязательно)</label>
+                <textarea id="forwardComment" class="form-input" rows="2" placeholder="Добавить текст"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="forwardCancel">Отмена</button>
+                <button class="btn" id="forwardSubmit">Отправить</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop hidden" id="scheduleModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>&#1054;&#1090;&#1083;&#1086;&#1078;&#1080;&#1090;&#1100; &#1089;&#1086;&#1086;&#1073;&#1097;&#1077;&#1085;&#1080;&#1077;</h3>
+                <button class="modal-close" id="scheduleClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">&#1044;&#1072;&#1090;&#1072; &#1080; &#1074;&#1088;&#1077;&#1084;&#1103;</label>
+                <input id="scheduleDate" class="form-input" type="datetime-local" />
+                <label class="form-label">&#1058;&#1077;&#1082;&#1089;&#1090;</label>
+                <textarea id="scheduleText" class="form-input" rows="3" placeholder="&#1058;&#1077;&#1082;&#1089;&#1090; &#1089;&#1086;&#1086;&#1073;&#1097;&#1077;&#1085;&#1080;&#1103;"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="scheduleCancel">&#1054;&#1090;&#1084;&#1077;&#1085;&#1072;</button>
+                <button class="btn" id="scheduleSubmit">&#1047;&#1072;&#1087;&#1083;&#1072;&#1085;&#1080;&#1088;&#1086;&#1074;&#1072;&#1090;&#1100;</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop hidden" id="pollModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>&#1054;&#1087;&#1088;&#1086;&#1089;</h3>
+                <button class="modal-close" id="pollClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">&#1042;&#1086;&#1087;&#1088;&#1086;&#1089;</label>
+                <input id="pollQuestion" class="form-input" type="text" placeholder="&#1057;&#1087;&#1088;&#1086;&#1089;&#1080;&#1090;&#1077; &#1095;&#1090;&#1086; &#1091;&#1075;&#1086;&#1076;&#1085;&#1086;" />
+                <label class="form-label">&#1042;&#1072;&#1088;&#1080;&#1072;&#1085;&#1090;&#1099;</label>
+                <div id="pollOptions" class="poll-options-list"></div>
+                <button class="btn btn-secondary" id="pollAddOption" type="button">&#1044;&#1086;&#1073;&#1072;&#1074;&#1080;&#1090;&#1100; &#1074;&#1072;&#1088;&#1080;&#1072;&#1085;&#1090;</button>
+                <label class="checkbox-row">
+                    <input id="pollMultiple" type="checkbox" />
+                    <span>&#1056;&#1072;&#1079;&#1088;&#1077;&#1096;&#1080;&#1090;&#1100; &#1085;&#1077;&#1089;&#1082;&#1086;&#1083;&#1100;&#1082;&#1086; &#1086;&#1090;&#1074;&#1077;&#1090;&#1086;&#1074;</span>
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="pollCancel">&#1054;&#1090;&#1084;&#1077;&#1085;&#1072;</button>
+                <button class="btn" id="pollSubmit">&#1057;&#1086;&#1079;&#1076;&#1072;&#1090;&#1100;</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop hidden" id="ttlModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>&#1058;&#1072;&#1081;&#1084;&#1077;&#1088; &#1089;&#1086;&#1086;&#1073;&#1097;&#1077;&#1085;&#1080;&#1103;</h3>
+                <button class="modal-close" id="ttlClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">&#1040;&#1074;&#1090;&#1086;&#1091;&#1076;&#1072;&#1083;&#1077;&#1085;&#1080;&#1077;</label>
+                <select id="ttlSelect" class="form-input">
+                    <option value="0">&#1053;&#1077; &#1091;&#1076;&#1072;&#1083;&#1103;&#1090;&#1100;</option>
+                    <option value="30">30 &#1089;&#1077;&#1082;&#1091;&#1085;&#1076;</option>
+                    <option value="60">1 &#1084;&#1080;&#1085;&#1091;&#1090;&#1072;</option>
+                    <option value="300">5 &#1084;&#1080;&#1085;&#1091;&#1090;</option>
+                    <option value="900">15 &#1084;&#1080;&#1085;&#1091;&#1090;</option>
+                    <option value="3600">1 &#1095;&#1072;&#1089;</option>
+                    <option value="86400">24 &#1095;&#1072;&#1089;&#1072;</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="ttlCancel">&#1054;&#1090;&#1084;&#1077;&#1085;&#1072;</button>
+                <button class="btn" id="ttlSubmit">&#1055;&#1088;&#1080;&#1084;&#1077;&#1085;&#1080;&#1090;&#1100;</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop hidden" id="locationModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>&#1043;&#1077;&#1086;&#1083;&#1086;&#1082;&#1072;&#1094;&#1080;&#1103;</h3>
+                <button class="modal-close" id="locationClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">&#1052;&#1077;&#1090;&#1082;&#1072; (&#1085;&#1077;&#1086;&#1073;&#1103;&#1079;&#1072;&#1090;&#1077;&#1083;&#1100;&#1085;&#1086;)</label>
+                <input id="locationLabel" class="form-input" type="text" placeholder="&#1052;&#1086;&#1081; &#1076;&#1086;&#1084;" />
+                <label class="form-label">&#1064;&#1080;&#1088;&#1086;&#1090;&#1072;</label>
+                <input id="locationLat" class="form-input" type="text" placeholder="55.7558" />
+                <label class="form-label">&#1044;&#1086;&#1083;&#1075;&#1086;&#1090;&#1072;</label>
+                <input id="locationLon" class="form-input" type="text" placeholder="37.6176" />
+                <button class="btn btn-secondary" id="locationDetect" type="button">&#1054;&#1087;&#1088;&#1077;&#1076;&#1077;&#1083;&#1080;&#1090;&#1100; &#1075;&#1077;&#1086;&#1083;&#1086;&#1082;&#1072;&#1094;&#1080;&#1102;</button>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="locationCancel">&#1054;&#1090;&#1084;&#1077;&#1085;&#1072;</button>
+                <button class="btn" id="locationSubmit">&#1054;&#1090;&#1087;&#1088;&#1072;&#1074;&#1080;&#1090;&#1100;</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop hidden" id="contactModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>&#1050;&#1086;&#1085;&#1090;&#1072;&#1082;&#1090;</h3>
+                <button class="modal-close" id="contactClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">&#1048;&#1084;&#1103;</label>
+                <input id="contactName" class="form-input" type="text" placeholder="&#1048;&#1074;&#1072;&#1085; &#1055;&#1077;&#1090;&#1088;&#1086;&#1074;" />
+                <label class="form-label">&#1058;&#1077;&#1083;&#1077;&#1092;&#1086;&#1085;</label>
+                <input id="contactPhone" class="form-input" type="text" placeholder="+7 999 123-45-67" />
+                <label class="form-label">Username</label>
+                <input id="contactUsername" class="form-input" type="text" placeholder="@username" />
+                <label class="form-label">Email</label>
+                <input id="contactEmail" class="form-input" type="text" placeholder="user@mail.com" />
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="contactCancel">&#1054;&#1090;&#1084;&#1077;&#1085;&#1072;</button>
+                <button class="btn" id="contactSubmit">&#1054;&#1090;&#1087;&#1088;&#1072;&#1074;&#1080;&#1090;&#1100;</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="emojis.js" charset="utf-8"></script>
+    <script src="app.core.js" charset="utf-8"></script>
+    <script src="app.messages.js" charset="utf-8"></script>
+    <script src="app.boot.js" charset="utf-8"></script>
+
+</body>
+</html>
+

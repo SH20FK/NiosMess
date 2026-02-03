@@ -1,0 +1,20 @@
+[
+  {
+    "href": "https://niosmess.app",
+    "name": "NiosMess",
+    "roles": ["founder", "leadDev"],
+    "img": "/images/team/r4in80w.jpg"
+  },
+  {
+    "href": "https://niosmess.app",
+    "name": "Product",
+    "roles": ["designer"],
+    "img": "https://avatars.githubusercontent.com/u/94839871?v=4"
+  },
+  {
+    "href": "https://niosmess.app",
+    "name": "Engineering",
+    "roles": ["dev"],
+    "img": "https://avatars.githubusercontent.com/u/73192010?v=4"
+  }
+]

@@ -1,0 +1,19 @@
+} else {
+            audio.pause();
+          }
+        });
+
+        audio.addEventListener("play", () => {
+          playBtn.textContent = "❚❚";
+        });
+
+        audio.addEventListener("pause", () => {
+          playBtn.textContent = "▶";
+        });
+
+        audio.addEventListener("loadedmetadata", () => {
+          const duration = formatDuration(audio.duration);
+          meta.textContent = duration ? `Voice message · ${duration}` : "Voice message";
+        });
+
+        audio.addEventLis
