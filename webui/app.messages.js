@@ -2989,17 +2989,11 @@ async function loadProfile() {
     const profileNameEl = $("profileName");
     const profileNameText = (data.name ? deobfuscate(data.name) : (data.username || "?"));
     if (profileNameEl) {
-      profileNameEl.textContent = "";
-      profileNameEl.appendChild(document.createTextNode(profileNameText));
-      if (data.badge_id) {
-        const badge = document.createElement("span");
-        badge.className = `user-badge user-badge-${data.badge_icon || "fox"}`;
-        badge.title = data.badge_title || "";
-        badge.addEventListener("click", (e) => {
-          e.stopPropagation();
-          toast(data.badge_text || "???? ??????? ???????? ????????????? ??? ????????? NiosMessa");
-        });
-        profileNameEl.appendChild(badge);
+      const badge = typeof getBadgeData === "function" ? getBadgeData(data, data) : null;
+      if (typeof renderNameWithBadge === "function") {
+        renderNameWithBadge(profileNameEl, profileNameText, badge);
+      } else {
+        profileNameEl.textContent = profileNameText;
       }
     }
     $("profileUser").textContent = data.username ? `@${data.username}` : "";
@@ -3042,7 +3036,15 @@ function loadMyProfile() {
   }
   const headerName = $("tgSettingsName");
   const headerMeta = $("tgSettingsMeta");
-  if (headerName) headerName.textContent = profile.name || username;
+  if (headerName) {
+    const cached = state.userInfoCache?.[username] || null;
+    const badge = typeof getBadgeData === "function" ? getBadgeData(cached, cached) : null;
+    if (typeof renderNameWithBadge === "function") {
+      renderNameWithBadge(headerName, profile.name || username, badge);
+    } else {
+      headerName.textContent = profile.name || username;
+    }
+  }
   if (headerMeta) headerMeta.textContent = `@${username}`;
   $("myProfileName").value = profile.name || username;
   $("myProfileUsername").value = username;
@@ -3084,7 +3086,15 @@ async function loadMyProfileHeader() {
     }
   } catch {}
 
-  if (headerName) headerName.textContent = displayName;
+  if (headerName) {
+    const cached = state.userInfoCache?.[username] || null;
+    const badge = typeof getBadgeData === "function" ? getBadgeData(cached, cached) : null;
+    if (typeof renderNameWithBadge === "function") {
+      renderNameWithBadge(headerName, displayName, badge);
+    } else {
+      headerName.textContent = displayName;
+    }
+  }
   if (headerMeta) headerMeta.textContent = meta;
 }
 function saveMyProfile() {
@@ -3151,7 +3161,15 @@ function updateUserInfo() {
   const menuUsername = $("menuUsername");
   const menuAvatar = $("menuAvatar");
 
-  if (menuName) menuName.textContent = name;
+  if (menuName) {
+    const cached = state.userInfoCache?.[username] || null;
+    const badge = typeof getBadgeData === "function" ? getBadgeData(cached, cached) : null;
+    if (typeof renderNameWithBadge === "function") {
+      renderNameWithBadge(menuName, name, badge);
+    } else {
+      menuName.textContent = name;
+    }
+  }
   if (menuUsername) menuUsername.textContent = `@${username}`;
   if (menuAvatar) {
     applyAvatar(menuAvatar, initial);
