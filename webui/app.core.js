@@ -1626,7 +1626,8 @@ function initSettingsTabs() {
 
 
 
-  selectSettingsTab("account");
+    selectSettingsTab("account");
+    requestAnimationFrame(() => document.documentElement.classList.add("settings-ready"));
 
 }
 
