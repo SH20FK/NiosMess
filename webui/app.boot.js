@@ -84,6 +84,20 @@ function initEvents() {
   $("mobileBackBtn")?.addEventListener("click", () => {
     setMobileChatOpen(false);
   });
+  const chatActions = $("chatActions");
+  const chatActionsToggle = $("chatActionsToggle");
+  if (chatActions && chatActionsToggle) {
+    chatActionsToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      chatActions.classList.toggle("open");
+    });
+    chatActions.querySelector(".chat-actions-menu")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+    document.addEventListener("click", () => {
+      chatActions.classList.remove("open");
+    });
+  }
   $("messageInput")?.addEventListener("input", (e) => {
     saveDraft();
     autoResize(e.target);
