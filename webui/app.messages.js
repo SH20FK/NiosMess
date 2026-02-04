@@ -4,6 +4,12 @@ async function loadMessages({ silent = true } = {}) {
   if (!state.activeTarget || !state.session) return;
   if (state.messagesLoading) return;
   state.messagesLoading = true;
+  const listEl = $("messageList");
+  const animateLoad = !silent;
+  if (animateLoad && listEl) listEl.classList.add("is-loading");
+  const stopLoadingAnim = () => {
+    if (animateLoad && listEl) listEl.classList.remove("is-loading");
+  };
   if (state.activeTarget === FAVORITES_CHAT_ID) {
     try {
       const data = await apiFetch(
@@ -21,6 +27,7 @@ async function loadMessages({ silent = true } = {}) {
       if (!silent) toast("Не удалось загрузить сообщения");
     } finally {
       state.messagesLoading = false;
+      stopLoadingAnim();
     }
     return;
   }
@@ -108,6 +115,7 @@ async function loadMessages({ silent = true } = {}) {
     if (!silent) toast("Не удалось загрузить сообщения");
   } finally {
     state.messagesLoading = false;
+    stopLoadingAnim();
   }
 }
 function renderMessages(msgs) {
@@ -186,21 +194,40 @@ function normalizeMediaUrl(url) {
     return url;
   }
 }
-async function fetchMediaBlob(url) {
-  const headers = {};
-  if (state.session?.token) {
-    headers.Authorization = `Bearer ${state.session.token}`;
-    headers["X-Token"] = state.session.token;
+  async function fetchMediaBlob(url) {
+    if (!url) {
+      throw new Error("download failed: empty url");
+    }
+    if ("caches" in window) {
+      try {
+        const cache = await caches.open(MEDIA_CACHE_NAME);
+        const cached = await cache.match(url);
+        if (cached) {
+          return await cached.blob();
+        }
+      } catch {}
+    }
+    const headers = {};
+    if (state.session?.token) {
+      headers.Authorization = `Bearer ${state.session.token}`;
+      headers["X-Token"] = state.session.token;
+    }
+    if (state.session?.username) {
+      headers["X-Username"] = state.session.username;
+    }
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      throw new Error(`download failed: ${res.status}`);
+    }
+    const blob = await res.blob();
+    if ("caches" in window) {
+      try {
+        const cache = await caches.open(MEDIA_CACHE_NAME);
+        await cache.put(url, new Response(blob));
+      } catch {}
+    }
+    return blob;
   }
-  if (state.session?.username) {
-    headers["X-Username"] = state.session.username;
-  }
-  const res = await fetch(url, { headers });
-  if (!res.ok) {
-    throw new Error(`download failed: ${res.status}`);
-  }
-  return res.blob();
-}
 const MEDIA_CACHE_NAME = "niosmess-media-cache-v1";
 const mediaObjectUrlCache = new Map();
 async function primeMediaCache(url) {
@@ -244,8 +271,86 @@ async function clearMediaCache() {
     } catch {}
   });
   mediaObjectUrlCache.clear();
+  if (typeof clearAvatarCache === "function") {
+    await clearAvatarCache();
+  }
+  if (typeof clearProfileCache === "function") {
+    clearProfileCache();
+  }
+  if (typeof refreshCacheStats === "function") {
+    refreshCacheStats();
+  }
   toast("Кеш очищен");
 }
+
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0) return "0 MB";
+  const units = ["B", "KB", "MB", "GB"];
+  let idx = 0;
+  let value = bytes;
+  while (value >= 1024 && idx < units.length - 1) {
+    value /= 1024;
+    idx += 1;
+  }
+  return `${value.toFixed(value >= 10 || idx === 0 ? 0 : 1)} ${units[idx]}`;
+}
+
+async function getCacheStats(cacheName) {
+  if (!("caches" in window)) {
+    return { count: 0, bytes: 0 };
+  }
+  try {
+    const cache = await caches.open(cacheName);
+    const keys = await cache.keys();
+    let bytes = 0;
+    for (const key of keys) {
+      const res = await cache.match(key);
+      if (!res) continue;
+      const blob = await res.clone().blob();
+      bytes += blob.size || 0;
+    }
+    return { count: keys.length, bytes };
+  } catch {
+    return { count: 0, bytes: 0 };
+  }
+}
+
+  async function refreshCacheStats() {
+    const mediaSize = $("cacheMediaSize");
+    const mediaCount = $("cacheMediaCount");
+    const avatarSize = $("cacheAvatarSize");
+    const avatarCount = $("cacheAvatarCount");
+    const updated = $("cacheUpdatedAt");
+    const usageWrap = $("cacheUsage");
+    const usageFill = $("cacheUsageFill");
+    const usageMeta = $("cacheUsageMeta");
+    if (!mediaSize || !mediaCount || !avatarSize || !avatarCount || !updated) return;
+
+    const [media, avatar] = await Promise.all([
+      getCacheStats(MEDIA_CACHE_NAME),
+      getCacheStats(typeof AVATAR_CACHE_NAME === "string" ? AVATAR_CACHE_NAME : "niosmess-avatar-cache-v1"),
+    ]);
+
+  mediaSize.textContent = formatBytes(media.bytes);
+    mediaCount.textContent = `${media.count} файлов`;
+    avatarSize.textContent = formatBytes(avatar.bytes);
+    avatarCount.textContent = `${avatar.count} шт`;
+    updated.textContent = new Date().toLocaleString();
+
+    if (usageWrap && usageFill && usageMeta && navigator.storage?.estimate) {
+      try {
+        const estimate = await navigator.storage.estimate();
+        const usage = estimate.usage || 0;
+        const quota = estimate.quota || 0;
+        const percent = quota > 0 ? Math.min(100, Math.round((usage / quota) * 100)) : 0;
+        usageFill.style.width = `${percent}%`;
+        usageMeta.textContent = quota > 0 ? `${formatBytes(usage)} из ${formatBytes(quota)} (${percent}%)` : formatBytes(usage);
+        usageWrap.hidden = false;
+      } catch {
+        usageWrap.hidden = true;
+      }
+    }
+  }
 function inferMediaType({ ext, mime }) {
   if (mime) {
     if (mime.startsWith("image/")) return "image";
@@ -739,7 +844,8 @@ function createMessageElement(m, container) {
           votedBy: (state.polls[pollData.id] || {}).votedBy || {},
         });
         state.polls[poll.id] = { ...state.polls[poll.id], ...poll };
-        localStorage.setItem("niosmess_polls", JSON.stringify(state.polls));
+          localStorage.setItem("niosmess_polls", JSON.stringify(state.polls));
+          message.classList.add("has-poll");
         renderPollMessage(message, poll);
         container.appendChild(message);
         return;

@@ -14,6 +14,9 @@ const OUTBOX_KEY = "niosmess_outbox";
 const SCHEDULED_KEY = "niosmess_scheduled";
 const POLLS_KEY = "niosmess_polls";
 const MESSAGE_TTL_KEY = "niosmess_message_ttl";
+const USER_INFO_CACHE_KEY = "niosmess_user_info_cache_v1";
+const USER_INFO_CACHE_TTL = 24 * 60 * 60 * 1000;
+const AVATAR_CACHE_NAME = "niosmess-avatar-cache-v1";
 
 
 
@@ -46,6 +49,7 @@ const state = {
 
   profileTimer: null,
   userInfoCache: {},
+  userInfoTimestamps: {},
   userInfoPending: {},
 
   searchTimer: null,
@@ -171,6 +175,58 @@ const cp1251Decoder = (() => {
     return null;
   }
 })();
+
+function loadUserInfoCache() {
+  try {
+    const raw = localStorage.getItem(USER_INFO_CACHE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return;
+    const data = parsed.data || {};
+    const timestamps = parsed.timestamps || {};
+    const now = Date.now();
+    Object.keys(data).forEach((key) => {
+      const ts = timestamps[key];
+      if (ts && now - ts < USER_INFO_CACHE_TTL) {
+        state.userInfoCache[key] = data[key];
+        state.userInfoTimestamps[key] = ts;
+      }
+    });
+  } catch {}
+}
+
+function pruneUserInfoCache() {
+  const now = Date.now();
+  let changed = false;
+  Object.keys(state.userInfoCache).forEach((key) => {
+    const ts = state.userInfoTimestamps[key];
+    if (!ts || now - ts > USER_INFO_CACHE_TTL) {
+      delete state.userInfoCache[key];
+      delete state.userInfoTimestamps[key];
+      changed = true;
+    }
+  });
+  if (changed) saveUserInfoCache();
+}
+
+function saveUserInfoCache() {
+  try {
+    localStorage.setItem(
+      USER_INFO_CACHE_KEY,
+      JSON.stringify({ data: state.userInfoCache, timestamps: state.userInfoTimestamps })
+    );
+  } catch {}
+}
+
+function clearProfileCache() {
+  state.userInfoCache = {};
+  state.userInfoTimestamps = {};
+  try {
+    localStorage.removeItem(USER_INFO_CACHE_KEY);
+  } catch {}
+}
+
+loadUserInfoCache();
 
 function mojibakeScore(text) {
   if (!text) return 0;
@@ -407,12 +463,76 @@ function toast(msg, duration = 3000) {
   setTimeout(() => el.classList.remove("show"), duration);
 }
 
+const DEFAULT_BADGE_TEXT = "\u042d\u0442\u043e\u0442 \u0447\u0435\u043b\u043e\u0432\u0435\u043a \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u0440\u0430\u0437\u0440\u0430\u0431\u043e\u0442\u0447\u0438\u043a\u043e\u043c \u0438\u043b\u0438 \u0441\u043f\u043e\u043d\u0441\u043e\u0440\u043e\u043c NiosMessa";
+let activeBadgeTooltip = null;
+
+function closeBadgeTooltip() {
+  if (!activeBadgeTooltip) return;
+  const tip = activeBadgeTooltip;
+  activeBadgeTooltip = null;
+  tip.classList.add("is-hiding");
+  const remove = () => {
+    tip.remove();
+  };
+  tip.addEventListener("transitionend", remove, { once: true });
+  tip.addEventListener("animationend", remove, { once: true });
+  setTimeout(remove, 420);
+}
+
+function openBadgeTooltip(target, text) {
+  if (!target) return;
+  const existingAnchor = activeBadgeTooltip?.dataset?.anchorId;
+  const anchorId = target.dataset.badgeAnchor || "";
+  if (activeBadgeTooltip && existingAnchor && anchorId && existingAnchor === anchorId) {
+    closeBadgeTooltip();
+    return;
+  }
+  closeBadgeTooltip();
+  const tip = document.createElement("div");
+  tip.className = "badge-tooltip";
+  tip.textContent = text || DEFAULT_BADGE_TEXT;
+  tip.dataset.anchorId = anchorId;
+  document.body.appendChild(tip);
+  const rect = target.getBoundingClientRect();
+    const place = () => {
+      const tipRect = tip.getBoundingClientRect();
+      const margin = 10;
+      const centerX = rect.left + rect.width / 2;
+      let left = rect.left + rect.width / 2 - tipRect.width / 2;
+      let top = rect.bottom + 10;
+      if (left < margin) left = margin;
+      if (left + tipRect.width > window.innerWidth - margin) {
+        left = window.innerWidth - margin - tipRect.width;
+      }
+      if (top + tipRect.height > window.innerHeight - margin) {
+        top = rect.top - tipRect.height - 10;
+      }
+      const arrowX = Math.min(
+        Math.max(centerX - left, 12),
+        tipRect.width - 12
+      );
+      tip.style.left = `${left}px`;
+      tip.style.top = `${top}px`;
+      tip.style.setProperty("--badge-arrow-x", `${arrowX}px`);
+    };
+  requestAnimationFrame(place);
+  activeBadgeTooltip = tip;
+}
+
+document.addEventListener("click", (e) => {
+  if (!activeBadgeTooltip) return;
+  if (e.target.closest(".user-badge") || e.target.closest(".badge-tooltip")) return;
+  closeBadgeTooltip();
+});
+window.addEventListener("resize", closeBadgeTooltip);
+window.addEventListener("scroll", closeBadgeTooltip, true);
+
 function getBadgeData(user, cached) {
   const source = user?.badge_id ? user : (cached?.badge_id ? cached : null);
   if (!source) return null;
   return {
     id: source.badge_id,
-    text: source.badge_text || "Этот человек является разработчиком или спонсором NiosMessa",
+    text: source.badge_text || DEFAULT_BADGE_TEXT,
     title: source.badge_title || "",
     icon: source.badge_icon || "fox",
   };
@@ -420,15 +540,20 @@ function getBadgeData(user, cached) {
 
 function renderNameWithBadge(targetEl, name, badge) {
   if (!targetEl) return;
+  targetEl.classList.add("has-badge");
   targetEl.textContent = "";
-  targetEl.appendChild(document.createTextNode(name || ""));
+  const textSpan = document.createElement("span");
+  textSpan.className = "name-text";
+  textSpan.textContent = name || "";
+  targetEl.appendChild(textSpan);
   if (!badge) return;
   const span = document.createElement("span");
   span.className = `user-badge user-badge-${badge.icon || "fox"}`;
   span.title = badge.title || "";
+  span.dataset.badgeAnchor = `${badge.id || "badge"}-${Math.random().toString(36).slice(2, 8)}`;
   span.addEventListener("click", (e) => {
     e.stopPropagation();
-    toast(badge.text || "Этот человек является разработчиком или спонсором NiosMessa");
+    openBadgeTooltip(span, badge.text || DEFAULT_BADGE_TEXT);
   });
   targetEl.appendChild(span);
 }
@@ -2323,7 +2448,9 @@ function closeChatContextMenu() {
 }
 
 async function ensureUserInfo(username) {
-  if (!username || state.userInfoCache[username] || state.userInfoPending[username]) return;
+  if (!username) return;
+  pruneUserInfoCache();
+  if (state.userInfoCache[username] || state.userInfoPending[username]) return;
   if (!state.session?.token) return;
   state.userInfoPending[username] = true;
   try {
@@ -2334,6 +2461,8 @@ async function ensureUserInfo(username) {
     );
     if (data && (data.name || data.username)) {
       state.userInfoCache[username] = data;
+      state.userInfoTimestamps[username] = Date.now();
+      saveUserInfoCache();
       if (Array.isArray(state.chatList)) {
         state.chatList = state.chatList.map((c) => {
           const key = String(c.chatId || c.username);
@@ -2905,15 +3034,25 @@ async function selectChat(u) {
 
   state.activeChatType = chatType;
 
-  state.lastMsgId = -1;
+    state.lastMsgId = -1;
 
-  state.messages = [];
+    state.messages = [];
 
-  state.messagesLoaded = false;
+    state.messagesLoaded = false;
+
+    const list = $("messageList");
+    if (list) {
+      list.classList.remove("chat-enter");
+      list.classList.add("chat-switching");
+      requestAnimationFrame(() => {
+        list.classList.add("chat-enter");
+        list.classList.remove("chat-switching");
+      });
+    }
 
 
 
-  const baseUsername = u.username || chatId;
+    const baseUsername = u.username || chatId;
   const cached = baseUsername ? state.userInfoCache[baseUsername] : null;
   const displayName = u.name || cached?.name || baseUsername || chatId || "Чат";
   const titleBadge = chatType === "user" ? getBadgeData(u, cached) : null;
@@ -3141,6 +3280,53 @@ const avatarCache = {
     }
 };
 
+const avatarObjectUrlCache = new Map();
+
+function getAvatarCacheKey(username) {
+    return `${state.apiBase}/__avatar_cache__/${encodeURIComponent(username)}`;
+}
+
+async function getCachedAvatarUrl(username) {
+    if (!username) return null;
+    const cached = avatarObjectUrlCache.get(username);
+    if (cached) return cached;
+    if (!("caches" in window)) return null;
+    try {
+        const cache = await caches.open(AVATAR_CACHE_NAME);
+        const res = await cache.match(getAvatarCacheKey(username));
+        if (!res) return null;
+        const blob = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        avatarObjectUrlCache.set(username, objUrl);
+        return objUrl;
+    } catch {
+        return null;
+    }
+}
+
+async function putAvatarInCache(username, blob) {
+    if (!("caches" in window)) return;
+    try {
+        const cache = await caches.open(AVATAR_CACHE_NAME);
+        await cache.put(getAvatarCacheKey(username), new Response(blob));
+    } catch {}
+}
+
+async function clearAvatarCache() {
+    if ("caches" in window) {
+        try {
+            await caches.delete(AVATAR_CACHE_NAME);
+        } catch {}
+    }
+    avatarObjectUrlCache.forEach((url) => {
+        try {
+            URL.revokeObjectURL(url);
+        } catch {}
+    });
+    avatarObjectUrlCache.clear();
+    avatarCache.clear();
+}
+
 async function uploadAvatar(file) {
     if (!file || !state.session) {
         throw new Error('Файл или сессия отсутствуют');
@@ -3180,6 +3366,9 @@ async function uploadAvatar(file) {
 async function fetchUserAvatar(username) {
     if (!username) return null;
 
+    const cached = await getCachedAvatarUrl(username);
+    if (cached) return cached;
+
     const form = new FormData();
     form.append('other', username);
 
@@ -3192,7 +3381,10 @@ async function fetchUserAvatar(username) {
         if (!response.ok) return null;
 
         const blob = await response.blob();
-        return URL.createObjectURL(blob);
+        await putAvatarInCache(username, blob);
+        const objUrl = URL.createObjectURL(blob);
+        avatarObjectUrlCache.set(username, objUrl);
+        return objUrl;
     } catch (err) {
         console.warn(`Avatar fetch failed for ${username}:`, err);
         return null;
@@ -3248,5 +3440,6 @@ function updateChatAvatar(avatar, user) {
         avatar.textContent = initial;
     }
 }
+
 
 

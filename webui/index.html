@@ -90,18 +90,6 @@
             <span>Отменить отправку</span>
         </button>
         <div class="context-divider"></div>
-        <button class="context-item" id="ctxBold">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M6 4h8a4 4 0 014 4 4 4 0 01-4 4H6zM6 12h9a4 4 0 014 4 4 4 0 01-4 4H6z" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            <span>Жирный</span>
-        </button>
-        <button class="context-item" id="ctxItalic">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M19 4h-9M14 20H5M15 4L9 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span>Курсив</span>
-        </button>
         <button class="context-item" id="ctxCode">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <path d="M16 18l6-6-6-6M8 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -427,8 +415,34 @@
                                 </div>
                                 <div class="settings-save-block">
                                     <div class="settings-save-label">&#1057;&#1086;&#1093;&#1088;&#1072;&#1085;&#1077;&#1085;&#1080;&#1077; &#1076;&#1072;&#1085;&#1085;&#1099;&#1093;</div>
-                                    <button id="exportSessionBtn" class="btn-primary btn-inline">
-                                        <span class="btn-text">&#1057;&#1086;&#1093;&#1088;&#1072;&#1085;&#1080;&#1090;&#1100; &#1089;&#1077;&#1089;&#1089;&#1080;&#1102; &#1080; &#1090;&#1077;&#1084;&#1091; (JSON)</span>
+                                    <div class="cache-stats" id="cacheStats">
+                                        <div class="cache-stat">
+                                            <span class="cache-stat-label">&#1050;&#1077;&#1096; &#1084;&#1077;&#1076;&#1080;&#1072;</span>
+                                            <span class="cache-stat-value" id="cacheMediaSize">0 MB</span>
+                                            <span class="cache-stat-sub" id="cacheMediaCount">0 &#1092;&#1072;&#1081;&#1083;&#1086;&#1074;</span>
+                                        </div>
+                                        <div class="cache-stat">
+                                            <span class="cache-stat-label">&#1040;&#1074;&#1072;&#1090;&#1072;&#1088;&#1099;</span>
+                                            <span class="cache-stat-value" id="cacheAvatarSize">0 MB</span>
+                                            <span class="cache-stat-sub" id="cacheAvatarCount">0 &#1096;&#1090;</span>
+                                        </div>
+                                          <div class="cache-stat cache-stat-wide">
+                                              <span class="cache-stat-label">&#1054;&#1073;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1086;</span>
+                                              <span class="cache-stat-value" id="cacheUpdatedAt">&#8212;</span>
+                                          </div>
+                                      </div>
+                                      <div class="cache-usage" id="cacheUsage" hidden>
+                                          <div class="cache-usage-label">&#1061;&#1088;&#1072;&#1085;&#1080;&#1083;&#1080;&#1097;&#1077; &#1073;&#1088;&#1072;&#1091;&#1079;&#1077;&#1088;&#1072;</div>
+                                          <div class="cache-usage-track">
+                                              <span id="cacheUsageFill"></span>
+                                          </div>
+                                          <div class="cache-usage-meta" id="cacheUsageMeta">&#8212;</div>
+                                      </div>
+                                      <button id="exportSessionBtn" class="btn-primary btn-inline">
+                                          <span class="btn-text">&#1057;&#1086;&#1093;&#1088;&#1072;&#1085;&#1080;&#1090;&#1100; &#1089;&#1077;&#1089;&#1089;&#1080;&#1102; &#1080; &#1090;&#1077;&#1084;&#1091; (JSON)</span>
+                                      </button>
+                                    <button id="refreshCacheStatsBtn" class="btn btn-secondary btn-inline">
+                                        <span class="btn-text">&#1054;&#1073;&#1085;&#1086;&#1074;&#1080;&#1090;&#1100; &#1089;&#1090;&#1072;&#1090;&#1080;&#1089;&#1090;&#1080;&#1082;&#1091;</span>
                                     </button>
                                     <button id="clearMediaCacheBtn" class="btn-secondary btn-inline">
                                         <span class="btn-text">&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1082;&#1077;&#1096; &#1084;&#1077;&#1076;&#1080;&#1072;</span>

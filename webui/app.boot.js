@@ -155,6 +155,12 @@ function initEvents() {
   $("clearMediaCacheBtn")?.addEventListener("click", () => {
     if (typeof clearMediaCache === "function") clearMediaCache();
   });
+  $("refreshCacheStatsBtn")?.addEventListener("click", () => {
+    if (typeof refreshCacheStats === "function") refreshCacheStats();
+  });
+  if (typeof refreshCacheStats === "function") {
+    refreshCacheStats();
+  }
 
   $("searchInput")?.addEventListener("input", () => {
     if (state.searchTimer) clearTimeout(state.searchTimer);
