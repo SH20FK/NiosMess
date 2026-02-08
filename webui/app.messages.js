@@ -164,7 +164,146 @@ function appendMessage(msg) {
 const MEDIA_IMAGE_EXT = new Set(["jpg", "jpeg", "png", "gif", "webp", "svg", "ico", "bmp"]);
 const MEDIA_AUDIO_EXT = new Set(["mp3", "wav", "ogg", "m4a", "aac", "flac", "webm"]);
 const MEDIA_VIDEO_EXT = new Set(["mp4", "webm", "mov", "mkv"]);
-function buildDownloadUrl(name) {
+const WS_FILE_PREFIX = "wsfile://";
+const FILE_CHUNK_SIZE = 1024 * 1024;
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const wsFilePending = new Map();
+let wsFileDisabledUntil = 0;
+
+function isWsFileUrl(url) {
+  return typeof url === "string" && url.startsWith(WS_FILE_PREFIX);
+}
+
+function buildWsFileUrl(name) {
+  return `${WS_FILE_PREFIX}${encodeURIComponent(name)}`;
+}
+
+function getWsFileName(url) {
+  if (!isWsFileUrl(url)) return "";
+  return decodeURIComponent(url.slice(WS_FILE_PREFIX.length));
+}
+
+const MIME_BY_EXT = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  svg: "image/svg+xml",
+  ico: "image/x-icon",
+  bmp: "image/bmp",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  m4a: "audio/mp4",
+  aac: "audio/aac",
+  flac: "audio/flac",
+  webm: "video/webm",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  mkv: "video/x-matroska",
+  pdf: "application/pdf",
+  txt: "text/plain",
+  json: "application/json",
+  zip: "application/zip",
+};
+
+function guessMimeType(name) {
+  if (!name) return "";
+  const ext = String(name).toLowerCase().split(".").pop();
+  return MIME_BY_EXT[ext] || "";
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      const base64 = result.includes(",") ? result.split(",")[1] : result;
+      resolve(base64);
+    };
+    reader.onerror = () => reject(reader.error || new Error("File read failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function base64ToUint8Array(base64) {
+  const binary = atob(base64 || "");
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function buildWsUrl() {
+  if (!state.session) throw new Error("Нет сессии");
+  let base = state.apiBase;
+  try {
+    base = localStorage.getItem("niosmess_ws_base") || base;
+  } catch {}
+  base = base.replace(/^http/, "ws");
+  return `${base}/ws?token=${encodeURIComponent(state.session.token)}&username=${encodeURIComponent(state.session.username)}`;
+}
+
+function openFileSocket(timeoutMs = 10000) {
+  if (wsFileDisabledUntil && Date.now() < wsFileDisabledUntil) {
+    return Promise.reject(new Error("WebSocket недоступен"));
+  }
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let ws = null;
+    const finalize = (err) => {
+      if (settled) return;
+      settled = true;
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        try { ws.close(); } catch {}
+      }
+      if (err) reject(err);
+    };
+
+    try {
+      ws = new WebSocket(buildWsUrl());
+    } catch (err) {
+      reject(err);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      finalize(new Error("WebSocket timeout"));
+    }, timeoutMs);
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      ws.removeEventListener("open", onOpen);
+      ws.removeEventListener("error", onError);
+      ws.removeEventListener("close", onClose);
+    };
+
+    const onOpen = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(ws);
+    };
+    const onError = () => {
+      cleanup();
+      finalize(new Error("WebSocket error"));
+    };
+    const onClose = (event) => {
+      cleanup();
+      const reason = event && event.code === 1008 ? "Неверный токен" : "WebSocket закрыт";
+      finalize(new Error(reason));
+    };
+
+    ws.addEventListener("open", onOpen);
+    ws.addEventListener("error", onError);
+    ws.addEventListener("close", onClose);
+  });
+}
+
+function buildHttpDownloadUrl(name) {
   if (!name) return "";
   const params = new URLSearchParams();
   if (state.session?.token) params.set("token", state.session.token);
@@ -172,9 +311,168 @@ function buildDownloadUrl(name) {
   const query = params.toString();
   return `${state.apiBase}/download/${encodeURIComponent(name)}${query ? `?${query}` : ""}`;
 }
+
+function isWsFailure(err) {
+  const msg = String(err?.message || "");
+  if (!msg) return false;
+  if (msg.includes("Неверный токен")) return false;
+  return msg.includes("WebSocket");
+}
+
+async function downloadFileBlob(filename) {
+  try {
+    return await downloadFileViaWs(filename);
+  } catch (err) {
+    if (isWsFailure(err)) {
+      wsFileDisabledUntil = Date.now() + 60 * 1000;
+    }
+    const httpUrl = buildHttpDownloadUrl(filename);
+    if (!httpUrl) throw err;
+    return await fetchMediaBlob(httpUrl);
+  }
+}
+
+async function downloadFileViaWs(filename) {
+  if (!filename) throw new Error("download failed: empty filename");
+  const ws = await openFileSocket();
+  return new Promise((resolve, reject) => {
+    let finished = false;
+    const chunks = [];
+
+    const cleanup = () => {
+      ws.removeEventListener("message", onMessage);
+      ws.removeEventListener("close", onClose);
+      ws.removeEventListener("error", onError);
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        try { ws.close(); } catch {}
+      }
+    };
+
+    const finish = (err, blob) => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      if (err) reject(err);
+      else resolve(blob);
+    };
+
+    const onError = () => finish(new Error("WebSocket error"));
+    const onClose = (event) => {
+      if (finished) return;
+      const reason = event && event.code === 1008 ? "Неверный токен" : "WebSocket закрыт";
+      finish(new Error(reason));
+    };
+
+    const onMessage = (event) => {
+      let data = null;
+      try {
+        data = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      if (!data || typeof data.type !== "string") return;
+
+      if (data.type === "file_chunk" && typeof data.chunk === "string") {
+        chunks.push(base64ToUint8Array(data.chunk));
+        return;
+      }
+      if (data.type === "download_end") {
+        const mime = guessMimeType(filename);
+        const blob = new Blob(chunks, mime ? { type: mime } : {});
+        finish(null, blob);
+        return;
+      }
+      if (data.type === "error") {
+        finish(new Error(data.message || "Ошибка скачивания"));
+      }
+    };
+
+    ws.addEventListener("message", onMessage);
+    ws.addEventListener("close", onClose);
+    ws.addEventListener("error", onError);
+
+    try {
+      ws.send(JSON.stringify({ type: "download_start", filename }));
+    } catch (err) {
+      finish(err);
+    }
+  });
+}
+
+async function getWsFileObjectUrl(filename) {
+  if (!filename) return "";
+  const key = buildWsFileUrl(filename);
+  const cached = mediaObjectUrlCache.get(key);
+  if (cached) return cached;
+  if (wsFilePending.has(key)) return wsFilePending.get(key);
+
+  const promise = downloadFileBlob(filename)
+    .then((blob) => {
+      const objUrl = URL.createObjectURL(blob);
+      mediaObjectUrlCache.set(key, objUrl);
+      wsFilePending.delete(key);
+      return objUrl;
+    })
+    .catch((err) => {
+      wsFilePending.delete(key);
+      throw err;
+    });
+
+  wsFilePending.set(key, promise);
+  return promise;
+}
+
+async function downloadFileToDisk(filename) {
+  if (!filename) return;
+  try {
+    const blob = await downloadFileBlob(filename);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => {
+      try { URL.revokeObjectURL(url); } catch {}
+    }, 1000);
+  } catch (err) {
+    toast(err.message || "Ошибка скачивания");
+  }
+}
+
+function createDownloadLinkElement(link, label) {
+  const fileDiv = document.createElement("div");
+  fileDiv.className = "message-file";
+  const icon = document.createElement("span");
+  icon.innerHTML = "&#128196; ";
+  const anchor = document.createElement("a");
+  const filename = isWsFileUrl(link) ? (getWsFileName(link) || label) : label;
+  anchor.textContent = label || filename || "file";
+
+  if (isWsFileUrl(link)) {
+    anchor.href = "#";
+    anchor.addEventListener("click", (e) => {
+      e.preventDefault();
+      downloadFileToDisk(filename);
+    });
+  } else {
+    anchor.href = link;
+    anchor.target = "_blank";
+    anchor.rel = "noreferrer";
+  }
+
+  fileDiv.appendChild(icon);
+  fileDiv.appendChild(anchor);
+  return fileDiv;
+}
+function buildDownloadUrl(name) {
+  if (!name) return "";
+  return buildWsFileUrl(name);
+}
 function normalizeMediaUrl(url) {
   if (!url) return "";
-  if (url.startsWith("blob:") || url.startsWith("data:")) return url;
+  if (url.startsWith("blob:") || url.startsWith("data:") || isWsFileUrl(url)) return url;
   if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("/") && !url.includes("/")) {
     return buildDownloadUrl(url);
   }
@@ -197,6 +495,10 @@ function normalizeMediaUrl(url) {
   async function fetchMediaBlob(url) {
     if (!url) {
       throw new Error("download failed: empty url");
+    }
+    if (isWsFileUrl(url)) {
+      const filename = getWsFileName(url);
+      return await downloadFileBlob(filename);
     }
     if ("caches" in window) {
       try {
@@ -232,6 +534,11 @@ const MEDIA_CACHE_NAME = "niosmess-media-cache-v1";
 const mediaObjectUrlCache = new Map();
 async function primeMediaCache(url) {
   if (!url || mediaObjectUrlCache.has(url) || !("caches" in window)) return;
+  if (isWsFileUrl(url)) {
+    const filename = getWsFileName(url);
+    getWsFileObjectUrl(filename).catch(() => {});
+    return;
+  }
   try {
     const cache = await caches.open(MEDIA_CACHE_NAME);
     let res = await cache.match(url);
@@ -249,6 +556,16 @@ async function primeMediaCache(url) {
 }
 function setMediaElementSource(el, url, sourceEl) {
   if (!el || !url) return;
+  if (isWsFileUrl(url)) {
+    const filename = getWsFileName(url);
+    getWsFileObjectUrl(filename)
+      .then((objUrl) => {
+        el.src = objUrl;
+        if (sourceEl) sourceEl.src = objUrl;
+      })
+      .catch(() => {});
+    return;
+  }
   const cached = mediaObjectUrlCache.get(url);
   if (cached) {
     el.src = cached;
@@ -265,6 +582,7 @@ async function clearMediaCache() {
       await caches.delete(MEDIA_CACHE_NAME);
     } catch {}
   }
+  wsFilePending.clear();
   mediaObjectUrlCache.forEach((url) => {
     try {
       URL.revokeObjectURL(url);
@@ -664,17 +982,14 @@ function createMessageElement(m, container) {
           })
           .catch(() => {
             preview.remove();
-            const fileDiv = document.createElement("div");
-            fileDiv.className = "message-file";
-            fileDiv.innerHTML = `&#128196; <a href="${link}" target="_blank" rel="noreferrer">${raw}</a>`;
-            message.appendChild(fileDiv);
+            message.appendChild(createDownloadLinkElement(link, raw));
           });
       };
 
       preview.appendChild(img);
       message.appendChild(preview);
 
-      preview.addEventListener("click", () => openMediaViewer({ type: "image", url: img.currentSrc || link, name: raw }));
+      preview.addEventListener("click", () => openMediaViewer({ type: "image", url: link, name: raw }));
     } else if (attachment.type === "audio") {
       if (attachment.isVoice) {
         const voiceWrap = document.createElement("div");
@@ -682,7 +997,8 @@ function createMessageElement(m, container) {
 
           const audio = document.createElement("audio");
           audio.preload = "metadata";
-          setMediaElementSource(audio, link);
+          const source = document.createElement("source");
+          setMediaElementSource(audio, link, source);
         audio.onerror = () => {
           fetchMediaBlob(link)
             .then((blob) => {
@@ -690,8 +1006,6 @@ function createMessageElement(m, container) {
             })
             .catch(() => {});
         };
-          const source = document.createElement("source");
-          source.src = audio.src || link;
         source.type = attachment.mime || "audio/webm";
         audio.appendChild(source);
 
@@ -760,7 +1074,8 @@ function createMessageElement(m, container) {
         const audio = document.createElement("audio");
           audio.controls = true;
           audio.preload = "metadata";
-          setMediaElementSource(audio, link);
+          const source = document.createElement("source");
+          setMediaElementSource(audio, link, source);
         audio.onerror = () => {
           fetchMediaBlob(link)
             .then((blob) => {
@@ -768,8 +1083,6 @@ function createMessageElement(m, container) {
             })
             .catch(() => {});
         };
-          const source = document.createElement("source");
-          source.src = audio.src || link;
         source.type = attachment.mime || "audio/webm";
         audio.appendChild(source);
         audioWrap.appendChild(audio);
@@ -818,10 +1131,7 @@ function createMessageElement(m, container) {
       video.style.borderRadius = "10px";
       message.appendChild(video);
     } else {
-      const fileDiv = document.createElement("div");
-      fileDiv.className = "message-file";
-      fileDiv.innerHTML = `&#128196; <a href="${link}" target="_blank" rel="noreferrer">${raw}</a>`;
-      message.appendChild(fileDiv);
+      message.appendChild(createDownloadLinkElement(link, raw));
     }
   } else {
     const safe = String(m.text ?? "");
@@ -1039,7 +1349,16 @@ function openMediaViewer(item) {
   if (!viewer || !body || !download) return;
 
   body.innerHTML = "";
+  download.onclick = null;
   download.href = item.url;
+  if (isWsFileUrl(item.url)) {
+    const filename = item.name || getWsFileName(item.url);
+    download.href = "#";
+    download.onclick = (e) => {
+      e.preventDefault();
+      downloadFileToDisk(filename);
+    };
+  }
 
   if (item.type === "image") {
     const img = document.createElement("img");
@@ -1082,9 +1401,18 @@ function openMediaViewer(item) {
     body.appendChild(audio);
   } else {
     const link = document.createElement("a");
-    link.href = item.url;
-    link.target = "_blank";
-    link.rel = "noreferrer";
+    if (isWsFileUrl(item.url)) {
+      const filename = item.name || getWsFileName(item.url);
+      link.href = "#";
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        downloadFileToDisk(filename);
+      });
+    } else {
+      link.href = item.url;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+    }
     link.textContent = item.name || item.url;
     body.appendChild(link);
   }
@@ -1101,7 +1429,8 @@ function buildMediaItems(messages) {
   messages.forEach((m) => {
     const attachment = getAttachmentFromMessage(m);
     if (!attachment.url) return;
-    items.push({ type: attachment.type, url: attachment.url, name: attachment.name || attachment.url });
+    const name = attachment.name || (isWsFileUrl(attachment.url) ? getWsFileName(attachment.url) : attachment.url);
+    items.push({ type: attachment.type, url: attachment.url, name });
   });
 
   return items;
@@ -2486,15 +2815,8 @@ function removeUploadPlaceholder(tempId) {
   const el = document.querySelector(`[data-id="${tempId}"]`);
   if (el) el.remove();
 }
-async function uploadFile(file) {
-  if (!file || !state.activeTarget || !state.session) return;
 
-  const maxSize = 50 * 1024 * 1024;
-  if (file.size > maxSize) {
-    toast("Файл слишком большой (макс. 50MB)");
-    return;
-  }
-
+async function uploadFileHttp(file, tempId, startedAt, lastTimeRef, lastLoadedRef) {
   const form = new FormData();
   form.append("file", file);
   form.append("sender", state.session.username);
@@ -2507,50 +2829,231 @@ async function uploadFile(file) {
     form.append("ttl_seconds", String(state.messageTTL));
   }
 
+  const xhr = await new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", `${state.apiBase}/upload`);
+
+    request.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      const now = Date.now();
+      const delta = (now - lastTimeRef.value) / 1000;
+      const speed = delta > 0 ? (event.loaded - lastLoadedRef.value) / delta : 0;
+      lastTimeRef.value = now;
+      lastLoadedRef.value = event.loaded;
+      updateUploadPlaceholder(tempId, event.loaded, event.total, speed);
+    };
+
+    request.onload = () => resolve(request);
+    request.onerror = () => reject(new Error("Не удалось загрузить файл"));
+    request.send(form);
+  });
+
+  if (xhr.status < 200 || xhr.status >= 300) {
+    let data = {};
+    try {
+      data = JSON.parse(xhr.responseText || "{}");
+    } catch {}
+    throw new Error(data.detail || data.error || "Ошибка загрузки");
+  }
+
+  updateUploadPlaceholder(
+    tempId,
+    file.size,
+    file.size,
+    file.size / Math.max(1, (Date.now() - startedAt) / 1000)
+  );
+  toast("Файл отправлен ✓");
+  setTimeout(() => {
+    removeUploadPlaceholder(tempId);
+    state.lastMsgId = -1;
+    loadMessages({ silent: true });
+  }, 500);
+  cancelReply();
+}
+
+async function sendFileMessage(filename) {
+  if (!filename || !state.session || !state.activeTarget) return;
+  if (state.activeTarget === FAVORITES_CHAT_ID) return;
+
+  const payload = {
+    token: state.session.token,
+    sender: state.session.username,
+    text: `FILE:${filename}`,
+    reply_to: state.replyTo ? state.replyTo.id : null,
+  };
+  if (Number.isFinite(state.messageTTL) && Number(state.messageTTL) > 0) {
+    payload.ttl_seconds = Number(state.messageTTL);
+  }
+
+  if (state.activeChatType === "group" || state.activeChatType === "channel") {
+    await apiFetch(`/collective/${encodeURIComponent(state.activeTarget)}/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }, { silent: true });
+    return;
+  }
+
+  await apiFetch("/send_message", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, receiver: state.activeTarget }),
+  }, { silent: true });
+}
+
+async function uploadFile(file) {
+  if (!file || !state.activeTarget || !state.session) return;
+  if (state.activeTarget === FAVORITES_CHAT_ID) {
+    toast("Файлы в избранном не поддерживаются");
+    return;
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    toast("Файл слишком большой (макс. 50MB)");
+    return;
+  }
+
   const tempId = createUploadPlaceholder(file);
   const startedAt = Date.now();
-  let lastTime = startedAt;
-  let lastLoaded = 0;
+  const lastTimeRef = { value: startedAt };
+  const lastLoadedRef = { value: 0 };
+  let ws = null;
 
   try {
-    const xhr = await new Promise((resolve, reject) => {
-      const request = new XMLHttpRequest();
-      request.open("POST", `${state.apiBase}/upload`);
-
-      request.upload.onprogress = (event) => {
-        if (!event.lengthComputable) return;
-        const now = Date.now();
-        const delta = (now - lastTime) / 1000;
-        const speed = delta > 0 ? (event.loaded - lastLoaded) / delta : 0;
-        lastTime = now;
-        lastLoaded = event.loaded;
-        updateUploadPlaceholder(tempId, event.loaded, event.total, speed);
-      };
-
-      request.onload = () => resolve(request);
-      request.onerror = () => reject(new Error("\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0444\u0430\u0439\u043b"));
-      request.send(form);
-    });
-
-    if (xhr.status < 200 || xhr.status >= 300) {
-      let data = {};
-      try {
-        data = JSON.parse(xhr.responseText || "{}");
-      } catch {}
-      throw new Error(data.detail || data.error || "\u041e\u0448\u0438\u0431\u043a\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438");
+    if (wsFileDisabledUntil && Date.now() < wsFileDisabledUntil) {
+      await uploadFileHttp(file, tempId, startedAt, lastTimeRef, lastLoadedRef);
+      return;
     }
 
-    updateUploadPlaceholder(tempId, file.size, file.size, file.size / Math.max(1, (Date.now() - startedAt) / 1000));
+    try {
+      ws = await openFileSocket();
+    } catch (err) {
+      if (isWsFailure(err)) {
+        wsFileDisabledUntil = Date.now() + 60 * 1000;
+        await uploadFileHttp(file, tempId, startedAt, lastTimeRef, lastLoadedRef);
+        return;
+      }
+      throw err;
+    }
+
+    let serverFilename = "";
+    let readyResolve = null;
+    let readyReject = null;
+    let savedResolve = null;
+    let savedReject = null;
+    const readyPromise = new Promise((resolve, reject) => {
+      readyResolve = resolve;
+      readyReject = reject;
+    });
+    const savedPromise = new Promise((resolve, reject) => {
+      savedResolve = resolve;
+      savedReject = reject;
+    });
+
+    const onError = () => {
+      const err = new Error("WebSocket error");
+      if (readyReject) readyReject(err);
+      if (savedReject) savedReject(err);
+    };
+
+    const onClose = (event) => {
+      const reason = event && event.code === 1008 ? "Неверный токен" : "WebSocket закрыт";
+      const err = new Error(reason);
+      if (readyReject) readyReject(err);
+      if (savedReject) savedReject(err);
+    };
+
+    const onMessage = (event) => {
+      let data = null;
+      try {
+        data = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      if (!data || typeof data.type !== "string") return;
+
+      if (data.type === "file_ready") {
+        serverFilename = data.filename || "";
+        if (readyResolve) readyResolve(data);
+        readyResolve = null;
+        readyReject = null;
+        return;
+      }
+      if (data.type === "file_saved") {
+        if (savedResolve) savedResolve(data);
+        savedResolve = null;
+        savedReject = null;
+        return;
+      }
+      if (data.type === "error") {
+        const err = new Error(data.message || "Ошибка загрузки");
+        if (readyReject) readyReject(err);
+        if (savedReject) savedReject(err);
+      }
+    };
+
+    ws.addEventListener("message", onMessage);
+    ws.addEventListener("close", onClose);
+    ws.addEventListener("error", onError);
+
+    ws.send(JSON.stringify({ type: "file_start", filename: file.name }));
+    const readyData = await readyPromise;
+    if (readyData?.filename) serverFilename = readyData.filename;
+
+    let offset = 0;
+    while (offset < file.size) {
+      const chunk = file.slice(offset, offset + FILE_CHUNK_SIZE);
+      const base64 = await blobToBase64(chunk);
+      ws.send(JSON.stringify({ type: "file_chunk", chunk: base64 }));
+
+      offset += chunk.size;
+      const now = Date.now();
+      const delta = (now - lastTimeRef.value) / 1000;
+      const speed = delta > 0 ? (offset - lastLoadedRef.value) / delta : 0;
+      lastTimeRef.value = now;
+      lastLoadedRef.value = offset;
+      updateUploadPlaceholder(tempId, offset, file.size, speed);
+    }
+
+    ws.send(JSON.stringify({ type: "file_end" }));
+    const savedData = await savedPromise;
+    const finalFilename = savedData?.filename || serverFilename || file.name;
+
+    updateUploadPlaceholder(
+      tempId,
+      file.size,
+      file.size,
+      file.size / Math.max(1, (Date.now() - startedAt) / 1000)
+    );
+
+    let alreadyExists = false;
+    try {
+      await loadMessages({ silent: true });
+      alreadyExists = (state.messages || []).some((m) => {
+        if (m.sender !== state.session.username) return false;
+        const text = String(m.text || "");
+        return text.includes(finalFilename);
+      });
+    } catch {}
+
+    if (!alreadyExists) {
+      await sendFileMessage(finalFilename);
+    }
+
     toast("\u0424\u0430\u0439\u043b \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d \u2713");
     setTimeout(() => {
       removeUploadPlaceholder(tempId);
       state.lastMsgId = -1;
       loadMessages({ silent: true });
     }, 500);
+    cancelReply();
   } catch (err) {
     removeUploadPlaceholder(tempId);
     toast(err.message || "\u041e\u0448\u0438\u0431\u043a\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438");
   } finally {
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+      try { ws.close(); } catch {}
+    }
   }
 }
 async function toggleVoiceRecording() {
@@ -2632,10 +3135,21 @@ function initRealtime() {
         loadMessages({ silent: true });
         loadChats({ silent: true });
       }
-      if (data.type === "typing" && data.from && data.to === state.session?.username) {
-        if (data.from === state.session?.username) return;
-        if (state.activeTarget === data.from) {
-          setTypingIndicator(!!data.typing);
+      if (data.type === "typing") {
+        const sender = data.sender || data.from || "";
+        const receiver = data.receiver || data.to || "";
+        if (sender === state.session?.username) return;
+        if (receiver && receiver !== state.session?.username) return;
+        if (state.activeTarget === sender) {
+          if (data.typing === false) {
+            setTypingIndicator(false);
+            return;
+          }
+          setTypingIndicator(true);
+          if (state.remoteTypingTimer) clearTimeout(state.remoteTypingTimer);
+          state.remoteTypingTimer = setTimeout(() => {
+            setTypingIndicator(false);
+          }, 1500);
         }
       }
     };
@@ -2659,30 +3173,24 @@ function initRealtime() {
 }
 
 async function sendTypingEvent(isTyping) {
+  if (!isTyping) return;
   if (!state.session || !state.activeTarget) return;
   if (state.activeChatType && state.activeChatType !== "user") return;
-  if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-    try {
-      state.ws.send(JSON.stringify({
-        type: "typing",
-        from: state.session.username,
-        to: state.activeTarget,
-        typing: !!isTyping,
-      }));
-      return;
-    } catch {}
-  }
   try {
-    await apiFetch("/typing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        token: state.session.token,
-        username: state.session.username,
-        target: state.activeTarget,
-        typing: !!isTyping,
-      }),
-    }, { silent: true });
+    const profile = JSON.parse(localStorage.getItem("niosmess_myprofile") || "{}");
+    if (profile.showTyping === false) return;
+  } catch {}
+
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+    if (state.settings?.realtimeEnabled === true) initRealtime();
+    return;
+  }
+
+  try {
+    state.ws.send(JSON.stringify({
+      type: "typing",
+      receiver: state.activeTarget,
+    }));
   } catch {}
 }
 

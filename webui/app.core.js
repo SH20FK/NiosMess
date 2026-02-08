@@ -479,22 +479,22 @@ function closeBadgeTooltip() {
   setTimeout(remove, 420);
 }
 
-function openBadgeTooltip(target, text) {
-  if (!target) return;
-  const existingAnchor = activeBadgeTooltip?.dataset?.anchorId;
-  const anchorId = target.dataset.badgeAnchor || "";
-  if (activeBadgeTooltip && existingAnchor && anchorId && existingAnchor === anchorId) {
+  function openBadgeTooltip(target, text) {
+    if (!target) return;
+    const existingAnchor = activeBadgeTooltip?.dataset?.anchorId;
+    const anchorId = target.dataset.badgeAnchor || "";
+    if (activeBadgeTooltip && existingAnchor && anchorId && existingAnchor === anchorId) {
+      closeBadgeTooltip();
+      return;
+    }
     closeBadgeTooltip();
-    return;
-  }
-  closeBadgeTooltip();
-  const tip = document.createElement("div");
-  tip.className = "badge-tooltip";
-  tip.textContent = text || DEFAULT_BADGE_TEXT;
-  tip.dataset.anchorId = anchorId;
-  document.body.appendChild(tip);
-  const rect = target.getBoundingClientRect();
+    const tip = document.createElement("div");
+    tip.className = "badge-tooltip";
+    tip.textContent = text || DEFAULT_BADGE_TEXT;
+    tip.dataset.anchorId = anchorId;
+    document.body.appendChild(tip);
     const place = () => {
+      const rect = target.getBoundingClientRect();
       const tipRect = tip.getBoundingClientRect();
       const margin = 10;
       const centerX = rect.left + rect.width / 2;

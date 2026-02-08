@@ -662,21 +662,22 @@ body {
 }
 
 .chat-item-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    overflow: visible;
 }
 
 .chat-item-name {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: color var(--transition);
-  line-height: 1.2;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color var(--transition);
+    line-height: 1.2;
 }
 
 .chat-item-time {
@@ -801,24 +802,26 @@ body {
 }
 
 .chat-header {
-  height: 60px;
-  padding: 0 16px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  transition: all var(--transition);
-  position: relative;
-  z-index: 10;
+    height: 60px;
+    padding: 0 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all var(--transition);
+    position: relative;
+    z-index: 10;
+    overflow: visible;
 }
 
 .chat-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 1;
+    overflow: visible;
 }
 
 .chat-avatar {
@@ -847,23 +850,26 @@ body {
 }
 
 .chat-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: visible;
-  text-overflow: ellipsis;
-  transition: color var(--transition);
-  line-height: 1.2;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: ellipsis;
+    transition: color var(--transition);
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .has-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  overflow: visible;
-  line-height: 1.2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: visible;
+    line-height: 1.1;
 }
 
 .has-badge .name-text {
@@ -879,7 +885,10 @@ body {
 }
 
 .chat-item-name.has-badge {
-  overflow: visible;
+    overflow: visible;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .chat-status {
@@ -1861,12 +1870,16 @@ body {
 }
 
 .profile-content h2 {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 4px;
-  text-align: center;
-  color: var(--text-primary);
-  transition: color var(--transition);
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    text-align: center;
+    color: var(--text-primary);
+    transition: color var(--transition);
+    overflow: visible;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .profile-username {
@@ -4222,17 +4235,19 @@ input:checked + .slider:before {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     margin-left: 6px;
     position: relative;
     cursor: pointer;
     vertical-align: middle;
-    border-radius: 7px;
+    border-radius: 50%;
     background: transparent;
     box-shadow: none;
-    transition: transform 0.35s ease, box-shadow 0.35s ease, filter 0.35s ease;
-    animation: badgeFloat 4.2s ease-in-out infinite, badgePulse 3.2s ease-in-out infinite;
+    transition: transform 0.35s ease, box-shadow 0.35s ease, filter 0.35s ease, opacity 0.35s ease;
+    animation: badgeFloat 5.2s ease-in-out infinite;
+    transform: translateY(1px);
+    overflow: visible;
 }
 
 .user-badge-fox {
@@ -4241,7 +4256,7 @@ input:checked + .slider:before {
 
 .user-badge-fox::before {
     content: "\1F98A";
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.28));
 }
@@ -4249,28 +4264,33 @@ input:checked + .slider:before {
 .user-badge-fox::after {
     content: "";
     position: absolute;
-    inset: -6px;
-    border-radius: 12px;
-    background-image:
-        radial-gradient(circle at 15% 30%, rgba(255, 230, 170, 0.95) 0 1.3px, transparent 1.6px),
-        radial-gradient(circle at 75% 20%, rgba(255, 170, 90, 0.8) 0 1.1px, transparent 1.5px),
-        radial-gradient(circle at 65% 80%, rgba(255, 140, 60, 0.7) 0 1.2px, transparent 1.6px),
-        radial-gradient(circle at 30% 70%, rgba(255, 200, 120, 0.75) 0 1.1px, transparent 1.4px),
-        radial-gradient(circle at 45% 15%, rgba(255, 180, 110, 0.7) 0 1.2px, transparent 1.5px),
-        radial-gradient(circle at 85% 55%, rgba(255, 220, 150, 0.8) 0 1.2px, transparent 1.6px),
-        conic-gradient(from 130deg, rgba(255, 210, 140, 0.55), rgba(255, 140, 50, 0.1), rgba(255, 210, 140, 0.55));
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-    opacity: 0.85;
+    inset: -7px;
+    border-radius: 50%;
+    width: 4px;
+    height: 4px;
+    background: rgba(255, 188, 120, 0.85);
+    box-shadow:
+        8px -6px 0 rgba(255, 150, 80, 0.75),
+        -7px -5px 0 rgba(255, 210, 160, 0.6),
+        10px 5px 0 rgba(255, 170, 90, 0.65),
+        -10px 6px 0 rgba(255, 200, 140, 0.6),
+        3px 11px 0 rgba(255, 160, 90, 0.7),
+        -2px -11px 0 rgba(255, 220, 170, 0.55),
+        12px -1px 0 rgba(255, 180, 110, 0.7),
+        -12px 0 0 rgba(255, 180, 110, 0.7),
+        6px 9px 0 rgba(255, 200, 140, 0.55),
+        -6px 9px 0 rgba(255, 150, 90, 0.6),
+        0 -12px 0 rgba(255, 210, 170, 0.45),
+        0 12px 0 rgba(255, 160, 90, 0.55);
+    opacity: 0.8;
     filter: blur(0.2px);
     mix-blend-mode: screen;
-    mask: radial-gradient(circle, transparent 46%, #000 60%);
     pointer-events: none;
-    animation: badgeParticles 5.6s linear infinite, badgeGlow 2.4s ease-in-out infinite;
+    animation: badgeParticles 6.4s linear infinite, badgeGlow 3s ease-in-out infinite;
 }
 
 .user-badge:hover {
-    transform: translateY(-1px) scale(1.05);
+    transform: translateY(0) scale(1.06);
     box-shadow: none;
     filter: drop-shadow(0 4px 10px rgba(255, 140, 70, 0.35));
 }
@@ -4291,8 +4311,9 @@ input:checked + .slider:before {
 }
 
 @keyframes badgeParticles {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% { transform: rotate(0deg) scale(0.98); }
+    50% { transform: rotate(180deg) scale(1.02); }
+    100% { transform: rotate(360deg) scale(0.98); }
 }
 
 .badge-tooltip {
@@ -4304,21 +4325,22 @@ input:checked + .slider:before {
     background: rgba(18, 20, 28, 0.92);
     color: #f6f6f8;
     font-size: 13px;
-    line-height: 1.4;
+    line-height: 1.45;
     border: 1px solid rgba(255, 255, 255, 0.09);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
     backdrop-filter: blur(12px);
     transform-origin: top center;
-    animation: badgeTooltipIn 0.7s cubic-bezier(0.16, 1.4, 0.3, 1);
+    animation: badgeTooltipIn 0.9s cubic-bezier(0.16, 1.4, 0.3, 1);
+    will-change: transform, opacity;
 }
 
 .badge-tooltip::after {
     content: "";
     position: absolute;
-    top: -6px;
+    top: -5px;
     left: var(--badge-arrow-x, 50%);
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     background: rgba(18, 20, 28, 0.92);
     border-left: 1px solid rgba(255, 255, 255, 0.09);
     border-top: 1px solid rgba(255, 255, 255, 0.09);
@@ -4326,18 +4348,18 @@ input:checked + .slider:before {
 }
 
 .badge-tooltip.is-hiding {
-    animation: badgeTooltipOut 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    animation: badgeTooltipOut 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
 @keyframes badgeTooltipIn {
-    0% { opacity: 0; transform: translateY(-8px) scale(0.82); }
-    55% { opacity: 1; transform: translateY(4px) scale(1.04); }
+    0% { opacity: 0; transform: translateY(-10px) scale(0.82); }
+    60% { opacity: 1; transform: translateY(6px) scale(1.04); }
     100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes badgeTooltipOut {
     0% { opacity: 1; transform: translateY(0) scale(1); }
-    100% { opacity: 0; transform: translateY(-10px) scale(0.9); }
+    100% { opacity: 0; transform: translateY(-8px) scale(0.9); }
 }
 
 .chat-item-pin {

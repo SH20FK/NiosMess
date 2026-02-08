@@ -1,0 +1,105 @@
+/* NiosMess Theme System - 7 Premium Themes */
+
+:root {
+  /* Dark Theme (Default) - Purple/Dark Premium */
+  --nm-bg: #0a0514;
+  --nm-surface: #1a1125;
+  --nm-surface-hover: #251833;
+  --nm-text: #e8e4f0;
+  --nm-text-secondary: #a49bb3;
+  --nm-accent: #9b59f5;
+  --nm-accent-hover: #b57aff;
+  --nm-border: #2d2038;
+  --nm-glow: rgba(155, 89, 245, 0.3);
+  --nm-shadow: rgba(155, 89, 245, 0.15);
+  --nm-glass: rgba(26, 17, 37, 0.7);
+}
+
+.theme-light {
+  --nm-bg: #f5f3f8;
+  --nm-surface: #ffffff;
+  --nm-surface-hover: #f0eef5;
+  --nm-text: #1a1125;
+  --nm-text-secondary: #6b5f7b;
+  --nm-accent: #9b59f5;
+  --nm-accent-hover: #8443e6;
+  --nm-border: #e0dce8;
+  --nm-glow: rgba(155, 89, 245, 0.2);
+  --nm-shadow: rgba(0, 0, 0, 0.08);
+  --nm-glass: rgba(255, 255, 255, 0.8);
+}
+
+.theme-teal {
+  --nm-bg: #051419;
+  --nm-surface: #0d2129;
+  --nm-surface-hover: #143038;
+  --nm-text: #e4f2f5;
+  --nm-text-secondary: #9bb9c3;
+  --nm-accent: #2dd4bf;
+  --nm-accent-hover: #5de4d3;
+  --nm-border: #1a3640;
+  --nm-glow: rgba(45, 212, 191, 0.3);
+  --nm-shadow: rgba(45, 212, 191, 0.15);
+  --nm-glass: rgba(13, 33, 41, 0.7);
+}
+
+.theme-green {
+  --nm-bg: #0a1408;
+  --nm-surface: #132415;
+  --nm-surface-hover: #1c3320;
+  --nm-text: #e4f5e8;
+  --nm-text-secondary: #9bc3a4;
+  --nm-accent: #22c55e;
+  --nm-accent-hover: #4ade80;
+  --nm-border: #1f3823;
+  --nm-glow: rgba(34, 197, 94, 0.3);
+  --nm-shadow: rgba(34, 197, 94, 0.15);
+  --nm-glass: rgba(19, 36, 21, 0.7);
+}
+
+.theme-pink {
+  --nm-bg: #1a0514;
+  --nm-surface: #2a1125;
+  --nm-surface-hover: #3a1833;
+  --nm-text: #f5e4f0;
+  --nm-text-secondary: #c39bb3;
+  --nm-accent: #ec4899;
+  --nm-accent-hover: #f472b6;
+  --nm-border: #3d2038;
+  --nm-glow: rgba(236, 72, 153, 0.3);
+  --nm-shadow: rgba(236, 72, 153, 0.15);
+  --nm-glass: rgba(42, 17, 37, 0.7);
+}
+
+.theme-orange {
+  --nm-bg: #1a0f05;
+  --nm-surface: #2a1b11;
+  --nm-surface-hover: #3a2718;
+  --nm-text: #f5ebe4;
+  --nm-text-secondary: #c3ab9b;
+  --nm-accent: #f97316;
+  --nm-accent-hover: #fb923c;
+  --nm-border: #3d2d20;
+  --nm-glow: rgba(249, 115, 22, 0.3);
+  --nm-shadow: rgba(249, 115, 22, 0.15);
+  --nm-glass: rgba(42, 27, 17, 0.7);
+}
+
+.theme-purple {
+  --nm-bg: #0f0519;
+  --nm-surface: #1d1129;
+  --nm-surface-hover: #2b1838;
+  --nm-text: #ebe4f5;
+  --nm-text-secondary: #ab9bc3;
+  --nm-accent: #a855f7;
+  --nm-accent-hover: #c084fc;
+  --nm-border: #302038;
+  --nm-glow: rgba(168, 85, 247, 0.3);
+  --nm-shadow: rgba(168, 85, 247, 0.15);
+  --nm-glass: rgba(29, 17, 41, 0.7);
+}
+
+/* Smooth theme transitions */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
