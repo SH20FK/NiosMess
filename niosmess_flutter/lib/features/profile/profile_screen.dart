@@ -1,4 +1,4 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,6 +28,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Map<String, dynamic>? info;
   bool loading = true;
   Future<Uint8List?>? _avatarFuture;
+  String _customStatus = '';
 
   String get _username {
     final session = ref.read(sessionProvider);
@@ -61,6 +62,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await OfflineCache.saveProfile(_username, data);
       setState(() {
         info = data;
+        _customStatus = data['custom_status']?.toString() ?? '';
         _avatarFuture = _loadAvatar(_username);
         loading = false;
       });
@@ -68,6 +70,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final cached = await OfflineCache.loadProfile(_username);
       setState(() {
         info = cached;
+        _customStatus = cached?['custom_status']?.toString() ?? '';
         _avatarFuture = _loadAvatar(_username);
         loading = false;
       });
@@ -101,6 +104,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return 'не в сети';
   }
 
+  void _showSetStatusDialog() {
+    final controller = TextEditingController(text: _customStatus);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Установить статус'),
+        content: TextField(
+          controller: controller,
+          maxLength: 100,
+          decoration: const InputDecoration(
+            hintText: 'Например: На работе',
+            counterText: '',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final newStatus = controller.text.trim();
+              // TODO: Save status to API
+              setState(() => _customStatus = newStatus);
+              Navigator.pop(context);
+            },
+            child: const Text('Сохранить'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
@@ -121,6 +157,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return NiosScaffold(
       body: Column(
         children: [
+          // Header with back button
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Row(
@@ -142,102 +179,332 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 : ListView(
                     padding: const EdgeInsets.all(20),
                     children: [
-                      NiosCard(
-                        child: Row(
+                      // Large Profile Header
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: NiosPalette.surface,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: NiosPalette.borderLight),
+                        ),
+                        child: Column(
                           children: [
-                            Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: NiosPalette.borderLight),
-                                color: NiosPalette.surfaceHover,
-                              ),
-                              child: ClipOval(
-                                child: username.isEmpty
-                                    ? Center(
-                                        child: Text(
-                                          name.characters.first.toUpperCase(),
-                                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                                        ),
-                                      )
-                                    : FutureBuilder<Uint8List?>(
-                                        future: _avatarFuture,
-                                        builder: (context, snapshot) {
-                                          final bytes = snapshot.data;
-                                          if (bytes != null && bytes.isNotEmpty) {
-                                            return Image.memory(bytes, fit: BoxFit.cover);
-                                          }
-                                          return Center(
-                                            child: Text(
-                                              name.characters.first.toUpperCase(),
-                                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                            // Large Avatar
+                            Hero(
+                              tag: 'avatar_$_username',
+                              child: Container(
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: NiosPalette.accent.withOpacity(0.3),
+                                    width: 3,
+                                  ),
+                                  color: NiosPalette.surfaceHover,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: NiosPalette.shadow.withOpacity(0.1),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child: username.isEmpty
+                                      ? Center(
+                                          child: Text(
+                                            name.characters.first.toUpperCase(),
+                                            style: const TextStyle(
+                                              fontSize: 48,
+                                              fontWeight: FontWeight.bold,
                                             ),
-                                          );
-                                        },
-                                      ),
+                                          ),
+                                        )
+                                      : FutureBuilder<Uint8List?>(
+                                          future: _avatarFuture,
+                                          builder: (context, snapshot) {
+                                            final bytes = snapshot.data;
+                                            if (bytes != null && bytes.isNotEmpty) {
+                                              return Image.memory(bytes, fit: BoxFit.cover);
+                                            }
+                                            return Center(
+                                              child: Text(
+                                                name.characters.first.toUpperCase(),
+                                                style: const TextStyle(
+                                                  fontSize: 48,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                                      ),
-                                      if ((badgeText ?? '').isNotEmpty || (badgeIcon ?? '').isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(left: 6),
-                                          child: NiosBadge(
-                                            tooltip: badgeText ??
-                                                'Этот человек связан с разработкой напрямую или является спонсором NiosMess',
-                                            icon: badgeIcon ?? '🦊',
-                                            reduceMotion: reduceMotion,
-                                          ),
-                                        ),
-                                    ],
+                            const SizedBox(height: 20),
+                            
+                            // Name with badge
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text('@$username', style: TextStyle(color: NiosPalette.textSecondary)),
-                                  const SizedBox(height: 4),
-                                  Text(status, style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12)),
+                                ),
+                                if ((badgeText ?? '').isNotEmpty || (badgeIcon ?? '').isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: NiosBadge(
+                                      tooltip: badgeText ??
+                                          'Этот человек связан с разработкой напрямую или является спонсором NiosMess',
+                                      icon: badgeIcon ?? '🦊',
+                                      reduceMotion: reduceMotion,
+                                      size: 24,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            
+                            // Username
+                            Text(
+                              '@$username',
+                              style: TextStyle(
+                                color: NiosPalette.textSecondary,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            
+                            // Online status
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: info?['isonline'] == true
+                                    ? Colors.green.withOpacity(0.1)
+                                    : NiosPalette.surfaceHover,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: info?['isonline'] == true
+                                          ? Colors.green
+                                          : Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    status,
+                                    style: TextStyle(
+                                      color: NiosPalette.textSecondary,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      NiosCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const NiosSectionTitle('Аккаунт'),
-                            const SizedBox(height: 12),
-                            Text('Email', style: TextStyle(color: NiosPalette.textSecondary)),
-                            const SizedBox(height: 4),
-                            Text(email.isEmpty ? '—' : email),
-                            const SizedBox(height: 12),
-                            Text('О себе', style: TextStyle(color: NiosPalette.textSecondary)),
-                            const SizedBox(height: 4),
-                            Text(about.isEmpty ? '—' : about),
-                            if (reg.isNotEmpty) ...[
+                            
+                            // Custom Status
+                            if (_customStatus.isNotEmpty) ...[
                               const SizedBox(height: 12),
-                              Text('Дата регистрации', style: TextStyle(color: NiosPalette.textSecondary)),
-                              const SizedBox(height: 4),
-                              Text(reg),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: NiosPalette.accent.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: NiosPalette.accent.withOpacity(0.2),
+                                  ),
+                                ),
+                                child: Text(
+                                  _customStatus,
+                                  style: TextStyle(
+                                    color: NiosPalette.accent,
+                                    fontSize: 14,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            
+                            // Set Status Button (only for own profile)
+                            if (_isOwnProfile) ...[
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: _showSetStatusDialog,
+                                  icon: Icon(Icons.edit, size: 18, color: NiosPalette.accent),
+                                  label: Text(
+                                    _customStatus.isEmpty ? 'Установить статус' : 'Изменить статус',
+                                    style: TextStyle(color: NiosPalette.accent),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: NiosPalette.accent.withOpacity(0.5)),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
                             ],
                           ],
                         ),
                       ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Account Info Card
+                      NiosCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const NiosSectionTitle('Информация'),
+                            const SizedBox(height: 16),
+                            
+                            _buildInfoRow(
+                              icon: Icons.email_outlined,
+                              label: 'Email',
+                              value: email.isEmpty ? '—' : email,
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            _buildInfoRow(
+                              icon: Icons.info_outline,
+                              label: 'О себе',
+                              value: about.isEmpty ? '—' : about,
+                            ),
+                            
+                            if (reg.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              _buildInfoRow(
+                                icon: Icons.calendar_today_outlined,
+                                label: 'Дата регистрации',
+                                value: reg,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      
+                      // Actions (only for own profile)
+                      if (_isOwnProfile) ...[
+                        const SizedBox(height: 16),
+                        NiosCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const NiosSectionTitle('Действия'),
+                              const SizedBox(height: 12),
+                              _buildActionTile(
+                                icon: Icons.edit,
+                                title: 'Изменить имя',
+                                onTap: () {
+                                  // TODO: Navigate to edit name
+                                },
+                              ),
+                              const Divider(height: 1),
+                              _buildActionTile(
+                                icon: Icons.photo_camera,
+                                title: 'Сменить фото',
+                                onTap: () {
+                                  // TODO: Change avatar
+                                },
+                              ),
+                              const Divider(height: 1),
+                              _buildActionTile(
+                                icon: Icons.share,
+                                title: 'Поделиться профилем',
+                                onTap: () {
+                                  // TODO: Share profile
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: NiosPalette.accent.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: NiosPalette.accent, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: NiosPalette.textSecondary,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionTile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: NiosPalette.surfaceHover,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: NiosPalette.text, size: 20),
+      ),
+      title: Text(title),
+      trailing: Icon(Icons.chevron_right, color: NiosPalette.textSecondary),
+      onTap: onTap,
+      contentPadding: EdgeInsets.zero,
     );
   }
 }

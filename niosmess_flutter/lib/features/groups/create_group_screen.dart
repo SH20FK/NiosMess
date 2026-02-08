@@ -233,7 +233,7 @@ class _TypeChip extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: active ? NiosPalette.accent.withOpacity(0.18) : NiosPalette.surfaceHover,
+        color: active ? NiosPalette.accent.withValues(alpha: 0.18) : NiosPalette.surfaceHover,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: active ? NiosPalette.accent : NiosPalette.border),
       ),

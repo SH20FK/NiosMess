@@ -1,4 +1,4 @@
-import 'dart:math' as Math;
+import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
@@ -276,86 +276,77 @@ class NiosScaffold extends StatelessWidget {
     this.appBar,
     this.floatingActionButton,
     this.bottomNavigationBar,
+    this.usePattern = false,
   });
 
   final Widget body;
   final PreferredSizeWidget? appBar;
   final Widget? floatingActionButton;
   final Widget? bottomNavigationBar;
+  final bool usePattern;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: appBar,
-      backgroundColor: Colors.transparent,
+      backgroundColor: NiosPalette.background,
       floatingActionButton: floatingActionButton,
       bottomNavigationBar: bottomNavigationBar,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              NiosPalette.background,
-              NiosPalette.surface,
-              NiosPalette.background,
-            ],
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.2,
-                child: CachedNetworkImage(
-                  imageUrl: NiosPalette.chatPattern,
-                  fit: BoxFit.cover,
-                  fadeInDuration: const Duration(milliseconds: 200),
-                  placeholder: (_, __) => const SizedBox.shrink(),
-                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
+      body: usePattern
+          ? Stack(
+              children: [
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: 0.03,
+                    child: CachedNetworkImage(
+                      imageUrl: NiosPalette.chatPattern,
+                      fit: BoxFit.cover,
+                      fadeInDuration: const Duration(milliseconds: 200),
+                      placeholder: (_, __) => const SizedBox.shrink(),
+                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            SafeArea(child: body),
-          ],
-        ),
-      ),
+                SafeArea(child: body),
+              ],
+            )
+          : SafeArea(child: body),
     );
   }
 }
+
 
 class NiosCard extends StatelessWidget {
   const NiosCard({
     super.key,
     required this.child,
     this.padding,
-    this.useGlass = true,
+    this.useGlass = false,
+    this.elevation = 0,
   });
 
   final Widget child;
   final EdgeInsets? padding;
   final bool useGlass;
+  final double elevation;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding ?? const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: useGlass ? NiosPalette.glass : NiosPalette.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: NiosPalette.borderLight),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.35),
-            blurRadius: 26,
-            offset: Offset(0, 12),
-          ),
-        ],
+    return Card(
+      elevation: elevation,
+      color: useGlass ? NiosPalette.glass : NiosPalette.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: NiosPalette.border, width: 0.5),
       ),
-      child: child,
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(16),
+        child: child,
+      ),
     );
   }
 }
+
 
 class NiosSectionTitle extends StatelessWidget {
   const NiosSectionTitle(this.text, {super.key});
@@ -642,7 +633,11 @@ class _BadgeTooltip extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: NiosPalette.borderLight),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 18, offset: const Offset(0, 10)),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: Text(
@@ -656,6 +651,7 @@ class _BadgeTooltip extends StatelessWidget {
   }
 }
 
+
 class _BadgeParticlesPainter extends CustomPainter {
   _BadgeParticlesPainter(this.progress);
   final double progress;
@@ -666,11 +662,12 @@ class _BadgeParticlesPainter extends CustomPainter {
     final paint = Paint()..style = PaintingStyle.fill;
     final radius = size.width * 0.45;
     for (var i = 0; i < 12; i++) {
-      final angle = (progress * 2 * Math.pi) + (i * 0.52);
+      final angle = (progress * 2 * math.pi) + (i * 0.52);
       final dist = radius + (i % 3) * 2;
-      final dot = Offset(center.dx + dist * Math.cos(angle), center.dy + dist * Math.sin(angle));
-      final alpha = (0.5 + 0.5 * Math.sin(angle + progress * 6)).clamp(0.2, 0.9);
-      paint.color = NiosPalette.accent.withOpacity(alpha);
+      final dot = Offset(center.dx + dist * math.cos(angle), center.dy + dist * math.sin(angle));
+      final alpha = (0.5 + 0.5 * math.sin(angle + progress * 6)).clamp(0.2, 0.9);
+      paint.color = NiosPalette.accent.withValues(alpha: alpha);
+
       canvas.drawCircle(dot, i % 3 == 0 ? 1.6 : 1.1, paint);
     }
   }
@@ -680,4 +677,3 @@ class _BadgeParticlesPainter extends CustomPainter {
     return oldDelegate.progress != progress;
   }
 }
-

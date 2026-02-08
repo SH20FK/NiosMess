@@ -496,7 +496,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
             border: Border.all(color: NiosPalette.borderLight),
             boxShadow: [
               BoxShadow(color: NiosPalette.shadow, blurRadius: 24, offset: const Offset(0, 12)),
-              BoxShadow(color: NiosPalette.shadowGlow.withOpacity(pulse), blurRadius: 36, offset: const Offset(0, 12)),
+              BoxShadow(color: NiosPalette.shadowGlow.withValues(alpha: pulse), blurRadius: 36, offset: const Offset(0, 12)),
             ],
           ),
           child: child,
@@ -1145,7 +1145,7 @@ class _FoxHead extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: const LinearGradient(colors: [Color(0xFFFF6B35), Color(0xFFF7931E)]),
               borderRadius: BorderRadius.circular(65),
-              boxShadow: [BoxShadow(color: const Color(0xFFFF6B35).withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 10))],
+              boxShadow: [BoxShadow(color: const Color(0xFFFF6B35).withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 10))],
             ),
           ),
           _FoxEar(left: true, wiggle: earWiggle),
@@ -1294,7 +1294,7 @@ class _FoxEye extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 1))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 1))],
         ),
         child: Stack(
           children: [
@@ -1312,7 +1312,7 @@ class _FoxEye extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A1A1A),
                   borderRadius: BorderRadius.circular(999),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 2, offset: const Offset(0, 1))],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 2, offset: const Offset(0, 1))],
                 ),
               ),
             ),
@@ -1384,9 +1384,9 @@ class _FoxCheek extends StatelessWidget {
           width: 20,
           height: 15,
           decoration: BoxDecoration(
-            color: const Color(0xFFFF6B35).withOpacity(0.6),
+            color: const Color(0xFFFF6B35).withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(50),
-            boxShadow: [BoxShadow(color: const Color(0xFFFF6B35).withOpacity(0.4), blurRadius: 6)],
+            boxShadow: [BoxShadow(color: const Color(0xFFFF6B35).withValues(alpha: 0.4), blurRadius: 6)],
           ),
         ),
       ),
@@ -1520,7 +1520,7 @@ class _ParticlesPainter extends CustomPainter {
       final progress = (p.y - t * p.speed) % 1.0;
       final y = size.height * (1 - progress);
       final x = size.width * p.x + sin((t * 2 * pi) + p.phase) * p.drift;
-      paint.color = color.withOpacity(p.opacity);
+      paint.color = color.withValues(alpha: p.opacity);
       canvas.drawCircle(Offset(x, y), p.radius, paint);
     }
   }
@@ -1631,4 +1631,3 @@ class _LegalDoc {
   final String title;
   final String asset;
 }
-

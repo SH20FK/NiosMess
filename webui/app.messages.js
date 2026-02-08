@@ -1,4 +1,4 @@
-﻿const twoChar = new Set([...revMap.keys()].filter((v) => v.length === 2));
+﻿﻿﻿﻿const twoChar = new Set([...revMap.keys()].filter((v) => v.length === 2));
 const oneChar = new Set([...revMap.keys()].filter((v) => v.length === 1));
 async function loadMessages({ silent = true } = {}) {
   if (!state.activeTarget || !state.session) return;
@@ -1731,52 +1731,37 @@ async function submitForward() {
   const rawComment = commentInput?.value || "";
   const commentText = state.settings.trimSpaces === false ? rawComment : rawComment.replace(/\s+/g, " ").trim();
 
-  let forwardRaw = "";
-  if (typeof messageData.text === "string") {
-    forwardRaw = messageData.text;
-  } else if (typeof messageData.message === "string") {
-    forwardRaw = messageData.message;
-  }
-
-  if (!forwardRaw) {
-    const attachment = getAttachmentFromMessage(messageData);
-    if (attachment?.name) {
-      forwardRaw = `FILE:${attachment.name}`;
-    }
-  }
-
-  if (!forwardRaw) {
-    toast("\u041d\u0435\u0447\u0435\u0433\u043e \u043f\u0435\u0440\u0435\u0441\u044b\u043b\u0430\u0442\u044c");
+  const messageId = messageData.id || messageData.temp_id;
+  if (!messageId) {
+    toast("\u041d\u0435\u0432\u043e\u0437\u043c\u043e\u0436\u043d\u043e \u043f\u0435\u0440\u0435\u0441\u043b\u0430\u0442\u044c \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0431\u0435\u0437 ID");
     return;
   }
 
-  const sendPayload = async (target, text, obfuscateText) => {
-    const payload = {
-      sender: state.session.username,
-      receiver: target,
-      text: obfuscateText ? obfuscate(text) : text,
-      token: state.session.token,
-    };
-    await apiFetch("/send_message", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }, { silent: true });
-  };
-
   try {
     for (const target of targets) {
+      const payload = {
+        token: state.session.token,
+        message_id: String(messageId),
+        target_chat: target,
+      };
+      
       if (commentText) {
-        await sendPayload(target, commentText, true);
+        payload.comment = obfuscate(commentText);
       }
-      await sendPayload(target, forwardRaw, false);
+
+      await apiFetch("/forward_message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }, { silent: true });
     }
     closeForwardModal();
     toast("\u041f\u0435\u0440\u0435\u0441\u043b\u0430\u043d\u043e");
-  } catch {
-    toast("\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u0435\u0440\u0435\u0441\u043b\u0430\u0442\u044c");
+  } catch (err) {
+    toast(err.message || "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u0435\u0440\u0435\u0441\u043b\u0430\u0442\u044c");
   }
 }
+
 
 function openScheduleModal() {
   const modal = $("scheduleModal");
@@ -1874,6 +1859,41 @@ function normalizePoll(poll) {
   return normalized;
 }
 
+async function syncPollVote(pollId, optionIds) {
+  if (!state.session?.token || !pollId) return;
+  try {
+    await apiFetch(`/polls/${encodeURIComponent(pollId)}/vote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: state.session.token,
+        option_ids: Array.isArray(optionIds) ? optionIds : [optionIds],
+      }),
+    }, { silent: true });
+  } catch (err) {
+    console.error("Failed to sync poll vote:", err);
+  }
+}
+
+async function fetchPollResults(pollId) {
+  if (!state.session?.token || !state.session?.username || !pollId) return null;
+  try {
+    const data = await apiFetch(
+      `/polls/${encodeURIComponent(pollId)}?token=${encodeURIComponent(state.session.token)}&username=${encodeURIComponent(state.session.username)}`,
+      {},
+      { silent: true }
+    );
+    if (data && data.options) {
+      return data;
+    }
+    return null;
+  } catch (err) {
+    console.error("Failed to fetch poll results:", err);
+    return null;
+  }
+}
+
+
 function renderPollMessage(message, poll) {
   const pollWrap = document.createElement("div");
   pollWrap.className = "message-poll";
@@ -1891,7 +1911,19 @@ function renderPollMessage(message, poll) {
   footer.className = "poll-footer";
   pollWrap.appendChild(footer);
 
-  function renderPollOptions() {
+  async function renderPollOptions() {
+    const serverPoll = await fetchPollResults(poll.id);
+    if (serverPoll) {
+      poll.options = serverPoll.options.map((opt) => ({
+        id: opt.id,
+        text: String(opt.text || "").trim(),
+        votes: Number(opt.votes || 0),
+      }));
+      poll.total = poll.options.reduce((sum, opt) => sum + (opt.votes || 0), 0);
+      state.polls[poll.id] = { ...state.polls[poll.id], ...poll };
+      localStorage.setItem("niosmess_polls", JSON.stringify(state.polls));
+    }
+
     const userVotes = poll.votedBy?.[state.session?.username] || [];
     const totalVotes = poll.options.reduce((sum, opt) => sum + (opt.votes || 0), 0) || 1;
     optionsList.innerHTML = "";
@@ -1918,7 +1950,7 @@ function renderPollMessage(message, poll) {
       option.appendChild(label);
       option.appendChild(count);
 
-      option.addEventListener("click", () => {
+      option.addEventListener("click", async () => {
         const username = state.session?.username;
         if (!username) return;
         const current = poll.votedBy?.[username] || [];
@@ -1946,6 +1978,7 @@ function renderPollMessage(message, poll) {
         state.polls[poll.id] = poll;
         localStorage.setItem("niosmess_polls", JSON.stringify(state.polls));
 
+        await syncPollVote(poll.id, next);
         renderPollOptions();
       });
 
@@ -1959,6 +1992,7 @@ function renderPollMessage(message, poll) {
 
   message.appendChild(pollWrap);
 }
+
 
 async function submitPoll() {
   const questionInput = $("pollQuestion");
@@ -2590,6 +2624,51 @@ async function processScheduledMessages() {
   if (state.scheduled.length === 0) stopScheduledTimer();
 }
 
+async function fetchScheduledMessages() {
+  if (!state.session?.token) return;
+  try {
+    const data = await apiFetch(
+      `/scheduled_messages?token=${encodeURIComponent(state.session.token)}&username=${encodeURIComponent(state.session.username)}`,
+      {},
+      { silent: true }
+    );
+    if (Array.isArray(data)) {
+      const mapped = data.map((item) => ({
+        id: item.id || `sched_${Date.now()}_${Math.random()}`,
+        target: item.target_chat || item.receiver,
+        type: item.chat_type || "user",
+        text: item.text || "",
+        time: new Date(item.scheduled_at).getTime(),
+        reply_to: item.reply_to || null,
+        serverId: item.id,
+      }));
+      state.scheduled = mapped;
+      persistScheduled();
+      if (mapped.length > 0) {
+        startScheduledTimer();
+      }
+    }
+  } catch (err) {
+    console.error("Failed to fetch scheduled messages:", err);
+  }
+}
+
+async function cancelScheduledMessageServer(scheduleId) {
+  if (!state.session?.token || !scheduleId) return;
+  try {
+    await apiFetch(`/scheduled_messages/${encodeURIComponent(scheduleId)}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: state.session.token,
+        username: state.session.username,
+      }),
+    }, { silent: true });
+  } catch (err) {
+    console.error("Failed to cancel scheduled message:", err);
+  }
+}
+
 async function submitScheduleMessage() {
   if (!state.session || !state.activeTarget) return;
   const dateInput = $("scheduleDate");
@@ -2606,22 +2685,43 @@ async function submitScheduleMessage() {
     return;
   }
 
-  const item = {
-    id: `sched_${Date.now()}_${Math.random()}`,
-    target: state.activeTarget,
-    type: state.activeChatType || "user",
-    text: textValue,
-    time: when,
-    reply_to: state.replyTo ? state.replyTo.id : null,
-  };
+  try {
+    const payload = {
+      token: state.session.token,
+      sender: state.session.username,
+      receiver: state.activeTarget,
+      text: obfuscate(textValue),
+      scheduled_at: new Date(when).toISOString(),
+      reply_to: state.replyTo ? state.replyTo.id : null,
+    };
 
-  state.scheduled = Array.isArray(state.scheduled) ? state.scheduled : [];
-  state.scheduled.push(item);
-  persistScheduled();
-  startScheduledTimer();
-  closeScheduleModal();
-  toast("\u0421\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0437\u0430\u043f\u043b\u0430\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u043e");
+    const data = await apiFetch("/scheduled_messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }, { silent: true });
+
+    const item = {
+      id: data?.id || `sched_${Date.now()}_${Math.random()}`,
+      target: state.activeTarget,
+      type: state.activeChatType || "user",
+      text: textValue,
+      time: when,
+      reply_to: state.replyTo ? state.replyTo.id : null,
+      serverId: data?.id,
+    };
+
+    state.scheduled = Array.isArray(state.scheduled) ? state.scheduled : [];
+    state.scheduled.push(item);
+    persistScheduled();
+    startScheduledTimer();
+    closeScheduleModal();
+    toast("\u0421\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0437\u0430\u043f\u043b\u0430\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u043e");
+  } catch (err) {
+    toast(err.message || "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u043f\u043b\u0430\u043d\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435");
+  }
 }
+
 async function sendMessage() {
   const input = $("messageInput");
   const rawText = input.value;
@@ -4012,7 +4112,3 @@ function playRelative(step) {
 function playNextTrack() {
   playRelative(1);
 }
-
-
-
-

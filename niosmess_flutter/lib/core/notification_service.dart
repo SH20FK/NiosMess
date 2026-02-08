@@ -1,5 +1,4 @@
-﻿import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+﻿import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'storage/offline_cache.dart';
 
@@ -10,12 +9,6 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _local = FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
-    try {
-      await Firebase.initializeApp();
-    } catch (_) {
-      return;
-    }
-
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     await _local.initialize(const InitializationSettings(android: androidSettings));
 

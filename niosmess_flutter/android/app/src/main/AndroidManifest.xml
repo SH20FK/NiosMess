@@ -4,6 +4,8 @@
         android:label="NiosMess"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -13,6 +15,11 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+            <!-- Enable high refresh rate (120Hz+) support -->
+            <meta-data
+                android:name="android.window.PROPERTY_REFRESH_RATE"
+                android:value="120" />
+
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
                  while the Flutter UI initializes. After that, this theme continues

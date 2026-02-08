@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/notification_service.dart';
@@ -58,7 +58,7 @@ class _AppRouterState extends ConsumerState<AppRouter> {
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         if (currentChat != null) {
           setState(() => currentChat = null);
@@ -127,8 +127,7 @@ class _AppRouterState extends ConsumerState<AppRouter> {
               ),
             ),
         ],
-        onPopPage: (route, result) {
-          if (!route.didPop(result)) return false;
+        onDidRemovePage: (page) {
           if (currentChat != null) setState(() => currentChat = null);
           if (screen == 'settings' || screen == 'profile' || screen == 'createGroup') {
             setState(() {
@@ -136,9 +135,9 @@ class _AppRouterState extends ConsumerState<AppRouter> {
               profileTarget = null;
             });
           }
-          return true;
         },
       ),
     );
   }
 }
+

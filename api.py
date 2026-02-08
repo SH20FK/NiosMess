@@ -8,7 +8,9 @@ import datetime
 
 import time
 import re
+import base64
 from urllib.parse import urlparse
+
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import List, Dict, Any
 import json
@@ -361,7 +363,30 @@ init_db()
 
 
 
-
+def format_last_seen(ts: float | None) -> str:
+    if not ts or ts == 0:
+        return "давно не в сети"
+    
+    now = time.time()
+    try:
+        ts = float(ts)
+    except:
+        return "неизвестно"
+        
+    delta = max(0, now - ts)
+    
+    if delta < 60:
+        return "в сети"
+    if delta < 3600:
+        mins = int(delta // 60)
+        return f"был(а) {mins} мин. назад"
+    if delta < 86400:
+        hours = int(delta // 3600)
+        return f"был(а) {hours} ч. назад"
+        
+    # ИСПРАВЛЕНО: Вместо переменной byl_a пишем текст напрямую
+    date_str = datetime.datetime.fromtimestamp(ts).strftime('%d.%m.%Y %H:%M')
+    return f"был(а) {date_str}"
 def verify_token(owner: str, token: str) -> bool:
     return is_valid_session(token, owner)
 
@@ -389,20 +414,7 @@ def get_user_badge(conn, username: str):
     }
 
 
-def format_last_seen(ts: float | None) -> str:
-    if not ts:
-        return "не в сети"
-    now = time.time()
-    delta = max(0, now - ts)
-    if delta < 60:
-        return "в сети"
-    if delta < 3600:
-        mins = int(delta // 60)
-        return f"был(а) {mins} мин. назад"
-    if delta < 86400:
-        hours = int(delta // 3600)
-        return f"был(а) {hours} ч. назад"
-    return f"{byl_a} {datetime.datetime.fromtimestamp(ts).strftime('%d.%m.%Y %H:%M')}"
+
 
 def is_valid_session(token: str, username: str) -> bool:
 
@@ -518,27 +530,126 @@ async def get_avatar(other: str = Form(...)):
             
 active_connections: Dict[str, List[WebSocket]] = {}
 
+from fastapi import WebSocket, WebSocketDisconnect
+import os
+import uuid
+import time
+
+UPLOAD_DIR = "uploads"
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+active_connections = {}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str, username: str):
+    # --- Проверка сессии ---
     if not is_valid_session(token, username):
         await websocket.close(code=1008)
         return
-    
+
     await websocket.accept()
-    if username not in active_connections: active_connections[username] = []
+    if username not in active_connections:
+        active_connections[username] = []
     active_connections[username].append(websocket)
-    
+
     try:
         while True:
             data = await websocket.receive_json()
-   
+
+            # --- 1. typing уведомление ---
             if data.get("type") == "typing":
                 recipient = data.get("receiver")
                 if recipient in active_connections:
                     for conn in active_connections[recipient]:
-                        await conn.send_json(data)
-    except:
-        active_connections[username].remove(websocket)
+                        await conn.send_json({
+                            "type": "typing",
+                            "sender": username
+                        })
+
+            # --- 2. upload файла ---
+            elif data.get("type") == "file_start":
+                filename = data.get("filename")
+                safe_filename = f"{uuid.uuid4().hex}{os.path.splitext(filename)[1]}"
+                file_path = os.path.join(UPLOAD_DIR, safe_filename)
+
+                websocket.current_file = {
+                    "path": file_path,
+                    "size": 0,
+                    "safe_name": safe_filename
+                }
+
+                await websocket.send_json({
+                    "type": "file_ready",
+                    "filename": safe_filename
+                })
+
+            elif data.get("type") == "file_chunk":
+                file_info = getattr(websocket, "current_file", None)
+                if not file_info:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "No file initialized"
+                    })
+                    continue
+
+                chunk_b64 = data.get("chunk")
+                chunk_bytes = base64.b64decode(chunk_b64)
+
+                new_size = file_info["size"] + len(chunk_bytes)
+                if new_size > MAX_FILE_SIZE:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "File too large"
+                    })
+                    os.remove(file_info["path"])
+                    del websocket.current_file
+                    continue
+
+                with open(file_info["path"], "ab") as f:
+                    f.write(chunk_bytes)
+
+                file_info["size"] = new_size
+
+            elif data.get("type") == "file_end":
+                file_info = getattr(websocket, "current_file", None)
+                if file_info:
+                    await websocket.send_json({
+                        "type": "file_saved",
+                        "filename": file_info["safe_name"],
+                        "size": file_info["size"]
+                    })
+                    del websocket.current_file
+
+            # --- 3. download файла ---
+            elif data.get("type") == "download_start":
+                filename = data.get("filename")
+                safe_name = os.path.basename(filename)
+                path = os.path.join(UPLOAD_DIR, safe_name)
+
+                if not os.path.exists(path):
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "File not found"
+                    })
+                    continue
+
+                # читаем файл чанками
+                with open(path, "rb") as f:
+                    while chunk := f.read(1024 * 1024):  # 1MB
+                        await websocket.send_json({
+                            "type": "file_chunk",
+                            "chunk": base64.b64encode(chunk).decode()
+                        })
+                await websocket.send_json({
+                    "type": "download_end",
+                    "filename": safe_name
+                })
+
+    except WebSocketDisconnect:
+        if websocket in active_connections.get(username, []):
+            active_connections[username].remove(websocket)
+
             
             
             
@@ -565,6 +676,13 @@ async def mark_collective_read(chat_id: str = Form(...), username: str = Form(..
             
             
 
+@app.get("/sessions/list")
+async def list_sessions(username: str, token: str):
+    if not is_valid_session(token, username): raise HTTPException(401)
+    with db_lock:
+        conn = get_db()
+        rows = conn.execute("SELECT token as id, device, last_activity, ip FROM sessions WHERE username=?", (username,)).fetchall()
+        return [{"id":r[0], "device":r[1], "last_active":r[2], "ip":r[3], "current":(r[0]==token)} for r in rows]
 
 @app.get("/get_sessions")
 async def list_sessions_alias(username: str, token: str):
@@ -651,15 +769,255 @@ async def schedule_message(token: str = Form(...), sender: str = Form(...), chat
 
 
 @app.post("/polls/create")
-async def create_poll(token: str = Form(...), username: str = Form(...), chat_id: str = Form(...), question: str = Form(...), options: str = Form(...)):
+async def create_poll(token: str = Form(...), username: str = Form(...), chat_id: str = Form(...), question: str = Form(...), options: str = Form(...), multiple: bool = Form(False)):
     if not is_valid_session(token, username): raise HTTPException(401)
     poll_id = str(uuid.uuid4())
     with db_lock:
         conn = get_db()
-        conn.execute("INSERT INTO polls (id, question, options, results) VALUES (?,?,?,?)", 
-                     (poll_id, question, options, json.dumps([0]*len(json.loads(options)))))
+        conn.execute("INSERT INTO polls (id, question, options, results, multiple) VALUES (?,?,?,?,?)", 
+                     (poll_id, question, options, json.dumps([0]*len(json.loads(options))), 1 if multiple else 0))
         conn.commit()
     return {"status": "ok", "poll_id": poll_id}
+
+@app.post("/polls/vote")
+async def vote_poll(request: Request):
+    """M11: Голосование в опросе - поддержка одиночного и множественного выбора"""
+    data = await request.json()
+    token = data.get("token")
+    username = data.get("username")
+    poll_id = data.get("poll_id")
+    option_ids = data.get("option_ids", [])
+    
+    if not is_valid_session(token, username): 
+        raise HTTPException(401, "Unauthorized")
+    
+    # Нормализуем option_ids в список индексов
+    if isinstance(option_ids, int):
+        option_indices = [option_ids]
+    elif isinstance(option_ids, list):
+        option_indices = [int(x) for x in option_ids if isinstance(x, (int, str)) and str(x).isdigit()]
+    else:
+        option_indices = []
+    
+    with db_lock:
+        conn = get_db()
+        poll = conn.execute("SELECT * FROM polls WHERE id=?", (poll_id,)).fetchone()
+        if not poll:
+            raise HTTPException(404, "Poll not found")
+        
+        results = json.loads(poll['results'])
+        
+        # Удаляем все старые голоса пользователя
+        old_votes = conn.execute(
+            "SELECT option_index FROM poll_votes WHERE poll_id=? AND username=?", 
+            (poll_id, username)
+        ).fetchall()
+        
+        for old_vote in old_votes:
+            old_index = old_vote['option_index']
+            if 0 <= old_index < len(results):
+                results[old_index] = max(0, results[old_index] - 1)
+        
+        conn.execute("DELETE FROM poll_votes WHERE poll_id=? AND username=?", (poll_id, username))
+        
+        # Добавляем новые голоса
+        for option_index in option_indices:
+            if 0 <= option_index < len(results):
+                conn.execute(
+                    "INSERT INTO poll_votes (poll_id, username, option_index, voted_at) VALUES (?, ?, ?, ?)",
+                    (poll_id, username, option_index, time.time())
+                )
+                results[option_index] = results[option_index] + 1
+        
+        conn.execute("UPDATE polls SET results=? WHERE id=?", (json.dumps(results), poll_id))
+        conn.commit()
+        
+        # Получаем актуальные голоса пользователя
+        my_votes = [r['option_index'] for r in conn.execute(
+            "SELECT option_index FROM poll_votes WHERE poll_id=? AND username=?", 
+            (poll_id, username)
+        ).fetchall()]
+        
+        total = sum(results)
+        conn.close()
+        
+    return {"status": "ok", "counts": results, "my_votes": my_votes, "total": total}
+
+
+@app.get("/polls/{poll_id}")
+async def get_poll(poll_id: str, username: str, token: str):
+    """M11: Получение информации об опросе"""
+    if not is_valid_session(token, username): raise HTTPException(401)
+    with db_lock:
+        conn = get_db()
+        poll = conn.execute("SELECT * FROM polls WHERE id=?", (poll_id,)).fetchone()
+        if not poll:
+            raise HTTPException(404, "Poll not found")
+        
+        results = json.loads(poll['results'])
+        options = json.loads(poll['options'])
+        
+        my_votes = [r['option_index'] for r in conn.execute(
+            "SELECT option_index FROM poll_votes WHERE poll_id=? AND username=?", 
+            (poll_id, username)
+        ).fetchall()]
+        
+        total = sum(results)
+        conn.close()
+        
+    return {
+        "id": poll_id,
+        "question": poll['question'],
+        "options": [{"id": i, "text": opt} for i, opt in enumerate(options)],
+        "multiple": bool(poll['multiple']),
+        "counts": results,
+        "my_votes": my_votes,
+        "total": total
+    }
+
+@app.get("/messages/scheduled")
+async def get_scheduled_messages(username: str, token: str, chat_id: str = None):
+    """M09: Получение списка запланированных сообщений"""
+    if not is_valid_session(token, username): raise HTTPException(401)
+    with db_lock:
+        conn = get_db()
+        if chat_id:
+            rows = conn.execute(
+                "SELECT * FROM scheduled_messages WHERE sender=? AND chat_id=? ORDER BY send_at ASC",
+                (username, chat_id)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM scheduled_messages WHERE sender=? ORDER BY send_at ASC",
+                (username,)
+            ).fetchall()
+        conn.close()
+        
+    return {
+        "status": "ok",
+        "scheduled": [dict(r) for r in rows]
+    }
+
+@app.post("/messages/scheduled/cancel")
+async def cancel_scheduled_message(token: str = Form(...), username: str = Form(...), schedule_id: int = Form(...)):
+    """M09: Отмена запланированного сообщения"""
+    if not is_valid_session(token, username): raise HTTPException(401)
+    with db_lock:
+        conn = get_db()
+        # Проверяем, что сообщение принадлежит пользователю
+        msg = conn.execute(
+            "SELECT * FROM scheduled_messages WHERE id=? AND sender=?", 
+            (schedule_id, username)
+        ).fetchone()
+        if not msg:
+            conn.close()
+            raise HTTPException(404, "Scheduled message not found")
+        
+        conn.execute("DELETE FROM scheduled_messages WHERE id=?", (schedule_id,))
+        conn.commit()
+        conn.close()
+        
+    return {"status": "ok", "cancelled_id": schedule_id}
+
+@app.post("/forward_message")
+async def forward_message(
+    token: str = Form(...),
+    username: str = Form(...),
+    chat_id: str = Form(...),
+    chat_type: str = Form(...),
+    forward_from: str = Form(...),
+    forward_message_id: int = Form(...),
+    forward_chat_type: str = Form(None)
+):
+    """M06: Пересылка сообщения с метаданными"""
+    if not is_valid_session(token, username): raise HTTPException(401)
+    
+    with db_lock:
+        conn = get_db()
+        
+        # Получаем исходное сообщение
+        if forward_chat_type in ['group', 'channel']:
+            source_msg = conn.execute(
+                "SELECT * FROM group_messages WHERE id=? AND chat_id=?", 
+                (forward_message_id, forward_from)
+            ).fetchone()
+        else:
+            source_msg = conn.execute(
+                "SELECT * FROM messages WHERE id=? AND (sender=? OR receiver=?)", 
+                (forward_message_id, forward_from, forward_from)
+            ).fetchone()
+        
+        if not source_msg:
+            conn.close()
+            raise HTTPException(404, "Source message not found")
+        
+        # Формируем текст с метаданными пересылки
+        forward_text = f"Forwarded from {forward_from}:\n{source_msg['text']}"
+        
+        # Отправляем в целевой чат
+        if chat_type in ['group', 'channel']:
+            conn.execute(
+                "INSERT INTO group_messages (chat_id, sender, text, time, reply_to, forward_from, forward_message_id) VALUES (?,?,?,?,?,?,?)",
+                (chat_id, username, forward_text, str(time.time()), None, forward_from, forward_message_id)
+            )
+        else:
+            conn.execute(
+                "INSERT INTO messages (sender, receiver, text, time, reply_to, forward_from, forward_message_id) VALUES (?,?,?,?,?,?,?)",
+                (username, chat_id, forward_text, str(time.time()), None, forward_from, forward_message_id)
+            )
+        
+        conn.commit()
+        conn.close()
+        
+    return {"status": "ok", "message": "Message forwarded"}
+
+@app.get("/search_messages")
+async def search_messages(
+    chat_id: str, 
+    q: str, 
+    username: str, 
+    token: str, 
+    chat_type: str = None,
+    limit: int = 50,
+    offset: int = 0
+):
+    """M14: Поиск сообщений с пагинацией"""
+    if not is_valid_session(token, username): raise HTTPException(401)
+    
+    table = "group_messages" if chat_type in ["group", "channel"] else "messages"
+    
+    with db_lock:
+        conn = get_db()
+        
+        # Получаем общее количество результатов
+        if chat_type in ["group", "channel"]:
+            count_row = conn.execute(
+                f"SELECT COUNT(*) as total FROM {table} WHERE chat_id=? AND text LIKE ?", 
+                (chat_id, f"%{q}%")
+            ).fetchone()
+            results = conn.execute(
+                f"SELECT * FROM {table} WHERE chat_id=? AND text LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?", 
+                (chat_id, f"%{q}%", limit, offset)
+            ).fetchall()
+        else:
+            count_row = conn.execute(
+                f"SELECT COUNT(*) as total FROM {table} WHERE ((sender=? AND receiver=?) OR (sender=? AND receiver=?)) AND text LIKE ?", 
+                (username, chat_id, chat_id, username, f"%{q}%")
+            ).fetchone()
+            results = conn.execute(
+                f"SELECT * FROM {table} WHERE ((sender=? AND receiver=?) OR (sender=? AND receiver=?)) AND text LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?", 
+                (username, chat_id, chat_id, username, f"%{q}%", limit, offset)
+            ).fetchall()
+        
+        total = count_row['total'] if count_row else 0
+        conn.close()
+        
+    return {
+        "results": [dict(r) for r in results],
+        "total": total,
+        "has_more": (offset + len(results)) < total
+    }
+
 
 
 
@@ -923,7 +1281,8 @@ def send_email(to_email, code):
 import secrets
 
 
-UPLOAD_DIR = "uploades"
+UPLOAD_DIR = "uploads"
+
 DB_FILES = "users.json"
 
 
@@ -990,6 +1349,61 @@ async def delete_handler(file_name: str, token: str, username: str):
         return {"ok": True, "message": f"File {file_name} deleted"}
     
     return {"ok": False, "error": "File not found"}
+
+
+# --- Новые endpoints для совместимости с frontend ---
+
+@app.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    sender: str = Form(...),
+    receiver: str = Form(...),
+    token: str = Form(...),
+    reply_to: str = Form(None),
+    ttl_seconds: str = Form(None)
+):
+    """Endpoint для загрузки файлов (совместимость с frontend)"""
+    if not is_valid_session(token, sender):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    # Генерируем уникальное имя файла
+    file_ext = os.path.splitext(file.filename)[1]
+    safe_filename = f"{uuid.uuid4().hex}{file_ext}"
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
+    
+    # Сохраняем файл
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    return {
+        "status": "ok",
+        "filename": safe_filename,
+        "original_name": file.filename,
+        "size": os.path.getsize(file_path)
+    }
+
+
+@app.get("/download/{file_name}")
+async def download_file(
+    file_name: str,
+    token: str = None,
+    username: str = None
+):
+    """Endpoint для скачивания файлов (совместимость с frontend)"""
+    # Проверяем токен если передан
+    if token and username:
+        if not is_valid_session(token, username):
+            raise HTTPException(status_code=401, detail="Invalid session")
+    
+    # Безопасное имя файла
+    safe_name = os.path.basename(file_name)
+    file_path = os.path.join(UPLOAD_DIR, safe_name)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    return FileResponse(file_path, filename=safe_name)
+
 
 
 
@@ -1567,92 +1981,101 @@ async def get_chats(username: str | None = None, user: str | None = None, token:
 
     with db_lock:
         conn = get_db()
-
-        # -------- ЛИЧНЫЕ ЧАТЫ --------
-        direct_rows = conn.execute("""
-            SELECT
-                CASE
-                    WHEN sender = :username THEN receiver
-                    ELSE sender
-                END AS chat_id,
-                u.name AS name,
-                u.username AS username,
-                u.last_seen AS last_seen,
-                u.is_frozen AS is_frozen,
-                b.id AS badge_id,
-                b.title AS badge_title,
-                b.description AS badge_text,
-                b.icon AS badge_icon,
-                SUM(
+        try:
+            # -------- ЛИЧНЫЕ ЧАТЫ --------
+            # Используем алиас "m" для messages, чтобы не было конфликта с b.id (badges)
+            direct_rows = conn.execute("""
+                SELECT
                     CASE
-                        WHEN receiver = :username AND is_read = 0 THEN 1
-                        ELSE 0
+                        WHEN m.sender = :username THEN m.receiver
+                        ELSE m.sender
+                    END AS chat_id,
+                    u.name AS name,
+                    u.username AS username,
+                    u.last_seen AS last_seen,
+                    u.is_frozen AS is_frozen,
+                    b.id AS badge_id,
+                    b.title AS badge_title,
+                    b.description AS badge_text,
+                    b.icon AS badge_icon,
+                    SUM(
+                        CASE
+                            WHEN m.receiver = :username AND m.is_read = 0 THEN 1
+                            ELSE 0
+                        END
+                    ) AS unread_count,
+                    MAX(m.id) AS last_message_id
+                FROM messages m
+                LEFT JOIN users u
+                    ON u.username = CASE
+                        WHEN m.sender = :username THEN m.receiver
+                        ELSE m.sender
                     END
-                ) AS unread_count,
-                  MAX(messages.id) AS last_message_id
-              FROM messages
-            LEFT JOIN users u
-                ON u.username = CASE
-                    WHEN sender = :username THEN receiver
-                    ELSE sender
-                END
-            LEFT JOIN user_badges ub ON ub.username = u.username
-            LEFT JOIN badges b ON b.id = ub.badge_id
-            WHERE sender = :username OR receiver = :username
-            GROUP BY chat_id
-            ORDER BY last_message_id DESC
-        """, {"username": username}).fetchall()
+                LEFT JOIN user_badges ub ON ub.username = u.username
+                LEFT JOIN badges b ON b.id = ub.badge_id
+                WHERE m.sender = :username OR m.receiver = :username
+                GROUP BY chat_id
+                ORDER BY last_message_id DESC
+            """, {"username": username}).fetchall()
 
-        direct = []
-        for row in direct_rows:
-            last_seen = row["last_seen"] or 0
-            is_online = (time.time() - last_seen) < 60
-            direct.append({
-                "chat_id": row["chat_id"],
-                "name": row["name"] or row["chat_id"],
-                "type": "user",
-                "isonline": is_online,
-                "is_online": is_online,
-                "last_seen_ts": last_seen,
-                "last_seen_text": format_last_seen(last_seen),
-                "unread_count": row["unread_count"] or 0,
-                "badge_id": row["badge_id"],
-                "badge_title": row["badge_title"],
-                "badge_text": row["badge_text"],
-                "badge_icon": row["badge_icon"],
-            })
+            direct = []
+            for row in direct_rows:
+                ls_ts = row["last_seen"] or 0
+                online_status = (time.time() - ls_ts) < 60
+                
+                direct.append({
+                    "chat_id": row["chat_id"],
+                    "name": row["name"] or row["chat_id"],
+                    "type": "user",
+                    "is_online": online_status,
+                    "last_seen_ts": ls_ts,
+                    "last_seen_text": format_last_seen(ls_ts),
+                    "unread_count": row["unread_count"] or 0,
+                    "badge_id": row["badge_id"],
+                    "badge_title": row["badge_title"],
+                    "badge_text": row["badge_text"],
+                    "badge_icon": row["badge_icon"],
+                })
 
-        # -------- ГРУППЫ / КАНАЛЫ --------
-        collective_rows = conn.execute("""
-            SELECT c.id as chat_id, c.name, c.type, c.owner, m.last_read_id
-            FROM collective_chats c
-            JOIN chat_members m ON m.chat_id = c.id
-            WHERE m.username = ?
-            ORDER BY c.updated_at DESC
-        """, (username,)).fetchall()
+            # -------- ГРУППЫ / КАНАЛЫ --------
+            collective_rows = conn.execute("""
+                SELECT c.id as chat_id, c.name, c.type, c.owner, m.last_read_id
+                FROM collective_chats c
+                JOIN chat_members m ON m.chat_id = c.id
+                WHERE m.username = ?
+                ORDER BY c.updated_at DESC
+            """, (username,)).fetchall()
 
-        collective = []
-        for row in collective_rows:
-            row = dict(row)
-            last_read = row.get("last_read_id") or 0
+            collective = []
+            for row in collective_rows:
+                last_read = row["last_read_id"] or 0
 
-            unread = conn.execute(
-                "SELECT COUNT(*) FROM group_messages WHERE chat_id=? AND id>?",
-                (row["chat_id"], last_read),
-            ).fetchone()[0]
+                # Считаем непрочитанные в группе
+                unread_res = conn.execute(
+                    "SELECT COUNT(*) FROM group_messages WHERE chat_id=? AND id > ?",
+                    (row["chat_id"], last_read),
+                ).fetchone()
+                
+                unread_count = unread_res[0] if unread_res else 0
 
-            collective.append({
-                "chat_id": row["chat_id"],
-                "name": row.get("name"),
-                "type": row.get("type"),
-                "owner": row.get("owner"),
-                "unread_count": unread or 0,
-            })
+                collective.append({
+                    "chat_id": row["chat_id"],
+                    "name": row["name"],
+                    "type": row["type"], # 'group' или 'channel'
+                    "owner": row["owner"],
+                    "unread_count": unread_count,
+                })
 
-        return {
-            "chats": direct + collective
-        }
-
+            return {
+                "status": "ok",
+                "chats": direct + collective
+            }
+            
+        except Exception as e:
+            logger.error(f"Critical Error in get_chats: {e}")
+            raise HTTPException(status_code=500, detail="Internal Server Error")
+        finally:
+            conn.close()
 
     
     
@@ -2232,103 +2655,9 @@ async def send_message(m: MessageModel):
 
     return {"status": "ok", "message_id": msg_id, "expires_at": expires_at}
 
-@app.post("/upload")
-async def upload_file(
-    sender: str = Form(...),
-    receiver: str = Form(...),
-    token: str = Form(...),
-    file: UploadFile = File(...),
-    reply_to: int | None = Form(None),
-    ttl_seconds: int | None = Form(None),
-):
-
-    if not is_valid_session(token, sender):
-        raise HTTPException(status_code=401)
-
-    try:
-
-        file_ext = os.path.splitext(file.filename)[1].lower()
-        safe_filename = f"{uuid.uuid4().hex}{file_ext}"
-        file_path = os.path.join(UPLOAD_DIR, safe_filename)
-
-     
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        expires_at = (time.time() + ttl_seconds) if ttl_seconds else None
-
-
-        with db_lock:
-            conn = get_db()
-
-            
-            if receiver == "supports":
-                conn.execute(
-                    "INSERT OR IGNORE INTO users (username, name) VALUES (?, ?)",
-                    ("supports", "Лисёнок-хранитель (Поддержка)")
-                )
-
-            cursor = conn.execute(
-                """
-                INSERT INTO messages (
-                    sender,
-                    receiver,
-                    text,
-                    time,
-                    reply_to,
-                    expires_at,
-                    lat,
-                    lon,
-                    contact_data,
-                    type
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    sender,
-                    receiver,
-                    f"FILE:{safe_filename}",
-                    str(time.time()),
-                    reply_to,
-                    expires_at,
-                    None,
-                    None,
-                    None,
-                    "file"
-                )
-            )
-
-            msg_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
-
-        return {
-            "status": "ok",
-            "message_id": msg_id,
-            "filename": safe_filename,
-            "expires_at": expires_at
-        }
-
-    except Exception as e:
-        logger.exception("Upload failed")
-        raise HTTPException(status_code=500, detail="File upload failed")
 
 
 
-
-@app.get("/download/{filename}")
-
-async def download_file(filename: str):
-
-    safe_name = os.path.basename(filename)
-
-    path = os.path.join(UPLOAD_DIR, safe_name)
-
-    if os.path.exists(path):
-
-        return FileResponse(path)
-
-    return JSONResponse(status_code=404, content={"error": "File not found"})
 
 
 
@@ -2373,33 +2702,81 @@ async def search_users(q: str, token: str, my_username: str):
 async def link_preview(url: str, username: str, token: str):
     if not is_valid_session(token, username):
         raise HTTPException(401)
-    if not url:
-        raise HTTPException(422, "Missing url")
-    if not (url.startswith("http://") or url.startswith("https://")):
+    if not url or not (url.startswith("http://") or url.startswith("https://")):
         raise HTTPException(422, "Invalid url")
+
+    # Лимиты для экономии ОЗУ
+    CHUNK_FOR_META = 256 * 1024  # 256 КБ хватит для любых мета-тегов
+    MAX_VIDEO_PHOTO_SIZE = 5 * 1024 * 1024 # 5 МБ лимит на "прощупывание"
+
+    result = {
+        "url": url, 
+        "title": "", 
+        "description": "", 
+        "image": "", 
+        "site_name": "", 
+        "type": "link"
+    }
+
+    def _clean(val: str) -> str:
+        if not val: return ""
+        return re.sub(r"\s+", " ", val).strip()[:500]
 
     def _pick(meta, key):
         return meta.get(key) or meta.get(key.lower()) or meta.get(key.upper())
 
-    def _clean(val: str) -> str:
-        if not val:
-            return ""
-        return re.sub(r"\s+", " ", val).strip()[:500]
-
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=8.0) as client:
-            resp = await client.get(url, headers={"User-Agent": "NiosMessPreview/1.0"})
-        html = resp.text or ""
-    except Exception:
-        return {"url": url, "title": "", "description": "", "image": "", "site_name": "", "type": ""}
+        async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
+            # Используем stream=True, чтобы не загружать всё тело сразу
+            async with client.stream("GET", url, headers={"User-Agent": "NiosMessPreview/1.0"}) as resp:
+                ctype = resp.headers.get("Content-Type", "").lower()
+                
+                # 1. Если это ИЗОБРАЖЕНИЕ
+                if "image/" in ctype:
+                    result.update({
+                        "type": "image",
+                        "image": url,
+                        "title": f"Фото: {urlparse(url).path.split('/')[-1] or 'image'}"
+                    })
+                    return result
 
+                # 2. Если это ВИДЕО (имитируем ограничение в 5 секунд через лимит данных)
+                if "video/" in ctype:
+                    result.update({
+                        "type": "video",
+                        "title": f"Видео: {urlparse(url).path.split('/')[-1] or 'video'}",
+                        "description": "Предпросмотр видео доступен по прямой ссылке"
+                    })
+                    # Не качаем видео совсем, просто отдаем тип
+                    return result
+
+                # 3. Если это HTML (Сайт)
+                if "text/html" in ctype:
+                    body_content = b""
+                    async for chunk in resp.aiter_bytes(chunk_size=8192):
+                        body_content += chunk
+                        # Читаем только верхушку сайта (мета-теги всегда в начале)
+                        if len(body_content) > CHUNK_FOR_META:
+                            break
+                    html = body_content.decode("utf-8", errors="ignore")
+                else:
+                    # Любой другой тип файла — не качаем
+                    return result
+
+    except Exception as e:
+        logger.error(f"Link preview error: {e}")
+        return result
+
+    # --- ПАРСИНГ META (только для HTML) ---
     meta = {}
+    # Ищем мета-теги
     for m in re.findall(r"<meta[^>]+>", html, flags=re.IGNORECASE):
         prop = re.search(r'(property|name)=["\']([^"\']+)["\']', m, flags=re.IGNORECASE)
         content = re.search(r'content=["\']([^"\']*)["\']', m, flags=re.IGNORECASE)
         if prop and content:
             meta[prop.group(2).strip()] = content.group(1).strip()
 
+    # Извлекаем данные
     title = _pick(meta, "og:title") or _pick(meta, "twitter:title")
     if not title:
         t = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
@@ -2407,26 +2784,17 @@ async def link_preview(url: str, username: str, token: str):
 
     description = _pick(meta, "og:description") or _pick(meta, "twitter:description") or _pick(meta, "description")
     image = _pick(meta, "og:image") or _pick(meta, "twitter:image")
-    site_name = _pick(meta, "og:site_name")
+    site_name = _pick(meta, "og:site_name") or urlparse(url).netloc
 
-    if not site_name:
-        try:
-            site_name = urlparse(url).netloc
-        except Exception:
-            site_name = ""
-
-    content_type = _pick(meta, "og:type") or ""
-
-    return {
-        "url": url,
+    result.update({
         "title": _clean(title),
         "description": _clean(description),
         "image": _clean(image),
         "site_name": _clean(site_name),
-        "type": _clean(content_type)
-    }
+        "type": _clean(_pick(meta, "og:type") or "link")
+    })
 
-
+    return result
 
 # --- ADMIN / ROOT ACCESS ---
 

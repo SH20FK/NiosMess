@@ -11,6 +11,7 @@ class ChatItem {
     this.badgeTitle,
     this.badgeText,
     this.badgeIcon,
+    this.isPinned = false,
   });
 
   final String id;
@@ -24,6 +25,8 @@ class ChatItem {
   final String? badgeTitle;
   final String? badgeText;
   final String? badgeIcon;
+  final bool isPinned;
+
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -37,7 +40,9 @@ class ChatItem {
         'badge_title': badgeTitle,
         'badge_text': badgeText,
         'badge_icon': badgeIcon,
+        'is_pinned': isPinned,
       };
+
 
   factory ChatItem.fromJson(Map<String, dynamic> json) {
     return ChatItem(
@@ -52,6 +57,8 @@ class ChatItem {
       badgeTitle: json['badge_title'] as String?,
       badgeText: json['badge_text'] as String?,
       badgeIcon: json['badge_icon'] as String?,
+      isPinned: json['is_pinned'] == true || json['is_pinned']?.toString() == '1',
     );
   }
+
 }

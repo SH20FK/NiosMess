@@ -20,7 +20,9 @@ import '../../core/models/message_item.dart';
 import '../../core/repositories/api_repository.dart';
 import '../../core/settings_provider.dart';
 import '../../core/session_provider.dart';
+import '../../core/ai_summary_provider.dart';
 import '../../ui/nios_ui.dart';
+
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({
@@ -90,7 +92,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _loadDraft();
     _load();
     _loadHeaderAvatar();
+    // Initialize AI summary for this chat
+    ref.read(aiSummaryProvider.notifier).loadForChat(widget.chatId);
   }
+
 
 
   Future<void> _loadHeaderAvatar() async {
@@ -896,13 +901,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final compactMessages = (settings['compact_messages'] as bool?) ?? false;
     final linkPreview = (settings['link_preview'] as bool?) ?? true;
     final visibleMessages = _visibleMessages();
+    
+    // Watch AI summary provider
+    final aiSummary = ref.watch(aiSummaryProvider);
+    
     return NiosScaffold(
       body: Column(
         children: [
           _buildHeader(),
           _buildSearchBar(reduceMotion: reduceMotion),
           _buildPinnedBar(),
+          
+          // AI Summary Widget
+          if (messages.length >= 10)
+            _buildAiSummaryButton(aiSummary),
+          
+          if (aiSummary.isExpanded && aiSummary.hasSummary)
+            _buildAiSummaryCard(aiSummary),
+          
           Expanded(
+
               child: AnimatedSwitcher(
               duration: Duration(milliseconds: reduceMotion ? 0 : 320),
               switchInCurve: Curves.easeOutCubic,
@@ -1469,10 +1487,149 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  Widget _buildAiSummaryButton(AiSummaryState aiSummary) {
+    return GestureDetector(
+      onTap: () {
+        if (aiSummary.isExpanded) {
+          ref.read(aiSummaryProvider.notifier).toggleExpanded();
+        } else {
+          ref.read(aiSummaryProvider.notifier).generateSummary(
+            widget.chatId,
+            messages.map((m) => m.toJson()).toList(),
+          );
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: NiosPalette.accent.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: NiosPalette.accent.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.auto_awesome, color: NiosPalette.accent, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                aiSummary.isLoading 
+                    ? 'Генерация сводки...' 
+                    : 'AI Сводка (${messages.length > 50 ? 50 : messages.length} сообщений)',
+                style: TextStyle(
+                  color: NiosPalette.accent,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            if (aiSummary.isLoading)
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(NiosPalette.accent),
+                ),
+              )
+            else
+              Icon(
+                aiSummary.isExpanded ? Icons.expand_less : Icons.expand_more,
+                color: NiosPalette.accent,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAiSummaryCard(AiSummaryState aiSummary) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: NiosPalette.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: NiosPalette.border),
+        boxShadow: [
+          BoxShadow(
+            color: NiosPalette.shadow.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.lightbulb_outline, color: NiosPalette.accent, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Ключевые моменты',
+                style: TextStyle(
+                  color: NiosPalette.text,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...aiSummary.summaryPoints.asMap().entries.map((entry) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    margin: const EdgeInsets.only(top: 6, right: 10),
+                    decoration: BoxDecoration(
+                      color: NiosPalette.accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      entry.value,
+                      style: TextStyle(
+                        color: NiosPalette.text,
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+          if (aiSummary.lastUpdated != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Обновлено: ${_formatTime(aiSummary.lastUpdated!)}',
+              style: TextStyle(
+                color: NiosPalette.textSecondary,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
   Widget _buildComposer() {
     final settings = ref.watch(settingsProvider);
     final compact = (settings['compact_messages'] as bool?) ?? false;
     return Container(
+
       padding: EdgeInsets.fromLTRB(12, compact ? 6 : 8, 12, compact ? 8 : 12),
       decoration: BoxDecoration(
         color: NiosPalette.surface,
@@ -1772,13 +1929,3 @@ class _PollCard extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-

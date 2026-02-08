@@ -147,7 +147,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          ..._legalDocs.map(_buildLegalItem).toList(),
+                          ..._legalDocs.map(_buildLegalItem),
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -323,7 +323,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       },
     );
   }
-
 }
 
 class _LegalDoc {
@@ -332,4 +331,3 @@ class _LegalDoc {
   final String title;
   final String asset;
 }
-

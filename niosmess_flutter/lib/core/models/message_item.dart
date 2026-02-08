@@ -7,7 +7,9 @@ class MessageItem {
     this.type,
     this.replyToId,
     this.meta,
-    this.isPinned,
+    this.isPinned = false,
+    this.isRead = false,
+    this.isOutgoing = false,
   });
 
   final String id;
@@ -17,18 +19,24 @@ class MessageItem {
   final String? type;
   final String? replyToId;
   final Map<String, dynamic>? meta;
-  final bool? isPinned;
+  final bool isPinned;
+  final bool isRead;
+  final bool isOutgoing;
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'sender': sender,
-        'text': text,
-        'time': time,
-        'type': type,
-        'reply_to': replyToId,
-        'meta': meta,
-        'is_pinned': isPinned,
-      };
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'sender': sender,
+      'text': text,
+      'time': time,
+      'type': type,
+      'reply_to': replyToId,
+      'meta': meta,
+      'is_pinned': isPinned,
+      'is_read': isRead,
+      'is_outgoing': isOutgoing,
+    };
+  }
 
   factory MessageItem.fromJson(Map<String, dynamic> json) {
     return MessageItem(
@@ -40,6 +48,8 @@ class MessageItem {
       replyToId: json['reply_to']?.toString(),
       meta: json['meta'] is Map<String, dynamic> ? Map<String, dynamic>.from(json['meta']) : null,
       isPinned: json['is_pinned'] == true || json['is_pinned']?.toString() == '1',
+      isRead: json['is_read'] == true || json['is_read']?.toString() == '1',
+      isOutgoing: json['is_outgoing'] == true || json['is_outgoing']?.toString() == '1',
     );
   }
 }
