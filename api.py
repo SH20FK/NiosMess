@@ -23,6 +23,18 @@ import threading
 import logging
 
 import smtplib, httpx, json
+import secrets
+import hashlib
+from collections import defaultdict
+
+from passlib.hash import argon2
+from dotenv import load_dotenv
+try:
+    import jwt
+except Exception:
+    jwt = None
+from google.oauth2 import service_account
+from google.auth.transport.requests import Request as GoogleRequest
 
 import random, obresfucate
 
@@ -44,7 +56,7 @@ from fastapi.exceptions import RequestValidationError
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator, EmailStr
 
 
 
@@ -68,19 +80,26 @@ logging.basicConfig(
 
 logger = logging.getLogger("NiosMessCore")
 
-
-
-
+load_dotenv()
 
 app = FastAPI(title="NiosMess Ultimate Backend", version="2.6.0")
 
 
 
-DB_FILE = "users.db"
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    if DATABASE_URL.startswith("sqlite:///"):
+        DB_FILE = DATABASE_URL.replace("sqlite:///", "")
+    else:
+        DB_FILE = DATABASE_URL
+else:
+    DB_FILE = "users.db"
 
 UPLOAD_DIR = "uploads"
 
-ROOT_TOKEN = "MY_SUPER_SECRET_1337"  
+ROOT_TOKEN = os.getenv("ROOT_TOKEN")
+if not ROOT_TOKEN:
+    raise ValueError("ROOT_TOKEN must be set in .env file")
 
 CLEANUP_INTERVAL = 3600
 
@@ -92,14 +111,24 @@ SMTP_SERVER = "smtp.gmail.com"
 
 SMTP_PORT = 587
 
-SMTP_USER = "kupislonabot@gmail.com"
+SMTP_USER = os.getenv("SMTP_USER")
 
-SMTP_PWD = "taik bagg ogyp igyw"
+SMTP_PWD = os.getenv("SMTP_PWD")
+JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_urlsafe(32))
+API_BASE_URL = os.getenv("API_BASE_URL", "https://web.sa2rn.fun")
+
+FCM_SERVER_KEY = os.getenv("FCM_SERVER_KEY", "")
+FCM_ENDPOINT = "https://fcm.googleapis.com/fcm/send"
+FCM_SERVICE_ACCOUNT = os.getenv("FCM_SERVICE_ACCOUNT", "niosmess_service_account.json")
+
+if not FCM_SERVER_KEY and not os.path.exists(FCM_SERVICE_ACCOUNT):
+    logger.warning("No FCM credentials found (FCM_SERVER_KEY or service account JSON). Push notifications are disabled.")
 
 
 
 
 pending_regs = {}
+mc_cache = {}
 
 
 
@@ -112,24 +141,161 @@ if not os.path.exists(UPLOAD_DIR):
 
 
 
+ALLOWED_ORIGINS = ["https://web.sa2rn.fun"]
+
 app.add_middleware(
-
     CORSMiddleware,
-
-    allow_origins=["*"],
-
-    allow_credentials=False,
-
-    allow_methods=["*"],
-
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
-
+    expose_headers=["Content-Disposition"],
 )
 
 
 
 db_lock = threading.Lock()
 
+
+
+ALLOWED_TABLES = {
+    "messages": "messages",
+    "group_messages": "group_messages",
+    "collective_chats": "collective_chats",
+}
+
+
+def validate_table_name(table: str) -> str:
+    if table not in ALLOWED_TABLES:
+        raise ValueError(f"Invalid table name: {table}")
+    return ALLOWED_TABLES[table]
+
+
+class PasswordManager:
+    @staticmethod
+    def hash_password(password: str) -> str:
+        return argon2.hash(password)
+
+    @staticmethod
+    def verify_password(password: str, hashed: str) -> bool:
+        try:
+            return argon2.verify(password, hashed)
+        except Exception:
+            return False
+
+    @staticmethod
+    def needs_rehash(hashed: str) -> bool:
+        return argon2.needs_update(hashed)
+
+
+class SessionManager:
+    @staticmethod
+    def generate_token() -> str:
+        return secrets.token_urlsafe(32)
+
+    @staticmethod
+    def hash_token(token: str) -> str:
+        return hashlib.sha256(token.encode()).hexdigest()
+
+    @staticmethod
+    def create_session(username: str, device: str, ip: str) -> dict:
+        token = SessionManager.generate_token()
+        return {
+            "token": token,
+            "username": username,
+            "device": device,
+            "ip": ip,
+            "created_at": time.time(),
+            "expires_at": time.time() + (30 * 24 * 60 * 60),
+        }
+
+
+class JWTManager:
+    def __init__(self, secret: str):
+        self.secret = secret
+
+    def create_token(self, username: str, expires_delta: datetime.timedelta = datetime.timedelta(days=30)) -> str:
+        if jwt is None:
+            raise RuntimeError("PyJWT is not installed")
+        expire = datetime.datetime.utcnow() + expires_delta
+        payload = {
+            "username": username,
+            "exp": expire,
+            "iat": datetime.datetime.utcnow(),
+        }
+        return jwt.encode(payload, self.secret, algorithm="HS256")
+
+    def verify_token(self, token: str) -> Optional[dict]:
+        if jwt is None:
+            return None
+        try:
+            return jwt.decode(token, self.secret, algorithms=["HS256"])
+        except Exception:
+            return None
+
+
+jwt_manager = JWTManager(JWT_SECRET) if jwt else None
+
+
+class RateLimiter:
+    def __init__(self, max_attempts: int = 5, window_minutes: int = 15):
+        self.max_attempts = max_attempts
+        self.window = datetime.timedelta(minutes=window_minutes)
+        self.attempts = defaultdict(list)
+
+    def is_allowed(self, identifier: str) -> bool:
+        now = datetime.datetime.now()
+        self.attempts[identifier] = [
+            ts for ts in self.attempts[identifier]
+            if now - ts < self.window
+        ]
+        if len(self.attempts[identifier]) >= self.max_attempts:
+            return False
+        self.attempts[identifier].append(now)
+        return True
+
+    def reset(self, identifier: str):
+        self.attempts.pop(identifier, None)
+
+
+login_limiter = RateLimiter(max_attempts=5, window_minutes=15)
+
+
+def sanitize_search_query(query: str) -> str:
+    query = query.replace("%", r"\%").replace("_", r"\_")
+    return query[:100]
+
+
+ALLOWED_EXTENSIONS = {
+    "image": {".jpg", ".jpeg", ".png", ".gif", ".webp"},
+    "video": {".mp4", ".mov", ".avi", ".mkv"},
+    "audio": {".mp3", ".wav", ".ogg", ".m4a", ".webm"},
+    "document": {".pdf", ".doc", ".docx", ".txt", ".md"},
+}
+
+MAX_FILE_SIZES = {
+    "image": 10 * 1024 * 1024,
+    "video": 100 * 1024 * 1024,
+    "audio": 20 * 1024 * 1024,
+    "document": 50 * 1024 * 1024,
+}
+
+MAX_FILE_SIZE = max(MAX_FILE_SIZES.values())
+
+
+def validate_file_upload(filename: str, content_type: str, size: int) -> tuple[str, bool]:
+    ext = os.path.splitext(filename or "")[1].lower()
+    file_type = None
+    for ftype, extensions in ALLOWED_EXTENSIONS.items():
+        if ext in extensions:
+            file_type = ftype
+            break
+    if not file_type:
+        return "File type not allowed", False
+    if size > MAX_FILE_SIZES[file_type]:
+        max_mb = MAX_FILE_SIZES[file_type] // 1024 // 1024
+        return f"File too large (max {max_mb}MB)", False
+    return file_type, True
 
 
 
@@ -144,20 +310,77 @@ class MessageModel(BaseModel):
     lat: Optional[float] = None
     lon: Optional[float] = None
     contact_data: Optional[str] = None
+    msg_type: Optional[str] = None
+
+
+class NotificationRegisterModel(BaseModel):
+    username: str
+    session_token: str
+    token: str
+    platform: Optional[str] = "android"
+
+
+class NotificationUnregisterModel(BaseModel):
+    username: str
+    session_token: str
+    token: str
+
+
+class SettingsGetModel(BaseModel):
+    username: str
+    session_token: str
+
+
+class SettingsSetModel(BaseModel):
+    username: str
+    session_token: str
+    settings: Dict[str, Any]
+
+
+class SettingsResetModel(BaseModel):
+    username: str
+    session_token: str
+
+
+class WeeklyRolesRequest(BaseModel):
+    token: str
+    username: str
+    chat_id: str
 
 
 
-class AuthModel(BaseModel):
-
-    email: str
-
+class UserRegistration(BaseModel):
+    username: str
+    email: EmailStr
     password: str
-
-    username: Optional[str] = None
-
-    name: Optional[str] = None
-
+    name: str
     code: Optional[str] = None
+
+    @validator("username")
+    def validate_username(cls, v):
+        if not v or len(v) < 3 or len(v) > 20:
+            raise ValueError("Username must be 3-20 characters")
+        if not re.match(r"^[a-zA-Z0-9_]+$", v):
+            raise ValueError("Username can only contain letters, numbers, and underscores")
+        return v
+
+    @validator("password")
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain lowercase letter")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Password must contain number")
+        return v
+
+    @validator("name")
+    def validate_name(cls, v):
+        if not v or len(v) < 2 or len(v) > 50:
+            raise ValueError("Name must be 2-50 characters")
+        return v
 
 
 
@@ -191,15 +414,10 @@ async def log_requests(request: Request, call_next):
         return response
 
     except Exception as e:
-
-        logger.error(f"Critical Error processing request from {client_ip}: {e}")
-
+        logger.error(f"Critical Error processing request from {client_ip}: {e}", exc_info=True)
         return JSONResponse(
-
             status_code=500,
-
-            content={"detail": "Internal Server Error", "error": str(e)}
-
+            content={"detail": "Internal server error"}
         )
 
 
@@ -224,17 +442,312 @@ async def validation_exception_handler(request, exc):
 
 
 
+class _PooledConnection:
+    def __init__(self, conn: sqlite3.Connection, pool: "DatabasePool"):
+        self._conn = conn
+        self._pool = pool
+        self._released = False
+
+    def close(self):
+        if self._released:
+            return
+        self._released = True
+        self._pool.release(self._conn)
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+
+class DatabasePool:
+    def __init__(self, db_path: str, pool_size: int = 10):
+        self.db_path = db_path
+        self.pool_size = pool_size
+        self.pool: List[sqlite3.Connection] = []
+        self._lock = threading.Lock()
+
+    def _create_conn(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.db_path, timeout=30, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def acquire(self) -> _PooledConnection:
+        with self._lock:
+            if self.pool:
+                conn = self.pool.pop()
+            else:
+                conn = self._create_conn()
+        return _PooledConnection(conn, self)
+
+    def release(self, conn: sqlite3.Connection):
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        with self._lock:
+            if len(self.pool) < self.pool_size:
+                self.pool.append(conn)
+            else:
+                conn.close()
+
+
+db_pool = DatabasePool(DB_FILE, pool_size=10)
+
+
 def get_db():
+    return db_pool.acquire()
 
-    conn = sqlite3.connect(DB_FILE, timeout=30)
 
-    conn.execute("PRAGMA journal_mode=WAL;")
+def _get_device_tokens(username: str) -> List[str]:
+    with db_lock:
+        conn = get_db()
+        rows = conn.execute("SELECT token FROM device_tokens WHERE username=?", (username,)).fetchall()
+        conn.close()
+    return [r[0] for r in rows]
 
-    conn.execute("PRAGMA synchronous=NORMAL;")
 
-    conn.row_factory = sqlite3.Row
+def _send_fcm(tokens: List[str], title: str, body: str, data: Optional[dict] = None):
+    if not tokens:
+        return
+    if FCM_SERVER_KEY:
+        headers = {
+            "Authorization": f"key={FCM_SERVER_KEY}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "registration_ids": tokens,
+            "notification": {"title": title, "body": body},
+            "data": data or {},
+            "priority": "high",
+        }
+        try:
+            httpx.post(FCM_ENDPOINT, headers=headers, json=payload, timeout=5.0)
+        except Exception as e:
+            logger.error(f"FCM legacy send failed: {e}")
+        return
+    if not os.path.exists(FCM_SERVICE_ACCOUNT):
+        return
+    try:
+        creds = service_account.Credentials.from_service_account_file(
+            FCM_SERVICE_ACCOUNT,
+            scopes=["https://www.googleapis.com/auth/firebase.messaging"],
+        )
+        creds.refresh(GoogleRequest())
+        access_token = creds.token
+        project_id = creds.project_id
+        if not access_token or not project_id:
+            return
+        url = f"https://fcm.googleapis.com/v1/projects/{project_id}/messages:send"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+        for token in tokens:
+            payload = {
+                "message": {
+                    "token": token,
+                    "notification": {"title": title, "body": body},
+                    "data": data or {},
+                }
+            }
+            httpx.post(url, headers=headers, json=payload, timeout=5.0)
+    except Exception as e:
+        logger.error(f"FCM v1 send failed: {e}")
 
-    return conn
+
+def _notify_user(username: str, title: str, body: str, data: Optional[dict] = None):
+    tokens = _get_device_tokens(username)
+    _send_fcm(tokens, title, body, data=data)
+
+
+DEFAULT_SETTINGS = {
+    "theme_mode": "system",
+    "seed_color": 0xFF4F46E5,
+    "use_dynamic_color": False,
+    "text_scale": 1.0,
+    "bubble_radius": 16.0,
+    "bubble_padding": 12.0,
+    "bubble_use_gradient": True,
+    "bubble_show_tail": True,
+    "bubble_outgoing_color": None,
+    "bubble_incoming_color": None,
+    "wallpaper_url": None,
+    "wallpaper_local_path": None,
+    "wallpaper_parallax": True,
+    "wallpaper_blur": 0.0,
+    "wallpaper_opacity": 1.0,
+    "notify_sound": True,
+    "notify_preview": True,
+    "notify_group": True,
+    "notify_mentions": True,
+    "notify_calls": True,
+    "notify_reactions": True,
+    "notify_vibrate": True,
+    "quiet_hours_start": None,
+    "quiet_hours_end": None,
+    "last_seen_visibility": "Все",
+    "photo_visibility": "Все",
+    "message_privacy": "Все",
+    "call_privacy": "Все",
+    "show_typing": True,
+    "read_receipts": True,
+    "who_can_write": "all",
+    "ghost_mode": False,
+    "passcode_lock": False,
+    "compact_messages": False,
+    "link_preview": True,
+    "trim_spaces": False,
+    "autosave_drafts": True,
+    "enter_to_send": False,
+    "auto_download_media": True,
+    "auto_download_docs": False,
+    "wifi_only_downloads": False,
+    "data_saver": False,
+    "reduce_motion": False,
+    "experimental_features": False,
+    "app_icon": "Классика",
+}
+
+_VISIBILITY_VALUES = {"Все", "Контакты", "Никто"}
+
+
+def _normalize_visibility(value: str | None) -> Optional[str]:
+    if value is None:
+        return None
+    if value == "Мои контакты":
+        return "Контакты"
+    if value in _VISIBILITY_VALUES:
+        return value
+    return None
+
+
+def _normalize_who_can_write(value: str | None) -> Optional[str]:
+    if value in {"all", "contacts", "nobody"}:
+        return value
+    return None
+
+
+def _filter_settings(data: Dict[str, Any]) -> Dict[str, Any]:
+    filtered: Dict[str, Any] = {}
+    for key, value in data.items():
+        if key not in DEFAULT_SETTINGS:
+            continue
+        if key in {"last_seen_visibility", "photo_visibility", "message_privacy", "call_privacy"}:
+            norm = _normalize_visibility(str(value))
+            if norm is None:
+                continue
+            filtered[key] = norm
+            continue
+        if key == "who_can_write":
+            norm = _normalize_who_can_write(str(value))
+            if norm is None:
+                continue
+            filtered[key] = norm
+            continue
+        if key in {"theme_mode"}:
+            if value in {"system", "light", "dark"}:
+                filtered[key] = value
+            continue
+        if key in {"seed_color", "bubble_outgoing_color", "bubble_incoming_color"}:
+            if value is None:
+                filtered[key] = None
+            elif isinstance(value, int):
+                filtered[key] = value
+            continue
+        if isinstance(DEFAULT_SETTINGS[key], bool):
+            if isinstance(value, bool):
+                filtered[key] = value
+            continue
+        if isinstance(DEFAULT_SETTINGS[key], (int, float)):
+            if isinstance(value, (int, float)):
+                filtered[key] = float(value) if isinstance(DEFAULT_SETTINGS[key], float) else int(value)
+            continue
+        if isinstance(DEFAULT_SETTINGS[key], str) or DEFAULT_SETTINGS[key] is None:
+            if value is None or isinstance(value, str):
+                filtered[key] = value
+            continue
+    if "text_scale" in filtered:
+        filtered["text_scale"] = max(0.8, min(1.3, float(filtered["text_scale"])))
+    if "bubble_radius" in filtered:
+        filtered["bubble_radius"] = max(8.0, min(24.0, float(filtered["bubble_radius"])))
+    if "bubble_padding" in filtered:
+        filtered["bubble_padding"] = max(4.0, min(24.0, float(filtered["bubble_padding"])))
+    if "wallpaper_blur" in filtered:
+        filtered["wallpaper_blur"] = max(0.0, min(20.0, float(filtered["wallpaper_blur"])))
+    if "wallpaper_opacity" in filtered:
+        filtered["wallpaper_opacity"] = max(0.1, min(1.0, float(filtered["wallpaper_opacity"])))
+    return filtered
+
+
+def _get_user_settings(conn, username: str) -> Dict[str, Any]:
+    row = conn.execute(
+        "SELECT settings_json FROM user_settings WHERE username=?",
+        (username,),
+    ).fetchone()
+    settings = dict(DEFAULT_SETTINGS)
+    if row and row[0]:
+        try:
+            stored = json.loads(row[0])
+            if isinstance(stored, dict):
+                settings.update(stored)
+        except Exception:
+            pass
+    return settings
+
+
+def _save_user_settings(conn, username: str, settings: Dict[str, Any]) -> None:
+    payload = json.dumps(settings)
+    conn.execute(
+        "INSERT OR REPLACE INTO user_settings (username, settings_json, updated_at) VALUES (?, ?, ?)",
+        (username, payload, time.time()),
+    )
+
+
+def _is_contact(conn, a: str, b: str) -> bool:
+    if a == b:
+        return True
+    row = conn.execute(
+        "SELECT 1 FROM messages WHERE (sender=? AND receiver=?) OR (sender=? AND receiver=?) LIMIT 1",
+        (a, b, b, a),
+    ).fetchone()
+    if row:
+        return True
+    row = conn.execute(
+        """
+        SELECT 1
+        FROM chat_members m1
+        JOIN chat_members m2 ON m1.chat_id = m2.chat_id
+        WHERE m1.username=? AND m2.username=?
+        LIMIT 1
+        """,
+        (a, b),
+    ).fetchone()
+    return row is not None
+
+
+def _seed_welcome_chat(conn, username: str) -> None:
+    row = conn.execute(
+        "SELECT 1 FROM messages WHERE sender='supports' AND receiver=? LIMIT 1",
+        (username,),
+    ).fetchone()
+    if row:
+        return
+    now = time.time()
+    support_pw = PasswordManager.hash_password("support")
+    conn.execute(
+        "INSERT OR IGNORE INTO users (email, username, name, password, verified, reg_date) VALUES (?, ?, ?, ?, ?, ?)",
+        ("support@niosmess.local", "supports", "Support", support_pw, 1, datetime.datetime.now().strftime("%d.%m.%Y")),
+    )
+    messages = [
+        ("supports", username, "Добро пожаловать в NiosMess!", str(now), "text"),
+        ("supports", username, "Здесь вы можете общаться, создавать группы и делиться файлами.", str(now + 1), "text"),
+        ("supports", username, "Настройки профиля доступны в разделе «Настройки».", str(now + 2), "text"),
+    ]
+    conn.executemany(
+        "INSERT INTO messages (sender, receiver, text, time, type) VALUES (?, ?, ?, ?, ?)",
+        messages,
+    )
 
 
 
@@ -313,6 +826,62 @@ def init_db():
             assigned_at REAL
         )""")
 
+        c.execute("""CREATE TABLE IF NOT EXISTS password_resets (
+            email TEXT PRIMARY KEY,
+            code TEXT,
+            expires_at REAL,
+            attempts INTEGER DEFAULT 0
+        )""")
+
+        c.execute("""CREATE TABLE IF NOT EXISTS call_logs (
+            id TEXT PRIMARY KEY,
+            caller TEXT,
+            callee TEXT,
+            status TEXT,
+            started_at REAL,
+            ended_at REAL,
+            duration INTEGER
+        )""")
+
+        c.execute("""CREATE TABLE IF NOT EXISTS data_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            direction TEXT,
+            bytes INTEGER,
+            kind TEXT,
+            ts REAL
+        )""")
+
+        c.execute("""CREATE TABLE IF NOT EXISTS downloads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            filename TEXT,
+            size INTEGER,
+            ts REAL
+        )""")
+
+        c.execute("""CREATE TABLE IF NOT EXISTS device_tokens (
+            username TEXT,
+            token TEXT,
+            platform TEXT,
+            created_at REAL,
+            PRIMARY KEY (username, token)
+        )""")
+
+        c.execute("""CREATE TABLE IF NOT EXISTS user_settings (
+            username TEXT PRIMARY KEY,
+            settings_json TEXT,
+            updated_at REAL
+        )""")
+
+        c.execute("""CREATE TABLE IF NOT EXISTS weekly_roles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id TEXT,
+            username TEXT,
+            role TEXT,
+            week_start REAL
+        )""")
+
      
         def add_col(table, column, definition):
             try:
@@ -339,6 +908,12 @@ def init_db():
         add_col("group_messages", "is_pinned", "INTEGER DEFAULT 0")
         add_col("group_messages", "expires_at", "REAL DEFAULT NULL")
         add_col("group_messages", "poll_id", "TEXT DEFAULT NULL")
+
+        add_col("group_messages", "type", "TEXT DEFAULT 'text'")
+        add_col("group_messages", "lat", "REAL DEFAULT NULL")
+        add_col("group_messages", "lon", "REAL DEFAULT NULL")
+        add_col("group_messages", "contact_data", "TEXT DEFAULT NULL")
+        add_col("messages", "type", "TEXT DEFAULT 'text'")
 
 
         add_col("collective_chats", "last_message_preview", "TEXT")
@@ -475,17 +1050,26 @@ async def set_avatar(
     file: UploadFile = File(...)
 ):
     if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
         raise HTTPException(status_code=401, detail="Invalid session")
 
     ext = file.filename.split(".")[-1].lower()
     if ext not in ALLOWED_EXT:
         raise HTTPException(status_code=400, detail="Only png/jpg/jpeg allowed")
 
+    data = await file.read()
+    if len(data) > MAX_FILE_SIZES["image"]:
+        raise HTTPException(status_code=400, detail="Avatar too large")
+
     filename = f"{username}_{uuid.uuid4().hex}.{ext}"
     path = os.path.join(AVATAR_DIR, filename)
 
     with open(path, "wb") as f:
-        f.write(await file.read())
+        f.write(data)
 
     with db_lock:
         conn = get_db()
@@ -536,19 +1120,50 @@ import uuid
 import time
 
 UPLOAD_DIR = "uploads"
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+MAX_FILE_SIZE = max(MAX_FILE_SIZES.values())
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-active_connections = {}
+
+async def _ws_send(username: str, payload: dict):
+    conns = active_connections.get(username)
+    if not conns:
+        return
+    dead = []
+    for conn in conns:
+        try:
+            await conn.send_json(payload)
+        except Exception:
+            dead.append(conn)
+    if dead:
+        active_connections[username] = [c for c in conns if c not in dead]
+        if not active_connections[username]:
+            active_connections.pop(username, None)
+
+async def _ws_broadcast(usernames, payload: dict):
+    if not usernames:
+        return
+    for username in set(usernames):
+        if username:
+            await _ws_send(username, payload)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str, username: str):
     # --- Проверка сессии ---
     if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
         await websocket.close(code=1008)
         return
 
     await websocket.accept()
+    try:
+        ip = websocket.client.host if websocket.client else "unknown"
+    except Exception:
+        ip = "unknown"
+    logger.info(f"WS connect: user={username} token=***{str(token)[-6:]} ip={ip}")
     if username not in active_connections:
         active_connections[username] = []
     active_connections[username].append(websocket)
@@ -560,23 +1175,43 @@ async def websocket_endpoint(websocket: WebSocket, token: str, username: str):
             # --- 1. typing уведомление ---
             if data.get("type") == "typing":
                 recipient = data.get("receiver")
-                if recipient in active_connections:
-                    for conn in active_connections[recipient]:
-                        await conn.send_json({
-                            "type": "typing",
-                            "sender": username
-                        })
+                if recipient:
+                    await _ws_send(recipient, {
+                        "type": "typing",
+                        "sender": username,
+                        "receiver": recipient,
+                    })
 
             # --- 2. upload файла ---
             elif data.get("type") == "file_start":
                 filename = data.get("filename")
+                existing = getattr(websocket, "current_file", None)
+                if existing:
+                    try:
+                        os.remove(existing.get("path", ""))
+                    except Exception:
+                        pass
+                    try:
+                        del websocket.current_file
+                    except Exception:
+                        pass
+                file_type, is_valid = validate_file_upload(filename, data.get("content_type") or "", 0)
+                if not is_valid:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": file_type
+                    })
+                    continue
+
                 safe_filename = f"{uuid.uuid4().hex}{os.path.splitext(filename)[1]}"
                 file_path = os.path.join(UPLOAD_DIR, safe_filename)
 
                 websocket.current_file = {
                     "path": file_path,
                     "size": 0,
-                    "safe_name": safe_filename
+                    "safe_name": safe_filename,
+                    "max_size": MAX_FILE_SIZES[file_type],
+                    "file_type": file_type,
                 }
 
                 await websocket.send_json({
@@ -594,16 +1229,43 @@ async def websocket_endpoint(websocket: WebSocket, token: str, username: str):
                     continue
 
                 chunk_b64 = data.get("chunk")
-                chunk_bytes = base64.b64decode(chunk_b64)
+                if not isinstance(chunk_b64, str) or not chunk_b64:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Invalid chunk"
+                    })
+                    continue
+                try:
+                    chunk_bytes = base64.b64decode(chunk_b64)
+                except Exception:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Invalid chunk"
+                    })
+                    try:
+                        os.remove(file_info.get("path", ""))
+                    except Exception:
+                        pass
+                    try:
+                        del websocket.current_file
+                    except Exception:
+                        pass
+                    continue
 
                 new_size = file_info["size"] + len(chunk_bytes)
-                if new_size > MAX_FILE_SIZE:
+                if new_size > file_info.get("max_size", MAX_FILE_SIZE):
                     await websocket.send_json({
                         "type": "error",
                         "message": "File too large"
                     })
-                    os.remove(file_info["path"])
-                    del websocket.current_file
+                    try:
+                        os.remove(file_info["path"])
+                    except Exception:
+                        pass
+                    try:
+                        del websocket.current_file
+                    except Exception:
+                        pass
                     continue
 
                 with open(file_info["path"], "ab") as f:
@@ -619,6 +1281,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str, username: str):
                         "filename": file_info["safe_name"],
                         "size": file_info["size"]
                     })
+                    _log_data_usage(username, "upload", file_info["size"], "ws")
                     del websocket.current_file
 
             # --- 3. download файла ---
@@ -645,10 +1308,49 @@ async def websocket_endpoint(websocket: WebSocket, token: str, username: str):
                     "type": "download_end",
                     "filename": safe_name
                 })
+                try:
+                    size = os.path.getsize(path)
+                    _log_data_usage(username, "download", size, "ws")
+                    _log_download(username, safe_name, size)
+                except Exception:
+                    pass
 
     except WebSocketDisconnect:
         if websocket in active_connections.get(username, []):
             active_connections[username].remove(websocket)
+        if not active_connections.get(username):
+            active_connections.pop(username, None)
+        file_info = getattr(websocket, "current_file", None)
+        if file_info:
+            try:
+                os.remove(file_info.get("path", ""))
+            except Exception:
+                pass
+            try:
+                del websocket.current_file
+            except Exception:
+                pass
+        logger.info(f"WS disconnect: user={username}")
+    except Exception as e:
+        if websocket in active_connections.get(username, []):
+            active_connections[username].remove(websocket)
+        if not active_connections.get(username):
+            active_connections.pop(username, None)
+        file_info = getattr(websocket, "current_file", None)
+        if file_info:
+            try:
+                os.remove(file_info.get("path", ""))
+            except Exception:
+                pass
+            try:
+                del websocket.current_file
+            except Exception:
+                pass
+        logger.error(f"WS error: user={username} err={e}")
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
             
             
@@ -661,6 +1363,7 @@ async def mark_read(chat_id: str = Form(...), username: str = Form(...), token: 
         conn = get_db()
         conn.execute("UPDATE messages SET is_read=1 WHERE sender=? AND receiver=?", (chat_id, username))
         conn.commit()
+    await _ws_send(chat_id, {'type': 'read_receipt', 'chat_id': username, 'status': 'read'})
     return {"status": "ok"}
 
 @app.post("/collective/mark_read")
@@ -671,6 +1374,13 @@ async def mark_collective_read(chat_id: str = Form(...), username: str = Form(..
         last_id = conn.execute("SELECT MAX(id) FROM group_messages WHERE chat_id=?", (chat_id,)).fetchone()[0]
         conn.execute("UPDATE chat_members SET last_read_id=? WHERE chat_id=? AND username=?", (last_id, chat_id, username))
         conn.commit()
+    # Notify collective chat members
+    with db_lock:
+        conn = get_db()
+        members = [r[0] for r in conn.execute("SELECT username FROM chat_members WHERE chat_id=?", (chat_id,)).fetchall()]
+        conn.close()
+    await _ws_broadcast(members, {"type": "read_receipt", "chat_id": chat_id, "username": username, "status": "read", "collective": True})
+
     return {"status": "ok"}
             
             
@@ -740,6 +1450,7 @@ async def logout_sessions_all(request: Request):
 async def pin_message(token: str = Form(...), username: str = Form(...), chat_id: str = Form(...), chat_type: str = Form(...), message_id: int = Form(...), pinned: bool = Form(...)):
     if not is_valid_session(token, username): raise HTTPException(401)
     table = "group_messages" if chat_type in ["group", "channel"] else "messages"
+    table = validate_table_name(table)
     with db_lock:
         conn = get_db()
         conn.execute(f"UPDATE {table} SET is_pinned=? WHERE id=?", (1 if pinned else 0, message_id))
@@ -841,6 +1552,29 @@ async def vote_poll(request: Request):
         total = sum(results)
         conn.close()
         
+    
+        # Broadcast poll update
+        # We try to find which chat this poll belongs to by looking at messages
+        with db_lock:
+            conn = get_db()
+            # Try messages and group_messages
+            msg = conn.execute("SELECT receiver as chat_id FROM messages WHERE text LIKE ? LIMIT 1", (f"%{poll_id}%",)).fetchone()
+            if not msg:
+                msg = conn.execute("SELECT chat_id FROM group_messages WHERE text LIKE ? LIMIT 1", (f"%{poll_id}%",)).fetchone()
+            
+            chat_to_notify = msg[0] if msg else None
+            if chat_to_notify:
+                # If it's a group, get all members
+                members = [r[0] for r in conn.execute("SELECT username FROM chat_members WHERE chat_id=?", (chat_to_notify,)).fetchall()]
+                if not members: members = [chat_to_notify, username] # Direct chat fallback
+                
+                await _ws_broadcast(members, {
+                    "type": "poll_update",
+                    "poll_id": poll_id,
+                    "counts": results,
+                    "total": total
+                })
+            conn.close()
     return {"status": "ok", "counts": results, "my_votes": my_votes, "total": total}
 
 
@@ -983,30 +1717,31 @@ async def search_messages(
 ):
     """M14: Поиск сообщений с пагинацией"""
     if not is_valid_session(token, username): raise HTTPException(401)
-    
-    table = "group_messages" if chat_type in ["group", "channel"] else "messages"
+    safe_query = sanitize_search_query(q)
+    is_group = chat_type in ["group", "channel"]
+    table = validate_table_name("group_messages" if is_group else "messages")
     
     with db_lock:
         conn = get_db()
         
         # Получаем общее количество результатов
-        if chat_type in ["group", "channel"]:
+        if is_group:
             count_row = conn.execute(
-                f"SELECT COUNT(*) as total FROM {table} WHERE chat_id=? AND text LIKE ?", 
-                (chat_id, f"%{q}%")
+                f"SELECT COUNT(*) as total FROM {table} WHERE chat_id=? AND text LIKE ? ESCAPE '\\'", 
+                (chat_id, f"%{safe_query}%")
             ).fetchone()
             results = conn.execute(
-                f"SELECT * FROM {table} WHERE chat_id=? AND text LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?", 
-                (chat_id, f"%{q}%", limit, offset)
+                f"SELECT * FROM {table} WHERE chat_id=? AND text LIKE ? ESCAPE '\\' ORDER BY id DESC LIMIT ? OFFSET ?", 
+                (chat_id, f"%{safe_query}%", limit, offset)
             ).fetchall()
         else:
             count_row = conn.execute(
-                f"SELECT COUNT(*) as total FROM {table} WHERE ((sender=? AND receiver=?) OR (sender=? AND receiver=?)) AND text LIKE ?", 
-                (username, chat_id, chat_id, username, f"%{q}%")
+                f"SELECT COUNT(*) as total FROM {table} WHERE ((sender=? AND receiver=?) OR (sender=? AND receiver=?)) AND text LIKE ? ESCAPE '\\'", 
+                (username, chat_id, chat_id, username, f"%{safe_query}%")
             ).fetchone()
             results = conn.execute(
-                f"SELECT * FROM {table} WHERE ((sender=? AND receiver=?) OR (sender=? AND receiver=?)) AND text LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?", 
-                (username, chat_id, chat_id, username, f"%{q}%", limit, offset)
+                f"SELECT * FROM {table} WHERE ((sender=? AND receiver=?) OR (sender=? AND receiver=?)) AND text LIKE ? ESCAPE '\\' ORDER BY id DESC LIMIT ? OFFSET ?", 
+                (username, chat_id, chat_id, username, f"%{safe_query}%", limit, offset)
             ).fetchall()
         
         total = count_row['total'] if count_row else 0
@@ -1019,16 +1754,122 @@ async def search_messages(
     }
 
 
-
-
-@app.get("/search_messages")
-async def search_messages(chat_id: str, q: str, username: str, token: str, chat_type: str):
-    if not is_valid_session(token, username): raise HTTPException(401)
-    table = "group_messages" if chat_type in ["group", "channel"] else "messages"
+@app.get("/channels/weekly_moment")
+async def channels_weekly_moment(
+    chat_id: str,
+    username: str,
+    token: str,
+    limit: int = 5,
+):
+    """Weekly Moment digest for channel: top posts by reactions for last 7 days."""
+    if not is_valid_session(token, username):
+        raise HTTPException(401)
+    since = time.time() - 7 * 86400
     with db_lock:
         conn = get_db()
-        results = conn.execute(f"SELECT * FROM {table} WHERE text LIKE ?", (f"%{q}%",)).fetchall()
-        return {"results": [dict(r) for r in results]}
+        chat = conn.execute(
+            "SELECT type FROM collective_chats WHERE id=?",
+            (chat_id,),
+        ).fetchone()
+        if not chat or chat["type"] != "channel":
+            conn.close()
+            raise HTTPException(404, "Channel not found")
+        member = conn.execute(
+            "SELECT 1 FROM chat_members WHERE chat_id=? AND username=?",
+            (chat_id, username),
+        ).fetchone()
+        if not member:
+            conn.close()
+            raise HTTPException(403, "Not a channel member")
+        rows = conn.execute(
+            """
+            SELECT m.id, m.text, m.time, m.type,
+                   COALESCE(r.cnt, 0) as reactions
+            FROM group_messages m
+            LEFT JOIN (
+                SELECT message_id, COUNT(*) as cnt
+                FROM reactions
+                WHERE chat_id=?
+                GROUP BY message_id
+            ) r ON r.message_id = m.id
+            WHERE m.chat_id=? AND CAST(m.time AS REAL) >= ?
+            ORDER BY reactions DESC, CAST(m.time AS REAL) DESC
+            LIMIT ?
+            """,
+            (chat_id, chat_id, since, limit),
+        ).fetchall()
+        total = conn.execute(
+            "SELECT COUNT(*) as total FROM group_messages WHERE chat_id=? AND CAST(time AS REAL) >= ?",
+            (chat_id, since),
+        ).fetchone()
+        conn.close()
+    return {
+        "status": "ok",
+        "since": since,
+        "total": total["total"] if total else 0,
+        "items": [dict(r) for r in rows],
+    }
+
+
+@app.post("/groups/weekly_roles")
+async def groups_weekly_roles(payload: WeeklyRolesRequest):
+    if not is_valid_session(payload.token, payload.username):
+        raise HTTPException(401, "Unauthorized")
+    week_start = int(time.time() // (7 * 86400) * (7 * 86400))
+    with db_lock:
+        conn = get_db()
+        chat = conn.execute(
+            "SELECT type FROM collective_chats WHERE id=?",
+            (payload.chat_id,),
+        ).fetchone()
+        if not chat or chat["type"] != "group":
+            conn.close()
+            raise HTTPException(404, "Group not found")
+        member = conn.execute(
+            "SELECT 1 FROM chat_members WHERE chat_id=? AND username=?",
+            (payload.chat_id, payload.username),
+        ).fetchone()
+        if not member:
+            conn.close()
+            raise HTTPException(403, "Not a group member")
+        roles = conn.execute(
+            "SELECT username, role FROM weekly_roles WHERE chat_id=? AND week_start=?",
+            (payload.chat_id, week_start),
+        ).fetchall()
+        if not roles:
+            candidates = conn.execute(
+                "SELECT username FROM chat_members WHERE chat_id=?",
+                (payload.chat_id,),
+            ).fetchall()
+            members = [r["username"] for r in candidates]
+            random.seed(f"{payload.chat_id}:{week_start}")
+            random.shuffle(members)
+            if members:
+                chosen = {
+                    "editor": members[0],
+                    "moderator": members[1 % len(members)] if len(members) > 1 else members[0],
+                }
+                for role, user in chosen.items():
+                    conn.execute(
+                        "INSERT INTO weekly_roles (chat_id, username, role, week_start) VALUES (?, ?, ?, ?)",
+                        (payload.chat_id, user, role, week_start),
+                    )
+                roles = conn.execute(
+                    "SELECT username, role FROM weekly_roles WHERE chat_id=? AND week_start=?",
+                    (payload.chat_id, week_start),
+                ).fetchall()
+            conn.commit()
+        conn.close()
+    return {
+        "status": "ok",
+        "week_start": week_start,
+        "roles": [dict(r) for r in roles],
+    }
+
+
+
+
+ 
 
 @app.post("/send_chat")
 async def send_to_saved(request: Request, token: str = Form(None), username: str = Form(None), text: str = Form(None)):
@@ -1041,6 +1882,11 @@ async def send_to_saved(request: Request, token: str = Form(None), username: str
         username = username or data.get("username")
         text = text or data.get("text")
     if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
         raise HTTPException(401)
     with db_lock:
         conn = get_db()
@@ -1077,6 +1923,11 @@ async def delete_chat(payload: dict):
     username = payload.get("username")
     chat_id = payload.get("chat_id")
     if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
         raise HTTPException(401)
     if not chat_id:
         raise HTTPException(422, "Missing chat_id")
@@ -1351,58 +2202,9 @@ async def delete_handler(file_name: str, token: str, username: str):
     return {"ok": False, "error": "File not found"}
 
 
-# --- Новые endpoints для совместимости с frontend ---
+# --- Файлы передаются только через WebSocket (/ws) ---
+# HTTP endpoints /upload и /download удалены - используйте WebSocket
 
-@app.post("/upload")
-async def upload_file(
-    file: UploadFile = File(...),
-    sender: str = Form(...),
-    receiver: str = Form(...),
-    token: str = Form(...),
-    reply_to: str = Form(None),
-    ttl_seconds: str = Form(None)
-):
-    """Endpoint для загрузки файлов (совместимость с frontend)"""
-    if not is_valid_session(token, sender):
-        raise HTTPException(status_code=401, detail="Invalid session")
-    
-    # Генерируем уникальное имя файла
-    file_ext = os.path.splitext(file.filename)[1]
-    safe_filename = f"{uuid.uuid4().hex}{file_ext}"
-    file_path = os.path.join(UPLOAD_DIR, safe_filename)
-    
-    # Сохраняем файл
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    return {
-        "status": "ok",
-        "filename": safe_filename,
-        "original_name": file.filename,
-        "size": os.path.getsize(file_path)
-    }
-
-
-@app.get("/download/{file_name}")
-async def download_file(
-    file_name: str,
-    token: str = None,
-    username: str = None
-):
-    """Endpoint для скачивания файлов (совместимость с frontend)"""
-    # Проверяем токен если передан
-    if token and username:
-        if not is_valid_session(token, username):
-            raise HTTPException(status_code=401, detail="Invalid session")
-    
-    # Безопасное имя файла
-    safe_name = os.path.basename(file_name)
-    file_path = os.path.join(UPLOAD_DIR, safe_name)
-    
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    return FileResponse(file_path, filename=safe_name)
 
 
 
@@ -1429,7 +2231,7 @@ async def update_group_avatar(chat_id: str = Form(...), owner: str = Form(...),
                      (filename, chat_id, owner))
         conn.commit()
     return {"status": "ok", "avatar_url": filename}
-BANNED_WORDS = ["чит", "cheat", "hack", "exploit", "crack", "bypass"]
+BANNED_WORDS = ["С‡РёС‚", "cheat", "hack", "exploit", "crack", "bypass"]
 
 def check_username_safe(username: str, name: str) -> bool:
     """
@@ -1443,73 +2245,95 @@ def check_username_safe(username: str, name: str) -> bool:
     return True
 
 @app.post("/register")
-async def register(u: AuthModel):
-    email_clean = u.email.lower().strip()
-
+async def register(u: UserRegistration):
+    email_clean = u.email.strip().lower()
+    username_clean = u.username.strip()
+    name_clean = u.name.strip()
 
     if not u.username or not u.email or not u.password:
         raise HTTPException(status_code=400, detail="Заполните все поля")
 
-
-    with db_lock:
-        conn = get_db()
-        existing = conn.execute(
-            "SELECT email, username FROM users WHERE email=? OR username=?",
-            (email_clean, u.username)
-        ).fetchone()
-        conn.close()
-
-    if existing:
-        if existing['email'] == email_clean:
-            raise HTTPException(status_code=400, detail="Пользователь с таким Email уже есть")
-        if existing['username'] == u.username:
-            raise HTTPException(status_code=400, detail="Это имя пользователя уже занято")
-
-
     if u.code:
         saved = pending_regs.get(email_clean)
-        if not saved or saved['code'] != u.code:
+        if not saved or saved["code"] != u.code:
             raise HTTPException(status_code=400, detail="Неверный код подтверждения")
 
-        data = saved['data']
-
-
-        is_safe = check_username_safe(data.username, data.name)
+        data = saved["data"]
+        is_safe = check_username_safe(data["username"], data["name"])
 
         with db_lock:
             conn = get_db()
             try:
+                conn.execute("BEGIN EXCLUSIVE")
+                existing = conn.execute(
+                    "SELECT email, username FROM users WHERE email=? OR username=?",
+                    (email_clean, data["username"])
+                ).fetchone()
+
+                if existing:
+                    conn.execute("ROLLBACK")
+                    if existing["email"] == email_clean:
+                        raise HTTPException(status_code=400, detail="Email already registered")
+                    raise HTTPException(status_code=400, detail="Username already taken")
+
                 conn.execute(
                     """INSERT INTO users 
                        (email, username, name, password, reg_date, last_seen, is_frozen, frozen_rule, verified) 
                        VALUES (?,?,?,?,?,?,?,?,?)""",
                     (
                         email_clean,
-                        data.username,
-                        data.name or data.username,
-                        data.password,
+                        data["username"],
+                        data["name"] or data["username"],
+                        data["password_hash"],
                         datetime.datetime.now().strftime("%d.%m.%Y"),
                         time.time(),
-                        0 if is_safe else 1, 
+                        0 if is_safe else 1,
                         None if is_safe else "Нарушение п. 4.1.3 и 4.1.7 Условий использования (упоминание читов в имени или нике)",
                         1,
                     )
                 )
-                conn.commit()
-                if email_clean in pending_regs:
-                    del pending_regs[email_clean]
-                logger.info(f"New user registered: {data.username}")
-                return {
-                    "status": "ok",
-                    "message": "User created",
-                    "frozen": not is_safe
-                }
+                conn.execute("COMMIT")
+            except HTTPException:
+                raise
+            except Exception as e:
+                conn.execute("ROLLBACK")
+                logger.error(f"Registration error: {e}", exc_info=True)
+                raise HTTPException(status_code=500, detail="Registration failed")
             finally:
                 conn.close()
 
+        if email_clean in pending_regs:
+            del pending_regs[email_clean]
+        logger.info(f"New user registered: {data['username']}")
+        return {
+            "status": "ok",
+            "message": "User created",
+            "frozen": not is_safe
+        }
+
+    with db_lock:
+        conn = get_db()
+        existing = conn.execute(
+            "SELECT email, username FROM users WHERE email=? OR username=?",
+            (email_clean, username_clean)
+        ).fetchone()
+        conn.close()
+
+    if existing:
+        if existing['email'] == email_clean:
+            raise HTTPException(status_code=400, detail="Пользователь с таким Email уже есть")
+        if existing['username'] == username_clean:
+            raise HTTPException(status_code=400, detail="Это имя пользователя уже занято")
 
     gen_code = str(random.randint(100000, 999999))
-    pending_regs[email_clean] = {"code": gen_code, "data": u}
+    pending_regs[email_clean] = {
+        "code": gen_code,
+        "data": {
+            "username": username_clean,
+            "name": name_clean or username_clean,
+            "password_hash": PasswordManager.hash_password(u.password),
+        },
+    }
 
     if send_email(u.email, gen_code):
         logger.info(f"Verification code sent to {u.email}")
@@ -1527,16 +2351,37 @@ def check_username_safes(username: str, name: str) -> (bool, list):
     found = [word for word in BANNED_WORDS if word in combined]
     return (len(found) == 0, found)
 @app.post("/login")
-async def login(request: Request, username: str = Form(...), password: str = Form(...)):
+async def login(request: Request, username: str = Form(...), password: str = Form(...), device: str = Form(None), ip: str = Form(None)):
+    if not login_limiter.is_allowed(username):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many login attempts. Please try again in 15 minutes."
+        )
+
     with db_lock:
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
 
-        if not user or user["password"] != password:
-            if not user:
-                raise HTTPException(404, detail="Account is invalid")
+        if not user:
+            conn.close()
             raise HTTPException(401, detail="Invalid credentials")
 
+        stored_password = user["password"] or ""
+        if stored_password.startswith("$argon2"):
+            if not PasswordManager.verify_password(password, stored_password):
+                conn.close()
+                raise HTTPException(401, detail="Invalid credentials")
+            if PasswordManager.needs_rehash(stored_password):
+                new_hash = PasswordManager.hash_password(password)
+                conn.execute("UPDATE users SET password=? WHERE id=?", (new_hash, user["id"]))
+                conn.commit()
+        else:
+            if stored_password != password:
+                conn.close()
+                raise HTTPException(401, detail="Invalid credentials")
+            new_hash = PasswordManager.hash_password(password)
+            conn.execute("UPDATE users SET password=? WHERE id=?", (new_hash, user["id"]))
+            conn.commit()
 
         if not user["is_frozen"]:
             is_safe, found_words = check_username_safes(user["username"], user["name"])
@@ -1558,17 +2403,19 @@ async def login(request: Request, username: str = Form(...), password: str = For
             conn.close()
             raise HTTPException(401, detail=f"Account frozen: {user['frozen_rule']}")
 
-
-        new_token = str(uuid.uuid4())
-        ip = request.client.host
-        ua = request.headers.get("user-agent", "Unknown Device")
+        ua = device or request.headers.get("user-agent", "Unknown Device")
+        ip_addr = ip or (request.client.host if request.client else "unknown")
+        session_data = SessionManager.create_session(username=username, device=ua, ip=ip_addr)
+        new_token = session_data["token"]
 
         conn.execute(
             "INSERT INTO sessions (token, username, last_activity, device, ip) VALUES (?, ?, ?, ?, ?)",
-            (new_token, username, time.time(), ua, ip)
+            (new_token, username, time.time(), ua, ip_addr)
         )
         conn.commit()
         conn.close()
+
+        login_limiter.reset(username)
 
         return {
             "status": "ok",
@@ -1576,20 +2423,6 @@ async def login(request: Request, username: str = Form(...), password: str = For
             "username": username,
             "name": user["name"]
         }
-
-
-    
-
-    
-
-    
-
-    
-
-
-mc_cache = {}
-
-
 
 
 
@@ -1917,6 +2750,8 @@ async def get_user_info(username: str, token: str, my_username: str):
             (username,)
         ).fetchone()
         badge = get_user_badge(conn, username)
+        settings = _get_user_settings(conn, username)
+        is_contact = _is_contact(conn, my_username, username)
         conn.close()
 
     if row:
@@ -1924,11 +2759,32 @@ async def get_user_info(username: str, token: str, my_username: str):
         last_seen = row["last_seen"] or 0
         is_online = (time.time() - last_seen) < 60
 
-        res["is_online"] = is_online
-        res["isonline"] = is_online
+        is_self = my_username == username
+        allow_last_seen = True
+        if not is_self:
+            if settings.get("ghost_mode"):
+                allow_last_seen = False
+            else:
+                vis = settings.get("last_seen_visibility", "Все")
+                if vis == "Никто":
+                    allow_last_seen = False
+                elif vis == "Контакты" and not is_contact:
+                    allow_last_seen = False
+
+        res["is_online"] = is_online if allow_last_seen else False
+        res["isonline"] = is_online if allow_last_seen else False
         res["isfrozen"] = res.get("is_frozen")
-        res["last_seen_ts"] = last_seen
-        res["last_seen_text"] = format_last_seen(last_seen)
+        res["last_seen_ts"] = last_seen if allow_last_seen else 0
+        res["last_seen_text"] = format_last_seen(last_seen) if allow_last_seen else "скрыто"
+
+        photo_vis = settings.get("photo_visibility", "Все")
+        allow_photo = True
+        if not is_self:
+            if photo_vis == "Никто":
+                allow_photo = False
+            elif photo_vis == "Контакты" and not is_contact:
+                allow_photo = False
+        res["photo_hidden"] = not allow_photo
 
         if badge:
             res.update(badge)
@@ -1947,6 +2803,11 @@ async def set_about(
     about: str = Form(...)
 ):
     if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
         raise HTTPException(status_code=401, detail="Invalid session")
 
     about = about.strip()
@@ -1961,6 +2822,19 @@ async def set_about(
             (about, username)
         )
         conn.commit()
+    # Broadcast profile update to contacts/groups
+    with db_lock:
+        conn = get_db()
+        # Get all users who share a chat or are in contacts
+        # Simplified: broadcast to all active connections? No, let's try to find relevant people.
+        # For now, let's just broadcast a 'profile_update' event. 
+        # The frontend can decide if they care about this user.
+        # But we need to know WHO is connected.
+        import __main__
+        all_users = list(getattr(__main__, 'active_connections', {}).keys())
+        conn.close()
+    await _ws_broadcast(all_users, {"type": "profile_update", "username": username, "about": about})
+
         conn.close()
 
     return {"status": "ok"}
@@ -1977,6 +2851,11 @@ async def get_chats(username: str | None = None, user: str | None = None, token:
     if not username:
         raise HTTPException(422, detail="Missing username")
     if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
         raise HTTPException(401)
 
     with db_lock:
@@ -2237,25 +3116,26 @@ async def send_collective(
     token: str = Form(...),
     text: str = Form(...), 
     reply_to: int = Form(None), 
-    attachments: str = Form(None), # JSON список имен файлов
-    ttl_seconds: int = Form(None)
+    attachments: str = Form(None), # JSON list of filenames
+    ttl_seconds: int = Form(None),
+    msg_type: str = Form(None),
+    lat: float = Form(None),
+    lon: float = Form(None),
+    contact_data: str = Form(None)
 ):
-    # 1. Проверка сессии
     if not is_valid_session(token, sender):
         raise HTTPException(status_code=401, detail="Invalid session")
 
-    # 2. Расчет времени удаления (TTL)
     expires_at = (time.time() + ttl_seconds) if ttl_seconds else None
 
     with db_lock:
         conn = get_db()
-        
+
         chat_row = conn.execute("SELECT type, owner FROM collective_chats WHERE id=?", (chat_id,)).fetchone()
         if not chat_row:
             conn.close()
             raise HTTPException(status_code=404, detail="Chat not found")
-        
-        # 3. Проверка: состоит ли юзер в чате?
+
         member = conn.execute(
             "SELECT role FROM chat_members WHERE chat_id=? AND username=?", 
             (chat_id, sender)
@@ -2270,24 +3150,59 @@ async def send_collective(
             conn.close()
             raise HTTPException(status_code=403, detail="Only owner can post in channel")
 
-        # 4. Сохранение сообщения
         cursor = conn.execute(
             """INSERT INTO group_messages 
-               (chat_id, sender, text, time, reply_to, attachments, expires_at) 
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (chat_id, sender, text, str(time.time()), reply_to, attachments, expires_at)
+               (chat_id, sender, text, time, reply_to, attachments, expires_at, type, lat, lon, contact_data) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (chat_id, sender, text, str(time.time()), reply_to, attachments, expires_at, msg_type or "text", lat, lon, contact_data)
         )
         msg_id = cursor.lastrowid
-        
-        # 5. Обновление превью в таблице чатов
+
         preview = text[:50] + ("..." if len(text) > 50 else "")
         conn.execute(
             "UPDATE collective_chats SET updated_at=?, last_message_preview=? WHERE id=?",
             (str(time.time()), preview, chat_id)
         )
-        
+
         conn.commit()
         conn.close()
+
+    try:
+        with db_lock:
+            conn = get_db()
+            members = conn.execute("SELECT username FROM chat_members WHERE chat_id=?", (chat_id,)).fetchall()
+            conn.close()
+        usernames_all = [m[0] for m in members]
+        usernames = [m for m in usernames_all if m != sender]
+        try:
+            preview_text = obresfucate.deobresfucate(text) if isinstance(text, str) else ""
+        except Exception:
+            preview_text = text if isinstance(text, str) else ""
+        for username in usernames:
+            mention = 1 if f"@{username}" in preview_text else 0
+            _notify_user(
+                username,
+                title=f"{chat_info.get('name', chat_id)}",
+                body=preview_text[:140],
+                data={
+                    "chat_type": chat_info.get("type", "group"),
+                    "sender": sender,
+                    "chat_id": chat_id,
+                    "mention": str(mention),
+                },
+            )
+        await _ws_broadcast(
+            usernames_all,
+            {
+                "type": "message",
+                "chat_type": chat_info.get("type", "group"),
+                "chat_id": chat_id,
+                "sender": sender,
+                "message_id": msg_id,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Collective notify failed: {e}")
 
     return {
         "status": "ok", 
@@ -2347,6 +3262,11 @@ async def edit_message(request: Request, token: str = Form(None), username: str 
         message_id = message_id or data.get("message_id")
         text = text or data.get("text")
     if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
         raise HTTPException(401, "Unauthorized")
     with db_lock:
         conn = get_db()
@@ -2373,6 +3293,11 @@ async def delete_message(request: Request, token: str = Form(None), username: st
         username = username or data.get("username")
         message_id = message_id or data.get("message_id")
     if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
         raise HTTPException(401, "Unauthorized")
     with db_lock:
         conn = get_db()
@@ -2394,6 +3319,11 @@ async def typing_event(payload: dict):
     token = payload.get("token")
     username = payload.get("username")
     if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
         raise HTTPException(401, "Unauthorized")
     return {"status": "ok"}
 
@@ -2405,6 +3335,11 @@ async def react_message(payload: dict):
     emoji = payload.get("emoji")
     action = payload.get("action") or ("add" if payload.get("active") else "remove")
     if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
         raise HTTPException(401, "Unauthorized")
     if not message_id or not emoji:
         raise HTTPException(422, "Missing fields")
@@ -2446,6 +3381,11 @@ async def react_collective(payload: dict):
     chat_id = payload.get("chat_id")
     action = payload.get("action") or ("add" if payload.get("active") else "remove")
     if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
         raise HTTPException(401, "Unauthorized")
     if not message_id or not emoji or not chat_id:
         raise HTTPException(422, "Missing fields")
@@ -2477,6 +3417,66 @@ async def react_collective(payload: dict):
     counts = {r["emoji"]: r["cnt"] for r in rows}
     mine = {r["emoji"]: True for r in mine_rows}
     return {"status": "ok", "counts": counts, "mine": mine}
+
+
+@app.post("/reactions/list")
+async def reactions_list(payload: dict):
+    token = payload.get("token")
+    username = payload.get("username")
+    message_ids = payload.get("message_ids") or []
+    chat_id = payload.get("chat_id")
+    collective = payload.get("collective") is True
+    if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
+        raise HTTPException(401, "Unauthorized")
+    if not isinstance(message_ids, list) or not message_ids:
+        return {"status": "ok", "data": {}}
+    if collective and not chat_id:
+        raise HTTPException(422, "Missing chat_id")
+    target_chat = chat_id if collective else "__direct__"
+    ids = []
+    for raw in message_ids:
+        try:
+            ids.append(int(raw))
+        except Exception:
+            continue
+    if not ids:
+        return {"status": "ok", "data": {}}
+    placeholders = ",".join(["?"] * len(ids))
+    with db_lock:
+        conn = get_db()
+        rows = conn.execute(
+            f"""
+            SELECT message_id, emoji, COUNT(*) as cnt
+            FROM reactions
+            WHERE chat_id=? AND message_id IN ({placeholders})
+            GROUP BY message_id, emoji
+            """,
+            (target_chat, *ids),
+        ).fetchall()
+        mine_rows = conn.execute(
+            f"""
+            SELECT message_id, emoji
+            FROM reactions
+            WHERE chat_id=? AND message_id IN ({placeholders}) AND username=?
+            """,
+            (target_chat, *ids, username),
+        ).fetchall()
+        conn.commit()
+    data: Dict[str, Any] = {}
+    for row in rows:
+        msg_id = str(row["message_id"])
+        bucket = data.setdefault(msg_id, {"counts": {}, "mine": {}})
+        bucket["counts"][row["emoji"]] = int(row["cnt"])
+    for row in mine_rows:
+        msg_id = str(row["message_id"])
+        bucket = data.setdefault(msg_id, {"counts": {}, "mine": {}})
+        bucket["mine"][row["emoji"]] = True
+    return {"status": "ok", "data": data}
 
 
 
@@ -2592,11 +3592,96 @@ Username: {username}
             await save_to_log(error_text)
             return error_text
 
+@app.post("/notifications/register")
+async def notifications_register(payload: NotificationRegisterModel):
+    if not is_valid_session(payload.session_token, payload.username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    with db_lock:
+        conn = get_db()
+        conn.execute(
+            "INSERT OR REPLACE INTO device_tokens (username, token, platform, created_at) VALUES (?, ?, ?, ?)",
+            (payload.username, payload.token, payload.platform or "android", time.time()),
+        )
+        conn.commit()
+        conn.close()
+    return {"status": "ok"}
+
+
+@app.post("/notifications/unregister")
+async def notifications_unregister(payload: NotificationUnregisterModel):
+    if not is_valid_session(payload.session_token, payload.username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    with db_lock:
+        conn = get_db()
+        conn.execute("DELETE FROM device_tokens WHERE username=? AND token=?", (payload.username, payload.token))
+        conn.commit()
+        conn.close()
+    return {"status": "ok"}
+
+
+@app.post("/settings/get")
+async def settings_get(payload: SettingsGetModel):
+    if not is_valid_session(payload.session_token, payload.username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    with db_lock:
+        conn = get_db()
+        settings = _get_user_settings(conn, payload.username)
+        conn.close()
+    return {"status": "ok", "settings": settings}
+
+
+@app.post("/settings/set")
+async def settings_set(payload: SettingsSetModel):
+    if not is_valid_session(payload.session_token, payload.username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    updates = _filter_settings(payload.settings or {})
+    with db_lock:
+        conn = get_db()
+        current = _get_user_settings(conn, payload.username)
+        if updates:
+            current.update(updates)
+            _save_user_settings(conn, payload.username, current)
+            conn.commit()
+        conn.close()
+    return {"status": "ok", "settings": current}
+
+
+@app.post("/settings/reset")
+async def settings_reset(payload: SettingsResetModel):
+    if not is_valid_session(payload.session_token, payload.username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    with db_lock:
+        conn = get_db()
+        conn.execute("DELETE FROM user_settings WHERE username=?", (payload.username,))
+        conn.commit()
+        conn.close()
+    return {"status": "ok", "settings": dict(DEFAULT_SETTINGS)}
+
+
+
 @app.post("/send_message")
 async def send_message(m: MessageModel):
     # Проверка сессии
     if not is_valid_session(m.token, m.sender):
         raise HTTPException(status_code=401)
+
+    if m.receiver != "supports" and m.sender != m.receiver:
+        with db_lock:
+            conn = get_db()
+            recv_settings = _get_user_settings(conn, m.receiver)
+            is_contact = _is_contact(conn, m.sender, m.receiver)
+            conn.close()
+        who = recv_settings.get("who_can_write", "all")
+        if who == "nobody":
+            raise HTTPException(status_code=403, detail="Recipient does not accept messages")
+        if who == "contacts" and not is_contact:
+            raise HTTPException(status_code=403, detail="Recipient accepts messages from contacts only")
+        msg_vis = recv_settings.get("message_privacy", "Все")
+        if msg_vis == "Никто":
+            raise HTTPException(status_code=403, detail="Recipient does not accept messages")
+        if msg_vis == "Контакты" and not is_contact:
+            raise HTTPException(status_code=403, detail="Recipient accepts messages from contacts only")
+
 
     # Расчет TTL (M10)
     # Предполагаем, что в MessageModel есть опциональное поле ttl_seconds
@@ -2610,6 +3695,7 @@ async def send_message(m: MessageModel):
                          ("supports", "Лисёнок-хранитель (Поддержка)"))
         
         # Сохраняем входящее сообщение со всеми полями из ТЗ (M07, M10, M12, M13)
+        msg_type = getattr(m, 'msg_type', None) or "text"
         cursor = conn.execute(
             """INSERT INTO messages 
                (sender, receiver, text, time, reply_to, expires_at, lat, lon, contact_data, type) 
@@ -2617,7 +3703,7 @@ async def send_message(m: MessageModel):
             (m.sender, m.receiver, m.text, str(time.time()), 
              getattr(m, 'reply_to', None), expires_at, 
              getattr(m, 'lat', None), getattr(m, 'lon', None), 
-             getattr(m, 'contact_data', None), "text")
+             getattr(m, 'contact_data', None), msg_type)
         )
         msg_id = cursor.lastrowid
         
@@ -2629,6 +3715,19 @@ async def send_message(m: MessageModel):
         
         conn.commit()
         conn.close()
+
+    try:
+        await _ws_broadcast(
+            [m.sender, m.receiver],
+            {
+                "type": "message",
+                "sender": m.sender,
+                "receiver": m.receiver,
+                "message_id": msg_id,
+            },
+        )
+    except Exception as e:
+        logger.error(f"WS notify failed (direct): {e}")
 
     # --- ЛОГИКА ИИ-ПОДДЕРЖКИ ---
     if m.receiver == "supports" and user_row:
@@ -2646,12 +3745,25 @@ async def send_message(m: MessageModel):
         # Сохраняем ответ от ИИ как новое сообщение
         with db_lock:
             conn = get_db()
-            conn.execute(
+            cursor = conn.execute(
                 "INSERT INTO messages (sender, receiver, text, time, reply_to, type) VALUES (?, ?, ?, ?, ?, ?)",
                 ("supports", m.sender, ai_text, str(time.time()), msg_id, "text")
             )
+            ai_msg_id = cursor.lastrowid
             conn.commit()
             conn.close()
+        try:
+            await _ws_broadcast(
+                [m.sender],
+                {
+                    "type": "message",
+                    "sender": "supports",
+                    "receiver": m.sender,
+                    "message_id": ai_msg_id,
+                },
+            )
+        except Exception as e:
+            logger.error(f"WS notify failed (ai): {e}")
 
     return {"status": "ok", "message_id": msg_id, "expires_at": expires_at}
 
@@ -2701,6 +3813,11 @@ async def search_users(q: str, token: str, my_username: str):
 @app.get("/link_preview")
 async def link_preview(url: str, username: str, token: str):
     if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
         raise HTTPException(401)
     if not url or not (url.startswith("http://") or url.startswith("https://")):
         raise HTTPException(422, "Invalid url")
@@ -2798,11 +3915,296 @@ async def link_preview(url: str, username: str, token: str):
 
 # --- ADMIN / ROOT ACCESS ---
 
+ADMIN_HTML_PATH = os.path.join("webui", "admin.html")
+
+
+def _require_root(root_token: Optional[str], request: Optional[Request] = None) -> str:
+    token = root_token
+    if not token and request is not None:
+        token = request.query_params.get("root_token")
+    if token != ROOT_TOKEN:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return token
+
+
 @app.get("/admin", response_class=HTMLResponse)
-
 async def admin_page():
+    if os.path.exists(ADMIN_HTML_PATH):
+        with open(ADMIN_HTML_PATH, "r", encoding="utf-8") as f:
+            return HTMLResponse(f.read())
+    return HTMLResponse("<html><body><h2>NiosMess Admin</h2><p>admin.html not found.</p></body></html>")
 
-    return """<html><body style='background:#121212;color:white;padding:50px;'><h2>NiosMess Admin</h2><p>Status: <span style='color:lime;'>RUNNING</span></p></body></html>"""
+
+@app.get("/admin/stats")
+async def admin_stats(request: Request, root_token: Optional[str] = Header(None, alias="X-Root-Token")):
+    _require_root(root_token, request)
+    with db_lock:
+        conn = get_db()
+        users = conn.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
+        frozen = conn.execute("SELECT COUNT(*) as c FROM users WHERE is_frozen=1").fetchone()["c"]
+        sessions = conn.execute("SELECT COUNT(*) as c FROM sessions").fetchone()["c"]
+        messages = conn.execute("SELECT COUNT(*) as c FROM messages").fetchone()["c"]
+        group_messages = conn.execute("SELECT COUNT(*) as c FROM group_messages").fetchone()["c"]
+        groups = conn.execute("SELECT COUNT(*) as c FROM collective_chats").fetchone()["c"]
+        conn.close()
+    return {
+        "users": users,
+        "frozen": frozen,
+        "sessions": sessions,
+        "messages": messages,
+        "group_messages": group_messages,
+        "groups": groups,
+    }
+
+
+@app.get("/admin/users")
+async def admin_users(
+    request: Request,
+    root_token: Optional[str] = Header(None, alias="X-Root-Token"),
+    q: str = "",
+    limit: int = 50,
+    offset: int = 0,
+):
+    _require_root(root_token, request)
+    safe_q = sanitize_search_query(q or "")
+    with db_lock:
+        conn = get_db()
+        if safe_q:
+            like = f"%{safe_q}%"
+            total = conn.execute(
+                "SELECT COUNT(*) as c FROM users WHERE username LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\'",
+                (like, like, like),
+            ).fetchone()["c"]
+            rows = conn.execute(
+                "SELECT id, username, email, name, verified, is_frozen, frozen_rule, last_seen, reg_date FROM users "
+                "WHERE username LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\' "
+                "ORDER BY id DESC LIMIT ? OFFSET ?",
+                (like, like, like, limit, offset),
+            ).fetchall()
+        else:
+            total = conn.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
+            rows = conn.execute(
+                "SELECT id, username, email, name, verified, is_frozen, frozen_rule, last_seen, reg_date FROM users "
+                "ORDER BY id DESC LIMIT ? OFFSET ?",
+                (limit, offset),
+            ).fetchall()
+        conn.close()
+    return {"total": total, "items": [dict(r) for r in rows]}
+
+
+@app.post("/admin/user/freeze")
+async def admin_user_freeze(
+    request: Request,
+    root_token: Optional[str] = Header(None, alias="X-Root-Token"),
+    payload: dict = None,
+):
+    _require_root(root_token, request)
+    payload = payload or {}
+    username = payload.get("username")
+    frozen = bool(payload.get("frozen"))
+    reason = payload.get("reason") or "Frozen by admin"
+    if not username:
+        raise HTTPException(status_code=400, detail="Missing username")
+    with db_lock:
+        conn = get_db()
+        conn.execute(
+            "UPDATE users SET is_frozen=?, frozen_rule=? WHERE username=?",
+            (1 if frozen else 0, reason if frozen else None, username),
+        )
+        conn.commit()
+        conn.close()
+    return {"status": "ok"}
+
+
+@app.post("/admin/user/reset_password")
+async def admin_user_reset_password(
+    request: Request,
+    root_token: Optional[str] = Header(None, alias="X-Root-Token"),
+    payload: dict = None,
+):
+    _require_root(root_token, request)
+    payload = payload or {}
+    username = payload.get("username")
+    new_password = payload.get("new_password")
+    if not username or not new_password:
+        raise HTTPException(status_code=400, detail="Missing username or password")
+    hashed = PasswordManager.hash_password(new_password)
+    with db_lock:
+        conn = get_db()
+        conn.execute("UPDATE users SET password=? WHERE username=?", (hashed, username))
+        conn.commit()
+        conn.close()
+    return {"status": "ok"}
+
+
+@app.delete("/admin/user/{username}")
+async def admin_user_delete(
+    username: str,
+    request: Request,
+    root_token: Optional[str] = Header(None, alias="X-Root-Token"),
+):
+    _require_root(root_token, request)
+    with db_lock:
+        conn = get_db()
+        row = conn.execute("SELECT email FROM users WHERE username=?", (username,)).fetchone()
+        email = row["email"] if row else None
+
+        owned = conn.execute("SELECT id FROM collective_chats WHERE owner=?", (username,)).fetchall()
+        owned_ids = [r["id"] for r in owned] if owned else []
+
+        if owned_ids:
+            for chat_id in owned_ids:
+                conn.execute("DELETE FROM group_messages WHERE chat_id=?", (chat_id,))
+                conn.execute("DELETE FROM chat_members WHERE chat_id=?", (chat_id,))
+                conn.execute("DELETE FROM weekly_roles WHERE chat_id=?", (chat_id,))
+            conn.execute("DELETE FROM collective_chats WHERE owner=?", (username,))
+
+        conn.execute("DELETE FROM sessions WHERE username=?", (username,))
+        conn.execute("DELETE FROM messages WHERE sender=? OR receiver=?", (username, username))
+        conn.execute("DELETE FROM group_messages WHERE sender=?", (username,))
+        conn.execute("DELETE FROM chat_members WHERE username=?", (username,))
+        conn.execute("DELETE FROM reactions WHERE username=?", (username,))
+        conn.execute("DELETE FROM user_badges WHERE username=?", (username,))
+        conn.execute("DELETE FROM avatars WHERE username=?", (username,))
+        conn.execute("DELETE FROM device_tokens WHERE username=?", (username,))
+        conn.execute("DELETE FROM user_settings WHERE username=?", (username,))
+        conn.execute("DELETE FROM call_logs WHERE caller=? OR callee=?", (username, username))
+        conn.execute("DELETE FROM data_usage WHERE username=?", (username,))
+        conn.execute("DELETE FROM downloads WHERE username=?", (username,))
+        conn.execute("DELETE FROM scheduled_messages WHERE sender=?", (username,))
+        conn.execute("DELETE FROM weekly_roles WHERE username=?", (username,))
+        if email:
+            conn.execute("DELETE FROM password_resets WHERE email=?", (email,))
+        conn.execute("DELETE FROM users WHERE username=?", (username,))
+        conn.commit()
+        conn.close()
+    return {"status": "ok"}
+
+
+@app.get("/admin/messages")
+async def admin_messages(
+    request: Request,
+    root_token: Optional[str] = Header(None, alias="X-Root-Token"),
+    username: Optional[str] = None,
+    chat_id: Optional[str] = None,
+    chat_type: str = "user",
+    q: str = "",
+    limit: int = 50,
+    offset: int = 0,
+):
+    _require_root(root_token, request)
+    safe_q = sanitize_search_query(q or "")
+    with db_lock:
+        conn = get_db()
+        items = []
+        total = 0
+        if chat_type in ["group", "channel"] or chat_id:
+            like = f"%{safe_q}%" if safe_q else None
+            if like:
+                count_row = conn.execute(
+                    "SELECT COUNT(*) as c FROM group_messages WHERE chat_id=? AND text LIKE ? ESCAPE '\\'",
+                    (chat_id, like),
+                ).fetchone()
+                rows = conn.execute(
+                    "SELECT id, chat_id, sender, text, time, reply_to, type FROM group_messages "
+                    "WHERE chat_id=? AND text LIKE ? ESCAPE '\\' ORDER BY id DESC LIMIT ? OFFSET ?",
+                    (chat_id, like, limit, offset),
+                ).fetchall()
+            else:
+                count_row = conn.execute(
+                    "SELECT COUNT(*) as c FROM group_messages WHERE chat_id=?",
+                    (chat_id,),
+                ).fetchone()
+                rows = conn.execute(
+                    "SELECT id, chat_id, sender, text, time, reply_to, type FROM group_messages "
+                    "WHERE chat_id=? ORDER BY id DESC LIMIT ? OFFSET ?",
+                    (chat_id, limit, offset),
+                ).fetchall()
+            total = count_row["c"] if count_row else 0
+            for r in rows:
+                d = dict(r)
+                d["scope"] = "group"
+                items.append(d)
+        else:
+            like = f"%{safe_q}%" if safe_q else None
+            if username and chat_id:
+                if like:
+                    count_row = conn.execute(
+                        "SELECT COUNT(*) as c FROM messages WHERE ((sender=? AND receiver=?) OR (sender=? AND receiver=?)) AND text LIKE ? ESCAPE '\\'",
+                        (username, chat_id, chat_id, username, like),
+                    ).fetchone()
+                    rows = conn.execute(
+                        "SELECT id, sender, receiver, text, time, reply_to, type FROM messages "
+                        "WHERE ((sender=? AND receiver=?) OR (sender=? AND receiver=?)) AND text LIKE ? ESCAPE '\\' "
+                        "ORDER BY id DESC LIMIT ? OFFSET ?",
+                        (username, chat_id, chat_id, username, like, limit, offset),
+                    ).fetchall()
+                else:
+                    count_row = conn.execute(
+                        "SELECT COUNT(*) as c FROM messages WHERE (sender=? AND receiver=?) OR (sender=? AND receiver=?)",
+                        (username, chat_id, chat_id, username),
+                    ).fetchone()
+                    rows = conn.execute(
+                        "SELECT id, sender, receiver, text, time, reply_to, type FROM messages "
+                        "WHERE (sender=? AND receiver=?) OR (sender=? AND receiver=?) "
+                        "ORDER BY id DESC LIMIT ? OFFSET ?",
+                        (username, chat_id, chat_id, username, limit, offset),
+                    ).fetchall()
+            elif username:
+                if like:
+                    count_row = conn.execute(
+                        "SELECT COUNT(*) as c FROM messages WHERE (sender=? OR receiver=?) AND text LIKE ? ESCAPE '\\'",
+                        (username, username, like),
+                    ).fetchone()
+                    rows = conn.execute(
+                        "SELECT id, sender, receiver, text, time, reply_to, type FROM messages "
+                        "WHERE (sender=? OR receiver=?) AND text LIKE ? ESCAPE '\\' "
+                        "ORDER BY id DESC LIMIT ? OFFSET ?",
+                        (username, username, like, limit, offset),
+                    ).fetchall()
+                else:
+                    count_row = conn.execute(
+                        "SELECT COUNT(*) as c FROM messages WHERE sender=? OR receiver=?",
+                        (username, username),
+                    ).fetchone()
+                    rows = conn.execute(
+                        "SELECT id, sender, receiver, text, time, reply_to, type FROM messages "
+                        "WHERE sender=? OR receiver=? ORDER BY id DESC LIMIT ? OFFSET ?",
+                        (username, username, limit, offset),
+                    ).fetchall()
+            else:
+                rows = []
+                count_row = {"c": 0}
+
+            total = count_row["c"] if count_row else 0
+            for r in rows:
+                d = dict(r)
+                d["scope"] = "direct"
+                items.append(d)
+        conn.close()
+    return {"total": total, "items": items}
+
+
+@app.get("/admin/sessions")
+async def admin_sessions(
+    request: Request,
+    root_token: Optional[str] = Header(None, alias="X-Root-Token"),
+    username: Optional[str] = None,
+):
+    _require_root(root_token, request)
+    with db_lock:
+        conn = get_db()
+        if username:
+            rows = conn.execute(
+                "SELECT token, username, last_activity, device, ip FROM sessions WHERE username=? ORDER BY last_activity DESC",
+                (username,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT token, username, last_activity, device, ip FROM sessions ORDER BY last_activity DESC LIMIT 200",
+            ).fetchall()
+        conn.close()
+    return {"items": [dict(r) for r in rows]}
 
 
 
@@ -2884,6 +4286,520 @@ async def root_access(data: dict):
 
 # --- ФОНОВЫЕ ЗАДАЧИ ---
 
+
+
+# ==================== PASSWORD RESET / PROFILE / CALLS / DATA ====================
+
+class PasswordResetRequest(BaseModel):
+    email: Optional[str] = None
+    username: Optional[str] = None
+
+class PasswordResetConfirm(BaseModel):
+    email: Optional[str] = None
+    username: Optional[str] = None
+    code: str
+    new_password: str
+
+class CallRequestModel(BaseModel):
+    token: str
+    caller: str
+    callee: str
+
+class CallRespondModel(BaseModel):
+    token: str
+    username: str
+    call_id: str
+    status: str
+
+class UsageItem(BaseModel):
+    direction: str
+    bytes: int
+    kind: Optional[str] = "api"
+    ts: Optional[float] = None
+
+class UsageSync(BaseModel):
+    username: str
+    token: str
+    items: List[UsageItem]
+
+class WeeklyRolesRequest(BaseModel):
+    username: str
+    token: str
+    chat_id: str
+
+
+def _log_data_usage(username: str, direction: str, bytes_count: int, kind: str = "api"):
+    if not username or bytes_count <= 0:
+        return
+    with db_lock:
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO data_usage (username, direction, bytes, kind, ts) VALUES (?, ?, ?, ?, ?)",
+            (username, direction, int(bytes_count), kind, time.time()),
+        )
+        conn.commit()
+        conn.close()
+
+
+def _log_download(username: str, filename: str, size: int):
+    if not username or not filename:
+        return
+    with db_lock:
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO downloads (username, filename, size, ts) VALUES (?, ?, ?, ?)",
+            (username, filename, int(size), time.time()),
+        )
+        conn.commit()
+        conn.close()
+
+
+def _resolve_user_email(username: Optional[str], email: Optional[str]):
+    if email:
+        return email.strip().lower(), None
+    if not username:
+        return None, "Missing username or email"
+    with db_lock:
+        conn = get_db()
+        row = conn.execute("SELECT email FROM users WHERE username=?", (username,)).fetchone()
+        conn.close()
+    if not row:
+        return None, "User not found"
+    return row[0].strip().lower(), None
+
+
+@app.post("/password_reset/request")
+async def password_reset_request(payload: PasswordResetRequest):
+    email, err = _resolve_user_email(payload.username, payload.email)
+    if err:
+        raise HTTPException(status_code=404, detail=err)
+    if not email:
+        raise HTTPException(status_code=400, detail="Missing email")
+
+    code = str(random.randint(100000, 999999))
+    expires_at = time.time() + 900
+
+    with db_lock:
+        conn = get_db()
+        conn.execute(
+            "INSERT OR REPLACE INTO password_resets (email, code, expires_at, attempts) VALUES (?, ?, ?, 0)",
+            (email, code, expires_at),
+        )
+        conn.commit()
+        conn.close()
+
+    if not send_email(email, code):
+        raise HTTPException(status_code=500, detail="Email send failed")
+
+    return {"status": "ok"}
+
+
+@app.post("/password_reset/confirm")
+async def password_reset_confirm(payload: PasswordResetConfirm):
+    email, err = _resolve_user_email(payload.username, payload.email)
+    if err:
+        raise HTTPException(status_code=404, detail=err)
+    if not email:
+        raise HTTPException(status_code=400, detail="Missing email")
+
+    with db_lock:
+        conn = get_db()
+        row = conn.execute(
+            "SELECT code, expires_at, attempts FROM password_resets WHERE email=?",
+            (email,),
+        ).fetchone()
+        if not row:
+            conn.close()
+            raise HTTPException(status_code=400, detail="No reset request")
+
+        code, expires_at, attempts = row[0], row[1], row[2]
+        if time.time() > float(expires_at):
+            conn.execute("DELETE FROM password_resets WHERE email=?", (email,))
+            conn.commit()
+            conn.close()
+            raise HTTPException(status_code=400, detail="Code expired")
+
+        if payload.code != str(code):
+            attempts = (attempts or 0) + 1
+            conn.execute("UPDATE password_resets SET attempts=? WHERE email=?", (attempts, email))
+            conn.commit()
+            conn.close()
+            raise HTTPException(status_code=400, detail="Invalid code")
+
+        hashed = PasswordManager.hash_password(payload.new_password)
+        conn.execute("UPDATE users SET password=? WHERE email=?", (hashed, email))
+        conn.execute("DELETE FROM password_resets WHERE email=?", (email,))
+        conn.commit()
+        conn.close()
+
+    return {"status": "ok"}
+
+
+@app.post("/profile/set_name")
+async def profile_set_name(token: str = Form(...), username: str = Form(...), name: str = Form(...)):
+    if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    clean = name.strip()
+    if len(clean) < 2:
+        raise HTTPException(status_code=400, detail="Name too short")
+
+    if not check_username_safe(username, clean):
+        raise HTTPException(status_code=400, detail="Name contains forbidden words")
+
+    with db_lock:
+        conn = get_db()
+        conn.execute("UPDATE users SET name=? WHERE username=?", (clean, username))
+        conn.commit()
+    # Broadcast profile update to contacts/groups
+    with db_lock:
+        conn = get_db()
+        # Get all users who share a chat or are in contacts
+        # Simplified: broadcast to all active connections? No, let's try to find relevant people.
+        # For now, let's just broadcast a 'profile_update' event. 
+        # The frontend can decide if they care about this user.
+        # But we need to know WHO is connected.
+        import __main__
+        all_users = list(getattr(__main__, 'active_connections', {}).keys())
+        conn.close()
+    await _ws_broadcast(all_users, {"type": "profile_update", "username": username, "name": clean})
+
+        conn.close()
+
+    return {"status": "ok"}
+
+
+@app.post("/profile/set_username")
+async def profile_set_username(token: str = Form(...), username: str = Form(...), new_username: str = Form(...)):
+    if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    new_username = new_username.strip()
+    if len(new_username) < 3:
+        raise HTTPException(status_code=400, detail="Username too short")
+
+    if not check_username_safe(new_username, new_username):
+        raise HTTPException(status_code=400, detail="Username contains forbidden words")
+
+    with db_lock:
+        conn = get_db()
+        exists = conn.execute("SELECT 1 FROM users WHERE username=?", (new_username,)).fetchone()
+        if exists:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Username already taken")
+
+        conn.execute("UPDATE users SET username=? WHERE username=?", (new_username, username))
+        conn.execute("UPDATE sessions SET username=? WHERE username=?", (new_username, username))
+        conn.execute("UPDATE messages SET sender=? WHERE sender=?", (new_username, username))
+        conn.execute("UPDATE messages SET receiver=? WHERE receiver=?", (new_username, username))
+        conn.execute("UPDATE group_messages SET sender=? WHERE sender=?", (new_username, username))
+        conn.execute("UPDATE chat_members SET username=? WHERE username=?", (new_username, username))
+        conn.execute("UPDATE reactions SET username=? WHERE username=?", (new_username, username))
+        conn.execute("UPDATE user_badges SET username=? WHERE username=?", (new_username, username))
+        conn.execute("UPDATE avatars SET username=? WHERE username=?", (new_username, username))
+        conn.execute("UPDATE collective_chats SET owner=? WHERE owner=?", (new_username, username))
+        conn.execute("UPDATE scheduled_messages SET sender=? WHERE sender=?", (new_username, username))
+        conn.execute("UPDATE call_logs SET caller=? WHERE caller=?", (new_username, username))
+        conn.execute("UPDATE call_logs SET callee=? WHERE callee=?", (new_username, username))
+        conn.execute("UPDATE data_usage SET username=? WHERE username=?", (new_username, username))
+        conn.execute("UPDATE downloads SET username=? WHERE username=?", (new_username, username))
+        conn.commit()
+        conn.close()
+
+    return {"status": "ok", "username": new_username}
+
+
+@app.post("/profile/set_avatar")
+async def profile_set_avatar(token: str = Form(...), username: str = Form(...), file: UploadFile = File(...)):
+    return await set_avatar(token=token, username=username, file=file)
+
+
+@app.get("/calls/list")
+async def calls_list(username: str, token: str):
+    if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
+        raise HTTPException(status_code=401, detail="Invalid session")
+    with db_lock:
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT * FROM call_logs WHERE caller=? OR callee=? ORDER BY started_at DESC",
+            (username, username),
+        ).fetchall()
+        conn.close()
+    return {"status": "ok", "data": [dict(r) for r in rows]}
+
+
+@app.post("/calls/request")
+async def calls_request(payload: CallRequestModel):
+    if not is_valid_session(payload.token, payload.caller):
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    with db_lock:
+        conn = get_db()
+        callee_settings = _get_user_settings(conn, payload.callee)
+        is_contact = _is_contact(conn, payload.caller, payload.callee)
+        conn.close()
+    call_vis = callee_settings.get("call_privacy", "Все")
+    if call_vis == "Никто":
+        raise HTTPException(status_code=403, detail="Recipient does not accept calls")
+    if call_vis == "Контакты" and not is_contact:
+        raise HTTPException(status_code=403, detail="Recipient accepts calls from contacts only")
+
+
+    call_id = str(uuid.uuid4())
+    now = time.time()
+    status = "requested"
+    body = json.dumps({
+        "call_id": call_id,
+        "status": status,
+        "caller": payload.caller,
+        "callee": payload.callee,
+    })
+
+    with db_lock:
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO call_logs (id, caller, callee, status, started_at, ended_at, duration) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (call_id, payload.caller, payload.callee, status, now, None, None),
+        )
+        conn.execute(
+            "INSERT INTO messages (sender, receiver, text, time, type) VALUES (?, ?, ?, ?, ?)",
+            (payload.caller, payload.callee, body, str(now), "call"),
+        )
+        conn.commit()
+        conn.close()
+
+    _notify_user(
+        payload.callee,
+        title=f"Call from {payload.caller}",
+        body="Call request",
+        data={"event": "call", "call_id": call_id, "chat_type": "call", "sender": payload.caller},
+    )
+
+    return {"status": "ok", "call_id": call_id}
+
+
+@app.post("/calls/respond")
+async def calls_respond(payload: CallRespondModel):
+    if not is_valid_session(payload.token, payload.username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    allowed = {"accepted", "declined", "ended", "missed"}
+    if payload.status not in allowed:
+        raise HTTPException(status_code=400, detail="Invalid status")
+
+    with db_lock:
+        conn = get_db()
+        row = conn.execute("SELECT caller, callee, started_at FROM call_logs WHERE id=?", (payload.call_id,)).fetchone()
+        if not row:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Call not found")
+
+        caller, callee, started_at = row[0], row[1], row[2]
+        now = time.time()
+        duration = None
+        ended_at = None
+        if payload.status in {"ended", "declined", "missed"}:
+            ended_at = now
+            if started_at:
+                duration = int(max(0, now - float(started_at)))
+
+        conn.execute(
+            "UPDATE call_logs SET status=?, ended_at=?, duration=? WHERE id=?",
+            (payload.status, ended_at, duration, payload.call_id),
+        )
+
+        other = callee if payload.username == caller else caller
+        body = json.dumps({
+            "call_id": payload.call_id,
+            "status": payload.status,
+            "caller": caller,
+            "callee": callee,
+        })
+        conn.execute(
+            "INSERT INTO messages (sender, receiver, text, time, type) VALUES (?, ?, ?, ?, ?)",
+            (payload.username, other, body, str(now), "call"),
+        )
+        conn.commit()
+        conn.close()
+
+    return {"status": "ok"}
+
+
+@app.get("/data/usage")
+async def data_usage(username: str, token: str):
+    if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    now = time.time()
+    day = now - 86400
+    week = now - 86400 * 7
+    month = now - 86400 * 30
+
+    def _sum(conn, since):
+        up = conn.execute(
+            "SELECT COALESCE(SUM(bytes), 0) FROM data_usage WHERE username=? AND direction='upload' AND ts>=?",
+            (username, since),
+        ).fetchone()[0]
+        down = conn.execute(
+            "SELECT COALESCE(SUM(bytes), 0) FROM data_usage WHERE username=? AND direction='download' AND ts>=?",
+            (username, since),
+        ).fetchone()[0]
+        return int(up or 0), int(down or 0)
+
+    with db_lock:
+        conn = get_db()
+        day_up, day_down = _sum(conn, day)
+        week_up, week_down = _sum(conn, week)
+        month_up, month_down = _sum(conn, month)
+        conn.close()
+
+    return {
+        "status": "ok",
+        "day": {"upload": day_up, "download": day_down},
+        "week": {"upload": week_up, "download": week_down},
+        "month": {"upload": month_up, "download": month_down},
+    }
+
+
+@app.post("/data/usage")
+async def data_usage_sync(payload: UsageSync):
+    if not is_valid_session(payload.token, payload.username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    with db_lock:
+        conn = get_db()
+        for item in payload.items:
+            ts = item.ts or time.time()
+            conn.execute(
+                "INSERT INTO data_usage (username, direction, bytes, kind, ts) VALUES (?, ?, ?, ?, ?)",
+                (payload.username, item.direction, int(item.bytes), item.kind or "api", ts),
+            )
+        conn.commit()
+        conn.close()
+
+    return {"status": "ok"}
+
+
+@app.get("/data/downloads")
+async def data_downloads(username: str, token: str, limit: int = 50):
+    if not is_valid_session(token, username):
+        try:
+            ip = websocket.client.host if websocket.client else "unknown"
+        except Exception:
+            ip = "unknown"
+        logger.info(f"WS reject: user={username} token=***{str(token)[-6:]} ip={ip}")
+        raise HTTPException(status_code=401, detail="Invalid session")
+    with db_lock:
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT * FROM downloads WHERE username=? ORDER BY ts DESC LIMIT ?",
+            (username, limit),
+        ).fetchall()
+        conn.close()
+    return {"status": "ok", "data": [dict(r) for r in rows]}
+
+
+@app.post("/upload")
+async def upload_file(
+    sender: str = Form(...),
+    receiver: str = Form(...),
+    token: str = Form(...),
+    file: UploadFile = File(...),
+    reply_to: int = Form(None),
+    ttl_seconds: int = Form(None),
+):
+    if not is_valid_session(token, sender):
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    try:
+        file.file.seek(0, os.SEEK_END)
+        size = file.file.tell()
+        file.file.seek(0)
+    except Exception:
+        size = 0
+
+    file_type, is_valid = validate_file_upload(file.filename, file.content_type or "", size)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=file_type)
+
+    try:
+        file.file.seek(0, os.SEEK_END)
+        size = file.file.tell()
+        file.file.seek(0)
+    except Exception:
+        size = 0
+
+    file_type, is_valid = validate_file_upload(file.filename, file.content_type or "", size)
+    if not is_valid or file_type != "image":
+        raise HTTPException(status_code=400, detail="Invalid image upload")
+
+    file_ext = os.path.splitext(file.filename)[1]
+    safe_name = f"{uuid.uuid4().hex}{file_ext}"
+    path = os.path.join(UPLOAD_DIR, safe_name)
+
+    with open(path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    expires_at = (time.time() + ttl_seconds) if ttl_seconds else None
+    is_collective = receiver.startswith("group_") or receiver.startswith("channel_")
+
+    with db_lock:
+        conn = get_db()
+        if is_collective:
+            conn.execute(
+                "INSERT INTO group_messages (chat_id, sender, text, time, reply_to, attachments, expires_at, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (receiver, sender, safe_name, str(time.time()), reply_to, None, expires_at, "file"),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO messages (sender, receiver, text, time, reply_to, expires_at, type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (sender, receiver, safe_name, str(time.time()), reply_to, expires_at, "file"),
+            )
+        conn.commit()
+        conn.close()
+
+    _log_data_usage(sender, "upload", os.path.getsize(path), "file")
+
+    return {"status": "ok", "file": safe_name}
+
+
+@app.get("/download/{file_name}")
+async def download_file(file_name: str, request: Request, username: Optional[str] = None, token: Optional[str] = None):
+    path = os.path.join(UPLOAD_DIR, os.path.basename(file_name))
+    if not os.path.exists(path):
+        return JSONResponse(status_code=404, content={"ok": False, "error": "File not found"})
+
+    # Support auth via headers (preferred) or query params (legacy)
+    hdr_username = request.headers.get("x-username") or username
+    hdr_token = request.headers.get("x-session-token") or token
+
+    if hdr_username and hdr_token and is_valid_session(hdr_token, hdr_username):
+        size = os.path.getsize(path)
+        _log_data_usage(hdr_username, "download", size, "file")
+        _log_download(hdr_username, os.path.basename(file_name), size)
+
+    return FileResponse(path)
+
 def background_tasks():
     while True:
         try:
@@ -2935,3 +4851,4 @@ if __name__ == "__main__":
     logger.info("Server starting on port 5058...")
 
     uvicorn.run(app, host="0.0.0.0", port=5058)
+

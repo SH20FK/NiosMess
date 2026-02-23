@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="ru" data-theme="dark">
+
 <head>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -52,10 +53,25 @@
         }
 
         @keyframes float-particle {
-            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(-100vh) translateX(50px); opacity: 0; }
+
+            0%,
+            100% {
+                transform: translateY(0) translateX(0);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-100vh) translateX(50px);
+                opacity: 0;
+            }
         }
 
         .onboarding-container {
@@ -76,33 +92,79 @@
         }
 
         @keyframes float-mascot {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
         }
 
-        .mascot.happy { animation: happy-bounce 0.6s ease; }
+        .mascot.happy {
+            animation: happy-bounce 0.6s ease;
+        }
 
         @keyframes happy-bounce {
-            0%, 100% { transform: scale(1) translateY(0); }
-            25% { transform: scale(1.15) translateY(-20px); }
-            50% { transform: scale(0.95) translateY(-5px); }
-            75% { transform: scale(1.05) translateY(-10px); }
+
+            0%,
+            100% {
+                transform: scale(1) translateY(0);
+            }
+
+            25% {
+                transform: scale(1.15) translateY(-20px);
+            }
+
+            50% {
+                transform: scale(0.95) translateY(-5px);
+            }
+
+            75% {
+                transform: scale(1.05) translateY(-10px);
+            }
         }
 
-        .mascot.thinking { animation: think-sway 2s ease-in-out infinite; }
+        .mascot.thinking {
+            animation: think-sway 2s ease-in-out infinite;
+        }
 
         @keyframes think-sway {
-            0%, 100% { transform: rotate(0deg) translateY(0); }
-            25% { transform: rotate(-3deg) translateY(-5px); }
-            75% { transform: rotate(3deg) translateY(-5px); }
+
+            0%,
+            100% {
+                transform: rotate(0deg) translateY(0);
+            }
+
+            25% {
+                transform: rotate(-3deg) translateY(-5px);
+            }
+
+            75% {
+                transform: rotate(3deg) translateY(-5px);
+            }
         }
 
-        .mascot.password-mode { animation: shy-wiggle 0.5s ease; }
+        .mascot.password-mode {
+            animation: shy-wiggle 0.5s ease;
+        }
 
         @keyframes shy-wiggle {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px);
+            }
+
+            75% {
+                transform: translateX(5px);
+            }
         }
 
         .fox-head {
@@ -117,9 +179,19 @@
         }
 
         @keyframes head-tilt {
-            0%, 100% { transform: rotate(0deg); }
-            25% { transform: rotate(-2deg); }
-            75% { transform: rotate(2deg); }
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(-2deg);
+            }
+
+            75% {
+                transform: rotate(2deg);
+            }
         }
 
         .fox-ear {
@@ -134,13 +206,32 @@
         }
 
         @keyframes ear-wiggle {
-            0%, 100% { transform: rotate(0deg); }
-            50% { transform: rotate(-5deg); }
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            50% {
+                transform: rotate(-5deg);
+            }
         }
 
-        .fox-ear.left { left: 8px; transform-origin: bottom center; animation-delay: 0s; }
-        .fox-ear.right { right: 8px; transform-origin: bottom center; animation-delay: 1.5s; }
-        .fox-ear:hover { transform: rotate(-15deg) scale(1.05); }
+        .fox-ear.left {
+            left: 8px;
+            transform-origin: bottom center;
+            animation-delay: 0s;
+        }
+
+        .fox-ear.right {
+            right: 8px;
+            transform-origin: bottom center;
+            animation-delay: 1.5s;
+        }
+
+        .fox-ear:hover {
+            transform: rotate(-15deg) scale(1.05);
+        }
 
         .ear-inner {
             width: 22px;
@@ -199,11 +290,23 @@
             opacity: 0.8;
         }
 
-        .fox-eyes.blinking .fox-eye { animation: realistic-blink 4s infinite; }
+        .fox-eyes.blinking .fox-eye {
+            animation: realistic-blink 4s infinite;
+        }
 
         @keyframes realistic-blink {
-            0%, 96%, 100% { height: 30px; transform: scaleY(1); }
-            98% { height: 3px; transform: scaleY(0.1); }
+
+            0%,
+            96%,
+            100% {
+                height: 30px;
+                transform: scaleY(1);
+            }
+
+            98% {
+                height: 3px;
+                transform: scaleY(0.1);
+            }
         }
 
         .fox-eyes.closed .fox-eye {
@@ -215,7 +318,9 @@
         }
 
         .fox-eyes.closed .fox-eye::after,
-        .fox-eyes.closed .fox-eye::before { display: none; }
+        .fox-eyes.closed .fox-eye::before {
+            display: none;
+        }
 
         .fox-eyes.surprised .fox-eye {
             width: 35px;
@@ -234,12 +339,24 @@
             animation: none;
         }
 
-        .fox-eyes.tracking .fox-eye::after { animation: eye-track 3s ease-in-out infinite; }
+        .fox-eyes.tracking .fox-eye::after {
+            animation: eye-track 3s ease-in-out infinite;
+        }
 
         @keyframes eye-track {
-            0%, 100% { transform: translate(-50%, -50%); }
-            25% { transform: translate(-65%, -50%); }
-            75% { transform: translate(-35%, -50%); }
+
+            0%,
+            100% {
+                transform: translate(-50%, -50%);
+            }
+
+            25% {
+                transform: translate(-65%, -50%);
+            }
+
+            75% {
+                transform: translate(-35%, -50%);
+            }
         }
 
         .fox-nose {
@@ -253,8 +370,15 @@
         }
 
         @keyframes nose-twitch {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
         }
 
         .fox-mouth {
@@ -274,9 +398,17 @@
         }
 
         @keyframes smile-wide {
-            0% { width: 45px; }
-            50% { width: 65px; }
-            100% { width: 60px; }
+            0% {
+                width: 45px;
+            }
+
+            50% {
+                width: 65px;
+            }
+
+            100% {
+                width: 60px;
+            }
         }
 
         .mascot.sad .fox-mouth {
@@ -300,8 +432,13 @@
             filter: blur(3px);
         }
 
-        .fox-cheek.left { left: 15px; }
-        .fox-cheek.right { right: 15px; }
+        .fox-cheek.left {
+            left: 15px;
+        }
+
+        .fox-cheek.right {
+            right: 15px;
+        }
 
         .mascot.happy .fox-cheek,
         .mascot.password-mode .fox-cheek {
@@ -310,8 +447,15 @@
         }
 
         @keyframes blush {
-            0%, 100% { opacity: 0.4; }
-            50% { opacity: 0.7; }
+
+            0%,
+            100% {
+                opacity: 0.4;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
         }
 
         .sparkle {
@@ -322,20 +466,62 @@
             pointer-events: none;
         }
 
-        .mascot.happy .sparkle { animation: sparkle-pop 0.8s ease-out; }
-
-        @keyframes sparkle-pop {
-            0% { opacity: 0; transform: scale(0) rotate(0deg); }
-            50% { opacity: 1; transform: scale(1.5) rotate(180deg); }
-            100% { opacity: 0; transform: scale(0) rotate(360deg); }
+        .mascot.happy .sparkle {
+            animation: sparkle-pop 0.8s ease-out;
         }
 
-        .sparkle:nth-child(1) { top: -10px; left: -10px; animation-delay: 0s; }
-        .sparkle:nth-child(2) { top: -10px; right: -10px; animation-delay: 0.1s; }
-        .sparkle:nth-child(3) { top: 50%; right: -15px; animation-delay: 0.2s; }
-        .sparkle:nth-child(4) { bottom: -10px; right: -10px; animation-delay: 0.3s; }
-        .sparkle:nth-child(5) { bottom: -10px; left: -10px; animation-delay: 0.4s; }
-        .sparkle:nth-child(6) { top: 50%; left: -15px; animation-delay: 0.5s; }
+        @keyframes sparkle-pop {
+            0% {
+                opacity: 0;
+                transform: scale(0) rotate(0deg);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.5) rotate(180deg);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(0) rotate(360deg);
+            }
+        }
+
+        .sparkle:nth-child(1) {
+            top: -10px;
+            left: -10px;
+            animation-delay: 0s;
+        }
+
+        .sparkle:nth-child(2) {
+            top: -10px;
+            right: -10px;
+            animation-delay: 0.1s;
+        }
+
+        .sparkle:nth-child(3) {
+            top: 50%;
+            right: -15px;
+            animation-delay: 0.2s;
+        }
+
+        .sparkle:nth-child(4) {
+            bottom: -10px;
+            right: -10px;
+            animation-delay: 0.3s;
+        }
+
+        .sparkle:nth-child(5) {
+            bottom: -10px;
+            left: -10px;
+            animation-delay: 0.4s;
+        }
+
+        .sparkle:nth-child(6) {
+            top: 50%;
+            left: -15px;
+            animation-delay: 0.5s;
+        }
 
         .onboarding-content {
             background: rgba(23, 33, 43, 0.95);
@@ -351,11 +537,20 @@
             animation: fadeInUp 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
 
-        .step.active { display: block; }
+        .step.active {
+            display: block;
+        }
 
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(30px) scale(0.95); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         .step-indicator {
@@ -396,7 +591,9 @@
             line-height: 1.5;
         }
 
-        .input-group { margin-bottom: 20px; }
+        .input-group {
+            margin-bottom: 20px;
+        }
 
         .input-label {
             display: block;
@@ -428,7 +625,9 @@
             transform: translateY(-2px);
         }
 
-        input::placeholder { color: rgba(139, 152, 168, 0.5); }
+        input::placeholder {
+            color: rgba(139, 152, 168, 0.5);
+        }
 
         .btn {
             width: 100%;
@@ -457,14 +656,25 @@
             transition: left 0.5s;
         }
 
-        .btn:hover::before { left: 100%; }
+        .btn:hover::before {
+            left: 100%;
+        }
+
         .btn:hover {
             background: var(--accent-hover);
             transform: translateY(-2px);
             box-shadow: 0 8px 24px rgba(82, 136, 193, 0.4);
         }
-        .btn:active { transform: translateY(0); }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
 
         .btn-secondary {
             background: transparent;
@@ -480,9 +690,21 @@
         }
 
 
-        .btn-group { display: flex; gap: 12px; margin-top: 20px; }
-        .btn-back { flex: 0 0 auto; width: 50px; padding: 16px; }
-        .btn-next { flex: 1; }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .btn-back {
+            flex: 0 0 auto;
+            width: 50px;
+            padding: 16px;
+        }
+
+        .btn-next {
+            flex: 1;
+        }
 
         .legal-list {
             display: flex;
@@ -576,17 +798,17 @@
             transition: transform var(--transition);
         }
 
-        .legal-accept input:checked + .legal-box {
+        .legal-accept input:checked+.legal-box {
             background: var(--accent);
             border-color: var(--accent);
             box-shadow: 0 6px 16px rgba(82, 136, 193, 0.35);
         }
 
-        .legal-accept input:checked + .legal-box::after {
+        .legal-accept input:checked+.legal-box::after {
             transform: translate(-50%, -50%) rotate(45deg) scaleX(-1) scale(1);
         }
 
-        .legal-accept input:disabled + .legal-box {
+        .legal-accept input:disabled+.legal-box {
             opacity: 0.5;
             cursor: not-allowed;
         }
@@ -722,8 +944,15 @@
         }
 
         @keyframes frozen-shiver {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-4px); }
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-4px);
+            }
         }
 
         .mascot.frozen .fox-head {
@@ -814,12 +1043,31 @@
             animation: shake 0.5s ease;
         }
 
-        .error-message.show { display: block; }
+        .error-message.show {
+            display: block;
+        }
 
         @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
-            20%, 40%, 60%, 80% { transform: translateX(8px); }
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            10%,
+            30%,
+            50%,
+            70%,
+            90% {
+                transform: translateX(-8px);
+            }
+
+            20%,
+            40%,
+            60%,
+            80% {
+                transform: translateX(8px);
+            }
         }
 
         .success-checkmark {
@@ -837,9 +1085,19 @@
         }
 
         @keyframes checkmark-pop {
-            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
-            50% { transform: scale(1.2) rotate(10deg); }
-            100% { transform: scale(1) rotate(0); opacity: 1; }
+            0% {
+                transform: scale(0) rotate(-180deg);
+                opacity: 0;
+            }
+
+            50% {
+                transform: scale(1.2) rotate(10deg);
+            }
+
+            100% {
+                transform: scale(1) rotate(0);
+                opacity: 1;
+            }
         }
 
         .loader {
@@ -854,7 +1112,11 @@
             vertical-align: middle;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
 
         .link-text {
             color: var(--accent);
@@ -907,6 +1169,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="particles" id="particles"></div>
 
@@ -920,8 +1183,12 @@
             <div class="sparkle">✨</div>
 
             <div class="fox-head">
-                <div class="fox-ear left"><div class="ear-inner"></div></div>
-                <div class="fox-ear right"><div class="ear-inner"></div></div>
+                <div class="fox-ear left">
+                    <div class="ear-inner"></div>
+                </div>
+                <div class="fox-ear right">
+                    <div class="ear-inner"></div>
+                </div>
                 <div class="fox-cheek left"></div>
                 <div class="fox-cheek right"></div>
                 <div class="fox-eyes blinking" id="foxEyes">
@@ -982,7 +1249,8 @@
                 <p class="subtitle">Минимум 6 символов для безопасности</p>
                 <div class="input-group">
                     <label class="input-label">Пароль</label>
-                    <input type="password" id="signupPasswordInput" placeholder="••••••••" onfocus="closeEyes()" onblur="openEyes()">
+                    <input type="password" id="signupPasswordInput" placeholder="••••••••" onfocus="closeEyes()"
+                        onblur="openEyes()">
                 </div>
                 <div class="error-message" id="signupPasswordError"></div>
                 <div class="btn-group">
@@ -991,8 +1259,8 @@
                 </div>
             </div>
 
-            
-            
+
+
             <div class="step" data-step="signup-legal">
                 <h1>Документы и согласие</h1>
                 <p class="subtitle">Пожалуйста ознакомьтесь с документами и подтвердите согласие</p>
@@ -1002,7 +1270,8 @@
                         <span class="legal-status" id="legalStatus-terms">Не прочитано</span>
                     </div>
                     <div class="legal-item" id="legalItem-privacy">
-                        <button class="legal-link" type="button" data-legal-doc="privacy">Политика конфиденциальности</button>
+                        <button class="legal-link" type="button" data-legal-doc="privacy">Политика
+                            конфиденциальности</button>
                         <span class="legal-status" id="legalStatus-privacy">Не прочитано</span>
                     </div>
                     <div class="legal-item" id="legalItem-cookies">
@@ -1010,7 +1279,8 @@
                         <span class="legal-status" id="legalStatus-cookies">Не прочитано</span>
                     </div>
                     <div class="legal-item" id="legalItem-consent">
-                        <button class="legal-link" type="button" data-legal-doc="consent">Согласие на обработку персональных данных</button>
+                        <button class="legal-link" type="button" data-legal-doc="consent">Согласие на обработку
+                            персональных данных</button>
                         <span class="legal-status" id="legalStatus-consent">Не прочитано</span>
                     </div>
                 </div>
@@ -1026,7 +1296,7 @@
                 </div>
             </div>
 
-<div class="step" data-step="signup-code">
+            <div class="step" data-step="signup-code">
                 <h1>Введите код</h1>
                 <p class="subtitle">Мы отправили 6-значный код на <strong id="emailDisplay"></strong></p>
                 <div class="input-group">
@@ -1062,7 +1332,8 @@
                 <p class="subtitle">Пароль для <strong id="loginEmailDisplay"></strong></p>
                 <div class="input-group">
                     <label class="input-label">Пароль</label>
-                    <input type="password" id="loginPasswordInput" placeholder="••••••••" onfocus="closeEyes()" onblur="openEyes()">
+                    <input type="password" id="loginPasswordInput" placeholder="••••••••" onfocus="closeEyes()"
+                        onblur="openEyes()">
                 </div>
                 <div class="error-message" id="loginPasswordError"></div>
                 <div class="btn-group">
@@ -1093,7 +1364,7 @@
     </div>
 
 
-    
+
     <div class="legal-modal" id="legalModal">
         <div class="legal-modal-card">
             <div class="legal-modal-header">
@@ -1126,7 +1397,17 @@
 
 
     <script>
-    const API_BASE = "https://web.sa2rn.fun";
+        const API_BASE = "https://web.sa2rn.fun";
+
+        (function checkExistingSession() {
+            try {
+                const s = JSON.parse(localStorage.getItem('niosmess_session'));
+                if (s && s.token && s.username) {
+                    window.location.replace('index.html');
+                    return;
+                }
+            } catch { }
+        })();
 
         let mode = 'welcome';
         let currentStep = '';
@@ -1152,7 +1433,7 @@
                 try {
                     const data = await res.json();
                     msg = data.detail || data.error || msg;
-                } catch {}
+                } catch { }
                 if (/account\s*frozen/i.test(msg)) {
                     const reason = msg.split(':').slice(1).join(':').trim();
                     showFrozen(reason);
@@ -1234,7 +1515,7 @@
             mascot.className = 'mascot ' + emotion;
             eyes.className = 'fox-eyes';
 
-            switch(emotion) {
+            switch (emotion) {
                 case 'happy': eyes.classList.add('happy'); break;
                 case 'thinking': eyes.classList.add('tracking'); break;
                 case 'surprised': eyes.classList.add('surprised'); break;
@@ -1552,7 +1833,7 @@
                 } catch {
                     try {
                         text = await res.text();
-                    } catch {}
+                    } catch { }
                 }
 
                 if (!res.ok) {
@@ -1807,8 +2088,20 @@
         setMascotEmotion('happy');
         updateStepIndicator();
         initLegalDocs();
+
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('keydown', e => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                const step = input.closest('.step');
+                if (!step) return;
+                const btn = step.querySelector('.btn-next');
+                if (btn && !btn.disabled) btn.click();
+            });
+        });
     </script>
 
 
 </body>
+
 </html>

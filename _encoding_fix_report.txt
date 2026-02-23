@@ -1,0 +1,429 @@
+CHANGED FILES:
+f:\NiosMess\niosmess_flutter\lib\features\chat\chat_screen.dart
+
+REENCODED (non-utf8 -> utf-8):
+
+RESIDUAL SUSPICIOUS LINES:
+
+LINES WITH '??' (needs review):
+f:\NiosMess\merged-ui\src\app\components\figma\ImageWithFallback.tsx
+  L17: className={`inline-block bg-gray-100 text-center align-middle ${className ?? ''}`}
+
+f:\NiosMess\merged-ui\src\app\components\main\MainScreen.tsx
+  L39: const raw = data?.chats ?? data ?? [];
+  L42: const chatId = String(item.chat_id ?? item.username ?? item.id ?? item.chatId ?? '');
+  L49: unread: Number(item.unread_count ?? 0) || 0,
+  L83: badgeTitle: info?.badge_title ?? c.badgeTitle,
+  L84: badgeText: info?.badge_text ?? c.badgeText,
+  L85: badgeIcon: info?.badge_icon ?? c.badgeIcon
+
+f:\NiosMess\merged-ui\src\app\components\onboarding\FrozenAccountScreen.tsx
+  L29: <div className="text-7xl">??</div>
+
+f:\NiosMess\merged-ui\src\app\components\onboarding\LoginScreen.tsx
+  L65: <div className="text-6xl">??</div>
+
+f:\NiosMess\merged-ui\src\app\components\onboarding\RegisterScreen.tsx
+  L68: <div className="text-6xl">??</div>
+
+f:\NiosMess\merged-ui\src\app\components\ui\breadcrumb.tsx
+  L78: {children ?? <ChevronRight />}
+
+f:\NiosMess\merged-ui\src\app\components\ui\form.tsx
+  L141: const body = error ? String(error?.message ?? "") : props.children;
+
+f:\NiosMess\merged-ui\src\app\components\ui\FoxBadge.tsx
+  L15: icon = '??'
+
+f:\NiosMess\merged-ui\src\app\components\ui\input-otp.tsx
+  L47: const { char, hasFakeCaret, isActive } = inputOTPContext?.slots[index] ?? {};
+
+f:\NiosMess\merged-ui\src\app\components\ui\sidebar.tsx
+  L75: const open = openProp ?? _open;
+
+f:\NiosMess\merged-ui\src\app\lib\api.ts
+  L97: limit: String(payload.limit ?? 50)
+  L101: return data?.messages ?? [];
+
+f:\NiosMess\Niosmessuidesign-main\src\app\components\figma\ImageWithFallback.tsx
+  L17: className={`inline-block bg-gray-100 text-center align-middle ${className ?? ''}`}
+
+f:\NiosMess\Niosmessuidesign-main\src\app\components\ui\breadcrumb.tsx
+  L78: {children ?? <ChevronRight />}
+
+f:\NiosMess\Niosmessuidesign-main\src\app\components\ui\form.tsx
+  L141: const body = error ? String(error?.message ?? "") : props.children;
+
+f:\NiosMess\Niosmessuidesign-main\src\app\components\ui\input-otp.tsx
+  L47: const { char, hasFakeCaret, isActive } = inputOTPContext?.slots[index] ?? {};
+
+f:\NiosMess\Niosmessuidesign-main\src\app\components\ui\sidebar.tsx
+  L75: const open = openProp ?? _open;
+
+f:\NiosMess\niosmess_flutter\lib\main.dart
+  L52: final textScale = (settings['text_scale'] as num?)?.toDouble() ?? 1.0;
+  L73: child: child ?? const SizedBox.shrink(),
+
+f:\NiosMess\niosmess_flutter\lib\core\ai_summary_provider.dart
+  L39: isExpanded: isExpanded ?? this.isExpanded,
+  L40: isLoading: isLoading ?? this.isLoading,
+  L41: summaryPoints: summaryPoints ?? this.summaryPoints,
+  L42: error: error ?? this.error,
+  L43: lastUpdated: lastUpdated ?? this.lastUpdated,
+  L44: messageCount: messageCount ?? this.messageCount,
+  L57: isExpanded: json['isExpanded'] ?? false,
+  L58: summaryPoints: List<String>.from(json['summaryPoints'] ?? []),
+  L62: messageCount: json['messageCount'] ?? 50,
+  L142: .map((m) => m['text']?.toString() ?? '')
+
+f:\NiosMess\niosmess_flutter\lib\core\api_client.dart
+  L35: final res = await _dio.post(path, data: form ?? data);
+  L71: final detail = data['detail'] ?? data['message'] ?? data['error'];
+  L83: return e.message ?? 'Unknown network error';
+
+f:\NiosMess\niosmess_flutter\lib\core\api_service.dart
+  L27: 'name': name ?? username,
+  L43: 'name': name ?? username,
+  L93: return res['data'] as List<dynamic>? ?? [];
+  L172: return res['data'] as List<dynamic>? ?? [];
+  L188: return res['data'] as List<dynamic>? ?? [];
+  L264: return res['results'] as List<dynamic>? ?? [];
+  L373: return res['messages'] as List<dynamic>? ?? [];
+  L563: return res as List<dynamic>? ?? [];
+
+f:\NiosMess\niosmess_flutter\lib\core\app_lock_provider.dart
+  L32: isEnabled: isEnabled ?? this.isEnabled,
+  L33: isUnlocked: isUnlocked ?? this.isUnlocked,
+  L34: biometricEnabled: biometricEnabled ?? this.biometricEnabled,
+  L35: biometricAvailable: biometricAvailable ?? this.biometricAvailable,
+  L56: final enabled = prefs.getBool(_lockEnabledKey) ?? false;
+  L57: final bioEnabled = prefs.getBool(_lockBiometricKey) ?? false;
+
+f:\NiosMess\niosmess_flutter\lib\core\bubble_style_provider.dart
+  L35: cornerRadius: cornerRadius ?? this.cornerRadius,
+  L36: useGradient: useGradient ?? this.useGradient,
+  L37: customOutgoingColor: customOutgoingColor ?? this.customOutgoingColor,
+  L38: customIncomingColor: customIncomingColor ?? this.customIncomingColor,
+  L39: showTail: showTail ?? this.showTail,
+  L40: bubblePadding: bubblePadding ?? this.bubblePadding,
+  L58: final radius = (settings['bubble_radius'] as num?)?.toDouble() ?? 16.0;
+  L59: final padding = (settings['bubble_padding'] as num?)?.toDouble() ?? 12.0;
+  L60: final useGradient = settings['bubble_use_gradient'] as bool? ?? true;
+  L61: final showTail = settings['bubble_show_tail'] as bool? ?? true;
+
+f:\NiosMess\niosmess_flutter\lib\core\data_usage_provider.dart
+  L34: direction: json['direction']?.toString() ?? 'download',
+  L35: bytes: (json['bytes'] as num?)?.toInt() ?? 0,
+  L36: kind: json['kind']?.toString() ?? 'api',
+  L37: ts: (json['ts'] as num?)?.toDouble() ?? 0,
+  L48: upload: upload ?? this.upload,
+  L49: download: download ?? this.download,
+  L85: local: local ?? this.local,
+  L86: server: server ?? this.server,
+  L87: lastSync: lastSync ?? this.lastSync,
+  L88: loading: loading ?? this.loading,
+  ? 7 more lines
+
+f:\NiosMess\niosmess_flutter\lib\core\downloads_provider.dart
+  L38: id: json['id']?.toString() ?? '',
+  L39: filename: json['filename']?.toString() ?? '',
+  L41: size: (json['size'] as num?)?.toInt() ?? 0,
+  L42: ts: (json['ts'] as num?)?.toDouble() ?? 0,
+  L64: local: local ?? this.local,
+  L65: remote: remote ?? this.remote,
+  L66: loading: loading ?? this.loading,
+  L105: int resolvedSize = size ?? 0;
+  L159: id: e['id']?.toString() ?? e['filename']?.toString() ?? '',
+  L160: filename: e['filename']?.toString() ?? '',
+  ? 2 more lines
+
+f:\NiosMess\niosmess_flutter\lib\core\focus_mode_provider.dart
+  L34: mode: mode ?? this.mode,
+  L35: workChatIds: workChatIds ?? this.workChatIds,
+  L36: personalChatIds: personalChatIds ?? this.personalChatIds,
+  L37: autoCategorize: autoCategorize ?? this.autoCategorize,
+  L52: mode: FocusModeType.values[json['mode'] ?? 0],
+  L53: workChatIds: List<String>.from(json['workChatIds'] ?? []),
+  L54: personalChatIds: List<String>.from(json['personalChatIds'] ?? []),
+  L55: autoCategorize: json['autoCategorize'] ?? false,
+
+f:\NiosMess\niosmess_flutter\lib\core\ghost_mode_provider.dart
+  L33: isActive: isActive ?? this.isActive,
+  L34: peekChatId: peekChatId ?? this.peekChatId,
+  L35: peekChatName: peekChatName ?? this.peekChatName,
+  L36: readMessageIds: readMessageIds ?? this.readMessageIds,
+  L37: peekStartTime: peekStartTime ?? this.peekStartTime,
+  L51: isActive: json['isActive'] ?? false,
+  L54: readMessageIds: List<String>.from(json['readMessageIds'] ?? []),
+
+f:\NiosMess\niosmess_flutter\lib\core\notification_service.dart
+  L30: final title = event.notification?.title ?? 'Сообщение';
+  L31: final body = event.notification?.body ?? '';
+  L63: final showPreview = (settings['notify_preview'] as bool?) ?? true;
+  L64: final playSound = (settings['notify_sound'] as bool?) ?? true;
+  L65: final vibrate = (settings['notify_vibrate'] as bool?) ?? true;
+  L81: final allowGroups = (settings['notify_group'] as bool?) ?? true;
+  L82: final allowMentions = (settings['notify_mentions'] as bool?) ?? true;
+  L83: final allowCalls = (settings['notify_calls'] as bool?) ?? true;
+  L84: final allowReactions = (settings['notify_reactions'] as bool?) ?? true;
+  L91: final eventType = (data['event'] ?? data['type'] ?? chatType)?.toString();
+  ? 4 more lines
+
+f:\NiosMess\niosmess_flutter\lib\core\obfuscate.dart
+  L138: buffer.write(_map[ch] ?? ch);
+
+f:\NiosMess\niosmess_flutter\lib\core\send_queue_provider.dart
+  L47: id: json['id']?.toString() ?? '',
+  L48: chatId: json['chat_id']?.toString() ?? '',
+  L49: chatType: json['chat_type']?.toString() ?? 'user',
+  L50: text: json['text']?.toString() ?? '',
+  L56: createdAt: (json['created_at'] as num?)?.toInt() ??
+
+f:\NiosMess\niosmess_flutter\lib\core\theme_provider.dart
+  L23: mode: mode ?? this.mode,
+  L24: seedColor: seedColor ?? this.seedColor,
+  L25: useDynamicColor: useDynamicColor ?? this.useDynamicColor,
+  L46: final rawMode = settings['theme_mode']?.toString() ?? 'system';
+  L50: final seedValue = settings['seed_color'] as int? ?? 0xFF4F46E5;
+  L51: final dyn = settings['use_dynamic_color'] as bool? ?? false;
+
+f:\NiosMess\niosmess_flutter\lib\core\models\chat_item.dart
+  L52: unread: (json['unread'] as num?)?.toInt() ?? 0,
+
+f:\NiosMess\niosmess_flutter\lib\core\models\message_item.dart
+  L61: sender: json['sender'] as String? ?? '',
+  L62: text: json['text'] as String? ?? '',
+  L63: time: json['time']?.toString() ?? '',
+
+f:\NiosMess\niosmess_flutter\lib\core\repositories\api_repository.dart
+  L36: (data['chats'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+  L39: final type = (e['type'] ?? '').toString();
+  L41: final rawChatId = (e['chat_id'] ?? e['id'])?.toString();
+  L46: chatId = (rawChatId ?? rawUsername ?? '').toString();
+  L48: (rawUsername ?? '').isNotEmpty &&
+  L53: chatId = (rawChatId ?? rawUsername ?? '').toString();
+  L57: name: (e['name'] ?? chatId).toString(),
+  L65: unread: (e['unread_count'] as num?)?.toInt() ?? 0,
+  L85: final list = (data['data'] as List<dynamic>? ??
+  L86: data['messages'] as List<dynamic>? ??
+  ? 7 more lines
+
+f:\NiosMess\niosmess_flutter\lib\features\auth\login_screen.dart
+  L52: setState(() => error = detail ?? 'Ошибка входа');
+
+f:\NiosMess\niosmess_flutter\lib\features\auth\register_screen.dart
+  L85: setState(() => error = detail ?? 'Ошибка регистрации');
+  L169: onChanged: _allDocsRead ? (val) => setState(() => acceptedLegal = val ?? false) : null,
+
+f:\NiosMess\niosmess_flutter\lib\features\calls\calls_screen.dart
+  L43: final value = double.tryParse(raw?.toString() ?? '');
+  L113: final caller = item['caller']?.toString() ?? '';
+  L114: final callee = item['callee']?.toString() ?? '';
+  L117: final status = item['status']?.toString() ?? 'requested';
+
+f:\NiosMess\niosmess_flutter\lib\features\chat\chat_screen.dart
+  L125: final username = (widget.chatUsername ?? widget.chatId).trim();
+  L204: sender: session.username ?? '',
+  L304: final role = item['role']?.toString() ?? '';
+  L305: final user = item['username']?.toString() ?? '';
+  L348: var text = (overrideText ?? controller.text).trim();
+  L418: final trimSpaces = (settings['trim_spaces'] as bool?) ?? false;
+  L529: return parsed['filename']?.toString() ?? parsed['file']?.toString();
+  L575: (ref.read(settingsProvider)['reduce_motion'] as bool?) ?? false;
+  L586: label: '????????',
+  L594: label: '??????????',
+  ? 47 more lines
+
+f:\NiosMess\niosmess_flutter\lib\features\chats\chat_list_screen.dart
+  L80: final rawText = last['text']?.toString() ?? '';
+  L95: final username = (chat.username ?? chat.id).trim();
+  L132: : chat.lastSeenText ?? 'Не в сети',
+  L133: badgeText: chat.badgeText ?? chat.badgeTitle,
+  L168: final compact = (settings['compact_messages'] as bool?) ?? false;
+  L305: : c.lastSeenText ?? 'Не в сети')
+  L422: final username = (chat.username ?? chat.id).trim();
+
+f:\NiosMess\niosmess_flutter\lib\features\contacts\contacts_screen.dart
+  L183: final username = item['username']?.toString() ?? '';
+  L184: final name = item['name']?.toString() ?? username;
+
+f:\NiosMess\niosmess_flutter\lib\features\onboarding\onboarding_flow_screen.dart
+  L85: final reduceMotion = (ref.read(settingsProvider)['reduce_motion'] as bool?) ?? false;
+  L115: _mood = mood ?? _MascotMood.idle;
+  L117: final reduceMotion = (ref.read(settingsProvider)['reduce_motion'] as bool?) ?? false;
+  L211: final token = res['token'] ?? res['access_token'];
+  L215: username: res['username']?.toString() ?? _usernameCtrl.text.trim(),
+  L216: name: res['name']?.toString() ?? _nameCtrl.text.trim(),
+  L239: _setError(detail ?? 'Ошибка регистрации');
+  L280: _setError(detail ?? 'Ошибка входа');
+  L351: final reduceMotion = (ref.watch(settingsProvider)['reduce_motion'] as bool?) ?? false;
+  L738: onChanged: _allDocsRead ? (val) => setState(() => _legalAccepted = val ?? false) : null,
+  ? 2 more lines
+
+f:\NiosMess\niosmess_flutter\lib\features\profile\profile_screen.dart
+  L38: return session.username ?? '';
+  L45: return _username == (session.username ?? '');
+  L66: _customStatus = data['custom_status']?.toString() ?? '';
+  L74: _customStatus = cached?['custom_status']?.toString() ?? '';
+  L149: title: info?['name']?.toString() ?? username,
+  L192: ? (session.name ?? 'Пользователь')
+  L194: final name = info?['name']?.toString() ?? fallbackName;
+  L195: final username = info?['username']?.toString() ?? _username;
+  L196: final email = (info?['email'] ?? info?['mail'] ?? info?['e_mail'])?.toString() ?? '';
+  L197: final about = (info?['about'] ?? info?['bio'] ?? info?['desc'] ?? info?['about_me'])?.toString() ?? '';
+  ? 2 more lines
+
+f:\NiosMess\niosmess_flutter\lib\features\settings\settings_advanced_screen.dart
+  L16: final reduceMotion = settings['reduce_motion'] ?? false;
+  L17: final experimental = settings['experimental_features'] ?? false;
+
+f:\NiosMess\niosmess_flutter\lib\features\settings\settings_appearance_screen_new.dart
+  L19: final textScale = (settings['text_scale'] as num?)?.toDouble() ?? 1.0;
+
+f:\NiosMess\niosmess_flutter\lib\features\settings\settings_chat_screen.dart
+  L32: value: settings['enter_to_send'] ?? false,
+  L39: value: settings['autosave_drafts'] ?? true,
+  L46: value: settings['trim_spaces'] ?? false,
+  L61: value: settings['compact_messages'] ?? false,
+  L68: value: settings['link_preview'] ?? true,
+
+f:\NiosMess\niosmess_flutter\lib\features\settings\settings_data_screen.dart
+  L78: final autoMedia = settings['auto_download_media'] ?? true;
+  L79: final autoDocs = settings['auto_download_docs'] ?? false;
+  L80: final wifiOnly = settings['wifi_only_downloads'] ?? false;
+  L81: final dataSaver = settings['data_saver'] ?? false;
+
+f:\NiosMess\niosmess_flutter\lib\features\settings\settings_main_screen.dart
+  L55: String get _name => (_profileData?['name'] ??
+  L56: _profileData?['display_name'] ??
+  L57: _profileData?['username'] ??
+  L61: String get _username => (_profileData?['username'] ?? '').toString();
+  L63: String get _status => (_profileData?['about'] ??
+  L64: _profileData?['bio'] ??
+  L65: _profileData?['status'] ??
+  L266: final soundEnabled = settings['notify_sound'] as bool? ?? true;
+  L267: final vibrationEnabled = settings['notify_vibrate'] as bool? ?? true;
+
+f:\NiosMess\niosmess_flutter\lib\features\settings\settings_notifications_screen.dart
+  L24: final h = int.tryParse(parts.first) ?? now.hour;
+  L25: final m = int.tryParse(parts.last) ?? now.minute;
+  L63: value: settings['notify_sound'] ?? true,
+  L70: value: settings['notify_vibrate'] ?? true,
+  L77: value: settings['notify_preview'] ?? true,
+  L92: value: settings['notify_group'] ?? true,
+  L99: value: settings['notify_mentions'] ?? true,
+  L114: value: settings['notify_calls'] ?? true,
+  L121: value: settings['notify_reactions'] ?? true,
+  L136: subtitle: Text(settings['quiet_hours_start']?.toString() ?? 'Не задано'),
+  ? 1 more lines
+
+f:\NiosMess\niosmess_flutter\lib\features\settings\settings_privacy_screen.dart
+  L20: final whoCanWrite = (settings['who_can_write'] as String?) ?? 'all';
+  L40: value: (settings['last_seen_visibility'] as String?) ?? 'Все',
+  L52: value: (settings['photo_visibility'] as String?) ?? 'Все',
+  L65: value: settings['show_typing'] ?? true,
+  L72: value: settings['read_receipts'] ?? true,
+  L98: value: (settings['message_privacy'] as String?) ?? 'Все',
+  L110: value: (settings['call_privacy'] as String?) ?? 'Все',
+  L212: groupValue: current ?? options.first,
+
+f:\NiosMess\niosmess_flutter\lib\features\settings\settings_profile_screen.dart
+  L49: _aboutController.text = (profile['about'] ?? profile['bio'] ?? '').toString();
+  L61: String get _name => (_profileData?['name'] ??
+  L62: _profileData?['display_name'] ??
+  L63: _profileData?['username'] ??
+  L67: String get _username => (_profileData?['username'] ?? '').toString();
+  L69: String get _email => (_profileData?['email'] ?? _profileData?['mail'] ?? '').toString();
+  L210: final device = (s['device'] ?? s['user_agent'] ?? 'Неизвестно').toString();
+
+f:\NiosMess\niosmess_flutter\lib\features\settings\settings_screen.dart
+  L39: _whoCanWrite = current['who_can_write']?.toString() ?? 'all';
+  L42: final updated = next['who_can_write']?.toString() ?? 'all';
+  L81: nameCtrl.text = (data['name'] ?? data['display_name'] ?? data['username'] ?? '').toString();
+  L82: usernameCtrl.text = (data['username'] ?? '').toString();
+  L83: emailCtrl.text = (data['email'] ?? data['mail'] ?? data['e_mail'] ?? '').toString();
+  L84: aboutCtrl.text = (data['about'] ?? data['bio'] ?? data['desc'] ?? data['about_me'] ?? '').toString();
+  L115: bool _getBool(String key, bool fallback) => (ref.watch(settingsProvider)[key] as bool?) ?? fallback;
+  L263: value: ref.watch(settingsProvider)['text_scale']?.toDouble() ?? 1.0,
+  L267: displayValue: '${((ref.watch(settingsProvider)['text_scale']?.toDouble() ?? 1.0) * 100).toInt()}%',
+  L279: fontSize: (16 * (ref.watch(settingsProvider)['text_scale']?.toDouble() ?? 1.0)).toDouble(),
+  ? 4 more lines
+
+f:\NiosMess\niosmess_flutter\lib\ui\nios_ui.dart
+  L501: padding: padding ?? const EdgeInsets.all(NiosSpacing.md),
+  L541: color: color ?? scheme.surface,
+  L544: color: borderColor ?? scheme.outlineVariant,
+  L550: padding: padding ?? EdgeInsets.zero,
+
+f:\NiosMess\niosmess_flutter\lib\ui\widgets\animated_toggle_switch.dart
+  L48: begin: widget.inactiveColor ?? NiosColors.textMuted.withOpacity(0.3),
+  L49: end: widget.activeColor ?? NiosColors.accentBlue,
+
+f:\NiosMess\niosmess_flutter\lib\ui\widgets\audio_waveform.dart
+  L157: _formatDuration(_isPlaying ? _currentPosition : (_totalDuration ?? widget.duration ?? Duration.zero)),
+
+f:\NiosMess\niosmess_flutter\lib\ui\widgets\bubble_style_preview.dart
+  L116: : (style.customOutgoingColor ?? colorScheme.primary))
+  L117: : (style.customIncomingColor ?? colorScheme.surfaceContainerHighest);
+  L128: style.customOutgoingColor ?? colorScheme.primary,
+  L129: (style.customOutgoingColor ?? colorScheme.primary).withOpacity(0.8),
+  L250: : (bubbleStyle.customOutgoingColor ?? colorScheme.primary))
+  L251: : (bubbleStyle.customIncomingColor ?? colorScheme.surfaceContainerHighest);
+  L254: padding: padding ?? EdgeInsets.all(bubbleStyle.bubblePadding),
+  L262: bubbleStyle.customOutgoingColor ?? colorScheme.primary,
+  L263: (bubbleStyle.customOutgoingColor ?? colorScheme.primary).withOpacity(0.8),
+
+f:\NiosMess\niosmess_flutter\lib\ui\widgets\chat_header_widget.dart
+  L71: tag: heroTag ?? 'chat_avatar_$chatUsername',
+  L113: if ((badgeText ?? '').isNotEmpty ||
+  L114: (badgeIcon ?? '').isNotEmpty)
+  L118: icon: badgeIcon ?? '🦊',
+  L119: tooltip: badgeText ??
+  L137: if ((queueCount ?? 0) > 0 || networkOnline != null) ...[
+  L150: if ((queueCount ?? 0) > 0)
+
+f:\NiosMess\niosmess_flutter\lib\ui\widgets\chat_input_widget.dart
+  L274: final background = color ?? scheme.surfaceVariant;
+
+f:\NiosMess\niosmess_flutter\lib\ui\widgets\haptic_keyboard.dart
+  L63: _focusNode = widget.focusNode ?? FocusNode();
+  L243: color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+
+f:\NiosMess\niosmess_flutter\lib\ui\widgets\liquid_pull_refresh.dart
+  L102: final color = widget.indicatorColor ?? theme.colorScheme.primary;
+
+f:\NiosMess\niosmess_flutter\lib\ui\widgets\morphing_appbar.dart
+  L67: final offset = widget.scrollController?.offset ?? 0.0;
+  L86: final bgColor = widget.backgroundColor ?? theme.colorScheme.surface;
+  L87: final fgColor = widget.foregroundColor ?? theme.colorScheme.onSurface;
+  L182: final bgColor = backgroundColor ?? theme.colorScheme.surface;
+  L183: final fgColor = foregroundColor ?? theme.colorScheme.onSurface;
+
+f:\NiosMess\niosmess_flutter\lib\ui\widgets\swipeable_chat_item.dart
+  L231: final defaultColor = color ?? Theme.of(context).colorScheme.primary;
+
+f:\NiosMess\niosmess_flutter\lib\ui\widgets\telegram_animations.dart
+  L260: : (backgroundColor ?? Colors.transparent),
+  L301: final bgColor = backgroundColor ?? (isOutgoing
+  L423: color: backgroundColor ?? colorScheme.surfaceContainerHighest,
+  L438: color: foregroundColor ?? colorScheme.onSurfaceVariant,
+
+f:\NiosMess\niosmess_flutter\patches\record_linux\lib\record_linux.dart
+  L189: _stateStreamCtrl ??= StreamController(
+  L247: final out = outStreamCtrl ?? StreamController<List<int>>();
+  L353: if (_stateStreamCtrl?.hasListener ?? false) {
+
+f:\NiosMess\webui\app.messages.js
+  L1839: id: opt.id ?? opt.index ?? `opt_${Math.random().toString(36).slice(2, 8)}`,
+
+f:\NiosMess\бекап\app.core.js
+  L338: let current = String(text ?? "");
+  L589: const count = Number(item.count ?? item.value ?? item.total ?? 0);
+  L2497: : Number(u.unread_count ?? u.unread ?? 0);
+
+f:\NiosMess\бекап\app.messages.js
+  L722: const safe = String(m.text ?? "");
+
+f:\NiosMess\Новая папка\app.js
+  L771: const safe = String(m.text ?? "");
+

@@ -20,11 +20,11 @@ export function CreateGroupScreen({ onNavigate, session }: CreateGroupScreenProp
   const handleCreate = async () => {
     setError(null);
     if (!session) {
-      setError("??? ???????? ??????");
+      setError("  ");
       return;
     }
     if (!name.trim()) {
-      setError("??????? ????????");
+      setError(" ");
       return;
     }
     setLoading(true);
@@ -36,7 +36,7 @@ export function CreateGroupScreen({ onNavigate, session }: CreateGroupScreenProp
       }
       onNavigate("main");
     } catch (err: any) {
-      setError(err?.detail || "?? ??????? ???????");
+      setError(err?.detail || "  ");
     } finally {
       setLoading(false);
     }
@@ -59,7 +59,7 @@ export function CreateGroupScreen({ onNavigate, session }: CreateGroupScreenProp
         <div className="p-6 border-b" style={{ borderColor: "var(--nm-border)" }}>
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold" style={{ color: "var(--nm-text)" }}>
-              ??????? {groupType === "group" ? "??????" : "?????"}
+               {groupType === "group" ? "" : ""}
             </h2>
             <button
               onClick={() => onNavigate("main")}
@@ -83,8 +83,8 @@ export function CreateGroupScreen({ onNavigate, session }: CreateGroupScreenProp
               }}
             >
               <Users className="w-6 h-6 mx-auto mb-2" />
-              <p className="font-medium">??????</p>
-              <p className="text-xs mt-1 opacity-80">??? ??????? ???????</p>
+              <p className="font-medium"></p>
+              <p className="text-xs mt-1 opacity-80">  </p>
             </button>
 
             <button
@@ -97,14 +97,14 @@ export function CreateGroupScreen({ onNavigate, session }: CreateGroupScreenProp
               }}
             >
               <Hash className="w-6 h-6 mx-auto mb-2" />
-              <p className="font-medium">?????</p>
-              <p className="text-xs mt-1 opacity-80">??? ????????</p>
+              <p className="font-medium"></p>
+              <p className="text-xs mt-1 opacity-80"> </p>
             </button>
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: "var(--nm-text)" }}>
-              ???????????
+              
             </label>
             <button
               className="w-full h-32 rounded-xl border-2 border-dashed transition-all duration-200 hover:scale-[1.02] flex flex-col items-center justify-center gap-2"
@@ -114,19 +114,19 @@ export function CreateGroupScreen({ onNavigate, session }: CreateGroupScreenProp
               }}
             >
               <Image className="w-8 h-8" />
-              <span>????????? ???????????</span>
+              <span> </span>
             </button>
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: "var(--nm-text)" }}>
-              ????????
+              
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={`???????? ${groupType === "group" ? "??????" : "??????"}`}
+              placeholder={` ${groupType === "group" ? "" : ""}`}
               className="w-full px-4 py-3 rounded-xl border outline-none transition-all duration-200 focus:border-[var(--nm-accent)]"
               style={{
                 background: "var(--nm-bg)",
@@ -138,12 +138,12 @@ export function CreateGroupScreen({ onNavigate, session }: CreateGroupScreenProp
 
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: "var(--nm-text)" }}>
-              ????????
+              
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="??????? ???? ??????..."
+              placeholder="  ..."
               rows={3}
               className="w-full px-4 py-3 rounded-xl border outline-none transition-all duration-200 focus:border-[var(--nm-accent)] resize-none"
               style={{
@@ -156,7 +156,7 @@ export function CreateGroupScreen({ onNavigate, session }: CreateGroupScreenProp
 
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: "var(--nm-text)" }}>
-              ???????????
+              
             </label>
             <div className="flex gap-2">
               <button
@@ -168,7 +168,7 @@ export function CreateGroupScreen({ onNavigate, session }: CreateGroupScreenProp
                 }}
               >
                 <Globe className="w-5 h-5" style={{ color: "var(--nm-accent)" }} />
-                <span>?????????</span>
+                <span></span>
               </button>
 
               <button
@@ -180,7 +180,7 @@ export function CreateGroupScreen({ onNavigate, session }: CreateGroupScreenProp
                 }}
               >
                 <Lock className="w-5 h-5" />
-                <span>?????????</span>
+                <span></span>
               </button>
             </div>
           </div>
@@ -203,7 +203,7 @@ export function CreateGroupScreen({ onNavigate, session }: CreateGroupScreenProp
                 border: "1px solid var(--nm-border)"
               }}
             >
-              ??????
+              
             </button>
 
             <button
@@ -216,7 +216,7 @@ export function CreateGroupScreen({ onNavigate, session }: CreateGroupScreenProp
                 boxShadow: `0 8px 32px var(--nm-shadow)`
               }}
             >
-              {loading ? "????????..." : "???????"}
+              {loading ? "..." : ""}
             </button>
           </div>
         </div>

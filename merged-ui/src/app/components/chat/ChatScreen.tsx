@@ -1,4 +1,4 @@
-﻿import { motion } from 'motion/react';
+import { motion } from 'motion/react';
 import { ArrowLeft, Phone, Video, MoreVertical, Send, Paperclip, Smile, Reply, Forward } from 'lucide-react';
 import { Screen } from '../../App';
 import { useEffect, useMemo, useRef, useState } from 'react';

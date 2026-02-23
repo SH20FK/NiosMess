@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
 import '../../ui/nios_ui.dart';
@@ -23,6 +24,8 @@ class _AudioWaveformPlayerState extends State<AudioWaveformPlayer> {
   bool _isPlaying = false;
   Duration _currentPosition = Duration.zero;
   Duration? _totalDuration;
+  StreamSubscription<int>? _durationSub;
+  StreamSubscription<PlayerState>? _stateSub;
 
   @override
   void initState() {
@@ -41,15 +44,15 @@ class _AudioWaveformPlayerState extends State<AudioWaveformPlayer> {
       final durationMs = await _playerController!.getDuration();
       _totalDuration = Duration(milliseconds: durationMs);
       
-      _playerController!.onCurrentDurationChanged.listen((durationMs) {
+      _durationSub = _playerController!.onCurrentDurationChanged.listen((durationMs) {
         if (mounted) {
           setState(() {
             _currentPosition = Duration(milliseconds: durationMs);
           });
         }
       });
-      
-      _playerController!.onPlayerStateChanged.listen((state) {
+
+      _stateSub = _playerController!.onPlayerStateChanged.listen((state) {
         if (mounted) {
           setState(() {
             _isPlaying = state == PlayerState.playing;
@@ -65,6 +68,8 @@ class _AudioWaveformPlayerState extends State<AudioWaveformPlayer> {
 
   @override
   void dispose() {
+    _durationSub?.cancel();
+    _stateSub?.cancel();
     _playerController?.dispose();
     super.dispose();
   }

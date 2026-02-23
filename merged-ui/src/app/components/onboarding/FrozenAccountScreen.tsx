@@ -22,7 +22,7 @@ export function FrozenAccountScreen({ onNavigate, reason }: FrozenAccountScreenP
           style={{ color: 'var(--nm-text-secondary)' }}
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Назад</span>
+          <span>РќР°Р·Р°Рґ</span>
         </button>
 
         <div className="flex justify-center mb-6">
@@ -31,10 +31,10 @@ export function FrozenAccountScreen({ onNavigate, reason }: FrozenAccountScreenP
         </div>
 
         <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--nm-text)' }}>
-          Аккаунт заморожен
+          РђРєРєР°СѓРЅС‚ Р·Р°РјРѕСЂРѕР¶РµРЅ
         </h2>
         <p className="mb-6" style={{ color: 'var(--nm-text-secondary)' }}>
-          Ваш аккаунт временно ограничен
+          Р’Р°С€ Р°РєРєР°СѓРЅС‚ РІСЂРµРјРµРЅРЅРѕ РѕРіСЂР°РЅРёС‡РµРЅ
         </p>
 
         <div
@@ -42,10 +42,10 @@ export function FrozenAccountScreen({ onNavigate, reason }: FrozenAccountScreenP
           style={{ background: 'var(--nm-surface)', border: '1px solid var(--nm-border)' }}
         >
           <p className="text-sm" style={{ color: 'var(--nm-text-secondary)' }}>
-            Причина
+            РџСЂРёС‡РёРЅР°
           </p>
           <p className="text-base" style={{ color: 'var(--nm-text)' }}>
-            {reason || 'Свяжитесь с поддержкой для уточнения'}
+            {reason || 'РЎРІСЏР¶РёС‚РµСЃСЊ СЃ РїРѕРґРґРµСЂР¶РєРѕР№ РґР»СЏ СѓС‚РѕС‡РЅРµРЅРёСЏ'}
           </p>
         </div>
       </motion.div>

@@ -3,13 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/notification_service.dart';
 import '../core/session_provider.dart';
-import '../core/models/chat_item.dart';
 import '../features/chats/chat_list_screen.dart';
-import '../features/chat/chat_screen.dart';
-import '../features/groups/create_group_screen.dart';
+import '../features/calls/calls_screen.dart';
+import '../features/contacts/contacts_screen.dart';
 import '../features/onboarding/onboarding_flow_screen.dart';
-import '../features/settings/settings_screen.dart';
-import '../features/profile/profile_screen.dart';
+import '../features/settings/settings_main_screen.dart';
 
 class AppRouter extends ConsumerStatefulWidget {
   const AppRouter({super.key});
@@ -19,9 +17,11 @@ class AppRouter extends ConsumerStatefulWidget {
 }
 
 class _AppRouterState extends ConsumerState<AppRouter> {
-  String screen = 'main';
-  ChatItem? currentChat;
-  String? profileTarget;
+  int _currentIndex = 0;
+  final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(
+    4,
+    (_) => GlobalKey<NavigatorState>(),
+  );
   ProviderSubscription? _sessionSub;
 
   @override
@@ -30,14 +30,8 @@ class _AppRouterState extends ConsumerState<AppRouter> {
     NotificationService.instance.init();
     _sessionSub = ref.listenManual(sessionProvider, (previous, next) {
       if (!mounted) return;
-      if (next.isAuthed) {
-        setState(() => screen = 'main');
-      } else {
-        setState(() {
-          screen = 'main';
-          currentChat = null;
-          profileTarget = null;
-        });
+      if (!next.isAuthed) {
+        _resetNavigation();
       }
     });
   }
@@ -46,6 +40,44 @@ class _AppRouterState extends ConsumerState<AppRouter> {
   void dispose() {
     _sessionSub?.close();
     super.dispose();
+  }
+
+  void _resetNavigation() {
+    for (final key in _navigatorKeys) {
+      key.currentState?.popUntil((route) => route.isFirst);
+    }
+    setState(() => _currentIndex = 0);
+  }
+
+  Future<bool> _handleBack() async {
+    final navigator = _navigatorKeys[_currentIndex].currentState;
+    if (navigator != null && navigator.canPop()) {
+      navigator.pop();
+      return false;
+    }
+    if (_currentIndex != 0) {
+      setState(() => _currentIndex = 0);
+      return false;
+    }
+    return true;
+  }
+
+  void _onTabSelected(int index) {
+    if (index == _currentIndex) {
+      _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+      return;
+    }
+    if (_currentIndex == 3) {
+      _navigatorKeys[3].currentState?.popUntil((route) => route.isFirst);
+    }
+    setState(() => _currentIndex = index);
+  }
+
+  Widget _buildTabNavigator(int index, Widget child) {
+    return Navigator(
+      key: _navigatorKeys[index],
+      onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => child),
+    );
   }
 
   @override
@@ -58,86 +90,50 @@ class _AppRouterState extends ConsumerState<AppRouter> {
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        if (currentChat != null) {
-          setState(() => currentChat = null);
-          return;
-        }
-        if (screen != 'main') {
-          setState(() => screen = 'main');
+        final shouldPop = await _handleBack();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
         }
       },
-      child: Navigator(
-        pages: [
-          MaterialPage(
-            child: ChatListScreen(
-              onOpenChat: (chat) {
-                setState(() => currentChat = chat);
-              },
-              onOpenSettings: () => setState(() => screen = 'settings'),
-              onOpenProfile: (username) {
-                setState(() {
-                  profileTarget = username;
-                  screen = 'profile';
-                });
-              },
-              onCreateGroup: () => setState(() => screen = 'createGroup'),
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: [
+            _buildTabNavigator(0, const ChatListScreen()),
+            _buildTabNavigator(1, const CallsScreen()),
+            _buildTabNavigator(2, const ContactsScreen()),
+            _buildTabNavigator(3, const SettingsMainScreen()),
+          ],
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: _onTabSelected,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline),
+              selectedIcon: Icon(Icons.chat_bubble),
+              label: 'Чаты',
             ),
-          ),
-          if (screen == 'createGroup')
-            MaterialPage(
-              child: CreateGroupScreen(
-                onBack: () => setState(() => screen = 'main'),
-              ),
+            NavigationDestination(
+              icon: Icon(Icons.phone_outlined),
+              selectedIcon: Icon(Icons.phone),
+              label: 'Звонки',
             ),
-          if (screen == 'settings')
-            MaterialPage(
-              child: SettingsScreen(
-                onBack: () => setState(() => screen = 'main'),
-              ),
+            NavigationDestination(
+              icon: Icon(Icons.people_outline),
+              selectedIcon: Icon(Icons.people),
+              label: 'Контакты',
             ),
-          if (screen == 'profile')
-            MaterialPage(
-              child: ProfileScreen(
-                targetUsername: profileTarget,
-                onBack: () => setState(() {
-                  screen = 'main';
-                  profileTarget = null;
-                }),
-              ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings),
+              label: 'Настройки',
             ),
-          if (currentChat != null && screen == 'main')
-            MaterialPage(
-              child: ChatScreen(
-                chatId: currentChat!.id,
-                chatUsername: currentChat!.username,
-                chatType: currentChat!.type,
-                title: currentChat!.name,
-                status: currentChat!.isOnline == true
-                    ? 'в сети'
-                    : currentChat!.lastSeenText ?? 'не в сети',
-                badgeText: currentChat!.badgeText ?? currentChat!.badgeTitle,
-                badgeIcon: currentChat!.badgeIcon,
-                onBack: () => setState(() => currentChat = null),
-                onOpenProfile: (username) => setState(() {
-                  profileTarget = username;
-                  screen = 'profile';
-                }),
-              ),
-            ),
-        ],
-        onDidRemovePage: (page) {
-          if (currentChat != null) setState(() => currentChat = null);
-          if (screen == 'settings' || screen == 'profile' || screen == 'createGroup') {
-            setState(() {
-              screen = 'main';
-              profileTarget = null;
-            });
-          }
-        },
+          ],
+        ),
       ),
     );
   }
 }
-

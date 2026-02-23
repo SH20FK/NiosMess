@@ -412,7 +412,7 @@ function getBadgeData(user, cached) {
   if (!source) return null;
   return {
     id: source.badge_id,
-    text: source.badge_text || "???? ??????? ???????? ????????????? ??? ????????? NiosMessa",
+    text: source.badge_text || "Badge details will be available later.",
     title: source.badge_title || "",
     icon: source.badge_icon || "fox",
   };
@@ -428,7 +428,7 @@ function renderNameWithBadge(targetEl, name, badge) {
   span.title = badge.title || "";
   span.addEventListener("click", (e) => {
     e.stopPropagation();
-    toast(badge.text || "???? ??????? ???????? ????????????? ??? ????????? NiosMessa");
+    toast(badge.text || "Badge details will be available later.");
   });
   targetEl.appendChild(span);
 }
@@ -2505,10 +2505,10 @@ function renderChatList(chats) {
     message.className = "chat-item-message";
 
     const listSubtitle = u.type === "group"
-      ? "??????"
+      ? "Online"
       : u.type === "channel"
-        ? "?????"
-        : (u.last_seen_text || (u.isonline ? "? ????" : "?? ? ????"));
+        ? "Recently"
+        : (u.last_seen_text || (u.isonline ? "Online" : "Offline"));
     message.textContent = listSubtitle;
 
 
@@ -2920,7 +2920,7 @@ async function selectChat(u) {
 
   if (chatType === "user") {
 
-    $("chatSubtitle").textContent = u.last_seen_text || (u.isonline ? "? ????" : "?? ? ????");
+    $("chatSubtitle").textContent = u.last_seen_text || (u.isonline ? "Online" : "Offline");
 
     if (u.isonline) {
 

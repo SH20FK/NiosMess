@@ -23,24 +23,24 @@ export function RegisterScreen({ onNavigate, onRegister }: RegisterScreenProps) 
   const handleSubmit = async () => {
     setError(null);
     if (!name || !username || !email || !password) {
-      setError('Заполните все поля');
+      setError('Р—Р°РїРѕР»РЅРёС‚Рµ РІСЃРµ РїРѕР»СЏ');
       return;
     }
     setLoading(true);
     try {
       const data = await register({ email, password, username, name, code: code || undefined });
       if (data?.status === 'wait_code') {
-        setError('Нужен код подтверждения. Проверьте почту.');
+        setError('РќСѓР¶РµРЅ РєРѕРґ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ. РџСЂРѕРІРµСЂСЊС‚Рµ РїРѕС‡С‚Сѓ.');
         setLoading(false);
         return;
       }
       if (data?.token && data?.username) {
         onRegister({ token: data.token, username: data.username, name: data.name || name });
       } else {
-        setError('Не удалось зарегистрироваться');
+        setError('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊСЃСЏ');
       }
     } catch (err: any) {
-      setError(err?.detail || 'Ошибка регистрации');
+      setError(err?.detail || 'РћС€РёР±РєР° СЂРµРіРёСЃС‚СЂР°С†РёРё');
     } finally {
       setLoading(false);
     }
@@ -61,7 +61,7 @@ export function RegisterScreen({ onNavigate, onRegister }: RegisterScreenProps) 
           style={{ color: 'var(--nm-text-secondary)' }}
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Назад</span>
+          <span>РќР°Р·Р°Рґ</span>
         </button>
 
         <div className="flex justify-center mb-6">
@@ -69,16 +69,16 @@ export function RegisterScreen({ onNavigate, onRegister }: RegisterScreenProps) 
         </div>
 
         <h2 className="text-3xl font-bold text-center mb-2" style={{ color: 'var(--nm-text)' }}>
-          Регистрация
+          Р РµРіРёСЃС‚СЂР°С†РёСЏ
         </h2>
         <p className="text-center mb-8" style={{ color: 'var(--nm-text-secondary)' }}>
-          Создайте аккаунт и начните общение
+          РЎРѕР·РґР°Р№С‚Рµ Р°РєРєР°СѓРЅС‚ Рё РЅР°С‡РЅРёС‚Рµ РѕР±С‰РµРЅРёРµ
         </p>
 
         <div className="flex flex-col gap-4">
           <div>
             <label className="block mb-2 text-sm font-medium" style={{ color: 'var(--nm-text)' }}>
-              Имя
+              РРјСЏ
             </label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--nm-text-secondary)' }} />
@@ -86,7 +86,7 @@ export function RegisterScreen({ onNavigate, onRegister }: RegisterScreenProps) 
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ваше имя"
+                placeholder="Р’Р°С€Рµ РёРјСЏ"
                 className="w-full pl-12 pr-4 py-3 rounded-xl border-2 transition-all duration-200 outline-none focus:border-[var(--nm-accent)]"
                 style={{
                   background: 'var(--nm-surface)',
@@ -99,7 +99,7 @@ export function RegisterScreen({ onNavigate, onRegister }: RegisterScreenProps) 
 
           <div>
             <label className="block mb-2 text-sm font-medium" style={{ color: 'var(--nm-text)' }}>
-              Логин
+              Р›РѕРіРёРЅ
             </label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--nm-text-secondary)' }} />
@@ -141,7 +141,7 @@ export function RegisterScreen({ onNavigate, onRegister }: RegisterScreenProps) 
 
           <div>
             <label className="block mb-2 text-sm font-medium" style={{ color: 'var(--nm-text)' }}>
-              Пароль
+              РџР°СЂРѕР»СЊ
             </label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--nm-text-secondary)' }} />
@@ -149,7 +149,7 @@ export function RegisterScreen({ onNavigate, onRegister }: RegisterScreenProps) 
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Введите пароль"
+                placeholder="Р’РІРµРґРёС‚Рµ РїР°СЂРѕР»СЊ"
                 className="w-full pl-12 pr-12 py-3 rounded-xl border-2 transition-all duration-200 outline-none focus:border-[var(--nm-accent)]"
                 style={{
                   background: 'var(--nm-surface)',
@@ -169,7 +169,7 @@ export function RegisterScreen({ onNavigate, onRegister }: RegisterScreenProps) 
 
           <div>
             <label className="block mb-2 text-sm font-medium" style={{ color: 'var(--nm-text)' }}>
-              Код подтверждения (если требуется)
+              РљРѕРґ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ (РµСЃР»Рё С‚СЂРµР±СѓРµС‚СЃСЏ)
             </label>
             <input
               type="text"
@@ -201,17 +201,17 @@ export function RegisterScreen({ onNavigate, onRegister }: RegisterScreenProps) 
               boxShadow: `0 8px 32px var(--nm-shadow)`
             }}
           >
-            {loading ? 'Создание...' : 'Создать аккаунт'}
+            {loading ? 'РЎРѕР·РґР°РЅРёРµ...' : 'РЎРѕР·РґР°С‚СЊ Р°РєРєР°СѓРЅС‚'}
           </button>
 
           <p className="text-center mt-4" style={{ color: 'var(--nm-text-secondary)' }}>
-            Уже есть аккаунт?{' '}
+            РЈР¶Рµ РµСЃС‚СЊ Р°РєРєР°СѓРЅС‚?{' '}
             <button
               onClick={() => onNavigate('login')}
               className="font-medium transition-colors duration-200"
               style={{ color: 'var(--nm-accent)' }}
             >
-              Войти
+              Р’РѕР№С‚Рё
             </button>
           </p>
         </div>

@@ -1,4 +1,4 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -87,121 +87,128 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     } catch (_) {
       setState(() => error = 'Ошибка регистрации');
     } finally {
-      setState(() => loading = false);
+      if (mounted) {
+        setState(() => loading = false);
+      }
     }
   }
 
   @override
+  void dispose() {
+    _name.dispose();
+    _username.dispose();
+    _email.dispose();
+    _password.dispose();
+    _code.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return NiosScaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: widget.onBack,
+        ),
+        title: const Text('Создание аккаунта'),
+      ),
       body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: widget.onBack,
-                  icon: Icon(Icons.arrow_back, color: NiosPalette.textSecondary),
-                  label: Text('Назад', style: TextStyle(color: NiosPalette.textSecondary)),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Регистрация в NiosMess',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text('Создание аккаунта', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: NiosPalette.text)),
-              const SizedBox(height: 6),
-              Text('Регистрация в NiosMess', style: TextStyle(color: NiosPalette.textSecondary)),
-              const SizedBox(height: 24),
-              NiosCard(
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _name,
-                      decoration: niosInputDecoration('Имя', icon: Icons.badge_outlined),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _username,
-                      decoration: niosInputDecoration('Имя пользователя', icon: Icons.person_outline),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _email,
-                      decoration: niosInputDecoration('Email', icon: Icons.alternate_email),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _password,
-                      obscureText: true,
-                      decoration: niosInputDecoration('Пароль', icon: Icons.lock_outline),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: NiosPalette.surfaceHover,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: NiosPalette.border),
+                const SizedBox(height: 20),
+                NiosCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _name,
+                        decoration: niosInputDecoration('Имя', icon: Icons.badge_outlined),
+                        textInputAction: TextInputAction.next,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ..._legalDocs.map(_buildLegalItem),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Checkbox(
-                                value: acceptedLegal,
-                                onChanged: _allDocsRead ? (val) => setState(() => acceptedLegal = val ?? false) : null,
-                              ),
-                              Expanded(
-                                child: Text(
-                                  'Я прочитал(а) документы и согласен(на) с условиями',
-                                  style: TextStyle(color: NiosPalette.textSecondary),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (!_allDocsRead)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 8),
-                              child: Text(
-                                'Откройте и прочитайте все документы',
-                                style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    if (waitingCode) ...[
                       const SizedBox(height: 12),
                       TextField(
-                        controller: _code,
-                        decoration: niosInputDecoration('Код подтверждения', icon: Icons.verified_outlined),
+                        controller: _username,
+                        decoration: niosInputDecoration('Имя пользователя', icon: Icons.person_outline),
+                        textInputAction: TextInputAction.next,
                       ),
-                    ],
-                    if (error != null) ...[
                       const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color.fromRGBO(255, 90, 90, 0.12),
-                          borderRadius: BorderRadius.circular(12),
+                      TextField(
+                        controller: _email,
+                        decoration: niosInputDecoration('Email', icon: Icons.alternate_email),
+                        textInputAction: TextInputAction.next,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _password,
+                        obscureText: true,
+                        decoration: niosInputDecoration('Пароль', icon: Icons.lock_outline),
+                        textInputAction: waitingCode ? TextInputAction.next : TextInputAction.done,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Документы',
+                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._legalDocs.map(_buildLegalItem),
+                      CheckboxListTile(
+                        value: acceptedLegal,
+                        onChanged: _allDocsRead ? (val) => setState(() => acceptedLegal = val ?? false) : null,
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: const Text('Я прочитал(а) документы и согласен(на) с условиями'),
+                      ),
+                      if (!_allDocsRead)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: Text(
+                            'Откройте и прочитайте все документы',
+                            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
                         ),
-                        child: Text(error!, style: const TextStyle(color: Color(0xFFFF7A7A))),
+                      if (waitingCode) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _code,
+                          decoration: niosInputDecoration('Код подтверждения', icon: Icons.verified_outlined),
+                          textInputAction: TextInputAction.done,
+                        ),
+                      ],
+                      if (error != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: scheme.errorContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(error!, style: TextStyle(color: scheme.onErrorContainer)),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      NiosPrimaryButton(
+                        label: waitingCode ? 'Подтвердить' : (loading ? 'Создание...' : 'Создать аккаунт'),
+                        onTap: loading ? null : _submit,
                       ),
                     ],
-                    const SizedBox(height: 12),
-                    NiosPrimaryButton(
-                      label: waitingCode ? 'Подтвердить' : (loading ? 'Создание...' : 'Создать аккаунт'),
-                      onTap: loading ? null : _submit,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -210,31 +217,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Widget _buildLegalItem(_LegalDoc doc) {
     final read = _readDocs.contains(doc.id);
-    return Container(
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: read ? const Color.fromRGBO(74, 222, 128, 0.08) : NiosPalette.surfaceAlt,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: read ? const Color.fromRGBO(74, 222, 128, 0.4) : NiosPalette.border),
+        side: BorderSide(color: read ? scheme.primary : scheme.outlineVariant),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(doc.title, style: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 4),
-                Text(read ? 'Прочитано' : 'Не прочитано', style: TextStyle(color: read ? const Color(0xFF4ADE80) : NiosPalette.textSecondary, fontSize: 12)),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () => _openLegalDoc(doc),
-            child: Text(read ? 'Открыть' : 'Прочитать'),
-          ),
-        ],
+      child: ListTile(
+        leading: Icon(
+          read ? Icons.check_circle : Icons.description_outlined,
+          color: read ? scheme.primary : scheme.onSurfaceVariant,
+        ),
+        title: Text(doc.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(read ? 'Прочитано' : 'Не прочитано'),
+        trailing: TextButton(
+          onPressed: () => _openLegalDoc(doc),
+          child: Text(read ? 'Открыть' : 'Прочитать'),
+        ),
       ),
     );
   }
@@ -242,81 +243,90 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _openLegalDoc(_LegalDoc doc) async {
     final raw = await rootBundle.loadString(doc.asset);
     if (!mounted) return;
+    final scheme = Theme.of(context).colorScheme;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      showDragHandle: true,
+      backgroundColor: scheme.surface,
       builder: (context) {
-        final controller = ScrollController();
         bool canAccept = false;
         return StatefulBuilder(
           builder: (context, setStateSheet) {
-            void updateAccept() {
-              if (!controller.hasClients) return;
-              final max = controller.position.maxScrollExtent;
-              final current = controller.position.pixels;
-              final reached = current >= (max - 12);
-              if (reached != canAccept) {
-                setStateSheet(() => canAccept = reached);
-              }
-            }
-
-            controller.removeListener(updateAccept);
-            controller.addListener(updateAccept);
-
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.82,
-              decoration: BoxDecoration(
-                color: NiosPalette.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                border: Border.all(color: NiosPalette.border),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-                  Container(width: 44, height: 4, decoration: BoxDecoration(color: NiosPalette.borderLight, borderRadius: BorderRadius.circular(20))),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text(doc.title, style: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w700))),
-                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Закрыть')),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: Markdown(
-                      controller: controller,
-                      data: raw,
-                      styleSheet: MarkdownStyleSheet(
-                        p: TextStyle(color: NiosPalette.textSecondary, height: 1.5),
-                        h1: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w700, fontSize: 18),
-                        h2: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w700, fontSize: 16),
-                        h3: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w600, fontSize: 14),
-                        listBullet: TextStyle(color: NiosPalette.textSecondary),
+            return DraggableScrollableSheet(
+              initialChildSize: 0.85,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (context, controller) {
+                return Material(
+                  color: scheme.surface,
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                doc.title,
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Закрыть'),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: canAccept
-                            ? () {
-                                setState(() => _readDocs.add(doc.id));
-                                Navigator.pop(context);
+                      const Divider(height: 1),
+                      Expanded(
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: (notification) {
+                            if (notification.metrics.pixels >=
+                                (notification.metrics.maxScrollExtent - 12)) {
+                              if (!canAccept) {
+                                setStateSheet(() => canAccept = true);
                               }
-                            : null,
-                        style: ElevatedButton.styleFrom(backgroundColor: NiosPalette.accent),
-                        child: const Text('Прочитано'),
+                            }
+                            return false;
+                          },
+                          child: Markdown(
+                            controller: controller,
+                            data: raw,
+                            styleSheet: MarkdownStyleSheet(
+                              p: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(color: scheme.onSurfaceVariant, height: 1.5),
+                              h1: Theme.of(context).textTheme.titleLarge,
+                              h2: Theme.of(context).textTheme.titleMedium,
+                              h3: Theme.of(context).textTheme.titleSmall,
+                              listBullet: TextStyle(color: scheme.onSurfaceVariant),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: canAccept
+                                ? () {
+                                    setState(() => _readDocs.add(doc.id));
+                                    Navigator.pop(context);
+                                  }
+                                : null,
+                            child: const Text('Прочитано'),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         );

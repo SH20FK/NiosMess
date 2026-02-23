@@ -980,7 +980,7 @@ body {
 }
 
 .message.favorite::after {
-  content: "â­";
+  content: "⭐";
   position: absolute;
   top: -8px;
   right: -8px;

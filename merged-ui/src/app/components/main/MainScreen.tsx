@@ -1,4 +1,4 @@
-﻿import { motion } from 'motion/react';
+import { motion } from 'motion/react';
 import { Search, Plus, Settings, Hash, Users, Pin } from 'lucide-react';
 import { Screen } from '../../App';
 import { useEffect, useMemo, useState } from 'react';

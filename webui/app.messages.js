@@ -1,5 +1,49 @@
-﻿﻿﻿﻿const twoChar = new Set([...revMap.keys()].filter((v) => v.length === 2));
+const twoChar = new Set([...revMap.keys()].filter((v) => v.length === 2));
 const oneChar = new Set([...revMap.keys()].filter((v) => v.length === 1));
+
+function getMessageId(m) {
+  return String(m?.id || m?.temp_id || "");
+}
+
+function normalizeReadFlag(m) {
+  if (!m) return false;
+  const raw = m.is_read ?? m.isRead ?? m.read ?? m.readed ?? m.seen;
+  if (raw === undefined || raw === null) return false;
+  if (typeof raw === "string") {
+    return raw === "1" || raw.toLowerCase() === "true";
+  }
+  return !!raw;
+}
+
+function updateMessageReadStatus(msgId, isRead) {
+  if (!msgId) return;
+  const el = document.querySelector(`[data-id="${msgId}"]`);
+  if (!el) return;
+  const status = el.querySelector(".message-status");
+  if (!status) return;
+  status.textContent = isRead ? "\u2713\u2713" : "\u2713";
+}
+
+function syncReadStatesFromServer(serverMessages) {
+  if (!Array.isArray(serverMessages) || !serverMessages.length) return false;
+  const serverMap = new Map(serverMessages.map((m) => [getMessageId(m), m]));
+  let changed = false;
+  state.messages = (state.messages || []).map((m) => {
+    const id = getMessageId(m);
+    if (!id) return m;
+    const fresh = serverMap.get(id);
+    if (!fresh) return m;
+    const wasRead = normalizeReadFlag(m);
+    const isRead = normalizeReadFlag(fresh);
+    if (wasRead !== isRead) {
+      updateMessageReadStatus(id, isRead);
+      changed = true;
+      return { ...m, is_read: fresh.is_read ?? m.is_read, read: fresh.read ?? m.read, isRead: fresh.isRead ?? m.isRead };
+    }
+    return m;
+  });
+  return changed;
+}
 async function loadMessages({ silent = true } = {}) {
   if (!state.activeTarget || !state.session) return;
   if (state.messagesLoading) return;
@@ -66,15 +110,19 @@ async function loadMessages({ silent = true } = {}) {
       const scroller = document.querySelector(".messages-container") || $("messageList");
       if (scroller) {
         requestAnimationFrame(() => {
-          scroller.scrollTop = scroller.scrollHeight;
+          scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'instant' });
         });
       }
+
+      // Auto-read logic REMOVED
+      /*
       const lastId = newMessages[newMessages.length - 1]?.id || newMessages[newMessages.length - 1]?.temp_id;
       if (state.activeChatType === "user") {
         markDirectRead(state.activeTarget, lastId);
       } else if (state.activeChatType === "group" || state.activeChatType === "channel") {
         markCollectiveRead(state.activeTarget);
       }
+      */
       return;
     }
 
@@ -84,6 +132,8 @@ async function loadMessages({ silent = true } = {}) {
 
     const existingIds = new Set(state.messages.map(m => m.id || m.temp_id));
     const newItems = newMessages.filter(m => !existingIds.has(m.id || m.temp_id));
+
+    syncReadStatesFromServer(newMessages);
 
     if (newItems.length === 0 && state.messages.length === newMessages.length) {
       return;
@@ -100,15 +150,19 @@ async function loadMessages({ silent = true } = {}) {
       const wasAtBottom = scroller ? scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 100 : false;
       if (wasAtBottom) {
         setTimeout(() => {
-          if (scroller) scroller.scrollTop = scroller.scrollHeight;
+          if (scroller) scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
         }, 50);
       }
+
+      // Auto-read logic REMOVED to fix immediate read status bug
+      /*
       const lastId = newMessages[newMessages.length - 1]?.id || newMessages[newMessages.length - 1]?.temp_id;
       if (state.activeChatType === "user") {
         markDirectRead(state.activeTarget, lastId);
       } else if (state.activeChatType === "group" || state.activeChatType === "channel") {
         markCollectiveRead(state.activeTarget);
       }
+      */
     }
 
   } catch (err) {
@@ -135,7 +189,7 @@ function renderMessages(msgs) {
 
   if (scroller && (wasAtBottom || msgs.length <= 5)) {
     requestAnimationFrame(() => {
-      scroller.scrollTop = scroller.scrollHeight;
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'instant' });
     });
   }
 
@@ -157,7 +211,7 @@ function appendMessage(msg) {
   }
   if (scroller && wasAtBottom) {
     requestAnimationFrame(() => {
-      scroller.scrollTop = scroller.scrollHeight;
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
     });
   }
 }
@@ -242,7 +296,7 @@ function buildWsUrl() {
   let base = state.apiBase;
   try {
     base = localStorage.getItem("niosmess_ws_base") || base;
-  } catch {}
+  } catch { }
   base = base.replace(/^http/, "ws");
   return `${base}/ws?token=${encodeURIComponent(state.session.token)}&username=${encodeURIComponent(state.session.username)}`;
 }
@@ -258,7 +312,7 @@ function openFileSocket(timeoutMs = 10000) {
       if (settled) return;
       settled = true;
       if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-        try { ws.close(); } catch {}
+        try { ws.close(); } catch { }
       }
       if (err) reject(err);
     };
@@ -344,7 +398,7 @@ async function downloadFileViaWs(filename) {
       ws.removeEventListener("close", onClose);
       ws.removeEventListener("error", onError);
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-        try { ws.close(); } catch {}
+        try { ws.close(); } catch { }
       }
     };
 
@@ -434,7 +488,7 @@ async function downloadFileToDisk(filename) {
     link.click();
     link.remove();
     setTimeout(() => {
-      try { URL.revokeObjectURL(url); } catch {}
+      try { URL.revokeObjectURL(url); } catch { }
     }, 1000);
   } catch (err) {
     toast(err.message || "Ошибка скачивания");
@@ -492,51 +546,51 @@ function normalizeMediaUrl(url) {
     return url;
   }
 }
-  async function fetchMediaBlob(url) {
-    if (!url) {
-      throw new Error("download failed: empty url");
-    }
-    if (isWsFileUrl(url)) {
-      const filename = getWsFileName(url);
-      return await downloadFileBlob(filename);
-    }
-    if ("caches" in window) {
-      try {
-        const cache = await caches.open(MEDIA_CACHE_NAME);
-        const cached = await cache.match(url);
-        if (cached) {
-          return await cached.blob();
-        }
-      } catch {}
-    }
-    const headers = {};
-    if (state.session?.token) {
-      headers.Authorization = `Bearer ${state.session.token}`;
-      headers["X-Token"] = state.session.token;
-    }
-    if (state.session?.username) {
-      headers["X-Username"] = state.session.username;
-    }
-    const res = await fetch(url, { headers });
-    if (!res.ok) {
-      throw new Error(`download failed: ${res.status}`);
-    }
-    const blob = await res.blob();
-    if ("caches" in window) {
-      try {
-        const cache = await caches.open(MEDIA_CACHE_NAME);
-        await cache.put(url, new Response(blob));
-      } catch {}
-    }
-    return blob;
+async function fetchMediaBlob(url) {
+  if (!url) {
+    throw new Error("download failed: empty url");
   }
+  if (isWsFileUrl(url)) {
+    const filename = getWsFileName(url);
+    return await downloadFileBlob(filename);
+  }
+  if ("caches" in window) {
+    try {
+      const cache = await caches.open(MEDIA_CACHE_NAME);
+      const cached = await cache.match(url);
+      if (cached) {
+        return await cached.blob();
+      }
+    } catch { }
+  }
+  const headers = {};
+  if (state.session?.token) {
+    headers.Authorization = `Bearer ${state.session.token}`;
+    headers["X-Token"] = state.session.token;
+  }
+  if (state.session?.username) {
+    headers["X-Username"] = state.session.username;
+  }
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    throw new Error(`download failed: ${res.status}`);
+  }
+  const blob = await res.blob();
+  if ("caches" in window) {
+    try {
+      const cache = await caches.open(MEDIA_CACHE_NAME);
+      await cache.put(url, new Response(blob));
+    } catch { }
+  }
+  return blob;
+}
 const MEDIA_CACHE_NAME = "niosmess-media-cache-v1";
 const mediaObjectUrlCache = new Map();
 async function primeMediaCache(url) {
   if (!url || mediaObjectUrlCache.has(url) || !("caches" in window)) return;
   if (isWsFileUrl(url)) {
     const filename = getWsFileName(url);
-    getWsFileObjectUrl(filename).catch(() => {});
+    getWsFileObjectUrl(filename).catch(() => { });
     return;
   }
   try {
@@ -552,7 +606,7 @@ async function primeMediaCache(url) {
       const objUrl = URL.createObjectURL(blob);
       mediaObjectUrlCache.set(url, objUrl);
     }
-  } catch {}
+  } catch { }
 }
 function setMediaElementSource(el, url, sourceEl) {
   if (!el || !url) return;
@@ -563,7 +617,7 @@ function setMediaElementSource(el, url, sourceEl) {
         el.src = objUrl;
         if (sourceEl) sourceEl.src = objUrl;
       })
-      .catch(() => {});
+      .catch(() => { });
     return;
   }
   const cached = mediaObjectUrlCache.get(url);
@@ -580,13 +634,13 @@ async function clearMediaCache() {
   if ("caches" in window) {
     try {
       await caches.delete(MEDIA_CACHE_NAME);
-    } catch {}
+    } catch { }
   }
   wsFilePending.clear();
   mediaObjectUrlCache.forEach((url) => {
     try {
       URL.revokeObjectURL(url);
-    } catch {}
+    } catch { }
   });
   mediaObjectUrlCache.clear();
   if (typeof clearAvatarCache === "function") {
@@ -633,42 +687,42 @@ async function getCacheStats(cacheName) {
   }
 }
 
-  async function refreshCacheStats() {
-    const mediaSize = $("cacheMediaSize");
-    const mediaCount = $("cacheMediaCount");
-    const avatarSize = $("cacheAvatarSize");
-    const avatarCount = $("cacheAvatarCount");
-    const updated = $("cacheUpdatedAt");
-    const usageWrap = $("cacheUsage");
-    const usageFill = $("cacheUsageFill");
-    const usageMeta = $("cacheUsageMeta");
-    if (!mediaSize || !mediaCount || !avatarSize || !avatarCount || !updated) return;
+async function refreshCacheStats() {
+  const mediaSize = $("cacheMediaSize");
+  const mediaCount = $("cacheMediaCount");
+  const avatarSize = $("cacheAvatarSize");
+  const avatarCount = $("cacheAvatarCount");
+  const updated = $("cacheUpdatedAt");
+  const usageWrap = $("cacheUsage");
+  const usageFill = $("cacheUsageFill");
+  const usageMeta = $("cacheUsageMeta");
+  if (!mediaSize || !mediaCount || !avatarSize || !avatarCount || !updated) return;
 
-    const [media, avatar] = await Promise.all([
-      getCacheStats(MEDIA_CACHE_NAME),
-      getCacheStats(typeof AVATAR_CACHE_NAME === "string" ? AVATAR_CACHE_NAME : "niosmess-avatar-cache-v1"),
-    ]);
+  const [media, avatar] = await Promise.all([
+    getCacheStats(MEDIA_CACHE_NAME),
+    getCacheStats(typeof AVATAR_CACHE_NAME === "string" ? AVATAR_CACHE_NAME : "niosmess-avatar-cache-v1"),
+  ]);
 
   mediaSize.textContent = formatBytes(media.bytes);
-    mediaCount.textContent = `${media.count} файлов`;
-    avatarSize.textContent = formatBytes(avatar.bytes);
-    avatarCount.textContent = `${avatar.count} шт`;
-    updated.textContent = new Date().toLocaleString();
+  mediaCount.textContent = `${media.count} файлов`;
+  avatarSize.textContent = formatBytes(avatar.bytes);
+  avatarCount.textContent = `${avatar.count} шт`;
+  updated.textContent = new Date().toLocaleString();
 
-    if (usageWrap && usageFill && usageMeta && navigator.storage?.estimate) {
-      try {
-        const estimate = await navigator.storage.estimate();
-        const usage = estimate.usage || 0;
-        const quota = estimate.quota || 0;
-        const percent = quota > 0 ? Math.min(100, Math.round((usage / quota) * 100)) : 0;
-        usageFill.style.width = `${percent}%`;
-        usageMeta.textContent = quota > 0 ? `${formatBytes(usage)} из ${formatBytes(quota)} (${percent}%)` : formatBytes(usage);
-        usageWrap.hidden = false;
-      } catch {
-        usageWrap.hidden = true;
-      }
+  if (usageWrap && usageFill && usageMeta && navigator.storage?.estimate) {
+    try {
+      const estimate = await navigator.storage.estimate();
+      const usage = estimate.usage || 0;
+      const quota = estimate.quota || 0;
+      const percent = quota > 0 ? Math.min(100, Math.round((usage / quota) * 100)) : 0;
+      usageFill.style.width = `${percent}%`;
+      usageMeta.textContent = quota > 0 ? `${formatBytes(usage)} из ${formatBytes(quota)} (${percent}%)` : formatBytes(usage);
+      usageWrap.hidden = false;
+    } catch {
+      usageWrap.hidden = true;
     }
   }
+}
 function inferMediaType({ ext, mime }) {
   if (mime) {
     if (mime.startsWith("image/")) return "image";
@@ -780,7 +834,7 @@ function getAttachmentFromMessage(m) {
           thumbUrl = data.thumb || data.thumb_url || thumbUrl;
           if (data.is_voice != null) m.is_voice = data.is_voice;
         }
-      } catch {}
+      } catch { }
     } else if (plainText.startsWith("STICKER:")) {
       const payload = plainText.slice(8).trim();
       kind = "sticker";
@@ -791,7 +845,7 @@ function getAttachmentFromMessage(m) {
             url = data.url || url;
             stickerEmoji = data.emoji || data.text || stickerEmoji;
           }
-        } catch {}
+        } catch { }
       } else if (payload.startsWith("http") || payload.startsWith("data:")) {
         url = payload;
       } else {
@@ -807,7 +861,7 @@ function getAttachmentFromMessage(m) {
             url = data.url || url;
             name = data.name || name;
           }
-        } catch {}
+        } catch { }
       } else {
         url = payload;
       }
@@ -851,7 +905,7 @@ function getAttachmentFromMessage(m) {
         ext = candidate.split(".").pop();
         if (!name) name = decodeURIComponent(last);
       }
-    } catch {}
+    } catch { }
   }
 
   const baseType = inferMediaType({ ext, mime });
@@ -995,16 +1049,16 @@ function createMessageElement(m, container) {
         const voiceWrap = document.createElement("div");
         voiceWrap.className = "message-audio message-voice";
 
-          const audio = document.createElement("audio");
-          audio.preload = "metadata";
-          const source = document.createElement("source");
-          setMediaElementSource(audio, link, source);
+        const audio = document.createElement("audio");
+        audio.preload = "metadata";
+        const source = document.createElement("source");
+        setMediaElementSource(audio, link, source);
         audio.onerror = () => {
           fetchMediaBlob(link)
             .then((blob) => {
               audio.src = URL.createObjectURL(blob);
             })
-            .catch(() => {});
+            .catch(() => { });
         };
         source.type = attachment.mime || "audio/webm";
         audio.appendChild(source);
@@ -1031,7 +1085,7 @@ function createMessageElement(m, container) {
 
         playBtn.addEventListener("click", () => {
           if (audio.paused) {
-            audio.play().catch(() => {});
+            audio.play().catch(() => { });
           } else {
             audio.pause();
           }
@@ -1072,16 +1126,16 @@ function createMessageElement(m, container) {
         const audioWrap = document.createElement("div");
         audioWrap.className = "message-audio";
         const audio = document.createElement("audio");
-          audio.controls = true;
-          audio.preload = "metadata";
-          const source = document.createElement("source");
-          setMediaElementSource(audio, link, source);
+        audio.controls = true;
+        audio.preload = "metadata";
+        const source = document.createElement("source");
+        setMediaElementSource(audio, link, source);
         audio.onerror = () => {
           fetchMediaBlob(link)
             .then((blob) => {
               audio.src = URL.createObjectURL(blob);
             })
-            .catch(() => {});
+            .catch(() => { });
         };
         source.type = attachment.mime || "audio/webm";
         audio.appendChild(source);
@@ -1125,7 +1179,7 @@ function createMessageElement(m, container) {
           .then((blob) => {
             video.src = URL.createObjectURL(blob);
           })
-          .catch(() => {});
+          .catch(() => { });
       };
       video.style.maxWidth = "100%";
       video.style.borderRadius = "10px";
@@ -1134,7 +1188,7 @@ function createMessageElement(m, container) {
       message.appendChild(createDownloadLinkElement(link, raw));
     }
   } else {
-    const safe = String(m.text ?? "");
+    const safe = String(m.text || "");
     const deobf = deobfuscate(safe).replace(/\s+/g, " ").trim();
 
     if (deobf.startsWith("POLL:")) {
@@ -1154,8 +1208,8 @@ function createMessageElement(m, container) {
           votedBy: (state.polls[pollData.id] || {}).votedBy || {},
         });
         state.polls[poll.id] = { ...state.polls[poll.id], ...poll };
-          localStorage.setItem("niosmess_polls", JSON.stringify(state.polls));
-          message.classList.add("has-poll");
+        localStorage.setItem("niosmess_polls", JSON.stringify(state.polls));
+        message.classList.add("has-poll");
         renderPollMessage(message, poll);
         container.appendChild(message);
         return;
@@ -1282,7 +1336,8 @@ function createMessageElement(m, container) {
   if (isMe) {
     const status = document.createElement("span");
     status.className = "message-status";
-    status.textContent = m.temp ? "\u2026" : (state.activeTarget ? "\u2713\u2713" : "\u2713");
+    const isRead = state.activeChatType === "user" ? normalizeReadFlag(m) : false;
+    status.textContent = m.temp ? "\u2026" : (isRead ? "\u2713\u2713" : "\u2713");
     meta.appendChild(status);
   }
 
@@ -1369,7 +1424,7 @@ function openMediaViewer(item) {
         .then((blob) => {
           img.src = URL.createObjectURL(blob);
         })
-        .catch(() => {});
+        .catch(() => { });
     };
     body.appendChild(img);
   } else if (item.type === "video") {
@@ -1383,7 +1438,7 @@ function openMediaViewer(item) {
         .then((blob) => {
           video.src = URL.createObjectURL(blob);
         })
-        .catch(() => {});
+        .catch(() => { });
     };
     body.appendChild(video);
   } else if (item.type === "audio") {
@@ -1396,7 +1451,7 @@ function openMediaViewer(item) {
         .then((blob) => {
           audio.src = URL.createObjectURL(blob);
         })
-        .catch(() => {});
+        .catch(() => { });
     };
     body.appendChild(audio);
   } else {
@@ -1460,7 +1515,7 @@ function openMediaGallery() {
           .then((blob) => {
             img.src = URL.createObjectURL(blob);
           })
-          .catch(() => {});
+          .catch(() => { });
       };
       card.appendChild(img);
     } else if (item.type === "video") {
@@ -1474,7 +1529,7 @@ function openMediaGallery() {
           .then((blob) => {
             video.src = URL.createObjectURL(blob);
           })
-          .catch(() => {});
+          .catch(() => { });
       };
       card.appendChild(video);
     } else {
@@ -1624,7 +1679,7 @@ async function addLinkPreview(messageEl, url) {
 
     preview.addEventListener("click", () => window.open(data.url, "_blank"));
     messageEl.appendChild(preview);
-  } catch {}
+  } catch { }
 }
 
 function openForwardModal(messageData) {
@@ -1744,7 +1799,7 @@ async function submitForward() {
         message_id: String(messageId),
         target_chat: target,
       };
-      
+
       if (commentText) {
         payload.comment = obfuscate(commentText);
       }
@@ -1835,11 +1890,17 @@ function addPollOption(value = "") {
 }
 
 function normalizePoll(poll) {
-  const options = Array.isArray(poll.options) ? poll.options.map((opt) => ({
-    id: opt.id || `opt_${Math.random().toString(36).slice(2, 8)}`,
-    text: String(opt.text || opt || "").trim(),
-    votes: Number(opt.votes || 0),
-  })) : [];
+  const options = Array.isArray(poll.options) ? poll.options.map((opt) => {
+    const rawId = opt.id ?? opt.index ?? `opt_${Math.random().toString(36).slice(2, 8)}`;
+    const normalizedId = typeof rawId === "string" && rawId.trim() !== "" && !Number.isNaN(Number(rawId))
+      ? Number(rawId)
+      : rawId;
+    return {
+      id: normalizedId,
+      text: String(opt.text || opt || "").trim(),
+      votes: Number(opt.votes || 0),
+    };
+  }) : [];
   const normalized = {
     id: poll.id || `poll_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     question: String(poll.question || "").trim(),
@@ -1861,12 +1922,16 @@ function normalizePoll(poll) {
 
 async function syncPollVote(pollId, optionIds) {
   if (!state.session?.token || !pollId) return;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(pollId);
+  if (!isUuid) return;
   try {
-    await apiFetch(`/polls/${encodeURIComponent(pollId)}/vote`, {
+    await apiFetch(`/polls/vote`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         token: state.session.token,
+        username: state.session.username,
+        poll_id: pollId,
         option_ids: Array.isArray(optionIds) ? optionIds : [optionIds],
       }),
     }, { silent: true });
@@ -1877,6 +1942,8 @@ async function syncPollVote(pollId, optionIds) {
 
 async function fetchPollResults(pollId) {
   if (!state.session?.token || !state.session?.username || !pollId) return null;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(pollId);
+  if (!isUuid) return null;
   try {
     const data = await apiFetch(
       `/polls/${encodeURIComponent(pollId)}?token=${encodeURIComponent(state.session.token)}&username=${encodeURIComponent(state.session.username)}`,
@@ -1884,7 +1951,18 @@ async function fetchPollResults(pollId) {
       { silent: true }
     );
     if (data && data.options) {
-      return data;
+      const counts = Array.isArray(data.counts) ? data.counts : [];
+      return {
+        id: data.id,
+        question: data.question,
+        options: data.options.map((opt) => ({
+          id: opt.id,
+          text: String(opt.text || "").trim(),
+          votes: Number(counts[opt.id] || 0),
+        })),
+        multiple: !!data.multiple,
+        my_votes: Array.isArray(data.my_votes) ? data.my_votes : [],
+      };
     }
     return null;
   } catch (err) {
@@ -1914,12 +1992,10 @@ function renderPollMessage(message, poll) {
   async function renderPollOptions() {
     const serverPoll = await fetchPollResults(poll.id);
     if (serverPoll) {
-      poll.options = serverPoll.options.map((opt) => ({
-        id: opt.id,
-        text: String(opt.text || "").trim(),
-        votes: Number(opt.votes || 0),
-      }));
+      poll.options = serverPoll.options;
       poll.total = poll.options.reduce((sum, opt) => sum + (opt.votes || 0), 0);
+      poll.votedBy = poll.votedBy || {};
+      poll.votedBy[state.session?.username] = serverPoll.my_votes || [];
       state.polls[poll.id] = { ...state.polls[poll.id], ...poll };
       localStorage.setItem("niosmess_polls", JSON.stringify(state.polls));
     }
@@ -1965,17 +2041,7 @@ function renderPollMessage(message, poll) {
         poll.votedBy = poll.votedBy || {};
         poll.votedBy[username] = next;
 
-        poll.options.forEach((item) => {
-          item.votes = 0;
-        });
-        Object.values(poll.votedBy).forEach((votes) => {
-          votes.forEach((id) => {
-            const target = poll.options.find((item) => item.id === id);
-            if (target) target.votes += 1;
-          });
-        });
-        poll.total = poll.options.reduce((sum, item) => sum + item.votes, 0);
-        state.polls[poll.id] = poll;
+        state.polls[poll.id] = { ...state.polls[poll.id], ...poll };
         localStorage.setItem("niosmess_polls", JSON.stringify(state.polls));
 
         await syncPollVote(poll.id, next);
@@ -2013,10 +2079,28 @@ async function submitPoll() {
     return;
   }
 
+  const multiple = $("pollMultiple")?.checked || false;
+  const form = new FormData();
+  form.append("token", state.session?.token || "");
+  form.append("username", state.session?.username || "");
+  form.append("chat_id", String(state.activeTarget || ""));
+  form.append("question", question);
+  form.append("options", JSON.stringify(options));
+  form.append("multiple", String(!!multiple));
+
+  let pollId = null;
+  try {
+    const created = await apiFetch("/polls/create", { method: "POST", body: form });
+    pollId = created?.poll_id || null;
+  } catch (err) {
+    console.error("Failed to create poll:", err);
+  }
+
   const poll = normalizePoll({
+    id: pollId || undefined,
     question,
-    options: options.map((text) => ({ text })),
-    multiple: $("pollMultiple")?.checked || false,
+    options: options.map((text, idx) => ({ id: idx, text })),
+    multiple,
   });
 
   state.polls[poll.id] = poll;
@@ -2466,7 +2550,7 @@ function savePinnedMap(map) {
   state.pinnedMessages = map;
   try {
     localStorage.setItem(PINNED_KEY, JSON.stringify(map));
-  } catch {}
+  } catch { }
 }
 
 function getPinnedForChat(chatId) {
@@ -2552,7 +2636,7 @@ function cancelScheduledMessage() {
 function persistScheduled() {
   try {
     localStorage.setItem("niosmess_scheduled", JSON.stringify(state.scheduled || []));
-  } catch {}
+  } catch { }
 }
 
 function startScheduledTimer() {
@@ -2744,7 +2828,7 @@ async function sendMessage() {
       autoResize(input);
       loadMessages({ silent: true });
     } catch (err) {
-    toast(err.message || "\u041e\u0448\u0438\u0431\u043a\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438");
+      toast(err.message || "\u041e\u0448\u0438\u0431\u043a\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438");
     } finally {
       input.focus();
     }
@@ -2952,7 +3036,7 @@ async function uploadFileHttp(file, tempId, startedAt, lastTimeRef, lastLoadedRe
     let data = {};
     try {
       data = JSON.parse(xhr.responseText || "{}");
-    } catch {}
+    } catch { }
     throw new Error(data.detail || data.error || "Ошибка загрузки");
   }
 
@@ -3134,7 +3218,7 @@ async function uploadFile(file) {
         const text = String(m.text || "");
         return text.includes(finalFilename);
       });
-    } catch {}
+    } catch { }
 
     if (!alreadyExists) {
       await sendFileMessage(finalFilename);
@@ -3152,7 +3236,7 @@ async function uploadFile(file) {
     toast(err.message || "\u041e\u0448\u0438\u0431\u043a\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438");
   } finally {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-      try { ws.close(); } catch {}
+      try { ws.close(); } catch { }
     }
   }
 }
@@ -3231,10 +3315,52 @@ function initRealtime() {
         return;
       }
       if (!data) return;
+
       if (data.type === "message" || data.event === "message") {
         loadMessages({ silent: true });
         loadChats({ silent: true });
       }
+
+      if (data.type === "read_receipt") {
+        if (state.activeTarget === data.chat_id) {
+          // Update message UI status
+          document.querySelectorAll('.message-status-icon').forEach(icon => {
+            icon.innerHTML = '&#10004;&#10004;'; // Read checkmark
+            icon.classList.add('read');
+          });
+          // Also update chats list last message status if needed
+          loadChats({ silent: true });
+        }
+      }
+
+      if (data.type === "poll_update") {
+        if (state.activeTarget && state.messages) {
+          state.messages.forEach(msg => {
+            if (msg.poll_id === data.poll_id) {
+              msg.poll_counts = data.counts;
+              msg.poll_total = data.total;
+              const msgEl = document.querySelector(`[data-id="${msg.id}"]`);
+              if (msgEl) renderPoll(msgEl.querySelector('.message-poll-wrapper'), msg);
+            }
+          });
+        }
+      }
+
+      if (data.type === "profile_update") {
+        const username = data.username;
+        if (username) {
+          // Invalidate cache
+          delete state.userInfoCache[username];
+          evictAvatarCache(username);
+          // Refresh UI elements
+          if (state.activeTarget === username) {
+            ensureUserInfo(username);
+            updateChatHeader();
+          }
+          loadChats({ silent: true });
+        }
+      }
+
       if (data.type === "typing") {
         const sender = data.sender || data.from || "";
         const receiver = data.receiver || data.to || "";
@@ -3279,7 +3405,7 @@ async function sendTypingEvent(isTyping) {
   try {
     const profile = JSON.parse(localStorage.getItem("niosmess_myprofile") || "{}");
     if (profile.showTyping === false) return;
-  } catch {}
+  } catch { }
 
   if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
     if (state.settings?.realtimeEnabled === true) initRealtime();
@@ -3291,7 +3417,7 @@ async function sendTypingEvent(isTyping) {
       type: "typing",
       receiver: state.activeTarget,
     }));
-  } catch {}
+  } catch { }
 }
 
 function startScheduledWorker() {
@@ -3629,7 +3755,7 @@ function applyFormatToSelection(format) {
 
   let formatted = "";
 
-  switch(format) {
+  switch (format) {
     case "bold":
       formatted = `**${selectedText}**`;
       break;
@@ -3684,7 +3810,7 @@ async function ping() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: state.session.username, token: state.session.token }),
     }, { silent: true });
-  } catch {}
+  } catch { }
 }
 async function loadProfile() {
   if (!state.activeTarget || !state.session) return;
@@ -3711,14 +3837,15 @@ async function loadProfile() {
       }
     }
     $("profileUser").textContent = data.username ? `@${data.username}` : "";
-    $("profileStatus").textContent = data.isfrozen ? "?????????" : (data.last_seen_text || (data.isonline ? "??????" : "???????"));
+    const aboutText = String(data.about || data.bio || "").trim();
+    $("profileStatus").textContent = aboutText || "—";
     $("profileMail").textContent = data.email || "—";
     $("profileDate").textContent = data.regdate || "—";
     if (state.activeTarget && profileAvatar) {
       const initial = (data.name ? deobfuscate(data.name) : (data.username || "?"))[0]?.toUpperCase() || "?";
       applyUserAvatar(profileAvatar, state.activeTarget, initial);
     }
-  } catch {}
+  } catch { }
 }
 function toggleProfile(force) {
   const panel = $("profilePanel");
@@ -3798,7 +3925,7 @@ async function loadMyProfileHeader() {
     if (data?.email && emailInput && !emailInput.value.trim()) {
       emailInput.value = data.email;
     }
-  } catch {}
+  } catch { }
 
   if (headerName) {
     const cached = state.userInfoCache?.[username] || null;
@@ -3811,7 +3938,7 @@ async function loadMyProfileHeader() {
   }
   if (headerMeta) headerMeta.textContent = meta;
 }
-function saveMyProfile() {
+async function saveMyProfile() {
   setButtonLoading("saveProfileBtn", true);
 
   const profile = {
@@ -3827,43 +3954,83 @@ function saveMyProfile() {
 
   updateUserInfo();
 
+  const username = state.session?.username;
+  const token = state.session?.token;
+  let serverError = null;
+
+  if (username && token) {
+    try {
+      const aboutForm = new FormData();
+      aboutForm.append("token", token);
+      aboutForm.append("username", username);
+      aboutForm.append("about", profile.bio || "");
+      await apiFetch("/set_about", { method: "POST", body: aboutForm }, { silent: true });
+    } catch (err) {
+      serverError = err;
+    }
+
+    if (profile.name) {
+      try {
+        const nameForm = new FormData();
+        nameForm.append("token", token);
+        nameForm.append("username", username);
+        nameForm.append("name", profile.name);
+        await apiFetch("/profile/set_name", { method: "POST", body: nameForm }, { silent: true });
+      } catch (err) {
+        if (!serverError) serverError = err;
+      }
+    }
+
+    state.userInfoCache[username] = {
+      ...(state.userInfoCache?.[username] || {}),
+      name: profile.name || username,
+      about: profile.bio || "",
+    };
+    state.userInfoTimestamps[username] = Date.now();
+    if (typeof saveUserInfoCache === "function") saveUserInfoCache();
+  }
+
   setTimeout(() => {
     setButtonLoading("saveProfileBtn", false);
-    toast("Настройки сохранены ✓");
+    if (serverError) {
+      toast(serverError.message || "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043f\u0440\u043e\u0444\u0438\u043b\u044c");
+      return;
+    }
+    toast("\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u044b \u2713");
     closeMyProfile();
   }, 500);
 }
 async function handleAvatarUpload(file) {
-    if (!file) return;
+  if (!file) return;
 
-    if (!file.type || !file.type.startsWith('image/')) {
-        toast('Выберите изображение');
-        return;
-    }
+  if (!file.type || !file.type.startsWith('image/')) {
+    toast('Выберите изображение');
+    return;
+  }
 
-    try {
-        const avatarFilename = await uploadAvatar(file);
+  try {
+    const avatarFilename = await uploadAvatar(file);
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            const dataUrl = String(reader.result);
-            if (!dataUrl) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result);
+      if (!dataUrl) return;
 
-            localStorage.setItem("niosmess_avatar", dataUrl);
+      localStorage.setItem("niosmess_avatar", dataUrl);
 
-            if (typeof updateUserInfo === 'function') updateUserInfo();
-            if (typeof loadMyProfile === 'function') loadMyProfile();
+      if (typeof updateUserInfo === 'function') updateUserInfo();
+      if (typeof loadMyProfile === 'function') loadMyProfile();
 
-            if (state.session?.username) {
-                avatarCache.clear(state.session.username);
-            }
+      if (state.session?.username) {
+        avatarCache.clear(state.session.username);
+      }
 
-            toast(`✅ Аватарка: ${avatarFilename}`);
-        };
-        reader.readAsDataURL(file);
-    } catch (err) {
-        toast(err.message || 'Ошибка загрузки');
-    }
+      toast(`✅ Аватарка: ${avatarFilename}`);
+    };
+    reader.readAsDataURL(file);
+  } catch (err) {
+    toast(err.message || 'Ошибка загрузки');
+  }
 }
 function updateUserInfo() {
   const username = state.session?.username || "user";
@@ -4047,7 +4214,7 @@ function setMusicTrack(track, options = {}) {
   audio.load();
 
   if (options.autoplay) {
-    audio.play().catch(() => {});
+    audio.play().catch(() => { });
   } else {
     setMusicPlayState(false);
   }
@@ -4059,7 +4226,7 @@ function toggleMusicPlayback() {
   const audio = ensureMusicPlayer();
   if (!audio) return;
   if (audio.paused) {
-    audio.play().catch(() => {});
+    audio.play().catch(() => { });
   } else {
     audio.pause();
   }

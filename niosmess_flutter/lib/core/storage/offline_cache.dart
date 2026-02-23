@@ -19,9 +19,14 @@ class OfflineCache {
     return list.cast<Map<String, dynamic>>();
   }
 
-  static Future<void> saveMessages(String chatId, List<Map<String, dynamic>> messages) async {
+  static Future<void> saveMessages(
+      String chatId, List<Map<String, dynamic>> messages,
+      {int limit = 200}) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('cache_messages_$chatId', jsonEncode(messages));
+    final trimmed = messages.length > limit
+        ? messages.sublist(messages.length - limit)
+        : messages;
+    await prefs.setString('cache_messages_$chatId', jsonEncode(trimmed));
   }
 
   static Future<List<Map<String, dynamic>>> loadMessages(String chatId) async {
@@ -32,7 +37,8 @@ class OfflineCache {
     return list.cast<Map<String, dynamic>>();
   }
 
-  static Future<void> saveProfile(String username, Map<String, dynamic> profile) async {
+  static Future<void> saveProfile(
+      String username, Map<String, dynamic> profile) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('cache_profile_$username', jsonEncode(profile));
   }
@@ -64,14 +70,33 @@ class OfflineCache {
     }
   }
 
-  static Future<void> saveSessions(String username, List<Map<String, dynamic>> sessions) async {
+  static Future<void> saveSessions(
+      String username, List<Map<String, dynamic>> sessions) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('cache_sessions_$username', jsonEncode(sessions));
   }
 
-  static Future<List<Map<String, dynamic>>> loadSessions(String username) async {
+  static Future<List<Map<String, dynamic>>> loadSessions(
+      String username) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('cache_sessions_$username');
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<void> saveOutbox(List<Map<String, dynamic>> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('outbox_queue_v1', jsonEncode(items));
+  }
+
+  static Future<List<Map<String, dynamic>>> loadOutbox() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('outbox_queue_v1');
     if (raw == null || raw.isEmpty) return [];
     try {
       final list = jsonDecode(raw) as List<dynamic>;

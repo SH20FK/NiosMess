@@ -1,4 +1,4 @@
-﻿const twoChar = new Set([...revMap.keys()].filter((v) => v.length === 2));
+const twoChar = new Set([...revMap.keys()].filter((v) => v.length === 2));
 const oneChar = new Set([...revMap.keys()].filter((v) => v.length === 1));
 async function loadMessages({ silent = true } = {}) {
   if (!state.activeTarget || !state.session) return;
@@ -2997,13 +2997,13 @@ async function loadProfile() {
         badge.title = data.badge_title || "";
         badge.addEventListener("click", (e) => {
           e.stopPropagation();
-          toast(data.badge_text || "???? ??????? ???????? ????????????? ??? ????????? NiosMessa");
+          toast(data.badge_text || "Badge details will be available later.");
         });
         profileNameEl.appendChild(badge);
       }
     }
     $("profileUser").textContent = data.username ? `@${data.username}` : "";
-    $("profileStatus").textContent = data.isfrozen ? "?????????" : (data.last_seen_text || (data.isonline ? "??????" : "???????"));
+    $("profileStatus").textContent = data.isfrozen ? "Frozen" : (data.last_seen_text || (data.isonline ? "Online" : "Offline"));
     $("profileMail").textContent = data.email || "—";
     $("profileDate").textContent = data.regdate || "—";
     if (state.activeTarget && profileAvatar) {

@@ -15,14 +15,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:open_filex/open_filex.dart';
 import '../../core/constants.dart';
 import '../../core/models/message_item.dart';
 import '../../core/repositories/api_repository.dart';
 import '../../core/settings_provider.dart';
 import '../../core/session_provider.dart';
 import '../../core/ai_summary_provider.dart';
+import '../../core/bubble_style_provider.dart';
+import '../../core/downloads_provider.dart';
+import '../../core/obfuscate.dart';
+import '../../core/send_queue_provider.dart';
 import '../../ui/nios_ui.dart';
-
+import '../../ui/widgets/chat_header_widget.dart';
+import '../../ui/widgets/chat_input_widget.dart';
+import '../../ui/widgets/ghost_mode_overlay.dart';
+import '../../ui/widgets/media_viewer.dart';
+import '../../ui/widgets/message_action_sheet.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({
@@ -70,10 +79,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _recording = false;
   Duration _recordDuration = Duration.zero;
   Timer? _recordTimer;
+  Timer? _networkTimer;
+  bool _networkOnline = true;
   String? _recordPath;
   String? _currentAudioUrl;
   bool _autoPlayed = false;
-  Future<Uint8List?>? _headerAvatar;
+  Uint8List? _headerAvatarBytes;
 
   final Map<String, PollState> _polls = {};
   final Map<String, Map<String, int>> _reactionCounts = {};
@@ -82,7 +93,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   MessageItem? _replyTo;
   String? _pinnedMessageId;
   bool _searchOpen = false;
+  bool _weeklyMomentLoading = false;
+  List<Map<String, dynamic>> _weeklyMomentItems = [];
+  bool _searchLoading = false;
+  List<MessageItem> _searchResults = [];
+  Timer? _searchTimer;
   Timer? _draftTimer;
+  bool _weeklyRolesLoading = false;
+  Map<String, String> _weeklyRoles = {};
 
   @override
   void initState() {
@@ -92,18 +110,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _loadDraft();
     _load();
     _loadHeaderAvatar();
+    if (widget.chatType == 'channel') {
+      _loadWeeklyMoment();
+    }
+    if (widget.chatType == 'group') {
+      _loadWeeklyRoles();
+    }
+    _startNetworkWatch();
     // Initialize AI summary for this chat
     ref.read(aiSummaryProvider.notifier).loadForChat(widget.chatId);
   }
-
-
 
   Future<void> _loadHeaderAvatar() async {
     if (widget.chatType != 'user') return;
     final username = (widget.chatUsername ?? widget.chatId).trim();
     if (username.isEmpty) return;
-    _headerAvatar = api.getAvatarBytes(username);
-    if (mounted) setState(() {});
+    final bytes = await api.getAvatarBytes(username);
+    if (mounted) {
+      setState(() => _headerAvatarBytes = bytes);
+    }
   }
 
   @override
@@ -113,6 +138,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _recorder.dispose();
     _audioPlayer.dispose();
     _recordTimer?.cancel();
+    _networkTimer?.cancel();
+    _searchTimer?.cancel();
     _draftTimer?.cancel();
     super.dispose();
   }
@@ -143,13 +170,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (!session.isAuthed) return;
     try {
       final data = _isCollective(widget.chatId)
-          ? await api.getCollectiveMessages(widget.chatId, session.username!, session.token!)
-          : await api.getMessagesUser(session.username!, widget.chatId, session.token!);
+          ? await api.getCollectiveMessages(
+              widget.chatId, session.username!, session.token!)
+          : await api.getMessagesUser(
+              session.username!, widget.chatId, session.token!);
       setState(() {
         messages = data;
         _updatePinnedFromMessages(data);
         loading = false;
       });
+      await _loadReactions(data);
       _autoPlayFirstVoice();
     } catch (_) {
       final cached = await api.getCachedMessages(widget.chatId);
@@ -158,13 +188,164 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _updatePinnedFromMessages(cached);
         loading = false;
       });
+      await _loadReactions(cached);
     }
   }
 
-  bool _isCollective(String chatId) =>
-      widget.chatType == 'group' || widget.chatType == 'channel' || chatId.startsWith('group_') || chatId.startsWith('channel_');
+  List<MessageItem> _withQueuedMessages(List<MessageItem> base) {
+    final queue = ref.read(sendQueueProvider);
+    final failed = ref.read(sendQueueProvider.notifier);
+    if (queue.isEmpty) return base;
+    final session = ref.read(sessionProvider);
+    final queued =
+        queue.where((item) => item.chatId == widget.chatId).map((item) {
+      final localStatus = failed.isFailed(item.id)
+          ? MessageLocalStatus.failed
+          : MessageLocalStatus.queued;
+      return MessageItem(
+        id: 'local_${item.id}',
+        sender: session.username ?? '',
+        text: item.text,
+        time: item.createdAt.toString(),
+        type: item.msgType,
+        lat: item.lat,
+        lon: item.lon,
+        contactData: item.contactData,
+        replyToId: item.replyTo,
+        meta: {'outbox_id': item.id},
+        localStatus: localStatus,
+        isOutgoing: true,
+      );
+    }).toList();
+    return [...queued, ...base];
+  }
 
-  Future<void> _send({String? overrideText}) async {
+  bool _isCollective(String chatId) =>
+      widget.chatType == 'group' ||
+      widget.chatType == 'channel' ||
+      chatId.startsWith('group_') ||
+      chatId.startsWith('channel_');
+
+  Future<void> _loadReactions(List<MessageItem> items) async {
+    if (items.isEmpty) return;
+    final session = ref.read(sessionProvider);
+    if (!session.isAuthed) return;
+    try {
+      final res = await api.getReactionsBatch(
+        username: session.username!,
+        token: session.token!,
+        messageIds: items.map((m) => m.id).toList(),
+        chatId: _isCollective(widget.chatId) ? widget.chatId : null,
+        collective: _isCollective(widget.chatId),
+      );
+      final data = res['data'];
+      if (data is Map) {
+        data.forEach((messageId, payload) {
+          if (payload is Map) {
+            final countsRaw = payload['counts'];
+            final mineRaw = payload['mine'];
+            if (countsRaw is Map) {
+              _reactionCounts[messageId.toString()] = countsRaw.map(
+                (key, value) =>
+                    MapEntry(key.toString(), (value as num).toInt()),
+              );
+            }
+            if (mineRaw is Map) {
+              _myReactions[messageId.toString()] =
+                  mineRaw.keys.map((e) => e.toString()).toSet();
+            }
+          }
+        });
+        if (mounted) setState(() {});
+      }
+    } catch (_) {
+      // ignore, keep existing state
+    }
+  }
+
+  Future<void> _loadWeeklyMoment() async {
+    final session = ref.read(sessionProvider);
+    if (!session.isAuthed) return;
+    setState(() => _weeklyMomentLoading = true);
+    try {
+      final res = await api.getWeeklyMoment(
+        chatId: widget.chatId,
+        username: session.username!,
+        token: session.token!,
+      );
+      final raw = res['items'];
+      if (!mounted) return;
+      if (raw is List) {
+        _weeklyMomentItems =
+            raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      } else {
+        _weeklyMomentItems = [];
+      }
+      setState(() => _weeklyMomentLoading = false);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _weeklyMomentLoading = false);
+    }
+  }
+
+  Future<void> _loadWeeklyRoles() async {
+    final session = ref.read(sessionProvider);
+    if (!session.isAuthed) return;
+    setState(() => _weeklyRolesLoading = true);
+    try {
+      final res = await api.getWeeklyRoles(
+        chatId: widget.chatId,
+        username: session.username!,
+        token: session.token!,
+      );
+      final raw = res['roles'];
+      if (!mounted) return;
+      final roles = <String, String>{};
+      if (raw is List) {
+        for (final item in raw) {
+          if (item is Map) {
+            final role = item['role']?.toString() ?? '';
+            final user = item['username']?.toString() ?? '';
+            if (role.isNotEmpty && user.isNotEmpty) {
+              roles[role] = user;
+            }
+          }
+        }
+      }
+      setState(() {
+        _weeklyRoles = roles;
+        _weeklyRolesLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _weeklyRolesLoading = false);
+    }
+  }
+
+  void _startNetworkWatch() {
+    _checkNetwork();
+    _networkTimer =
+        Timer.periodic(const Duration(seconds: 20), (_) => _checkNetwork());
+  }
+
+  Future<void> _checkNetwork() async {
+    final session = ref.read(sessionProvider);
+    if (!session.isAuthed) return;
+    try {
+      await api.checkSession(session.username!, session.token!);
+      if (mounted) setState(() => _networkOnline = true);
+    } catch (_) {
+      if (mounted) setState(() => _networkOnline = false);
+    }
+  }
+
+  Future<void> _send({
+    String? overrideText,
+    String? msgType,
+    double? lat,
+    double? lon,
+    String? contactData,
+  }) async {
     final session = ref.read(sessionProvider);
     if (!session.isAuthed || sending) return;
     var text = (overrideText ?? controller.text).trim();
@@ -180,12 +361,56 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() => sending = true);
     try {
       if (_isCollective(widget.chatId)) {
-        await api.sendCollective(widget.chatId, session.username!, text, session.token!, replyTo: replyId);
+        await api.sendCollective(
+          widget.chatId,
+          session.username!,
+          text,
+          session.token!,
+          replyTo: replyId,
+          msgType: msgType,
+          lat: lat,
+          lon: lon,
+          contactData: contactData,
+        );
       } else {
-        await api.sendMessageUser(session.username!, widget.chatId, text, session.token!, replyTo: replyId);
+        await api.sendMessageUser(
+          session.username!,
+          widget.chatId,
+          text,
+          session.token!,
+          replyTo: replyId,
+          msgType: msgType,
+          lat: lat,
+          lon: lon,
+          contactData: contactData,
+        );
       }
       _replyTo = null;
       await _load();
+    } catch (_) {
+      final queue = ref.read(sendQueueProvider.notifier);
+      final outboxId = DateTime.now().millisecondsSinceEpoch.toString();
+      await queue.enqueue(
+        OutboxItem(
+          id: outboxId,
+          chatId: widget.chatId,
+          chatType: widget.chatType,
+          text: text,
+          replyTo: replyId?.toString(),
+          msgType: msgType,
+          lat: lat,
+          lon: lon,
+          contactData: contactData,
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Сообщение в очереди отправки')),
+        );
+      }
     } finally {
       if (mounted) setState(() => sending = false);
     }
@@ -215,6 +440,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return '$base/download/$filename';
   }
 
+  Map<String, String> get _mediaHeaders {
+    final session = ref.read(sessionProvider);
+    if (session.isAuthed && session.username != null && session.token != null) {
+      return {
+        'X-Username': session.username!,
+        'X-Session-Token': session.token!,
+      };
+    }
+    return {};
+  }
+
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
@@ -222,9 +458,146 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  String? _getLocalDownloadPath(String filename) {
+    final local = ref.read(downloadsProvider).local;
+    for (final entry in local) {
+      if (entry.filename == filename &&
+          entry.path != null &&
+          entry.path!.isNotEmpty) {
+        return entry.path;
+      }
+    }
+    return null;
+  }
+
+  bool _isImageFile(String filename) {
+    final ext = filename.toLowerCase();
+    return ext.endsWith('.jpg') ||
+        ext.endsWith('.jpeg') ||
+        ext.endsWith('.png') ||
+        ext.endsWith('.gif') ||
+        ext.endsWith('.webp') ||
+        ext.endsWith('.bmp');
+  }
+
+  bool _isVideoFile(String filename) {
+    final ext = filename.toLowerCase();
+    return ext.endsWith('.mp4') ||
+        ext.endsWith('.mov') ||
+        ext.endsWith('.avi') ||
+        ext.endsWith('.mkv') ||
+        ext.endsWith('.webm');
+  }
+
+  MediaViewerType? _getMediaType(String filename) {
+    if (_isImageFile(filename)) return MediaViewerType.image;
+    if (_isVideoFile(filename)) return MediaViewerType.video;
+    if (_isAudioFile(filename)) return MediaViewerType.audio;
+    return null;
+  }
+
+  Future<void> _openFile(String filename) async {
+    final session = ref.read(sessionProvider);
+    if (!session.isAuthed) return;
+
+    final mediaType = _getMediaType(filename);
+
+    // For images, try network URL first (no download needed)
+    if (mediaType == MediaViewerType.image) {
+      MediaViewer.open(
+        context,
+        source: _mediaUrl(filename),
+        type: MediaViewerType.image,
+        title: filename,
+      );
+      return;
+    }
+
+    try {
+      var path = _getLocalDownloadPath(filename);
+      if (path == null || path.isEmpty || !File(path).existsSync()) {
+        path = await api.downloadFile(
+          filename: filename,
+          username: session.username!,
+          token: session.token!,
+        );
+        final file = File(path);
+        final size = await file.length();
+        await ref.read(downloadsProvider.notifier).addLocalDownload(
+              filename: filename,
+              path: path,
+              size: size,
+            );
+      }
+
+      if (!mounted) return;
+
+      // Open in-app viewer for media files
+      if (mediaType != null) {
+        MediaViewer.open(
+          context,
+          source: path,
+          type: mediaType,
+          title: filename,
+        );
+        return;
+      }
+
+      // Fallback to external app for other file types
+      final result = await OpenFilex.open(path);
+      if (!mounted) return;
+      if (result.type != ResultType.done) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось открыть файл')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось открыть файл')),
+      );
+    }
+  }
+
+  Future<void> _downloadFile(String filename) async {
+    final session = ref.read(sessionProvider);
+    if (!session.isAuthed) return;
+    try {
+      final path = await api.downloadFile(
+        filename: filename,
+        username: session.username!,
+        token: session.token!,
+      );
+      final file = File(path);
+      final size = await file.length();
+      await ref.read(downloadsProvider.notifier).addLocalDownload(
+            filename: filename,
+            path: path,
+            size: size,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Файл сохранен')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Не удалось скачать файл')),
+      );
+    }
+  }
+
   bool _isAudioFile(String filename) {
     final ext = filename.toLowerCase();
-    return ext.endsWith('.mp3') || ext.endsWith('.wav') || ext.endsWith('.ogg') || ext.endsWith('.m4a') || ext.endsWith('.aac');
+    return ext.endsWith('.mp3') ||
+        ext.endsWith('.wav') ||
+        ext.endsWith('.ogg') ||
+        ext.endsWith('.m4a') ||
+        ext.endsWith('.aac');
   }
 
   Future<void> _playAudio(String url) async {
@@ -247,9 +620,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _autoPlayFirstVoice() {
     if (_autoPlayed || messages.isEmpty) return;
     for (final msg in messages) {
-      final payload = _parsePayload(msg.text);
+      final payload = _parsePayload(msg);
       if (payload.type == 'file' || payload.type == 'media') {
-        final filename = payload.type == 'file' ? payload.data : _extractFilename(payload.data);
+        final filename = payload.type == 'file'
+            ? payload.data
+            : _extractFilename(payload.data);
         if (filename != null && _isAudioFile(filename)) {
           _autoPlayed = true;
           _playAudio(_mediaUrl(filename));
@@ -292,10 +667,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final countsRaw = res['counts'];
       final mineRaw = res['mine'];
       if (countsRaw is Map) {
-        _reactionCounts[message.id] = countsRaw.map((key, value) => MapEntry(key.toString(), (value as num).toInt()));
+        _reactionCounts[message.id] = countsRaw.map(
+            (key, value) => MapEntry(key.toString(), (value as num).toInt()));
       }
       if (mineRaw is Map) {
-        _myReactions[message.id] = mineRaw.keys.map((e) => e.toString()).toSet();
+        _myReactions[message.id] =
+            mineRaw.keys.map((e) => e.toString()).toSet();
       }
       if (mounted) setState(() {});
     } catch (_) {
@@ -305,55 +682,87 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _showMessageMenu(MessageItem message) {
     final session = ref.read(sessionProvider);
+    final reduceMotion =
+        (ref.read(settingsProvider)['reduce_motion'] as bool?) ?? false;
     final isOwn = session.username == message.sender;
     final isFavorite = _favorites.contains(message.id);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-          decoration: BoxDecoration(
-            color: NiosPalette.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            border: Border.all(color: NiosPalette.border),
+        final quick = <MessageActionItem>[
+          MessageActionItem(
+            label: 'Ответить',
+            icon: Icons.reply,
+            onTap: () {
+              Navigator.pop(context);
+              setState(() => _replyTo = message);
+            },
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildReactionRow(message),
-              const SizedBox(height: 12),
-              _menuButton('Ответить', Icons.reply, () {
-                Navigator.pop(context);
-                setState(() => _replyTo = message);
-              }),
-              if (isOwn)
-                _menuButton('Редактировать', Icons.edit, () {
-                  Navigator.pop(context);
-                  _editMessage(message);
-                }),
-              _menuButton('Копировать', Icons.copy, () async {
-                Navigator.pop(context);
-                await Clipboard.setData(ClipboardData(text: message.text));
-              }),
-              _menuButton('Переслать', Icons.forward, () {
-                Navigator.pop(context);
-                _openForwardModal(message);
-              }),
-              _menuButton(isFavorite ? 'Убрать из избранного' : 'В избранное', Icons.star_border, () {
-                Navigator.pop(context);
-                _toggleFavorite(message);
-              }),
-              _menuButton(message.isPinned == true ? 'Открепить' : 'Закрепить', Icons.push_pin_outlined, () {
-                Navigator.pop(context);
-                _togglePinMessage(message);
-              }),
-              _menuButton('Удалить', Icons.delete_outline, () {
-                Navigator.pop(context);
-                _deleteMessage(message);
-              }),
-            ],
+          MessageActionItem(
+            label: 'Копировать',
+            icon: Icons.copy,
+            onTap: () async {
+              Navigator.pop(context);
+              await Clipboard.setData(ClipboardData(text: message.text));
+            },
           ),
+          MessageActionItem(
+            label: 'Переслать',
+            icon: Icons.forward,
+            onTap: () {
+              Navigator.pop(context);
+              _openForwardModal(message);
+            },
+          ),
+          MessageActionItem(
+            label: isFavorite ? 'Убрать из избранного' : 'В избранное',
+            icon: Icons.star_border,
+            onTap: () {
+              Navigator.pop(context);
+              _toggleFavorite(message);
+            },
+          ),
+        ];
+        final own = <MessageActionItem>[
+          if (isOwn)
+            MessageActionItem(
+              label: 'Редактировать',
+              icon: Icons.edit,
+              onTap: () {
+                Navigator.pop(context);
+                _editMessage(message);
+              },
+            ),
+          MessageActionItem(
+            label: message.isPinned == true ? 'Открепить' : 'Закрепить',
+            icon: Icons.push_pin_outlined,
+            onTap: () {
+              Navigator.pop(context);
+              _togglePinMessage(message);
+            },
+          ),
+        ];
+        final danger = <MessageActionItem>[
+          MessageActionItem(
+            label: 'Удалить',
+            icon: Icons.delete_outline,
+            danger: true,
+            onTap: () {
+              Navigator.pop(context);
+              _deleteMessage(message);
+            },
+          ),
+        ];
+        return MessageActionSheet(
+          preview: message.text,
+          reactions: _buildReactionRow(message),
+          quickActions: quick,
+          ownActions: own,
+          dangerActions: danger,
+          reduceMotion: reduceMotion,
         );
       },
     );
@@ -376,16 +785,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: NiosPalette.surface,
-        title: Text('Редактировать', style: TextStyle(color: NiosPalette.text)),
+        title: Text(
+            'Редактировать',
+            style: TextStyle(color: NiosPalette.text)),
         content: TextField(
           controller: controller,
           minLines: 1,
           maxLines: 4,
-          decoration: niosInputDecoration('Текст сообщения'),
+          decoration: niosInputDecoration(
+              'Текст сообщения'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
-          TextButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Сохранить')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                  'Отмена')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, controller.text),
+              child: const Text(
+                  'Сохранить')),
         ],
       ),
     );
@@ -408,11 +826,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: NiosPalette.surface,
-        title: Text('Удалить сообщение?', style: TextStyle(color: NiosPalette.text)),
-        content: Text('Сообщение будет удалено только у вас, если это позволяет сервер.', style: TextStyle(color: NiosPalette.textSecondary)),
+        title: Text(
+            'Удалить сообщение?',
+            style: TextStyle(color: NiosPalette.text)),
+        content: Text(
+            'Сообщение будет удалено только у вас, если это позволяет сервер.',
+            style: TextStyle(color: NiosPalette.textSecondary)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Отмена')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Удалить')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text(
+                  'Отмена')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text(
+                  'Удалить')),
         ],
       ),
     );
@@ -452,7 +880,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildReactionRow(MessageItem message) {
-    final emojis = ['👍', '❤️', '😂', '😮', '😢', '😡'];
+    final emojis = [
+      '👍',
+      '❤️',
+      '😂',
+      '😮',
+      '😢',
+      '😡'
+    ];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: emojis.map((emoji) {
@@ -481,23 +916,56 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       builder: (_) {
         return AlertDialog(
           backgroundColor: NiosPalette.surface,
-          title: Text('Переслать', style: TextStyle(color: NiosPalette.text)),
+          title: Text(
+              'Переслать',
+              style: TextStyle(color: NiosPalette.text)),
           content: TextField(
             controller: controller,
             decoration: niosInputDecoration('chat_id'),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                  'Отмена'),
+            ),
             TextButton(
               onPressed: () async {
                 final session = ref.read(sessionProvider);
                 if (!session.isAuthed) return;
                 final target = controller.text.trim();
                 if (target.isEmpty) return;
-                await api.sendMessageUser(session.username!, target, message.text, session.token!);
-                Navigator.pop(context);
+                final targetType = target.startsWith('group_')
+                    ? 'group'
+                    : target.startsWith('channel_')
+                        ? 'channel'
+                        : 'user';
+                final forwardFrom = _isCollective(widget.chatId)
+                    ? widget.chatId
+                    : message.sender;
+                try {
+                  await api.forwardMessage(
+                    username: session.username!,
+                    token: session.token!,
+                    chatId: target,
+                    chatType: targetType,
+                    forwardFrom: forwardFrom,
+                    messageId: message.id,
+                    forwardChatType: widget.chatType,
+                  );
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                } catch (_) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            'Не удалось переслать сообщение')),
+                  );
+                }
               },
-              child: const Text('Отправить'),
+              child: const Text(
+                  'Отправить'),
             ),
           ],
         );
@@ -506,16 +974,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _openAttachMenu() {
-    final reduceMotion = (ref.read(settingsProvider)['reduce_motion'] as bool?) ?? false;
+    final reduceMotion =
+        (ref.read(settingsProvider)['reduce_motion'] as bool?) ?? false;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) {
         final items = [
-          _AttachItem('Опрос', Icons.poll, _openPollModal),
-          _AttachItem('Геометка', Icons.place, _sendLocation),
-          _AttachItem('Файл', Icons.insert_drive_file, _pickAndUploadFile),
-          _AttachItem('Контакт', Icons.person, _sendContact),
+          _AttachItem(
+              'Опрос',
+              Icons.poll,
+              _openPollModal),
+          _AttachItem(
+              'Геометка',
+              Icons.place,
+              _sendLocation),
+          _AttachItem(
+              'Файл',
+              Icons.insert_drive_file,
+              _pickAndUploadFile),
+          _AttachItem(
+              'Контакт',
+              Icons.person,
+              _sendContact),
         ];
         return Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -541,7 +1022,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   final item = items[index];
                   return TweenAnimationBuilder<double>(
                     tween: Tween(begin: 0.9, end: 1),
-                    duration: Duration(milliseconds: reduceMotion ? 0 : 220 + (index * 40)),
+                    duration: Duration(
+                        milliseconds: reduceMotion ? 0 : 220 + (index * 40)),
                     curve: Curves.easeOutBack,
                     builder: (context, value, child) {
                       return Transform.scale(
@@ -558,7 +1040,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         await item.onTap();
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 10),
                         decoration: BoxDecoration(
                           color: NiosPalette.surfaceHover,
                           borderRadius: BorderRadius.circular(14),
@@ -572,7 +1055,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             Text(
                               item.label,
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12),
+                              style: TextStyle(
+                                  color: NiosPalette.textSecondary,
+                                  fontSize: 12),
                             ),
                           ],
                         ),
@@ -588,13 +1073,48 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-
   void _openEmojiPicker() {
     const emojis = [
-      '😀','😅','😂','🤣','😊','😍','😘','😎','🤔','😴',
-      '👍','👎','👏','🙏','💪','🔥','🎉','✨','💯','✅',
-      '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔',
-      '😢','😭','😡','🤬','😱','😇','🤗','😜','🤩','🥳',
+      '😀',
+      '😅',
+      '😂',
+      '🤣',
+      '😊',
+      '😍',
+      '😘',
+      '😎',
+      '🤔',
+      '😴',
+      '👍',
+      '👎',
+      '👏',
+      '🙏',
+      '💪',
+      '🔥',
+      '🎉',
+      '✨',
+      '💯',
+      '✅',
+      '❤️',
+      '🧡',
+      '💛',
+      '💚',
+      '💙',
+      '💜',
+      '🖤',
+      '🤍',
+      '🤎',
+      '💔',
+      '😢',
+      '😭',
+      '😡',
+      '🤬',
+      '😱',
+      '😇',
+      '🤗',
+      '😜',
+      '🤩',
+      '🥳',
     ];
     showModalBottomSheet(
       context: context,
@@ -623,7 +1143,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   Navigator.pop(context);
                 },
                 borderRadius: BorderRadius.circular(10),
-                child: Center(child: Text(emoji, style: const TextStyle(fontSize: 20))),
+                child: Center(
+                    child: Text(emoji, style: const TextStyle(fontSize: 20))),
               );
             },
           ),
@@ -639,7 +1160,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final end = selection.end >= 0 ? selection.end : text.length;
     final newText = text.replaceRange(start, end, value);
     controller.text = newText;
-    controller.selection = TextSelection.collapsed(offset: start + value.length);
+    controller.selection =
+        TextSelection.collapsed(offset: start + value.length);
   }
 
   Future<void> _scheduleSend() async {
@@ -650,7 +1172,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
     if (picked == null) return;
     final now = DateTime.now();
-    var target = DateTime(now.year, now.month, now.day, picked.hour, picked.minute);
+    var target =
+        DateTime(now.year, now.month, now.day, picked.hour, picked.minute);
     if (target.isBefore(now)) {
       target = target.add(const Duration(days: 1));
     }
@@ -659,7 +1182,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     controller.clear();
     _saveDraft();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Сообщение будет отправлено в ${picked.format(context)}')),
+      SnackBar(
+          content: Text(
+              'Сообщение будет отправлено в ${picked.format(context)}')),
     );
     Timer(delay, () {
       if (!mounted) return;
@@ -667,10 +1192,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  void _showSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature скоро будет доступна')),
-    );
+  Future<void> _requestCall() async {
+    final session = ref.read(sessionProvider);
+    if (!session.isAuthed) return;
+    if (widget.chatType != 'user') {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Звонки доступны только в личных чатах')),
+      );
+      return;
+    }
+    try {
+      await api.requestCall(
+        caller: session.username!,
+        callee: widget.chatId,
+        token: session.token!,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Запрос звонка отправлен')),
+      );
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Не удалось отправить звонок')),
+      );
+    }
   }
 
   Future<void> _pickAndUploadFile() async {
@@ -699,7 +1253,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _openPollModal() async {
     final questionController = TextEditingController();
-    final options = <TextEditingController>[TextEditingController(), TextEditingController()];
+    final options = <TextEditingController>[
+      TextEditingController(),
+      TextEditingController()
+    ];
     bool multiple = false;
 
     await showDialog(
@@ -708,13 +1265,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         return StatefulBuilder(builder: (context, setStateDialog) {
           return AlertDialog(
             backgroundColor: NiosPalette.surface,
-            title: Text('Новый опрос', style: TextStyle(color: NiosPalette.text)),
+            title: Text(
+                'Новый опрос',
+                style: TextStyle(color: NiosPalette.text)),
             content: SingleChildScrollView(
               child: Column(
                 children: [
                   TextField(
                     controller: questionController,
-                    decoration: niosInputDecoration('Вопрос'),
+                    decoration: niosInputDecoration(
+                        'Вопрос'),
                   ),
                   const SizedBox(height: 12),
                   Column(
@@ -723,7 +1283,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: TextField(
                           controller: options[i],
-                          decoration: niosInputDecoration('Вариант'),
+                          decoration: niosInputDecoration(
+                              'Вариант'),
                         ),
                       );
                     }),
@@ -731,35 +1292,47 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton(
-                      onPressed: () => setStateDialog(() => options.add(TextEditingController())),
-                      child: const Text('Добавить вариант'),
+                      onPressed: () => setStateDialog(
+                          () => options.add(TextEditingController())),
+                      child: const Text(
+                          'Добавить вариант'),
                     ),
                   ),
                   Row(
                     children: [
                       Checkbox(
                         value: multiple,
-                        onChanged: (val) => setStateDialog(() => multiple = val ?? false),
+                        onChanged: (val) =>
+                            setStateDialog(() => multiple = val ?? false),
                       ),
-                      Text('Можно несколько', style: TextStyle(color: NiosPalette.textSecondary)),
+                      Text(
+                          'Можно несколько',
+                          style: TextStyle(color: NiosPalette.textSecondary)),
                     ],
                   ),
                 ],
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                      'Отмена')),
               TextButton(
                 onPressed: () async {
                   final question = questionController.text.trim();
-                  final opts = options.map((e) => e.text.trim()).where((e) => e.isNotEmpty).toList();
+                  final opts = options
+                      .map((e) => e.text.trim())
+                      .where((e) => e.isNotEmpty)
+                      .toList();
                   if (question.isEmpty || opts.length < 2) return;
                   final payload = {
                     'id': 'poll_${DateTime.now().millisecondsSinceEpoch}',
                     'question': question,
                     'options': opts
                         .map((e) => {
-                              'id': 'opt_${DateTime.now().microsecondsSinceEpoch}_${opts.indexOf(e)}',
+                              'id':
+                                  'opt_${DateTime.now().microsecondsSinceEpoch}_${opts.indexOf(e)}',
                               'text': e,
                             })
                         .toList(),
@@ -772,7 +1345,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   Navigator.pop(context);
                   await _send();
                 },
-                child: const Text('Создать'),
+                child: const Text(
+                    'Создать'),
               ),
             ],
           );
@@ -786,32 +1360,51 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (!session.isAuthed) return;
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      _showSoon('Геолокация');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Сервис геолокации выключен')),
+      );
       return;
     }
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-      _showSoon('Геолокация');
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Нет доступа к геолокации')),
+      );
       return;
     }
     final position = await Geolocator.getCurrentPosition();
     final payload = {
       'lat': position.latitude,
       'lon': position.longitude,
-      'label': 'Моя геопозиция',
+      'label':
+          'Моя локация',
     };
-    controller.text = 'LOCATION:${jsonEncode(payload)}';
-    await _send();
+    await _send(
+      overrideText: payload['label'] as String,
+      msgType: 'location',
+      lat: position.latitude,
+      lon: position.longitude,
+      contactData: jsonEncode(payload),
+    );
   }
 
   Future<void> _sendContact() async {
     final session = ref.read(sessionProvider);
     if (!session.isAuthed) return;
     if (!await FlutterContacts.requestPermission()) {
-      _showSoon('Контакты');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Нет доступа к контактам')),
+      );
       return;
     }
     final contact = await FlutterContacts.openExternalPick();
@@ -821,8 +1414,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       'phones': contact.phones.map((e) => e.number).toList(),
       'emails': contact.emails.map((e) => e.address).toList(),
     };
-    controller.text = 'CONTACT:${jsonEncode(payload)}';
-    await _send();
+    await _send(
+      overrideText: contact.displayName,
+      msgType: 'contact',
+      contactData: jsonEncode(payload),
+    );
   }
 
   Future<void> _toggleRecord() async {
@@ -851,7 +1447,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     final dir = await getTemporaryDirectory();
-    final filePath = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    final filePath =
+        '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
     await _recorder.start(
       const RecordConfig(
         encoder: AudioEncoder.aacLc,
@@ -897,53 +1494,102 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final session = ref.read(sessionProvider);
     final settings = ref.watch(settingsProvider);
+    final bubbleStyle = ref.watch(bubbleStyleProvider);
     final reduceMotion = (settings['reduce_motion'] as bool?) ?? false;
     final compactMessages = (settings['compact_messages'] as bool?) ?? false;
     final linkPreview = (settings['link_preview'] as bool?) ?? true;
+    final enterToSend = (settings['enter_to_send'] as bool?) ?? false;
     final visibleMessages = _visibleMessages();
-    
+    final outboxCount = ref
+        .watch(sendQueueProvider)
+        .where((item) => item.chatId == widget.chatId)
+        .length;
+
     // Watch AI summary provider
     final aiSummary = ref.watch(aiSummaryProvider);
-    
-    return NiosScaffold(
+
+    final content = NiosScaffold(
       body: Column(
         children: [
-          _buildHeader(),
+          // New Telegram-style header
+          RepaintBoundary(
+            child: ChatHeaderWidget(
+              title: widget.title ?? widget.chatId,
+              status: widget.status,
+              chatType: widget.chatType,
+              chatUsername: widget.chatUsername,
+              avatarBytes: _headerAvatarBytes,
+              badgeText: widget.badgeText,
+              badgeIcon: widget.badgeIcon,
+              heroTag: 'chat_avatar_${widget.chatId}',
+              queueCount: outboxCount,
+              networkOnline: _networkOnline,
+              onBack: widget.onBack,
+              onSearch: _toggleSearchBar,
+              onCall: _requestCall,
+              onMenu: _openChatMenu,
+              onAvatarTap: widget.chatType == 'user'
+                  ? () =>
+                      widget.onOpenProfile(widget.chatUsername ?? widget.chatId)
+                  : null,
+              reduceMotion: reduceMotion,
+            ),
+          ),
+
           _buildSearchBar(reduceMotion: reduceMotion),
           _buildPinnedBar(),
-          
-          // AI Summary Widget
-          if (messages.length >= 10)
-            _buildAiSummaryButton(aiSummary),
-          
+          if (widget.chatType == 'channel') _buildWeeklyMomentCard(),
+          if (widget.chatType == 'group') _buildWeeklyRolesCard(),
+
           if (aiSummary.isExpanded && aiSummary.hasSummary)
             _buildAiSummaryCard(aiSummary),
-          
-          Expanded(
 
-              child: AnimatedSwitcher(
+          Expanded(
+            child: AnimatedSwitcher(
               duration: Duration(milliseconds: reduceMotion ? 0 : 320),
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeInCubic,
               child: loading
-                  ? const Center(key: ValueKey('loading'), child: CircularProgressIndicator())
+                  ? const Center(
+                      key: ValueKey('loading'),
+                      child: CircularProgressIndicator())
                   : ListView.builder(
                       key: const ValueKey('messages'),
-                      padding: EdgeInsets.symmetric(horizontal: compactMessages ? 12 : 16, vertical: compactMessages ? 8 : 12),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: compactMessages ? 12 : 16,
+                          vertical: compactMessages ? 8 : 12),
+                      addAutomaticKeepAlives: false,
+                      addRepaintBoundaries: true,
+                      addSemanticIndexes: false,
+                      cacheExtent: 1600,
+                      physics: const BouncingScrollPhysics(),
                       itemCount: visibleMessages.length,
                       itemBuilder: (_, i) {
                         final m = visibleMessages[i];
                         final isOwn = m.sender == session.username;
-                        return Align(
-                          alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
-                          child: GestureDetector(
-                            onLongPress: () => _showMessageMenu(m),
-                            child: Column(
-                              crossAxisAlignment: isOwn ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                              children: [
-                                _buildMessageBubble(m, isOwn, compact: compactMessages, linkPreview: linkPreview),
-                                _buildReactions(m),
-                              ],
+                        return RepaintBoundary(
+                          child: Align(
+                            alignment: isOwn
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: GestureDetector(
+                              onTap: () => _retryOutboxMessage(m),
+                              onLongPress: () => _showMessageMenu(m),
+                              child: Column(
+                                crossAxisAlignment: isOwn
+                                    ? CrossAxisAlignment.end
+                                    : CrossAxisAlignment.start,
+                                children: [
+                                  _buildMessageBubble(
+                                    m,
+                                    isOwn,
+                                    bubbleStyle: bubbleStyle,
+                                    compact: compactMessages,
+                                    linkPreview: linkPreview,
+                                  ),
+                                  _buildReactions(m),
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -951,16 +1597,38 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     ),
             ),
           ),
-          _buildComposer(),
+
+          // New Telegram-style input
+          ChatInputWidget(
+            controller: controller,
+            isRecording: _recording,
+            recordDuration: _recordDuration,
+            replyTo: _replyTo,
+            onSend: _send,
+            onEmoji: _openEmojiPicker,
+            onAttach: _openAttachMenu,
+            onRecord: _toggleRecord,
+            onCancelRecord: _cancelRecording,
+            onClearReply: () => setState(() => _replyTo = null),
+            sending: sending,
+            enterToSend: enterToSend,
+          ),
         ],
       ),
+    );
+
+    return GhostModeOverlay(
+      chatId: widget.chatId,
+      child: content,
     );
   }
 
   List<MessageItem> _visibleMessages() {
+    final merged = _withQueuedMessages(messages);
     final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) return messages;
-    return messages.where((m) => m.text.toLowerCase().contains(query)).toList();
+    if (query.isEmpty) return merged;
+    if (_searchResults.isNotEmpty) return _searchResults;
+    return merged.where((m) => m.text.toLowerCase().contains(query)).toList();
   }
 
   String get _draftKey => '$_draftKeyPrefix${widget.chatId}';
@@ -985,7 +1653,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final raw = prefs.getString(_draftKey);
     if (raw != null && raw.isNotEmpty) {
       controller.text = raw;
-      controller.selection = TextSelection.collapsed(offset: controller.text.length);
+      controller.selection =
+          TextSelection.collapsed(offset: controller.text.length);
     }
     controller.addListener(_scheduleDraftSave);
   }
@@ -1018,9 +1687,47 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _searchOpen = !_searchOpen;
       if (_searchOpen) {
         _searchController.text = _searchQuery;
-        _searchController.selection = TextSelection.collapsed(offset: _searchController.text.length);
+        _searchController.selection =
+            TextSelection.collapsed(offset: _searchController.text.length);
       }
     });
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() => _searchQuery = value);
+    _searchTimer?.cancel();
+    if (value.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _searchLoading = false;
+      });
+      return;
+    }
+    _searchTimer = Timer(const Duration(milliseconds: 350), _searchMessages);
+  }
+
+  Future<void> _searchMessages() async {
+    final session = ref.read(sessionProvider);
+    final query = _searchQuery.trim();
+    if (!session.isAuthed || query.isEmpty) return;
+    setState(() => _searchLoading = true);
+    try {
+      final results = await api.searchMessages(
+        chatId: widget.chatId,
+        query: query,
+        username: session.username!,
+        token: session.token!,
+        chatType: widget.chatType,
+      );
+      if (!mounted) return;
+      setState(() {
+        _searchResults = results;
+        _searchLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _searchLoading = false);
+    }
   }
 
   Widget _buildSearchBar({required bool reduceMotion}) {
@@ -1028,31 +1735,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return AnimatedContainer(
       duration: Duration(milliseconds: reduceMotion ? 0 : 220),
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              decoration: niosInputDecoration('Поиск в чате', icon: Icons.search),
-              onChanged: (value) => setState(() => _searchQuery = value),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: niosInputDecoration(
+                      'Поиск в чате',
+                      icon: Icons.search),
+                  onChanged: _onSearchChanged,
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _searchQuery = '';
+                    _searchResults = [];
+                    _searchController.clear();
+                    _searchOpen = false;
+                    _searchLoading = false;
+                  });
+                },
+                icon: Icon(Icons.close, color: NiosPalette.textSecondary),
+              ),
+            ],
+          ),
+          if (_searchLoading)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: LinearProgressIndicator(minHeight: 2),
             ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: () {
-              setState(() {
-                _searchQuery = '';
-                _searchController.clear();
-                _searchOpen = false;
-              });
-            },
-            icon: Icon(Icons.close, color: NiosPalette.textSecondary),
-          ),
         ],
       ),
     );
   }
-
 
   Widget _buildPinnedBar() {
     if (_pinnedMessageId == null) return const SizedBox.shrink();
@@ -1090,7 +1810,136 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  Widget _buildWeeklyMomentCard() {
+    if (_weeklyMomentLoading) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: NiosPalette.surfaceHover,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: NiosPalette.borderLight),
+        ),
+        child: const LinearProgressIndicator(minHeight: 2),
+      );
+    }
+    if (_weeklyMomentItems.isEmpty) return const SizedBox.shrink();
+    final items = _weeklyMomentItems.take(3).toList();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: NiosPalette.surfaceHover,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: NiosPalette.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Момент недели',
+            style: TextStyle(
+              color: NiosPalette.text,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...items.map((item) {
+            final rawText = item['text']?.toString() ?? '';
+            final text = Obfuscator.deobfuscate(rawText);
+            final type = item['type']?.toString() ?? 'text';
+            final reactions = (item['reactions'] as num?)?.toInt() ?? 0;
+            final preview = type == 'file'
+                ? 'Файл'
+                : type == 'media'
+                    ? 'Медиа'
+                    : type == 'call'
+                        ? 'Звонок'
+                        : text;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      preview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: NiosPalette.textSecondary),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (reactions > 0)
+                    Text(
+                      '❤ $reactions',
+                      style: TextStyle(color: NiosPalette.textSecondary),
+                    ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeeklyRolesCard() {
+    if (_weeklyRolesLoading) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: NiosPalette.surfaceHover,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: NiosPalette.borderLight),
+        ),
+        child: const LinearProgressIndicator(minHeight: 2),
+      );
+    }
+    if (_weeklyRoles.isEmpty) return const SizedBox.shrink();
+    final editor = _weeklyRoles['editor'];
+    final moderator = _weeklyRoles['moderator'];
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: NiosPalette.surfaceHover,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: NiosPalette.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Роли недели',
+            style: TextStyle(
+              color: NiosPalette.text,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (editor != null)
+            Text(
+              'Редактор: $editor',
+              style: TextStyle(color: NiosPalette.textSecondary),
+            ),
+          if (moderator != null)
+            Text(
+              'Модератор: $moderator',
+              style: TextStyle(color: NiosPalette.textSecondary),
+            ),
+        ],
+      ),
+    );
+  }
+
   void _openChatMenu() {
+    final aiSummary = ref.read(aiSummaryProvider);
+    final showAi = messages.length >= 10;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1105,15 +1954,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (widget.chatType == 'user')
-              _menuButton('Открыть профиль', Icons.account_circle_outlined, () {
+              _menuButton(
+                  'Открыть профиль',
+                  Icons.account_circle_outlined, () {
                 Navigator.pop(context);
                 widget.onOpenProfile(widget.chatUsername ?? widget.chatId);
               }),
-            _menuButton('Обновить чат', Icons.refresh, () async {
+            if (showAi)
+              _menuButton(
+                  aiSummary.isExpanded
+                      ? 'Скрыть AI сводку'
+                      : 'AI сводка',
+                  Icons.auto_awesome, () {
+                Navigator.pop(context);
+                if (aiSummary.isExpanded) {
+                  ref.read(aiSummaryProvider.notifier).setExpanded(false);
+                  return;
+                }
+                ref.read(aiSummaryProvider.notifier).generateSummary(
+                      widget.chatId,
+                      messages.map((m) => m.toJson()).toList(),
+                    );
+              }),
+            _menuButton(
+                'Обновить чат',
+                Icons.refresh, () async {
               Navigator.pop(context);
               await _load();
             }),
-            _menuButton('Сбросить поиск', Icons.search_off, () {
+            _menuButton(
+                'Сбросить поиск',
+                Icons.search_off, () {
               Navigator.pop(context);
               setState(() => _searchQuery = '');
             }),
@@ -1123,108 +1994,60 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildHeader() {
-      final showAvatar = widget.chatType == 'user';
-      final settings = ref.watch(settingsProvider);
-      final reduceMotion = (settings['reduce_motion'] as bool?) ?? false;
-      final showStatus = (settings['show_status'] as bool?) ?? true;
-      final showLastSeen = (settings['show_last_seen'] as bool?) ?? true;
-      final statusText = (showStatus && showLastSeen) ? (widget.status ?? ' ') : ' ';
-      return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      decoration: BoxDecoration(
-        color: NiosPalette.surface,
-        border: Border(bottom: BorderSide(color: NiosPalette.border)),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: widget.onBack,
-            icon: Icon(Icons.arrow_back, color: NiosPalette.text),
-          ),
-          GestureDetector(
-            onTap: showAvatar ? () => widget.onOpenProfile(widget.chatUsername ?? widget.chatId) : null,
-            child: Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: NiosPalette.surfaceHover,
-                shape: BoxShape.circle,
-                border: Border.all(color: NiosPalette.borderLight),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: showAvatar
-                  ? FutureBuilder<Uint8List?>(
-                      future: _headerAvatar,
-                      builder: (context, snapshot) {
-                        final bytes = snapshot.data;
-                        if (bytes != null && bytes.isNotEmpty) {
-                          return Image.memory(bytes, fit: BoxFit.cover);
-                        }
-                        return Center(child: Text(widget.title?.characters.first.toUpperCase() ?? '?'));
-                      },
-                    )
-                  : Text(widget.title?.characters.first.toUpperCase() ?? '?'),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(widget.title ?? widget.chatId, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    ),
-                    if ((widget.badgeText ?? '').isNotEmpty || (widget.badgeIcon ?? '').isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 6),
-                        child: NiosBadge(
-                          tooltip: widget.badgeText ??
-                              'Этот человек связан с разработкой напрямую или является спонсором NiosMess',
-                          icon: widget.badgeIcon ?? '\u{1F98A}',
-                          reduceMotion: reduceMotion,
-                        ),
-                      ),
-                  ],
-                ),
-                Text(statusText, style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12)),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: _toggleSearchBar,
-            icon: Icon(Icons.search, color: NiosPalette.textSecondary),
-          ),
-          IconButton(
-            onPressed: _openChatMenu,
-            icon: Icon(Icons.more_vert, color: NiosPalette.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
+  // Header replaced by ChatHeaderWidget
 
-  Widget _buildMessageBubble(MessageItem m, bool isOwn, {required bool compact, required bool linkPreview}) {
-    final payload = _parsePayload(m.text);
-    final content = _buildMessageContent(m, payload, isOwn, linkPreview: linkPreview);
+  Widget _buildMessageBubble(
+    MessageItem m,
+    bool isOwn, {
+    required BubbleStyleState bubbleStyle,
+    required bool compact,
+    required bool linkPreview,
+  }) {
+    final payload = _parsePayload(m);
+    final content =
+        _buildMessageContent(m, payload, isOwn, linkPreview: linkPreview);
     final maxWidth = MediaQuery.of(context).size.width * 0.86;
+    final colorScheme = Theme.of(context).colorScheme;
+    final bubbleColor = isOwn
+        ? (bubbleStyle.customOutgoingColor ?? colorScheme.primaryContainer)
+        : (bubbleStyle.customIncomingColor ?? colorScheme.surfaceVariant);
+    final textColor =
+        isOwn ? colorScheme.onPrimaryContainer : colorScheme.onSurface;
     final bubble = Container(
       constraints: BoxConstraints(maxWidth: maxWidth < 420 ? maxWidth : 420),
       margin: EdgeInsets.symmetric(vertical: compact ? 3 : 6),
-      padding: EdgeInsets.all(compact ? 9 : 12),
+      padding: EdgeInsets.all(compact ? 9 : bubbleStyle.bubblePadding),
       decoration: BoxDecoration(
-        color: isOwn ? NiosPalette.messageOut : NiosPalette.messageIn,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: NiosPalette.border),
+        color: bubbleColor,
+        borderRadius: BorderRadius.circular(bubbleStyle.cornerRadius),
+        border: Border.all(
+          color: Theme.of(context)
+              .colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.4),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (m.replyToId != null) _buildReplyPreview(m.replyToId!),
-          content,
+          DefaultTextStyle.merge(
+            style: TextStyle(color: textColor),
+            child: content,
+          ),
+          if (m.localStatus != MessageLocalStatus.sent)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                m.localStatus == MessageLocalStatus.queued
+                    ? 'В очереди'
+                    : 'Не отправлено',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: textColor.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1241,6 +2064,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  Future<void> _retryOutboxMessage(MessageItem message) async {
+    if (message.localStatus != MessageLocalStatus.failed) return;
+    final outboxId = message.meta?['outbox_id']?.toString();
+    if (outboxId == null || outboxId.isEmpty) return;
+    await ref.read(sendQueueProvider.notifier).retry(outboxId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text(
+              'Повторная отправка...')),
+    );
+  }
+
   Widget _buildReplyPreview(String replyId) {
     final target = messages.where((m) => m.id == replyId).toList();
     final text = target.isNotEmpty ? target.first.text : '';
@@ -1252,43 +2088,77 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: NiosPalette.borderLight),
       ),
-      child: Text(text, style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+      child: Text(text,
+          style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis),
     );
   }
 
-  MessagePayload _parsePayload(String raw) {
-    if (raw.startsWith('POLL:')) return MessagePayload('poll', raw.substring(5).trim());
-    if (raw.startsWith('LOCATION:')) return MessagePayload('location', raw.substring(9).trim());
-    if (raw.startsWith('CONTACT:')) return MessagePayload('contact', raw.substring(8).trim());
-    if (raw.startsWith('MEDIA:')) return MessagePayload('media', raw.substring(6).trim());
-    if (raw.startsWith('FILE:')) return MessagePayload('file', raw.substring(5).trim());
+  MessagePayload _parsePayload(MessageItem message) {
+    final raw = message.text;
+    final msgType = message.type;
+    if (msgType == 'poll') return MessagePayload('poll', raw);
+    if (msgType == 'location') {
+      final payload = jsonEncode({
+        'lat': message.lat,
+        'lon': message.lon,
+        'label': raw,
+      });
+      return MessagePayload('location', payload);
+    }
+    if (msgType == 'contact') {
+      return MessagePayload('contact', message.contactData ?? raw);
+    }
+    if (msgType == 'file') return MessagePayload('file', raw);
+    if (msgType == 'call') return MessagePayload('call', raw);
+    if (raw.startsWith('POLL:'))
+      return MessagePayload('poll', raw.substring(5).trim());
+    if (raw.startsWith('LOCATION:'))
+      return MessagePayload('location', raw.substring(9).trim());
+    if (raw.startsWith('CONTACT:'))
+      return MessagePayload('contact', raw.substring(8).trim());
+    if (raw.startsWith('MEDIA:'))
+      return MessagePayload('media', raw.substring(6).trim());
+    if (raw.startsWith('FILE:'))
+      return MessagePayload('file', raw.substring(5).trim());
     return MessagePayload('text', raw);
   }
 
-  Widget _buildMessageContent(MessageItem message, MessagePayload payload, bool isOwn, {required bool linkPreview}) {
+  Widget _buildMessageContent(
+      MessageItem message, MessagePayload payload, bool isOwn,
+      {required bool linkPreview}) {
     switch (payload.type) {
       case 'poll':
         return _buildPoll(payload.data, message);
       case 'location':
         return _buildLocation(payload.data);
+      case 'contact':
+        return _buildContact(payload.data);
       case 'media':
         return _buildMedia(payload.data);
       case 'file':
         return _buildFile(payload.data);
+      case 'call':
+        return _buildCall(payload.data, message);
       default:
         return _buildTextMessage(payload.data, isOwn, linkPreview: linkPreview);
     }
   }
 
-  Widget _buildTextMessage(String text, bool isOwn, {required bool linkPreview}) {
+  Widget _buildTextMessage(String text, bool isOwn,
+      {required bool linkPreview}) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textColor =
+        isOwn ? colorScheme.onPrimaryContainer : colorScheme.onSurface;
     final link = linkPreview ? _extractFirstLink(text) : null;
     if (link == null) {
-      return Text(text, style: TextStyle(color: isOwn ? Colors.white : NiosPalette.text));
+      return Text(text, style: TextStyle(color: textColor));
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(text, style: TextStyle(color: isOwn ? Colors.white : NiosPalette.text)),
+        Text(text, style: TextStyle(color: textColor)),
         const SizedBox(height: 8),
         InkWell(
           onTap: () => _openUrl(link),
@@ -1306,7 +2176,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 Expanded(
                   child: Text(
                     Uri.tryParse(link)?.host ?? link,
-                    style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12),
+                    style: TextStyle(
+                        color: NiosPalette.textSecondary, fontSize: 12),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1358,16 +2229,72 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label ?? '', style: TextStyle(fontWeight: FontWeight.w600, color: NiosPalette.text)),
+        Text(label ?? '',
+            style: TextStyle(
+                fontWeight: FontWeight.w600, color: NiosPalette.text)),
         const SizedBox(height: 4),
-        Text(coords, style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12)),
+        Text(coords,
+            style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12)),
         const SizedBox(height: 6),
         TextButton(
           onPressed: () {
             if (lat == null || lon == null) return;
             _openUrl('https://maps.google.com/?q=$lat,$lon');
           },
-          child: const Text('Открыть карту'),
+          child: const Text(
+              'Открыть карту'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContact(String raw) {
+    Map<String, dynamic>? parsed;
+    try {
+      parsed = jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {}
+    final name = parsed?['name']?.toString() ?? raw;
+    final phones =
+        (parsed?['phones'] as List?)?.map((e) => e.toString()).toList() ??
+            const [];
+    final emails =
+        (parsed?['emails'] as List?)?.map((e) => e.toString()).toList() ??
+            const [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(name,
+            style: TextStyle(
+                fontWeight: FontWeight.w600, color: NiosPalette.text)),
+        if (phones.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(phones.first,
+              style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12)),
+        ],
+        if (emails.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(emails.first,
+              style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12)),
+        ],
+        const SizedBox(height: 6),
+        TextButton(
+          onPressed: () async {
+            if (!await FlutterContacts.requestPermission()) return;
+            final contact = Contact()
+              ..name.first = name
+              ..phones = phones.map((e) => Phone(e)).toList()
+              ..emails = emails.map((e) => Email(e)).toList();
+            await FlutterContacts.insertContact(contact);
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text(
+                      'Контакт сохранен')),
+            );
+          },
+          child: const Text(
+              'Сохранить контакт'),
         ),
       ],
     );
@@ -1379,7 +2306,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       parsed = jsonDecode(raw) as Map<String, dynamic>;
     } catch (_) {}
     if (parsed == null) return _buildFile(raw);
-    final filename = parsed['filename']?.toString() ?? parsed['file']?.toString() ?? '';
+    final filename =
+        parsed['filename']?.toString() ?? parsed['file']?.toString() ?? '';
     final mime = parsed['mime']?.toString() ?? '';
     return _buildFile(filename, mime: mime);
   }
@@ -1387,11 +2315,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget _buildFile(String filename, {String? mime}) {
     final ext = filename.toLowerCase();
     final url = _mediaUrl(filename);
-    if (ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg') || ext.endsWith('.webp') || ext.endsWith('.gif')) {
-      return ClipRRect(
+    final isImage = ext.endsWith('.png') ||
+        ext.endsWith('.jpg') ||
+        ext.endsWith('.jpeg') ||
+        ext.endsWith('.webp') ||
+        ext.endsWith('.gif');
+    final isAudio = _isAudioFile(ext);
+    final isVideo = ext.endsWith('.mp4') || ext.endsWith('.webm');
+
+    Widget content;
+    if (isImage) {
+      content = ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: CachedNetworkImage(
           imageUrl: url,
+          httpHeaders: _mediaHeaders,
           height: 180,
           width: 260,
           fit: BoxFit.cover,
@@ -1409,12 +2347,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         ),
       );
-    }
-    final isAudio = _isAudioFile(ext);
-    final isVideo = ext.endsWith('.mp4') || ext.endsWith('.webm');
-    if (isAudio) {
+    } else if (isAudio) {
       final playing = _currentAudioUrl == url && _audioPlayer.playing;
-      return Container(
+      content = Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: NiosPalette.surfaceHover,
@@ -1425,18 +2360,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             IconButton(
               onPressed: () => _playAudio(url),
-              icon: Icon(playing ? Icons.pause_circle_filled : Icons.play_circle_fill, color: NiosPalette.textSecondary),
+              icon: Icon(
+                  playing ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                  color: NiosPalette.textSecondary),
             ),
             Expanded(
-              child: Text(filename, style: TextStyle(color: NiosPalette.text), overflow: TextOverflow.ellipsis),
+              child: Text(filename,
+                  style: TextStyle(color: NiosPalette.text),
+                  overflow: TextOverflow.ellipsis),
             ),
           ],
         ),
       );
-    }
-    return GestureDetector(
-      onTap: () => _openUrl(url),
-      child: Container(
+    } else {
+      content = Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: NiosPalette.surfaceHover,
@@ -1445,20 +2382,166 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
         child: Row(
           children: [
-            Icon(isAudio ? Icons.graphic_eq : isVideo ? Icons.play_circle : Icons.insert_drive_file, color: NiosPalette.textSecondary),
+            Icon(isVideo ? Icons.play_circle : Icons.insert_drive_file,
+                color: NiosPalette.textSecondary),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(filename, style: TextStyle(color: NiosPalette.text, fontSize: 13), overflow: TextOverflow.ellipsis),
+                  Text(filename,
+                      style: TextStyle(color: NiosPalette.text, fontSize: 13),
+                      overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
-                  Text(mime ?? (isAudio ? '' : isVideo ? '' : ''), style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12)),
+                  Text(mime ?? '',
+                      style: TextStyle(
+                          color: NiosPalette.textSecondary, fontSize: 12)),
                 ],
               ),
             ),
           ],
         ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        content,
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          children: [
+            if (!isAudio)
+              TextButton.icon(
+                onPressed: () => _openFile(filename),
+                icon: const Icon(Icons.open_in_new),
+                label: Text(isImage
+                    ? 'Открыть'
+                    : isVideo
+                        ? 'Открыть видео'
+                        : 'Открыть файл'),
+              ),
+            TextButton.icon(
+              onPressed: () => _downloadFile(filename),
+              icon: const Icon(Icons.download),
+              label: const Text(
+                  'Скачать'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCall(String raw, MessageItem message) {
+    Map<String, dynamic>? parsed;
+    try {
+      parsed = jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {}
+    if (parsed == null) {
+      return Text(raw, style: TextStyle(color: NiosPalette.text));
+    }
+
+    final session = ref.read(sessionProvider);
+    final status = parsed['status']?.toString() ?? 'requested';
+    final caller = parsed['caller']?.toString() ?? '';
+    final callee = parsed['callee']?.toString() ?? '';
+    final callId = parsed['call_id']?.toString() ?? '';
+    final isOutgoing = message.sender == session.username;
+
+    String title;
+    if (status == 'requested') {
+      title = isOutgoing
+          ? 'Исходящий звонок'
+          : 'Входящий звонок';
+    } else if (status == 'accepted') {
+      title =
+          'Звонок принят';
+    } else if (status == 'declined') {
+      title =
+          'Звонок отклонен';
+    } else if (status == 'ended') {
+      title =
+          'Звонок завершен';
+    } else {
+      title =
+          'Пропущенный звонок';
+    }
+
+    final subtitle = isOutgoing
+        ? 'Кому: $callee'
+        : 'От: $caller';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: NiosPalette.surfaceHover,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: NiosPalette.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: TextStyle(
+                  color: NiosPalette.text, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(subtitle,
+              style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              if (status == 'requested' && !isOutgoing)
+                FilledButton(
+                  onPressed: () async {
+                    if (!session.isAuthed) return;
+                    await api.respondCall(
+                      username: session.username!,
+                      token: session.token!,
+                      callId: callId,
+                      status: 'accepted',
+                    );
+                    await _load();
+                  },
+                  child: const Text(
+                      'Принять'),
+                ),
+              if (status == 'requested')
+                OutlinedButton(
+                  onPressed: () async {
+                    if (!session.isAuthed) return;
+                    await api.respondCall(
+                      username: session.username!,
+                      token: session.token!,
+                      callId: callId,
+                      status: 'declined',
+                    );
+                    await _load();
+                  },
+                  child: Text(isOutgoing
+                      ? 'Отменить'
+                      : 'Отклонить'),
+                ),
+              if (status == 'accepted')
+                OutlinedButton(
+                  onPressed: () async {
+                    if (!session.isAuthed) return;
+                    await api.respondCall(
+                      username: session.username!,
+                      token: session.token!,
+                      callId: callId,
+                      status: 'ended',
+                    );
+                    await _load();
+                  },
+                  child: const Text(
+                      'Завершить'),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1476,86 +2559,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: active ? NiosPalette.accent.withOpacity(0.18) : NiosPalette.surfaceHover,
+              color: active
+                  ? NiosPalette.accent.withValues(alpha: 0.18)
+                  : NiosPalette.surfaceHover,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: active ? NiosPalette.accent : NiosPalette.borderLight),
+              border: Border.all(
+                  color: active ? NiosPalette.accent : NiosPalette.borderLight),
             ),
-            child: Text('${entry.key} ${entry.value}', style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12)),
+            child: Text('${entry.key} ${entry.value}',
+                style:
+                    TextStyle(color: NiosPalette.textSecondary, fontSize: 12)),
           );
         }).toList(),
       ),
     );
   }
 
-  Widget _buildAiSummaryButton(AiSummaryState aiSummary) {
-    return GestureDetector(
-      onTap: () {
-        if (aiSummary.isExpanded) {
-          ref.read(aiSummaryProvider.notifier).toggleExpanded();
-        } else {
-          ref.read(aiSummaryProvider.notifier).generateSummary(
-            widget.chatId,
-            messages.map((m) => m.toJson()).toList(),
-          );
-        }
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: NiosPalette.accent.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: NiosPalette.accent.withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.auto_awesome, color: NiosPalette.accent, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                aiSummary.isLoading 
-                    ? 'Генерация сводки...' 
-                    : 'AI Сводка (${messages.length > 50 ? 50 : messages.length} сообщений)',
-                style: TextStyle(
-                  color: NiosPalette.accent,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-            if (aiSummary.isLoading)
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(NiosPalette.accent),
-                ),
-              )
-            else
-              Icon(
-                aiSummary.isExpanded ? Icons.expand_less : Icons.expand_more,
-                color: NiosPalette.accent,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildAiSummaryCard(AiSummaryState aiSummary) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: NiosPalette.surface,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: NiosPalette.border),
+        border: Border.all(color: scheme.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: NiosPalette.shadow.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: scheme.shadow.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -1564,15 +2597,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.lightbulb_outline, color: NiosPalette.accent, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Ключевые моменты',
-                style: TextStyle(
-                  color: NiosPalette.text,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                child: Icon(Icons.auto_awesome,
+                    color: scheme.primary, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'AI Сводка',
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: () => ref.read(aiSummaryProvider.notifier).collapse(),
+                borderRadius: BorderRadius.circular(12),
+                child: Icon(Icons.close, size: 18, color: scheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -1584,19 +2632,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 6,
-                    height: 6,
-                    margin: const EdgeInsets.only(top: 6, right: 10),
+                    width: 22,
+                    height: 22,
+                    margin: const EdgeInsets.only(right: 10),
                     decoration: BoxDecoration(
-                      color: NiosPalette.accent,
-                      shape: BoxShape.circle,
+                      color: scheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${entry.key + 1}',
+                      style: TextStyle(
+                        color: scheme.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   Expanded(
                     child: Text(
                       entry.value,
                       style: TextStyle(
-                        color: NiosPalette.text,
+                        color: scheme.onSurface,
                         fontSize: 14,
                         height: 1.4,
                       ),
@@ -1625,156 +2682,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
-  Widget _buildComposer() {
-    final settings = ref.watch(settingsProvider);
-    final compact = (settings['compact_messages'] as bool?) ?? false;
-    return Container(
-
-      padding: EdgeInsets.fromLTRB(12, compact ? 6 : 8, 12, compact ? 8 : 12),
-      decoration: BoxDecoration(
-        color: NiosPalette.surface,
-        border: Border(top: BorderSide(color: NiosPalette.border)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_recording)
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: NiosPalette.surfaceHover,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: NiosPalette.borderLight),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.mic, color: Colors.redAccent),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Запись', style: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 6),
-                        LinearProgressIndicator(
-                          value: (_recordDuration.inSeconds % 120) / 120,
-                          minHeight: 6,
-                          backgroundColor: NiosPalette.surface,
-                          color: Colors.redAccent,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(_formatDuration(_recordDuration), style: TextStyle(color: NiosPalette.textSecondary)),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _cancelRecording,
-                    icon: Icon(Icons.close, color: NiosPalette.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-          if (_replyTo != null)
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: NiosPalette.surfaceHover,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: NiosPalette.borderLight),
-              ),
-              child: Row(
-                children: [
-                  Expanded(child: Text(_replyTo!.text, style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12), overflow: TextOverflow.ellipsis)),
-                  IconButton(
-                    onPressed: () => setState(() => _replyTo = null),
-                    icon: Icon(Icons.close, color: NiosPalette.textSecondary, size: 18),
-                  ),
-                ],
-              ),
-            ),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  minLines: 1,
-                  maxLines: 4,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _send(),
-                  decoration: niosInputDecoration('Сообщение'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: NiosPalette.surfaceHover,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: NiosPalette.borderLight),
-                ),
-                child: IconButton(
-                  onPressed: _openEmojiPicker,
-                  icon: Icon(Icons.emoji_emotions_outlined, color: NiosPalette.textSecondary),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: NiosPalette.surfaceHover,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: NiosPalette.borderLight),
-                ),
-                child: IconButton(
-                  onPressed: _openAttachMenu,
-                  icon: Icon(Icons.attach_file, color: NiosPalette.textSecondary),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: NiosPalette.surfaceHover,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: NiosPalette.borderLight),
-                ),
-                child: IconButton(
-                  onPressed: _toggleRecord,
-                  icon: Icon(
-                    _recording ? Icons.stop_circle : Icons.mic,
-                    color: _recording ? Colors.redAccent : NiosPalette.textSecondary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              GestureDetector(
-                onLongPress: _scheduleSend,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: NiosPalette.surfaceHover,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: NiosPalette.borderLight),
-                  ),
-                  child: IconButton(
-                    onPressed: sending ? null : _send,
-                    icon: Icon(Icons.send, color: NiosPalette.textSecondary),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  // Composer replaced by ChatInputWidget
 }
 
 class MessagePayload {
@@ -1823,7 +2731,8 @@ class PollState {
       options: options,
       multiple: json['multiple'] == true,
       votedBy: (json['votedBy'] as Map<String, dynamic>?)?.map(
-            (key, value) => MapEntry(key, (value as List<dynamic>).map((e) => e.toString()).toList()),
+            (key, value) => MapEntry(key,
+                (value as List<dynamic>).map((e) => e.toString()).toList()),
           ) ??
           {},
     );
@@ -1898,7 +2807,9 @@ class _PollCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(poll.question, style: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w600)),
+          Text(poll.question,
+              style: TextStyle(
+                  color: NiosPalette.text, fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           ...poll.options.map((opt) {
             final votes = poll.optionVotes(opt.id);
@@ -1908,7 +2819,8 @@ class _PollCard extends StatelessWidget {
               child: Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   color: NiosPalette.surface,
                   borderRadius: BorderRadius.circular(10),
@@ -1916,14 +2828,19 @@ class _PollCard extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Expanded(child: Text(opt.text, style: TextStyle(color: NiosPalette.text))),
-                    Text('$percent%', style: TextStyle(color: NiosPalette.textSecondary)),
+                    Expanded(
+                        child: Text(opt.text,
+                            style: TextStyle(color: NiosPalette.text))),
+                    Text('$percent%',
+                        style: TextStyle(color: NiosPalette.textSecondary)),
                   ],
                 ),
               ),
             );
           }),
-          Text('$total голосов', style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12)),
+          Text(
+              '$total голосов',
+              style: TextStyle(color: NiosPalette.textSecondary, fontSize: 12)),
         ],
       ),
     );

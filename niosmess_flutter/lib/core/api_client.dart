@@ -26,6 +26,10 @@ class ApiClient {
   static final ApiClient instance = ApiClient._();
   late final Dio _dio;
 
+  void addInterceptor(Interceptor interceptor) {
+    _dio.interceptors.add(interceptor);
+  }
+
   Future<Map<String, dynamic>> post(String path, {Map<String, dynamic>? data, FormData? form}) async {
     try {
       final res = await _dio.post(path, data: form ?? data);

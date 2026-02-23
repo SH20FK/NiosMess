@@ -1,5 +1,7 @@
 const DEFAULT_API = "https://web.sa2rn.fun";
 
+
+
 const $ = (id) => document.getElementById(id);
 
 const DEVICE_PROFILE_KEY = "niosmess_device_profile";
@@ -30,7 +32,13 @@ const DEFAULT_EMPTY_SUBTITLE = "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435
 
 const state = {
 
-  apiBase: DEFAULT_API,
+  apiBase: (() => {
+    try {
+      const override = localStorage.getItem("niosmess_api_base");
+      if (override) return override;
+    } catch { }
+    return DEFAULT_API;
+  })(),
 
   session: null,
 
@@ -74,6 +82,7 @@ const state = {
 
   chatIndex: {},
   chatList: [],
+  chatListSignature: "",
   chatSearchActive: false,
 
   activeChatType: "user",
@@ -192,7 +201,7 @@ function loadUserInfoCache() {
         state.userInfoTimestamps[key] = ts;
       }
     });
-  } catch {}
+  } catch { }
 }
 
 function pruneUserInfoCache() {
@@ -215,7 +224,7 @@ function saveUserInfoCache() {
       USER_INFO_CACHE_KEY,
       JSON.stringify({ data: state.userInfoCache, timestamps: state.userInfoTimestamps })
     );
-  } catch {}
+  } catch { }
 }
 
 function clearProfileCache() {
@@ -223,7 +232,7 @@ function clearProfileCache() {
   state.userInfoTimestamps = {};
   try {
     localStorage.removeItem(USER_INFO_CACHE_KEY);
-  } catch {}
+  } catch { }
 }
 
 loadUserInfoCache();
@@ -249,124 +258,124 @@ async function decodeResponseText(res) {
 
 
 const obfMap = {
-  "\u0410":"\u2622",
-  "\u0411":"\u2b23",
-  "\u0412":"\u2b1f",
-  "\u0413":"\u2b22",
-  "\u0414":"\u2725",
-  "\u0415":"\u2738",
-  "\u0401":"\u2726",
-  "\u0416":"\u26a1",
-  "\u0417":"\u2b25",
-  "\u0418":"\u25ce",
-  "\u0419":"\u273a",
-  "\u041a":"\u260d",
-  "\u041b":"\u2b24",
-  "\u041c":"\u262f",
-  "\u041d":"\u2691",
-  "\u041e":"\u2699",
-  "\u041f":"\u2b26",
-  "\u0420":"\u2601",
-  "\u0421":"\u2b27",
-  "\u0422":"\u2716",
-  "\u0423":"\u2b28",
-  "\u0424":"\u2723",
-  "\u0425":"\u260a",
-  "\u0426":"\u2739",
-  "\u0427":"\u272a",
-  "\u0428":"\u2b29",
-  "\u0429":"\u2736",
-  "\u042a":"\u2349",
-  "\u042b":"\u232c",
-  "\u042c":"\u232b",
-  "\u042d":"\u2737",
-  "\u042e":"\u273f",
-  "\u042f":"\u262e",
-  "\u0430":"\u2620",
-  "\u0431":"\u2b1e",
-  "\u0432":"\u2b20",
-  "\u0433":"\u2b21",
-  "\u0434":"\u2727",
-  "\u0435":"\u2731",
-  "\u0451":"\u272b",
-  "\u0436":"\u2694",
-  "\u0437":"\u2b2a",
-  "\u0438":"\u25c9",
-  "\u0439":"\u273b",
-  "\u043a":"\u260c",
-  "\u043b":"\u2b2f",
-  "\u043c":"\u2630",
-  "\u043d":"\u2690",
-  "\u043e":"\u2697",
-  "\u043f":"\u2b2b",
-  "\u0440":"\u2602",
-  "\u0441":"\u29c8",
-  "\u0442":"\u2715",
-  "\u0443":"\u2b2d",
-  "\u0444":"\u2724",
-  "\u0445":"\u260b",
-  "\u0446":"\u273e",
-  "\u0447":"\u272f",
-  "\u0448":"\u2b2e",
-  "\u0449":"\u2735",
-  "\u044a":"\u234a",
-  "\u044b":"\u232d",
-  "\u044c":"\u3009",
-  "\u044d":"\u273c",
-  "\u044e":"\u2740",
-  "\u044f":"\u263e",
-  "A":"\u2206",
-  "B":"\u2211",
-  "C":"\u2297",
-  "D":"\u2202",
-  "E":"\u2261",
-  "F":"\u22a5",
-  "G":"\u2207",
-  "H":"\u2295",
-  "I":"\u222b",
-  "J":"\u2318",
-  "K":"\u235f",
-  "L":"\u2317",
-  "M":"\u2394",
-  "N":"\u2298",
-  "O":"\u2299",
-  "P":"\u2316",
-  "Q":"\u232c\u0338",
-  "R":"\u2387",
-  "S":"\u233f",
-  "T":"\u23da",
-  "U":"\u238a",
-  "V":"\u2338",
-  "W":"\u2365",
-  "X":"\u2a2f",
-  "Y":"\u2360",
-  "Z":"\u2362",
-  "a":"\u2609",
-  "b":"\u2b16",
-  "c":"\u2b18",
-  "d":"\u2722",
-  "e":"\u2736\u0307",
-  "f":"\u2b1b",
-  "g":"\u2698",
-  "h":"\u273a\u0307",
-  "i":"\u2b19",
-  "j":"\u2756",
-  "k":"\u4e0b",
-  "l":"\u2b1a",
-  "m":"\u2690\u0307",
-  "n":"\u2b22\u0307",
-  "o":"\u2699\u0307",
-  "p":"\u2b23\u0307",
-  "q":"\u2727\u0307",
-  "r":"\u51f9",
-  "s":"\u2b25\u0307",
-  "t":"\u2738\u0307",
-  "u":"\u2b26\u0307",
-  "v":"\u2737\u0307",
-  "w":"\u2b27\u0307",
-  "x":"\u2742",
-  "y":"\u2726\u0307",
-  "z":"\u2b28\u0307",
+  "\u0410": "\u2622",
+  "\u0411": "\u2b23",
+  "\u0412": "\u2b1f",
+  "\u0413": "\u2b22",
+  "\u0414": "\u2725",
+  "\u0415": "\u2738",
+  "\u0401": "\u2726",
+  "\u0416": "\u26a1",
+  "\u0417": "\u2b25",
+  "\u0418": "\u25ce",
+  "\u0419": "\u273a",
+  "\u041a": "\u260d",
+  "\u041b": "\u2b24",
+  "\u041c": "\u262f",
+  "\u041d": "\u2691",
+  "\u041e": "\u2699",
+  "\u041f": "\u2b26",
+  "\u0420": "\u2601",
+  "\u0421": "\u2b27",
+  "\u0422": "\u2716",
+  "\u0423": "\u2b28",
+  "\u0424": "\u2723",
+  "\u0425": "\u260a",
+  "\u0426": "\u2739",
+  "\u0427": "\u272a",
+  "\u0428": "\u2b29",
+  "\u0429": "\u2736",
+  "\u042a": "\u2349",
+  "\u042b": "\u232c",
+  "\u042c": "\u232b",
+  "\u042d": "\u2737",
+  "\u042e": "\u273f",
+  "\u042f": "\u262e",
+  "\u0430": "\u2620",
+  "\u0431": "\u2b1e",
+  "\u0432": "\u2b20",
+  "\u0433": "\u2b21",
+  "\u0434": "\u2727",
+  "\u0435": "\u2731",
+  "\u0451": "\u272b",
+  "\u0436": "\u2694",
+  "\u0437": "\u2b2a",
+  "\u0438": "\u25c9",
+  "\u0439": "\u273b",
+  "\u043a": "\u260c",
+  "\u043b": "\u2b2f",
+  "\u043c": "\u2630",
+  "\u043d": "\u2690",
+  "\u043e": "\u2697",
+  "\u043f": "\u2b2b",
+  "\u0440": "\u2602",
+  "\u0441": "\u29c8",
+  "\u0442": "\u2715",
+  "\u0443": "\u2b2d",
+  "\u0444": "\u2724",
+  "\u0445": "\u260b",
+  "\u0446": "\u273e",
+  "\u0447": "\u272f",
+  "\u0448": "\u2b2e",
+  "\u0449": "\u2735",
+  "\u044a": "\u234a",
+  "\u044b": "\u232d",
+  "\u044c": "\u3009",
+  "\u044d": "\u273c",
+  "\u044e": "\u2740",
+  "\u044f": "\u263e",
+  "A": "\u2206",
+  "B": "\u2211",
+  "C": "\u2297",
+  "D": "\u2202",
+  "E": "\u2261",
+  "F": "\u22a5",
+  "G": "\u2207",
+  "H": "\u2295",
+  "I": "\u222b",
+  "J": "\u2318",
+  "K": "\u235f",
+  "L": "\u2317",
+  "M": "\u2394",
+  "N": "\u2298",
+  "O": "\u2299",
+  "P": "\u2316",
+  "Q": "\u232c\u0338",
+  "R": "\u2387",
+  "S": "\u233f",
+  "T": "\u23da",
+  "U": "\u238a",
+  "V": "\u2338",
+  "W": "\u2365",
+  "X": "\u2a2f",
+  "Y": "\u2360",
+  "Z": "\u2362",
+  "a": "\u2609",
+  "b": "\u2b16",
+  "c": "\u2b18",
+  "d": "\u2722",
+  "e": "\u2736\u0307",
+  "f": "\u2b1b",
+  "g": "\u2698",
+  "h": "\u273a\u0307",
+  "i": "\u2b19",
+  "j": "\u2756",
+  "k": "\u4e0b",
+  "l": "\u2b1a",
+  "m": "\u2690\u0307",
+  "n": "\u2b22\u0307",
+  "o": "\u2699\u0307",
+  "p": "\u2b23\u0307",
+  "q": "\u2727\u0307",
+  "r": "\u51f9",
+  "s": "\u2b25\u0307",
+  "t": "\u2738\u0307",
+  "u": "\u2b26\u0307",
+  "v": "\u2737\u0307",
+  "w": "\u2b27\u0307",
+  "x": "\u2742",
+  "y": "\u2726\u0307",
+  "z": "\u2b28\u0307",
 };
 
 
@@ -391,7 +400,7 @@ function obfuscate(text) {
 
 
 function deobfuscate(text) {
-  let current = String(text ?? "");
+  let current = String(text || "");
   for (let pass = 0; pass < 2; pass += 1) {
     let out = "";
     let i = 0;
@@ -479,42 +488,42 @@ function closeBadgeTooltip() {
   setTimeout(remove, 420);
 }
 
-  function openBadgeTooltip(target, text) {
-    if (!target) return;
-    const existingAnchor = activeBadgeTooltip?.dataset?.anchorId;
-    const anchorId = target.dataset.badgeAnchor || "";
-    if (activeBadgeTooltip && existingAnchor && anchorId && existingAnchor === anchorId) {
-      closeBadgeTooltip();
-      return;
-    }
+function openBadgeTooltip(target, text) {
+  if (!target) return;
+  const existingAnchor = activeBadgeTooltip?.dataset?.anchorId;
+  const anchorId = target.dataset.badgeAnchor || "";
+  if (activeBadgeTooltip && existingAnchor && anchorId && existingAnchor === anchorId) {
     closeBadgeTooltip();
-    const tip = document.createElement("div");
-    tip.className = "badge-tooltip";
-    tip.textContent = text || DEFAULT_BADGE_TEXT;
-    tip.dataset.anchorId = anchorId;
-    document.body.appendChild(tip);
-    const place = () => {
-      const rect = target.getBoundingClientRect();
-      const tipRect = tip.getBoundingClientRect();
-      const margin = 10;
-      const centerX = rect.left + rect.width / 2;
-      let left = rect.left + rect.width / 2 - tipRect.width / 2;
-      let top = rect.bottom + 10;
-      if (left < margin) left = margin;
-      if (left + tipRect.width > window.innerWidth - margin) {
-        left = window.innerWidth - margin - tipRect.width;
-      }
-      if (top + tipRect.height > window.innerHeight - margin) {
-        top = rect.top - tipRect.height - 10;
-      }
-      const arrowX = Math.min(
-        Math.max(centerX - left, 12),
-        tipRect.width - 12
-      );
-      tip.style.left = `${left}px`;
-      tip.style.top = `${top}px`;
-      tip.style.setProperty("--badge-arrow-x", `${arrowX}px`);
-    };
+    return;
+  }
+  closeBadgeTooltip();
+  const tip = document.createElement("div");
+  tip.className = "badge-tooltip";
+  tip.textContent = text || DEFAULT_BADGE_TEXT;
+  tip.dataset.anchorId = anchorId;
+  document.body.appendChild(tip);
+  const place = () => {
+    const rect = target.getBoundingClientRect();
+    const tipRect = tip.getBoundingClientRect();
+    const margin = 10;
+    const centerX = rect.left + rect.width / 2;
+    let left = rect.left + rect.width / 2 - tipRect.width / 2;
+    let top = rect.bottom + 10;
+    if (left < margin) left = margin;
+    if (left + tipRect.width > window.innerWidth - margin) {
+      left = window.innerWidth - margin - tipRect.width;
+    }
+    if (top + tipRect.height > window.innerHeight - margin) {
+      top = rect.top - tipRect.height - 10;
+    }
+    const arrowX = Math.min(
+      Math.max(centerX - left, 12),
+      tipRect.width - 12
+    );
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+    tip.style.setProperty("--badge-arrow-x", `${arrowX}px`);
+  };
   requestAnimationFrame(place);
   activeBadgeTooltip = tip;
 }
@@ -711,7 +720,7 @@ function applyReactionsFromMessage(message) {
 
       const emoji = item.emoji || item.key || item.reaction;
 
-      const count = Number(item.count ?? item.value ?? item.total ?? 0);
+      const count = Number(item.count || item.value || item.total || 0);
 
       if (emoji) counts[emoji] = count;
 
@@ -1751,8 +1760,8 @@ function initSettingsTabs() {
 
 
 
-    selectSettingsTab("account");
-    requestAnimationFrame(() => document.documentElement.classList.add("settings-ready"));
+  selectSettingsTab("account");
+  requestAnimationFrame(() => document.documentElement.classList.add("settings-ready"));
 
 }
 
@@ -1871,7 +1880,7 @@ async function apiFetch(path, options = {}, { silent = false, timeout = 12000 } 
         const errorText = await decodeResponseText(res);
         data = errorText ? JSON.parse(errorText) : {};
 
-      } catch {}
+      } catch { }
 
       const msg = data.detail || data.error || `Server error (${res.status})`;
 
@@ -2102,7 +2111,7 @@ async function checkSession() {
 
         initApp();
 
-      } catch {}
+      } catch { }
 
     }
 
@@ -2261,6 +2270,22 @@ function normalizeChatItem(item) {
 
 }
 
+function getChatListSignature(list) {
+  if (!Array.isArray(list) || !list.length) return "";
+  return list.map((u) => {
+    const chatId = u.chatId || u.username || "";
+    const type = u.type || "";
+    const name = u.name || "";
+    const username = u.username || "";
+    const avatar = u.avatar || "";
+    const isonline = u.isonline ? 1 : 0;
+    const lastSeen = u.last_seen_text || "";
+    const unread = Number(u.unread_count || u.unread || 0);
+    const owner = u.owner || "";
+    return [chatId, type, name, username, avatar, isonline, lastSeen, unread, owner].join("|");
+  }).join(";;");
+}
+
 async function loadChats({ silent = false, force = false } = {}) {
 
   if (!state.session) return;
@@ -2323,6 +2348,12 @@ async function loadChats({ silent = false, force = false } = {}) {
         isonline: false
       });
     }
+    const nextSignature = getChatListSignature(list);
+    if (!force && nextSignature && nextSignature === state.chatListSignature) {
+      return;
+    }
+
+    state.chatListSignature = nextSignature;
     state.chatList = list;
 
     state.chatIndex = {};
@@ -2496,59 +2527,16 @@ async function ensureUserInfo(username) {
 
 
 
+
 function renderChatList(chats) {
-
   const list = $("chatList");
-
   const empty = $("chatEmpty");
-
   if (!list || !empty) return;
-
-
 
   list.querySelectorAll(".skeleton-item").forEach(el => el.remove());
 
-  list.innerHTML = "";
-
-
-
   if (!Array.isArray(chats)) chats = [];
-
-  empty.classList.add("hidden");
-
-  const favoritesItem = document.createElement("div");
-  favoritesItem.className = "chat-item chat-favorites";
-  favoritesItem.dataset.username = FAVORITES_CHAT_ID;
-  if (state.activeTarget === FAVORITES_CHAT_ID) favoritesItem.classList.add("active");
-
-  const favoritesAvatar = document.createElement("div");
-  favoritesAvatar.className = "chat-item-avatar";
-  favoritesAvatar.style.background = "linear-gradient(135deg, #fbbf24, #f97316)";
-  favoritesAvatar.textContent = "★";
-
-  const favoritesContent = document.createElement("div");
-  favoritesContent.className = "chat-item-content";
-
-  const favoritesHeader = document.createElement("div");
-  favoritesHeader.className = "chat-item-header";
-
-  const favoritesName = document.createElement("div");
-  favoritesName.className = "chat-item-name";
-  favoritesName.textContent = "Сохранённые сообщения";
-  favoritesHeader.appendChild(favoritesName);
-
-  const favoritesMessage = document.createElement("div");
-  favoritesMessage.className = "chat-item-message";
-  favoritesMessage.textContent = "Личный чат";
-
-  favoritesContent.appendChild(favoritesHeader);
-  favoritesContent.appendChild(favoritesMessage);
-
-  favoritesItem.appendChild(favoritesAvatar);
-  favoritesItem.appendChild(favoritesContent);
-  favoritesItem.addEventListener("click", openFavoritesChat);
-
-  list.appendChild(favoritesItem);
+  empty.classList.toggle("hidden", chats.length > 0 || state.activeTarget === FAVORITES_CHAT_ID);
 
   const pinnedChats = [];
   const regularChats = [];
@@ -2557,6 +2545,147 @@ function renderChatList(chats) {
     if (isChatPinned(chatId)) {
       pinnedChats.push(u);
     } else {
+      regularChats.push(u);
+    }
+  });
+
+  const orderedChats = [
+    { chatId: FAVORITES_CHAT_ID, type: 'favorites' },
+    ...pinnedChats,
+    ...regularChats
+  ];
+
+  const existingItems = Array.from(list.querySelectorAll('.chat-item'));
+  const existingMap = new Map();
+  existingItems.forEach(item => {
+    existingMap.set(item.dataset.username, item);
+  });
+
+  orderedChats.forEach((u, index) => {
+    const chatId = u.chatId || u.username;
+    let item = existingMap.get(chatId);
+
+    if (!item) {
+      item = createChatItemElement(u);
+      list.appendChild(item);
+    }
+
+    if (list.children[index] !== item) {
+      list.insertBefore(item, list.children[index]);
+    }
+
+    updateChatItemUI(item, u);
+    existingMap.delete(chatId);
+  });
+
+  existingMap.forEach(item => item.remove());
+}
+
+function createChatItemElement(u) {
+  const chatId = u.chatId || u.username;
+  const item = document.createElement("div");
+  item.className = "chat-item";
+  item.dataset.username = chatId;
+  
+  const avatar = document.createElement("div");
+  avatar.className = "chat-item-avatar";
+  
+  const content = document.createElement("div");
+  content.className = "chat-item-content";
+  
+  const header = document.createElement("div");
+  header.className = "chat-item-header";
+  
+  const name = document.createElement("div");
+  name.className = "chat-item-name";
+  
+  const message = document.createElement("div");
+  message.className = "chat-item-message";
+
+  header.appendChild(name);
+  content.appendChild(header);
+  content.appendChild(message);
+  item.appendChild(avatar);
+  item.appendChild(content);
+
+  if (u.type === 'favorites') {
+    item.classList.add('chat-favorites');
+    avatar.style.background = "linear-gradient(135deg, #fbbf24, #f97316)";
+    avatar.textContent = "★";
+    name.textContent = "Сохранённые сообщения";
+    message.textContent = "Личный чат";
+    item.addEventListener("click", openFavoritesChat);
+  } else {
+    item.addEventListener("click", () => selectChat(u));
+    item.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      openChatContextMenu(e, chatId, u.type || "user");
+    });
+  }
+  return item;
+}
+
+function updateChatItemUI(item, u) {
+  const chatId = u.chatId || u.username;
+  const avatar = item.querySelector('.chat-item-avatar');
+  const name = item.querySelector('.chat-item-name');
+  const header = item.querySelector('.chat-item-header');
+  const message = item.querySelector('.chat-item-message');
+
+  item.classList.toggle("active", chatId === state.activeTarget);
+  item.classList.toggle("chat-pinned", isChatPinned(chatId));
+
+  if (u.type !== 'favorites') {
+    updateChatAvatar(avatar, u);
+    
+    let indicator = avatar.querySelector('.status-indicator');
+    if (u.type === "user" && u.isonline) {
+      if (!indicator) {
+        indicator = document.createElement("div");
+        indicator.className = "status-indicator online";
+        avatar.appendChild(indicator);
+      }
+    } else if (indicator) {
+      indicator.remove();
+    }
+
+    const lookupKey = u.username || u.chatId;
+    const cached = lookupKey ? state.userInfoCache[lookupKey] : null;
+    const displayName = u.name || cached?.name || lookupKey || "";
+    const badge = u.type === "user" ? getBadgeData(u, cached) : null;
+    
+    if (item.dataset.lastDisplayName !== displayName || item.dataset.lastBadge !== JSON.stringify(badge)) {
+      renderNameWithBadge(name, displayName, badge);
+      item.dataset.lastDisplayName = displayName;
+      item.dataset.lastBadge = JSON.stringify(badge);
+    }
+
+    let pinIcon = header.querySelector('.chat-item-pin');
+    if (isChatPinned(chatId)) {
+      if (!pinIcon) {
+        pinIcon = document.createElement("span");
+        pinIcon.className = "chat-item-pin";
+        pinIcon.innerHTML = "&#128204;";
+        header.insertBefore(pinIcon, header.querySelector('.chat-unread-badge') || null);
+      }
+    } else if (pinIcon) {
+      pinIcon.remove();
+    }
+
+    const unreadCount = state.chatSearchActive ? 0 : Number(u.unread_count || u.unread || 0);
+    appendUnreadBadge(header, unreadCount);
+
+    const listSubtitle = u.type === "group" ? "" : u.type === "channel" ? "" : (u.last_seen_text || (u.isonline ? "в сети" : "был(а) недавно"));
+    if (message.textContent !== listSubtitle) {
+      message.textContent = listSubtitle;
+    }
+
+    if (u.type === "user" && lookupKey && !u.name) {
+      ensureUserInfo(lookupKey);
+    }
+  }
+}
+ else {
       regularChats.push(u);
     }
   });
@@ -2624,7 +2753,7 @@ function renderChatList(chats) {
 
     const unreadCount = state.chatSearchActive
       ? 0
-      : Number(u.unread_count ?? u.unread ?? 0);
+      : Number(u.unread_count || u.unread || 0);
 
     appendUnreadBadge(header, unreadCount);
 
@@ -2635,10 +2764,10 @@ function renderChatList(chats) {
     message.className = "chat-item-message";
 
     const listSubtitle = u.type === "group"
-      ? "??????"
+      ? ""
       : u.type === "channel"
-        ? "?????"
-        : (u.last_seen_text || (u.isonline ? "? ????" : "?? ? ????"));
+        ? ""
+        : (u.last_seen_text || (u.isonline ? "? " : " ? "));
     message.textContent = listSubtitle;
 
 
@@ -3034,25 +3163,25 @@ async function selectChat(u) {
 
   state.activeChatType = chatType;
 
-    state.lastMsgId = -1;
+  state.lastMsgId = -1;
 
-    state.messages = [];
+  state.messages = [];
 
-    state.messagesLoaded = false;
+  state.messagesLoaded = false;
 
-    const list = $("messageList");
-    if (list) {
-      list.classList.remove("chat-enter");
-      list.classList.add("chat-switching");
-      requestAnimationFrame(() => {
-        list.classList.add("chat-enter");
-        list.classList.remove("chat-switching");
-      });
-    }
+  const list = $("messageList");
+  if (list) {
+    list.classList.remove("chat-enter");
+    list.classList.add("chat-switching");
+    requestAnimationFrame(() => {
+      list.classList.add("chat-enter");
+      list.classList.remove("chat-switching");
+    });
+  }
 
 
 
-    const baseUsername = u.username || chatId;
+  const baseUsername = u.username || chatId;
   const cached = baseUsername ? state.userInfoCache[baseUsername] : null;
   const displayName = u.name || cached?.name || baseUsername || chatId || "Чат";
   const titleBadge = chatType === "user" ? getBadgeData(u, cached) : null;
@@ -3060,7 +3189,7 @@ async function selectChat(u) {
 
   if (chatType === "user") {
 
-    $("chatSubtitle").textContent = u.last_seen_text || (u.isonline ? "? ????" : "?? ? ????");
+    $("chatSubtitle").textContent = u.last_seen_text || (u.isonline ? "? " : " ? ");
 
     if (u.isonline) {
 
@@ -3252,194 +3381,212 @@ function clearDraft() {
 
 }
 const avatarCache = {
-    data: {},
-    timestamps: {},
+  data: {},
+  timestamps: {},
 
-    get(username) {
-        const cached = this.data[username];
-        const timestamp = this.timestamps[username];
-        if (cached && timestamp && (Date.now() - timestamp < 5 * 60 * 1000)) {
-            return cached;
-        }
-        return null;
-    },
-
-    set(username, url) {
-        this.data[username] = url;
-        this.timestamps[username] = Date.now();
-    },
-
-    clear(username) {
-        if (username) {
-            delete this.data[username];
-            delete this.timestamps[username];
-        } else {
-            this.data = {};
-            this.timestamps = {};
-        }
+  get(username) {
+    const cached = this.data[username];
+    const timestamp = this.timestamps[username];
+    if (cached && timestamp && (Date.now() - timestamp < 5 * 60 * 1000)) {
+      return cached;
     }
+    return null;
+  },
+
+  set(username, url) {
+    this.data[username] = url;
+    this.timestamps[username] = Date.now();
+  },
+
+  clear(username) {
+    if (username) {
+      delete this.data[username];
+      delete this.timestamps[username];
+    } else {
+      this.data = {};
+      this.timestamps = {};
+    }
+  }
 };
 
 const avatarObjectUrlCache = new Map();
 
 function getAvatarCacheKey(username) {
-    return `${state.apiBase}/__avatar_cache__/${encodeURIComponent(username)}`;
+  return `${state.apiBase}/__avatar_cache__/${encodeURIComponent(username)}`;
 }
 
 async function getCachedAvatarUrl(username) {
-    if (!username) return null;
-    const cached = avatarObjectUrlCache.get(username);
-    if (cached) return cached;
-    if (!("caches" in window)) return null;
-    try {
-        const cache = await caches.open(AVATAR_CACHE_NAME);
-        const res = await cache.match(getAvatarCacheKey(username));
-        if (!res) return null;
-        const blob = await res.blob();
-        const objUrl = URL.createObjectURL(blob);
-        avatarObjectUrlCache.set(username, objUrl);
-        return objUrl;
-    } catch {
-        return null;
-    }
+  if (!username) return null;
+  const cached = avatarObjectUrlCache.get(username);
+  if (cached) return cached;
+  if (!("caches" in window)) return null;
+  try {
+    const cache = await caches.open(AVATAR_CACHE_NAME);
+    const res = await cache.match(getAvatarCacheKey(username));
+    if (!res) return null;
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    avatarObjectUrlCache.set(username, objUrl);
+    return objUrl;
+  } catch {
+    return null;
+  }
 }
 
 async function putAvatarInCache(username, blob) {
-    if (!("caches" in window)) return;
-    try {
-        const cache = await caches.open(AVATAR_CACHE_NAME);
-        await cache.put(getAvatarCacheKey(username), new Response(blob));
-    } catch {}
+  if (!("caches" in window)) return;
+  try {
+    const cache = await caches.open(AVATAR_CACHE_NAME);
+    await cache.put(getAvatarCacheKey(username), new Response(blob));
+  } catch { }
 }
 
 async function clearAvatarCache() {
-    if ("caches" in window) {
-        try {
-            await caches.delete(AVATAR_CACHE_NAME);
-        } catch {}
-    }
-    avatarObjectUrlCache.forEach((url) => {
-        try {
-            URL.revokeObjectURL(url);
-        } catch {}
-    });
-    avatarObjectUrlCache.clear();
-    avatarCache.clear();
+  if ("caches" in window) {
+    try {
+      await caches.delete(AVATAR_CACHE_NAME);
+    } catch { }
+  }
+  avatarObjectUrlCache.forEach((url) => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch { }
+  });
+  avatarObjectUrlCache.clear();
+  avatarCache.clear();
+}
+
+async function evictAvatarCache(username) {
+  if (!username) return;
+  avatarCache.clear(username);
+  const cachedUrl = avatarObjectUrlCache.get(username);
+  if (cachedUrl) {
+    try {
+      URL.revokeObjectURL(cachedUrl);
+    } catch { }
+  }
+  avatarObjectUrlCache.delete(username);
+  if ("caches" in window) {
+    try {
+      const cache = await caches.open(AVATAR_CACHE_NAME);
+      await cache.delete(getAvatarCacheKey(username));
+    } catch { }
+  }
 }
 
 async function uploadAvatar(file) {
-    if (!file || !state.session) {
-        throw new Error('Файл или сессия отсутствуют');
+  if (!file || !state.session) {
+    throw new Error('Файл или сессия отсутствуют');
+  }
+
+  const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error('Допустимые форматы: PNG, JPG, JPEG');
+  }
+
+  const maxSize = 5 * 1024 * 1024;
+  if (file.size > maxSize) {
+    throw new Error('Максимальный размер: 5MB');
+  }
+
+  const form = new FormData();
+  form.append('token', state.session.token);
+  form.append('username', state.session.username);
+  form.append('file', file);
+
+  showLoading();
+  try {
+    const data = await apiFetch('/set_av', {
+      method: 'POST',
+      body: form
+    });
+
+    if (data.status === 'ok' && data.avatar) {
+      await evictAvatarCache(state.session.username);
+      if (typeof updateUserInfo === "function") updateUserInfo();
+      if (typeof loadMyProfile === "function") loadMyProfile();
+      return data.avatar;
     }
-
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
-    if (!allowedTypes.includes(file.type)) {
-        throw new Error('Допустимые форматы: PNG, JPG, JPEG');
-    }
-
-    const maxSize = 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-        throw new Error('Максимальный размер: 5MB');
-    }
-
-    const form = new FormData();
-    form.append('token', state.session.token);
-    form.append('username', state.session.username);
-    form.append('file', file);
-
-    showLoading();
-    try {
-        const data = await apiFetch('/set_av', {
-            method: 'POST',
-            body: form
-        });
-
-        if (data.status === 'ok' && data.avatar) {
-            return data.avatar;
-        }
-        throw new Error(data.error || 'Ошибка загрузки');
-    } finally {
-        hideLoading();
-    }
+    throw new Error(data.error || 'Ошибка загрузки');
+  } finally {
+    hideLoading();
+  }
 }
 
 async function fetchUserAvatar(username) {
-    if (!username) return null;
+  if (!username) return null;
 
-    const cached = await getCachedAvatarUrl(username);
-    if (cached) return cached;
+  const cached = await getCachedAvatarUrl(username);
+  if (cached) return cached;
 
-    const form = new FormData();
-    form.append('other', username);
+  const form = new FormData();
+  form.append('other', username);
 
-    try {
-        const response = await fetch(`${state.apiBase}/get_av`, {
-            method: 'POST',
-            body: form
-        });
+  try {
+    const response = await fetch(`${state.apiBase}/get_av`, {
+      method: 'POST',
+      body: form
+    });
 
-        if (!response.ok) return null;
+    if (!response.ok) return null;
 
-        const blob = await response.blob();
-        await putAvatarInCache(username, blob);
-        const objUrl = URL.createObjectURL(blob);
-        avatarObjectUrlCache.set(username, objUrl);
-        return objUrl;
-    } catch (err) {
-        console.warn(`Avatar fetch failed for ${username}:`, err);
-        return null;
-    }
+    const blob = await response.blob();
+    await putAvatarInCache(username, blob);
+    const objUrl = URL.createObjectURL(blob);
+    avatarObjectUrlCache.set(username, objUrl);
+    return objUrl;
+  } catch (err) {
+    console.warn(`Avatar fetch failed for ${username}:`, err);
+    return null;
+  }
 }
 
 async function applyUserAvatar(el, username, fallbackInitial) {
-    if (!el || !username) return;
+  if (!el || !username) return;
 
-    const cached = avatarCache.get(username);
-    if (cached) {
-        el.style.backgroundImage = `url(${cached})`;
-        el.style.backgroundSize = 'cover';
-        el.style.backgroundPosition = 'center';
-        el.textContent = '';
-        el.classList.add('has-image');
-        return;
+  const cached = avatarCache.get(username);
+  if (cached) {
+    el.style.backgroundImage = `url(${cached})`;
+    el.style.backgroundSize = 'cover';
+    el.style.backgroundPosition = 'center';
+    el.textContent = '';
+    el.classList.add('has-image');
+    return;
+  }
+
+  el.style.backgroundImage = '';
+  el.textContent = fallbackInitial || '?';
+  el.classList.remove('has-image');
+
+  try {
+    const avatarUrl = await fetchUserAvatar(username);
+    if (avatarUrl) {
+      avatarCache.set(username, avatarUrl);
+      el.style.backgroundImage = `url(${avatarUrl})`;
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+      el.textContent = '';
+      el.classList.add('has-image');
     }
-
-    el.style.backgroundImage = '';
-    el.textContent = fallbackInitial || '?';
-    el.classList.remove('has-image');
-
-    try {
-        const avatarUrl = await fetchUserAvatar(username);
-        if (avatarUrl) {
-            avatarCache.set(username, avatarUrl);
-            el.style.backgroundImage = `url(${avatarUrl})`;
-            el.style.backgroundSize = 'cover';
-            el.style.backgroundPosition = 'center';
-            el.textContent = '';
-            el.classList.add('has-image');
-        }
-    } catch (err) {
-        console.warn('Avatar load error:', err);
-    }
+  } catch (err) {
+    console.warn('Avatar load error:', err);
+  }
 }
 
 function updateChatAvatar(avatar, user) {
-    const username = user.username || user.chatId;
-    const displayName = user.name || username;
-    const initial = (displayName ? String(displayName[0]) : '?').toUpperCase();
+  const username = user.username || user.chatId;
+  const displayName = user.name || username;
+  const initial = (displayName ? String(displayName[0]) : '?').toUpperCase();
 
-    if (user.type === 'user' && username) {
-        applyUserAvatar(avatar, username, initial);
-    } else if (user.avatar) {
-        avatar.style.backgroundImage = `url(${user.avatar})`;
-        avatar.style.backgroundSize = 'cover';
-        avatar.style.backgroundPosition = 'center';
-        avatar.classList.add('has-image');
-        avatar.textContent = '';
-    } else {
-        avatar.textContent = initial;
-    }
+  if (user.type === 'user' && username) {
+    applyUserAvatar(avatar, username, initial);
+  } else if (user.avatar) {
+    avatar.style.backgroundImage = `url(${user.avatar})`;
+    avatar.style.backgroundSize = 'cover';
+    avatar.style.backgroundPosition = 'center';
+    avatar.classList.add('has-image');
+    avatar.textContent = '';
+  } else {
+    avatar.textContent = initial;
+  }
 }
-
-
-

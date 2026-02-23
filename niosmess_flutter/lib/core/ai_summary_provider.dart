@@ -213,6 +213,10 @@ class AiSummaryNotifier extends StateNotifier<AiSummaryState> {
     return points.take(3).toList();
   }
 
+  void collapse() {
+    state = state.copyWith(isExpanded: false);
+  }
+
   void clearSummary() {
     state = const AiSummaryState();
   }
@@ -325,10 +329,10 @@ class AiSummaryCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
         ),
       ),
       child: Column(

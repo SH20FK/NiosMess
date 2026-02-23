@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "31725064203",
+    "project_id": "niosmess",
+    "storage_bucket": "niosmess.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:31725064203:android:718eb00778f5d75782370e",
+        "android_client_info": {
+          "package_name": "com.example.niosmess"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgIlq9dix4DYlLBNUF4eqsofZqh_uItUI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:31725064203:android:6c5a6125b31dd11e82370e",
+        "android_client_info": {
+          "package_name": "com.niosmess.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgIlq9dix4DYlLBNUF4eqsofZqh_uItUI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

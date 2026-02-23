@@ -1,6 +1,168 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+
+/// NIOSMESS Design System Colors - Exact from specification
+class NiosColors {
+  // Background colors (Aurora Glass)
+  static const Color bgPrimary = Color(0xFF0A0F1E);
+  static const Color bgSurface = Color(0xFF121A2A);
+  static const Color bgSurfaceAlt = Color(0xFF1A2336);
+
+  // Accent colors
+  static const Color accentBlue = Color(0xFF6C8BFF);
+  static const Color accentBlueLight = Color(0xFF9BB4FF);
+  static const Color accentTeal = Color(0xFF5EEAD4);
+  static const Color accentViolet = Color(0xFFA78BFA);
+
+  // Text colors
+  static const Color textWhite = Color(0xFFF7F9FF);
+  static const Color textGrey = Color(0xFFB2BCD1);
+  static const Color textMuted = Color(0xFF7E8799);
+
+  // Status colors
+  static const Color greenOnline = Color(0xFF4ADE80);
+
+  // Glass colors
+  static const Color glassSoft = Color.fromRGBO(18, 26, 42, 0.55);
+  static const Color glassStrong = Color.fromRGBO(18, 26, 42, 0.75);
+  static const Color glassBorder = Color.fromRGBO(255, 255, 255, 0.12);
+  static const Color glassHighlight = Color.fromRGBO(255, 255, 255, 0.22);
+
+  // Typography (Inter font family sizes)
+  static const double displaySize = 32.0;
+  static const double headlineSize = 24.0;
+  static const double titleSize = 18.0;
+  static const double bodySize = 16.0;
+  static const double bodySmallSize = 14.0;
+  static const double captionSize = 12.0;
+  static const double buttonSize = 16.0;
+
+  // Font weights
+  static const FontWeight weightBold = FontWeight.w700;
+  static const FontWeight weightSemiBold = FontWeight.w600;
+  static const FontWeight weightMedium = FontWeight.w500;
+  static const FontWeight weightRegular = FontWeight.w400;
+
+  // Spacing Scale (8dp grid)
+  static const double spacingXs = 4.0;
+  static const double spacingSm = 8.0;
+  static const double spacingMd = 16.0;
+  static const double spacingLg = 24.0;
+  static const double spacingXl = 32.0;
+  static const double spacingXxl = 48.0;
+
+  // Corner Radius
+  static const double radiusSmall = 8.0;
+  static const double radiusMedium = 12.0;
+  static const double radiusLarge = 16.0;
+  static const double radiusXlarge = 24.0;
+  static const double radiusFull = 999.0;
+
+  // Shadows
+  static const List<BoxShadow> elevationLow = [
+    BoxShadow(
+      color: Color.fromRGBO(3, 6, 16, 0.35),
+      blurRadius: 10,
+      offset: Offset(0, 6),
+    ),
+  ];
+  static const List<BoxShadow> elevationMedium = [
+    BoxShadow(
+      color: Color.fromRGBO(3, 6, 16, 0.45),
+      blurRadius: 18,
+      offset: Offset(0, 10),
+    ),
+  ];
+  static const List<BoxShadow> elevationHigh = [
+    BoxShadow(
+      color: Color.fromRGBO(3, 6, 16, 0.55),
+      blurRadius: 28,
+      offset: Offset(0, 14),
+    ),
+  ];
+}
+
+class NiosSpacing {
+  static const double xs = 4.0;
+  static const double sm = 8.0;
+  static const double md = 16.0;
+  static const double lg = 24.0;
+  static const double xl = 32.0;
+  static const double xxl = 48.0;
+
+  static const EdgeInsets page = EdgeInsets.fromLTRB(16, 16, 16, 24);
+}
+
+class NiosRadii {
+  static const double sm = 8.0;
+  static const double md = 12.0;
+  static const double lg = 16.0;
+  static const double xl = 24.0;
+  static const double pill = 999.0;
+}
+
+/// Gradients for icons and backgrounds
+class NiosGradients {
+  // Aurora gradients
+  static const LinearGradient gradientBlue = LinearGradient(
+    colors: [Color(0xFF6C8BFF), Color(0xFF60A5FA)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient gradientOrange = LinearGradient(
+    colors: [Color(0xFFF59E0B), Color(0xFFFEC84B)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient gradientPurple = LinearGradient(
+    colors: [Color(0xFFA78BFA), Color(0xFFF472B6)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient gradientGreen = LinearGradient(
+    colors: [Color(0xFF34D399), Color(0xFF6EE7B7)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient gradientPink = LinearGradient(
+    colors: [Color(0xFFF472B6), Color(0xFFFB7185)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient gradientRed = LinearGradient(
+    colors: [Color(0xFFF43F5E), Color(0xFFFB7185)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient background = LinearGradient(
+    colors: [
+      Color(0xFF0A0F1E),
+      Color(0xFF121A2A),
+      Color(0xFF10182A),
+      Color(0xFF0A0F1E),
+    ],
+    stops: [0.0, 0.35, 0.7, 1.0],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient glassSheen = LinearGradient(
+    colors: [
+      Color.fromRGBO(255, 255, 255, 0.16),
+      Color.fromRGBO(255, 255, 255, 0.02),
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+}
 
 class NiosThemePreset {
   const NiosThemePreset({
@@ -52,220 +214,230 @@ class NiosThemePreset {
   final String chatPattern;
 }
 
-const niosThemePresets = <NiosThemePreset>[
+final niosThemePresets = <NiosThemePreset>[
   NiosThemePreset(
     id: 'blue',
-    label: 'Тёмная',
-    background: Color(0xFF0E1621),
-    surface: Color(0xFF17212B),
-    surfaceAlt: Color(0xFF1E2732),
-    surfaceHover: Color(0xFF242F3D),
-    surfaceActive: Color(0xFF2B3847),
-    text: Color(0xFFFFFFFF),
-    textSecondary: Color(0xFF8B98A8),
-    textTertiary: Color(0xFF6B7A8C),
-    accent: Color(0xFF5288C1),
-    accentHover: Color(0xFF6A9DD4),
-    accentLight: Color(0xFF7BA9DB),
-    messageOut: Color(0xFF2B5278),
-    messageIn: Color(0xFF1E2732),
-    border: Color.fromRGBO(255, 255, 255, 0.06),
-    borderLight: Color.fromRGBO(255, 255, 255, 0.08),
-    shadow: Color.fromRGBO(0, 0, 0, 0.5),
-    shadowGlow: Color.fromRGBO(82, 136, 193, 0.3),
-    glass: Color.fromRGBO(23, 33, 43, 0.95),
-    glassHover: Color.fromRGBO(30, 39, 50, 0.95),
+    label: 'Dark',
+    background: const Color(0xFF0A0F1E),
+    surface: const Color(0xFF121A2A),
+    surfaceAlt: const Color(0xFF1A2336),
+    surfaceHover: const Color(0xFF1F2B44),
+    surfaceActive: const Color(0xFF27324D),
+    text: const Color(0xFFF7F9FF),
+    textSecondary: const Color(0xFFB2BCD1),
+    textTertiary: const Color(0xFF8C96A8),
+    accent: const Color(0xFF6C8BFF),
+    accentHover: const Color(0xFF84A0FF),
+    accentLight: const Color(0xFFA1B6FF),
+    messageOut: const Color(0xFF2D3E64),
+    messageIn: const Color(0xFF1A2336),
+    border: const Color.fromRGBO(255, 255, 255, 0.08),
+    borderLight: const Color.fromRGBO(255, 255, 255, 0.14),
+    shadow: const Color.fromRGBO(3, 6, 16, 0.55),
+    shadowGlow: const Color.fromRGBO(108, 139, 255, 0.35),
+    glass: const Color.fromRGBO(18, 26, 42, 0.6),
+    glassHover: const Color.fromRGBO(26, 35, 54, 0.72),
     chatPattern: 'https://i.imgur.com/ZUfitM7.png',
   ),
   NiosThemePreset(
     id: 'light',
-    label: 'Светлая',
-    background: Color(0xFFFFFFFF),
-    surface: Color(0xFFF4F4F5),
-    surfaceAlt: Color(0xFFE8E8EA),
-    surfaceHover: Color(0xFFDFE1E4),
-    surfaceActive: Color(0xFFD4D6D9),
-    text: Color(0xFF000000),
-    textSecondary: Color(0xFF707579),
-    textTertiary: Color(0xFFA2ACB0),
-    accent: Color(0xFF3390EC),
-    accentHover: Color(0xFF4CA0F0),
-    accentLight: Color(0xFF65B0F4),
-    messageOut: Color(0xFFE7F8D4),
-    messageIn: Color(0xFFFFFFFF),
-    border: Color.fromRGBO(0, 0, 0, 0.08),
-    borderLight: Color.fromRGBO(0, 0, 0, 0.12),
-    shadow: Color.fromRGBO(0, 0, 0, 0.12),
-    shadowGlow: Color.fromRGBO(51, 144, 236, 0.2),
-    glass: Color.fromRGBO(255, 255, 255, 0.98),
-    glassHover: Color.fromRGBO(244, 244, 245, 0.98),
+    label: 'Light',
+    background: const Color(0xFFF3F6FC),
+    surface: const Color(0xFFFFFFFF),
+    surfaceAlt: const Color(0xFFEEF2F7),
+    surfaceHover: const Color(0xFFE6EBF3),
+    surfaceActive: const Color(0xFFDDE3EE),
+    text: const Color(0xFF0B0F17),
+    textSecondary: const Color(0xFF5C6473),
+    textTertiary: const Color(0xFF8A93A4),
+    accent: const Color(0xFF4F46E5),
+    accentHover: const Color(0xFF6366F1),
+    accentLight: const Color(0xFF818CF8),
+    messageOut: const Color(0xFFE6F2FF),
+    messageIn: const Color(0xFFFFFFFF),
+    border: const Color.fromRGBO(0, 0, 0, 0.08),
+    borderLight: const Color.fromRGBO(0, 0, 0, 0.12),
+    shadow: const Color.fromRGBO(18, 27, 46, 0.12),
+    shadowGlow: const Color.fromRGBO(79, 70, 229, 0.2),
+    glass: const Color.fromRGBO(255, 255, 255, 0.7),
+    glassHover: const Color.fromRGBO(243, 246, 252, 0.85),
     chatPattern: 'https://i.imgur.com/k9wk8YW.png',
   ),
   NiosThemePreset(
     id: 'violet',
-    label: 'Фиолетовая',
-    background: Color(0xFF1A1125),
-    surface: Color(0xFF231931),
-    surfaceAlt: Color(0xFF2C2139),
-    surfaceHover: Color(0xFF362948),
-    surfaceActive: Color(0xFF403152),
-    text: Color(0xFFFFFFFF),
-    textSecondary: Color(0xFFB5A5C9),
-    textTertiary: Color(0xFF8D7BA5),
-    accent: Color(0xFF8B7CBD),
-    accentHover: Color(0xFF9D8ECD),
-    accentLight: Color(0xFFAFA0DD),
-    messageOut: Color(0xFF5A4575),
-    messageIn: Color(0xFF2C2139),
-    border: Color.fromRGBO(255, 255, 255, 0.06),
-    borderLight: Color.fromRGBO(255, 255, 255, 0.08),
-    shadow: Color.fromRGBO(0, 0, 0, 0.5),
-    shadowGlow: Color.fromRGBO(139, 124, 189, 0.4),
-    glass: Color.fromRGBO(35, 25, 49, 0.95),
-    glassHover: Color.fromRGBO(44, 33, 57, 0.95),
+    label: 'Violet',
+    background: const Color(0xFF140F26),
+    surface: const Color(0xFF1C1533),
+    surfaceAlt: const Color(0xFF241B40),
+    surfaceHover: const Color(0xFF2A214A),
+    surfaceActive: const Color(0xFF322857),
+    text: const Color(0xFFF7F3FF),
+    textSecondary: const Color(0xFFC6B6E6),
+    textTertiary: const Color(0xFFA08DBD),
+    accent: const Color(0xFFC084FC),
+    accentHover: const Color(0xFFD8B4FE),
+    accentLight: const Color(0xFFE9D5FF),
+    messageOut: const Color(0xFF4B3568),
+    messageIn: const Color(0xFF241B40),
+    border: const Color.fromRGBO(255, 255, 255, 0.08),
+    borderLight: const Color.fromRGBO(255, 255, 255, 0.14),
+    shadow: const Color.fromRGBO(3, 6, 16, 0.6),
+    shadowGlow: const Color.fromRGBO(192, 132, 252, 0.35),
+    glass: const Color.fromRGBO(28, 21, 51, 0.6),
+    glassHover: const Color.fromRGBO(36, 27, 64, 0.72),
     chatPattern: 'https://i.imgur.com/0ei9Yj5.png',
   ),
   NiosThemePreset(
     id: 'green',
-    label: 'Зелёная',
-    background: Color(0xFF0D1E16),
-    surface: Color(0xFF162920),
-    surfaceAlt: Color(0xFF1D332A),
-    surfaceHover: Color(0xFF243D34),
-    surfaceActive: Color(0xFF2B473E),
-    text: Color(0xFFFFFFFF),
-    textSecondary: Color(0xFF8FB399),
-    textTertiary: Color(0xFF6D917D),
-    accent: Color(0xFF5FA378),
-    accentHover: Color(0xFF72B289),
-    accentLight: Color(0xFF85C19A),
-    messageOut: Color(0xFF2E5A42),
-    messageIn: Color(0xFF1D332A),
-    border: Color.fromRGBO(255, 255, 255, 0.06),
-    borderLight: Color.fromRGBO(255, 255, 255, 0.08),
-    shadow: Color.fromRGBO(0, 0, 0, 0.5),
-    shadowGlow: Color.fromRGBO(95, 163, 120, 0.3),
-    glass: Color.fromRGBO(22, 41, 32, 0.95),
-    glassHover: Color.fromRGBO(29, 51, 42, 0.95),
+    label: 'Green',
+    background: const Color(0xFF0B1A14),
+    surface: const Color(0xFF12241C),
+    surfaceAlt: const Color(0xFF182E23),
+    surfaceHover: const Color(0xFF1E392A),
+    surfaceActive: const Color(0xFF244433),
+    text: const Color(0xFFF2FFF9),
+    textSecondary: const Color(0xFFA7C6B5),
+    textTertiary: const Color(0xFF7FA18E),
+    accent: const Color(0xFF34D399),
+    accentHover: const Color(0xFF6EE7B7),
+    accentLight: const Color(0xFFA7F3D0),
+    messageOut: const Color(0xFF245A45),
+    messageIn: const Color(0xFF182E23),
+    border: const Color.fromRGBO(255, 255, 255, 0.08),
+    borderLight: const Color.fromRGBO(255, 255, 255, 0.14),
+    shadow: const Color.fromRGBO(3, 6, 16, 0.55),
+    shadowGlow: const Color.fromRGBO(52, 211, 153, 0.3),
+    glass: const Color.fromRGBO(18, 36, 28, 0.6),
+    glassHover: const Color.fromRGBO(24, 46, 35, 0.72),
     chatPattern: 'https://i.imgur.com/ZUfitM7.png',
   ),
   NiosThemePreset(
     id: 'pink',
-    label: 'Розовая',
-    background: Color(0xFF1E0E19),
-    surface: Color(0xFF2A1525),
-    surfaceAlt: Color(0xFF351C30),
-    surfaceHover: Color(0xFF40233B),
-    surfaceActive: Color(0xFF4B2A46),
-    text: Color(0xFFFFFFFF),
-    textSecondary: Color(0xFFD4A5C4),
-    textTertiary: Color(0xFFB085A0),
-    accent: Color(0xFFD77FA1),
-    accentHover: Color(0xFFE092B1),
-    accentLight: Color(0xFFE9A5C1),
-    messageOut: Color(0xFF6B3D57),
-    messageIn: Color(0xFF351C30),
-    border: Color.fromRGBO(255, 255, 255, 0.06),
-    borderLight: Color.fromRGBO(255, 255, 255, 0.08),
-    shadow: Color.fromRGBO(0, 0, 0, 0.5),
-    shadowGlow: Color.fromRGBO(215, 127, 161, 0.4),
-    glass: Color.fromRGBO(42, 21, 37, 0.95),
-    glassHover: Color.fromRGBO(53, 28, 48, 0.95),
+    label: 'Pink',
+    background: const Color(0xFF1A0E17),
+    surface: const Color(0xFF241321),
+    surfaceAlt: const Color(0xFF2E192A),
+    surfaceHover: const Color(0xFF382034),
+    surfaceActive: const Color(0xFF43273E),
+    text: const Color(0xFFFFF6FB),
+    textSecondary: const Color(0xFFD6ABC4),
+    textTertiary: const Color(0xFFB185A3),
+    accent: const Color(0xFFFB7185),
+    accentHover: const Color(0xFFFDA4AF),
+    accentLight: const Color(0xFFFECACA),
+    messageOut: const Color(0xFF5C2E44),
+    messageIn: const Color(0xFF2E192A),
+    border: const Color.fromRGBO(255, 255, 255, 0.08),
+    borderLight: const Color.fromRGBO(255, 255, 255, 0.14),
+    shadow: const Color.fromRGBO(3, 6, 16, 0.55),
+    shadowGlow: const Color.fromRGBO(251, 113, 133, 0.35),
+    glass: const Color.fromRGBO(36, 19, 33, 0.6),
+    glassHover: const Color.fromRGBO(46, 25, 42, 0.72),
     chatPattern: 'https://i.imgur.com/0ei9Yj5.png',
   ),
   NiosThemePreset(
     id: 'orange',
-    label: 'Оранжевая',
-    background: Color(0xFF1B0F0A),
-    surface: Color(0xFF23130C),
-    surfaceAlt: Color(0xFF2A1911),
-    surfaceHover: Color(0xFF332017),
-    surfaceActive: Color(0xFF3B271D),
-    text: Color(0xFFFFFFFF),
-    textSecondary: Color(0xFFE2C4B0),
-    textTertiary: Color(0xFFC9A58E),
-    accent: Color(0xFFF28A2E),
-    accentHover: Color(0xFFF5A050),
-    accentLight: Color(0xFFF7B36E),
-    messageOut: Color(0xFF5A3722),
-    messageIn: Color(0xFF2A1911),
-    border: Color.fromRGBO(255, 255, 255, 0.06),
-    borderLight: Color.fromRGBO(255, 255, 255, 0.08),
-    shadow: Color.fromRGBO(0, 0, 0, 0.5),
-    shadowGlow: Color.fromRGBO(242, 138, 46, 0.35),
-    glass: Color.fromRGBO(35, 19, 12, 0.92),
-    glassHover: Color.fromRGBO(42, 25, 17, 0.92),
+    label: 'Orange',
+    background: const Color(0xFF1A0F0A),
+    surface: const Color(0xFF23150E),
+    surfaceAlt: const Color(0xFF2C1B12),
+    surfaceHover: const Color(0xFF352218),
+    surfaceActive: const Color(0xFF3F281E),
+    text: const Color(0xFFFFF6EF),
+    textSecondary: const Color(0xFFE0BFA9),
+    textTertiary: const Color(0xFFC19980),
+    accent: const Color(0xFFF59E0B),
+    accentHover: const Color(0xFFFBBF24),
+    accentLight: const Color(0xFFFCD34D),
+    messageOut: const Color(0xFF5A3722),
+    messageIn: const Color(0xFF2C1B12),
+    border: const Color.fromRGBO(255, 255, 255, 0.08),
+    borderLight: const Color.fromRGBO(255, 255, 255, 0.14),
+    shadow: const Color.fromRGBO(3, 6, 16, 0.55),
+    shadowGlow: const Color.fromRGBO(245, 158, 11, 0.35),
+    glass: const Color.fromRGBO(35, 21, 14, 0.6),
+    glassHover: const Color.fromRGBO(44, 27, 18, 0.72),
     chatPattern: 'https://i.imgur.com/ZUfitM7.png',
   ),
   NiosThemePreset(
     id: 'teal',
-    label: 'Бирюзовая',
-    background: Color(0xFFF0F7F7),
-    surface: Color(0xFFE4F1F1),
-    surfaceAlt: Color(0xFFD8EBEB),
-    surfaceHover: Color(0xFFCCE5E5),
-    surfaceActive: Color(0xFFC0DFDF),
-    text: Color(0xFF000000),
-    textSecondary: Color(0xFF5A7A7A),
-    textTertiary: Color(0xFF8A9F9F),
-    accent: Color(0xFF24A89E),
-    accentHover: Color(0xFF37B8AE),
-    accentLight: Color(0xFF4AC8BE),
-    messageOut: Color(0xFFC8F5E8),
-    messageIn: Color(0xFFFFFFFF),
-    border: Color.fromRGBO(0, 0, 0, 0.08),
-    borderLight: Color.fromRGBO(0, 0, 0, 0.12),
-    shadow: Color.fromRGBO(0, 0, 0, 0.12),
-    shadowGlow: Color.fromRGBO(36, 168, 158, 0.2),
-    glass: Color.fromRGBO(255, 255, 255, 0.98),
-    glassHover: Color.fromRGBO(228, 241, 241, 0.98),
+    label: 'Teal',
+    background: const Color(0xFFEFFBFB),
+    surface: const Color(0xFFFFFFFF),
+    surfaceAlt: const Color(0xFFE6F4F4),
+    surfaceHover: const Color(0xFFDDEDED),
+    surfaceActive: const Color(0xFFD2E6E6),
+    text: const Color(0xFF0B0F17),
+    textSecondary: const Color(0xFF4E6D6D),
+    textTertiary: const Color(0xFF7B9191),
+    accent: const Color(0xFF0EA5A8),
+    accentHover: const Color(0xFF2DD4BF),
+    accentLight: const Color(0xFF5EEAD4),
+    messageOut: const Color(0xFFD9F7F1),
+    messageIn: const Color(0xFFFFFFFF),
+    border: const Color.fromRGBO(0, 0, 0, 0.08),
+    borderLight: const Color.fromRGBO(0, 0, 0, 0.12),
+    shadow: const Color.fromRGBO(18, 27, 46, 0.12),
+    shadowGlow: const Color.fromRGBO(14, 165, 168, 0.2),
+    glass: const Color.fromRGBO(255, 255, 255, 0.7),
+    glassHover: const Color.fromRGBO(239, 251, 251, 0.85),
     chatPattern: 'https://i.imgur.com/k9wk8YW.png',
   ),
 ];
 
 class NiosPalette {
-  static Color background = niosThemePresets.first.background;
-  static Color surface = niosThemePresets.first.surface;
-  static Color surfaceAlt = niosThemePresets.first.surfaceAlt;
-  static Color surfaceHover = niosThemePresets.first.surfaceHover;
-  static Color surfaceActive = niosThemePresets.first.surfaceActive;
-  static Color text = niosThemePresets.first.text;
-  static Color textSecondary = niosThemePresets.first.textSecondary;
-  static Color textTertiary = niosThemePresets.first.textTertiary;
-  static Color accent = niosThemePresets.first.accent;
-  static Color accentHover = niosThemePresets.first.accentHover;
-  static Color accentLight = niosThemePresets.first.accentLight;
-  static Color messageOut = niosThemePresets.first.messageOut;
-  static Color messageIn = niosThemePresets.first.messageIn;
-  static Color border = niosThemePresets.first.border;
-  static Color borderLight = niosThemePresets.first.borderLight;
-  static Color shadow = niosThemePresets.first.shadow;
-  static Color shadowGlow = niosThemePresets.first.shadowGlow;
-  static Color glass = niosThemePresets.first.glass;
-  static Color glassHover = niosThemePresets.first.glassHover;
-  static String chatPattern = niosThemePresets.first.chatPattern;
+  static ColorScheme _scheme = ColorScheme.fromSeed(
+    seedColor: const Color(0xFF4F46E5),
+    brightness: Brightness.dark,
+  );
 
-  static void apply(NiosThemePreset preset) {
-    background = preset.background;
-    surface = preset.surface;
-    surfaceAlt = preset.surfaceAlt;
-    surfaceHover = preset.surfaceHover;
-    surfaceActive = preset.surfaceActive;
-    text = preset.text;
-    textSecondary = preset.textSecondary;
-    textTertiary = preset.textTertiary;
-    accent = preset.accent;
-    accentHover = preset.accentHover;
-    accentLight = preset.accentLight;
-    messageOut = preset.messageOut;
-    messageIn = preset.messageIn;
-    border = preset.border;
-    borderLight = preset.borderLight;
-    shadow = preset.shadow;
-    shadowGlow = preset.shadowGlow;
-    glass = preset.glass;
-    glassHover = preset.glassHover;
-    chatPattern = preset.chatPattern;
+  // Active theme values (Material 3 derived)
+  static Color background = _scheme.surface;
+  static Color surface = _scheme.surface;
+  static Color surfaceAlt = _scheme.surfaceVariant;
+  static Color surfaceHover = _scheme.surfaceVariant;
+  static Color surfaceActive = _scheme.surfaceVariant;
+  static Color text = _scheme.onSurface;
+  static Color textSecondary = _scheme.onSurfaceVariant;
+  static Color textTertiary = _scheme.onSurfaceVariant.withValues(alpha: 0.7);
+  static Color accent = _scheme.primary;
+  static Color accentHover = _scheme.primary;
+  static Color accentLight = _scheme.primaryContainer;
+  static Color messageOut = _scheme.primaryContainer;
+  static Color messageIn = _scheme.surfaceVariant;
+  static Color border = _scheme.outline;
+  static Color borderLight = _scheme.outlineVariant;
+  static Color shadow = Colors.black.withValues(alpha: 0.2);
+  static Color shadowGlow = _scheme.primary.withValues(alpha: 0.16);
+  static Color glass = _scheme.surface;
+  static Color glassHover = _scheme.surfaceVariant;
+  static String chatPattern = '';
+
+  // Online status
+  static Color online = NiosColors.greenOnline;
+
+  static void apply(ColorScheme scheme) {
+    _scheme = scheme;
+    background = scheme.surface;
+    surface = scheme.surface;
+    surfaceAlt = scheme.surfaceVariant;
+    surfaceHover = scheme.surfaceVariant;
+    surfaceActive = scheme.surfaceVariant;
+    text = scheme.onSurface;
+    textSecondary = scheme.onSurfaceVariant;
+    textTertiary = scheme.onSurfaceVariant.withValues(alpha: 0.7);
+    accent = scheme.primary;
+    accentHover = scheme.primary;
+    accentLight = scheme.primaryContainer;
+    messageOut = scheme.primaryContainer;
+    messageIn = scheme.surfaceVariant;
+    border = scheme.outline;
+    borderLight = scheme.outlineVariant;
+    shadow = Colors.black.withValues(alpha: 0.2);
+    shadowGlow = scheme.primary.withValues(alpha: 0.16);
+    glass = scheme.surface;
+    glassHover = scheme.surfaceVariant;
+    chatPattern = '';
   }
 }
 
@@ -277,6 +449,8 @@ class NiosScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.bottomNavigationBar,
     this.usePattern = false,
+    this.useAurora = true,
+    this.useNoise = true,
   });
 
   final Widget body;
@@ -284,37 +458,20 @@ class NiosScaffold extends StatelessWidget {
   final Widget? floatingActionButton;
   final Widget? bottomNavigationBar;
   final bool usePattern;
+  final bool useAurora;
+  final bool useNoise;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: appBar,
-      backgroundColor: NiosPalette.background,
+      backgroundColor: Theme.of(context).colorScheme.background,
       floatingActionButton: floatingActionButton,
       bottomNavigationBar: bottomNavigationBar,
-      body: usePattern
-          ? Stack(
-              children: [
-                Positioned.fill(
-                  child: Opacity(
-                    opacity: 0.03,
-                    child: CachedNetworkImage(
-                      imageUrl: NiosPalette.chatPattern,
-                      fit: BoxFit.cover,
-                      fadeInDuration: const Duration(milliseconds: 200),
-                      placeholder: (_, __) => const SizedBox.shrink(),
-                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                    ),
-                  ),
-                ),
-                SafeArea(child: body),
-              ],
-            )
-          : SafeArea(child: body),
+      body: SafeArea(child: body),
     );
   }
 }
-
 
 class NiosCard extends StatelessWidget {
   const NiosCard({
@@ -334,19 +491,69 @@ class NiosCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: elevation,
-      color: useGlass ? NiosPalette.glass : NiosPalette.surface,
+      color: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: NiosPalette.border, width: 0.5),
+        borderRadius: BorderRadius.circular(NiosRadii.md),
+        side: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
       ),
       child: Padding(
-        padding: padding ?? const EdgeInsets.all(16),
+        padding: padding ?? const EdgeInsets.all(NiosSpacing.md),
         child: child,
       ),
     );
   }
 }
 
+class NiosGlass extends StatelessWidget {
+  const NiosGlass({
+    super.key,
+    required this.child,
+    this.radius = 16,
+    this.blur = 18,
+    this.color,
+    this.gradient,
+    this.padding,
+    this.borderColor,
+    this.borderWidth = 0.6,
+    this.shadow,
+    this.showSheen = true,
+  });
+
+  final Widget child;
+  final double radius;
+  final double blur;
+  final Color? color;
+  final Gradient? gradient;
+  final EdgeInsets? padding;
+  final Color? borderColor;
+  final double borderWidth;
+  final List<BoxShadow>? shadow;
+  final bool showSheen;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: color ?? scheme.surface,
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(
+            color: borderColor ?? scheme.outlineVariant,
+            width: borderWidth,
+          ),
+          boxShadow: shadow,
+        ),
+        child: Padding(
+          padding: padding ?? EdgeInsets.zero,
+          child: child,
+        ),
+      ),
+    );
+  }
+}
 
 class NiosSectionTitle extends StatelessWidget {
   const NiosSectionTitle(this.text, {super.key});
@@ -354,11 +561,11 @@ class NiosSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Text(
       text.toUpperCase(),
-      style: TextStyle(
-        color: NiosPalette.textSecondary,
-        fontSize: 12,
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
         letterSpacing: 1.2,
         fontWeight: FontWeight.w600,
       ),
@@ -382,23 +589,24 @@ class NiosPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
+    final scheme = Theme.of(context).colorScheme;
+    return FilledButton(
       onPressed: loading ? null : onTap,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: NiosPalette.accent,
-        foregroundColor: Colors.white,
+      style: FilledButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 0,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (loading) ...[
-            const SizedBox(
+            SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: scheme.onPrimary,
+              ),
             ),
             const SizedBox(width: 12),
           ] else if (icon != null) ...[
@@ -419,28 +627,44 @@ class NiosGhostButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
+    return OutlinedButton(
       onPressed: onTap,
-      style: TextButton.styleFrom(foregroundColor: NiosPalette.accent),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
       child: Text(label),
     );
   }
 }
 
 InputDecoration niosInputDecoration(String hint, {IconData? icon}) {
+  final scheme = NiosPalette._scheme;
   return InputDecoration(
     hintText: hint,
     filled: true,
-    fillColor: NiosPalette.surfaceAlt,
-    prefixIcon: icon != null ? Icon(icon, color: NiosPalette.textSecondary) : null,
-    hintStyle: TextStyle(color: NiosPalette.textSecondary),
+    fillColor: scheme.surfaceVariant,
+    prefixIcon:
+        icon != null ? Icon(icon, color: scheme.onSurfaceVariant) : null,
+    hintStyle: TextStyle(color: scheme.onSurfaceVariant),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(NiosRadii.md),
+    ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: NiosPalette.border),
+      borderRadius: BorderRadius.circular(NiosRadii.md),
+      borderSide: BorderSide(color: scheme.outlineVariant),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: NiosPalette.accent),
+      borderRadius: BorderRadius.circular(NiosRadii.md),
+      borderSide: BorderSide(color: scheme.primary),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(NiosRadii.md),
+      borderSide: BorderSide(color: scheme.error),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(NiosRadii.md),
+      borderSide: BorderSide(color: scheme.error),
     ),
   );
 }
@@ -463,7 +687,8 @@ class NiosBadge extends StatefulWidget {
   State<NiosBadge> createState() => _NiosBadgeState();
 }
 
-class _NiosBadgeState extends State<NiosBadge> with SingleTickerProviderStateMixin {
+class _NiosBadgeState extends State<NiosBadge>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   OverlayEntry? _entry;
   final ValueNotifier<bool> _tooltipVisible = ValueNotifier(false);
@@ -472,7 +697,8 @@ class _NiosBadgeState extends State<NiosBadge> with SingleTickerProviderStateMix
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+    _controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 900));
     if (!widget.reduceMotion) {
       _controller.repeat();
     }
@@ -552,12 +778,16 @@ class _NiosBadgeState extends State<NiosBadge> with SingleTickerProviderStateMix
   Widget _buildIcon() {
     final icon = _mapIcon(widget.icon);
     final isUrl = icon.startsWith('http://') || icon.startsWith('https://');
-    final isAsset = icon.startsWith('assets/') || icon.endsWith('.png') || icon.endsWith('.jpg') || icon.endsWith('.webp');
+    final isAsset = icon.startsWith('assets/') ||
+        icon.endsWith('.png') ||
+        icon.endsWith('.jpg') ||
+        icon.endsWith('.webp');
     if (isUrl) {
       return CachedNetworkImage(
         imageUrl: icon,
         fit: BoxFit.cover,
-        errorWidget: (_, __, ___) => Text('🦊', style: TextStyle(fontSize: widget.size * 0.46)),
+        errorWidget: (_, __, ___) =>
+            Text('🦊', style: TextStyle(fontSize: widget.size * 0.46)),
       );
     }
     if (isAsset) {
@@ -609,7 +839,8 @@ class _NiosBadgeState extends State<NiosBadge> with SingleTickerProviderStateMix
 }
 
 class _BadgeTooltip extends StatelessWidget {
-  const _BadgeTooltip({required this.text, required this.visible, required this.width});
+  const _BadgeTooltip(
+      {required this.text, required this.visible, required this.width});
   final String text;
   final bool visible;
   final double width;
@@ -651,7 +882,6 @@ class _BadgeTooltip extends StatelessWidget {
   }
 }
 
-
 class _BadgeParticlesPainter extends CustomPainter {
   _BadgeParticlesPainter(this.progress);
   final double progress;
@@ -664,8 +894,10 @@ class _BadgeParticlesPainter extends CustomPainter {
     for (var i = 0; i < 12; i++) {
       final angle = (progress * 2 * math.pi) + (i * 0.52);
       final dist = radius + (i % 3) * 2;
-      final dot = Offset(center.dx + dist * math.cos(angle), center.dy + dist * math.sin(angle));
-      final alpha = (0.5 + 0.5 * math.sin(angle + progress * 6)).clamp(0.2, 0.9);
+      final dot = Offset(center.dx + dist * math.cos(angle),
+          center.dy + dist * math.sin(angle));
+      final alpha =
+          (0.5 + 0.5 * math.sin(angle + progress * 6)).clamp(0.2, 0.9);
       paint.color = NiosPalette.accent.withValues(alpha: alpha);
 
       canvas.drawCircle(dot, i % 3 == 0 ? 1.6 : 1.1, paint);
@@ -676,4 +908,43 @@ class _BadgeParticlesPainter extends CustomPainter {
   bool shouldRepaint(covariant _BadgeParticlesPainter oldDelegate) {
     return oldDelegate.progress != progress;
   }
+}
+
+class _NoiseLayer extends StatelessWidget {
+  const _NoiseLayer();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _NoisePainter(),
+    );
+  }
+}
+
+class _NoisePainter extends CustomPainter {
+  Size? _lastSize;
+  List<Offset> _points = const [];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (_lastSize != size) {
+      _lastSize = size;
+      final seed = size.width.toInt() * 37 + size.height.toInt() * 91;
+      final rng = math.Random(seed);
+      final count = (size.width * size.height / 140).round().clamp(600, 2400);
+      _points = List<Offset>.generate(
+        count,
+        (_) => Offset(
+            rng.nextDouble() * size.width, rng.nextDouble() * size.height),
+      );
+    }
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.04)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+    canvas.drawPoints(ui.PointMode.points, _points, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _NoisePainter oldDelegate) => false;
 }

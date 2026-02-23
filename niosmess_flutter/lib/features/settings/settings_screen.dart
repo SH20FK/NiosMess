@@ -6,10 +6,8 @@ import '../../core/storage/offline_cache.dart';
 import '../../core/settings_provider.dart';
 import '../../core/theme_provider.dart';
 import '../../core/bubble_style_provider.dart';
-import '../../core/wallpaper_provider.dart';
 import '../../ui/nios_ui.dart';
 import '../../ui/widgets/bubble_style_preview.dart';
-import '../../ui/widgets/wallpaper_selector.dart';
 
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -222,7 +220,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: niosThemePresets.map((preset) {
-                    final active = preset.id == themeState.preset.id;
+                    final active = preset.accent.value == themeState.seedColor.value;
                     return _themeTile(preset, active);
                   }).toList(),
                 ),
@@ -248,27 +246,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
               ),
               const SizedBox(height: 16),
               const BubbleStyleCustomizer(),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Chat Wallpaper
-        NiosCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const NiosSectionTitle('Фон чата'),
-              const SizedBox(height: 4),
-              Text(
-                'Выберите обои для фона переписки',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: NiosPalette.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const WallpaperSelector(),
             ],
           ),
         ),

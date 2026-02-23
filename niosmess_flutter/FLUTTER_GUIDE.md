@@ -1,4 +1,4 @@
-﻿# Flutter (Android) skeleton for NiosMess
+# Flutter (Android) skeleton for NiosMess
 
 Это базовый каркас под нативный Flutter‑клиент. Дальше наполняем экраны и API.
 

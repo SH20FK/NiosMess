@@ -20,7 +20,7 @@ export function LoginScreen({ onNavigate, onLogin }: LoginScreenProps) {
   const handleSubmit = async () => {
     setError(null);
     if (!username || !password) {
-      setError('Введите логин и пароль');
+      setError('Р’РІРµРґРёС‚Рµ Р»РѕРіРёРЅ Рё РїР°СЂРѕР»СЊ');
       return;
     }
     setLoading(true);
@@ -29,14 +29,14 @@ export function LoginScreen({ onNavigate, onLogin }: LoginScreenProps) {
       if (data?.token && data?.username) {
         onLogin({ token: data.token, username: data.username, name: data.name });
       } else {
-        setError('Не удалось войти');
+        setError('РќРµ СѓРґР°Р»РѕСЃСЊ РІРѕР№С‚Рё');
       }
     } catch (err: any) {
       if (err?.status === 403 && err?.detail?.includes('Account frozen')) {
         const reason = err.detail.split('Account frozen:')[1]?.trim();
-        onNavigate('frozen', { reason: reason || 'Аккаунт заморожен' });
+        onNavigate('frozen', { reason: reason || 'РђРєРєР°СѓРЅС‚ Р·Р°РјРѕСЂРѕР¶РµРЅ' });
       } else {
-        setError(err?.detail || 'Ошибка входа');
+        setError(err?.detail || 'РћС€РёР±РєР° РІС…РѕРґР°');
       }
     } finally {
       setLoading(false);
@@ -58,7 +58,7 @@ export function LoginScreen({ onNavigate, onLogin }: LoginScreenProps) {
           style={{ color: 'var(--nm-text-secondary)' }}
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Назад</span>
+          <span>РќР°Р·Р°Рґ</span>
         </button>
 
         <div className="flex justify-center mb-6">
@@ -66,16 +66,16 @@ export function LoginScreen({ onNavigate, onLogin }: LoginScreenProps) {
         </div>
 
         <h2 className="text-3xl font-bold text-center mb-2" style={{ color: 'var(--nm-text)' }}>
-          Вход
+          Р’С…РѕРґ
         </h2>
         <p className="text-center mb-8" style={{ color: 'var(--nm-text-secondary)' }}>
-          Добро пожаловать обратно!
+          Р”РѕР±СЂРѕ РїРѕР¶Р°Р»РѕРІР°С‚СЊ РѕР±СЂР°С‚РЅРѕ!
         </p>
 
         <div className="flex flex-col gap-4">
           <div>
             <label className="block mb-2 text-sm font-medium" style={{ color: 'var(--nm-text)' }}>
-              Логин
+              Р›РѕРіРёРЅ
             </label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--nm-text-secondary)' }} />
@@ -96,7 +96,7 @@ export function LoginScreen({ onNavigate, onLogin }: LoginScreenProps) {
 
           <div>
             <label className="block mb-2 text-sm font-medium" style={{ color: 'var(--nm-text)' }}>
-              Пароль
+              РџР°СЂРѕР»СЊ
             </label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--nm-text-secondary)' }} />
@@ -104,7 +104,7 @@ export function LoginScreen({ onNavigate, onLogin }: LoginScreenProps) {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Введите пароль"
+                placeholder="Р’РІРµРґРёС‚Рµ РїР°СЂРѕР»СЊ"
                 className="w-full pl-12 pr-12 py-3 rounded-xl border-2 transition-all duration-200 outline-none focus:border-[var(--nm-accent)]"
                 style={{
                   background: 'var(--nm-surface)',
@@ -123,7 +123,7 @@ export function LoginScreen({ onNavigate, onLogin }: LoginScreenProps) {
           </div>
 
           <button className="text-sm text-right transition-colors duration-200" style={{ color: 'var(--nm-accent)' }}>
-            Забыли пароль?
+            Р—Р°Р±С‹Р»Рё РїР°СЂРѕР»СЊ?
           </button>
 
           {error && (
@@ -142,17 +142,17 @@ export function LoginScreen({ onNavigate, onLogin }: LoginScreenProps) {
               boxShadow: `0 8px 32px var(--nm-shadow)`
             }}
           >
-            {loading ? 'Вход...' : 'Войти'}
+            {loading ? 'Р’С…РѕРґ...' : 'Р’РѕР№С‚Рё'}
           </button>
 
           <p className="text-center mt-4" style={{ color: 'var(--nm-text-secondary)' }}>
-            Нет аккаунта?{' '}
+            РќРµС‚ Р°РєРєР°СѓРЅС‚Р°?{' '}
             <button
               onClick={() => onNavigate('register')}
               className="font-medium transition-colors duration-200"
               style={{ color: 'var(--nm-accent)' }}
             >
-              Зарегистрироваться
+              Р—Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊСЃСЏ
             </button>
           </p>
         </div>

@@ -19,7 +19,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
-	<string>????</string>
+	<string>Nios</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
@@ -45,5 +45,17 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Используем Face ID для защиты чатов.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Доступ нужен для выбора фото профиля.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Камера нужна для съемки фото профиля.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Микрофон нужен для голосовых сообщений.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Доступ нужен для отправки контактов.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Геолокация нужна для отправки вашего местоположения.</string>
 </dict>
 </plist>

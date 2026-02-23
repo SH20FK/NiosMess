@@ -23,21 +23,21 @@ type ProfileInfo = {
 };
 
 const tabs = [
-  { id: "account" as Tab, label: "???????", icon: User },
-  { id: "personalization" as Tab, label: "??????????????", icon: Palette },
-  { id: "notifications" as Tab, label: "???????????", icon: Bell },
-  { id: "privacy" as Tab, label: "??????????????????", icon: Lock },
-  { id: "advanced" as Tab, label: "?????????????", icon: SettingsIcon }
+  { id: "account" as Tab, label: "", icon: User },
+  { id: "personalization" as Tab, label: "", icon: Palette },
+  { id: "notifications" as Tab, label: "", icon: Bell },
+  { id: "privacy" as Tab, label: "", icon: Lock },
+  { id: "advanced" as Tab, label: "", icon: SettingsIcon }
 ];
 
 const themes = [
-  { id: "dark", name: "??????", preview: "#9b59f5" },
-  { id: "light", name: "???????", preview: "#9b59f5" },
-  { id: "teal", name: "?????????", preview: "#2dd4bf" },
-  { id: "green", name: "???????", preview: "#22c55e" },
-  { id: "pink", name: "???????", preview: "#ec4899" },
-  { id: "orange", name: "?????????", preview: "#f97316" },
-  { id: "purple", name: "??????????", preview: "#a855f7" }
+  { id: "dark", name: "", preview: "#9b59f5" },
+  { id: "light", name: "", preview: "#9b59f5" },
+  { id: "teal", name: "", preview: "#2dd4bf" },
+  { id: "green", name: "", preview: "#22c55e" },
+  { id: "pink", name: "", preview: "#ec4899" },
+  { id: "orange", name: "", preview: "#f97316" },
+  { id: "purple", name: "", preview: "#a855f7" }
 ];
 
 function formatRegDate(value?: string | number | null) {
@@ -136,10 +136,10 @@ export function SettingsScreen({ onNavigate, session }: SettingsScreenProps) {
             style={{ color: "var(--nm-text-secondary)" }}
           >
             <ArrowLeft className="w-5 h-5" />
-            <span>?????</span>
+            <span></span>
           </button>
           <h2 className="text-2xl font-bold" style={{ color: "var(--nm-text)" }}>
-            ?????????
+            
           </h2>
         </div>
 
@@ -190,7 +190,7 @@ export function SettingsScreen({ onNavigate, session }: SettingsScreenProps) {
 }
 
 function AccountTab({ profile, loading }: { profile: ProfileInfo; loading: boolean }) {
-  const displayName = profile.name || profile.username || "????????????";
+  const displayName = profile.name || profile.username || "";
   const displayUsername = profile.username ? `@${profile.username}` : "@username";
   const regDate = formatRegDate(profile.regdate);
 
@@ -198,10 +198,10 @@ function AccountTab({ profile, loading }: { profile: ProfileInfo; loading: boole
     <div className="space-y-6">
       <div>
         <h3 className="text-2xl font-bold mb-2" style={{ color: "var(--nm-text)" }}>
-          ???????
+          
         </h3>
         <p style={{ color: "var(--nm-text-secondary)" }}>
-          ?????????? ???????? ? ???????? ???????
+            ?  
         </p>
       </div>
 
@@ -229,7 +229,7 @@ function AccountTab({ profile, loading }: { profile: ProfileInfo; loading: boole
             </h4>
             <p style={{ color: "var(--nm-text-secondary)" }}>{displayUsername}</p>
             <p className="text-sm mt-1" style={{ color: "var(--nm-text-secondary)" }}>
-              ???????????: {regDate}
+              : {regDate}
             </p>
           </div>
           <button
@@ -239,14 +239,14 @@ function AccountTab({ profile, loading }: { profile: ProfileInfo; loading: boole
               color: "white"
             }}
           >
-            ????????
+            
           </button>
         </div>
 
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: "var(--nm-text)" }}>
-              ??? ????????????
+               
             </label>
             <input
               type="text"
@@ -281,12 +281,12 @@ function AccountTab({ profile, loading }: { profile: ProfileInfo; loading: boole
 
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: "var(--nm-text)" }}>
-              ? ????
+              ? 
             </label>
             <textarea
               value={profile.about || ""}
               readOnly
-              placeholder="?????????? ? ????..."
+              placeholder=" ? ..."
               rows={3}
               className="w-full px-4 py-3 rounded-xl border outline-none resize-none"
               style={{
@@ -308,7 +308,7 @@ function AccountTab({ profile, loading }: { profile: ProfileInfo; loading: boole
           boxShadow: `0 8px 32px var(--nm-shadow)`
         }}
       >
-        ????????? ?????????
+         
       </button>
     </div>
   );
@@ -352,9 +352,9 @@ function PersonalizationTab() {
     <div className="space-y-6">
       <div>
         <h3 className="text-2xl font-bold mb-2" style={{ color: "var(--nm-text)" }}>
-          ??????????????
+          
         </h3>
-        <p style={{ color: "var(--nm-text-secondary)" }}>????????? ??????? ??? ??????????</p>
+        <p style={{ color: "var(--nm-text-secondary)" }}>   </p>
       </div>
 
       <div
@@ -366,7 +366,7 @@ function PersonalizationTab() {
       >
         <h4 className="font-bold mb-4 flex items-center gap-2" style={{ color: "var(--nm-text)" }}>
           <Palette className="w-5 h-5" />
-          ???? ??????????
+           
         </h4>
 
         <div className="relative">
@@ -434,24 +434,24 @@ function PersonalizationTab() {
         }}
       >
         <h4 className="font-bold mb-4" style={{ color: "var(--nm-text)" }}>
-          ?????????????
+          
         </h4>
 
         <ToggleOption
-          label="???????? ??????????"
-          description="??????? ???????? ? ???????"
+          label=" "
+          description="  ? "
           defaultChecked={true}
         />
 
         <ToggleOption
-          label="?????????? ?????"
-          description="??????????? ??????? ? ??????????"
+          label=" "
+          description="  ? "
           defaultChecked={false}
         />
 
         <ToggleOption
-          label="?????????? ???????"
-          description="?????????? ??????? ? ?????? ?????"
+          label=" "
+          description="  ?  "
           defaultChecked={true}
         />
       </div>
@@ -464,9 +464,9 @@ function NotificationsTab() {
     <div className="space-y-6">
       <div>
         <h3 className="text-2xl font-bold mb-2" style={{ color: "var(--nm-text)" }}>
-          ???????????
+          
         </h3>
-        <p style={{ color: "var(--nm-text-secondary)" }}>?????????? ????????????? ? ???????</p>
+        <p style={{ color: "var(--nm-text-secondary)" }}>  ? </p>
       </div>
 
       <div
@@ -477,24 +477,24 @@ function NotificationsTab() {
         }}
       >
         <h4 className="font-bold mb-4" style={{ color: "var(--nm-text)" }}>
-          ?????? ????
+           
         </h4>
 
         <ToggleOption
-          label="Push-???????????"
-          description="???????? ??????????? ? ????? ??????????"
+          label="Push-"
+          description="  ?  "
           defaultChecked={true}
         />
 
         <ToggleOption
-          label="???? ???????????"
-          description="?????????????? ???? ??? ????????? ?????????"
+          label=" "
+          description="    "
           defaultChecked={true}
         />
 
         <ToggleOption
-          label="?????? ?????????"
-          description="?????????? ????? ????????? ? ???????????"
+          label=" "
+          description="   ? "
           defaultChecked={true}
         />
       </div>
@@ -507,18 +507,18 @@ function NotificationsTab() {
         }}
       >
         <h4 className="font-bold mb-4" style={{ color: "var(--nm-text)" }}>
-          ?????? ? ??????
+           ? 
         </h4>
 
         <ToggleOption
-          label="??????????? ?? ?????"
-          description="???????? ??????????? ?? ????????? ?????"
+          label="  "
+          description="    "
           defaultChecked={true}
         />
 
         <ToggleOption
-          label="??????????"
-          description="?????????? ?????? ??? ??????????"
+          label=""
+          description="   "
           defaultChecked={false}
         />
       </div>
@@ -531,9 +531,9 @@ function PrivacyTab() {
     <div className="space-y-6">
       <div>
         <h3 className="text-2xl font-bold mb-2" style={{ color: "var(--nm-text)" }}>
-          ??????????????????
+          
         </h3>
-        <p style={{ color: "var(--nm-text-secondary)" }}>?????????? ???????????? ? ?????????????</p>
+        <p style={{ color: "var(--nm-text-secondary)" }}>  ? </p>
       </div>
 
       <div
@@ -544,12 +544,12 @@ function PrivacyTab() {
         }}
       >
         <h4 className="font-bold mb-4" style={{ color: "var(--nm-text)" }}>
-          ????????? ???????
+           
         </h4>
 
-        <SelectOption label="????????? ??????????" options={["???", "????????", "?????"]} defaultValue="????????" />
-        <SelectOption label="???? ???????" options={["???", "????????", "?????"]} defaultValue="???" />
-        <SelectOption label="??????" options={["???", "????????", "?????"]} defaultValue="???" />
+        <SelectOption label=" " options={["", "", ""]} defaultValue="" />
+        <SelectOption label=" " options={["", "", ""]} defaultValue="" />
+        <SelectOption label="" options={["", "", ""]} defaultValue="" />
       </div>
 
       <div
@@ -560,18 +560,18 @@ function PrivacyTab() {
         }}
       >
         <h4 className="font-bold mb-4" style={{ color: "var(--nm-text)" }}>
-          ????????????
+          
         </h4>
 
         <ToggleOption
-          label="????????????? ??????????????"
-          description="?????????????? ?????? ????????"
+          label=" "
+          description="  "
           defaultChecked={true}
         />
 
         <ToggleOption
-          label="????????????? ?????"
-          description="?????????? ? ????? ?????? ? ???????"
+          label=" "
+          description=" ?   ? "
           defaultChecked={true}
         />
       </div>
@@ -584,9 +584,9 @@ function AdvancedTab() {
     <div className="space-y-6">
       <div>
         <h3 className="text-2xl font-bold mb-2" style={{ color: "var(--nm-text)" }}>
-          ?????????????
+          
         </h3>
-        <p style={{ color: "var(--nm-text-secondary)" }}>??????????? ????????? ? ?????????? ???????</p>
+        <p style={{ color: "var(--nm-text-secondary)" }}>  ?  </p>
       </div>
 
       <div
@@ -605,10 +605,10 @@ function AdvancedTab() {
           </div>
           <div className="flex-1">
             <h4 className="font-bold mb-2" style={{ color: "var(--nm-text)" }}>
-              ?????????? ??????
+               
             </h4>
             <p className="text-sm mb-4" style={{ color: "var(--nm-text-secondary)" }}>
-              ????????????? ???? ?????????, ????? ? ?????? ???????
+                ,  ?  
             </p>
             <div className="flex gap-2">
               <button
@@ -618,7 +618,7 @@ function AdvancedTab() {
                   color: "white"
                 }}
               >
-                ??????????????
+                
               </button>
               <button
                 className="px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105"
@@ -628,7 +628,7 @@ function AdvancedTab() {
                   border: "1px solid var(--nm-border)"
                 }}
               >
-                ??????? ????????
+                 
               </button>
             </div>
           </div>
@@ -643,13 +643,13 @@ function AdvancedTab() {
         }}
       >
         <h4 className="font-bold mb-4" style={{ color: "var(--nm-text)" }}>
-          ?????????
+          
         </h4>
 
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span style={{ color: "var(--nm-text-secondary)" }}>????????????</span>
-            <span style={{ color: "var(--nm-text)" }}>2.4 ?? ?? 15 ??</span>
+            <span style={{ color: "var(--nm-text-secondary)" }}></span>
+            <span style={{ color: "var(--nm-text)" }}>2.4   15 </span>
           </div>
           <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--nm-bg)" }}>
             <div className="h-full rounded-full" style={{ width: "16%", background: "var(--nm-accent)" }} />
@@ -664,7 +664,7 @@ function AdvancedTab() {
             border: "1px solid var(--nm-border)"
           }}
         >
-          ???????? ???
+           
         </button>
       </div>
 
@@ -676,16 +676,16 @@ function AdvancedTab() {
         }}
       >
         <h4 className="font-bold mb-4" style={{ color: "var(--nm-text)" }}>
-          ? ??????????
+          ? 
         </h4>
 
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span style={{ color: "var(--nm-text-secondary)" }}>??????</span>
+            <span style={{ color: "var(--nm-text-secondary)" }}></span>
             <span style={{ color: "var(--nm-text)" }}>1.0.0</span>
           </div>
           <div className="flex justify-between">
-            <span style={{ color: "var(--nm-text-secondary)" }}>?????????</span>
+            <span style={{ color: "var(--nm-text-secondary)" }}></span>
             <span style={{ color: "var(--nm-text)" }}>Web</span>
           </div>
         </div>

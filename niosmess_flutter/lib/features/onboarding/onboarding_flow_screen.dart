@@ -19,6 +19,11 @@ class OnboardingFlowScreen extends ConsumerStatefulWidget {
 
 enum _OnboardingStep {
   welcome,
+  introValue,
+  introPrivacy,
+  introThemes,
+  introCalls,
+  introSync,
   signupEmail,
   signupName,
   signupPassword,
@@ -36,7 +41,6 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
   final api = ApiRepository();
 
   late final AnimationController _stepController;
-  late final AnimationController _ambientController;
 
   final _emailCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
@@ -76,10 +80,6 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
       duration: const Duration(milliseconds: 650),
       value: 1,
     );
-    _ambientController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 12),
-    )..repeat();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final reduceMotion = (ref.read(settingsProvider)['reduce_motion'] as bool?) ?? false;
@@ -98,7 +98,6 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
     _loginPasswordCtrl.dispose();
     _successTimer?.cancel();
     _stepController.dispose();
-    _ambientController.dispose();
     super.dispose();
   }
 
@@ -309,6 +308,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
   }
 
   Widget _stepIndicator(int count, int active) {
+    final scheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(count, (i) {
@@ -319,11 +319,8 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
           width: isActive ? 28 : 8,
           height: 8,
           decoration: BoxDecoration(
-            color: isActive ? NiosPalette.accent : NiosPalette.borderLight,
+            color: isActive ? scheme.primary : scheme.outlineVariant,
             borderRadius: BorderRadius.circular(999),
-            boxShadow: isActive
-                ? [BoxShadow(color: NiosPalette.shadowGlow, blurRadius: 12, offset: const Offset(0, 4))]
-                : null,
           ),
         );
       }),
@@ -331,6 +328,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
   }
 
   Widget _errorBox() {
+    final scheme = Theme.of(context).colorScheme;
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
       child: _error == null
@@ -341,10 +339,10 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
               margin: const EdgeInsets.only(top: 12),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color.fromRGBO(255, 90, 90, 0.12),
+                color: scheme.errorContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(_error!, style: const TextStyle(color: Color(0xFFFF7A7A))),
+              child: Text(_error!, style: TextStyle(color: scheme.onErrorContainer)),
             ),
     );
   }
@@ -367,31 +365,28 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
 
   Widget _buildLegalItem(_LegalDoc doc) {
     final read = _legalRead.contains(doc.id);
-    return Container(
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: read ? const Color.fromRGBO(74, 222, 128, 0.08) : NiosPalette.surfaceAlt,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: read ? const Color.fromRGBO(74, 222, 128, 0.4) : NiosPalette.border),
+        side: BorderSide(color: read ? scheme.primary : scheme.outlineVariant),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(doc.title, style: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 4),
-                Text(read ? 'Прочитано' : 'Не прочитано', style: TextStyle(color: read ? const Color(0xFF4ADE80) : NiosPalette.textSecondary, fontSize: 12)),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () => _openLegalDoc(doc),
-            child: Text(read ? 'Открыть' : 'Прочитать'),
-          ),
-        ],
+      child: ListTile(
+        leading: Icon(
+          read ? Icons.check_circle : Icons.description_outlined,
+          color: read ? scheme.primary : scheme.onSurfaceVariant,
+        ),
+        title: Text(doc.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        subtitle: Text(
+          read ? 'Прочитано' : 'Не прочитано',
+          style: TextStyle(color: read ? scheme.primary : scheme.onSurfaceVariant, fontSize: 12),
+        ),
+        trailing: TextButton(
+          onPressed: () => _openLegalDoc(doc),
+          child: Text(read ? 'Прочитано' : 'Отметить'),
+        ),
       ),
     );
   }
@@ -399,81 +394,90 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
   Future<void> _openLegalDoc(_LegalDoc doc) async {
     final raw = await rootBundle.loadString(doc.asset);
     if (!mounted) return;
+    final scheme = Theme.of(context).colorScheme;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      showDragHandle: true,
+      backgroundColor: scheme.surface,
       builder: (context) {
-        final controller = ScrollController();
         bool canAccept = false;
         return StatefulBuilder(
           builder: (context, setStateSheet) {
-            void updateAccept() {
-              if (!controller.hasClients) return;
-              final max = controller.position.maxScrollExtent;
-              final current = controller.position.pixels;
-              final reached = current >= (max - 12);
-              if (reached != canAccept) {
-                setStateSheet(() => canAccept = reached);
-              }
-            }
-
-            controller.removeListener(updateAccept);
-            controller.addListener(updateAccept);
-
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.82,
-              decoration: BoxDecoration(
-                color: NiosPalette.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                border: Border.all(color: NiosPalette.border),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-                  Container(width: 44, height: 4, decoration: BoxDecoration(color: NiosPalette.borderLight, borderRadius: BorderRadius.circular(20))),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text(doc.title, style: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w700))),
-                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Закрыть')),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: Markdown(
-                      controller: controller,
-                      data: raw,
-                      styleSheet: MarkdownStyleSheet(
-                        p: TextStyle(color: NiosPalette.textSecondary, height: 1.5),
-                        h1: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w700, fontSize: 18),
-                        h2: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w700, fontSize: 16),
-                        h3: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w600, fontSize: 14),
-                        listBullet: TextStyle(color: NiosPalette.textSecondary),
+            return DraggableScrollableSheet(
+              initialChildSize: 0.85,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (context, controller) {
+                return Material(
+                  color: scheme.surface,
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                doc.title,
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Дальше'),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: canAccept
-                            ? () {
-                                setState(() => _legalRead.add(doc.id));
-                                Navigator.pop(context);
+                      const Divider(height: 1),
+                      Expanded(
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: (notification) {
+                            if (notification.metrics.pixels >=
+                                (notification.metrics.maxScrollExtent - 12)) {
+                              if (!canAccept) {
+                                setStateSheet(() => canAccept = true);
                               }
-                            : null,
-                        style: ElevatedButton.styleFrom(backgroundColor: NiosPalette.accent),
-                        child: const Text('Прочитано'),
+                            }
+                            return false;
+                          },
+                          child: Markdown(
+                            controller: controller,
+                            data: raw,
+                            styleSheet: MarkdownStyleSheet(
+                              p: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(color: scheme.onSurfaceVariant, height: 1.5),
+                              h1: Theme.of(context).textTheme.titleLarge,
+                              h2: Theme.of(context).textTheme.titleMedium,
+                              h3: Theme.of(context).textTheme.titleSmall,
+                              listBullet: TextStyle(color: scheme.onSurfaceVariant),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: canAccept
+                                ? () {
+                                    setState(() => _legalRead.add(doc.id));
+                                    Navigator.pop(context);
+                                  }
+                                : null,
+                            child: const Text('Пропустить'),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         );
@@ -482,56 +486,153 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
   }
 
   Widget _buildCard({required Widget child}) {
-    return AnimatedBuilder(
-      animation: _ambientController,
-      builder: (context, _) {
-        final reduceMotion = (ref.watch(settingsProvider)['reduce_motion'] as bool?) ?? false;
-        final t = reduceMotion ? 0.0 : _ambientController.value;
-        final pulse = 0.06 + 0.05 * sin(t * 2 * pi);
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: NiosPalette.glass,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: NiosPalette.borderLight),
-            boxShadow: [
-              BoxShadow(color: NiosPalette.shadow, blurRadius: 24, offset: const Offset(0, 12)),
-              BoxShadow(color: NiosPalette.shadowGlow.withValues(alpha: pulse), blurRadius: 36, offset: const Offset(0, 12)),
-            ],
-          ),
-          child: child,
-        );
-      },
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
+      color: scheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: child,
+      ),
     );
   }
 
   Widget _buildWelcome() {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       children: [
         _reveal(
-          Text('NiosMess', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: NiosPalette.text)),
+          Text('NiosMess', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: NiosPalette.text, letterSpacing: -0.5)),
           0.0,
         ),
         const SizedBox(height: 8),
         _reveal(
           Text(
-            'Премиальный мессенджер с продуманной приватностью',
-            style: TextStyle(color: NiosPalette.textSecondary),
+            'Быстрый, приватный, твой',
+            style: TextStyle(color: NiosPalette.accent, fontSize: 15, fontWeight: FontWeight.w500),
             textAlign: TextAlign.center,
           ),
-          0.08,
+          0.06,
+        ),
+        const SizedBox(height: 20),
+        _reveal(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              _FeatureChip(icon: Icons.lock_outline, label: 'Шифрование'),
+              _FeatureChip(icon: Icons.palette_outlined, label: 'Темы'),
+              _FeatureChip(icon: Icons.phone_outlined, label: 'Звонки'),
+              _FeatureChip(icon: Icons.sync, label: 'Синхронизация'),
+            ],
+          ),
+          0.1,
+        ),
+        const SizedBox(height: 28),
+        _reveal(
+          Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: OnboardingPrimaryButton(
+                      label: 'Создать аккаунт',
+                      icon: Icons.person_add_outlined,
+                      onTap: () => _go(_OnboardingStep.signupEmail, mood: _MascotMood.happy),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OnboardingGhostButton(
+                      label: 'У меня есть аккаунт',
+                      onTap: () => _go(_OnboardingStep.loginEmail, mood: _MascotMood.happy),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          0.16,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIntro({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required _OnboardingStep next,
+    _OnboardingStep? back,
+  }) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Column(
+      children: [
+        _reveal(
+          Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 36, color: scheme.onPrimaryContainer),
+          ),
+          0.0,
+        ),
+        const SizedBox(height: 16),
+        _reveal(
+          Text(title, style: theme.textTheme.headlineSmall, textAlign: TextAlign.center),
+          0.06,
+        ),
+        const SizedBox(height: 8),
+        _reveal(
+          Text(
+            subtitle,
+            style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
+          0.1,
         ),
         const SizedBox(height: 24),
         _reveal(
           Row(
             children: [
-              Expanded(child: OnboardingPrimaryButton(label: 'Войти', onTap: () => _go(_OnboardingStep.loginEmail, mood: _MascotMood.happy))),
-              const SizedBox(width: 12),
-              Expanded(child: OnboardingGhostButton(label: 'Создать аккаунт', onTap: () => _go(_OnboardingStep.signupEmail, mood: _MascotMood.happy))),
+              if (back != null)
+                Expanded(
+                  child: OnboardingGhostButton(
+                    label: 'Назад',
+                    onTap: () => _go(back),
+                  ),
+                ),
+              if (back != null) const SizedBox(width: 12),
+              Expanded(
+                child: OnboardingPrimaryButton(
+                  label: next == _OnboardingStep.signupEmail ? 'Создать аккаунт' : 'Дальше',
+                  onTap: () => _go(next, mood: _MascotMood.happy),
+                ),
+              ),
             ],
           ),
-          0.16,
+          0.14,
         ),
+        if (next != _OnboardingStep.signupEmail) ...[
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => _go(_OnboardingStep.loginEmail, mood: _MascotMood.happy),
+            child: const Text('Уже есть аккаунт'),
+          ),
+        ],
       ],
     );
   }
@@ -850,24 +951,31 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
   }
 
   void _openForgotPassword() {
+    final scheme = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: NiosPalette.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border.all(color: NiosPalette.border),
-        ),
+      showDragHandle: true,
+      backgroundColor: scheme.surface,
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Восстановление пароля', style: TextStyle(color: NiosPalette.text, fontWeight: FontWeight.w700)),
+            Text(
+              'Безопасный чат',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
-            Text('Пока функция не подключена. Напишите в поддержку.', style: TextStyle(color: NiosPalette.textSecondary), textAlign: TextAlign.center),
+            Text(
+              'Мы ценим вашу конфиденциальность. Шифрование и защита включены.',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 16),
-            OnboardingPrimaryButton(label: 'Понятно', onTap: () => Navigator.pop(context)),
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Начать'),
+            ),
           ],
         ),
       ),
@@ -892,24 +1000,38 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
                     FoxMascot(mood: _mood, reduceMotion: reduceMotion),
                     const SizedBox(height: 24),
                     _buildCard(
-                      child: AnimatedSwitcher(
+                      child: AnimatedSize(
                         duration: Duration(milliseconds: reduceMotion ? 0 : 320),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        transitionBuilder: (child, animation) {
-                          final slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-                              .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-                          final scale = Tween<double>(begin: 0.98, end: 1).animate(
-                            CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-                          );
-                          return FadeTransition(
-                            opacity: animation,
-                            child: SlideTransition(position: slide, child: ScaleTransition(scale: scale, child: child)),
-                          );
-                        },
-                        child: KeyedSubtree(
-                          key: ValueKey(_step),
-                          child: _buildStep(),
+                        curve: Curves.easeOutCubic,
+                        alignment: Alignment.topCenter,
+                        child: AnimatedSwitcher(
+                          duration: Duration(milliseconds: reduceMotion ? 0 : 320),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          layoutBuilder: (currentChild, previousChildren) {
+                            return Stack(
+                              alignment: Alignment.topCenter,
+                              children: [
+                                ...previousChildren,
+                                if (currentChild != null) currentChild,
+                              ],
+                            );
+                          },
+                          transitionBuilder: (child, animation) {
+                            final slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+                                .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+                            final scale = Tween<double>(begin: 0.98, end: 1).animate(
+                              CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+                            );
+                            return FadeTransition(
+                              opacity: animation,
+                              child: SlideTransition(position: slide, child: ScaleTransition(scale: scale, child: child)),
+                            );
+                          },
+                          child: KeyedSubtree(
+                            key: ValueKey(_step),
+                            child: _buildStep(),
+                          ),
                         ),
                       ),
                     ),
@@ -927,6 +1049,46 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> wit
     switch (_step) {
       case _OnboardingStep.welcome:
         return _buildWelcome();
+      case _OnboardingStep.introValue:
+        return _buildIntro(
+          title: 'Чат с заботой о вас',
+          subtitle: 'Шифрование, контроль видимости, PIN-защита и полный контроль над приватностью.',
+          icon: Icons.shield_outlined,
+          next: _OnboardingStep.introPrivacy,
+          back: _OnboardingStep.welcome,
+        );
+      case _OnboardingStep.introPrivacy:
+        return _buildIntro(
+          title: 'Всё под рукой',
+          subtitle: 'Темы, звонки, синхронизация — персонализируй мессенджер под себя.',
+          icon: Icons.auto_awesome,
+          next: _OnboardingStep.signupEmail,
+          back: _OnboardingStep.introValue,
+        );
+      case _OnboardingStep.introThemes:
+        return _buildIntro(
+          title: 'Всё под рукой',
+          subtitle: 'Темы, звонки, синхронизация — персонализируй мессенджер под себя.',
+          icon: Icons.auto_awesome,
+          next: _OnboardingStep.signupEmail,
+          back: _OnboardingStep.introValue,
+        );
+      case _OnboardingStep.introCalls:
+        return _buildIntro(
+          title: 'Всё под рукой',
+          subtitle: 'Темы, звонки, синхронизация — персонализируй мессенджер под себя.',
+          icon: Icons.auto_awesome,
+          next: _OnboardingStep.signupEmail,
+          back: _OnboardingStep.introValue,
+        );
+      case _OnboardingStep.introSync:
+        return _buildIntro(
+          title: 'Всё под рукой',
+          subtitle: 'Темы, звонки, синхронизация — персонализируй мессенджер под себя.',
+          icon: Icons.auto_awesome,
+          next: _OnboardingStep.signupEmail,
+          back: _OnboardingStep.introValue,
+        );
       case _OnboardingStep.signupEmail:
         return _buildSignupEmail();
       case _OnboardingStep.signupName:
@@ -1477,7 +1639,7 @@ class _OnboardingParticlesState extends State<OnboardingParticles> with SingleTi
             painter: _ParticlesPainter(
               particles: _particles,
               t: t,
-              color: NiosPalette.accent,
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
         ),
@@ -1529,7 +1691,7 @@ class _ParticlesPainter extends CustomPainter {
   bool shouldRepaint(covariant _ParticlesPainter oldDelegate) => oldDelegate.t != t || oldDelegate.color != color;
 }
 
-class OnboardingPrimaryButton extends StatefulWidget {
+class OnboardingPrimaryButton extends StatelessWidget {
   const OnboardingPrimaryButton({
     super.key,
     required this.label,
@@ -1544,82 +1706,77 @@ class OnboardingPrimaryButton extends StatefulWidget {
   final IconData? icon;
 
   @override
-  State<OnboardingPrimaryButton> createState() => _OnboardingPrimaryButtonState();
-}
-
-class _OnboardingPrimaryButtonState extends State<OnboardingPrimaryButton> {
-  bool _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    final disabled = widget.loading || widget.onTap == null;
-    return Listener(
-      onPointerDown: disabled ? null : (_) => setState(() => _pressed = true),
-      onPointerUp: disabled ? null : (_) => setState(() => _pressed = false),
-      onPointerCancel: disabled ? null : (_) => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.98 : 1,
-        duration: const Duration(milliseconds: 90),
-        child: ElevatedButton(
-          onPressed: disabled ? null : widget.onTap,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: NiosPalette.accent,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: 0,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (widget.loading) ...[
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                ),
-                const SizedBox(width: 12),
-              ] else if (widget.icon != null) ...[
-                Icon(widget.icon, size: 18),
-                const SizedBox(width: 8),
-              ],
-              Text(widget.label, style: const TextStyle(fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ),
+    final scheme = Theme.of(context).colorScheme;
+    final disabled = loading || onTap == null;
+    return FilledButton(
+      onPressed: disabled ? null : onTap,
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (loading) ...[
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: scheme.onPrimary),
+            ),
+            const SizedBox(width: 12),
+          ] else if (icon != null) ...[
+            Icon(icon, size: 18),
+            const SizedBox(width: 8),
+          ],
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
 }
 
-class OnboardingGhostButton extends StatefulWidget {
+class OnboardingGhostButton extends StatelessWidget {
   const OnboardingGhostButton({super.key, required this.label, required this.onTap});
 
   final String label;
   final VoidCallback? onTap;
 
   @override
-  State<OnboardingGhostButton> createState() => _OnboardingGhostButtonState();
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+    );
+  }
 }
 
-class _OnboardingGhostButtonState extends State<OnboardingGhostButton> {
-  bool _pressed = false;
+class _FeatureChip extends StatelessWidget {
+  const _FeatureChip({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    final disabled = widget.onTap == null;
-    return Listener(
-      onPointerDown: disabled ? null : (_) => setState(() => _pressed = true),
-      onPointerUp: disabled ? null : (_) => setState(() => _pressed = false),
-      onPointerCancel: disabled ? null : (_) => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.98 : 1,
-        duration: const Duration(milliseconds: 90),
-        child: TextButton(
-          onPressed: widget.onTap,
-          style: TextButton.styleFrom(foregroundColor: NiosPalette.accent),
-          child: Text(widget.label),
-        ),
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.surfaceVariant.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: scheme.primary),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13, fontWeight: FontWeight.w500)),
+        ],
       ),
     );
   }

@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NiosMess Admin</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Work+Sans:wght@400;500;600&display=swap');
+    :root {
+      --md-sys-color-primary: #ff7a1a;
+      --md-sys-color-primary-container: #ffe3cf;
+      --md-sys-color-secondary: #ffb347;
+      --md-sys-color-surface: #0f0b09;
+      --md-sys-color-surface-variant: #1b1310;
+      --md-sys-color-on-surface: #f6efe9;
+      --md-sys-color-on-surface-variant: #d6c9c0;
+      --md-sys-color-outline: #3f2f27;
+      --md-sys-color-danger: #ff4d4d;
+      --md-sys-color-success: #44d19e;
+      --md-sys-elev: 0 20px 60px rgba(0,0,0,0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 600px at 10% -10%, rgba(255,122,26,0.25), transparent),
+                  radial-gradient(900px 500px at 100% 10%, rgba(255,179,71,0.2), transparent),
+                  #0b0806;
+      color: var(--md-sys-color-on-surface);
+      font-family: 'Work Sans', sans-serif;
+      min-height: 100vh;
+    }
+    .shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 20px 80px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 20px;
+      border: 1px solid var(--md-sys-color-outline);
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(255,122,26,0.12), rgba(255,179,71,0.05));
+      box-shadow: var(--md-sys-elev);
+      position: sticky;
+      top: 16px;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+    }
+    .brand {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+    }
+    .pill {
+      border: 1px solid var(--md-sys-color-outline);
+      padding: 8px 14px;
+      border-radius: 999px;
+      color: var(--md-sys-color-on-surface-variant);
+      font-size: 12px;
+    }
+    .grid {
+      display: grid;
+      gap: 18px;
+      margin-top: 24px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      border: 1px solid var(--md-sys-color-outline);
+      background: var(--md-sys-color-surface);
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: var(--md-sys-elev);
+    }
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .stat span {
+      color: var(--md-sys-color-on-surface-variant);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .stat strong {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 28px;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .toolbar .left,
+    .toolbar .right {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    input, select, textarea {
+      background: var(--md-sys-color-surface-variant);
+      color: var(--md-sys-color-on-surface);
+      border: 1px solid var(--md-sys-color-outline);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+      min-width: 160px;
+    }
+    button {
+      background: var(--md-sys-color-primary);
+      color: #1a0f07;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s ease, opacity 0.2s ease;
+    }
+    button.secondary {
+      background: transparent;
+      color: var(--md-sys-color-on-surface);
+      border: 1px solid var(--md-sys-color-outline);
+    }
+    button.danger {
+      background: var(--md-sys-color-danger);
+      color: #fff;
+    }
+    button:active { transform: scale(0.98); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--md-sys-color-outline);
+      vertical-align: middle;
+    }
+    th { color: var(--md-sys-color-on-surface-variant); font-weight: 600; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid var(--md-sys-color-outline);
+    }
+    .badge.ok { color: var(--md-sys-color-success); border-color: rgba(68,209,158,0.4); }
+    .badge.warn { color: #ffb347; border-color: rgba(255,179,71,0.4); }
+    .badge.danger { color: var(--md-sys-color-danger); border-color: rgba(255,77,77,0.5); }
+    .split {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 18px;
+    }
+    .log {
+      max-height: 420px;
+      overflow: auto;
+      background: #0c0907;
+      border: 1px solid var(--md-sys-color-outline);
+      border-radius: 14px;
+      padding: 12px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 12px;
+    }
+    .row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .muted { color: var(--md-sys-color-on-surface-variant); }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(6,4,3,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .overlay.hidden { display: none; }
+    .overlay .card { max-width: 420px; width: 92%; }
+    .footer-note { margin-top: 12px; font-size: 12px; color: var(--md-sys-color-on-surface-variant); }
+    @media (max-width: 980px) {
+      .split { grid-template-columns: 1fr; }
+      .topbar { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay" id="authOverlay">
+    <div class="card">
+      <h3>Доступ администратора</h3>
+      <p class="muted">Введите ROOT_TOKEN для доступа к админ-инструментам.</p>
+      <input id="tokenInput" type="password" placeholder="ROOT_TOKEN" />
+      <div style="margin-top:12px; display:flex; gap:10px;">
+        <button id="saveTokenBtn">Войти</button>
+        <button class="secondary" id="clearTokenBtn">Очистить</button>
+      </div>
+      <div class="footer-note">Токен сохраняется в localStorage на этом устройстве.</div>
+    </div>
+  </div>
+
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">NiosMess Admin</div>
+      <div class="pill" id="statusPill">офлайн</div>
+    </div>
+
+    <section class="grid">
+      <div class="stats" id="statsGrid"></div>
+
+      <div class="card">
+        <div class="toolbar">
+          <div class="left">
+            <strong>Пользователи</strong>
+            <input id="userSearch" placeholder="Поиск по username/email" />
+            <button class="secondary" id="reloadUsers">Обновить</button>
+          </div>
+          <div class="right">
+            <button id="prevUsers">Назад</button>
+            <button id="nextUsers">Вперёд</button>
+          </div>
+        </div>
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Логин</th>
+                <th>Email</th>
+                <th>Имя</th>
+                <th>Статус</th>
+                <th>Последний визит</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="split">
+        <div class="card">
+          <div class="toolbar">
+            <div class="left">
+              <strong>Трекер сообщений</strong>
+            </div>
+          </div>
+          <div class="toolbar">
+            <div class="left">
+              <input id="msgUsername" placeholder="Логин" />
+              <input id="msgChatId" placeholder="Chat ID или собеседник" />
+              <select id="msgChatType">
+                <option value="user">Личные</option>
+                <option value="group">Группа</option>
+                <option value="channel">Канал</option>
+              </select>
+              <input id="msgQuery" placeholder="Поиск текста" />
+              <button id="loadMessages">Загрузить</button>
+            </div>
+          </div>
+          <div class="log" id="messagesLog">Нет данных.</div>
+        </div>
+
+        <div class="card">
+          <div class="toolbar">
+            <div class="left">
+              <strong>Сессии</strong>
+              <input id="sessionUser" placeholder="Логин (необязательно)" />
+              <button class="secondary" id="loadSessions">Загрузить</button>
+            </div>
+          </div>
+          <div class="log" id="sessionsLog">Нет данных.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <div class="left">
+            <strong>SQL-консоль</strong>
+            <span class="muted">Используйте осторожно.</span>
+          </div>
+          <div class="right">
+            <button id="runSql">Выполнить</button>
+          </div>
+        </div>
+        <textarea id="sqlInput" rows="4" style="width:100%;" placeholder="SELECT * FROM users LIMIT 10;"></textarea>
+        <div class="log" id="sqlLog">Запросы не выполнялись.</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const state = {
+      token: localStorage.getItem('root_token') || '',
+      userOffset: 0,
+      userLimit: 20,
+    };
+
+    const overlay = document.getElementById('authOverlay');
+    const tokenInput = document.getElementById('tokenInput');
+    const statusPill = document.getElementById('statusPill');
+    const statsGrid = document.getElementById('statsGrid');
+    const usersBody = document.getElementById('usersBody');
+    const userSearch = document.getElementById('userSearch');
+    const messagesLog = document.getElementById('messagesLog');
+    const sessionsLog = document.getElementById('sessionsLog');
+    const sqlLog = document.getElementById('sqlLog');
+
+    function setOnline(ok) {
+      statusPill.textContent = ok ? 'онлайн' : 'офлайн';
+      statusPill.style.color = ok ? '#44d19e' : '#ff4d4d';
+    }
+
+    function showOverlay(show) {
+      overlay.classList.toggle('hidden', !show);
+      if (show) tokenInput.value = '';
+    }
+
+    async function apiFetch(path, options = {}) {
+      const headers = options.headers || {};
+      headers['X-Root-Token'] = state.token || '';
+      headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+      const res = await fetch(path, { ...options, headers });
+      if (res.status === 403) {
+        showOverlay(true);
+        throw new Error('Access denied');
+      }
+      return res.json();
+    }
+
+    function renderStats(stats) {
+      const items = [
+        ['Пользователи', stats.users || 0],
+        ['Заморожены', stats.frozen || 0],
+        ['Сессии', stats.sessions || 0],
+        ['Сообщения', stats.messages || 0],
+        ['Групповые', stats.group_messages || 0],
+        ['Группы', stats.groups || 0],
+      ];
+      statsGrid.innerHTML = items.map(([label, value]) => (
+        `<div class="card stat"><span>${label}</span><strong>${value}</strong></div>`
+      )).join('');
+    }
+
+    function formatStatus(u) {
+      if (u.is_frozen) return '<span class="badge danger">Заморожен</span>';
+      if (u.verified) return '<span class="badge ok">Подтверждён</span>';
+      return '<span class="badge warn">Не подтверждён</span>';
+    }
+
+    function renderUsers(rows) {
+      usersBody.innerHTML = rows.map(u => {
+        const lastSeen = u.last_seen ? new Date(u.last_seen * 1000).toLocaleString() : '-';
+        return `<tr>
+          <td>${u.username}</td>
+          <td>${u.email || '-'}</td>
+          <td>${u.name || '-'}</td>
+          <td>${formatStatus(u)}</td>
+          <td>${lastSeen}</td>
+          <td>
+            <div class="row-actions">
+              <button class="secondary" data-action="freeze" data-user="${u.username}">${u.is_frozen ? 'Разморозить' : 'Заморозить'}</button>
+              <button class="secondary" data-action="reset" data-user="${u.username}">Сброс пароля</button>
+              <button class="secondary" data-action="messages" data-user="${u.username}">Сообщения</button>
+              <button class="danger" data-action="delete" data-user="${u.username}">Удалить</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function loadStats() {
+      const data = await apiFetch('/admin/stats');
+      renderStats(data);
+    }
+
+    async function loadUsers() {
+      const q = userSearch.value.trim();
+      const params = new URLSearchParams({
+        q,
+        limit: state.userLimit,
+        offset: state.userOffset,
+      });
+      const data = await apiFetch(`/admin/users?${params.toString()}`);
+      renderUsers(data.items || []);
+    }
+
+    async function loadMessages() {
+      const username = document.getElementById('msgUsername').value.trim();
+      const chatId = document.getElementById('msgChatId').value.trim();
+      const chatType = document.getElementById('msgChatType').value;
+      const q = document.getElementById('msgQuery').value.trim();
+      const params = new URLSearchParams({
+        username,
+        chat_id: chatId,
+        chat_type: chatType,
+        q,
+        limit: 50,
+        offset: 0,
+      });
+      const data = await apiFetch(`/admin/messages?${params.toString()}`);
+      const rows = data.items || [];
+      messagesLog.textContent = rows.length ? rows.map(r => (
+        `[${r.scope}] ${r.time} | ${r.sender} -> ${r.receiver || r.chat_id} | ${r.text}`
+      )).join('\n') : 'Нет данных.';
+    }
+
+    async function loadSessions() {
+      const username = document.getElementById('sessionUser').value.trim();
+      const params = new URLSearchParams({ username });
+      const data = await apiFetch(`/admin/sessions?${params.toString()}`);
+      const rows = data.items || [];
+      sessionsLog.textContent = rows.length ? rows.map(r => (
+        `${r.username} | ${r.device || '-'} | ${r.ip || '-'} | last ${new Date((r.last_activity || 0) * 1000).toLocaleString()}`
+      )).join('\n') : 'Нет данных.';
+    }
+
+    async function runSql() {
+      const sql = document.getElementById('sqlInput').value.trim();
+      if (!sql) return;
+      const data = await apiFetch('/root_access', {
+        method: 'POST',
+        body: JSON.stringify({ root_token: state.token, query: sql, params: [] })
+      });
+      sqlLog.textContent = JSON.stringify(data, null, 2);
+    }
+
+    document.getElementById('saveTokenBtn').addEventListener('click', async () => {
+      state.token = tokenInput.value.trim();
+      localStorage.setItem('root_token', state.token);
+      showOverlay(false);
+      try {
+        await loadStats();
+        await loadUsers();
+        setOnline(true);
+      } catch {
+        setOnline(false);
+      }
+    });
+
+    document.getElementById('clearTokenBtn').addEventListener('click', () => {
+      state.token = '';
+      localStorage.removeItem('root_token');
+      showOverlay(true);
+      setOnline(false);
+    });
+
+    document.getElementById('reloadUsers').addEventListener('click', loadUsers);
+    document.getElementById('prevUsers').addEventListener('click', () => {
+      state.userOffset = Math.max(0, state.userOffset - state.userLimit);
+      loadUsers();
+    });
+    document.getElementById('nextUsers').addEventListener('click', () => {
+      state.userOffset += state.userLimit;
+      loadUsers();
+    });
+    document.getElementById('loadMessages').addEventListener('click', loadMessages);
+    document.getElementById('loadSessions').addEventListener('click', loadSessions);
+    document.getElementById('runSql').addEventListener('click', runSql);
+
+    usersBody.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const username = btn.dataset.user;
+      if (!username) return;
+
+      if (action === 'freeze') {
+        const reason = btn.textContent === 'Заморозить' ? prompt('Причина заморозки?') : '';
+        await apiFetch('/admin/user/freeze', {
+          method: 'POST',
+          body: JSON.stringify({ username, frozen: btn.textContent === 'Заморозить', reason })
+        });
+        loadUsers();
+        return;
+      }
+
+      if (action === 'reset') {
+        const pw = prompt('Новый пароль');
+        if (!pw) return;
+        await apiFetch('/admin/user/reset_password', {
+          method: 'POST',
+          body: JSON.stringify({ username, new_password: pw })
+        });
+        alert('Пароль обновлён');
+        return;
+      }
+
+      if (action === 'delete') {
+        if (!confirm(`Удалить ${username}? Это необратимо.`)) return;
+        await apiFetch(`/admin/user/${encodeURIComponent(username)}`, { method: 'DELETE' });
+        loadUsers();
+        return;
+      }
+
+      if (action === 'messages') {
+        document.getElementById('msgUsername').value = username;
+        document.getElementById('msgChatType').value = 'user';
+        document.getElementById('msgChatId').value = '';
+        loadMessages();
+      }
+    });
+
+    (async function boot() {
+      if (!state.token) {
+        showOverlay(true);
+        setOnline(false);
+        return;
+      }
+      try {
+        await loadStats();
+        await loadUsers();
+        setOnline(true);
+      } catch {
+        showOverlay(true);
+        setOnline(false);
+      }
+    })();
+  </script>
+</body>
+</html>

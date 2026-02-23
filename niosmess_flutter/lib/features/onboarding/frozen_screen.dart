@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../ui/nios_ui.dart';
 
 class FrozenScreen extends StatelessWidget {
@@ -9,21 +9,44 @@ class FrozenScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return NiosScaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: onBack,
+        ),
+        title: const Text('Аккаунт заморожен'),
+      ),
       body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('🥶🦊', style: TextStyle(fontSize: 56)),
-              const SizedBox(height: 16),
-              Text('Аккаунт заморожен', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: NiosPalette.text)),
-              const SizedBox(height: 8),
-              Text(reason, textAlign: TextAlign.center, style: TextStyle(color: NiosPalette.textSecondary)),
-              const SizedBox(height: 20),
-              NiosPrimaryButton(label: 'Назад', onTap: onBack),
-            ],
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('🥶🦊', style: TextStyle(fontSize: 56)),
+                const SizedBox(height: 16),
+                Text(
+                  'Аккаунт заморожен',
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  reason,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: onBack,
+                  child: const Text('Назад'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

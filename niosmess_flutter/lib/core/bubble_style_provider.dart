@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'settings_provider.dart';
 
-/// Provider for message bubble customization
 final bubbleStyleProvider = StateNotifierProvider<BubbleStyleNotifier, BubbleStyleState>((ref) {
-  return BubbleStyleNotifier();
+  return BubbleStyleNotifier(ref);
 });
 
 class BubbleStyleState {
@@ -41,94 +40,76 @@ class BubbleStyleState {
       bubblePadding: bubblePadding ?? this.bubblePadding,
     );
   }
-
-  Map<String, dynamic> toJson() => {
-    'cornerRadius': cornerRadius,
-    'useGradient': useGradient,
-    'customOutgoingColor': customOutgoingColor?.value,
-    'customIncomingColor': customIncomingColor?.value,
-    'showTail': showTail,
-    'bubblePadding': bubblePadding,
-  };
-
-  factory BubbleStyleState.fromJson(Map<String, dynamic> json) {
-    return BubbleStyleState(
-      cornerRadius: json['cornerRadius']?.toDouble() ?? 16.0,
-      useGradient: json['useGradient'] ?? true,
-      customOutgoingColor: json['customOutgoingColor'] != null 
-          ? Color(json['customOutgoingColor']) 
-          : null,
-      customIncomingColor: json['customIncomingColor'] != null 
-          ? Color(json['customIncomingColor']) 
-          : null,
-      showTail: json['showTail'] ?? true,
-      bubblePadding: json['bubblePadding']?.toDouble() ?? 12.0,
-    );
-  }
 }
 
 class BubbleStyleNotifier extends StateNotifier<BubbleStyleState> {
-  static const _prefsKey = 'bubble_style_settings';
-
-  BubbleStyleNotifier() : super(const BubbleStyleState()) {
-    _load();
+  BubbleStyleNotifier(this.ref) : super(_fromSettings(ref.read(settingsProvider))) {
+    ref.listen<Map<String, dynamic>>(settingsProvider, (prev, next) {
+      final nextState = _fromSettings(next);
+      if (_differs(nextState)) {
+        state = nextState;
+      }
+    });
   }
 
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final json = prefs.getString(_prefsKey);
-    if (json != null) {
-      try {
-        final data = Map<String, dynamic>.from(
-          Map<String, dynamic>.fromEntries(
-            json.toString().split(',').map((e) {
-              final parts = e.split(':');
-              return MapEntry(parts[0], parts[1]);
-            }),
-          ),
-        );
-        state = BubbleStyleState.fromJson(data);
-      } catch (_) {}
-    }
+  final Ref ref;
+
+  static BubbleStyleState _fromSettings(Map<String, dynamic> settings) {
+    final radius = (settings['bubble_radius'] as num?)?.toDouble() ?? 16.0;
+    final padding = (settings['bubble_padding'] as num?)?.toDouble() ?? 12.0;
+    final useGradient = settings['bubble_use_gradient'] as bool? ?? true;
+    final showTail = settings['bubble_show_tail'] as bool? ?? true;
+    final outgoingRaw = settings['bubble_outgoing_color'];
+    final incomingRaw = settings['bubble_incoming_color'];
+    return BubbleStyleState(
+      cornerRadius: radius,
+      bubblePadding: padding,
+      useGradient: useGradient,
+      showTail: showTail,
+      customOutgoingColor: outgoingRaw is int ? Color(outgoingRaw) : null,
+      customIncomingColor: incomingRaw is int ? Color(incomingRaw) : null,
+    );
   }
 
-  Future<void> _save() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsKey, state.toJson().toString());
+  bool _differs(BubbleStyleState next) {
+    return next.cornerRadius != state.cornerRadius ||
+        next.bubblePadding != state.bubblePadding ||
+        next.useGradient != state.useGradient ||
+        next.showTail != state.showTail ||
+        next.customOutgoingColor?.value != state.customOutgoingColor?.value ||
+        next.customIncomingColor?.value != state.customIncomingColor?.value;
   }
 
   void setCornerRadius(double radius) {
-    state = state.copyWith(cornerRadius: radius.clamp(0.0, 24.0));
-    _save();
+    ref.read(settingsProvider.notifier).setSetting('bubble_radius', radius.clamp(8.0, 24.0));
   }
 
   void setUseGradient(bool use) {
-    state = state.copyWith(useGradient: use);
-    _save();
+    ref.read(settingsProvider.notifier).setSetting('bubble_use_gradient', use);
   }
 
   void setCustomOutgoingColor(Color? color) {
-    state = state.copyWith(customOutgoingColor: color);
-    _save();
+    ref.read(settingsProvider.notifier).setSetting('bubble_outgoing_color', color?.value);
   }
 
   void setCustomIncomingColor(Color? color) {
-    state = state.copyWith(customIncomingColor: color);
-    _save();
+    ref.read(settingsProvider.notifier).setSetting('bubble_incoming_color', color?.value);
   }
 
   void setShowTail(bool show) {
-    state = state.copyWith(showTail: show);
-    _save();
+    ref.read(settingsProvider.notifier).setSetting('bubble_show_tail', show);
   }
 
   void setBubblePadding(double padding) {
-    state = state.copyWith(bubblePadding: padding.clamp(4.0, 24.0));
-    _save();
+    ref.read(settingsProvider.notifier).setSetting('bubble_padding', padding.clamp(4.0, 24.0));
   }
 
   void resetToDefaults() {
-    state = const BubbleStyleState();
-    _save();
+    ref.read(settingsProvider.notifier).setSetting('bubble_radius', 16.0);
+    ref.read(settingsProvider.notifier).setSetting('bubble_padding', 12.0);
+    ref.read(settingsProvider.notifier).setSetting('bubble_use_gradient', true);
+    ref.read(settingsProvider.notifier).setSetting('bubble_show_tail', true);
+    ref.read(settingsProvider.notifier).setSetting('bubble_outgoing_color', null);
+    ref.read(settingsProvider.notifier).setSetting('bubble_incoming_color', null);
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/storage/session_store.dart';
+import '../core/notification_service.dart';
 
 class SessionState {
   SessionState({this.token, this.username, this.name});
@@ -31,17 +32,24 @@ class SessionNotifier extends StateNotifier<SessionState> {
     final data = await SessionStore.load();
     if (data != null) {
       state = SessionState.fromJson(data);
+      if (state.isAuthed) {
+        await NotificationService.instance.setSession(state.username!, state.token!);
+      }
     }
   }
 
   Future<void> setSession(SessionState next) async {
     state = next;
     await SessionStore.save(next.toJson());
+    if (next.isAuthed) {
+      await NotificationService.instance.setSession(next.username!, next.token!);
+    }
   }
 
   Future<void> clear() async {
     state = SessionState();
     await SessionStore.clear();
+    await NotificationService.instance.clearSession();
   }
 }
 

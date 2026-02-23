@@ -1,75 +1,113 @@
-# Telegram-Style Redesign Implementation Plan
+# Telegram-Style Redesign - Implementation TODO
 
-## Phase 1: Core Infrastructure ✅ COMPLETE
-- [x] Add dependencies (flutter_colorpicker, fl_chart, flutter_staggered_grid_view)
-- [x] Create bubble_style_provider.dart - Message bubble customization
-- [x] Create wallpaper_provider.dart - Chat wallpapers with parallax
-- [x] Create focus_mode_provider.dart - Work/Fun chat filtering
-- [x] Create ghost_mode_provider.dart - Ghost reading mode
-- [x] Create ai_summary_provider.dart - AI message summaries
-- [x] Update MessageItem model (isRead, isOutgoing fields)
-- [x] Update ChatItem model (isPinned field)
+## ✅ Completed
 
-## Phase 2: UI Widgets ✅ COMPLETE
-- [x] Create swipeable_chat_item.dart - Swipe actions for chat list
-- [x] Create bubble_style_preview.dart - Bubble customization preview
-- [x] Create wallpaper_selector.dart - Wallpaper selection UI
-- [x] Create ghost_mode_overlay.dart - Ghost mode indicator
+### Core Components
+- [x] `ChatHeaderWidget` - Telegram-style header с аватаром, статусом, действиями
+- [x] `ChatInputWidget` - Новая панель ввода с большим скруглением
+- [x] `AiSummaryButton` - Компактная плавающая кнопка AI
+- [x] `telegram_animations.dart` - Кастомные анимации переходов
 
-## Phase 3: Chat List Screen ✅ COMPLETE
-- [x] Redesign with Telegram-style list items
-- [x] Add SwipeableChatItem with pin/read/mute/delete actions
-- [x] Add FocusModeToggle widget
-- [x] Add OnlineStatusIndicator with cutout style
-- [x] Add Ghost Mode overlay support
-- [x] Fix all parameter and layout issues
+### Screens
+- [x] `chat_screen.dart` - Обновлен с новыми виджетами
+- [x] `chat_list_screen.dart` - Telegram-style список чатов
+- [x] `settings_main_screen.dart` - Главный экран настроек (список секций)
+- [x] `settings_profile_screen.dart` - Профиль пользователя
+- [x] `settings_appearance_screen_new.dart` - Внешний вид (темы, стиль, фон)
+- [x] `settings_notifications_screen.dart` - Уведомления
+- [x] `settings_privacy_screen.dart` - Конфиденциальность
+- [x] `settings_data_screen.dart` - Данные и память
+- [x] `settings_advanced_screen.dart` - Дополнительно
 
-## Phase 4: Chat Screen ✅ COMPLETE
-- [x] Integrate AI Summary provider
-- [x] Add _buildAiSummaryButton widget
-- [x] Add _buildAiSummaryCard widget
-- [x] Add _formatTime helper
-- [x] File compiles successfully (11 info-level warnings only)
+### Navigation
+- [x] `app_router.dart` - Обновлен с новыми экранами и переходами
 
-## Phase 5: Settings Screen ✅ COMPLETE
-- [x] Add Appearance section with Theme Editor
-- [x] Add Bubble Style customization UI
-- [x] Add Text Size slider with preview
-- [x] Add App Icon selector grid
-- [x] Add Privacy & Security section
-- [x] Add Data & Storage section with charts
+## 🔄 In Progress
 
-## Phase 6: Profile Screen ✅ COMPLETE
-- [x] Redesign with large profile picture
-- [x] Add "Set Status" button
-- [x] Add account info section
+### Testing
+- [ ] Тестирование на Android устройствах
+- [ ] Тестирование на iOS устройствах
+- [ ] Проверка анимаций на 120Hz экранах
+- [ ] Accessibility testing (VoiceOver/TalkBack)
 
-## Phase 7: Testing & Polish ✅ COMPLETE
-- [x] Test all swipe actions
-- [x] Test Focus Mode filtering
-- [x] Test Ghost Mode overlay
-- [x] Test AI Summary generation
-- [x] Build successful (61.2MB APK)
-- [x] flutter analyze: 78 info warnings, 0 critical errors
+## ⏳ Pending
 
+### Enhancements
+- [ ] Добавить haptic feedback для кнопок
+- [ ] Реализовать свайп для ответа на сообщения
+- [ ] Добавить реакции (emoji) на сообщения
+- [ ] Pull-to-refresh для списка чатов
+- [ ] Поиск по чатам (глобальный)
 
-## Current Status
-**Last Updated:** 2024-01-XX
-**Completed:** ALL PHASES ✅ (Phases 1-7 complete)
-**Build Status:** APK built successfully (61.2MB)
-**Analysis:** 78 info warnings, 0 critical errors
+### Polish
+- [ ] Оптимизация производительности списков
+- [ ] Кэширование аватаров
+- [ ] Lazy loading для сообщений
+- [ ] Skeleton screens для загрузки
 
-## Summary of Implementation
-✅ **5 New Provider Files:** bubble_style, wallpaper, focus_mode, ghost_mode, ai_summary
-✅ **4 New UI Widgets:** SwipeableChatItem, BubbleStylePreview, WallpaperSelector, GhostModeOverlay
-✅ **4 Updated Screens:** ChatList, ChatScreen, Settings, Profile
-✅ **2 Updated Models:** MessageItem (isRead, isOutgoing), ChatItem (isPinned)
-✅ **3 New Dependencies:** flutter_colorpicker, fl_chart, flutter_staggered_grid_view
+### Features
+- [ ] Voice messages waveform visualization
+- [ ] Photo gallery viewer
+- [ ] Video player
+- [ ] File preview
+- [ ] Location sharing map
 
-## Notes
-- All Telegram-style redesign features implemented
-- AI Summary widget appears when 10+ messages in chat
-- Focus Mode filters Work/Fun/All chats
-- Ghost Mode allows reading without sending read receipts
-- Settings includes full customization: themes, bubbles, wallpapers, text size, app icons
-- Profile redesigned with large avatar and status setting
+## Known Issues
+
+1. **chat_screen_complete.dart** - Старый файл с ошибками, нужно удалить или исправить
+2. **settings_appearance_screen.dart** - Старый файл с несовместимым API
+3. **settings_appearance_screen_fixed.dart** - Старый файл с несовместимым API
+
+## API Changes
+
+### ThemeProvider
+```dart
+// Было
+ref.read(themeProvider.notifier).setTheme(id)
+
+// Стало (тот же API)
+ref.read(themeProvider.notifier).setTheme(id)
+// Но state теперь ThemeState с полем preset
+```
+
+### BubbleStyleProvider
+```dart
+// Было
+ref.read(bubbleStyleProvider.notifier).setPadding(value)
+
+// Стало
+ref.read(bubbleStyleProvider.notifier).setBubblePadding(value)
+```
+
+### WallpaperProvider
+```dart
+// Было
+ref.read(wallpaperProvider.notifier).setBlur(value)
+ref.read(wallpaperProvider.notifier).setParallax(value)
+
+// Стало
+ref.read(wallpaperProvider.notifier).setBlurAmount(value)
+ref.read(wallpaperProvider.notifier).setUseParallax(value)
+```
+
+## Commands
+
+```bash
+# Build APK для тестирования
+flutter build apk --release
+
+# Run с hot reload
+flutter run
+
+# Analyze code
+flutter analyze
+
+# Format code
+flutter format lib/
+```
+
+## Resources
+
+- [Telegram Design Guidelines](https://core.telegram.org/bots/webapps#design)
+- [Material 3 Design Kit](https://m3.material.io/)
+- [Flutter Animation Guide](https://flutter.dev/docs/development/ui/animations)
