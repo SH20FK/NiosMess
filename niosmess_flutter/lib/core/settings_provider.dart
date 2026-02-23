@@ -82,6 +82,25 @@ class SettingsController extends StateNotifier<Map<String, dynamic>> {
 
   Map<String, dynamic> _migrate(Map<String, dynamic> raw) {
     final migrated = {...raw};
+    if (migrated['who_can_write'] == 'Все') {
+      migrated['who_can_write'] = 'all';
+    }
+    if (migrated['who_can_write'] == 'Контакты') {
+      migrated['who_can_write'] = 'contacts';
+    }
+    if (migrated['who_can_write'] == 'Никто') {
+      migrated['who_can_write'] = 'nobody';
+    }
+    if (!migrated.containsKey('who_can_write') && migrated.containsKey('message_privacy')) {
+      final privacy = migrated['message_privacy'];
+      if (privacy == 'Контакты') {
+        migrated['who_can_write'] = 'contacts';
+      } else if (privacy == 'Никто') {
+        migrated['who_can_write'] = 'nobody';
+      } else {
+        migrated['who_can_write'] = 'all';
+      }
+    }
     if (!migrated.containsKey('notify_sound') && migrated.containsKey('sound_enabled')) {
       migrated['notify_sound'] = migrated['sound_enabled'];
     }

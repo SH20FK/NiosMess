@@ -32,7 +32,7 @@ class _AnimatedToggleSwitchState extends State<AnimatedToggleSwitch>
     super.initState();
     final scheme = Theme.of(context).colorScheme;
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 220),
       vsync: this,
     );
 
@@ -41,7 +41,7 @@ class _AnimatedToggleSwitchState extends State<AnimatedToggleSwitch>
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _controller,
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeOutQuart,
     ));
 
     _backgroundAnimation = ColorTween(
@@ -49,7 +49,7 @@ class _AnimatedToggleSwitchState extends State<AnimatedToggleSwitch>
       end: widget.activeColor ?? scheme.primary,
     ).animate(CurvedAnimation(
       parent: _controller,
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeOutQuart,
     ));
 
     if (widget.value) {
@@ -83,8 +83,9 @@ class _AnimatedToggleSwitchState extends State<AnimatedToggleSwitch>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _handleTap,
+    return InkWell(
+      onTap: widget.onChanged == null ? null : _handleTap,
+      borderRadius: BorderRadius.circular(18),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -101,11 +102,15 @@ class _AnimatedToggleSwitchState extends State<AnimatedToggleSwitch>
           AnimatedBuilder(
             animation: _controller,
             builder: (context, child) {
-              return Container(
+              final disabled = widget.onChanged == null;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
                 width: 51,
                 height: 31,
                 decoration: BoxDecoration(
-                  color: _backgroundAnimation.value,
+                  color: disabled
+                      ? Theme.of(context).colorScheme.surfaceContainerHighest
+                      : _backgroundAnimation.value,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Stack(
@@ -113,22 +118,21 @@ class _AnimatedToggleSwitchState extends State<AnimatedToggleSwitch>
                     Positioned(
                       left: 3 + (_knobAnimation.value * 23),
                       top: 3,
-                      child: Transform.rotate(
-                        angle: _knobAnimation.value * 6.28, // 360 degrees in radians
-                        child: Container(
-                          width: 25,
-                          height: 25,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
+                      child: Container(
+                        width: 25,
+                        height: 25,
+                        decoration: BoxDecoration(
+                          color: disabled
+                              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.38)
+                              : Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.16),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
                       ),
                     ),

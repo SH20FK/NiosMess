@@ -107,7 +107,7 @@ class NiosMotionWrap extends StatefulWidget {
     this.duration = const Duration(milliseconds: 520),
     this.delay = Duration.zero,
     this.offset = const Offset(0, 16),
-    this.blurSigma = 12,
+    this.blurSigma = 6,
     this.curve = Curves.easeOutCubic,
     this.enableMotion = true,
   });

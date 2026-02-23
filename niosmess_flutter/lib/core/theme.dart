@@ -65,6 +65,8 @@ ThemeData buildNiosTheme(
     colorScheme: colorScheme,
     textTheme: textTheme,
     scaffoldBackgroundColor: colorScheme.background,
+    splashFactory: InkSparkle.splashFactory,
+    visualDensity: VisualDensity.standard,
     appBarTheme: AppBarTheme(
       backgroundColor: colorScheme.surface,
       foregroundColor: colorScheme.onSurface,
@@ -92,9 +94,44 @@ ThemeData buildNiosTheme(
     ),
     listTileTheme: ListTileThemeData(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       titleTextStyle: textTheme.titleMedium,
       subtitleTextStyle: textTheme.bodyMedium?.copyWith(
         color: colorScheme.onSurfaceVariant,
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return colorScheme.onSurface.withOpacity(0.38);
+        }
+        if (states.contains(WidgetState.selected)) {
+          return colorScheme.onPrimary;
+        }
+        return colorScheme.outline;
+      }),
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return colorScheme.surfaceContainerHighest;
+        }
+        if (states.contains(WidgetState.selected)) {
+          return colorScheme.primary;
+        }
+        return colorScheme.surfaceContainerHighest;
+      }),
+      trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return Colors.transparent;
+        }
+        return colorScheme.outlineVariant;
+      }),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        textStyle: WidgetStatePropertyAll(textTheme.labelLarge),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
@@ -163,6 +200,11 @@ ThemeData buildNiosTheme(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       clipBehavior: Clip.antiAliasWithSaveLayer,
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 2,
     ),
     // Диалоги
     dialogTheme: DialogThemeData(
