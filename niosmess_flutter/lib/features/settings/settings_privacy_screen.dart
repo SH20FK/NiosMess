@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/settings_provider.dart';
 import '../../core/ghost_mode_provider.dart';
 import '../../core/app_lock_provider.dart';
-import '../../ui/widgets/animated_list_item.dart';
-import '../../ui/widgets/animated_toggle_switch.dart';
 
 class SettingsPrivacyScreen extends ConsumerWidget {
   const SettingsPrivacyScreen({
@@ -53,112 +51,155 @@ class SettingsPrivacyScreen extends ConsumerWidget {
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(
-            child: AnimatedListItem(
-              index: 0,
-              child: _buildSection(
-                context,
-                title: 'Видимость',
-                icon: Icons.visibility_outlined,
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 96, 16, 8),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    colorScheme.primaryContainer,
+                    colorScheme.tertiaryContainer.withOpacity(0.7),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: colorScheme.primary.withOpacity(0.14),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Row(
                 children: [
-                  _buildOptionTile(
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(Icons.security_rounded, color: colorScheme.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Центр приватности',
+                          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Управляйте видимостью, безопасностью и защитой аккаунта',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onPrimaryContainer.withOpacity(0.85),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: _buildSection(
+              context,
+              title: 'Видимость',
+              icon: Icons.visibility_outlined,
+              children: [
+                _buildOptionTile(
+                  context,
+                  title: 'Последнее посещение',
+                  value: (settings['last_seen_visibility'] as String?) ?? 'Все',
+                  icon: Icons.access_time_outlined,
+                  onTap: () => _selectOption(
                     context,
+                    ref,
+                    key: 'last_seen_visibility',
                     title: 'Последнее посещение',
-                    value: (settings['last_seen_visibility'] as String?) ?? 'Все',
-                    icon: Icons.access_time_outlined,
-                    onTap: () => _selectOption(
-                      context,
-                      ref,
-                      key: 'last_seen_visibility',
-                      title: 'Последнее посещение',
-                      options: const ['Все', 'Контакты', 'Никто'],
-                    ),
+                    options: const ['Все', 'Контакты', 'Никто'],
                   ),
-                  const Divider(height: 1, indent: 56),
-                  _buildOptionTile(
+                ),
+                const Divider(height: 1, indent: 56),
+                _buildOptionTile(
+                  context,
+                  title: 'Фото профиля',
+                  value: (settings['photo_visibility'] as String?) ?? 'Все',
+                  icon: Icons.photo_outlined,
+                  onTap: () => _selectOption(
                     context,
+                    ref,
+                    key: 'photo_visibility',
                     title: 'Фото профиля',
-                    value: (settings['photo_visibility'] as String?) ?? 'Все',
-                    icon: Icons.photo_outlined,
-                    onTap: () => _selectOption(
-                      context,
-                      ref,
-                      key: 'photo_visibility',
-                      title: 'Фото профиля',
-                      options: const ['Все', 'Контакты', 'Никто'],
-                    ),
+                    options: const ['Все', 'Контакты', 'Никто'],
                   ),
-                  const Divider(height: 1, indent: 56),
-                  _buildAnimatedSwitch(
-                    context,
-                    title: 'Индикатор набора',
-                    subtitle: 'Показывать, когда вы печатаете',
-                    icon: Icons.keyboard_outlined,
-                    value: settings['show_typing'] ?? true,
-                    onChanged: (v) => ref.read(settingsProvider.notifier).setSetting('show_typing', v),
-                  ),
-                  const Divider(height: 1, indent: 56),
-                  _buildAnimatedSwitch(
-                    context,
-                    title: 'Отчёты о прочтении',
-                    subtitle: 'Показывать отметки «прочитано»',
-                    icon: Icons.done_all_outlined,
-                    value: settings['read_receipts'] ?? true,
-                    onChanged: (v) => ref.read(settingsProvider.notifier).setSetting('read_receipts', v),
-                  ),
-                ],
-              ),
+                ),
+                const Divider(height: 1, indent: 56),
+                _buildAnimatedSwitch(
+                  context,
+                  title: 'Индикатор набора',
+                  subtitle: 'Показывать, когда вы печатаете',
+                  icon: Icons.keyboard_outlined,
+                  value: settings['show_typing'] ?? true,
+                  onChanged: (v) => ref.read(settingsProvider.notifier).setSetting('show_typing', v),
+                ),
+                const Divider(height: 1, indent: 56),
+                _buildAnimatedSwitch(
+                  context,
+                  title: 'Отчёты о прочтении',
+                  subtitle: 'Показывать отметки «прочитано»',
+                  icon: Icons.done_all_outlined,
+                  value: settings['read_receipts'] ?? true,
+                  onChanged: (v) => ref.read(settingsProvider.notifier).setSetting('read_receipts', v),
+                ),
+              ],
             ),
           ),
           SliverToBoxAdapter(
-            child: AnimatedListItem(
-              index: 1,
-              child: _buildSection(
-                context,
-                title: 'Контакты',
-                icon: Icons.contacts_outlined,
-                children: [
-                  _buildOptionTile(
+            child: _buildSection(
+              context,
+              title: 'Контакты',
+              icon: Icons.contacts_outlined,
+              children: [
+                _buildOptionTile(
+                  context,
+                  title: 'Кто может писать мне',
+                  value: _formatWhoCanWrite(whoCanWrite),
+                  icon: Icons.message_outlined,
+                  onTap: () => _selectOption(
                     context,
+                    ref,
+                    key: 'who_can_write',
                     title: 'Кто может писать мне',
-                    value: _formatWhoCanWrite(whoCanWrite),
-                    icon: Icons.message_outlined,
-                    onTap: () => _selectOption(
-                      context,
-                      ref,
-                      key: 'who_can_write',
-                      title: 'Кто может писать мне',
-                      options: const ['all', 'contacts', 'nobody'],
-                    ),
+                    options: const ['all', 'contacts', 'nobody'],
                   ),
-                  const Divider(height: 1, indent: 56),
-                  _buildOptionTile(
+                ),
+                const Divider(height: 1, indent: 56),
+                _buildOptionTile(
+                  context,
+                  title: 'Кто может звонить мне',
+                  value: (settings['call_privacy'] as String?) ?? 'Все',
+                  icon: Icons.phone_outlined,
+                  onTap: () => _selectOption(
                     context,
+                    ref,
+                    key: 'call_privacy',
                     title: 'Кто может звонить мне',
-                    value: (settings['call_privacy'] as String?) ?? 'Все',
-                    icon: Icons.phone_outlined,
-                    onTap: () => _selectOption(
-                      context,
-                      ref,
-                      key: 'call_privacy',
-                      title: 'Кто может звонить мне',
-                      options: const ['Все', 'Контакты', 'Никто'],
-                    ),
+                    options: const ['Все', 'Контакты', 'Никто'],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           SliverToBoxAdapter(
-            child: AnimatedListItem(
-              index: 2,
-              child: _buildGhostModeSection(context, ref, ghostMode),
-            ),
+            child: _buildGhostModeSection(context, ref, ghostMode),
           ),
           SliverToBoxAdapter(
-            child: AnimatedListItem(
-              index: 3,
-              child: _buildSecuritySection(context, ref, lockState),
-            ),
+            child: _buildSecuritySection(context, ref, lockState),
           ),
           const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
         ],
@@ -313,7 +354,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    trailing: AnimatedToggleSwitch(
+                    trailing: Switch.adaptive(
                       value: isActive,
                       onChanged: (v) {
                         if (v) {
@@ -323,7 +364,6 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                         }
                         ref.read(settingsProvider.notifier).setSetting('ghost_mode', v);
                       },
-                      activeColor: colorScheme.tertiary,
                     ),
                   ),
                   if (isActive)
@@ -450,8 +490,13 @@ class SettingsPrivacyScreen extends ConsumerWidget {
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: colorScheme.secondaryContainer,
-          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.secondaryContainer,
+              colorScheme.primaryContainer.withOpacity(0.8),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Icon(
           icon,
@@ -472,9 +517,16 @@ class SettingsPrivacyScreen extends ConsumerWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
-      trailing: Icon(
-        Icons.chevron_right,
-        color: colorScheme.onSurfaceVariant,
+      trailing: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          Icons.chevron_right,
+          color: colorScheme.onSurfaceVariant,
+        ),
       ),
       onTap: onTap,
     );
@@ -519,7 +571,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
           color: colorScheme.onSurfaceVariant,
         ),
       ),
-      trailing: Switch(
+      trailing: Switch.adaptive(
         value: value,
         onChanged: onChanged,
       ),
@@ -545,9 +597,13 @@ class SettingsPrivacyScreen extends ConsumerWidget {
     required String title,
     required List<String> options,
   }) async {
-    final current = ref.read(settingsProvider)[key] as String?;
+    final settings = ref.read(settingsProvider);
+    final current = settings[key] as String?;
+    final groupValue = options.contains(current) ? current : options.first;
     final selected = await showModalBottomSheet<String>(
       context: context,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -557,7 +613,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
             ),
             ...options.map((opt) => RadioListTile<String>(
                   value: opt,
-                  groupValue: current ?? options.first,
+                  groupValue: groupValue,
                   onChanged: (value) => Navigator.pop(context, value),
                   title: Text(key == 'who_can_write' ? _formatWhoCanWrite(opt) : opt),
                 )),
@@ -567,7 +623,16 @@ class SettingsPrivacyScreen extends ConsumerWidget {
       ),
     );
     if (selected != null) {
-      ref.read(settingsProvider.notifier).setSetting(key, selected);
+      final notifier = ref.read(settingsProvider.notifier);
+      notifier.setSetting(key, selected);
+      if (key == 'who_can_write') {
+        final mirror = selected == 'contacts'
+            ? 'Контакты'
+            : selected == 'nobody'
+                ? 'Никто'
+                : 'Все';
+        notifier.setSetting('message_privacy', mirror);
+      }
     }
   }
 
