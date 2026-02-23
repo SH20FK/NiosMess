@@ -8,7 +8,6 @@ import '../../core/storage/offline_cache.dart';
 import '../../core/settings_provider.dart';
 import '../../core/theme_provider.dart';
 import '../../ui/nios_ui.dart';
-import '../../ui/widgets/animated_list_item.dart';
 import 'settings_profile_screen.dart';
 import 'settings_appearance_screen_new.dart';
 import 'settings_chat_screen.dart';
@@ -133,48 +132,45 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
                   child: NiosMotionWrap(
                     enableMotion: !reduceMotion,
                     delay: const Duration(milliseconds: 40),
-                    blurSigma: 10,
+                    blurSigma: 6,
                     offset: const Offset(0, 18),
-                    child: AnimatedListItem(
-                      index: 0,
-                      child: _buildProfileCard(context),
-                    ),
+                    child: _buildProfileCard(context),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: NiosMotionWrap(
                     enableMotion: !reduceMotion,
                     delay: const Duration(milliseconds: 70),
-                    blurSigma: 10,
+                    blurSigma: 6,
                     offset: const Offset(0, 18),
-                    child: AnimatedListItem(
-                      index: 1,
-                      child: _buildQuickToggles(context),
-                    ),
+                    child: _buildMoodCard(context),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: NiosMotionWrap(
+                    enableMotion: !reduceMotion,
+                    delay: const Duration(milliseconds: 90),
+                    blurSigma: 6,
+                    offset: const Offset(0, 18),
+                    child: _buildQuickToggles(context),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: NiosMotionWrap(
                     enableMotion: !reduceMotion,
                     delay: const Duration(milliseconds: 100),
-                    blurSigma: 10,
+                    blurSigma: 6,
                     offset: const Offset(0, 18),
-                    child: AnimatedListItem(
-                      index: 2,
-                      child: _buildSettingsSection(context),
-                    ),
+                    child: _buildSettingsSection(context),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: NiosMotionWrap(
                     enableMotion: !reduceMotion,
                     delay: const Duration(milliseconds: 130),
-                    blurSigma: 10,
+                    blurSigma: 6,
                     offset: const Offset(0, 18),
-                    child: AnimatedListItem(
-                      index: 3,
-                      child: _buildVersionInfo(context),
-                    ),
+                    child: _buildVersionInfo(context),
                   ),
                 ),
                 const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
@@ -273,6 +269,67 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
     );
   }
 
+  Widget _buildMoodCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primaryContainer,
+            colorScheme.tertiaryContainer.withOpacity(0.75),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary.withOpacity(0.15),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colorScheme.surface.withOpacity(0.75),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(Icons.auto_awesome_rounded, color: colorScheme.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Технологичный режим',
+                    style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Быстрые тумблеры для темы, звука и вибрации — всё под рукой.',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onPrimaryContainer.withOpacity(0.85),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuickToggles(BuildContext context) {
     final themeState = ref.watch(themeProvider);
     final settings = ref.watch(settingsProvider);
@@ -284,8 +341,9 @@ class _SettingsMainScreenState extends ConsumerState<SettingsMainScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Card(
         elevation: 0,
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           side: BorderSide(
             color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
           ),
