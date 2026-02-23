@@ -13,6 +13,8 @@ class GhostModeState {
   final String? peekChatName;
   final List<String> readMessageIds;
   final DateTime? peekStartTime;
+  final double glowIntensity;
+  final bool isGlowing;
 
   const GhostModeState({
     this.isActive = false,
@@ -20,6 +22,8 @@ class GhostModeState {
     this.peekChatName,
     this.readMessageIds = const [],
     this.peekStartTime,
+    this.glowIntensity = 0.0,
+    this.isGlowing = false,
   });
 
   GhostModeState copyWith({
@@ -28,6 +32,8 @@ class GhostModeState {
     String? peekChatName,
     List<String>? readMessageIds,
     DateTime? peekStartTime,
+    double? glowIntensity,
+    bool? isGlowing,
   }) {
     return GhostModeState(
       isActive: isActive ?? this.isActive,
@@ -35,8 +41,11 @@ class GhostModeState {
       peekChatName: peekChatName ?? this.peekChatName,
       readMessageIds: readMessageIds ?? this.readMessageIds,
       peekStartTime: peekStartTime ?? this.peekStartTime,
+      glowIntensity: glowIntensity ?? this.glowIntensity,
+      isGlowing: isGlowing ?? this.isGlowing,
     );
   }
+
 
   Map<String, dynamic> toJson() => {
     'isActive': isActive,
@@ -55,8 +64,11 @@ class GhostModeState {
       peekStartTime: json['peekStartTime'] != null 
           ? DateTime.fromMillisecondsSinceEpoch(json['peekStartTime']) 
           : null,
+      glowIntensity: (json['glowIntensity'] as num?)?.toDouble() ?? 0.0,
+      isGlowing: json['isGlowing'] ?? false,
     );
   }
+
 }
 
 class GhostModeNotifier extends StateNotifier<GhostModeState> {
@@ -133,15 +145,37 @@ class GhostModeNotifier extends StateNotifier<GhostModeState> {
 
   /// Activate ghost mode without peeking a specific chat
   void activate() {
-    state = state.copyWith(isActive: true);
+    state = state.copyWith(isActive: true, isGlowing: true, glowIntensity: 1.0);
+    _startGlowAnimation();
     _save();
   }
 
   /// Deactivate ghost mode
   void deactivate() {
-    state = state.copyWith(isActive: false);
+    state = state.copyWith(isActive: false, isGlowing: false, glowIntensity: 0.0);
     _save();
   }
+
+  /// Start glow animation
+  void _startGlowAnimation() {
+    // Glow intensity will be animated by the UI using AnimationController
+    // This just sets the initial state
+    state = state.copyWith(isGlowing: true, glowIntensity: 1.0);
+  }
+
+  /// Update glow intensity (called by animation)
+  void updateGlowIntensity(double intensity) {
+    if (state.isGlowing) {
+      state = state.copyWith(glowIntensity: intensity.clamp(0.0, 1.0));
+    }
+  }
+
+  /// Toggle glow effect
+  void toggleGlow() {
+    state = state.copyWith(isGlowing: !state.isGlowing);
+    _save();
+  }
+
 
   Duration? get peekDuration {
 

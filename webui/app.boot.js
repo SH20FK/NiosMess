@@ -156,6 +156,7 @@ function initEvents() {
   });
 
   $("voiceBtn")?.addEventListener("click", toggleVoiceRecording);
+  $("videoNoteBtn")?.addEventListener("click", toggleVideoNoteRecording);
   $("mediaGalleryBtn")?.addEventListener("click", openMediaGallery);
   $("mediaViewerClose")?.addEventListener("click", closeMediaViewer);
   $("mediaViewer")?.addEventListener("click", (e) => {
@@ -274,12 +275,41 @@ function initEvents() {
     }
   });
 
-  $("profileBtn")?.addEventListener("click", () => toggleProfile());
+  $("profileBtn")?.addEventListener("click", () => {
+    const btn = $("profileBtn");
+    const chatType = btn?.dataset?.chatType;
+    const chatId = btn?.dataset?.chatId || state.activeTarget;
+    if (chatType === "group" || chatType === "channel") {
+      openGroupSettings(chatId, chatType);
+    } else {
+      toggleProfile();
+    }
+  });
   $("closeProfileBtn")?.addEventListener("click", () => toggleProfile(false));
+  $("gsCloseBtn")?.addEventListener("click", closeGroupSettings);
+  $("gsSaveBtn")?.addEventListener("click", saveGroupSettings);
+  $("gsLeaveBtn")?.addEventListener("click", () => {
+    const panel = document.getElementById("groupSettingsPanel");
+    leaveGroup(panel?.dataset?.chatId);
+  });
+  $("gsRegenerateLinkBtn")?.addEventListener("click", () => {
+    const panel = document.getElementById("groupSettingsPanel");
+    regenerateInviteLink(panel?.dataset?.chatId);
+  });
+  $("gsCopyLinkBtn")?.addEventListener("click", copyInviteLink);
+  $("groupSettingsPanel")?.addEventListener("click", (e) => {
+    if (e.target.classList.contains("gs-backdrop")) closeGroupSettings();
+  });
   $("chatAvatar")?.addEventListener("click", () => {
     const profileBtn = $("profileBtn");
     if (!profileBtn || profileBtn.disabled) return;
-    toggleProfile(true);
+    const chatType = profileBtn?.dataset?.chatType;
+    const chatId = profileBtn?.dataset?.chatId || state.activeTarget;
+    if (chatType === "group" || chatType === "channel") {
+      openGroupSettings(chatId, chatType);
+    } else {
+      toggleProfile(true);
+    }
   });
 
   $("searchMessagesBtn")?.addEventListener("click", () => {

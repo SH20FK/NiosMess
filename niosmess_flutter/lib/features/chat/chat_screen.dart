@@ -26,6 +26,7 @@ import '../../core/bubble_style_provider.dart';
 import '../../core/downloads_provider.dart';
 import '../../core/obfuscate.dart';
 import '../../core/send_queue_provider.dart';
+import '../../core/utils/json_utils.dart';
 import '../../ui/nios_ui.dart';
 import '../../ui/widgets/chat_header_widget.dart';
 import '../../ui/widgets/chat_input_widget.dart';
@@ -148,15 +149,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_pollsKey);
     if (raw == null || raw.isEmpty) return;
-    try {
-      final data = jsonDecode(raw) as Map<String, dynamic>;
-      data.forEach((key, value) {
-        if (value is Map<String, dynamic>) {
-          _polls[key] = PollState.fromJson(value);
-        }
-      });
-      setState(() {});
-    } catch (_) {}
+    final data = safeJsonDecode<Map<String, dynamic>>(
+      raw,
+      context: 'chat_poll_cache',
+    );
+    if (data == null) return;
+    data.forEach((key, value) {
+      if (value is Map<String, dynamic>) {
+        _polls[key] = PollState.fromJson(value);
+      }
+    });
+    setState(() {});
   }
 
   Future<void> _savePollCache() async {
@@ -167,13 +170,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _load() async {
     final session = ref.read(sessionProvider);
-    if (!session.isAuthed) return;
+    if (!session.isAuthed) {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+      return;
+    }
+    // 1) Cache-first
+    final cached = await api.getCachedMessages(widget.chatId);
+    if (mounted) {
+      setState(() {
+        messages = cached;
+        _updatePinnedFromMessages(cached);
+        loading = false;
+      });
+    }
+
+    // 2) Background sync
     try {
       final data = _isCollective(widget.chatId)
           ? await api.getCollectiveMessages(
               widget.chatId, session.username!, session.token!)
           : await api.getMessagesUser(
               session.username!, widget.chatId, session.token!);
+      if (!mounted) return;
       setState(() {
         messages = data;
         _updatePinnedFromMessages(data);
@@ -182,13 +202,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await _loadReactions(data);
       _autoPlayFirstVoice();
     } catch (_) {
-      final cached = await api.getCachedMessages(widget.chatId);
-      setState(() {
-        messages = cached;
-        _updatePinnedFromMessages(cached);
-        loading = false;
-      });
-      await _loadReactions(cached);
+      if (cached.isNotEmpty) {
+        await _loadReactions(cached);
+      }
     }
   }
 
@@ -635,12 +651,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   String? _extractFilename(String raw) {
-    try {
-      final parsed = jsonDecode(raw) as Map<String, dynamic>;
-      return parsed['filename']?.toString() ?? parsed['file']?.toString();
-    } catch (_) {
-      return raw.isEmpty ? null : raw;
-    }
+    final parsed = safeJsonDecode<Map<String, dynamic>>(
+      raw,
+      context: 'chat_extract_filename',
+    );
+    if (parsed == null) return raw.isEmpty ? null : raw;
+    return parsed['filename']?.toString() ?? parsed['file']?.toString();
   }
 
   Future<void> _toggleReaction(MessageItem message, String emoji) async {
@@ -681,6 +697,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _showMessageMenu(MessageItem message) {
+    // На десктопе показываем контекстное меню, на мобильных - bottom sheet
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      _showMessageContextMenu(message);
+      return;
+    }
+    
     final session = ref.read(sessionProvider);
     final reduceMotion =
         (ref.read(settingsProvider)['reduce_motion'] as bool?) ?? false;
@@ -766,6 +788,124 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         );
       },
     );
+  }
+
+  /// Показывает контекстное меню для сообщения (правый клик на ПК)
+  void _showMessageContextMenu(MessageItem message) {
+    final session = ref.read(sessionProvider);
+    final isOwn = session.username == message.sender;
+    final isFavorite = _favorites.contains(message.id);
+    final isPinned = message.isPinned == true;
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        MediaQuery.of(context).size.width / 2,
+        MediaQuery.of(context).size.height / 2,
+        MediaQuery.of(context).size.width / 2,
+        MediaQuery.of(context).size.height / 2,
+      ),
+      items: <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(
+          value: 'reply',
+          child: Row(
+            children: [
+              const Icon(Icons.reply),
+              const SizedBox(width: 12),
+              const Text('Ответить'),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'copy',
+          child: Row(
+            children: [
+              const Icon(Icons.copy),
+              const SizedBox(width: 12),
+              const Text('Копировать'),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'forward',
+          child: Row(
+            children: [
+              const Icon(Icons.forward),
+              const SizedBox(width: 12),
+              const Text('Переслать'),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'favorite',
+          child: Row(
+            children: [
+              Icon(isFavorite ? Icons.star : Icons.star_border),
+              const SizedBox(width: 12),
+              Text(isFavorite ? 'Убрать из избранного' : 'В избранное'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        if (isOwn)
+          PopupMenuItem<String>(
+            value: 'edit',
+            child: Row(
+              children: [
+                const Icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text('Редактировать'),
+              ],
+            ),
+          ),
+        PopupMenuItem<String>(
+          value: 'pin',
+          child: Row(
+            children: [
+              Icon(isPinned ? Icons.push_pin_outlined : Icons.push_pin),
+              const SizedBox(width: 12),
+              Text(isPinned ? 'Открепить' : 'Закрепить'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'delete',
+          child: Row(
+            children: [
+              const Icon(Icons.delete_outline, color: Colors.red),
+              const SizedBox(width: 12),
+              const Text('Удалить', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == null) return;
+      switch (value) {
+        case 'reply':
+          setState(() => _replyTo = message);
+          break;
+        case 'copy':
+          Clipboard.setData(ClipboardData(text: message.text));
+          break;
+        case 'forward':
+          _openForwardModal(message);
+          break;
+        case 'favorite':
+          _toggleFavorite(message);
+          break;
+        case 'edit':
+          _editMessage(message);
+          break;
+        case 'pin':
+          _togglePinMessage(message);
+          break;
+        case 'delete':
+          _deleteMessage(message);
+          break;
+      }
+    });
   }
 
   Widget _menuButton(String text, IconData icon, VoidCallback onTap) {
@@ -1538,6 +1678,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
           _buildSearchBar(reduceMotion: reduceMotion),
           _buildPinnedBar(),
+          if (loading) const LinearProgressIndicator(minHeight: 2),
           if (widget.chatType == 'channel') _buildWeeklyMomentCard(),
           if (widget.chatType == 'group') _buildWeeklyRolesCard(),
 
@@ -1549,10 +1690,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               duration: Duration(milliseconds: reduceMotion ? 0 : 320),
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeInCubic,
-              child: loading
-                  ? const Center(
-                      key: ValueKey('loading'),
-                      child: CircularProgressIndicator())
+              child: visibleMessages.isEmpty
+                  ? Center(
+                      key: const ValueKey('empty_messages'),
+                      child: NiosMotionWrap(
+                        enableMotion: !reduceMotion,
+                        blurSigma: 10,
+                        offset: const Offset(0, 16),
+                        child: Column(
+
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 56,
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Пока нет сообщений',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                                              ),
+                      ),
+                    )
                   : ListView.builder(
                       key: const ValueKey('messages'),
                       padding: EdgeInsets.symmetric(
@@ -1573,6 +1735,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 ? Alignment.centerRight
                                 : Alignment.centerLeft,
                             child: GestureDetector(
+                              onSecondaryTapUp: (_) => _showMessageMenu(m),
                               onTap: () => _retryOutboxMessage(m),
                               onLongPress: () => _showMessageMenu(m),
                               child: Column(
@@ -2195,10 +2358,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildPoll(String raw, MessageItem message) {
-    Map<String, dynamic>? parsed;
-    try {
-      parsed = jsonDecode(raw) as Map<String, dynamic>;
-    } catch (_) {}
+    final parsed = safeJsonDecode<Map<String, dynamic>>(
+      raw,
+      context: 'chat_poll_payload',
+    );
     if (parsed == null) {
       return Text(raw, style: TextStyle(color: NiosPalette.text));
     }
@@ -2218,10 +2381,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildLocation(String raw) {
-    Map<String, dynamic>? parsed;
-    try {
-      parsed = jsonDecode(raw) as Map<String, dynamic>;
-    } catch (_) {}
+    final parsed = safeJsonDecode<Map<String, dynamic>>(
+      raw,
+      context: 'chat_location_payload',
+    );
     final lat = parsed?['lat'] ?? parsed?['latitude'];
     final lon = parsed?['lon'] ?? parsed?['lng'] ?? parsed?['longitude'];
     final label = parsed?['label']?.toString();
@@ -2249,10 +2412,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildContact(String raw) {
-    Map<String, dynamic>? parsed;
-    try {
-      parsed = jsonDecode(raw) as Map<String, dynamic>;
-    } catch (_) {}
+    final parsed = safeJsonDecode<Map<String, dynamic>>(
+      raw,
+      context: 'chat_contact_payload',
+    );
     final name = parsed?['name']?.toString() ?? raw;
     final phones =
         (parsed?['phones'] as List?)?.map((e) => e.toString()).toList() ??
@@ -2301,10 +2464,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildMedia(String raw) {
-    Map<String, dynamic>? parsed;
-    try {
-      parsed = jsonDecode(raw) as Map<String, dynamic>;
-    } catch (_) {}
+    final parsed = safeJsonDecode<Map<String, dynamic>>(
+      raw,
+      context: 'chat_media_payload',
+    );
     if (parsed == null) return _buildFile(raw);
     final filename =
         parsed['filename']?.toString() ?? parsed['file']?.toString() ?? '';
@@ -2435,10 +2598,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildCall(String raw, MessageItem message) {
-    Map<String, dynamic>? parsed;
-    try {
-      parsed = jsonDecode(raw) as Map<String, dynamic>;
-    } catch (_) {}
+    final parsed = safeJsonDecode<Map<String, dynamic>>(
+      raw,
+      context: 'chat_call_payload',
+    );
     if (parsed == null) {
       return Text(raw, style: TextStyle(color: NiosPalette.text));
     }

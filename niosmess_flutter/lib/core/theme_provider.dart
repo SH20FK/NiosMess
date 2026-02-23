@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../ui/nios_ui.dart';
 import 'settings_provider.dart';
 
 class ThemeState {
@@ -73,13 +72,6 @@ class ThemeController extends StateNotifier<ThemeState> {
     await ref.read(settingsProvider.notifier).setSetting('use_dynamic_color', value);
   }
 
-  Future<void> setTheme(String id) async {
-    final preset = niosThemePresets.firstWhere(
-      (p) => p.id == id,
-      orElse: () => niosThemePresets.first,
-    );
-    await setSeedColor(preset.accent);
-  }
 }
 
 final themeProvider = StateNotifierProvider<ThemeController, ThemeState>(

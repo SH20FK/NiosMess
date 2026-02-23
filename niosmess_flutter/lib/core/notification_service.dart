@@ -17,7 +17,10 @@ class NotificationService {
   StreamSubscription<String>? _tokenRefreshSub;
   StreamSubscription<RemoteMessage>? _messageSub;
 
+  bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+
   Future<void> init() async {
+    if (!_isMobile) return;
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     await _local.initialize(const InitializationSettings(android: androidSettings));
 
@@ -42,6 +45,7 @@ class NotificationService {
   }
 
   Future<void> dispose() async {
+    if (!_isMobile) return;
     await _tokenRefreshSub?.cancel();
     await _messageSub?.cancel();
     _tokenRefreshSub = null;
@@ -49,6 +53,7 @@ class NotificationService {
   }
 
   Future<void> setSession(String username, String token) async {
+    if (!_isMobile) return;
     _sessionUsername = username;
     _sessionToken = token;
     final fcmToken = await FirebaseMessaging.instance.getToken();
@@ -58,6 +63,7 @@ class NotificationService {
   }
 
   Future<void> clearSession() async {
+    if (!_isMobile) return;
     final username = _sessionUsername;
     final token = _sessionToken;
     _sessionUsername = null;
@@ -139,6 +145,7 @@ class NotificationService {
   }
 
   Future<void> _registerToken(String fcmToken) async {
+    if (!_isMobile) return;
     final username = _sessionUsername;
     final token = _sessionToken;
     if (username == null || token == null) return;

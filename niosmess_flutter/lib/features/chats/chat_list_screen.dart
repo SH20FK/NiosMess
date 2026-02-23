@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,27 +17,48 @@ import '../groups/create_group_screen.dart';
 import '../profile/profile_screen.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
-  const ChatListScreen({super.key});
+  final void Function(ChatItem chat)? onChatSelected;
+  final FocusNode? searchFocusNode;
+
+  const ChatListScreen({super.key, this.onChatSelected, this.searchFocusNode});
 
   @override
-  ConsumerState<ChatListScreen> createState() => _ChatListScreenState();
+  ConsumerState<ChatListScreen> createState() => ChatListScreenState();
 }
 
-class _ChatListScreenState extends ConsumerState<ChatListScreen>
-    with AutomaticKeepAliveClientMixin {
+// Public state class so desktop GlobalKey<ChatListScreenState> can access chats/focusSearch
+class ChatListScreenState extends ConsumerState<ChatListScreen>
+    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   final api = ApiRepository();
   final SearchController _searchController = SearchController();
+  final FocusNode _searchFocusNode = FocusNode();
+  late AnimationController _searchAnimationController;
+  late Animation<double> _searchAnimation;
   List<ChatItem> chats = [];
   String _selectedFilter = 'all';
   final Map<String, Uint8List?> _avatarCache = {};
   final Map<String, MessageItem> _lastMessages = {};
   bool loading = true;
+  bool _isSyncing = false;
   String query = '';
+  bool _isSearchFocused = false;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+    _searchFocusNode.addListener(_onSearchFocusChanged);
+    
+    // Search focus animation
+    _searchAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _searchAnimation = CurvedAnimation(
+      parent: _searchAnimationController,
+      curve: Curves.easeOutCubic,
+    );
+    
     _load();
   }
 
@@ -44,7 +66,21 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _searchFocusNode.removeListener(_onSearchFocusChanged);
+    _searchFocusNode.dispose();
+    _searchAnimationController.dispose();
     super.dispose();
+  }
+
+  void _onSearchFocusChanged() {
+    setState(() {
+      _isSearchFocused = _searchFocusNode.hasFocus;
+    });
+    if (_searchFocusNode.hasFocus) {
+      _searchAnimationController.forward();
+    } else {
+      _searchAnimationController.reverse();
+    }
   }
 
   void _onSearchChanged() {
@@ -53,20 +89,34 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   Future<void> _load() async {
     final session = ref.read(sessionProvider);
+    // 1) Cache-first
+    List<ChatItem> cached = [];
+    try {
+      cached = await api.getCachedChats();
+    } catch (e) {
+      debugPrint('[ChatList] cache read error: $e');
+    }
+    if (!mounted) return;
+    setState(() {
+      chats = cached;
+      loading = false;
+    });
+    _loadLastMessages();
+
+    // 2) Background sync if session is valid
+    if (session.username == null || session.token == null) return;
+    setState(() => _isSyncing = true);
     try {
       final data = await api.getChats(session.username!, session.token!);
+      if (!mounted) return;
       setState(() {
         chats = data;
-        loading = false;
       });
       _loadLastMessages();
-    } catch (_) {
-      final cached = await api.getCachedChats();
-      setState(() {
-        chats = cached;
-        loading = false;
-      });
-      _loadLastMessages();
+    } catch (e) {
+      debugPrint('[ChatList] _load sync error: $e');
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
     }
   }
 
@@ -120,6 +170,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   void _openChat(ChatItem chat) {
+    // Desktop panel mode: use callback instead of Navigator.push
+    if (widget.onChatSelected != null) {
+      widget.onChatSelected!(chat);
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChatScreen(
@@ -137,6 +192,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         ),
       ),
     );
+  }
+
+  /// Allows external callers (e.g. desktop keyboard shortcut) to focus the search field.
+  void focusSearch() {
+    _searchFocusNode.requestFocus();
   }
 
   void _openProfile(String? username) {
@@ -165,6 +225,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     super.build(context);
     final settings = ref.watch(settingsProvider);
     final focusMode = ref.watch(focusModeProvider);
+    final reduceMotion = (settings['reduce_motion'] as bool?) ?? false;
     final compact = (settings['compact_messages'] as bool?) ?? false;
     final byType = chats.where((c) {
       if (_selectedFilter == 'all') return true;
@@ -190,77 +251,67 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         child: const Icon(Icons.edit_outlined),
       ),
       appBar: AppBar(
-        title: const Text('Чаты'),
+        title: AnimatedOpacity(
+          opacity: _isSearchFocused ? 0.0 : 1.0,
+          duration: const Duration(milliseconds: 200),
+          child: const Text('Чаты'),
+        ),
+        bottom: _isSyncing
+            ? const PreferredSize(
+                preferredSize: Size.fromHeight(2),
+                child: LinearProgressIndicator(minHeight: 2),
+              )
+            : null,
         actions: [
-          SearchAnchor(
-            searchController: _searchController,
-            builder: (context, controller) => IconButton(
-              onPressed: () => controller.openView(),
-              icon: const Icon(Icons.search),
-              tooltip: 'Поиск',
-            ),
-            suggestionsBuilder: (context, controller) {
-              final q = controller.text.trim().toLowerCase();
-              final items = q.isEmpty
-                  ? chats.take(6).toList()
-                  : chats
-                      .where((c) =>
-                          c.name.toLowerCase().contains(q) ||
-                          c.id.toLowerCase().contains(q))
-                      .take(8)
-                      .toList();
-              return items.map((c) {
-                return ListTile(
-                  leading: const Icon(Icons.chat_bubble_outline),
-                  title: Text(c.name),
-                  subtitle:
-                      Text(c.type == 'user' ? c.id : c.type.toUpperCase()),
-                  onTap: () {
-                    controller.closeView('');
-                    _searchController.clear();
-                    _openChat(c);
-                  },
-                );
-              }).toList();
+          // Animated search bar
+          AnimatedBuilder(
+            animation: _searchAnimation,
+            builder: (context, child) {
+              return Container(
+                width: 200 + (100 * _searchAnimation.value),
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                child: SearchBar(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  hintText: 'Поиск чатов...',
+                  leading: const Icon(Icons.search),
+                  trailing: _searchController.text.isNotEmpty
+                      ? [
+                          IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => query = '');
+                            },
+                          ),
+                        ]
+                      : null,
+                  backgroundColor: WidgetStatePropertyAll(
+                    Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withOpacity(0.5 + (0.5 * _searchAnimation.value)),
+                  ),
+                  elevation: const WidgetStatePropertyAll(0),
+                  onChanged: (value) => setState(() => query = value),
+                ),
+              );
             },
           ),
+          const SizedBox(width: 8),
           IconButton(
             onPressed: _openCreateGroup,
             icon: const Icon(Icons.group_add_outlined),
             tooltip: 'Создать группу',
           ),
-          PopupMenuButton<FocusModeType>(
-            tooltip: 'Фокус',
-            icon: const Icon(Icons.tune),
-            onSelected: (mode) =>
-                ref.read(focusModeProvider.notifier).setMode(mode),
-            itemBuilder: (_) => [
-              CheckedPopupMenuItem(
-                value: FocusModeType.all,
-                checked: focusMode.mode == FocusModeType.all,
-                child: const Text('Фокус: все'),
-              ),
-              CheckedPopupMenuItem(
-                value: FocusModeType.work,
-                checked: focusMode.mode == FocusModeType.work,
-                child: const Text('Фокус: учёба'),
-              ),
-              CheckedPopupMenuItem(
-                value: FocusModeType.personal,
-                checked: focusMode.mode == FocusModeType.personal,
-                child: const Text('Фокус: личное'),
-              ),
-            ],
-          ),
         ],
       ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(16, 12, 16, NiosSpacing.sm),
+      body: Column(
+        children: [
+          if (loading) const LinearProgressIndicator(minHeight: 2),
+          Padding(
+            padding:
+                const EdgeInsets.fromLTRB(16, 12, 16, NiosSpacing.sm),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -299,20 +350,25 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 Expanded(
                   child: filteredChats.isEmpty
                       ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.chat_bubble_outline,
-                                size: 64,
-                                color: Theme.of(context).colorScheme.outline,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Нет чатов',
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ],
+                          child: NiosMotionWrap(
+                            enableMotion: !reduceMotion,
+                            blurSigma: 10,
+                            offset: const Offset(0, 16),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.chat_bubble_outline,
+                                  size: 64,
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Нет чатов',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
                           ),
                         )
                       : ListView.separated(
@@ -351,44 +407,42 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                 last != null ? _formatMessageTime(last.time) : '';
                             final isOnline = c.isOnline == true && c.type == 'user';
 
-                            return TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0, end: 1),
-                              duration: const Duration(milliseconds: 280),
-                              curve: Curves.easeOutCubic,
-                              builder: (context, value, child) {
-                                return Opacity(
-                                  opacity: value,
-                                  child: Transform.translate(
-                                    offset: Offset(0, (1 - value) * 8),
-                                    child: child,
-                                  ),
-                                );
-                              },
-                              child: RepaintBoundary(
-                                child: SwipeableChatItem(
-                                  onTap: () {
-                                    HapticFeedback.selectionClick();
-                                    _openChat(c);
-                                  },
-                                  onLongPress: () => _openFocusCategorySheet(c),
-                                  onDelete: () => _deleteChat(c),
-                                  onPin: () => _archiveChat(c),
-                                  child: _buildChatTile(
-                                    chat: c,
-                                    preview: preview,
-                                    timeText: timeText,
-                                    isOnline: isOnline,
-                                    unread: c.unread,
-                                    compact: compact,
+                            return NiosMotionWrap(
+                              enableMotion: !reduceMotion,
+                              delay: Duration(milliseconds: 25 * i),
+                              blurSigma: 10,
+                              offset: const Offset(0, 14),
+                              child: GestureDetector(
+
+                                onSecondaryTapUp: (details) =>
+                                    _showChatContextMenu(details, c),
+                                child: RepaintBoundary(
+                                  child: SwipeableChatItem(
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      _openChat(c);
+                                    },
+                                    onLongPress: () => _openFocusCategorySheet(c),
+                                    onDelete: () => _deleteChat(c),
+                                    onPin: () => _pinChat(c),
+                                    isPinned: c.isPinned,
+                                    child: _buildChatTile(
+                                      chat: c,
+                                      preview: preview,
+                                      timeText: timeText,
+                                      isOnline: isOnline,
+                                      unread: c.unread,
+                                      compact: compact,
+                                    ),
                                   ),
                                 ),
-                              ),
+                                                            ),
                             );
                           },
                         ),
                 ),
-              ],
-            ),
+        ],
+      ),
     );
   }
 
@@ -460,6 +514,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       avatarContent = CircleAvatar(
         radius: 28,
         backgroundColor: colorScheme.surfaceContainerHighest,
+        foregroundColor: colorScheme.onSurface,
         child: fallback,
       );
     } else {
@@ -469,6 +524,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       if (bytes != null && bytes.isNotEmpty) {
         avatarContent = CircleAvatar(
           radius: 28,
+          backgroundColor: colorScheme.surfaceContainerHighest,
           backgroundImage: MemoryImage(bytes),
         );
       } else {
@@ -476,6 +532,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         avatarContent = CircleAvatar(
           radius: 28,
           backgroundColor: colorScheme.surfaceContainerHighest,
+          foregroundColor: colorScheme.onSurface,
           child: fallback,
         );
       }
@@ -492,7 +549,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               width: 12,
               height: 12,
               decoration: BoxDecoration(
-                color: NiosColors.greenOnline,
+                color: colorScheme.tertiary,
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: Theme.of(context).colorScheme.surface,
@@ -504,7 +561,27 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       ],
     );
     if (chat.type == 'user') {
-      return Hero(tag: 'chat_avatar_${chat.id}', child: avatar);
+      return Hero(
+        tag: 'chat_avatar_${chat.id}',
+        child: avatar,
+        flightShuttleBuilder: (
+          BuildContext flightContext,
+          Animation<double> animation,
+          HeroFlightDirection flightDirection,
+          BuildContext fromHeroContext,
+          BuildContext toHeroContext,
+        ) {
+          return AnimatedBuilder(
+            animation: animation,
+            builder: (BuildContext context, Widget? child) {
+              return Transform.scale(
+                scale: animation.value,
+                child: avatar,
+              );
+            },
+          );
+        },
+      );
     }
     return avatar;
   }
@@ -573,6 +650,53 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     );
   }
 
+  Future<void> _pinChat(ChatItem chat) async {
+    final isPinned = chat.isPinned;
+    try {
+      // Call API to pin/unpin
+      final session = ref.read(sessionProvider);
+      await api.pinChat(
+        token: session.token!,
+        username: session.username!,
+        chatId: chat.id,
+        pinned: !isPinned,
+      );
+      
+      setState(() {
+        final index = chats.indexWhere((c) => c.id == chat.id);
+        if (index != -1) {
+          chats[index] = chat.copyWith(isPinned: !isPinned);
+          // Sort: pinned first
+          chats.sort((a, b) {
+            final aPinned = a.isPinned;
+            final bPinned = b.isPinned;
+            if (aPinned && !bPinned) return -1;
+            if (!aPinned && bPinned) return 1;
+            return 0;
+          });
+        }
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isPinned 
+                ? 'Чат "${chat.name}" откреплен' 
+                : 'Чат "${chat.name}" закреплен'
+          ),
+          action: SnackBarAction(
+            label: 'Отмена',
+            onPressed: () => _pinChat(chat), // Toggle back
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка: $e')),
+      );
+    }
+  }
+
   void _openFocusCategorySheet(ChatItem chat) {
     showModalBottomSheet(
       context: context,
@@ -618,5 +742,95 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         );
       },
     );
+  }
+
+  /// Показывает контекстное меню для чата (правый клик на ПК)
+  void _showChatContextMenu(TapUpDetails details, ChatItem chat) {
+    // Контекстное меню только для десктопных платформ
+    if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) {
+      return;
+    }
+
+    final isPinned = chat.isPinned;
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(
+          value: 'pin',
+          child: Row(
+            children: [
+              Icon(isPinned ? Icons.push_pin_outlined : Icons.push_pin),
+              const SizedBox(width: 12),
+              Text(isPinned ? 'Открепить' : 'Закрепить'),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'read',
+          child: Row(
+            children: [
+              const Icon(Icons.mark_email_read_outlined),
+              const SizedBox(width: 12),
+              const Text('Прочитано'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'delete',
+          child: Row(
+            children: [
+              const Icon(Icons.delete_outline, color: Colors.red),
+              const SizedBox(width: 12),
+              const Text('Удалить чат', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == null) return;
+      switch (value) {
+        case 'pin':
+          _pinChat(chat);
+          break;
+        case 'read':
+          _markAsRead(chat);
+          break;
+        case 'delete':
+          _deleteChat(chat);
+          break;
+      }
+    });
+  }
+
+  /// Отмечает чат как прочитанный
+  Future<void> _markAsRead(ChatItem chat) async {
+    if (chat.unread <= 0) return;
+    try {
+      final session = ref.read(sessionProvider);
+      await api.markAsRead(
+        token: session.token!,
+        username: session.username!,
+        chatId: chat.id,
+        chatType: chat.type,
+      );
+      setState(() {
+        final index = chats.indexWhere((c) => c.id == chat.id);
+        if (index != -1) {
+          chats[index] = chat.copyWith(unread: 0);
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка: $e')),
+      );
+    }
   }
 }

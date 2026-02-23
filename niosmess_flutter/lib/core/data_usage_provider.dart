@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_client.dart';
 import 'repositories/api_repository.dart';
 import 'session_provider.dart';
+import 'utils/json_utils.dart';
 
 const _usageEntriesKey = 'data_usage_entries_v1';
 const _usageLastSyncKey = 'data_usage_last_sync_v1';
@@ -119,12 +120,16 @@ class DataUsageController extends StateNotifier<DataUsageState> {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_usageEntriesKey);
     if (raw != null && raw.isNotEmpty) {
-      try {
-        final list = jsonDecode(raw) as List<dynamic>;
+      final list = safeJsonDecode<List<dynamic>>(
+        raw,
+        onError: () => prefs.remove(_usageEntriesKey),
+        context: 'data_usage_entries',
+      );
+      if (list != null) {
         _entries
           ..clear()
           ..addAll(list.map((e) => UsageEntry.fromJson(Map<String, dynamic>.from(e))));
-      } catch (_) {}
+      }
     }
     final lastSyncRaw = prefs.getDouble(_usageLastSyncKey);
     final lastSync = lastSyncRaw != null ? DateTime.fromMillisecondsSinceEpoch((lastSyncRaw * 1000).toInt()) : null;

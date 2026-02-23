@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/models/message_item.dart';
+import 'voice_recorder_widget.dart';
 
 class ChatInputWidget extends StatelessWidget {
   final TextEditingController controller;
@@ -35,6 +36,17 @@ class ChatInputWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+
+    // Show voice recorder when recording
+    if (isRecording) {
+      return VoiceRecorderWidget(
+        isRecording: isRecording,
+        duration: recordDuration,
+        onCancel: onCancelRecord,
+        onSend: onRecord,
+      );
+    }
+
     return Material(
       color: scheme.surface,
       child: SafeArea(
@@ -47,7 +59,6 @@ class ChatInputWidget extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (isRecording) _buildVoiceRecordingUI(context),
               if (replyTo != null) _buildReplyPreview(context),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -70,72 +81,40 @@ class ChatInputWidget extends StatelessWidget {
                       decoration: InputDecoration(
                         hintText: 'Сообщение',
                         filled: true,
-                        fillColor: scheme.surfaceVariant,
-                        prefixIcon: IconButton(
-                          onPressed: onEmoji,
-                          icon: const Icon(Icons.emoji_emotions_outlined),
-                        ),
-                        hintStyle: textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                        fillColor: scheme.surfaceContainerHighest,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: scheme.outlineVariant),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: scheme.outlineVariant),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: scheme.primary),
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide.none,
                         ),
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.emoji_emotions_outlined),
+                              onPressed: onEmoji,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Use ValueListenableBuilder to reactively switch
-                  // between mic / send button based on text content
-                  ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: controller,
-                    builder: (context, value, _) {
-                      final hasText = value.text.isNotEmpty;
-                      return AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        transitionBuilder: (child, animation) {
-                          return ScaleTransition(
-                            scale: animation,
-                            child: RotationTransition(
-                              turns: Tween<double>(begin: 0.5, end: 0)
-                                  .animate(animation),
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: !hasText && !isRecording
-                            ? _CircleButton(
-                                key: const ValueKey('mic'),
-                                icon: Icons.mic,
-                                onPressed: onRecord,
-                              )
-                            : isRecording
-                                ? _CircleButton(
-                                    key: const ValueKey('stop'),
-                                    icon: Icons.stop,
-                                    onPressed: onRecord,
-                                    color: scheme.error,
-                                  )
-                                : _CircleButton(
-                                    key: const ValueKey('send'),
-                                    icon: Icons.send,
-                                    onPressed: sending ? null : onSend,
-                                    color: scheme.primary,
-                                  ),
-                      );
-                    },
-                  ),
+                  if (controller.text.isEmpty)
+                    _CircleButton(
+                      icon: Icons.mic,
+                      onPressed: onRecord,
+                      color: scheme.primary,
+                    )
+                  else
+                    _CircleButton(
+                      icon: Icons.send,
+                      onPressed: sending ? null : onSend,
+                      color: scheme.primary,
+                    ),
                 ],
               ),
             ],
@@ -147,11 +126,13 @@ class ChatInputWidget extends StatelessWidget {
 
   Widget _buildReplyPreview(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: scheme.primaryContainer,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
         border: Border(
           left: BorderSide(color: scheme.primary, width: 3),
@@ -165,98 +146,32 @@ class ChatInputWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Ответ',
-                  style: TextStyle(
-                    color: scheme.onPrimaryContainer,
-                    fontSize: 12,
+                  replyTo!.sender,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: scheme.primary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   replyTo!.text,
-                  style: TextStyle(
-                    color: scheme.onPrimaryContainer,
-                    fontSize: 13,
-                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
           ),
           IconButton(
+            icon: const Icon(Icons.close, size: 18),
             onPressed: onClearReply,
-            icon: const Icon(Icons.close),
-            tooltip: 'Убрать ответ',
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDuration(Duration value) {
-    final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
-  }
-
-  Widget _buildVoiceRecordingUI(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: scheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: scheme.error.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 12,
-            height: 12,
-            decoration:
-                BoxDecoration(color: scheme.error, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            _formatDuration(recordDuration),
-            style: TextStyle(
-              color: scheme.error,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(
+              minWidth: 24,
+              minHeight: 24,
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (index) {
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  width: 3,
-                  height: 10 + (index % 3) * 8.0,
-                  decoration: BoxDecoration(
-                    color: scheme.primary,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                );
-              }),
-            ),
-          ),
-          const SizedBox(width: 16),
-          IconButton.filledTonal(
-            onPressed: onCancelRecord,
-            icon: const Icon(Icons.close),
-            tooltip: 'Отменить',
-          ),
-          const SizedBox(width: 8),
-          IconButton.filled(
-            onPressed: onRecord,
-            icon: const Icon(Icons.send),
-            tooltip: 'Отправить',
           ),
         ],
       ),
@@ -270,7 +185,6 @@ class _CircleButton extends StatelessWidget {
   final Color? color;
 
   const _CircleButton({
-    super.key,
     required this.icon,
     this.onPressed,
     this.color,
@@ -279,9 +193,9 @@ class _CircleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final background = color ?? scheme.surfaceVariant;
+    final background = color ?? scheme.surfaceContainerHighest;
     final foreground = onPressed == null
-        ? scheme.onSurfaceVariant.withValues(alpha: 0.5)
+        ? scheme.onSurfaceVariant.withOpacity(0.5)
         : (color != null ? scheme.onPrimary : scheme.onSurfaceVariant);
 
     return IconButton(

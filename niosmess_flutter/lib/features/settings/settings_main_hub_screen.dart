@@ -37,10 +37,9 @@ class SettingsMainHubScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsMainHubScreenState extends ConsumerState<SettingsMainHubScreen> {
-  int _selectedThemeIndex = 0;
-
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return NiosScaffold(
       body: Column(
         children: [
@@ -65,119 +64,66 @@ class _SettingsMainHubScreenState extends ConsumerState<SettingsMainHubScreen> {
                 children: [
                   const SizedBox(height: 20),
 
-                  // Quick Theme Switch Section
-                  const SectionLabel('Quick Theme Switch'),
-                  const SizedBox(height: 12),
-
-                  // Theme Cards
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        ThemePreviewCard(
-                          label: 'Aurora Glass',
-                          isSelected: _selectedThemeIndex == 0,
-                          topBarColor: NiosPalette.surfaceAlt,
-                          bubbleLeftColor: NiosPalette.surfaceAlt,
-                          bubbleRightColor: NiosPalette.accent,
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(() => _selectedThemeIndex = 0);
-                          },
-                        ),
-                        const SizedBox(width: 12),
-                        ThemePreviewCard(
-                          label: 'Violet Pulse',
-                          isSelected: _selectedThemeIndex == 1,
-                          topBarColor: const Color(0xFF2E1B44),
-                          bubbleLeftColor: const Color(0xFF3A2356),
-                          bubbleRightColor: const Color(0xFFC084FC),
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(() => _selectedThemeIndex = 1);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
                   // Settings List
-                  const SectionLabel('Settings'),
+                  const SectionLabel('Настройки'),
                   const SizedBox(height: 12),
 
-                    // Row 1: Appearance
-                    SettingsRow(
-                      gradient: NiosGradients.gradientBlue,
-                      icon: Icons.palette,
-                      title: 'Appearance',
-                      subtitle: 'Dark Blue Theme',
-                      onTap: widget.onOpenAppearance,
-                    ),
-
-                    // Row 2: Notifications
-                    SettingsRow(
-                      gradient: NiosGradients.gradientOrange,
-                      icon: Icons.notifications,
-                      title: 'Notifications',
-                      subtitle: 'All notifications enabled',
-                      onTap: widget.onOpenNotifications,
-                    ),
-
-                    // Row 3: Privacy & Security
-                    SettingsRow(
-                      gradient: NiosGradients.gradientPurple,
-                      icon: Icons.shield,
-                      title: 'Privacy & Security',
-                      subtitle: 'Ghost Mode, Read Receipts',
-                      onTap: widget.onOpenPrivacy,
-                    ),
-
-                    // Row 4: Data & Storage
-                    SettingsRow(
-                      gradient: NiosGradients.gradientGreen,
-                      icon: Icons.pie_chart,
-                      title: 'Data & Storage',
-                      subtitle: '2.4 GB used',
-                      onTap: widget.onOpenData,
-                    ),
-
-                    // Row 5: Chat Settings
-                    SettingsRow(
-                      gradient: NiosGradients.gradientBlue,
-                      icon: Icons.forum,
-                      title: 'Chat Settings',
-                      subtitle: 'Bubbles, Text Size',
-                      onTap: widget.onOpenChatSettings,
-                    ),
-
-                    // Row 6: Network & Data
-                    SettingsRow(
-                      gradient: NiosGradients.gradientPink,
-                      icon: Icons.wifi,
-                      title: 'Network & Data',
-                      subtitle: 'Auto-download, Proxy',
-                      onTap: widget.onOpenNetwork,
-                    ),
-
-                    // Row 7: Passcode Lock
-                    SettingsRow(
-                      gradient: NiosGradients.gradientRed,
-                      icon: Icons.lock,
-                      title: 'Passcode Lock',
-                      subtitle: 'Disabled',
-                      onTap: widget.onOpenPasscode,
-                    ),
-
-                    // Row 8: Active Sessions
-                    SettingsRow(
-                      gradient: NiosGradients.gradientPurple,
-                      icon: Icons.devices,
-                      title: 'Active Sessions',
-                      subtitle: '3 devices',
-                      onTap: widget.onOpenSessions,
-                    ),
+                  SettingsRow(
+                    leadingColor: scheme.primaryContainer,
+                    icon: Icons.palette,
+                    title: 'Внешний вид',
+                    subtitle: 'Тема, цвета, размеры',
+                    onTap: widget.onOpenAppearance,
+                  ),
+                  SettingsRow(
+                    leadingColor: scheme.secondaryContainer,
+                    icon: Icons.notifications,
+                    title: 'Уведомления',
+                    subtitle: 'Звук, показ, тишина',
+                    onTap: widget.onOpenNotifications,
+                  ),
+                  SettingsRow(
+                    leadingColor: scheme.tertiaryContainer,
+                    icon: Icons.shield,
+                    title: 'Приватность и безопасность',
+                    subtitle: 'Статус, чтение, защита',
+                    onTap: widget.onOpenPrivacy,
+                  ),
+                  SettingsRow(
+                    leadingColor: scheme.primaryContainer,
+                    icon: Icons.pie_chart,
+                    title: 'Данные и хранилище',
+                    subtitle: 'Кэш, медиа, авто‑загрузка',
+                    onTap: widget.onOpenData,
+                  ),
+                  SettingsRow(
+                    leadingColor: scheme.secondaryContainer,
+                    icon: Icons.forum,
+                    title: 'Чаты',
+                    subtitle: 'Пузыри, текст, поведение',
+                    onTap: widget.onOpenChatSettings,
+                  ),
+                  SettingsRow(
+                    leadingColor: scheme.tertiaryContainer,
+                    icon: Icons.wifi,
+                    title: 'Сеть',
+                    subtitle: 'Прокси, трафик, фон',
+                    onTap: widget.onOpenNetwork,
+                  ),
+                  SettingsRow(
+                    leadingColor: scheme.primaryContainer,
+                    icon: Icons.lock,
+                    title: 'Код‑пароль',
+                    subtitle: 'Блокировка приложения',
+                    onTap: widget.onOpenPasscode,
+                  ),
+                  SettingsRow(
+                    leadingColor: scheme.secondaryContainer,
+                    icon: Icons.devices,
+                    title: 'Активные сессии',
+                    subtitle: 'Устройства и доступы',
+                    onTap: widget.onOpenSessions,
+                  ),
 
                   const SizedBox(height: 24),
                 ],

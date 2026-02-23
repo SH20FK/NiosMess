@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'utils/json_utils.dart';
 import 'dart:math' as math;
 
 
@@ -82,10 +83,14 @@ class AiSummaryNotifier extends StateNotifier<AiSummaryState> {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString('$_prefsKeyPrefix$chatId');
     if (jsonString != null) {
-      try {
-        final data = jsonDecode(jsonString) as Map<String, dynamic>;
+      final data = safeJsonDecode<Map<String, dynamic>>(
+        jsonString,
+        onError: () => prefs.remove('$_prefsKeyPrefix$chatId'),
+        context: 'ai_summary:$chatId',
+      );
+      if (data != null) {
         state = AiSummaryState.fromJson(data);
-      } catch (_) {
+      } else {
         state = const AiSummaryState();
       }
     } else {

@@ -34,7 +34,7 @@ class SettingsController extends StateNotifier<Map<String, dynamic>> {
   static final Map<String, dynamic> _defaults = {
     'theme_mode': 'system',
     'seed_color': 0xFF4F46E5,
-    'use_dynamic_color': false,
+    'use_dynamic_color': true,
     'text_scale': 1.0,
     'bubble_radius': 16.0,
     'bubble_padding': 12.0,

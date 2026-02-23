@@ -30,52 +30,53 @@ class ApiRepository {
   }
 
   Future<List<ChatItem>> getChats(String username, String token) async {
-    final data = await _api.get('/get_chats',
+    final dynamic data = await _api.get('/get_chats',
         query: {'username': username, 'token': token, 'version': '1.0'});
-    final list =
-        (data['chats'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
-    await OfflineCache.saveChats(list);
-    return list.map((e) {
-      final type = (e['type'] ?? '').toString();
-      final rawUsername = e['username']?.toString();
-      final rawChatId = (e['chat_id'] ?? e['id'])?.toString();
-      final isUserChat = type.isEmpty || type == 'user';
-      String chatId;
-      if (isUserChat) {
-        // Backend for user chats may return `chat_id` as peer and `username` as current user.
-        chatId = (rawChatId ?? rawUsername ?? '').toString();
-        if (chatId == username &&
-            (rawUsername ?? '').isNotEmpty &&
-            rawUsername != username) {
-          chatId = rawUsername!;
-        }
-      } else {
-        chatId = (rawChatId ?? rawUsername ?? '').toString();
+    List<dynamic> rawList;
+    if (data is List) {
+      rawList = data;
+    } else if (data['data'] is List) {
+      rawList = data['data'] as List;
+    } else if (data['chats'] is List) {
+      rawList = data['chats'] as List;
+    } else if (data['items'] is List) {
+      rawList = data['items'] as List;
+    } else {
+      rawList = const [];
+    }
+
+    final normalized = <Map<String, dynamic>>[];
+    final result = <ChatItem>[];
+    for (final item in rawList) {
+      if (item is! Map) continue;
+      final map = Map<String, dynamic>.from(item);
+      final normalizedItem = ChatItem.normalizeJson(map);
+      try {
+        final chat = ChatItem.fromJson(normalizedItem);
+        result.add(chat);
+        normalized.add(normalizedItem);
+      } catch (_) {
+        // Skip invalid items without breaking the list.
       }
-      return ChatItem(
-        id: chatId,
-        name: (e['name'] ?? chatId).toString(),
-        type: type.isEmpty
-            ? (chatId.startsWith('group_')
-                ? 'group'
-                : chatId.startsWith('channel_')
-                    ? 'channel'
-                    : 'user')
-            : type,
-        unread: (e['unread_count'] as num?)?.toInt() ?? 0,
-        username: rawUsername,
-        isOnline: e['isonline'] as bool?,
-        lastSeenText: e['last_seen_text'] as String?,
-        badgeTitle: e['badge_title'] as String?,
-        badgeText: e['badge_text'] as String?,
-        badgeIcon: e['badge_icon'] as String?,
-      );
-    }).toList();
+    }
+    await OfflineCache.saveChats(normalized);
+    return result;
   }
 
   Future<List<ChatItem>> getCachedChats() async {
     final cached = await OfflineCache.loadChats();
-    return cached.map((e) => ChatItem.fromJson(e)).toList();
+    final result = <ChatItem>[];
+    for (final item in cached) {
+      try {
+        result.add(ChatItem.fromJson(item));
+      } catch (e) {
+        final id = (item['id'] ?? item['chat_id'] ?? item['username'] ?? '').toString();
+        final payload = item.toString();
+        final trimmed = payload.length > 240 ? '${payload.substring(0, 240)}...' : payload;
+        print('[Cache] skip chat: id=$id payload=$trimmed error=$e');
+      }
+    }
+    return result;
   }
 
   Future<List<MessageItem>> getMessagesUser(
@@ -359,6 +360,21 @@ class ApiRepository {
         data: {'username': username, 'token': token});
   }
 
+  Future<void> logoutSession(
+    String username,
+    String token, {
+    String? sessionId,
+  }) async {
+    await _api.post(
+      '/sessions/logout',
+      data: {
+        'username': username,
+        'token': token,
+        if (sessionId != null) 'session_id': sessionId,
+      },
+    );
+  }
+
   Future<Uint8List?> getAvatarBytes(String username) async {
     final cached = await OfflineCache.loadAvatar(username);
     if (cached != null) return cached;
@@ -510,6 +526,36 @@ class ApiRepository {
     await _api.post('/messages/pin', form: form);
   }
 
+  Future<void> pinChat({
+    required String token,
+    required String username,
+    required String chatId,
+    required bool pinned,
+  }) async {
+    final form = FormData.fromMap({
+      'token': token,
+      'username': username,
+      'chat_id': chatId,
+      'pinned': pinned,
+    });
+    await _api.post('/chats/pin', form: form);
+  }
+
+  Future<void> markAsRead({
+    required String token,
+    required String username,
+    required String chatId,
+    String? chatType,
+  }) async {
+    final isCollective = chatType == 'group' || chatType == 'channel';
+    final path = isCollective ? '/collective/mark_read' : '/mark_read';
+    await _api.post(path, data: {
+      'username': username,
+      'token': token,
+      'chat_id': chatId,
+    });
+  }
+
   Future<Map<String, dynamic>> reactMessage({
     required String username,
     required String token,
@@ -636,5 +682,56 @@ class ApiRepository {
       ),
     );
     return filePath;
+  }
+
+  // ── Custom status ──────────────────────────────────────────────────────────
+
+  Future<String> getCustomStatus(String username, String token) async {
+    final data = await _api.get('/user/status',
+        query: {'username': username, 'token': token});
+    return data['custom_status']?.toString() ?? '';
+  }
+
+  Future<void> setCustomStatus(String username, String token, String status) {
+    return _api.post('/user/status',
+        form: FormData.fromMap({
+          'username': username,
+          'token': token,
+          'status': status,
+        }));
+  }
+
+  // ── Block / Unblock ────────────────────────────────────────────────────────
+
+  Future<void> blockUser(String username, String token, String target) {
+    return _api.post('/users/block',
+        form: FormData.fromMap({
+          'username': username,
+          'token': token,
+          'target': target,
+        }));
+  }
+
+  Future<void> unblockUser(String username, String token, String target) {
+    return _api.post('/users/unblock',
+        form: FormData.fromMap({
+          'username': username,
+          'token': token,
+          'target': target,
+        }));
+  }
+
+  Future<List<String>> getBlockedUsers(String username, String token) async {
+    final data = await _api.get('/users/blocked',
+        query: {'username': username, 'token': token});
+    return (data['blocked'] as List<dynamic>? ?? []).cast<String>();
+  }
+
+  // ── Online presence ────────────────────────────────────────────────────────
+
+  Future<List<String>> getOnlineUsers(String username, String token) async {
+    final data = await _api.get('/users/online',
+        query: {'username': username, 'token': token});
+    return (data['online'] as List<dynamic>? ?? []).cast<String>();
   }
 }

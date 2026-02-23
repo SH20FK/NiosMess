@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../nios_ui.dart';
 
 /// Animated typing indicator with bouncing dots
 class TypingIndicator extends StatefulWidget {
@@ -59,15 +58,16 @@ class _TypingIndicatorState extends State<TypingIndicator>
   @override
   Widget build(BuildContext context) {
     if (!widget.isVisible) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: NiosColors.bgSurface,
+        color: scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: NiosColors.textMuted.withOpacity(0.1),
+          color: scheme.outlineVariant.withOpacity(0.4),
           width: 0.5,
         ),
       ),
@@ -78,7 +78,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
             Text(
               '${widget.typingUser} печатает',
               style: TextStyle(
-                color: NiosColors.textGrey,
+                color: scheme.onSurfaceVariant,
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
               ),
@@ -95,7 +95,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
                     height: 6,
                     margin: const EdgeInsets.symmetric(horizontal: 2),
                     decoration: BoxDecoration(
-                      color: NiosColors.accentBlue.withOpacity(0.7),
+                      color: scheme.primary.withOpacity(0.7),
                       shape: BoxShape.circle,
                     ),
                     transform: Matrix4.translationValues(

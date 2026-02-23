@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'data_usage_provider.dart';
 import 'repositories/api_repository.dart';
 import 'session_provider.dart';
+import 'utils/json_utils.dart';
 
 const _downloadsKey = 'downloads_local_v1';
 
@@ -80,13 +81,16 @@ class DownloadsController extends StateNotifier<DownloadsState> {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_downloadsKey);
     if (raw == null || raw.isEmpty) return;
-    try {
-      final list = jsonDecode(raw) as List<dynamic>;
-      final local = list
-          .map((e) => DownloadEntry.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
-      state = state.copyWith(local: local);
-    } catch (_) {}
+    final list = safeJsonDecode<List<dynamic>>(
+      raw,
+      onError: () => prefs.remove(_downloadsKey),
+      context: 'downloads_local',
+    );
+    if (list == null) return;
+    final local = list
+        .map((e) => DownloadEntry.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+    state = state.copyWith(local: local);
   }
 
   Future<void> _persistLocal() async {

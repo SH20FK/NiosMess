@@ -7,6 +7,7 @@
 #include "generated_plugin_registrant.h"
 
 #include <connectivity_plus/connectivity_plus_windows_plugin.h>
+#include <desktop_drop/desktop_drop_plugin.h>
 #include <dynamic_color/dynamic_color_plugin_c_api.h>
 #include <file_selector_windows/file_selector_windows.h>
 #include <firebase_core/firebase_core_plugin_c_api.h>
@@ -15,13 +16,18 @@
 #include <local_auth_windows/local_auth_plugin.h>
 #include <permission_handler_windows/permission_handler_windows_plugin.h>
 #include <record_windows/record_windows_plugin_c_api.h>
+#include <screen_retriever_windows/screen_retriever_windows_plugin_c_api.h>
 #include <share_plus/share_plus_windows_plugin_c_api.h>
 #include <sqlite3_flutter_libs/sqlite3_flutter_libs_plugin.h>
+#include <tray_manager/tray_manager_plugin.h>
 #include <url_launcher_windows/url_launcher_windows.h>
+#include <window_manager/window_manager_plugin.h>
 
 void RegisterPlugins(flutter::PluginRegistry* registry) {
   ConnectivityPlusWindowsPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("ConnectivityPlusWindowsPlugin"));
+  DesktopDropPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("DesktopDropPlugin"));
   DynamicColorPluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("DynamicColorPluginCApi"));
   FileSelectorWindowsRegisterWithRegistrar(
@@ -38,10 +44,16 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("PermissionHandlerWindowsPlugin"));
   RecordWindowsPluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("RecordWindowsPluginCApi"));
+  ScreenRetrieverWindowsPluginCApiRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("ScreenRetrieverWindowsPluginCApi"));
   SharePlusWindowsPluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("SharePlusWindowsPluginCApi"));
   Sqlite3FlutterLibsPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("Sqlite3FlutterLibsPlugin"));
+  TrayManagerPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("TrayManagerPlugin"));
   UrlLauncherWindowsRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("UrlLauncherWindows"));
+  WindowManagerPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("WindowManagerPlugin"));
 }

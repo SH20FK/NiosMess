@@ -350,96 +350,104 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
 
           // User list
           Expanded(
-            child: _searching || _loadingSuggestions
-                ? const Center(child: CircularProgressIndicator())
-                : displayList.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.person_search_outlined,
-                              size: 48,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              searchController.text.isNotEmpty
-                                  ? 'Пользователи не найдены'
-                                  : 'Нет контактов',
-                              style: TextStyle(color: scheme.onSurfaceVariant),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        itemCount: displayList.length,
-                        itemBuilder: (_, i) {
-                          final user = displayList[i];
-                          final selected = _isSelected(user.username);
-                          return ListTile(
-                            leading: Stack(
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor: selected
-                                      ? scheme.primary
-                                      : scheme.surfaceVariant,
-                                  child: selected
-                                      ? Icon(Icons.check, color: scheme.onPrimary, size: 20)
-                                      : Text(
-                                          (user.name ?? user.username)
-                                              .substring(0, 1)
-                                              .toUpperCase(),
-                                          style: TextStyle(
-                                            color: scheme.onSurfaceVariant,
-                                            fontWeight: FontWeight.w600,
+            child: Column(
+              children: [
+                if (_searching || _loadingSuggestions)
+                  const LinearProgressIndicator(minHeight: 2),
+                Expanded(
+                  child: displayList.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.person_search_outlined,
+                                size: 48,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                searchController.text.isNotEmpty
+                                    ? 'Пользователи не найдены'
+                                    : 'Нет контактов',
+                                style: TextStyle(color: scheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          itemCount: displayList.length,
+                          itemBuilder: (_, i) {
+                            final user = displayList[i];
+                            final selected = _isSelected(user.username);
+                            return ListTile(
+                              leading: Stack(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: selected
+                                        ? scheme.primary
+                                        : scheme.surfaceVariant,
+                                    child: selected
+                                        ? Icon(Icons.check,
+                                            color: scheme.onPrimary, size: 20)
+                                        : Text(
+                                            (user.name ?? user.username)
+                                                .substring(0, 1)
+                                                .toUpperCase(),
+                                            style: TextStyle(
+                                              color: scheme.onSurfaceVariant,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
-                                        ),
-                                ),
-                                if (user.isOnline)
-                                  Positioned(
-                                    right: 0,
-                                    bottom: 0,
-                                    child: Container(
-                                      width: 12,
-                                      height: 12,
-                                      decoration: BoxDecoration(
-                                        color: NiosColors.greenOnline,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: scheme.surface,
-                                          width: 2,
+                                  ),
+                                  if (user.isOnline)
+                                    Positioned(
+                                      right: 0,
+                                      bottom: 0,
+                                      child: Container(
+                                        width: 12,
+                                        height: 12,
+                                        decoration: BoxDecoration(
+                                          color: scheme.tertiary,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: scheme.surface,
+                                            width: 2,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                              ],
-                            ),
-                            title: Text(
-                              user.name ?? user.username,
-                              style: TextStyle(
-                                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                                ],
                               ),
-                            ),
-                            subtitle: Text(
-                              '@${user.username}',
-                              style: TextStyle(
-                                color: scheme.onSurfaceVariant,
-                                fontSize: 13,
+                              title: Text(
+                                user.name ?? user.username,
+                                style: TextStyle(
+                                  fontWeight:
+                                      selected ? FontWeight.w600 : FontWeight.w400,
+                                ),
                               ),
-                            ),
-                            trailing: selected
-                                ? Icon(Icons.check_circle, color: scheme.primary)
-                                : Icon(Icons.circle_outlined,
-                                    color: scheme.outlineVariant),
-                            onTap: () => _toggleMember(user),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          );
-                        },
-                      ),
+                              subtitle: Text(
+                                '@${user.username}',
+                                style: TextStyle(
+                                  color: scheme.onSurfaceVariant,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              trailing: selected
+                                  ? Icon(Icons.check_circle, color: scheme.primary)
+                                  : Icon(Icons.circle_outlined,
+                                      color: scheme.outlineVariant),
+                              onTap: () => _toggleMember(user),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

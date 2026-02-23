@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../nios_ui.dart';
 
 /// Animated Toggle Switch with smooth knob animation
 class AnimatedToggleSwitch extends StatefulWidget {
@@ -31,6 +30,7 @@ class _AnimatedToggleSwitchState extends State<AnimatedToggleSwitch>
   @override
   void initState() {
     super.initState();
+    final scheme = Theme.of(context).colorScheme;
     _controller = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -45,8 +45,8 @@ class _AnimatedToggleSwitchState extends State<AnimatedToggleSwitch>
     ));
 
     _backgroundAnimation = ColorTween(
-      begin: widget.inactiveColor ?? NiosColors.textMuted.withOpacity(0.3),
-      end: widget.activeColor ?? NiosColors.accentBlue,
+      begin: widget.inactiveColor ?? scheme.surfaceContainerHighest,
+      end: widget.activeColor ?? scheme.primary,
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOutCubic,
@@ -92,7 +92,7 @@ class _AnimatedToggleSwitchState extends State<AnimatedToggleSwitch>
             Text(
               widget.label!,
               style: TextStyle(
-                color: NiosColors.textWhite,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 16,
               ),
             ),

@@ -13,7 +13,6 @@ import '../../core/utils/error_handler.dart';
 import '../../ui/nios_ui.dart';
 import '../../ui/widgets/swipeable_chat_item.dart';
 import '../../ui/widgets/staggered_list.dart';
-import '../../ui/widgets/glass_container.dart';
 import '../chat/chat_screen.dart';
 import '../groups/create_group_screen.dart';
 import '../profile/profile_screen.dart';
@@ -38,6 +37,7 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
   final Map<String, Uint8List?> _avatarCache = {};
   final Map<String, MessageItem> _lastMessages = {};
   bool loading = true;
+  bool _isSyncing = false;
   String? error;
   String query = '';
   bool _showScrollButton = false;
@@ -101,31 +101,40 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
       error = null;
     });
 
+    // 1) Cache-first
+    List<ChatItem> cached = [];
+    try {
+      cached = await api.getCachedChats();
+    } catch (e, stack) {
+      ErrorHandler.handle(e, stackTrace: stack, context: 'LoadCachedChats');
+    }
+    if (!mounted) return;
+    setState(() {
+      chats = cached;
+      loading = false;
+      error = null;
+    });
+    _loadLastMessages();
+
+    // 2) Background sync
     final session = ref.read(sessionProvider);
+    if (!session.isAuthed) return;
+    setState(() => _isSyncing = true);
     try {
       final data = await api.getChats(session.username!, session.token!);
       if (!mounted) return;
-
       setState(() {
         chats = data;
-        loading = false;
+        error = null;
       });
-
       _loadLastMessages();
     } catch (e, stack) {
       ErrorHandler.handle(e, stackTrace: stack, context: 'LoadChats');
-
-      // Fallback к кэшу
-      final cached = await api.getCachedChats();
-      if (!mounted) return;
-
-      setState(() {
-        chats = cached;
-        loading = false;
-        error = cached.isEmpty ? ErrorHandler.getUserMessage(e) : null;
-      });
-
-      _loadLastMessages();
+      if (mounted && chats.isEmpty) {
+        setState(() => error = ErrorHandler.getUserMessage(e));
+      }
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
     }
   }
 
@@ -203,6 +212,7 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
     super.build(context);
     final theme = Theme.of(context);
     final filteredChats = _filteredChats;
+    final reduceMotion = (ref.watch(settingsProvider)['reduce_motion'] as bool?) ?? false;
 
     return Scaffold(
       body: RefreshIndicator(
@@ -256,6 +266,12 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
                   ),
                 ),
               ),
+              bottom: _isSyncing
+                  ? const PreferredSize(
+                      preferredSize: Size.fromHeight(2),
+                      child: LinearProgressIndicator(minHeight: 2),
+                    )
+                  : null,
               actions: [
                 IconButton(
                   icon: const Icon(Icons.search),
@@ -286,27 +302,18 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
 
             // Список чатов или состояние ошибки/пустой список
             if (loading)
+              const SliverToBoxAdapter(
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
+            if (error != null)
               SliverFillRemaining(
                 child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const CircularProgressIndicator(),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Загрузка чатов...',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else if (error != null)
-              SliverFillRemaining(
-                child: Center(
-                  child: Column(
+                  child: NiosMotionWrap(
+                    enableMotion: !reduceMotion,
+                    blurSigma: 12,
+                    offset: const Offset(0, 18),
+                    child: Column(
+
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
@@ -327,13 +334,19 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
                         label: const Text('Повторить'),
                       ),
                     ],
+                                      ),
                   ),
                 ),
               )
             else if (filteredChats.isEmpty)
               SliverFillRemaining(
                 child: Center(
-                  child: Column(
+                  child: NiosMotionWrap(
+                    enableMotion: !reduceMotion,
+                    blurSigma: 12,
+                    offset: const Offset(0, 18),
+                    child: Column(
+
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
@@ -358,6 +371,7 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
                         ),
                       ),
                     ],
+                                      ),
                   ),
                 ),
               )
@@ -371,13 +385,20 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
                     return AnimatedListItem(
                       index: index,
                       delay: const Duration(milliseconds: 30),
-                      child: SwipeableChatItem(
+                      child: NiosMotionWrap(
+                        enableMotion: !reduceMotion,
+                        delay: Duration(milliseconds: 25 * index),
+                        blurSigma: 10,
+                        offset: const Offset(0, 12),
+                        child: SwipeableChatItem(
+
                         onTap: () => _openChat(chat),
                         onPin: () => _pinChat(chat),
                         onDelete: () => _deleteChat(chat),
-                        isPinned: chat.isPinned ?? false,
+                        isPinned: chat.isPinned,
                         isRead: chat.unread == 0,
                         child: _buildChatTile(chat),
+                                              ),
                       ),
                     );
                   },
@@ -472,7 +493,7 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
   Widget _buildChatTile(ChatItem chat) {
     final lastMessage = _lastMessages[chat.id];
     final avatarBytes = _avatarCache[chat.username ?? chat.id];
-    final hasUnread = (chat.unread ?? 0) > 0;
+    final hasUnread = chat.unread > 0;
 
     return ListTile(
       leading: CircleAvatar(
@@ -496,7 +517,7 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (chat.isPinned ?? false)
+          if (chat.isPinned)
             const Icon(Icons.push_pin, size: 16),
           if (hasUnread)
             Container(
@@ -546,10 +567,17 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
     // TODO: Открыть экран создания чата
     showModalBottomSheet(
       context: context,
-      builder: (context) => GlassBottomSheet(
-        height: 200,
-        child: Column(
-          children: [
+      builder: (context) => SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SizedBox(
+            height: 200,
+            child: Column(
+              children: [
             ListTile(
               leading: const Icon(Icons.person_add),
               title: const Text('Новый чат'),
@@ -573,7 +601,9 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
                 );
               },
             ),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -626,10 +656,17 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
   void _showMenu() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => GlassBottomSheet(
-        height: 300,
-        child: ListView(
-          children: [
+      builder: (context) => SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SizedBox(
+            height: 300,
+            child: ListView(
+              children: [
             ListTile(
               leading: const Icon(Icons.person),
               title: const Text('Профиль'),
@@ -669,7 +706,9 @@ class _EnhancedChatListScreenState extends ConsumerState<EnhancedChatListScreen>
                 // TODO: Открыть папки
               },
             ),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );

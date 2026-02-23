@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:animations/animations.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/theme_provider.dart';
 import '../ui/nios_ui.dart';
 
@@ -26,7 +25,7 @@ ThemeData buildNiosTheme(
       ? Typography.material2021().black
       : Typography.material2021().white;
 
-  final textTheme = GoogleFonts.interTextTheme(baseTextTheme).copyWith(
+  final textTheme = baseTextTheme.copyWith(
     displayLarge: baseTextTheme.displayLarge?.copyWith(
       fontWeight: FontWeight.w800,
       letterSpacing: -0.5,

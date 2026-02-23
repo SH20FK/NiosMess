@@ -158,7 +158,7 @@ class _ThemePreviewCardState extends State<ThemePreviewCard> {
 }
 
 class SettingsRow extends StatelessWidget {
-  final LinearGradient gradient;
+  final Color? leadingColor;
   final IconData icon;
   final String title;
   final String subtitle;
@@ -166,7 +166,7 @@ class SettingsRow extends StatelessWidget {
 
   const SettingsRow({
     super.key,
-    required this.gradient,
+    this.leadingColor,
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -176,7 +176,7 @@ class SettingsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final accent = gradient.colors.isNotEmpty ? gradient.colors.first : scheme.primaryContainer;
+    final accent = leadingColor ?? scheme.primaryContainer;
 
     return Card(
       elevation: 0,
@@ -233,7 +233,6 @@ class ProfileHeader extends StatelessWidget {
   final String phone;
   final double avatarSize;
   final bool isLarge;
-  final bool useGlass;
   final VoidCallback? onAvatarTap;
 
   const ProfileHeader({
@@ -243,7 +242,6 @@ class ProfileHeader extends StatelessWidget {
     required this.phone,
     this.avatarSize = 100,
     this.isLarge = false,
-    this.useGlass = true,
     this.onAvatarTap,
   });
 
@@ -291,13 +289,6 @@ class ProfileHeader extends StatelessWidget {
         Text(phone, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
       ],
     );
-
-    if (!useGlass) {
-      return Padding(
-        padding: EdgeInsets.fromLTRB(16, isLarge ? 40 : 24, 16, isLarge ? 24 : 24),
-        child: content,
-      );
-    }
 
     return Card(
       elevation: 0,

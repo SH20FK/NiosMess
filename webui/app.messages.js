@@ -1046,82 +1046,8 @@ function createMessageElement(m, container) {
       preview.addEventListener("click", () => openMediaViewer({ type: "image", url: link, name: raw }));
     } else if (attachment.type === "audio") {
       if (attachment.isVoice) {
-        const voiceWrap = document.createElement("div");
-        voiceWrap.className = "message-audio message-voice";
-
-        const audio = document.createElement("audio");
-        audio.preload = "metadata";
-        const source = document.createElement("source");
-        setMediaElementSource(audio, link, source);
-        audio.onerror = () => {
-          fetchMediaBlob(link)
-            .then((blob) => {
-              audio.src = URL.createObjectURL(blob);
-            })
-            .catch(() => { });
-        };
-        source.type = attachment.mime || "audio/webm";
-        audio.appendChild(source);
-
-        const playBtn = document.createElement("button");
-        playBtn.className = "voice-play";
-        playBtn.type = "button";
-        playBtn.textContent = "▶";
-
-        const meta = document.createElement("div");
-        meta.className = "voice-meta";
-        meta.textContent = "Voice message";
-
-        const progress = document.createElement("input");
-        progress.type = "range";
-        progress.min = "0";
-        progress.max = "100";
-        progress.value = "0";
-        progress.className = "voice-progress";
-
-        const time = document.createElement("div");
-        time.className = "voice-time";
-        time.textContent = "0:00";
-
-        playBtn.addEventListener("click", () => {
-          if (audio.paused) {
-            audio.play().catch(() => { });
-          } else {
-            audio.pause();
-          }
-        });
-
-        audio.addEventListener("play", () => {
-          playBtn.textContent = "❚❚";
-        });
-
-        audio.addEventListener("pause", () => {
-          playBtn.textContent = "▶";
-        });
-
-        audio.addEventListener("loadedmetadata", () => {
-          const duration = formatDuration(audio.duration);
-          meta.textContent = duration ? `Voice message · ${duration}` : "Voice message";
-        });
-
-        audio.addEventListener("timeupdate", () => {
-          if (!Number.isFinite(audio.duration) || audio.duration === 0) return;
-          const value = (audio.currentTime / audio.duration) * 100;
-          progress.value = String(value);
-          time.textContent = formatDuration(audio.currentTime);
-        });
-
-        progress.addEventListener("input", () => {
-          if (!Number.isFinite(audio.duration) || audio.duration === 0) return;
-          audio.currentTime = (Number(progress.value) / 100) * audio.duration;
-        });
-
-        voiceWrap.appendChild(playBtn);
-        voiceWrap.appendChild(meta);
-        voiceWrap.appendChild(progress);
-        voiceWrap.appendChild(time);
-        voiceWrap.appendChild(audio);
-        message.appendChild(voiceWrap);
+        const voiceEl = createVoicePlayer(link, attachment.mime || "audio/webm", attachment.duration, attachment.waveform);
+        message.appendChild(voiceEl);
       } else {
         const audioWrap = document.createElement("div");
         audioWrap.className = "message-audio";
@@ -1169,21 +1095,47 @@ function createMessageElement(m, container) {
         message.appendChild(audioWrap);
       }
     } else if (attachment.type === "video") {
-      const video = document.createElement("video");
-      setMediaElementSource(video, link);
-      video.controls = true;
-      video.playsInline = true;
-      video.preload = "metadata";
-      video.onerror = () => {
-        fetchMediaBlob(link)
-          .then((blob) => {
-            video.src = URL.createObjectURL(blob);
-          })
-          .catch(() => { });
-      };
-      video.style.maxWidth = "100%";
-      video.style.borderRadius = "10px";
-      message.appendChild(video);
+      const isVideoNote = attachment.kind === "video_note" || !!m.is_video_note;
+      if (isVideoNote) {
+        const noteWrap = document.createElement("div");
+        noteWrap.className = "message-video-note";
+        const video = document.createElement("video");
+        video.playsInline = true;
+        video.preload = "metadata";
+        video.loop = false;
+        setMediaElementSource(video, link);
+        video.onerror = () => {
+          fetchMediaBlob(link).then(blob => { video.src = URL.createObjectURL(blob); }).catch(() => { });
+        };
+        const notePlayBtn = document.createElement("button");
+        notePlayBtn.className = "video-note-play";
+        notePlayBtn.type = "button";
+        notePlayBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M8 5l11 7-11 7V5z"/></svg>`;
+        notePlayBtn.addEventListener("click", () => {
+          if (video.paused) { video.play().catch(() => { }); notePlayBtn.style.display = "none"; }
+        });
+        video.addEventListener("ended", () => { notePlayBtn.style.display = ""; });
+        video.addEventListener("pause", () => { notePlayBtn.style.display = ""; });
+        noteWrap.appendChild(video);
+        noteWrap.appendChild(notePlayBtn);
+        message.appendChild(noteWrap);
+      } else {
+        const video = document.createElement("video");
+        setMediaElementSource(video, link);
+        video.controls = true;
+        video.playsInline = true;
+        video.preload = "metadata";
+        video.onerror = () => {
+          fetchMediaBlob(link)
+            .then((blob) => {
+              video.src = URL.createObjectURL(blob);
+            })
+            .catch(() => { });
+        };
+        video.style.maxWidth = "100%";
+        video.style.borderRadius = "10px";
+        message.appendChild(video);
+      }
     } else {
       message.appendChild(createDownloadLinkElement(link, raw));
     }
@@ -3275,6 +3227,322 @@ async function toggleVoiceRecording() {
     $("recordingIndicator")?.classList.remove("hidden");
   } catch (err) {
     toast("Не удалось начать запись");
+  }
+}
+
+// ─── Custom Voice Player ───────────────────────────────────────────────────
+function createVoicePlayer(url, mime, knownDuration, waveformData) {
+  const BAR_COUNT = 40;
+  const NS = "http://www.w3.org/2000/svg";
+
+  const wrap = document.createElement("div");
+  wrap.className = "voice-player";
+
+  // Play/pause button
+  const playBtn = document.createElement("button");
+  playBtn.className = "vp-play-btn";
+  playBtn.type = "button";
+  playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M8 5l11 7-11 7V5z"/></svg>`;
+
+  // Waveform SVG
+  const waveformWrap = document.createElement("div");
+  waveformWrap.className = "vp-waveform";
+
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${BAR_COUNT * 5} 32`);
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.style.width = "100%";
+  svg.style.height = "32px";
+
+  // Generate bar heights from waveform data or random
+  let bars = [];
+  if (Array.isArray(waveformData) && waveformData.length >= BAR_COUNT) {
+    bars = waveformData.slice(0, BAR_COUNT).map(v => Math.max(0.12, Math.min(1, Math.abs(v))));
+  } else if (Array.isArray(waveformData) && waveformData.length > 0) {
+    // Interpolate
+    for (let i = 0; i < BAR_COUNT; i++) {
+      const idx = Math.floor(i * waveformData.length / BAR_COUNT);
+      bars.push(Math.max(0.12, Math.min(1, Math.abs(waveformData[idx]))));
+    }
+  } else {
+    // Pseudo-random seeded by url for stable looks
+    let seed = url ? url.split("").reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 0) : 12345;
+    for (let i = 0; i < BAR_COUNT; i++) {
+      seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+      const t = (seed >>> 0) / 0xffffffff;
+      bars.push(0.15 + t * 0.85);
+    }
+  }
+
+  const barEls = bars.map((h, i) => {
+    const rect = document.createElementNS(NS, "rect");
+    const barH = Math.max(4, Math.round(h * 28));
+    rect.setAttribute("x", String(i * 5));
+    rect.setAttribute("y", String((32 - barH) / 2));
+    rect.setAttribute("width", "3");
+    rect.setAttribute("height", String(barH));
+    rect.setAttribute("rx", "1.5");
+    rect.className.baseVal = "vp-bar";
+    svg.appendChild(rect);
+    return rect;
+  });
+
+  waveformWrap.appendChild(svg);
+
+  // Clickable progress on waveform
+  let isDragging = false;
+  waveformWrap.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    seekAudio(e);
+  });
+  waveformWrap.addEventListener("mousemove", (e) => { if (isDragging) seekAudio(e); });
+  window.addEventListener("mouseup", () => { isDragging = false; });
+
+  function seekAudio(e) {
+    const rect = waveformWrap.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      audio.currentTime = pct * audio.duration;
+      updateProgress(pct);
+    }
+  }
+
+  function updateProgress(pct) {
+    barEls.forEach((bar, i) => {
+      if (i / BAR_COUNT <= pct) {
+        bar.classList.add("vp-bar-played");
+      } else {
+        bar.classList.remove("vp-bar-played");
+      }
+    });
+  }
+
+  // Bottom row: time + speed
+  const bottomRow = document.createElement("div");
+  bottomRow.className = "vp-bottom";
+
+  const timeEl = document.createElement("span");
+  timeEl.className = "vp-time";
+  timeEl.textContent = knownDuration ? formatDuration(knownDuration) : "0:00";
+
+  const speeds = [1, 1.5, 2];
+  let speedIdx = 0;
+  const speedBtn = document.createElement("button");
+  speedBtn.type = "button";
+  speedBtn.className = "vp-speed-btn";
+  speedBtn.textContent = "1×";
+  speedBtn.addEventListener("click", () => {
+    speedIdx = (speedIdx + 1) % speeds.length;
+    audio.playbackRate = speeds[speedIdx];
+    speedBtn.textContent = speeds[speedIdx] === 1 ? "1×" : speeds[speedIdx] + "×";
+  });
+
+  // Transcribe button (Web Speech API)
+  const hasSpeech = typeof webkitSpeechRecognition !== "undefined" || typeof SpeechRecognition !== "undefined";
+  let transcribeBtn = null;
+  let transcriptEl = null;
+  if (hasSpeech) {
+    transcribeBtn = document.createElement("button");
+    transcribeBtn.type = "button";
+    transcribeBtn.className = "vp-transcribe-btn";
+    transcribeBtn.title = "Расшифровать";
+    transcribeBtn.textContent = "АА";
+
+    transcriptEl = document.createElement("div");
+    transcriptEl.className = "vp-transcript";
+    transcriptEl.hidden = true;
+
+    transcribeBtn.addEventListener("click", () => {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return;
+      const recog = new SR();
+      recog.lang = "ru-RU";
+      recog.interimResults = true;
+      recog.continuous = false;
+      transcribeBtn.textContent = "…";
+      transcribeBtn.disabled = true;
+      transcriptEl.hidden = false;
+      transcriptEl.textContent = "Слушаю…";
+      audio.play().catch(() => { });
+      recog.start();
+      recog.onresult = (ev) => {
+        const text = Array.from(ev.results).map(r => r[0].transcript).join(" ");
+        transcriptEl.textContent = text;
+      };
+      recog.onend = () => {
+        transcribeBtn.textContent = "АА";
+        transcribeBtn.disabled = false;
+        if (!transcriptEl.textContent || transcriptEl.textContent === "Слушаю…") {
+          transcriptEl.textContent = "Не удалось распознать";
+        }
+      };
+      recog.onerror = () => {
+        transcribeBtn.textContent = "АА";
+        transcribeBtn.disabled = false;
+        transcriptEl.textContent = "Ошибка распознавания";
+      };
+    });
+  }
+
+  bottomRow.appendChild(timeEl);
+  bottomRow.appendChild(speedBtn);
+  if (transcribeBtn) bottomRow.appendChild(transcribeBtn);
+
+  // Audio element
+  const audio = document.createElement("audio");
+  audio.preload = "metadata";
+  const source = document.createElement("source");
+  setMediaElementSource(audio, url, source);
+  audio.onerror = () => {
+    fetchMediaBlob(url).then(blob => { audio.src = URL.createObjectURL(blob); }).catch(() => { });
+  };
+  source.type = mime || "audio/webm";
+  audio.appendChild(source);
+
+  // Playback events
+  playBtn.addEventListener("click", () => {
+    if (audio.paused) { audio.play().catch(() => { }); }
+    else { audio.pause(); }
+  });
+
+  audio.addEventListener("play", () => {
+    playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`;
+    animateBars(true);
+  });
+  audio.addEventListener("pause", () => {
+    playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M8 5l11 7-11 7V5z"/></svg>`;
+    animateBars(false);
+  });
+  audio.addEventListener("ended", () => {
+    playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M8 5l11 7-11 7V5z"/></svg>`;
+    animateBars(false);
+    updateProgress(0);
+    timeEl.textContent = knownDuration ? formatDuration(knownDuration) : "0:00";
+  });
+  audio.addEventListener("loadedmetadata", () => {
+    if (!knownDuration) timeEl.textContent = formatDuration(audio.duration);
+  });
+  audio.addEventListener("timeupdate", () => {
+    if (!Number.isFinite(audio.duration) || audio.duration === 0) return;
+    const pct = audio.currentTime / audio.duration;
+    updateProgress(pct);
+    timeEl.textContent = formatDuration(audio.currentTime);
+  });
+
+  // Bar animation while playing
+  let animFrame = null;
+  function animateBars(active) {
+    if (!active) { if (animFrame) cancelAnimationFrame(animFrame); animFrame = null; return; }
+    function tick() {
+      if (audio.paused) return;
+      const pct = audio.duration > 0 ? audio.currentTime / audio.duration : 0;
+      barEls.forEach((bar, i) => {
+        const barPct = i / BAR_COUNT;
+        if (barPct <= pct) {
+          bar.classList.add("vp-bar-played");
+        } else {
+          bar.classList.remove("vp-bar-played");
+          // Subtle pulse on the next bar
+          if (barPct - pct < 0.03) {
+            bar.style.opacity = "0.7";
+          } else {
+            bar.style.opacity = "";
+          }
+        }
+      });
+      animFrame = requestAnimationFrame(tick);
+    }
+    animFrame = requestAnimationFrame(tick);
+  }
+
+  wrap.appendChild(playBtn);
+  wrap.appendChild(waveformWrap);
+  const rightCol = document.createElement("div");
+  rightCol.className = "vp-right";
+  rightCol.appendChild(bottomRow);
+  if (transcriptEl) rightCol.appendChild(transcriptEl);
+  wrap.appendChild(rightCol);
+  wrap.appendChild(audio);
+
+  return wrap;
+}
+
+// ─── Video Note (Кружки) ────────────────────────────────────────────────────
+async function toggleVideoNoteRecording() {
+  if (!state.activeTarget || !state.session) return;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    toast("Запись видео не поддерживается");
+    return;
+  }
+
+  if (state.videoNoteRecorder?.recording) {
+    state.videoNoteRecorder.recorder.stop();
+    return;
+  }
+
+  const overlay = document.getElementById("videoNoteModal");
+  const preview = document.getElementById("videoNotePreview");
+  const stopBtn = document.getElementById("videoNoteStopBtn");
+  const cancelBtn = document.getElementById("videoNoteCancelBtn");
+  const timerEl = document.getElementById("videoNoteTimer");
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user", width: { ideal: 480 }, height: { ideal: 480 }, aspectRatio: 1 },
+      audio: true
+    });
+
+    if (preview) {
+      preview.srcObject = stream;
+      preview.play().catch(() => { });
+    }
+    if (overlay) overlay.classList.remove("hidden");
+
+    const recorder = new MediaRecorder(stream);
+    const chunks = [];
+    let seconds = 0;
+    let timerInterval = null;
+
+    timerInterval = setInterval(() => {
+      seconds++;
+      if (timerEl) timerEl.textContent = formatDuration(seconds);
+      if (seconds >= 60) recorder.stop();
+    }, 1000);
+
+    recorder.ondataavailable = (e) => { if (e.data?.size > 0) chunks.push(e.data); };
+    recorder.onstop = async () => {
+      clearInterval(timerInterval);
+      stream.getTracks().forEach(t => t.stop());
+      if (preview) preview.srcObject = null;
+      if (overlay) overlay.classList.add("hidden");
+      state.videoNoteRecorder = null;
+      if (chunks.length === 0) return;
+      const blob = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
+      const file = new File([blob], `vidnote_${Date.now()}.webm`, { type: blob.type });
+      await uploadFile(file, { is_video_note: true });
+    };
+
+    recorder.start(100);
+    state.videoNoteRecorder = { recorder, recording: true, stream };
+
+    if (stopBtn) {
+      stopBtn.onclick = () => recorder.stop();
+    }
+    if (cancelBtn) {
+      cancelBtn.onclick = () => {
+        clearInterval(timerInterval);
+        recorder.ondataavailable = null;
+        recorder.onstop = () => {
+          stream.getTracks().forEach(t => t.stop());
+          if (preview) preview.srcObject = null;
+          if (overlay) overlay.classList.add("hidden");
+          state.videoNoteRecorder = null;
+        };
+        recorder.stop();
+      };
+    }
+  } catch (err) {
+    toast("Не удалось начать запись видео");
   }
 }
 

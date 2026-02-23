@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/json_utils.dart';
 
 /// Secure session storage using FlutterSecureStorage
 /// Tokens are encrypted at rest to prevent theft
@@ -31,7 +32,11 @@ class SessionStore {
     try {
       final raw = await _storage.read(key: _key);
       if (raw == null) return null;
-      return jsonDecode(raw) as Map<String, dynamic>;
+      return safeJsonDecode<Map<String, dynamic>>(
+        raw,
+        onError: () => _storage.delete(key: _key),
+        context: 'session_store',
+      );
     } catch (e) {
       debugPrint('Error loading session: $e');
       return null;

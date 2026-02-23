@@ -141,7 +141,9 @@ if not os.path.exists(UPLOAD_DIR):
 
 
 
-ALLOWED_ORIGINS = ["https://web.sa2rn.fun"]
+# Allow extra origins from env (comma-separated), e.g. for desktop builds/local dev
+_extra_origins = os.getenv("EXTRA_ORIGINS", "")
+ALLOWED_ORIGINS = ["https://web.sa2rn.fun"] + [o.strip() for o in _extra_origins.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
@@ -151,6 +153,15 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Disposition"],
 )
+
+# Desktop Flutter clients (Dio) send no Origin header — pass them through
+@app.middleware("http")
+async def allow_no_origin(request: Request, call_next):
+    origin = request.headers.get("origin")
+    if origin is None:
+        # No Origin = native client (desktop app), skip CORS check
+        return await call_next(request)
+    return await call_next(request)
 
 
 
@@ -759,10 +770,19 @@ def init_db():
         
 
         c.execute("""CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, username TEXT UNIQUE, 
-            name TEXT, password TEXT, verified INTEGER DEFAULT 0, reg_date TEXT, 
+            id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, username TEXT UNIQUE,
+            name TEXT, password TEXT, verified INTEGER DEFAULT 0, reg_date TEXT,
             last_seen REAL DEFAULT 0, is_frozen INTEGER DEFAULT 0, frozen_rule TEXT
         )""")
+        # Migration: add custom_status if not exists
+        try:
+            c.execute("ALTER TABLE users ADD COLUMN custom_status TEXT DEFAULT ''")
+        except Exception:
+            pass  # Column already exists
+        try:
+            c.execute("ALTER TABLE users ADD COLUMN about TEXT DEFAULT ''")
+        except Exception:
+            pass
 
         c.execute("""CREATE TABLE IF NOT EXISTS sessions (
             token TEXT PRIMARY KEY, username TEXT, last_activity REAL
@@ -882,7 +902,31 @@ def init_db():
             week_start REAL
         )""")
 
-     
+        c.execute("""CREATE TABLE IF NOT EXISTS user_blocks (
+            blocker TEXT,
+            blocked TEXT,
+            created_at REAL,
+            PRIMARY KEY (blocker, blocked)
+        )""")
+
+        # Индексы для ускорения запросов
+        c.execute("CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_messages_sender_receiver ON messages(sender, receiver)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_messages_is_read ON messages(is_read)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_messages_time ON messages(time)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_group_messages_chat_id ON group_messages(chat_id)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_group_messages_time ON group_messages(time)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_chat_members_username ON chat_members(username)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_chat_members_chat_id ON chat_members(chat_id)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_collective_chats_updated_at ON collective_chats(updated_at)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_users_last_seen ON users(last_seen)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)")
+        logger.info("Индексы БД созданы/проверены")
+
+
         def add_col(table, column, definition):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
@@ -2743,7 +2787,8 @@ async def get_user_info(username: str, token: str, my_username: str):
                   last_seen,
                   is_frozen,
                   verified,
-                  about
+                  about,
+                  custom_status
             FROM users
             WHERE username=?
             """,
@@ -2792,9 +2837,118 @@ async def get_user_info(username: str, token: str, my_username: str):
         if "reg_date" in res and "regdate" not in res:
             res["regdate"] = res.get("reg_date")
 
+        res["custom_status"] = res.get("custom_status") or ""
+
         return res
 
     return {"error": "User not found"}
+
+
+# ── Custom status endpoints ─────────────────────────────────────────────────
+
+@app.get("/user/status")
+async def get_user_status(username: str, token: str):
+    if not is_valid_session(token, username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    with db_lock:
+        conn = get_db()
+        row = conn.execute("SELECT custom_status FROM users WHERE username=?", (username,)).fetchone()
+        conn.close()
+    return {"custom_status": (row["custom_status"] if row else "") or ""}
+
+
+@app.post("/user/status")
+async def set_user_status(
+    username: str = Form(...),
+    token: str = Form(...),
+    status: str = Form(...)
+):
+    if not is_valid_session(token, username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    if len(status) > 100:
+        raise HTTPException(status_code=400, detail="Status too long (max 100 chars)")
+    with db_lock:
+        conn = get_db()
+        conn.execute("UPDATE users SET custom_status=? WHERE username=?", (status.strip(), username))
+        conn.commit()
+        conn.close()
+    return {"ok": True}
+
+
+# ── Block / Unblock endpoints ───────────────────────────────────────────────
+
+@app.post("/users/block")
+async def block_user(
+    username: str = Form(...),
+    token: str = Form(...),
+    target: str = Form(...)
+):
+    if not is_valid_session(token, username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    if username == target:
+        raise HTTPException(status_code=400, detail="Cannot block yourself")
+    with db_lock:
+        conn = get_db()
+        conn.execute(
+            "INSERT OR IGNORE INTO user_blocks (blocker, blocked, created_at) VALUES (?, ?, ?)",
+            (username, target, time.time())
+        )
+        conn.commit()
+        conn.close()
+    return {"ok": True}
+
+
+@app.post("/users/unblock")
+async def unblock_user(
+    username: str = Form(...),
+    token: str = Form(...),
+    target: str = Form(...)
+):
+    if not is_valid_session(token, username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    with db_lock:
+        conn = get_db()
+        conn.execute(
+            "DELETE FROM user_blocks WHERE blocker=? AND blocked=?",
+            (username, target)
+        )
+        conn.commit()
+        conn.close()
+    return {"ok": True}
+
+
+@app.get("/users/blocked")
+async def get_blocked_users(username: str, token: str):
+    """Returns list of users blocked by the requesting user."""
+    if not is_valid_session(token, username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    with db_lock:
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT blocked FROM user_blocks WHERE blocker=? ORDER BY created_at DESC",
+            (username,)
+        ).fetchall()
+        conn.close()
+    return {"blocked": [r["blocked"] for r in rows]}
+
+
+# ── Online presence endpoint ────────────────────────────────────────────────
+
+@app.get("/users/online")
+async def get_online_users(username: str, token: str):
+    """Returns list of usernames who were active within the last 60 seconds."""
+    if not is_valid_session(token, username):
+        raise HTTPException(status_code=401, detail="Invalid session")
+    cutoff = time.time() - 60
+    with db_lock:
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT username FROM users WHERE last_seen > ? AND username != ?",
+            (cutoff, username)
+        ).fetchall()
+        conn.close()
+    return {"online": [r["username"] for r in rows]}
+
 
 @app.post("/set_about")
 async def set_about(

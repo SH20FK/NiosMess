@@ -65,16 +65,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
 
   Future<void> _loadUser() async {
     final session = ref.read(sessionProvider);
-    if (!session.isAuthed) return;
+    if (!session.isAuthed) {
+      setState(() => _loading = false);
+      return;
+    }
+    final cached = await OfflineCache.loadProfile(session.username!);
+    if (cached != null) {
+      _applyProfile(cached);
+    }
+    if (mounted) {
+      setState(() => _loading = false);
+    }
     try {
       final data = await api.getUserInfo(session.username!, session.username!, session.token!);
       await OfflineCache.saveProfile(session.username!, data);
       _applyProfile(data);
     } catch (_) {
-      final cached = await OfflineCache.loadProfile(session.username!);
-      if (cached != null) _applyProfile(cached);
+      // keep cached data if network fails
     }
-    setState(() => _loading = false);
   }
 
   void _applyProfile(Map<String, dynamic> data) {
@@ -87,13 +95,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
   Future<void> _loadSessions() async {
     final session = ref.read(sessionProvider);
     if (!session.isAuthed) return;
+    final cached = await OfflineCache.loadSessions(session.username!);
+    if (mounted) {
+      setState(() => _sessions = cached);
+    }
     try {
       final data = await api.getSessions(session.username!, session.token!);
       await OfflineCache.saveSessions(session.username!, data);
       setState(() => _sessions = data);
     } catch (_) {
-      final cached = await OfflineCache.loadSessions(session.username!);
-      setState(() => _sessions = cached);
+      // keep cached data if network fails
     }
   }
 
@@ -116,6 +127,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = _getBool('reduce_motion', false);
     return NiosScaffold(
       body: Column(
         children: [
@@ -156,21 +168,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
 
             ),
           const SizedBox(height: 12),
+          if (_loading) const LinearProgressIndicator(minHeight: 2),
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : TabBarView(
-                    controller: _controller,
-                    children: [
-                      _buildAccount(),
-                      _buildAppearance(),
-                      _buildNotifications(),
-                      _buildPrivacy(),
-                      _buildData(),
-                      _buildAbout(),
-                    ],
-
-                  ),
+            child: TabBarView(
+              controller: _controller,
+              children: [
+                NiosMotionWrap(
+                  enableMotion: !reduceMotion,
+                  blurSigma: 10,
+                  offset: const Offset(0, 18),
+                  child: _buildAccount(),
+                ),
+                NiosMotionWrap(
+                  enableMotion: !reduceMotion,
+                  blurSigma: 10,
+                  offset: const Offset(0, 18),
+                  child: _buildAppearance(),
+                ),
+                NiosMotionWrap(
+                  enableMotion: !reduceMotion,
+                  blurSigma: 10,
+                  offset: const Offset(0, 18),
+                  child: _buildNotifications(),
+                ),
+                NiosMotionWrap(
+                  enableMotion: !reduceMotion,
+                  blurSigma: 10,
+                  offset: const Offset(0, 18),
+                  child: _buildPrivacy(),
+                ),
+                NiosMotionWrap(
+                  enableMotion: !reduceMotion,
+                  blurSigma: 10,
+                  offset: const Offset(0, 18),
+                  child: _buildData(),
+                ),
+                NiosMotionWrap(
+                  enableMotion: !reduceMotion,
+                  blurSigma: 10,
+                  offset: const Offset(0, 18),
+                  child: _buildAbout(),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -208,23 +248,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Theme Selection
+        // Theme Selection (Material You)
         NiosCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const NiosSectionTitle('Тема оформления'),
+              const NiosSectionTitle('Тема'),
               const SizedBox(height: 12),
-              SizedBox(
-                height: 150,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: niosThemePresets.map((preset) {
-                    final active = preset.accent.value == themeState.seedColor.value;
-                    return _themeTile(preset, active);
-                  }).toList(),
+              SegmentedButton<ThemeMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: ThemeMode.system,
+                    label: Text('Система'),
+                    icon: Icon(Icons.settings),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.light,
+                    label: Text('Светлая'),
+                    icon: Icon(Icons.light_mode),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.dark,
+                    label: Text('Темная'),
+                    icon: Icon(Icons.dark_mode),
+                  ),
+                ],
+                selected: {themeState.mode},
+                onSelectionChanged: (value) {
+                  ref.read(themeProvider.notifier).setThemeMode(value.first);
+                },
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Цвет акцента',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: NiosPalette.textSecondary,
                 ),
               ),
+              const SizedBox(height: 12),
+              _buildSeedColors(themeState),
             ],
           ),
         ),
@@ -831,35 +894,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
     );
   }
 
-  Widget _themeTile(NiosThemePreset preset, bool active) {
-    return InkWell(
-      onTap: () => ref.read(themeProvider.notifier).setTheme(preset.id),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 120,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: preset.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: active ? NiosPalette.accent : NiosPalette.border),
-          boxShadow: active
-              ? [
-                  BoxShadow(
-                    color: NiosPalette.shadowGlow,
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ]
-              : null,
-        ),
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(preset.label, style: TextStyle(color: preset.text)),
+  Widget _buildSeedColors(ThemeState themeState) {
+    const colors = [
+      Color(0xFF6750A4),
+      Color(0xFF1D4ED8),
+      Color(0xFF0F766E),
+      Color(0xFF7C3AED),
+      Color(0xFFB91C1C),
+      Color(0xFF15803D),
+      Color(0xFF9A3412),
+    ];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: colors.map((color) {
+        final selected = themeState.seedColor.value == color.value;
+        return InkWell(
+          onTap: () => ref.read(themeProvider.notifier).setSeedColor(color),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? NiosPalette.accent : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: selected
+                ? const Icon(Icons.check, size: 18, color: Colors.white)
+                : null,
           ),
-        ),
-      ),
+        );
+      }).toList(),
     );
   }
 }

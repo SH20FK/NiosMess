@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:video_player/video_player.dart';
 import '../models/story.dart';
 import '../providers/stories_provider.dart';
 
-/// Полноэкранный просмотрщик историй
+/// Полноэкранный просмотрщик историй с поддержкой видео
 class StoryViewer extends ConsumerStatefulWidget {
   final List<Story> stories;
   final int initialIndex;
@@ -24,8 +26,11 @@ class _StoryViewerState extends ConsumerState<StoryViewer>
   late PageController _pageController;
   late AnimationController _progressController;
   int _currentIndex = 0;
+  int _currentMediaIndex = 0;
   bool _isPaused = false;
   Timer? _timer;
+  VideoPlayerController? _videoController;
+  bool _isVideoInitialized = false;
 
   @override
   void initState() {
@@ -34,11 +39,10 @@ class _StoryViewerState extends ConsumerState<StoryViewer>
     _pageController = PageController(initialPage: _currentIndex);
     _progressController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5), // 5 секунд на историю
+      duration: const Duration(seconds: 5),
     );
 
-    _startProgress();
-    _markAsViewed();
+    _initializeCurrentStory();
   }
 
   @override
@@ -46,52 +50,160 @@ class _StoryViewerState extends ConsumerState<StoryViewer>
     _pageController.dispose();
     _progressController.dispose();
     _timer?.cancel();
+    _videoController?.dispose();
     super.dispose();
+  }
+
+  StoryMedia get _currentMedia {
+    final story = widget.stories[_currentIndex];
+    if (story.media.isEmpty) {
+      return const StoryMedia(
+        id: '',
+        type: StoryMediaType.image,
+        url: '',
+      );
+    }
+    return story.media[_currentMediaIndex.clamp(0, story.media.length - 1)];
+  }
+
+  void _initializeCurrentStory() {
+    final media = _currentMedia;
+    
+    // Dispose previous video controller
+    _videoController?.dispose();
+    _videoController = null;
+    _isVideoInitialized = false;
+
+    if (media.type == StoryMediaType.video) {
+      _initializeVideo(media);
+    } else {
+      _startProgress();
+    }
+    
+    _markAsViewed();
+  }
+
+  Future<void> _initializeVideo(StoryMedia media) async {
+    try {
+      final controller = media.url.startsWith('http')
+          ? VideoPlayerController.networkUrl(Uri.parse(media.url))
+          : VideoPlayerController.file(File(media.url));
+
+      _videoController = controller;
+      
+      await controller.initialize();
+      
+      if (!mounted) return;
+      
+      setState(() => _isVideoInitialized = true);
+      
+      // Set video duration for progress
+      final duration = controller.value.duration;
+      if (duration.inSeconds > 0) {
+        _progressController.duration = duration;
+      }
+      
+      controller.setLooping(false);
+      controller.play();
+      
+      controller.addListener(_onVideoProgress);
+      
+      _progressController.forward().then((_) {
+        if (!_isPaused && mounted) {
+          _nextMediaOrStory();
+        }
+      });
+    } catch (e) {
+      debugPrint('Error initializing video: $e');
+      // Fallback to image behavior
+      _startProgress();
+    }
+  }
+
+  void _onVideoProgress() {
+    if (_videoController == null || !_videoController!.value.isInitialized) return;
+    
+    final position = _videoController!.value.position;
+    final duration = _videoController!.value.duration;
+    
+    if (duration.inMilliseconds > 0) {
+      final progress = position.inMilliseconds / duration.inMilliseconds;
+      _progressController.value = progress.clamp(0.0, 1.0);
+    }
+    
+    if (_videoController!.value.isCompleted) {
+      _nextMediaOrStory();
+    }
   }
 
   void _startProgress() {
     _progressController.reset();
     _progressController.forward().then((_) {
       if (!_isPaused && mounted) {
-        _nextStory();
+        _nextMediaOrStory();
       }
     });
   }
 
-  void _nextStory() {
-    if (_currentIndex < widget.stories.length - 1) {
-      setState(() => _currentIndex++);
+  void _nextMediaOrStory() {
+    final story = widget.stories[_currentIndex];
+    
+    // Check if there are more media items in current story
+    if (_currentMediaIndex < story.media.length - 1) {
+      setState(() => _currentMediaIndex++);
+      _initializeCurrentStory();
+    } else if (_currentIndex < widget.stories.length - 1) {
+      // Move to next story
+      setState(() {
+        _currentIndex++;
+        _currentMediaIndex = 0;
+      });
       _pageController.animateToPage(
         _currentIndex,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-      _startProgress();
-      _markAsViewed();
+      _initializeCurrentStory();
     } else {
-      // Закрыть просмотрщик
       Navigator.of(context).pop();
     }
   }
 
-  void _previousStory() {
-    if (_currentIndex > 0) {
-      setState(() => _currentIndex--);
+  void _previousMediaOrStory() {
+    if (_currentMediaIndex > 0) {
+      setState(() => _currentMediaIndex--);
+      _initializeCurrentStory();
+    } else if (_currentIndex > 0) {
+      setState(() {
+        _currentIndex--;
+        _currentMediaIndex = 0;
+      });
       _pageController.animateToPage(
         _currentIndex,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-      _startProgress();
+      _initializeCurrentStory();
     }
+  }
+
+  void _nextStory() {
+    _nextMediaOrStory();
+  }
+
+  void _previousStory() {
+    _previousMediaOrStory();
   }
 
   void _togglePause() {
     setState(() => _isPaused = !_isPaused);
+    
     if (_isPaused) {
       _progressController.stop();
+      _videoController?.pause();
     } else {
       _progressController.forward();
+      _videoController?.play();
     }
   }
 
@@ -108,238 +220,326 @@ class _StoryViewerState extends ConsumerState<StoryViewer>
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
-        onTapDown: (details) {
-          // Левая половина - предыдущая, правая - следующая
-          final screenWidth = MediaQuery.of(context).size.width;
-          if (details.globalPosition.dx < screenWidth / 3) {
-            _previousStory();
-          } else if (details.globalPosition.dx > screenWidth * 2 / 3) {
-            _nextStory();
-          } else {
-            _togglePause();
-          }
-        },
+        onTapDown: (_) => _togglePause(),
+        onLongPress: () => _togglePause(),
         child: Stack(
+          fit: StackFit.expand,
           children: [
-            // Фоновое изображение/видео
+            // Story content
             PageView.builder(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: widget.stories.length,
               itemBuilder: (context, index) {
-                final storyMedia = widget.stories[index].media.first;
-                return _buildMediaContent(storyMedia);
+                final s = widget.stories[index];
+                return _buildStoryContent(s);
               },
             ),
 
-            // Индикаторы прогресса сверху
-            SafeArea(
-              child: Column(
-                children: [
-                  _buildProgressBars(),
-                  _buildHeader(story, theme),
-                ],
-              ),
-            ),
-
-            // Поле ответа снизу
+            // Progress indicators
             Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: SafeArea(
-                child: _buildReplyField(theme),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMediaContent(StoryMedia media) {
-    if (media.type == StoryMediaType.image) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.network(
-            media.url,
-            fit: BoxFit.contain,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return const Center(child: CircularProgressIndicator());
-            },
-          ),
-          if (media.text != null)
-            Positioned(
-              bottom: 100,
-              left: 20,
-              right: 20,
-              child: Text(
-                media.text!,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black54,
-                      blurRadius: 8,
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 8,
+              right: 8,
+              child: Row(
+                children: List.generate(
+                  widget.stories.length,
+                  (index) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: _buildProgressIndicator(index),
                     ),
-                  ],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-        ],
-      );
-    } else {
-      // TODO: Реализовать видео плеер
-      return const Center(
-        child: Text(
-          'Видео контент',
-          style: TextStyle(color: Colors.white),
-        ),
-      );
-    }
-  }
-
-  Widget _buildProgressBars() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: Row(
-        children: List.generate(
-          widget.stories.length,
-          (index) => Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: LinearProgressIndicator(
-                value: index < _currentIndex
-                    ? 1.0
-                    : index == _currentIndex
-                        ? _progressController.value
-                        : 0.0,
-                backgroundColor: Colors.white.withOpacity(0.3),
-                valueColor: const AlwaysStoppedAnimation(Colors.white),
-                minHeight: 2,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(Story story, ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          // Аватар
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: theme.colorScheme.surfaceContainerHighest,
-            ),
-            child: Icon(
-              Icons.person,
-              size: 20,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Имя и время
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  story.username,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
                   ),
                 ),
-                Text(
-                  _formatTime(story.createdAt),
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 12,
+              ),
+            ),
+
+            // Header with user info
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 20,
+              left: 16,
+              right: 16,
+              child: _buildHeader(story),
+            ),
+
+            // Navigation areas
+            Row(
+              children: [
+                // Previous area
+                Expanded(
+                  flex: 1,
+                  child: GestureDetector(
+                    onTap: _previousStory,
+                    behavior: HitTestBehavior.translucent,
+                  ),
+                ),
+                // Pause area (center)
+                Expanded(
+                  flex: 2,
+                  child: GestureDetector(
+                    onTap: _togglePause,
+                    behavior: HitTestBehavior.translucent,
+                  ),
+                ),
+                // Next area
+                Expanded(
+                  flex: 1,
+                  child: GestureDetector(
+                    onTap: _nextStory,
+                    behavior: HitTestBehavior.translucent,
                   ),
                 ),
               ],
             ),
-          ),
 
-          // Кнопка паузы
-          if (_isPaused)
-            const Icon(
-              Icons.pause,
-              color: Colors.white,
-              size: 24,
+            // Bottom controls
+            Positioned(
+              bottom: MediaQuery.of(context).padding.bottom + 16,
+              left: 16,
+              right: 16,
+              child: _buildBottomControls(theme),
             ),
 
-          const SizedBox(width: 8),
-
-          // Кнопка закрытия
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close, color: Colors.white),
-          ),
-        ],
+            // Pause indicator
+            if (_isPaused)
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow,
+                    color: Colors.white,
+                    size: 48,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildReplyField(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.3),
+  Widget _buildStoryContent(Story story) {
+    final media = _currentMedia;
+    
+    if (media.type == StoryMediaType.video) {
+      if (!_isVideoInitialized || _videoController == null) {
+        return const Center(
+          child: CircularProgressIndicator(
+            color: Colors.white,
+          ),
+        );
+      }
+      
+      return Center(
+        child: AspectRatio(
+          aspectRatio: _videoController!.value.aspectRatio,
+          child: VideoPlayer(_videoController!),
+        ),
+      );
+    }
+
+    // Image story
+    if (media.url.startsWith('http')) {
+      return Image.network(
+        media.url,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                      loadingProgress.expectedTotalBytes!
+                  : null,
+              color: Colors.white,
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return const Center(
+            child: Icon(
+              Icons.error_outline,
+              color: Colors.white,
+              size: 48,
+            ),
+          );
+        },
+      );
+    } else {
+      return Image.file(
+        File(media.url),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return const Center(
+            child: Icon(
+              Icons.error_outline,
+              color: Colors.white,
+              size: 48,
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  Widget _buildProgressIndicator(int index) {
+    return AnimatedBuilder(
+      animation: _progressController,
+      builder: (context, child) {
+        double progress = 0;
+        if (index < _currentIndex) {
+          progress = 1;
+        } else if (index == _currentIndex) {
+          progress = _progressController.value;
+        }
+        
+        return LinearProgressIndicator(
+          value: progress,
+          backgroundColor: Colors.white.withOpacity(0.3),
+          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+          minHeight: 2,
+        );
+      },
+    );
+  }
+
+  Widget _buildHeader(Story story) {
+    return Row(
+      children: [
+        // Avatar
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white,
+              width: 2,
+            ),
+            image: story.avatarUrl != null
+                ? DecorationImage(
+                    image: NetworkImage(story.avatarUrl!),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: story.avatarUrl == null
+              ? const Icon(Icons.person, color: Colors.white)
+              : null,
+        ),
+        const SizedBox(width: 12),
+        
+        // User info
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                story.username,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                _formatTime(story.createdAt),
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Ответить...',
-                  hintStyle: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-                onSubmitted: (value) {
-                  if (value.trim().isNotEmpty) {
-                    // TODO: Отправить ответ
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Ответ отправлен!')),
-                    );
-                  }
-                },
-              ),
-            ),
-            IconButton(
-              onPressed: () {
-                // TODO: Отправить реакцию сердечком
-              },
-              icon: const Icon(Icons.favorite_border, color: Colors.white),
-            ),
-          ],
+        
+        // Close button
+        IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.close, color: Colors.white),
         ),
+      ],
+    );
+  }
+
+  Widget _buildBottomControls(ThemeData theme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Reply field
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Ответить...',
+                    hintStyle: TextStyle(
+                      color: Colors.white.withOpacity(0.6),
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                  onSubmitted: (value) {
+                    if (value.trim().isNotEmpty) {
+                      _sendReply(value);
+                    }
+                  },
+                ),
+              ),
+              IconButton(
+                onPressed: () => _sendReply('❤️'),
+                icon: const Icon(Icons.favorite_border, color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 8),
+        
+        // Reaction bar
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: ['❤️', '😂', '😮', '👏', '🔥'].map((emoji) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: GestureDetector(
+                onTap: () => _sendReply(emoji),
+                child: Text(
+                  emoji,
+                  style: const TextStyle(fontSize: 28),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  void _sendReply(String text) {
+    final story = widget.stories[_currentIndex];
+    
+    // TODO: Implement actual reply sending via API
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Ответ отправлен: $text'),
+        duration: const Duration(seconds: 1),
       ),
     );
   }

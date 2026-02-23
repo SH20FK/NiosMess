@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/settings_provider.dart';
 import '../../core/ghost_mode_provider.dart';
 import '../../core/app_lock_provider.dart';
+import '../../ui/widgets/animated_list_item.dart';
+import '../../ui/widgets/animated_toggle_switch.dart';
 
 class SettingsPrivacyScreen extends ConsumerWidget {
   const SettingsPrivacyScreen({
@@ -18,130 +21,386 @@ class SettingsPrivacyScreen extends ConsumerWidget {
     final ghostMode = ref.watch(ghostModeProvider);
     final lockState = ref.watch(appLockProvider);
     final whoCanWrite = (settings['who_can_write'] as String?) ?? 'all';
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
           onPressed: onBack,
-          icon: const Icon(Icons.arrow_back),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: colorScheme.surface.withOpacity(0.8),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.arrow_back),
+          ),
         ),
-        title: const Text('Конфиденциальность'),
+        title: Text(
+          'Конфиденциальность',
+          style: textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: [
-          Text('Видимость', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
-          Card(
-            child: Column(
-              children: [
-                _OptionTile(
-                  title: 'Последнее посещение',
-                  value: (settings['last_seen_visibility'] as String?) ?? 'Все',
-                  onTap: () => _selectOption(
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: AnimatedListItem(
+              index: 0,
+              child: _buildSection(
+                context,
+                title: 'Видимость',
+                icon: Icons.visibility_outlined,
+                children: [
+                  _buildOptionTile(
                     context,
-                    ref,
-                    key: 'last_seen_visibility',
                     title: 'Последнее посещение',
-                    options: const ['Все', 'Контакты', 'Никто'],
+                    value: (settings['last_seen_visibility'] as String?) ?? 'Все',
+                    icon: Icons.access_time_outlined,
+                    onTap: () => _selectOption(
+                      context,
+                      ref,
+                      key: 'last_seen_visibility',
+                      title: 'Последнее посещение',
+                      options: const ['Все', 'Контакты', 'Никто'],
+                    ),
                   ),
-                ),
-                const Divider(height: 1),
-                _OptionTile(
-                  title: 'Фото профиля',
-                  value: (settings['photo_visibility'] as String?) ?? 'Все',
-                  onTap: () => _selectOption(
+                  const Divider(height: 1, indent: 56),
+                  _buildOptionTile(
                     context,
-                    ref,
-                    key: 'photo_visibility',
                     title: 'Фото профиля',
-                    options: const ['Все', 'Контакты', 'Никто'],
+                    value: (settings['photo_visibility'] as String?) ?? 'Все',
+                    icon: Icons.photo_outlined,
+                    onTap: () => _selectOption(
+                      context,
+                      ref,
+                      key: 'photo_visibility',
+                      title: 'Фото профиля',
+                      options: const ['Все', 'Контакты', 'Никто'],
+                    ),
                   ),
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  title: const Text('Индикатор набора'),
-                  subtitle: const Text('Показывать, когда вы печатаете'),
-                  value: settings['show_typing'] ?? true,
-                  onChanged: (v) => ref.read(settingsProvider.notifier).setSetting('show_typing', v),
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  title: const Text('Отчёты о прочтении'),
-                  subtitle: const Text('Показывать отметки «прочитано»'),
-                  value: settings['read_receipts'] ?? true,
-                  onChanged: (v) => ref.read(settingsProvider.notifier).setSetting('read_receipts', v),
-                ),
-              ],
+                  const Divider(height: 1, indent: 56),
+                  _buildAnimatedSwitch(
+                    context,
+                    title: 'Индикатор набора',
+                    subtitle: 'Показывать, когда вы печатаете',
+                    icon: Icons.keyboard_outlined,
+                    value: settings['show_typing'] ?? true,
+                    onChanged: (v) => ref.read(settingsProvider.notifier).setSetting('show_typing', v),
+                  ),
+                  const Divider(height: 1, indent: 56),
+                  _buildAnimatedSwitch(
+                    context,
+                    title: 'Отчёты о прочтении',
+                    subtitle: 'Показывать отметки «прочитано»',
+                    icon: Icons.done_all_outlined,
+                    value: settings['read_receipts'] ?? true,
+                    onChanged: (v) => ref.read(settingsProvider.notifier).setSetting('read_receipts', v),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          Text('Контакты', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
-          Card(
-            child: Column(
-              children: [
-                _OptionTile(
-                  title: 'Кто может писать мне',
-                  value: _formatWhoCanWrite(whoCanWrite),
-                  onTap: () => _selectOption(
+          SliverToBoxAdapter(
+            child: AnimatedListItem(
+              index: 1,
+              child: _buildSection(
+                context,
+                title: 'Контакты',
+                icon: Icons.contacts_outlined,
+                children: [
+                  _buildOptionTile(
                     context,
-                    ref,
-                    key: 'who_can_write',
                     title: 'Кто может писать мне',
-                    options: const ['all', 'contacts', 'nobody'],
+                    value: _formatWhoCanWrite(whoCanWrite),
+                    icon: Icons.message_outlined,
+                    onTap: () => _selectOption(
+                      context,
+                      ref,
+                      key: 'who_can_write',
+                      title: 'Кто может писать мне',
+                      options: const ['all', 'contacts', 'nobody'],
+                    ),
                   ),
-                ),
-                const Divider(height: 1),
-                _OptionTile(
-                  title: 'Кто может писать мне',
-                  value: (settings['message_privacy'] as String?) ?? 'Все',
-                  onTap: () => _selectOption(
+                  const Divider(height: 1, indent: 56),
+                  _buildOptionTile(
                     context,
-                    ref,
-                    key: 'message_privacy',
-                    title: 'Кто может писать мне',
-                    options: const ['Все', 'Контакты', 'Никто'],
-                  ),
-                ),
-                const Divider(height: 1),
-                _OptionTile(
-                  title: 'Кто может звонить мне',
-                  value: (settings['call_privacy'] as String?) ?? 'Все',
-                  onTap: () => _selectOption(
-                    context,
-                    ref,
-                    key: 'call_privacy',
                     title: 'Кто может звонить мне',
-                    options: const ['Все', 'Контакты', 'Никто'],
+                    value: (settings['call_privacy'] as String?) ?? 'Все',
+                    icon: Icons.phone_outlined,
+                    onTap: () => _selectOption(
+                      context,
+                      ref,
+                      key: 'call_privacy',
+                      title: 'Кто может звонить мне',
+                      options: const ['Все', 'Контакты', 'Никто'],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: AnimatedListItem(
+              index: 2,
+              child: _buildGhostModeSection(context, ref, ghostMode),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: AnimatedListItem(
+              index: 3,
+              child: _buildSecuritySection(context, ref, lockState),
+            ),
+          ),
+          const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    final textTheme = Theme.of(context).textTheme;
+    
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 8, bottom: 12, top: 8),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          Text('Безопасность', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
           Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+              ),
+            ),
+            child: Column(
+              children: children,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGhostModeSection(BuildContext context, WidgetRef ref, ghostMode) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isActive = ghostMode.isActive;
+    
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 8, bottom: 12, top: 8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.visibility_off_outlined,
+                  size: 18,
+                  color: colorScheme.tertiary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Ghost Mode',
+                  style: textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Card(
+            elevation: 0,
+            color: colorScheme.surfaceContainerLow,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(color: colorScheme.outlineVariant),
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                border: isActive
+                    ? Border.all(
+                        color: colorScheme.tertiary.withOpacity(0.5),
+                        width: 2,
+                      )
+                    : null,
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: colorScheme.tertiary.withOpacity(0.3),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Column(
+                children: [
+                  ListTile(
+                    contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                    leading: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? colorScheme.tertiaryContainer
+                            : colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: isActive
+                            ? [
+                                BoxShadow(
+                                  color: colorScheme.tertiary.withOpacity(0.4),
+                                  blurRadius: 12,
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Icon(
+                        Icons.visibility_off_outlined,
+                        size: 24,
+                        color: isActive
+                            ? colorScheme.onTertiaryContainer
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    title: Text(
+                      'Скрытый режим',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Чтение без отметки «прочитано»',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    trailing: AnimatedToggleSwitch(
+                      value: isActive,
+                      onChanged: (v) {
+                        if (v) {
+                          ref.read(ghostModeProvider.notifier).activate();
+                        } else {
+                          ref.read(ghostModeProvider.notifier).deactivate();
+                        }
+                        ref.read(settingsProvider.notifier).setSetting('ghost_mode', v);
+                      },
+                      activeColor: colorScheme.tertiary,
+                    ),
+                  ),
+                  if (isActive)
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: colorScheme.tertiary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Ваши собеседники не будут видеть, что вы прочитали их сообщения',
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colorScheme.tertiary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecuritySection(BuildContext context, WidgetRef ref, lockState) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 8, bottom: 12, top: 8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.security_outlined,
+                  size: 18,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Безопасность',
+                  style: textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withOpacity(0.5),
+              ),
+            ),
             child: Column(
               children: [
-                SwitchListTile(
-                  title: const Text('Скрытый режим'),
-                  subtitle: const Text('Чтение без отметки «прочитано»'),
-                  value: ghostMode.isActive,
-                  onChanged: (v) {
-                    if (v) {
-                      ref.read(ghostModeProvider.notifier).activate();
-                    } else {
-                      ref.read(ghostModeProvider.notifier).deactivate();
-                    }
-                    ref.read(settingsProvider.notifier).setSetting('ghost_mode', v);
-                  },
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  title: const Text('Блокировка паролем'),
-                  subtitle: const Text('Запрашивать PIN при входе'),
+                _buildAnimatedSwitch(
+                  context,
+                  title: 'Блокировка паролем',
+                  subtitle: 'Запрашивать PIN при входе',
+                  icon: Icons.lock_outline,
                   value: lockState.isEnabled,
                   onChanged: (value) async {
                     if (value) {
@@ -158,12 +417,12 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                   },
                 ),
                 if (lockState.isEnabled) ...[
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    title: const Text('Вход по биометрии'),
-                    subtitle: Text(
-                      lockState.biometricAvailable ? 'Face ID / Touch ID' : 'Биометрия недоступна',
-                    ),
+                  const Divider(height: 1, indent: 56),
+                  _buildAnimatedSwitch(
+                    context,
+                    title: 'Вход по биометрии',
+                    subtitle: lockState.biometricAvailable ? 'Face ID / Touch ID' : 'Биометрия недоступна',
+                    icon: Icons.fingerprint_outlined,
                     value: lockState.biometricEnabled,
                     onChanged: lockState.biometricAvailable
                         ? (v) => ref.read(appLockProvider.notifier).setBiometricEnabled(v)
@@ -174,6 +433,95 @@ class SettingsPrivacyScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildOptionTile(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: colorScheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: colorScheme.onSecondaryContainer,
+        ),
+      ),
+      title: Text(
+        title,
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        value,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: colorScheme.primary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      trailing: Icon(
+        Icons.chevron_right,
+        color: colorScheme.onSurfaceVariant,
+      ),
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildAnimatedSwitch(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool value,
+    required ValueChanged<bool>? onChanged,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: value 
+              ? colorScheme.primaryContainer 
+              : colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: value 
+              ? colorScheme.onPrimaryContainer 
+              : colorScheme.onSurfaceVariant,
+        ),
+      ),
+      title: Text(
+        title,
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
+      ),
+      trailing: Switch(
+        value: value,
+        onChanged: onChanged,
       ),
     );
   }
@@ -243,28 +591,6 @@ class SettingsPrivacyScreen extends ConsumerWidget {
       );
     }
     return ok;
-  }
-}
-
-class _OptionTile extends StatelessWidget {
-  const _OptionTile({
-    required this.title,
-    required this.value,
-    required this.onTap,
-  });
-
-  final String title;
-  final String value;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(title),
-      subtitle: Text(value),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
-    );
   }
 }
 

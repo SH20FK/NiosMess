@@ -1,15 +1,20 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/repositories/api_repository.dart';
+import '../../ui/nios_ui.dart';
 import '../../core/session_provider.dart';
+import '../../core/settings_provider.dart';
 import '../chat/chat_screen.dart';
 import '../profile/profile_screen.dart';
 
 class ContactsScreen extends ConsumerStatefulWidget {
-  const ContactsScreen({super.key});
+  final void Function(String chatId)? onSelectChat;
+
+  const ContactsScreen({super.key, this.onSelectChat});
 
   @override
   ConsumerState<ContactsScreen> createState() => _ContactsScreenState();
@@ -19,6 +24,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> with AutomaticK
   final api = ApiRepository();
   final SearchController _searchController = SearchController();
   Timer? _debounce;
+  late final bool _isDesktop;
 
   bool _phoneLoading = true;
   bool _phoneDenied = false;
@@ -30,8 +36,11 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> with AutomaticK
   @override
   void initState() {
     super.initState();
+    _isDesktop = !(Platform.isAndroid || Platform.isIOS);
     _searchController.addListener(_onSearchChanged);
-    _loadPhoneContacts();
+    if (!_isDesktop) {
+      _loadPhoneContacts();
+    }
   }
 
   @override
@@ -51,7 +60,15 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> with AutomaticK
   }
 
   Future<void> _loadPhoneContacts() async {
-    final granted = await FlutterContacts.requestPermission();
+    if (mounted) {
+      setState(() => _phoneLoading = true);
+    }
+    bool granted = false;
+    try {
+      granted = await FlutterContacts.requestPermission();
+    } catch (_) {
+      granted = false;
+    }
     if (!granted) {
       if (!mounted) return;
       setState(() {
@@ -92,6 +109,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> with AutomaticK
   }
 
   void _openChat(String username) {
+    if (widget.onSelectChat != null) {
+      widget.onSelectChat!(username);
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChatScreen(
@@ -122,6 +143,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> with AutomaticK
   Widget build(BuildContext context) {
     super.build(context);
     final session = ref.watch(sessionProvider);
+    final reduceMotion = (ref.watch(settingsProvider)['reduce_motion'] as bool?) ?? false;
     final query = _searchController.text.trim().toLowerCase();
     final filteredPhone = query.isEmpty
         ? _phoneContacts
@@ -130,7 +152,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> with AutomaticK
             .toList();
 
     return DefaultTabController(
-      length: 2,
+      length: _isDesktop ? 1 : 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Контакты'),
@@ -159,10 +181,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> with AutomaticK
               },
             ),
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
             tabs: [
-              Tab(text: 'NiosMess'),
-              Tab(text: 'Телефон'),
+              const Tab(text: 'NiosMess'),
+              if (!_isDesktop) const Tab(text: 'Телефон'),
             ],
           ),
         ),
@@ -170,54 +192,69 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> with AutomaticK
           children: [
             if (!session.isAuthed)
               const Center(child: Text('Войдите в аккаунт'))
-            else if (_niosLoading)
-              const Center(child: CircularProgressIndicator())
-            else if (_niosContacts.isEmpty)
-              const Center(child: Text('Введите запрос для поиска'))
             else
-              ListView.separated(
-                padding: const EdgeInsets.only(top: 4, bottom: 16),
-                cacheExtent: 1200,
-                physics: const BouncingScrollPhysics(),
-                itemCount: _niosContacts.length,
-                separatorBuilder: (_, __) => Divider(
-                  height: 1,
-                  indent: 72,
-                  endIndent: 16,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outlineVariant
-                      .withOpacity(0.4),
-                ),
-                itemBuilder: (_, i) {
-                  final item = _niosContacts[i];
-                  final username = item['username']?.toString() ?? '';
-                  final name = item['name']?.toString() ?? username;
-                  return RepaintBoundary(
-                    child: ListTile(
-                      leading: const Icon(Icons.person_outline),
-                      title: Text(name),
-                      subtitle: Text(username),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.chat_bubble_outline),
-                        onPressed: () => _openChat(username),
-                      ),
-                      onTap: () => _openProfile(username),
-                    ),
-                  );
-                },
+              Column(
+                children: [
+                  if (_niosLoading) const LinearProgressIndicator(minHeight: 2),
+                  Expanded(
+                    child: _niosContacts.isEmpty
+                        ? Center(
+                            child: NiosMotionWrap(
+                              enableMotion: !reduceMotion,
+                              blurSigma: 10,
+                              offset: const Offset(0, 14),
+                              child: Text('Введите запрос для поиска'),
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.only(top: 4, bottom: 16),
+                            cacheExtent: 1200,
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: _niosContacts.length,
+                            separatorBuilder: (_, __) => Divider(
+                              height: 1,
+                              indent: 72,
+                              endIndent: 16,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outlineVariant
+                                  .withOpacity(0.4),
+                            ),
+                            itemBuilder: (_, i) {
+                              final item = _niosContacts[i];
+                              final username = item['username']?.toString() ?? '';
+                              final name = item['name']?.toString() ?? username;
+                              return NiosMotionWrap(
+                                enableMotion: !reduceMotion,
+                                delay: Duration(milliseconds: 25 * i),
+                                blurSigma: 8,
+                                offset: const Offset(0, 12),
+                                child: RepaintBoundary(
+                                  child: ListTile(
+                                    leading: const Icon(Icons.person_outline),
+                                    title: Text(name),
+                                    subtitle: Text(username),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.chat_bubble_outline),
+                                      onPressed: () => _openChat(username),
+                                    ),
+                                    onTap: () => _openProfile(username),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
-            _buildPhoneTab(filteredPhone),
+            if (!_isDesktop) _buildPhoneTab(filteredPhone, reduceMotion: reduceMotion),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPhoneTab(List<Contact> contacts) {
-    if (_phoneLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+  Widget _buildPhoneTab(List<Contact> contacts, {required bool reduceMotion}) {
     if (_phoneDenied) {
       return Center(
         child: FilledButton(
@@ -226,43 +263,67 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> with AutomaticK
         ),
       );
     }
-    if (contacts.isEmpty) {
-      return const Center(child: Text('Нет контактов'));
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.only(top: 4, bottom: 16),
-      cacheExtent: 1200,
-      physics: const BouncingScrollPhysics(),
-      itemCount: contacts.length,
-      separatorBuilder: (_, __) => Divider(
-        height: 1,
-        indent: 72,
-        endIndent: 16,
-        color:
-            Theme.of(context).colorScheme.outlineVariant.withOpacity(0.4),
-      ),
-      itemBuilder: (_, i) {
-        final c = contacts[i];
-        final subtitle = c.phones.isNotEmpty
-            ? c.phones.first.number
-            : c.emails.isNotEmpty
-                ? c.emails.first.address
-                : '—';
-        return RepaintBoundary(
-          child: ListTile(
-            leading: const Icon(Icons.contacts_outlined),
-            title: Text(c.displayName),
-            subtitle: Text(subtitle),
-            trailing: IconButton(
-              icon: const Icon(Icons.share_outlined),
-              onPressed: () {
-                final text = 'Присоединяйся к NiosMess! Контакт: ${c.displayName}';
-                Share.share(text);
-              },
-            ),
-          ),
-        );
-      },
+    return Column(
+      children: [
+        if (_phoneLoading) const LinearProgressIndicator(minHeight: 2),
+        Expanded(
+          child: contacts.isEmpty
+              ? Center(
+                  child: NiosMotionWrap(
+                    enableMotion: !reduceMotion,
+                    blurSigma: 10,
+                    offset: const Offset(0, 14),
+                    child: Text(
+                      _phoneLoading ? 'Загрузка контактов...' : 'Нет контактов',
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.only(top: 4, bottom: 16),
+                  cacheExtent: 1200,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: contacts.length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    indent: 72,
+                    endIndent: 16,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outlineVariant
+                        .withOpacity(0.4),
+                  ),
+                  itemBuilder: (_, i) {
+                    final c = contacts[i];
+                    final subtitle = c.phones.isNotEmpty
+                        ? c.phones.first.number
+                        : c.emails.isNotEmpty
+                            ? c.emails.first.address
+                            : '—';
+                    return NiosMotionWrap(
+                      enableMotion: !reduceMotion,
+                      delay: Duration(milliseconds: 25 * i),
+                      blurSigma: 8,
+                      offset: const Offset(0, 12),
+                      child: RepaintBoundary(
+                        child: ListTile(
+                          leading: const Icon(Icons.contacts_outlined),
+                          title: Text(c.displayName),
+                          subtitle: Text(subtitle),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.share_outlined),
+                            onPressed: () {
+                              final text =
+                                  '????????????? ? NiosMess! ???????: ${c.displayName}';
+                              Share.share(text);
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
   @override

@@ -120,6 +120,12 @@ class SendQueueController extends StateNotifier<List<OutboxItem>> {
     });
   }
 
+  Future<void> clearAll() async {
+    _failedIds.clear();
+    state = const [];
+    await _save();
+  }
+
   Future<void> _flush() async {
     if (_sending || state.isEmpty) return;
     final session = ref.read(sessionProvider);

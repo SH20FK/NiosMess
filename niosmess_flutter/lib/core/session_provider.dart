@@ -28,8 +28,12 @@ class SessionNotifier extends StateNotifier<SessionState> {
     _load();
   }
 
+  int _loadGeneration = 0;
+
   Future<void> _load() async {
+    final gen = _loadGeneration;
     final data = await SessionStore.load();
+    if (gen != _loadGeneration) return;
     if (data != null) {
       state = SessionState.fromJson(data);
       if (state.isAuthed) {
@@ -47,6 +51,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
   }
 
   Future<void> clear() async {
+    _loadGeneration++;
     state = SessionState();
     await SessionStore.clear();
     await NotificationService.instance.clearSession();

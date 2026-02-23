@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:open_filex/open_filex.dart';
@@ -7,6 +8,7 @@ import '../../core/settings_provider.dart';
 import '../../core/storage/offline_cache.dart';
 import '../../core/data_usage_provider.dart';
 import '../../core/downloads_provider.dart';
+import '../../ui/widgets/animated_list_item.dart';
 
 class SettingsDataScreen extends ConsumerStatefulWidget {
   const SettingsDataScreen({
@@ -79,103 +81,282 @@ class _SettingsDataScreenState extends ConsumerState<SettingsDataScreen> {
     final autoDocs = settings['auto_download_docs'] ?? false;
     final wifiOnly = settings['wifi_only_downloads'] ?? false;
     final dataSaver = settings['data_saver'] ?? false;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
           onPressed: widget.onBack,
-          icon: const Icon(Icons.arrow_back),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: colorScheme.surface.withOpacity(0.8),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.arrow_back),
+          ),
         ),
-        title: const Text('Данные и память'),
+        title: Text(
+          'Данные и память',
+          style: textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: [
-          Text('Хранилище', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: AnimatedListItem(
+              index: 0,
+              child: _buildStorageSection(context),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: AnimatedListItem(
+              index: 1,
+              child: _buildAutoDownloadSection(context, ref, autoMedia, autoDocs, wifiOnly, dataSaver),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: AnimatedListItem(
+              index: 2,
+              child: _buildNetworkSection(context),
+            ),
+          ),
+          const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStorageSection(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 100, 16, 8),
+      child: Card(
+        elevation: 0,
+        color: colorScheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Использовано', style: Theme.of(context).textTheme.bodyMedium),
-                      Text(
-                        _loadingSize ? '...' : _cacheSize,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      Icons.storage_outlined,
+                      size: 28,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: _clearCache,
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Очистить кэш'),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Использовано',
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _loadingSize ? 'Вычисление...' : _cacheSize,
+                          style: textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _clearCache,
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Очистить кэш'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAutoDownloadSection(
+    BuildContext context,
+    WidgetRef ref,
+    bool autoMedia,
+    bool autoDocs,
+    bool wifiOnly,
+    bool dataSaver,
+  ) {
+    final textTheme = Theme.of(context).textTheme;
+    
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 8, bottom: 12, top: 8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.download_outlined,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Автозагрузка',
+                  style: textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          Text('Автозагрузка', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
           Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+              ),
+            ),
             child: Column(
               children: [
-                SwitchListTile(
-                  title: const Text('Медиафайлы'),
-                  subtitle: const Text('Автоматически загружать фото и видео'),
+                _buildAnimatedSwitch(
+                  context,
+                  title: 'Медиафайлы',
+                  subtitle: 'Автоматически загружать фото и видео',
+                  icon: Icons.photo_outlined,
                   value: autoMedia,
                   onChanged: (v) => ref.read(settingsProvider.notifier).setSetting('auto_download_media', v),
                 ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  title: const Text('Документы'),
-                  subtitle: const Text('Автоматически загружать файлы'),
+                const Divider(height: 1, indent: 56),
+                _buildAnimatedSwitch(
+                  context,
+                  title: 'Документы',
+                  subtitle: 'Автоматически загружать файлы',
+                  icon: Icons.insert_drive_file_outlined,
                   value: autoDocs,
                   onChanged: (v) => ref.read(settingsProvider.notifier).setSetting('auto_download_docs', v),
                 ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  title: const Text('Только Wi‑Fi'),
-                  subtitle: const Text('Загружать файлы только по Wi‑Fi'),
+                const Divider(height: 1, indent: 56),
+                _buildAnimatedSwitch(
+                  context,
+                  title: 'Только Wi‑Fi',
+                  subtitle: 'Загружать файлы только по Wi‑Fi',
+                  icon: Icons.wifi_outlined,
                   value: wifiOnly,
                   onChanged: (v) => ref.read(settingsProvider.notifier).setSetting('wifi_only_downloads', v),
                 ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  title: const Text('Экономия трафика'),
-                  subtitle: const Text('Снижать качество медиа при скачивании'),
+                const Divider(height: 1, indent: 56),
+                _buildAnimatedSwitch(
+                  context,
+                  title: 'Экономия трафика',
+                  subtitle: 'Снижать качество медиа при скачивании',
+                  icon: Icons.data_saver_on_outlined,
                   value: dataSaver,
                   onChanged: (v) => ref.read(settingsProvider.notifier).setSetting('data_saver', v),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          Text('Сеть', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNetworkSection(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 8, bottom: 12, top: 8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.network_check_outlined,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Сеть',
+                  style: textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
           Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+              ),
+            ),
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.wifi_outlined),
-                  title: const Text('Использование данных'),
-                  subtitle: const Text('Статистика сети'),
+                _buildNetworkTile(
+                  context,
+                  icon: Icons.wifi_outlined,
+                  title: 'Использование данных',
+                  subtitle: 'Статистика сети',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const _DataUsageDetailsScreen(),
                     ),
                   ),
                 ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.storage_outlined),
-                  title: const Text('Управление загрузками'),
-                  subtitle: const Text('Список файлов'),
+                const Divider(height: 1, indent: 56),
+                _buildNetworkTile(
+                  context,
+                  icon: Icons.folder_outlined,
+                  title: 'Управление загрузками',
+                  subtitle: 'Список файлов',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const _DownloadsManagerScreen(),
@@ -190,6 +371,93 @@ class _SettingsDataScreenState extends ConsumerState<SettingsDataScreen> {
     );
   }
 
+  Widget _buildAnimatedSwitch(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: value 
+              ? colorScheme.primaryContainer 
+              : colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: value 
+              ? colorScheme.onPrimaryContainer 
+              : colorScheme.onSurfaceVariant,
+        ),
+      ),
+      title: Text(
+        title,
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
+      ),
+      trailing: Switch(
+        value: value,
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _buildNetworkTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: colorScheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: colorScheme.onSecondaryContainer,
+        ),
+      ),
+      title: Text(
+        title,
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
+      ),
+      trailing: Icon(
+        Icons.chevron_right,
+        color: colorScheme.onSurfaceVariant,
+      ),
+      onTap: onTap,
+    );
+  }
 }
 
 class _DataUsageDetailsScreen extends ConsumerWidget {

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'utils/json_utils.dart';
 
 /// Provider for Focus Mode (Work/Fun chat filtering)
 final focusModeProvider = StateNotifierProvider<FocusModeNotifier, FocusModeState>((ref) {
@@ -77,11 +78,13 @@ class FocusModeNotifier extends StateNotifier<FocusModeState> {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString(_prefsKey);
     if (jsonString != null) {
-      try {
-        final data = jsonDecode(jsonString) as Map<String, dynamic>;
+      final data = safeJsonDecode<Map<String, dynamic>>(
+        jsonString,
+        onError: () => prefs.remove(_prefsKey),
+        context: 'focus_mode',
+      );
+      if (data != null) {
         state = FocusModeState.fromJson(data);
-      } catch (e) {
-        // Ignore parse errors
       }
     }
   }

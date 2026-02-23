@@ -8,6 +8,7 @@ import '../../core/repositories/api_repository.dart';
 import '../../core/session_provider.dart';
 import '../../core/storage/offline_cache.dart';
 import '../../core/settings_provider.dart';
+import '../../ui/nios_ui.dart';
 import '../chat/chat_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -57,7 +58,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() => loading = false);
       return;
     }
-
+    final cached = await OfflineCache.loadProfile(_username);
+    if (mounted) {
+      setState(() {
+        info = cached;
+        _customStatus = cached?['custom_status']?.toString() ?? '';
+        _avatarFuture = _loadAvatar(_username);
+        loading = false;
+      });
+    }
     try {
       final data = await api.getUserInfo(_username, session.username!, session.token!);
       await OfflineCache.saveProfile(_username, data);
@@ -68,13 +77,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         loading = false;
       });
     } catch (_) {
-      final cached = await OfflineCache.loadProfile(_username);
-      setState(() {
-        info = cached;
-        _customStatus = cached?['custom_status']?.toString() ?? '';
-        _avatarFuture = _loadAvatar(_username);
-        loading = false;
-      });
+      // keep cached data if network fails
     }
   }
 
@@ -110,31 +113,79 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Установить статус'),
+        title: const Text('?????????? ??????'),
         content: TextField(
           controller: controller,
           maxLength: 100,
           decoration: const InputDecoration(
-            hintText: 'Например: На работе',
+            hintText: '????????: ?? ??????',
             counterText: '',
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
+            child: const Text('??????'),
           ),
           FilledButton(
             onPressed: () async {
               final newStatus = controller.text.trim();
               setState(() => _customStatus = newStatus);
-              Navigator.pop(context);
+              if (context.mounted) Navigator.pop(context);
+
+              final session = ref.read(sessionProvider);
+              if (!session.isAuthed) return;
+
+              try {
+                await api.setCustomStatus(
+                  session.username!,
+                  session.token!,
+                  newStatus,
+                );
+              } catch (_) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('?? ??????? ????????? ??????')),
+                );
+              }
             },
-            child: const Text('Сохранить'),
+            child: const Text('?????????'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _blockUser() async {
+    final session = ref.read(sessionProvider);
+    if (!session.isAuthed || _username.isEmpty) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Заблокировать пользователя?'),
+        content: Text('$_username больше не сможет писать вам сообщения.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Отмена')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Заблокировать')),
+          ],
+        ),
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await api.blockUser(session.username!, session.token!, _username);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$_username заблокирован')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось заблокировать')),
+        );
+      }
+    }
   }
 
   void _openChat() {
@@ -206,12 +257,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           icon: const Icon(Icons.arrow_back),
         ),
         title: Text(_isOwnProfile ? 'Профиль' : 'Профиль пользователя'),
+        bottom: loading
+            ? const PreferredSize(
+                preferredSize: Size.fromHeight(2),
+                child: LinearProgressIndicator(minHeight: 2),
+              )
+            : null,
       ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              children: [
+      body: NiosMotionWrap(
+        enableMotion: !reduceMotion,
+        blurSigma: 12,
+        offset: const Offset(0, 18),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          children: [
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -321,12 +380,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         title: const Text('Поделиться профилем'),
                         onTap: _shareProfile,
                       ),
+                      if (!_isOwnProfile) ...[
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: Icon(Icons.block,
+                              color: Theme.of(context).colorScheme.error),
+                          title: Text(
+                            'Заблокировать',
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error),
+                          ),
+                          onTap: _blockUser,
+                        ),
+                      ],
                     ],
                   ),
                 ),
                 if (reduceMotion) const SizedBox(height: 16),
-              ],
-            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/repositories/api_repository.dart';
+import '../../ui/nios_ui.dart';
 import '../../core/session_provider.dart';
+import '../../core/settings_provider.dart';
 import '../chat/chat_screen.dart';
 import '../profile/profile_screen.dart';
 
 class CallsScreen extends ConsumerStatefulWidget {
-  const CallsScreen({super.key});
+  final void Function(String chatId)? onSelectChat;
+
+  const CallsScreen({super.key, this.onSelectChat});
 
   @override
   ConsumerState<CallsScreen> createState() => _CallsScreenState();
@@ -25,7 +29,15 @@ class _CallsScreenState extends ConsumerState<CallsScreen> with AutomaticKeepAli
 
   Future<void> _load() async {
     final session = ref.read(sessionProvider);
-    if (!session.isAuthed) return;
+    if (!session.isAuthed) {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+      return;
+    }
+    if (mounted) {
+      setState(() => loading = true);
+    }
     try {
       final data = await api.getCallLogs(session.username!, session.token!);
       if (!mounted) return;
@@ -47,6 +59,10 @@ class _CallsScreenState extends ConsumerState<CallsScreen> with AutomaticKeepAli
   }
 
   void _openChat(String username) {
+    if (widget.onSelectChat != null) {
+      widget.onSelectChat!(username);
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChatScreen(
@@ -77,9 +93,16 @@ class _CallsScreenState extends ConsumerState<CallsScreen> with AutomaticKeepAli
   Widget build(BuildContext context) {
     super.build(context);
     final session = ref.watch(sessionProvider);
+    final reduceMotion = (ref.watch(settingsProvider)['reduce_motion'] as bool?) ?? false;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Звонки'),
+        bottom: loading
+            ? const PreferredSize(
+                preferredSize: Size.fromHeight(2),
+                child: LinearProgressIndicator(minHeight: 2),
+              )
+            : null,
         actions: [
           IconButton(
             onPressed: _load,
@@ -89,20 +112,23 @@ class _CallsScreenState extends ConsumerState<CallsScreen> with AutomaticKeepAli
       ),
       body: !session.isAuthed
           ? const Center(child: Text('Войдите в аккаунт'))
-          : loading
-              ? const Center(child: CircularProgressIndicator())
-              : logs.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.phone_outlined, size: 56, color: Theme.of(context).colorScheme.outline),
-                          const SizedBox(height: 12),
-                          const Text('Журнал звонков пуст'),
-                        ],
-                      ),
-                    )
-                  : ListView.separated(
+          : logs.isEmpty
+              ? Center(
+                  child: NiosMotionWrap(
+                    enableMotion: !reduceMotion,
+                    blurSigma: 10,
+                    offset: const Offset(0, 14),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.phone_outlined, size: 56, color: Theme.of(context).colorScheme.outline),
+                        const SizedBox(height: 12),
+                        const Text('Нет звонков'),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
                       padding: const EdgeInsets.only(top: 4, bottom: 16),
                       cacheExtent: 1200,
                       physics: const BouncingScrollPhysics(),
@@ -126,21 +152,27 @@ class _CallsScreenState extends ConsumerState<CallsScreen> with AutomaticKeepAli
                         final time = _formatTime(item['started_at']);
                         final directionLabel = isOutgoing ? 'Исходящий' : 'Входящий';
                         final statusLabel = switch (status) {
-                          'accepted' => 'Принят',
-                          'declined' => 'Отклонен',
-                          'ended' => 'Завершен',
-                          'missed' => 'Пропущенный',
-                          _ => 'Ожидает',
+                          'accepted' => 'Принято',
+                          'declined' => 'Отклонено',
+                          'ended' => 'Завершено',
+                          'missed' => 'Пропущено',
+                          _ => 'В ожидании',
                         };
                         final icon = isOutgoing ? Icons.call_made : Icons.call_received;
 
-                        return RepaintBoundary(
-                          child: ListTile(
-                            leading: Icon(icon),
-                          title: Text(other.isEmpty ? 'Неизвестно' : other),
-                          subtitle: Text('$directionLabel · $statusLabel'),
-                          trailing: Text(time),
-                            onTap: () => _openChat(other),
+                        return NiosMotionWrap(
+                          enableMotion: !reduceMotion,
+                          delay: Duration(milliseconds: 25 * i),
+                          blurSigma: 8,
+                          offset: const Offset(0, 12),
+                          child: RepaintBoundary(
+                            child: ListTile(
+                              leading: Icon(icon),
+                              title: Text(other.isEmpty ? 'Неизвестно' : other),
+                              subtitle: Text('$directionLabel · $statusLabel'),
+                              trailing: Text(time),
+                              onTap: () => _openChat(other),
+                            ),
                           ),
                         );
                       },

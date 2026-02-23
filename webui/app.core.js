@@ -3255,7 +3255,10 @@ async function selectChat(u) {
   if ($("pollBtn")) $("pollBtn").disabled = !canSendChannel;
   if ($("ttlBtn")) $("ttlBtn").disabled = !canSendChannel;
 
-  $("profileBtn").disabled = chatType !== "user";
+  $("profileBtn").disabled = false;
+  // For groups/channels profileBtn opens group settings, for users — user profile
+  $("profileBtn").dataset.chatType = chatType;
+  $("profileBtn").dataset.chatId = chatId;
 
   if ($("inviteBtn")) $("inviteBtn").disabled = chatType === "user";
 
@@ -3589,4 +3592,260 @@ function updateChatAvatar(avatar, user) {
   } else {
     avatar.textContent = initial;
   }
+}
+
+// ─── Group / Channel Settings Panel ─────────────────────────────────────────
+async function openGroupSettings(chatId, chatType) {
+  const panel = document.getElementById("groupSettingsPanel");
+  if (!panel || !chatId || !state.session) return;
+
+  panel.dataset.chatId = chatId;
+  panel.dataset.chatType = chatType || state.activeChatType || "group";
+
+  const u = state.chatList?.find(c => (c.id || c.username || c.chat_id) === chatId) || {};
+  const displayName = u.name || chatId;
+  const initial = (displayName ? String(displayName[0]) : "G").toUpperCase();
+
+  const gsName = document.getElementById("gsName");
+  const gsDesc = document.getElementById("gsDesc");
+  const gsAvatarEl = document.getElementById("gsAvatar");
+  const gsType = document.getElementById("gsType");
+  const gsLink = document.getElementById("gsLink");
+  const gsMembersCount = document.getElementById("gsMembersCount");
+  const gsChatType = document.getElementById("gsChatTypeLabel");
+
+  if (gsName) gsName.value = displayName;
+  if (gsDesc) gsDesc.value = u.description || u.about || "";
+  if (gsAvatarEl) { gsAvatarEl.textContent = initial; gsAvatarEl.style.backgroundImage = ""; }
+  if (gsChatType) gsChatType.textContent = chatType === "channel" ? "Канал" : "Группа";
+  if (gsLink) gsLink.value = u.invite_link || u.link || `${location.origin}/join/${chatId}`;
+  if (gsType) gsType.value = u.is_private ? "private" : "public";
+
+  panel.classList.remove("hidden", "gs-slide-out");
+  panel.classList.add("gs-slide-in");
+
+  // Load avatar
+  if (u.avatar && gsAvatarEl) {
+    gsAvatarEl.style.backgroundImage = `url(${u.avatar})`;
+    gsAvatarEl.style.backgroundSize = "cover";
+    gsAvatarEl.style.backgroundPosition = "center";
+    gsAvatarEl.textContent = "";
+  }
+
+  // Load members
+  await fetchGroupMembers(chatId, chatType);
+}
+
+function closeGroupSettings() {
+  const panel = document.getElementById("groupSettingsPanel");
+  if (!panel) return;
+  panel.classList.add("gs-slide-out");
+  setTimeout(() => {
+    panel.classList.add("hidden");
+    panel.classList.remove("gs-slide-in", "gs-slide-out");
+  }, 280);
+}
+
+async function fetchGroupMembers(chatId, chatType) {
+  if (!state.session || !chatId) return;
+  const listEl = document.getElementById("gsMembersList");
+  const countEl = document.getElementById("gsMembersCount");
+  if (!listEl) return;
+  listEl.innerHTML = `<div class="gs-loading">Загрузка участников…</div>`;
+  try {
+    const data = await apiFetch(
+      `/collective/members?chat_id=${encodeURIComponent(chatId)}&username=${encodeURIComponent(state.session.username)}&token=${encodeURIComponent(state.session.token)}`,
+      {}, { silent: true }
+    );
+    const members = Array.isArray(data) ? data : (Array.isArray(data?.members) ? data.members : []);
+    if (countEl) countEl.textContent = `${members.length} участник${members.length === 1 ? "" : members.length < 5 ? "а" : "ов"}`;
+    listEl.innerHTML = "";
+    if (members.length === 0) {
+      listEl.innerHTML = `<div class="gs-empty">Нет участников</div>`;
+      return;
+    }
+    const currentUser = state.session.username;
+    members.forEach(member => {
+      const mUsername = member.username || member.user || "";
+      const mName = member.name || member.display_name || mUsername;
+      const mRole = member.role || member.type || "member";
+      const isOwner = mRole === "owner" || mRole === "creator";
+      const isAdmin = mRole === "admin" || mRole === "administrator";
+      const isSelf = mUsername === currentUser;
+
+      const item = document.createElement("div");
+      item.className = "gs-member-item";
+
+      const ava = document.createElement("div");
+      ava.className = "gs-member-avatar";
+      ava.textContent = (mName ? mName[0] : "?").toUpperCase();
+
+      const info = document.createElement("div");
+      info.className = "gs-member-info";
+
+      const name = document.createElement("div");
+      name.className = "gs-member-name";
+      name.textContent = mName + (isSelf ? " (вы)" : "");
+
+      const sub = document.createElement("div");
+      sub.className = "gs-member-role";
+      sub.textContent = isOwner ? "Владелец" : isAdmin ? "Администратор" : "Участник";
+
+      info.appendChild(name);
+      info.appendChild(sub);
+
+      const actions = document.createElement("div");
+      actions.className = "gs-member-actions";
+
+      if (!isSelf && !isOwner) {
+        if (state.session.username && members.find(m => (m.username === state.session.username || m.user === state.session.username) && (m.role === "owner" || m.role === "creator" || m.role === "admin"))) {
+          if (!isAdmin) {
+            const promBtn = document.createElement("button");
+            promBtn.className = "gs-action-btn gs-admin-btn";
+            promBtn.title = "Назначить администратором";
+            promBtn.textContent = "Admin";
+            promBtn.addEventListener("click", () => promoteToAdmin(chatId, mUsername, promBtn));
+            actions.appendChild(promBtn);
+          }
+          const kickBtn = document.createElement("button");
+          kickBtn.className = "gs-action-btn gs-kick-btn";
+          kickBtn.title = "Исключить";
+          kickBtn.textContent = "✕";
+          kickBtn.addEventListener("click", () => kickMember(chatId, mUsername, item));
+          actions.appendChild(kickBtn);
+        }
+      }
+
+      item.appendChild(ava);
+      item.appendChild(info);
+      item.appendChild(actions);
+      listEl.appendChild(item);
+    });
+  } catch {
+    listEl.innerHTML = `<div class="gs-empty">Не удалось загрузить участников</div>`;
+  }
+}
+
+async function saveGroupSettings() {
+  const panel = document.getElementById("groupSettingsPanel");
+  if (!panel || !state.session) return;
+  const chatId = panel.dataset.chatId;
+  if (!chatId) return;
+
+  const name = document.getElementById("gsName")?.value.trim();
+  const desc = document.getElementById("gsDesc")?.value.trim();
+  const typeVal = document.getElementById("gsType")?.value;
+
+  if (!name) { toast("Введите название"); return; }
+
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  form.append("username", state.session.username);
+  form.append("token", state.session.token);
+  if (name) form.append("name", name);
+  if (desc !== undefined) form.append("description", desc);
+  if (typeVal) form.append("is_private", typeVal === "private" ? "1" : "0");
+
+  const saveBtn = document.getElementById("gsSaveBtn");
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Сохранение…"; }
+
+  try {
+    await apiFetch("/collective/update", { method: "POST", body: form }, { silent: false });
+    toast("Настройки сохранены");
+    loadChats({ silent: true });
+    // Update local state
+    const chat = state.chatList?.find(c => (c.id || c.username || c.chat_id) === chatId);
+    if (chat) {
+      if (name) chat.name = name;
+      if (desc !== undefined) chat.description = desc;
+    }
+  } catch {
+    toast("Ошибка при сохранении");
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Сохранить"; }
+  }
+}
+
+async function promoteToAdmin(chatId, username, btn) {
+  if (!state.session) return;
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  form.append("username", state.session.username);
+  form.append("token", state.session.token);
+  form.append("target", username);
+  form.append("role", "admin");
+  try {
+    await apiFetch("/collective/set_role", { method: "POST", body: form }, { silent: false });
+    toast(`${username} назначен администратором`);
+    if (btn) { btn.textContent = "Admin ✓"; btn.disabled = true; }
+  } catch {
+    toast("Не удалось назначить администратора");
+  }
+}
+
+async function kickMember(chatId, username, itemEl) {
+  if (!state.session) return;
+  if (!confirm(`Исключить @${username} из чата?`)) return;
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  form.append("username", state.session.username);
+  form.append("token", state.session.token);
+  form.append("target", username);
+  try {
+    await apiFetch("/collective/remove_member", { method: "POST", body: form }, { silent: false });
+    toast(`${username} исключён`);
+    if (itemEl) itemEl.remove();
+  } catch {
+    toast("Не удалось исключить участника");
+  }
+}
+
+async function leaveGroup(chatId) {
+  if (!state.session || !chatId) return;
+  const panel = document.getElementById("groupSettingsPanel");
+  const chatType = panel?.dataset.chatType || "group";
+  const word = chatType === "channel" ? "канал" : "группу";
+  if (!confirm(`Вы уверены, что хотите покинуть этот ${word}?`)) return;
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  form.append("username", state.session.username);
+  form.append("token", state.session.token);
+  try {
+    await apiFetch("/collective/leave", { method: "POST", body: form }, { silent: false });
+    toast("Вы покинули чат");
+    closeGroupSettings();
+    loadChats({ silent: false });
+    if (state.activeTarget === chatId) {
+      state.activeTarget = null;
+      state.activeChatType = null;
+      document.querySelector(".messages-container")?.classList.add("hidden");
+    }
+  } catch {
+    toast("Не удалось покинуть чат");
+  }
+}
+
+async function regenerateInviteLink(chatId) {
+  if (!state.session || !chatId) return;
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  form.append("username", state.session.username);
+  form.append("token", state.session.token);
+  try {
+    const data = await apiFetch("/collective/reset_link", { method: "POST", body: form }, { silent: false });
+    const newLink = data?.invite_link || data?.link || "";
+    if (newLink) {
+      const gsLink = document.getElementById("gsLink");
+      if (gsLink) gsLink.value = newLink;
+      toast("Ссылка обновлена");
+    }
+  } catch {
+    toast("Не удалось обновить ссылку");
+  }
+}
+
+function copyInviteLink() {
+  const gsLink = document.getElementById("gsLink");
+  if (!gsLink?.value) return;
+  navigator.clipboard.writeText(gsLink.value).then(() => toast("Ссылка скопирована")).catch(() => { });
 }
