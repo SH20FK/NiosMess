@@ -107,6 +107,43 @@ class SettingsPrivacyScreen extends ConsumerWidget {
           ),
           SliverToBoxAdapter(
             child: _buildSection(
+                context,
+                title: 'Видимость',
+                icon: Icons.visibility_outlined,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(Icons.security_rounded, color: colorScheme.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Центр приватности',
+                          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Управляйте видимостью, безопасностью и защитой аккаунта',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onPrimaryContainer.withOpacity(0.85),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: _buildSection(
               context,
               title: 'Видимость',
               icon: Icons.visibility_outlined,
@@ -161,16 +198,11 @@ class SettingsPrivacyScreen extends ConsumerWidget {
           ),
           SliverToBoxAdapter(
             child: _buildSection(
-              context,
-              title: 'Контакты',
-              icon: Icons.contacts_outlined,
-              children: [
-                _buildOptionTile(
-                  context,
-                  title: 'Кто может писать мне',
-                  value: _formatWhoCanWrite(whoCanWrite),
-                  icon: Icons.message_outlined,
-                  onTap: () => _selectOption(
+                context,
+                title: 'Контакты',
+                icon: Icons.contacts_outlined,
+                children: [
+                  _buildOptionTile(
                     context,
                     ref,
                     key: 'who_can_write',
