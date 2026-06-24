@@ -1,0 +1,63 @@
+# === Dart / Flutter ===
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.lock
+!pubspec.lock
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+*.g.dart
+*.freezed.dart
+
+# === Node.js (landing) ===
+node_modules/
+.next/
+out/
+
+# === Build artifacts ===
+Output/
+*.exe
+*.msi
+*.pfx
+*.apk
+
+# === IDE / Editor ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# === Env / Secrets ===
+.env
+.env.*
+*.key
+*.pem
+credentials.json
+
+# === Agent / Tool artifacts ===
+.antigravitycli/
+.codegraph/
+.cursor/
+.opencode/
+.qwen/
+graphify-out/
+
+# === Misc ===
+nul
+*.log
+*.ogg
+temp.txt
+audit.py
+audit_results.json
+parse_settings_screens.py
+more_screens_analysis.txt
+screen_analysis_raw.txt

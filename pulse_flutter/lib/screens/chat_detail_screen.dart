@@ -1,0 +1,1953 @@
+import 'dart:async';
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/core/utils/app_time.dart';
+import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
+import 'package:pulse_flutter/core/utils/draft_storage.dart';
+import 'package:pulse_flutter/core/utils/file_opener.dart';
+import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/models/api/chat_member_model.dart';
+import 'package:pulse_flutter/models/api/chat_summary_model.dart';
+import 'package:pulse_flutter/models/api/message_model.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
+import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/screens/media_viewer_screen.dart';
+import 'package:pulse_flutter/widgets/file_upload_progress_widget.dart';
+import 'package:pulse_flutter/widgets/m3_file_picker_bottom_sheet.dart';
+import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
+import 'package:pulse_flutter/widgets/message_bubble.dart';
+import 'package:pulse_flutter/widgets/message_context_menu_sheet.dart';
+import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
+import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
+import 'package:pulse_flutter/widgets/offline_banner.dart';
+import 'package:pulse_flutter/providers/connectivity_provider.dart';
+import 'package:pulse_flutter/repositories/ai_repository.dart';
+
+class ChatDetailScreen extends ConsumerStatefulWidget {
+  const ChatDetailScreen({
+    required this.chatId,
+    this.highlightMessageId,
+    this.isDesktopSplit = false,
+    super.key,
+  });
+
+  final String chatId;
+  final int? highlightMessageId;
+  final bool isDesktopSplit;
+
+  @override
+  ConsumerState<ChatDetailScreen> createState() => _ChatDetailScreenState();
+}
+
+class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
+    with WidgetsBindingObserver {
+  final TextEditingController _inputController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  late final FocusNode _inputFocusNode;
+
+  // Cache providers that may be needed in dispose()
+  late DraftStorage _draftStorage;
+
+  bool _uploadingMedia = false;
+  double _uploadProgress = 0;
+  String? _uploadFileName;
+  int? _uploadFileSize;
+
+  int? _replyToMessageId;
+  String? _replyPreviewText;
+
+  // Inline edit mode
+  int? _editingMessageId;
+  String? _editingOriginalText;
+
+  // Scroll-to-bottom FAB
+  bool _showScrollToBottom = false;
+  bool _isLoadingOlder = false;
+
+  bool _isInputEmpty = true;
+  bool _isAiProcessing = false;
+
+  int? get _chatId => int.tryParse(widget.chatId);
+
+  String _chatSubtitle(
+    ApiChatSummary? chat,
+    bool isChannel,
+    bool isGroup, {
+    String? directUsername,
+  }) {
+    if (chat == null) return '';
+    final String description = chat.description.trim();
+    final String memberCount = context.l10n.chatMemberCount(chat.membersCount);
+    if (isChannel) {
+      return description.isEmpty ? memberCount : '$memberCount • $description';
+    }
+    if (isGroup) {
+      return description.isEmpty ? memberCount : '$memberCount • $description';
+    }
+    if (chat.chatType == 'direct') {
+      final String username = (directUsername ?? chat.username ?? '').trim();
+      if (username.isEmpty) {
+        return description;
+      }
+      if (description.isEmpty) return '@$username';
+      return '@$username • $description';
+    }
+    return memberCount;
+  }
+
+  void _goBack() {
+    if (widget.isDesktopSplit) {
+      ref.read(desktopSelectedChatProvider.notifier).setSelectedChat(null);
+      return;
+    }
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/main/chats');
+  }
+
+  String? _resolveDirectUsername(
+    ApiChatSummary? chat,
+    List<ApiMessage> messages,
+    List<ApiChatMember> members,
+    int myUserId,
+  ) {
+    final String chatUsername = (chat?.username ?? '').trim();
+    if (chatUsername.isNotEmpty) return chatUsername;
+
+    for (final ApiChatMember member in members) {
+      if (member.userId != myUserId && member.username.trim().isNotEmpty) {
+        return member.username.trim();
+      }
+    }
+
+    for (final ApiMessage message in messages.reversed) {
+      if (message.senderId != myUserId &&
+          message.senderUsername.trim().isNotEmpty) {
+        return message.senderUsername.trim();
+      }
+    }
+
+    return null;
+  }
+
+  IconData _chatHeaderIcon(bool isChannel, bool isGroup) {
+    if (isChannel) return Icons.campaign_rounded;
+    if (isGroup) return Icons.groups_rounded;
+    return Icons.person_rounded;
+  }
+
+  String _resolveDirectDisplayName(
+    ApiChatSummary? chat,
+    List<ApiMessage> messages,
+    List<ApiChatMember> members,
+    int myUserId,
+    int chatId,
+  ) {
+    final String chatName = (chat?.name ?? '').trim();
+    if (chatName.isNotEmpty) return chatName;
+
+    for (final ApiChatMember member in members) {
+      if (member.userId != myUserId && member.displayName.trim().isNotEmpty) {
+        return member.displayName.trim();
+      }
+    }
+
+    for (final ApiMessage message in messages.reversed) {
+      if (message.senderId != myUserId &&
+          message.senderDisplayName.trim().isNotEmpty) {
+        return message.senderDisplayName.trim();
+      }
+    }
+
+    return context.l10n.chatTitleFallback(chatId);
+  }
+
+  String _dateSeparatorLabel(DateTime resolvedDate, DateTime now) {
+    final bool sameDay =
+        resolvedDate.year == now.year &&
+        resolvedDate.month == now.month &&
+        resolvedDate.day == now.day;
+    if (sameDay) return context.l10n.chatToday;
+    final DateTime yesterday = now.subtract(const Duration(days: 1));
+    if (resolvedDate.year == yesterday.year &&
+        resolvedDate.month == yesterday.month &&
+        resolvedDate.day == yesterday.day) {
+      return context.l10n.chatYesterday;
+    }
+    return formatFullDateTime(resolvedDate);
+  }
+
+  Widget _dateSeparator(DateTime resolvedDate, DateTime now) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            _dateSeparatorLabel(resolvedDate, now),
+            style: textTheme.labelSmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _draftStorage = ref.read(draftStorageProvider); // cache before dispose
+    WidgetsBinding.instance.addObserver(this);
+    _scrollController.addListener(_onScroll);
+    _inputController.addListener(_onInputChanged);
+    _inputFocusNode = FocusNode()..addListener(() {
+      if (mounted) setState(() {});
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _restoreDraft();
+      _refreshNow();
+    });
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final double offset = _scrollController.offset;
+    final double maxExtent = _scrollController.position.maxScrollExtent;
+    // Since list is reversed, offset > threshold means scrolled UP (away from latest)
+    final bool shouldShow = offset > 300;
+    if (shouldShow != _showScrollToBottom) {
+      setState(() => _showScrollToBottom = shouldShow);
+    }
+    // Auto-load older messages when near the top (end of reversed list)
+    if (offset > maxExtent - 400 && !_isLoadingOlder) {
+      _autoLoadOlderMessages();
+    }
+  }
+
+  Future<void> _autoLoadOlderMessages() async {
+    if (_isLoadingOlder) return;
+    setState(() => _isLoadingOlder = true);
+    try {
+      await _loadOlderMessages();
+    } finally {
+      if (mounted) setState(() => _isLoadingOlder = false);
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _saveDraft();
+    _scrollController.removeListener(_onScroll);
+    _inputController.removeListener(_onInputChanged);
+    _inputController.dispose();
+    _scrollController.dispose();
+    _inputFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _onInputChanged() {
+    final bool isEmpty = _inputController.text.trim().isEmpty;
+    if (_isInputEmpty != isEmpty) {
+      setState(() {
+        _isInputEmpty = isEmpty;
+      });
+    }
+  }
+
+  Future<void> _processTextWithAi(String action, {String? targetLanguage}) async {
+    final String currentText = _inputController.text.trim();
+    if (currentText.isEmpty) return;
+
+    setState(() {
+      _isAiProcessing = true;
+    });
+
+    try {
+      final String resultText = await ref.read(aiRepositoryProvider).processText(
+        text: currentText,
+        action: action,
+        targetLanguage: targetLanguage,
+      );
+
+      if (mounted) {
+        _inputController.text = resultText;
+        _inputController.selection = TextSelection.fromPosition(
+          TextPosition(offset: resultText.length),
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'ru'
+                  ? 'Текст успешно изменен ИИ'
+                  : 'Text successfully processed by AI',
+            ),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'ru'
+                  ? 'Ошибка обработки ИИ: $e'
+                  : 'AI processing error: $e',
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAiProcessing = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildAiButton(ColorScheme scheme) {
+    final bool isRu = Localizations.localeOf(context).languageCode == 'ru';
+
+    if (_isAiProcessing) {
+      return SizedBox(
+        width: 48,
+        height: 48,
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              year2023: false,
+              strokeWidth: 2,
+              color: scheme.primary,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Tooltip(
+      message: isRu ? 'ИИ помощник' : 'AI Assistant',
+      child: InkWell(
+        onTap: () => _showAiBottomSheet(context, scheme, isRu),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Icon(
+            Icons.auto_awesome_rounded,
+            size: 22,
+            color: _isInputEmpty
+                ? scheme.onSurfaceVariant.withValues(alpha: 0.5)
+                : scheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAiBottomSheet(BuildContext context, ColorScheme scheme, bool isRu) {
+    if (_isInputEmpty) return;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: scheme.surfaceContainerLow,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (BuildContext ctx) {
+        final TextTheme tt = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                // Header
+                Row(
+                  children: <Widget>[
+                    Icon(Icons.auto_awesome_rounded, color: scheme.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      isRu ? 'ИИ помощник' : 'AI Assistant',
+                      style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // 2-column action cards
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _AiActionCard(
+                        icon: Icons.spellcheck_rounded,
+                        label: isRu ? 'Исправить' : 'Fix errors',
+                        scheme: scheme,
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _processTextWithAi('correct');
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _AiActionCard(
+                        icon: Icons.business_center_rounded,
+                        label: isRu ? 'Деловой' : 'Formal',
+                        scheme: scheme,
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _processTextWithAi('formalize');
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  isRu ? 'Перевести' : 'Translate',
+                  style: tt.labelMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <(String, String, String)>[
+                    ('translate:English', '🇬🇧', isRu ? 'Англ.' : 'Eng'),
+                    ('translate:Russian', '🇷🇺', isRu ? 'Рус.' : 'Rus'),
+                    ('translate:German', '🇩🇪', isRu ? 'Нем.' : 'Deu'),
+                    ('translate:French', '🇫🇷', isRu ? 'Фран.' : 'Fra'),
+                    ('translate:Spanish', '🇪🇸', isRu ? 'Исп.' : 'Esp'),
+                    ('translate:Chinese', '🇨🇳', isRu ? 'Кит.' : 'Zho'),
+                  ].map(
+                    ((String, String, String) item) => ActionChip(
+                      avatar: Text(item.$2, style: const TextStyle(fontSize: 16)),
+                      label: Text(item.$3),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        _processTextWithAi('translate', targetLanguage: item.$1.split(':')[1]);
+                      },
+                    ),
+                  ).toList(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
+  Future<void> _refreshNow() async {
+    final int? chatId = _chatId;
+    if (chatId == null) return;
+    try {
+      await ref.read(chatsProvider.notifier).refresh();
+      await ref.read(chatMessagesProvider(chatId).notifier).refresh();
+      await ref.read(chatMessagesProvider(chatId).notifier).markRead();
+    } catch (e) {
+      debugPrint('Failed to refresh: $e');
+    }
+  }
+
+  Future<void> _restoreDraft() async {
+    final int? chatId = _chatId;
+    if (chatId == null) return;
+    final String? draft = await ref.read(draftStorageProvider).get(chatId);
+    if (draft != null && draft.isNotEmpty && _inputController.text.isEmpty) {
+      _inputController.text = draft;
+    }
+  }
+
+  void _saveDraft() {
+    final int? chatId = _chatId;
+    if (chatId == null) return;
+    final String text = _inputController.text.trim();
+    _draftStorage.set(chatId, text); // use cached ref — safe in dispose()
+  }
+
+  Future<void> _sendMessage() async {
+    final int? chatId = _chatId;
+    if (chatId == null) {
+      return;
+    }
+
+    final String text = _inputController.text.trim();
+    if (text.isEmpty) {
+      return;
+    }
+
+    final int? replyId = _replyToMessageId;
+
+    // Очищаем поле ввода и панель ответа мгновенно для отзывчивости
+    _inputController.clear();
+    _clearReply();
+
+    // Прокручиваем к самому низу чата (так как отправлено новое сообщение)
+    _scrollToBottom();
+
+    // Запускаем отправку в фоне, не блокируя UI-поток
+    unawaited(
+      ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .send(text, replyToId: replyId)
+          .catchError((error) {
+        if (!mounted) {
+          return;
+        }
+        final String message = error is ApiException
+            ? error.message
+            : 'Failed to send message: $error';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }),
+    );
+  }
+
+  Future<bool> _loadOlderMessages() async {
+    final int? chatId = _chatId;
+    if (chatId == null) {
+      return false;
+    }
+    try {
+      final int added = await ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .loadOlder(pageSize: 50);
+      return added > 0;
+    } catch (error) {
+      if (!mounted) {
+        return false;
+      }
+      final String text = error is ApiException
+          ? error.message
+          : 'Failed to load older messages: $error';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    } finally {
+    }
+    return true;
+  }
+
+  Future<void> _pickAndUploadMedia() async {
+    final int? chatId = _chatId;
+    if (chatId == null || _uploadingMedia) {
+      return;
+    }
+
+    final M3FilePickerResult? result = await showM3FilePicker(context);
+    if (result == null || !mounted) {
+      return;
+    }
+
+    final String filename = result.fileName;
+    final String mediaSubtype = result.mediaSubtype;
+
+    setState(() {
+      _uploadingMedia = true;
+      _uploadProgress = 0;
+      _uploadFileName = filename;
+      _uploadFileSize = result.fileSize;
+    });
+
+    try {
+      final String uploadId = await ref
+          .read(chatRepositoryProvider)
+          .uploadStreamInChunks(
+            readStream: result.readStream,
+            filePath: result.filePath,
+            filename: filename,
+            mediaSubtype: mediaSubtype,
+            fileSize: result.fileSize,
+            onProgress: (int sent, int total) {
+              if (!mounted || total <= 0) {
+                return;
+              }
+              setState(() {
+                _uploadProgress = sent / total;
+              });
+            },
+          );
+
+      await ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .send(
+            _inputController.text,
+            replyToId: _replyToMessageId,
+            uploadId: uploadId,
+          );
+
+      _inputController.clear();
+      _clearReply();
+
+
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.chatMediaSent)));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final String message = error is ApiException
+          ? error.message
+          : 'Failed to upload media: $error';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _uploadingMedia = false;
+          _uploadProgress = 0;
+          _uploadFileName = null;
+          _uploadFileSize = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _editMessage(ApiMessage message) async {
+    final int? chatId = _chatId;
+    if (chatId == null) return;
+    // Enter inline edit mode instead of showing AlertDialog
+    setState(() {
+      _editingMessageId = message.id;
+      _editingOriginalText = message.content;
+      _inputController.text = message.content;
+    });
+    // Put cursor at end
+    _inputController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _inputController.text.length),
+    );
+  }
+
+  Future<void> _commitEdit() async {
+    final int? chatId = _chatId;
+    final int? editId = _editingMessageId;
+    if (chatId == null || editId == null) return;
+    final String edited = _inputController.text.trim();
+    if (edited.isEmpty || edited == (_editingOriginalText ?? '').trim()) {
+      _cancelEdit();
+      return;
+    }
+    _cancelEdit();
+    try {
+      await ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .editMessage(editId, edited);
+    } catch (error) {
+      if (!mounted) return;
+      final String text = error is ApiException
+          ? error.message
+          : 'Failed to edit message: $error';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    }
+  }
+
+  void _cancelEdit() {
+    setState(() {
+      _editingMessageId = null;
+      _editingOriginalText = null;
+      _inputController.clear();
+    });
+  }
+
+  Future<void> _deleteMessage(ApiMessage message) async {
+    final int? chatId = _chatId;
+    if (chatId == null) {
+      return;
+    }
+
+    final bool confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text(context.l10n.chatDeleteMessageTitle),
+              content: Text(context.l10n.chatDeleteMessageBody),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(context.l10n.commonCancel),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(context.l10n.commonDelete),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .deleteMessage(message.id);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final String text = error is ApiException
+          ? error.message
+          : 'Failed to delete message: $error';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    }
+  }
+
+  Future<void> _react(ApiMessage message, String emoji) async {
+    final int? chatId = _chatId;
+    if (chatId == null) {
+      return;
+    }
+    try {
+      await ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .toggleReaction(message.id, emoji);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final String text = error is ApiException
+          ? error.message
+          : 'Failed to react: $error';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    }
+  }
+
+  void _setReply(ApiMessage message) {
+    final String text = _displayText(message);
+    setState(() {
+      _replyToMessageId = message.id;
+      _replyPreviewText =
+          '${message.senderDisplayName}: ${text.length > 80 ? '${text.substring(0, 80)}...' : text}';
+    });
+  }
+
+  void _clearReply() {
+    setState(() {
+      _replyToMessageId = null;
+      _replyPreviewText = null;
+    });
+  }
+
+  Future<void> _forwardMessage(ApiMessage message) async {
+    final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.read(chatsProvider);
+    final List<ApiChatSummary> chats =
+        chatsAsync.value ?? const <ApiChatSummary>[];
+    if (chats.isEmpty) return;
+
+    final ApiChatSummary? target = await showModalBottomSheet<ApiChatSummary>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                context.l10n.chatForwardTo,
+                style: Theme.of(ctx).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              ...chats.map(
+                (ApiChatSummary c) => ListTile(
+                  leading: PulseAvatar(
+                    radius: 18,
+                    name: c.name,
+                    avatarUrl: c.avatarUrl,
+                  ),
+                  title: Text(c.name),
+                  onTap: () => Navigator.of(ctx).pop(c),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (target == null || !mounted) return;
+
+    final String forwardText =
+        '_fwd from ${message.senderDisplayName}: ${message.content}';
+    try {
+      await ref
+          .read(chatMessagesProvider(target.id).notifier)
+          .send(forwardText);
+      await ref.read(chatsProvider.notifier).refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.chatMessageForwarded)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
+      );
+    }
+  }
+
+  Future<void> _showMessageActions(
+    ApiMessage message,
+    bool isMine, {
+    required bool isChannel,
+    required bool amAdminOrOwner,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (BuildContext ctx) => MessageContextMenuSheet(
+        message: message,
+        isMine: isMine,
+        isChannel: isChannel,
+        amAdminOrOwner: amAdminOrOwner,
+        onReact: (String emoji) => _react(message, emoji),
+        onReply: () => _setReply(message),
+        onForward: () => _forwardMessage(message),
+        onComments: () {
+          final int? chatId = _chatId;
+          if (chatId == null) return;
+          context.push('/channel/$chatId/post/${message.id}/comments');
+        },
+        onEdit: () => _editMessage(message),
+        onDelete: () => _deleteMessage(message),
+      ),
+    );
+  }
+
+  String _displayText(ApiMessage message) {
+    if (message.isDeleted) return context.l10n.chatMessageDeleted;
+    if (message.msgType == 'call_log') return '';
+    final String text = message.content.trim();
+    final String? mediaUrl = _mediaUrlFor(message);
+    if (text.isNotEmpty) {
+      if (mediaUrl != null && text == mediaUrl) {
+        return '';
+      }
+      if (mediaUrl != null && text.contains(mediaUrl)) {
+        final String cleaned = text.replaceAll(mediaUrl, '').trim();
+        return cleaned;
+      }
+      return text;
+    }
+    if (mediaUrl != null && mediaUrl.isNotEmpty) {
+      return '';
+    }
+    return '[${message.msgType}]';
+  }
+
+
+
+  String? _extractUrlFromText(String text) {
+    final RegExp rx = RegExp(r'https?://[^\s]+');
+    final Match? match = rx.firstMatch(text);
+    if (match == null) {
+      return null;
+    }
+    return match.group(0);
+  }
+
+  String? _mediaUrlFor(ApiMessage message) {
+    final String direct = (message.mediaUrl ?? '').trim();
+    if (direct.isNotEmpty) {
+      return direct;
+    }
+    return _extractUrlFromText(message.content.trim());
+  }
+
+  bool _isImageMedia(ApiMessage message, String mediaUrl) {
+    final String mediaType = (message.mediaType ?? '').toLowerCase();
+    if (mediaType.startsWith('image/')) {
+      return true;
+    }
+
+    final String lower = mediaUrl.toLowerCase();
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.bmp');
+  }
+
+  void _openMedia(ApiMessage message) {
+    final String? mediaUrl = _mediaUrlFor(message);
+    if (mediaUrl == null || mediaUrl.isEmpty) {
+      return;
+    }
+
+    final FileTypeInfo typeInfo = FileTypeDetector.detect(
+      fileName: message.mediaName ?? 'file',
+      mimeType: message.mediaType,
+    );
+
+    final String title = (message.mediaName ?? '').trim().isNotEmpty
+        ? message.mediaName!.trim()
+        : typeInfo.label;
+
+    final int fileSize = message.mediaSize ?? 0;
+
+    if (_isImageMedia(message, mediaUrl)) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              MediaViewerScreen(url: mediaUrl, title: title, isImage: true),
+        ),
+      );
+      return;
+    }
+
+    showM3FilePreview(
+      context: context,
+      fileName: title,
+      fileSize: fileSize,
+      mediaUrl: mediaUrl,
+      onForward: () => _forwardMessage(message),
+    );
+  }
+
+  Future<void> _showMediaActions(
+    ApiMessage message,
+    bool isMine, {
+    required bool amAdminOrOwner,
+  }) async {
+    final String? mediaUrl = _mediaUrlFor(message);
+    if (mediaUrl == null || mediaUrl.trim().isEmpty) {
+      return;
+    }
+    final String fileName = (message.mediaName ?? '').trim().isNotEmpty
+        ? message.mediaName!.trim()
+        : _mediaLabel(message, mediaUrl);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext ctx) {
+        final ColorScheme scheme = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ListTile(
+                  leading: const Icon(Icons.save_alt_rounded),
+                  title: Text(context.l10n.mediaActionSave),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    saveM3File(
+                      context: context,
+                      fileName: fileName,
+                      fileSize: message.mediaSize ?? 0,
+                      mediaUrl: mediaUrl,
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.forward_rounded),
+                  title: Text(context.l10n.chatResendTo),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _forwardMessage(message);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.copy_rounded),
+                  title: Text(context.l10n.mediaActionCopy),
+                  onTap: () async {
+                    final ScaffoldMessengerState messenger =
+                        ScaffoldMessenger.of(context);
+                    final String copyLabel = context.l10n.mediaActionCopy;
+                    Navigator.of(ctx).pop();
+                    await Clipboard.setData(ClipboardData(text: mediaUrl));
+                    messenger.showSnackBar(
+                      SnackBar(content: Text(copyLabel)),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.open_in_new_rounded),
+                  title: Text(context.l10n.mediaActionOpenIn),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    FileOpener.openUrl(context, mediaUrl);
+                  },
+                ),
+                if (isMine || amAdminOrOwner)
+                  ListTile(
+                    leading: Icon(
+                      Icons.delete_outline_rounded,
+                      color: scheme.error,
+                    ),
+                    title: Text(
+                      context.l10n.chatDelete,
+                      style: TextStyle(color: scheme.error),
+                    ),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _deleteMessage(message);
+                    },
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _mediaLabel(ApiMessage message, String mediaUrl) {
+    final String explicit = (message.mediaName ?? '').trim();
+    if (explicit.isNotEmpty) {
+      return explicit;
+    }
+
+    final Uri? uri = Uri.tryParse(mediaUrl);
+    if (uri != null && uri.pathSegments.isNotEmpty) {
+      final String last = uri.pathSegments.last.trim();
+      if (last.isNotEmpty) {
+        return last;
+      }
+    }
+    return context.l10n.chatAttachment;
+  }
+
+  String? _replyPreviewFor(ApiMessage message, Map<int, ApiMessage> byId) {
+    final int? replyToId = message.replyToId;
+    if (replyToId == null) {
+      return null;
+    }
+    final ApiMessage? target = byId[replyToId];
+    if (target == null) {
+      return context.l10n.chatReplyToId(replyToId);
+    }
+    final String text = _displayText(target);
+    return '${target.senderDisplayName}: ${text.length > 64 ? '${text.substring(0, 64)}...' : text}';
+  }
+
+  Future<void> _retrySend(ApiMessage message) async {
+    final int? chatId = _chatId;
+    if (chatId == null) return;
+    ref.read(chatMessagesProvider(chatId).notifier).removeLocalMessage(message.id);
+    await ref.read(chatMessagesProvider(chatId).notifier).send(message.content, replyToId: message.replyToId);
+  }
+
+  void _handleOpenMediaFor(ApiMessage message) {
+    if (message.hasMedia) {
+      _openMedia(message);
+    }
+  }
+
+  void _handleLongPressMediaFor(ApiMessage message, bool isMine, bool amAdminOrOwner) {
+    if (message.hasMedia) {
+      _showMediaActions(message, isMine, amAdminOrOwner: amAdminOrOwner);
+    }
+  }
+
+  void _handleLongPressFor(ApiMessage message, bool isMine, bool isChannel, bool amAdminOrOwner) {
+    _showMessageActions(message, isMine, isChannel: isChannel, amAdminOrOwner: amAdminOrOwner);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final int? chatId = _chatId;
+    if (chatId == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(context.l10n.chatTitleFallback(0))),
+        body: PulseScaffoldBody(
+          maxWidth: 1560,
+          child: Center(child: Text(context.l10n.chatInvalidId)),
+        ),
+      );
+    }
+
+    final AuthState auth = ref.watch(authProvider);
+    final chat = ref.watch(chatByIdProvider(chatId));
+    final bool isChannel = chat?.chatType == 'channel';
+    final bool isGroup = chat?.chatType == 'group';
+    final bool showManage = isChannel || isGroup;
+    final String myRole = ref.watch(myChatRoleProvider(chatId));
+    final bool amAdminOrOwner = myRole == 'admin' || myRole == 'owner';
+    final bool canPostInChannel = !isChannel || amAdminOrOwner;
+    final AsyncValue<List<ApiMessage>> messagesAsync = ref.watch(
+      chatMessagesProvider(chatId),
+    );
+    final List<ApiMessage> currentMessages =
+        messagesAsync.value ?? const <ApiMessage>[];
+    final List<ApiChatMember> members =
+        ref.watch(chatMembersProvider(chatId)).value ?? const <ApiChatMember>[];
+
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final int myUserId = auth.session?.userId ?? -1;
+    final String? directUsername = _resolveDirectUsername(
+      chat,
+      currentMessages,
+      members,
+      myUserId,
+    );
+    final String title = chat?.chatType == 'direct'
+        ? _resolveDirectDisplayName(
+            chat,
+            currentMessages,
+            members,
+            myUserId,
+            chatId,
+          )
+        : ((chat?.name ?? '').trim().isNotEmpty
+              ? chat!.name.trim()
+              : context.l10n.chatTitleFallback(chatId));
+
+    return PopScope(
+      canPop: !_uploadingMedia,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) return;
+        final bool? confirm = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) => AlertDialog(
+            title: Text(context.l10n.chatUploadCancelTitle),
+            content: Text(context.l10n.chatUploadCancelBody),
+            actions: <Widget>[
+              TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(context.l10n.commonNo)),
+              TextButton(onPressed: () => Navigator.of(context).pop(true), child: Text(context.l10n.commonYes)),
+            ],
+          ),
+        );
+        if (confirm == true && context.mounted) {
+          context.pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: scheme.surfaceContainerLow.withValues(alpha: 0.70),
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          flexibleSpace: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+          titleSpacing: widget.isDesktopSplit
+              ? NavigationToolbar.kMiddleSpacing
+              : 0,
+        leading: widget.isDesktopSplit
+            ? null
+            : IconButton(
+                onPressed: _goBack,
+                icon: const Icon(Icons.arrow_back_rounded),
+              ),
+        title: InkWell(
+          onTap: () {
+            if (isChannel || isGroup) {
+              context.push('/chat/$chatId/members');
+            } else if ((directUsername ?? '').isNotEmpty) {
+              context.push('/profile/$directUsername');
+            }
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+            child: Row(
+              children: <Widget>[
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    PulseAvatar(
+                      radius: 19,
+                      name: title,
+                      avatarUrl: chat?.avatarUrl,
+                    ),
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: scheme.surface,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(
+                          _chatHeaderIcon(isChannel, isGroup),
+                          size: 11,
+                          color: scheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        title,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        _chatSubtitle(
+                          chat,
+                          isChannel,
+                          isGroup,
+                          directUsername: directUsername,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.05,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          if (showManage)
+            PopupMenuButton<String>(
+              onSelected: (String action) {
+                switch (action) {
+                  case 'members':
+                    context.push('/chat/$chatId/members');
+                  case 'manage':
+                    context.push('/chat/$chatId/manage');
+                }
+              },
+              itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  value: 'members',
+                  child: Row(
+                    children: <Widget>[
+                      Icon(Icons.people_rounded),
+                      SizedBox(width: 8),
+                      Text(context.l10n.chatMembers),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'manage',
+                  child: Row(
+                    children: <Widget>[
+                      Icon(Icons.settings_rounded),
+                      SizedBox(width: 8),
+                      Text(context.l10n.chatManage),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+      body: PulseScaffoldBody(
+        maxWidth: 1560,
+        bottomSafe: false,
+        child: Column(
+          children: <Widget>[
+            OfflineBanner(isOffline: ref.watch(connectivityProvider).value ?? false),
+            // Loading older messages indicator at top
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              child: _isLoadingOlder
+                  ? const LinearProgressIndicator(year2023: false, minHeight: 2)
+                  : const SizedBox.shrink(),
+            ),
+            Expanded(
+              child: Stack(
+                children: <Widget>[
+                  messagesAsync.when(
+                    data: (List<ApiMessage> messages) {
+                      if (messages.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Icon(
+                                Icons.chat_bubble_outline_rounded,
+                                size: 56,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                context.l10n.chatNoMessages,
+                                style: textTheme.titleMedium?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                context.l10n.chatSendFirst,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      final Map<int, ApiMessage> byId = <int, ApiMessage>{
+                        for (final ApiMessage message in messages)
+                          message.id: message,
+                      };
+
+                      final DateTime now = AppTimeSettings.now();
+
+                      return ListView.builder(
+                        controller: _scrollController,
+                        reverse: true,
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                        itemCount: messages.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          final int reversedIndex = messages.length - 1 - index;
+                          final ApiMessage message = messages[reversedIndex];
+
+                          final bool showDateSep;
+                          if (reversedIndex == 0) {
+                            showDateSep = true;
+                          } else {
+                            final ApiMessage prev = messages[reversedIndex - 1];
+                            final DateTime messageDate = message.resolvedSentAt;
+                            final DateTime prevDate = prev.resolvedSentAt;
+                            showDateSep =
+                                messageDate.day != prevDate.day ||
+                                messageDate.month != prevDate.month ||
+                                messageDate.year != prevDate.year;
+                          }
+
+                          final bool isMine =
+                              message.senderId == (auth.session?.userId ?? -1);
+
+                          final bool isPrevSame = reversedIndex > 0 &&
+                              !showDateSep &&
+                              messages[reversedIndex - 1].senderId == message.senderId &&
+                              !messages[reversedIndex - 1].isDeleted;
+
+                          final bool isNextSame = reversedIndex < messages.length - 1 &&
+                              messages[reversedIndex + 1].resolvedSentAt.day == message.resolvedSentAt.day &&
+                              messages[reversedIndex + 1].resolvedSentAt.month == message.resolvedSentAt.month &&
+                              messages[reversedIndex + 1].resolvedSentAt.year == message.resolvedSentAt.year &&
+                              messages[reversedIndex + 1].senderId == message.senderId &&
+                              !messages[reversedIndex + 1].isDeleted;
+
+                          final String? mediaUrl = _mediaUrlFor(message);
+                          final bool hasMedia =
+                              mediaUrl != null && mediaUrl.trim().isNotEmpty;
+                          final bool isImageMedia = hasMedia
+                              ? _isImageMedia(message, mediaUrl)
+                              : false;
+                          final String? mediaLabel = hasMedia
+                              ? _mediaLabel(message, mediaUrl)
+                              : null;
+
+                          final Widget bubble = RepaintBoundary(
+                            child: MessageBubble(
+                              key: ValueKey<int>(message.id),
+                              text: _displayText(message),
+                              isMine: isMine,
+                              isE2ee: message.isE2ee,
+                              isPrevSame: isPrevSame,
+                              isNextSame: isNextSame,
+                              formattedTime: formatMessageTime(message.sentAt),
+                              isEdited: message.isEdited,
+                              isDeleted: message.isDeleted,
+                              isRead: isMine,
+                              replyPreview: _replyPreviewFor(message, byId),
+                              reactions: message.reactions,
+                              mediaUrl: mediaUrl,
+                              mediaIsImage: isImageMedia,
+                              mediaLabel: mediaLabel,
+                              senderBadges: message.senderBadges,
+                              senderDisplayName: message.senderDisplayName,
+                              animate: now.difference(message.resolvedSentAt).inSeconds < 4,
+                              onOpenMedia: hasMedia
+                                  ? () => _handleOpenMediaFor(message)
+                                  : null,
+                              onLongPressMedia: hasMedia
+                                  ? () => _handleLongPressMediaFor(
+                                      message,
+                                      isMine,
+                                      amAdminOrOwner,
+                                    )
+                                  : null,
+                              onLongPress: () => _handleLongPressFor(
+                                message,
+                                isMine,
+                                isChannel,
+                                amAdminOrOwner,
+                              ),
+                              onSwipeToReply: () => _setReply(message),
+                              replyMarkup: message.replyMarkup,
+                              onCallbackQuery: (String data) {
+                                final int? chatId = _chatId;
+                                if (chatId == null) return;
+                                ref
+                                    .read(chatMessagesProvider(chatId).notifier)
+                                    .sendCallbackQuery(message.id, data);
+                              },
+                            ),
+                          );
+
+                          final bool isNewest = index == 0;
+
+                          final Widget animatedBubble = _AnimatedMessage(
+                            key: ValueKey<int>(message.id),
+                            animate: isNewest,
+                            isMine: isMine,
+                            child: bubble,
+                          );
+
+                          if (isMine) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: <Widget>[
+                                if (showDateSep) _dateSeparator(message.resolvedSentAt, now),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: <Widget>[
+                                    if (message.isSending)
+                                      const Padding(
+                                        padding: EdgeInsets.only(right: 8, bottom: 12),
+                                        child: SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(year2023: false, strokeWidth: 2),
+                                        ),
+                                      ),
+                                    if (message.isFailed)
+                                      Padding(
+                                        padding: const EdgeInsets.only(right: 4, bottom: 4),
+                                        child: IconButton(
+                                          icon: Icon(Icons.refresh_rounded, color: scheme.error, size: 22),
+                                          tooltip: context.l10n.commonRetry,
+                                          onPressed: () => _retrySend(message),
+                                        ),
+                                      ),
+                                    Flexible(child: animatedBubble),
+                                  ],
+                                ),
+                              ],
+                            );
+                          }
+
+                          return Column(
+                            children: <Widget>[
+                              if (showDateSep) _dateSeparator(message.resolvedSentAt, now),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: <Widget>[
+                                  GestureDetector(
+                                    onTap: () => context.push(
+                                      '/profile/${message.senderUsername}',
+                                    ),
+                                    child: PulseAvatar(
+                                      radius: 14,
+                                      name: message.senderDisplayName,
+                                      avatarUrl: message.senderAvatarUrl,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Flexible(child: animatedBubble),
+                                ],
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                    loading: () => const MessageListSkeleton(),
+                    error: (Object error, StackTrace trace) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            context.l10n.chatFailedLoadMessages('$error'),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  // Scroll-to-bottom FAB overlay
+                  Positioned(
+                    right: 16,
+                    bottom: 8,
+                    child: AnimatedOpacity(
+                      opacity: _showScrollToBottom ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: AnimatedScale(
+                        scale: _showScrollToBottom ? 1.0 : 0.7,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOutBack,
+                        child: FloatingActionButton.small(
+                          onPressed: _showScrollToBottom ? _scrollToBottom : null,
+                          heroTag: 'scroll_down_$chatId',
+                          tooltip: context.l10n.chatScrollToBottom,
+                          child: const Icon(Icons.keyboard_arrow_down_rounded),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SafeArea(
+              top: false,
+              child: Container(
+                    color: Colors.transparent,
+                    child: canPostInChannel
+                        ? Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                if (_uploadingMedia && _uploadFileName != null)
+                                  FileUploadProgressWidget(
+                                    fileName: _uploadFileName!,
+                                    fileSize: _uploadFileSize ?? 0,
+                                    progress: _uploadProgress,
+                                    onCancel: () {
+                                      setState(() {
+                                        _uploadingMedia = false;
+                                        _uploadProgress = 0;
+                                        _uploadFileName = null;
+                                        _uploadFileSize = null;
+                                      });
+                                    },
+                                  ),
+                                // Inline Edit Panel
+                                if (_editingMessageId != null)
+                                  AnimatedSize(
+                                    duration: const Duration(milliseconds: 200),
+                                    curve: Curves.easeOutCubic,
+                                    child: Container(
+                                      margin: const EdgeInsets.only(bottom: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: scheme.primaryContainer.withValues(alpha: 0.7),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border(
+                                          left: BorderSide(
+                                            color: scheme.primary,
+                                            width: 3,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: <Widget>[
+                                          Icon(
+                                            Icons.edit_rounded,
+                                            size: 16,
+                                            color: scheme.primary,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: <Widget>[
+                                                Text(
+                                                  context.l10n.chatEditingMessage,
+                                                  style: textTheme.labelSmall?.copyWith(
+                                                    color: scheme.primary,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  (_editingOriginalText ?? '').length > 80
+                                                      ? '${(_editingOriginalText ?? '').substring(0, 80)}...'
+                                                      : (_editingOriginalText ?? ''),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: textTheme.bodySmall?.copyWith(
+                                                    color: scheme.onSurfaceVariant,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          IconButton(
+                                            onPressed: _cancelEdit,
+                                            icon: const Icon(Icons.close_rounded),
+                                            tooltip: context.l10n.chatEditCancel,
+                                            iconSize: 18,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                // Reply Panel
+                                if (_replyToMessageId != null)
+                                  AnimatedSize(
+                                    duration: const Duration(milliseconds: 200),
+                                    curve: Curves.easeOutCubic,
+                                    child: Container(
+                                      margin: const EdgeInsets.only(bottom: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: scheme.surfaceContainerHigh,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        children: <Widget>[
+                                          Expanded(
+                                            child: Text(
+                                              _replyPreviewText ??
+                                                  context.l10n.chatReply,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: textTheme.bodySmall,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            onPressed: _clearReply,
+                                            icon: const Icon(Icons.close_rounded),
+                                            tooltip: context.l10n.chatCancelReply,
+                                            iconSize: 18,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 180),
+                                          decoration: BoxDecoration(
+                                            color: _inputFocusNode.hasFocus
+                                                ? scheme.surfaceContainerLow
+                                                : scheme.surfaceContainer,
+                                            borderRadius: BorderRadius.circular(28),
+                                            border: Border.all(
+                                              color: _inputFocusNode.hasFocus
+                                                  ? scheme.primary.withValues(alpha: 0.45)
+                                                  : scheme.outlineVariant.withValues(alpha: 0.30),
+                                              width: 1.0,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: <Widget>[
+                                              _buildAiButton(scheme),
+                                              Expanded(
+                                                child: Focus(
+                                                  onKeyEvent: (FocusNode node, KeyEvent event) {
+                                                    if (event is KeyDownEvent &&
+                                                        event.logicalKey.keyLabel == 'Enter') {
+                                                      if (HardwareKeyboard.instance.isShiftPressed) {
+                                                        return KeyEventResult.ignored;
+                                                      } else {
+                                                        _sendMessage();
+                                                        return KeyEventResult.handled;
+                                                      }
+                                                    }
+                                                    return KeyEventResult.ignored;
+                                                  },
+                                                  child: TextField(
+                                                    controller: _inputController,
+                                                    focusNode: _inputFocusNode,
+                                                    readOnly: _isAiProcessing,
+                                                    textInputAction: TextInputAction.newline,
+                                                    onSubmitted: (_) => _sendMessage(),
+                                                    maxLines: 5,
+                                                    minLines: 1,
+                                                    keyboardType: TextInputType.multiline,
+                                                    textCapitalization: TextCapitalization.sentences,
+                                                    style: textTheme.bodyMedium,
+                                                    decoration: InputDecoration(
+                                                      hintText: context.l10n.chatMessageHint,
+                                                      hintStyle: textTheme.bodyMedium?.copyWith(
+                                                        color: scheme.onSurfaceVariant.withValues(alpha: 0.50),
+                                                      ),
+                                                      filled: true,
+                                                      fillColor: Colors.transparent,
+                                                      border: InputBorder.none,
+                                                      enabledBorder: InputBorder.none,
+                                                      focusedBorder: InputBorder.none,
+                                                      contentPadding: const EdgeInsets.symmetric(
+                                                        horizontal: 0,
+                                                        vertical: 12,
+                                                      ),
+                                                      isDense: true,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (_uploadingMedia)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(right: 14, bottom: 14),
+                                                  child: SizedBox(
+                                                    width: 20,
+                                                    height: 20,
+                                                    child: CircularProgressIndicator(
+                                                      year2023: false,
+                                                      strokeWidth: 2,
+                                                      color: scheme.primary,
+                                                    ),
+                                                  ),
+                                                )
+                                              else
+                                                Tooltip(
+                                                  message: context.l10n.chatAttachMedia,
+                                                  child: InkWell(
+                                                    onTap: _pickAndUploadMedia,
+                                                    borderRadius: BorderRadius.circular(20),
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                                      child: Icon(
+                                                        Icons.attach_file_rounded,
+                                                        size: 22,
+                                                        color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      AnimatedScale(
+                                        scale: _isInputEmpty && _editingMessageId == null ? 0.0 : 1.0,
+                                        duration: const Duration(milliseconds: 200),
+                                        curve: Curves.easeOutBack,
+                                        child: AnimatedSwitcher(
+                                          duration: const Duration(milliseconds: 180),
+                                          transitionBuilder: (Widget child, Animation<double> anim) =>
+                                              ScaleTransition(scale: anim, child: child),
+                                          child: GestureDetector(
+                                            key: ValueKey<bool>(_editingMessageId != null),
+                                            onTap: _editingMessageId != null
+                                                ? _commitEdit
+                                                : (_isInputEmpty ? null : _sendMessage),
+                                            child: Container(
+                                              width: 48,
+                                              height: 48,
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                  colors: <Color>[
+                                                    scheme.primary,
+                                                    scheme.primary.withValues(alpha: 0.82),
+                                                  ],
+                                                ),
+                                                shape: BoxShape.circle,
+                                                boxShadow: <BoxShadow>[
+                                                  BoxShadow(
+                                                    color: scheme.primary.withValues(alpha: 0.24),
+                                                    blurRadius: 8,
+                                                    spreadRadius: 0.5,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Icon(
+                                                _editingMessageId != null
+                                                    ? Icons.check_rounded
+                                                    : Icons.send_rounded,
+                                                color: scheme.onPrimary,
+                                                size: 22,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            )
+                        : Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: Text(
+                                context.l10n.chatOnlyAdminsCanPost,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      backgroundColor: scheme.surface,
+    ),
+  );
+  }
+}
+
+// ── Animated message entrance widget ────────────────────────────────────────
+class _AnimatedMessage extends StatefulWidget {
+  const _AnimatedMessage({
+    super.key,
+    required this.animate,
+    required this.isMine,
+    required this.child,
+  });
+
+  final bool animate;
+  final bool isMine;
+  final Widget child;
+
+  @override
+  State<_AnimatedMessage> createState() => _AnimatedMessageState();
+}
+
+class _AnimatedMessageState extends State<_AnimatedMessage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: Offset(widget.isMine ? 0.3 : -0.3, 0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
+    if (widget.animate) {
+      _controller.forward();
+    } else {
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+// Helper widget for AI bottom sheet action cards
+class _AiActionCard extends StatelessWidget {
+  const _AiActionCard({
+    required this.icon,
+    required this.label,
+    required this.scheme,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final ColorScheme scheme;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          child: Row(
+            children: <Widget>[
+              Icon(icon, color: scheme.primary, size: 22),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

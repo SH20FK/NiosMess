@@ -1,0 +1,902 @@
+{
+  "@@locale": "ru",
+  "appName": "NiosMess",
+  "tabChats": "Чаты",
+  "tabCalls": "Звонки",
+  "tabContacts": "Контакты",
+  "tabProfile": "Профиль",
+  "commonContinue": "Продолжить",
+  "commonSkip": "Пропустить",
+  "commonSave": "Сохранить",
+  "commonRetry": "Повторить",
+  "commonCancel": "Отмена",
+  "commonOk": "ОК",
+  "commonDelete": "Удалить",
+  "commonPreview": "Открыть",
+  "commonSearch": "Поиск",
+  "commonSystem": "Системная",
+  "commonLight": "Светлая",
+  "commonDark": "Тёмная",
+  "commonAutomatic": "Автоматически",
+  "commonManual": "Вручную",
+  "commonLoading": "Загрузка...",
+  "commonNoDescription": "Публичное описание пока не добавлено.",
+  "commonFailed": "Ошибка: {error}",
+  "@commonFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "commonPasteFromClipboard": "Вставить из буфера",
+  "splashTagline": "НАШ мессенджер",
+  "loginTitle": "С возвращением",
+  "loginSubtitle": "Войдите по email или username.",
+  "loginIdentifierLabel": "Email или username",
+  "loginIdentifierError": "Введите email или username",
+  "loginPasswordLabel": "Пароль",
+  "loginPasswordError": "Минимум 4 символа",
+  "loginForgotPassword": "Забыли пароль?",
+  "loginSubmit": "Войти",
+  "loginSubmitting": "Входим...",
+  "loginCreateAccount": "Создать аккаунт",
+  "loginFailed": "Не удалось войти",
+  "twoFaTitle": "Проверка безопасности",
+  "twoFaHeroTitle": "Введите код 2FA",
+  "twoFaHeroSubtitle": "Мы отправили 6-значный код на вашу почту.",
+  "twoFaCodeLabel": "Код подтверждения",
+  "twoFaCodeError": "Введите 6 цифр",
+  "twoFaVerify": "Подтвердить код",
+  "twoFaVerifying": "Проверяем...",
+  "twoFaProtected": "Защищённый вход",
+  "twoFaExpires": "Код действует недолго",
+  "twoFaHint": "Совет: вставьте код целиком, пробелы будут проигнорированы.",
+  "twoFaFailed": "Не удалось подтвердить 2FA",
+  "registerTitle": "Создать аккаунт",
+  "registerEmailLabel": "Email",
+  "registerEmailError": "Введите корректный email",
+  "registerUsernameLabel": "Username",
+  "registerUsernameError": "Минимум 3 символа",
+  "registerDisplayNameLabel": "Отображаемое имя",
+  "registerDisplayNameError": "Минимум 2 символа",
+  "registerPasswordLabel": "Пароль",
+  "registerPasswordError": "Минимум 8 символов",
+  "registerSubmit": "Создать аккаунт",
+  "registerSubmitting": "Создаём...",
+  "registerFailed": "Не удалось создать аккаунт(",
+  "verifyEmailTitle": "Подтвердите почту",
+  "verifyEmailCodeLabel": "6-значный код",
+  "verifyEmailCodeError": "Введите 6 цифр",
+  "verifyEmailSubmit": "Подтвердить",
+  "verifyEmailSubmitting": "Подтверждаем...",
+  "verifyEmailDone": "Готово",
+  "setupWelcomeTitle": "Приятно познакомиться)!",
+  "setupWelcomeBody": "Давайте быстро настроим NiosMess для вас.\nЭто займёт пару секунд.",
+  "setupLanguageTitle": "Выберите ваш язык",
+  "setupTimezoneTitle": "Ваш часовой пояс",
+  "setupTimezoneUseDevice": "Используется текущий часовой пояс устройства",
+  "setupTimezoneChooseManual": "Можешь сам выбрать",
+  "setupStartMessaging": "Напиши кому то",
+  "languageEnglish": "English",
+  "languageRussian": "Русский",
+  "languageRussianNative": "Русский",
+  "profileTitle": "Профиль",
+  "profilePublicView": "Это ваш профиль",
+  "profilePublicProfile": "Профиль",
+  "profileMessage": "Написать",
+  "profileCall": "Звонок",
+  "profileVideo": "Видео",
+  "profileAbout": "О профиле",
+  "profileDisplayName": "Имя",
+  "profileUsername": "Username",
+  "profileDescription": "Описание",
+  "profilePreferences": "Предпочтения",
+  "profileMyProfile": "Мой профиль",
+  "profileQuickSettings": "Быстрые настройки",
+  "profileDoNotDisturb": "Не беспокоить",
+  "profileDoNotDisturbSubtitle": "Выключить push-уведомления на этом устройстве",
+  "profileHideOnline": "Спрятать онлайн",
+  "profileHideOnlineSubtitle": "Сделать онлайн менее заметным",
+  "profileStorage": "Хранилище",
+  "profileStorageUsed": "Занято {used} из {total}",
+  "@profileStorageUsed": {
+    "placeholders": {
+      "used": {},
+      "total": {}
+    }
+  },
+  "profileAccountSection": "Аккаунт",
+  "profileDangerZone": "Тут лучше аккуратно трогать",
+  "profileAppearance": "Внешний вид",
+  "profileAppearanceSubtitle": "Тема, цвета, плотность",
+  "profileHaptics": "Вибрация",
+  "profileHapticsSubtitle": "Отклик на нажатия и элементы управления",
+  "profileAccount": "Аккаунт",
+  "profileAccountSubtitle": "Профиль, пароль, сессии",
+  "profilePrivacy": "Приватность",
+  "profilePrivacySubtitle": "Видимость и разрешения",
+  "profileHelp": "Помощь",
+  "profileHelpSubtitle": "FAQ, поддержка, контакты",
+  "profileSession": "Сессия",
+  "profileLogoutSubtitle": "Выйти только на этом устройстве.",
+  "profileLogout": "Выйти",
+  "profileEdit": "Редактировать профиль",
+  "profileThemeStudio": "Редактор тем",
+  "profileGuestName": "Гость",
+  "profileGuestUsername": "guest",
+  "profileDefaultBio": "Пользователь NiosMess",
+  "appearanceTitle": "Внешний вид",
+  "appearanceStudioTitle": "Редактор тем",
+  "appearanceStudioSubtitle": "Настройте палитру, тему, плотность и посмотрите как оно выглядит.",
+  "appearancePreviewTitle": "От так щас выглядит",
+  "appearancePreviewSubtitle": "Компактный взгляд на текущий интерфейс.",
+  "appearancePreviewChat": "Превью чата",
+  "appearanceIncomingPreview": "Пример входящего сообщения",
+  "appearanceAccentPreview": "Превью акцентного цвета",
+  "appearanceThemeMode": "Выбор темы",
+  "appearanceModeSystemSubtitle": "Оставить системным",
+  "appearanceModeLightSubtitle": "Светлый режимчек",
+  "appearanceModeDarkSubtitle": "Тёмный режимчек",
+  "appearanceAccentPalette": "Акцентная палитра",
+  "appearanceAccentPaletteSubtitle": "Material 3 строит всю цветовую систему из этого цвета.",
+  "appearanceMaterialVariant": "Material-вариант",
+  "appearanceInteraction": "Взаимодействие",
+  "appearanceInteractionSubtitle": "Поведение, регион и предпочтения по отклику.",
+  "appearanceCompactMode": "Компактный режим",
+  "appearanceCompactModeSubtitle": "Более плотные отступы в чатах и списках",
+  "appearanceDarkCallBackdrop": "Тёмный фон звонка",
+  "appearanceDarkCallBackdropSubtitle": "Более тёмный стиль на экране активного звонка",
+  "appearanceHapticsSubtitle": "Отклик на чипы, кнопки и строки",
+  "appearanceSoundEffects": "Звуковые эффекты",
+  "appearanceSoundEffectsSubtitle": "Звуки сообщений, звонков и навигации",
+  "appearanceSoundVolume": "Громкость звуков",
+  "appearanceSoundVolumeSubtitle": "Громкость кликов интерфейса, сообщений и звонков",
+  "appearanceSoundVolumeValue": "{percent}%",
+  "@appearanceSoundVolumeValue": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "appearanceLanguageRegion": "Язык и регион",
+  "appearanceLanguageRegionSubtitle": "Язык приложения, часовой пояс и региональный формат",
+  "languageRegionTitle": "Язык и регион",
+  "languageRegionSubtitle": "Выберите язык приложения и способ отображения времени.",
+  "languageRegionAppLanguage": "Язык приложения",
+  "languageRegionUseSystemLanguage": "Использовать системный язык",
+  "languageRegionTimeZone": "Часовой пояс",
+  "languageRegionTimeZoneMode": "Режим часового пояса",
+  "languageRegionCurrentTime": "Текущее время в приложении",
+  "languageRegionSelectTimeZone": "Выбрать часовой пояс",
+  "languageRegionSearchTimeZones": "Поиск часовых поясов",
+  "settingsAccountTitle": "Аккаунт",
+  "settingsCenterTitle": "Центр настроек",
+  "settingsCenterSubtitle": "Аккаунт, внешний вид, приватность и поддержка в одном месте.",
+  "settingsQuickControls": "Быстрые переключатели",
+  "settingsPersonalizationTitle": "Персонализация",
+  "settingsPersonalizationSubtitle": "Тема, язык, плотность и стиль взаимодействия",
+  "settingsAccountSecurityTitle": "Аккаунт и безопасность",
+  "settingsAccountSecuritySubtitle": "Профиль, восстановление, сессии и 2FA",
+  "settingsPrivacyNotificationsTitle": "Приватность и уведомления",
+  "settingsPrivacyNotificationsSubtitle": "Видимость, уведомления, отчёты и серверные ограничения",
+  "settingsSupportAboutTitle": "Помощь и информация",
+  "settingsSupportAboutSubtitle": "Поддержка, версия приложения, документы и ссылки проекта",
+  "settingsAccountSubtitle": "Профиль, безопасность, сессии и восстановление доступа.",
+  "settingsAccountAccessTitle": "Доступ к аккаунту",
+  "settingsAccountAccessSubtitle": "Инструменты подтверждения и восстановления доступа.",
+  "settingsProtectionTitle": "Защита",
+  "settingsProtectionSubtitle": "Контролируйте доступ к аккаунту.",
+  "settingsSecurityTitle": "Безопасность",
+  "settingsSecuritySubtitle": "Управление доступом, устройствами, предупреждениями и уровнем защиты.",
+  "settingsSecurityCheckupTitle": "Проверка безопасности",
+  "settingsSecurityCheckupEnabled": "У вашего аккаунта уже есть усиленная защита входа.",
+  "settingsSecurityCheckupDisabled": "Включите дополнительную защиту для входа и восстановления.",
+  "settingsPrivacyTitle": "Приватность",
+  "settingsPrivacySubtitle": "Уведомления, видимость сообщений и ограничения аккаунта.",
+  "settingsPrivacyVisibilityTitle": "Видимость",
+  "settingsPrivacyVisibilitySubtitle": "Что приложение показывает на этом устройстве и другим людям.",
+  "settingsHelpTitle": "Помощь",
+  "settingsHelpSubtitle": "Поддержка, частые вопросы и быстрое сообщение об ошибке.",
+  "settingsHelpSupportTitle": "Поддержка",
+  "settingsHelpSupportSubtitle": "Получите ответы, свяжитесь с поддержкой или отправьте баг-репорт.",
+  "settingsAboutTitle": "О NiosMess",
+  "settingsAboutSubtitle": "Информация для разработчиков",
+  "settingsBuildSnapshotTitle": "Версия приложения",
+  "settingsBuildSnapshotSubtitle": "Структурное общение с чистым интерфейсом Material 3.",
+  "settingsRuntimeTitle": "Тех данные",
+  "settingsRuntimeSubtitle": "Технические данные",
+  "settingsLinksCreditsTitle": "Ссылки проекта",
+  "settingsLinksCreditsSubtitle": "Публичные страницы NiosMess.",
+  "settingsVersion": "Версия",
+  "settingsApi": "API",
+  "settingsApiEnvironment": "Среда API",
+  "settingsReleaseChannel": "Канал релиза",
+  "settingsLocalStorage": "Локальное хранилище",
+  "settingsProduction": "Продакшн",
+  "settingsClientCache": "Клиентский кэш",
+  "settingsReleaseLiveHint": "Эта сборка подключается к актуальному API NiosMess.",
+  "settingsLocalStorageHint": "Сообщения, черновики и данные сессии хранятся локально прямо на вашем телефоне.",
+  "settingsDevelopers": "Разработчики",
+  "settingsDevelopersSubtitle": "Люди, которые делают NiosMess таким приятным",
+  "settingsOpenWebsite": "Открыть сайт",
+  "settingsOpenWebsiteSubtitle": "Открыть {url} в браузере",
+  "@settingsOpenWebsiteSubtitle": {
+    "placeholders": {
+      "url": {}
+    }
+  },
+  "settingsCopyApiUrl": "Скопировать URL API",
+  "settingsApiUrlCopied": "URL API скопирован",
+  "settingsLicenses": "Open source лицензии",
+  "settingsLicensesSubtitle": "Посмотреть опенсурс лицензии используемые в приложении",
+  "settingsPrivacyPolicy": "Политика конфиденциальности",
+  "settingsTermsOfService": "Условия использования",
+  "settingsLegalTitle": "Юридическая информация",
+  "settingsLegalSubtitle": "Документы и лицензии",
+  "settingsCouldNotOpenLink": "Не удалось открыть ссылку в браузере",
+  "settingsPushNotifications": "Push-уведомления",
+  "settingsPushNotificationsSubtitle": "Сообщения и звонки на этом устройстве",
+  "settingsReadReceipts": "Отчёты о прочтении",
+  "settingsReadReceiptsSubtitle": "Показывать другим, что вы прочитали сообщение",
+  "settingsTypingIndicator": "Индикатор набора",
+  "settingsTypingIndicatorSubtitle": "Показывать, когда вы печатаете сообщение",
+  "settingsSpamBlockTitle": "Ваш аккаунт на спам-блоке",
+  "settingsSpamBlockSubtitle": "Вы не можете начинать новые ЛС, вступать в группы или получать приглашения. Если это ошибка — обратитесь в поддержку.",
+  "settingsServerLimitsTitle": "Серверные ограничения",
+  "settingsServerLimitsSubtitle": "Пака не сделано",
+  "settingsTwoFactorStatus": "Статус двухфакторной защиты",
+  "settingsTwoFactor": "Двухфакторная аутентификация",
+  "settingsTwoFactorEnabledShort": "Включена для вашего аккаунта",
+  "settingsTwoFactorDisabledShort": "Выключена для вашего аккаунта",
+  "settingsTwoFactorOpenAccount": "Открыть настройки аккаунта для включения или отключения 2FA",
+  "settingsTrustedDevices": "Доверенные устройства",
+  "settingsTrustedDevicesSubtitle": "Проверьте текущие сессии и отключите старые устройства",
+  "settingsResetPassword": "Сброс пароля",
+  "settingsResetPasswordSubtitle": "Запросить код сброса пароля по email",
+  "settingsVerifyEmail": "Подтверждение email",
+  "settingsVerifyEmailSubtitle": "Подтвердите почту для восстановления и более безопасного входа",
+  "settingsActiveSessions": "Активные сессии",
+  "settingsActiveSessionsSubtitle": "Управление устройствами с входом в аккаунт",
+  "settingsNoUsername": "Нет username",
+  "settingsUserFallback": "Пользователь",
+  "settingsAvatarUpdated": "Аватар обновлён",
+  "settingsDisable2faTitle": "Отключить 2FA?",
+  "settingsDisable2faBody": "Ваш аккаунт станет менее защищённым.",
+  "settingsDisable": "Отключить",
+  "settingsConfirm": "Подтвердить",
+  "settingsConfirmPassword": "Подтвердите пароль",
+  "settingsDisable2fa": "Отключить 2FA",
+  "settingsEnable2fa": "Включить 2FA",
+  "settings2faEnabled": "2FA включена",
+  "settings2faDisabled": "2FA отключена",
+  "settingsContactSupport": "Связаться с поддержкой",
+  "settingsReportIssue": "Сообщить о проблеме",
+  "settingsReportIssueSubtitle": "Опишите проблему, с которой столкнулись",
+  "settingsReportIssueHint": "Опишите проблему...",
+  "settingsSubmit": "Отправить",
+  "settingsSupportCopied": "Email поддержки скопирован в буфер обмена",
+  "settingsSupportRequestSubject": "Запрос в поддержку NiosMess",
+  "settingsSupportRequestBody": "Опишите вашу проблему здесь.",
+  "settingsBugReportSubject": "Баг-репорт NiosMess",
+  "settingsBugReportEmpty": "Описание проблемы не было указано.",
+  "settingsFaq": "FAQ",
+  "settingsFaqResetQ": "Как сбросить пароль?",
+  "settingsFaqResetA": "Перейдите в Аккаунт > Сброс пароля. Введите email и следуйте по ссылке.",
+  "settingsFaq2faQ": "Как включить 2FA?",
+  "settingsFaq2faA": "Перейдите в Аккаунт > Двухфакторная аутентификация и подтвердите действие паролем.",
+  "settingsFaqJoinQ": "Как вступить в группу?",
+  "settingsFaqJoinA": "Используйте инвайт-ссылку или нажмите на иконку ссылки на экране чатов, чтобы войти по slug.",
+  "settingsFaqSpamQ": "Почему я не могу начинать новые чаты?",
+  "settingsFaqSpamA": "Возможно, на ваш аккаунт наложен спам-блок. Свяжитесь с поддержкой.",
+  "developersTeamTitle": "Команда NiosMess",
+  "developersHeroSubtitle": "Основатель, Разработчик мобильного приложения и саунд дизайнер в одной команде",
+  "developersSanlsanRole": "Основатель",
+  "developersSanlsanDescription": "Создал ядро Niosmess и придумал саму идею приложения",
+  "developersSh20fkRole": "Руководитель разработки приложения на все платформы",
+  "developersSh20fkDescription": "Создал приятный интерфейс которым вы сможете пользоваться ежедневно",
+  "developersKarlovPrimeRole": "Саунд-дизайнер",
+  "developersKarlovPrimeDescription": "Создал звуки и мелодии в приложении",
+  "developersTagBackend": "Бэкенд",
+  "developersTagApi": "API",
+  "developersTagAuth": "Авторизация",
+  "developersTagFlutter": "Flutter",
+  "developersTagUx": "UX",
+  "developersTagClient": "Клиент",
+  "developersTagSound": "Звук",
+  "developersTagCalls": "Звонки",
+  "developersTagIdentity": "Стиль",
+  "chatListFilterAll": "Все",
+  "chatListFilterUnread": "Непрочитанные",
+  "chatListFilterGroups": "Группы",
+  "chatListFilterChannels": "Каналы",
+  "chatListFilterDirect": "Личные",
+  "chatListFilterBots": "Боты",
+  "chatListSearch": "Поиск чатов",
+  "chatListSearchMessagesHint": "Поиск чатов и сообщений",
+  "chatListMessageMatches": "Совпадения в сообщениях",
+  "chatListNoChats": "Чаты не найдены.",
+  "chatListNotAuthenticated": "Вы ещё не авторизованы.",
+  "chatListMarkRead": "Отметить прочитанным",
+  "chatListMarkReadSubtitle": "Убрать статус непрочитанного для этого чата",
+  "chatListMute": "Выключить звук",
+  "chatListPin": "Закрепить",
+  "chatListArchive": "Архивировать",
+  "chatListMuteSubtitle": "Пока не отключение звука не реализовано",
+  "chatListLeave": "Покинуть чат",
+  "chatListLeaveSubtitle": "Удалить этот диалог из вашего аккаунта",
+  "chatListFailedLoad": "Не удалось загрузить чаты: {error}",
+  "@chatListFailedLoad": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "chatListMuteUnsupported": "Отключение звука пока не реализовано",
+  "chatListPinUnsupported": "Закрепление пока не реализовано",
+  "chatListArchiveUnsupported": "Архив пока не реализовано",
+  "chatListLeft": "Вы покинули этот чат",
+  "chatListChannelPreview": "Канал • {preview}",
+  "@chatListChannelPreview": {
+    "placeholders": {
+      "preview": {}
+    }
+  },
+  "chatListGroupPreview": "Группа • {preview}",
+  "@chatListGroupPreview": {
+    "placeholders": {
+      "preview": {}
+    }
+  },
+  "chatListUnreadCount": "{count} непрочит.",
+  "@chatListUnreadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatPreviewForwardedFrom": "Переслано от {name}",
+  "@chatPreviewForwardedFrom": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "chatPreviewPhoto": "Фото",
+  "chatPreviewVideo": "Видео",
+  "chatPreviewAudio": "Аудио",
+  "chatPreviewFile": "Файл",
+  "chatTitleFallback": "Чат #{id}",
+  "@chatTitleFallback": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "chatInvalidId": "Некорректный ID чата",
+  "chatToday": "Сегодня",
+  "chatYesterday": "Вчера",
+  "chatMemberCount": "{count, plural, =0 {Нет участников} =1 {1 участник} few {{count} участника} many {{count} участников} other {{count} участника}}",
+  "@chatMemberCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatNoMessages": "Сообщений пока нет",
+  "chatSendFirst": "Начните общение!",
+  "chatLoadEarlier": "Показать старые сообщения",
+  "chatNoMoreMessages": "Больше сообщений нет",
+  "chatVoiceCall": "Голосовой звонок",
+  "chatVideoCall": "Видеозвонок",
+  "chatMembers": "Участники",
+  "chatManage": "Управление чатом",
+  "chatReply": "Ответить",
+  "chatResendTo": "Переслать в...",
+  "chatResendSubtitle": "Копирует текст сообщения в другой чат",
+  "chatComments": "Комментарии",
+  "chatCommentsCount": "{count} комментариев",
+  "@chatCommentsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatEdit": "Изменить",
+  "chatDelete": "Удалить",
+  "chatEditMessageTitle": "Изменить сообщение",
+  "chatEditMessageHint": "Текст сообщения",
+  "chatDeleteMessageTitle": "Удалить сообщение?",
+  "chatDeleteMessageBody": "Это действие нельзя отменить.",
+  "chatMessageDeleted": "Сообщение удалено",
+  "chatMessageForwarded": "Сообщение переслано",
+  "chatMediaSent": "Медиа отправлено",
+  "chatForwardTo": "Переслать в...",
+  "chatAttachment": "Вложение",
+  "chatOpenAttachment": "Открыть вложение",
+  "chatTapToPreview": "Нажмите для просмотра",
+  "chatReplyToId": "Ответ на #{id}",
+  "@chatReplyToId": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "chatForwardedTitle": "Пересланное сообщение",
+  "chatForwardedFrom": "От {name}",
+  "@chatForwardedFrom": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "chatEdited": "изменено",
+  "chatFailedLoadMessages": "Не удалось загрузить сообщения: {error}",
+  "@chatFailedLoadMessages": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "chatCancelReply": "Отменить ответ",
+  "chatAttachMedia": "Прикрепить медиа",
+  "chatMessageHint": "Введите сообщение",
+  "chatOnlyAdminsCanPost": "Писать в этот канал могут только администраторы",
+  "chatMembersTitle": "Участники: {name}",
+  "@chatMembersTitle": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "chatMembersInviteUser": "Пригласить пользователя",
+  "chatMembersSearchHint": "Поиск по username или имени",
+  "chatMembersSearchPrompt": "Введите имя для поиска",
+  "chatMembersInvited": "Приглашён @{username}",
+  "@chatMembersInvited": {
+    "placeholders": {
+      "username": {}
+    }
+  },
+  "chatMembersEmpty": "Участников нет",
+  "chatMembersRoleOwner": "владелец",
+  "chatMembersRoleAdmin": "админ",
+  "chatMembersRoleMember": "участник",
+  "chatMembersMuted": "заглушен",
+  "chatMembersBanned": "забанен",
+  "chatMembersBan": "Забанить",
+  "chatMembersUnban": "Разбанить",
+  "chatMembersMute": "Заглушить",
+  "chatMembersUnmute": "Снять мут",
+  "chatMembersPromoteAdmin": "Назначить админом",
+  "chatMembersDemoteMember": "Понизить до участника",
+  "commentsTitle": "Комментарии к посту",
+  "commentsEmpty": "Комментариев пока нет",
+  "commentsDeleted": "Комментарий удалён",
+  "commentsHint": "Напишите комментарий",
+  "commentsFailedLoad": "Не удалось загрузить комментарии: {error}",
+  "@commentsFailedLoad": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "commentsFailedSend": "Не удалось отправить комментарий: {error}",
+  "@commentsFailedSend": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "callsSubtitle": "История звонков.",
+  "callsNoHistory": "Истории звонков пока нет. Начните звонок из любого чата.",
+  "callsFailedToStart": "Не удалось начать звонок: {error}",
+  "@callsFailedToStart": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "callsFailedLoadChats": "Не удалось загрузить чаты: {error}",
+  "@callsFailedLoadChats": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "callsMissed": "Пропущенный • {time}",
+  "@callsMissed": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "callsDeclined": "Отклонённый • {time}",
+  "@callsDeclined": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "callsDeclinedShort": "Отклонённый",
+  "callsOutgoing": "Исходящий • {time}",
+  "@callsOutgoing": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "callsOutgoingShort": "Исходящий",
+  "callsIncoming": "Входящий • {time}",
+  "@callsIncoming": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "callsIncomingShort": "Входящий",
+  "callsInProgress": "Идёт звонок",
+  "callsTotalCount": "{count, plural, =0 {Нет звонков} =1 {1 звонок} few {{count} звонка} many {{count} звонков} other {{count} звонка}}",
+  "@callsTotalCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "callsMissedCount": "{count, plural, =0 {Нет пропущенных} =1 {1 пропущенный} few {{count} пропущенных} many {{count} пропущенных} other {{count} пропущенного}}",
+  "@callsMissedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "callsVideoCount": "{count, plural, =0 {Нет видео} =1 {1 видео} other {{count} видео}}",
+  "@callsVideoCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "callsSearchHint": "Поиск звонков",
+  "callsFilterAll": "Все",
+  "callsFilterMissed": "Пропущенные",
+  "callsFilterVideo": "Видео",
+  "callsQuickTitle": "Центр звонков",
+  "callsLatestCall": "Последний звонок: {name}",
+  "@callsLatestCall": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "callsQuickPeople": "Быстрый звонок",
+  "callsQuickAdd": "Добавить",
+  "callsResultCount": "{count, plural, =0 {Подходящих звонков нет} =1 {1 подходящий звонок} few {{count} подходящих звонка} many {{count} подходящих звонков} other {{count} подходящего звонка}}",
+  "@callsResultCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activeCallTitle": "Звонок",
+  "activeCallInvalidChat": "Некорректный ID чата",
+  "activeCallRefresh": "Обновить статус звонка",
+  "activeCallResponseFailed": "Не удалось ответить на звонок: {error}",
+  "@activeCallResponseFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "activeCallEndFailed": "Не удалось завершить звонок: {error}",
+  "@activeCallEndFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "activeCallVoice": "Голосовой",
+  "activeCallVideo": "Видео",
+  "activeCallRinging": "Вызов",
+  "activeCallActive": "Активен",
+  "activeCallEnded": "Завершён",
+  "activeCallMissed": "Пропущен",
+  "activeCallDeclined": "Отклонён",
+  "activeCallVideoPreview": "Видео-превью готово",
+  "activeCallCameraOn": "Камера включена",
+  "activeCallCameraOff": "Камера выключена",
+  "activeCallAnswer": "Ответить",
+  "activeCallDecline": "Отклонить",
+  "activeCallEnd": "Завершить звонок",
+  "activeCallMute": "Выключить микрофон",
+  "activeCallUnmute": "Включить микрофон",
+  "activeCallSpeaker": "Динамик",
+  "groupTypeGroup": "Группа",
+  "groupTypeChannel": "Канал",
+  "groupTypeStep": "Тип",
+  "groupDetailsStep": "Детали",
+  "groupPrivacyStep": "Приватность",
+  "groupReviewStep": "Проверка",
+  "groupWizardTypeSubtitle": "Выберите, что вы хотите создать.",
+  "groupWizardDetailsSubtitle": "Укажите название и короткое описание.",
+  "groupWizardPrivacySubtitle": "Это публичный или приватный чат?",
+  "groupWizardReviewSubtitle": "Проверьте настройки перед созданием.",
+  "groupNewGroup": "Новая группа",
+  "groupNewChannel": "Новый канал",
+  "groupCreateOrJoin": "Создать или войти",
+  "groupCreateSharedSubtitle": "Создайте общий чат для участников",
+  "groupCreateBroadcastSubtitle": "Создайте канал для постов и объявлений",
+  "groupJoinByInvite": "Войти по приглашению",
+  "groupJoinByInviteSubtitle": "Вставьте ссылку-приглашение для входа в чат",
+  "groupTypeGroupSubtitle": "Участники могут общаться вместе. Подходит для друзей и команд.",
+  "groupTypeChannelSubtitle": "Публикуйте обновления, посты и объявления для подписчиков.",
+  "groupYourNewChannel": "Ваш новый канал",
+  "groupYourNewGroup": "Ваша новая группа",
+  "groupEditLater": "Аватар, участников и ссылки можно изменить позже.",
+  "groupNameLabel": "Название",
+  "groupNameHint": "Мой рабочий чат",
+  "groupDescriptionChannelLabel": "Описание канала (необязательно)",
+  "groupDescriptionGroupLabel": "Описание группы (необязательно)",
+  "groupDescriptionChannelHint": "О чём этот канал",
+  "groupDescriptionGroupHint": "Для чего эта группа",
+  "groupPrivate": "Приватный",
+  "groupPrivateSubtitle": "Люди смогут войти только по ссылке-приглашению.",
+  "groupPublic": "Публичный",
+  "groupPublicSubtitle": "Люди смогут найти его по названию или вступить по ссылке.",
+  "groupPublicUsername": "Имя группы",
+  "groupEnableComments": "Включить комментарии",
+  "groupEnableCommentsSubtitle": "Участники смогут комментировать посты канала в ветке обсуждений.",
+  "groupBack": "Назад",
+  "groupContinue": "Продолжить",
+  "groupCreate": "Создать",
+  "groupCreating": "Создаём...",
+  "groupAlreadyHaveInvite": "Уже есть инвайт? Войти по ссылке",
+  "groupVisibility": "Видимость",
+  "groupUsernameLabel": "Username",
+  "groupCreatedChannel": "Канал успешно создан",
+  "groupCreatedGroup": "Группа успешно создана",
+  "groupCreateFailed": "Не удалось создать чат: {error}",
+  "@groupCreateFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "groupNameTooShort": "Название должно быть минимум 3 символа",
+  "groupUsernameRules": "Используйте 3-32 символа: буквы, цифры, точку и подчёркивание",
+  "groupJoinTitle": "Вход по инвайту",
+  "groupJoinHeadline": "Войти по ссылке",
+  "groupJoinSubtitle": "Вставьте приватную ссылку-приглашение чтобы сначала посмотреть превью чата.",
+  "groupInviteLinkOrSlug": "Ссылка-приглашение",
+  "groupPreviewInvite": "Показать превью",
+  "groupInvitePreviewNotFound": "Превью инвайта не найдено.",
+  "groupJoinChat": "Войти в чат",
+  "groupJoining": "Входим...",
+  "groupInviteFailedLoad": "Не удалось загрузить инвайт: {error}",
+  "@groupInviteFailedLoad": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "groupJoinFailed": "Не удалось войти в чат: {error}",
+  "@groupJoinFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "groupSignInToJoin": "Войдите в аккаунт, чтобы заходить в чаты по инвайту.",
+  "groupChannelPreview": "Превью канала",
+  "groupGroupPreview": "Превью группы",
+  "groupNoPostsYet": "Постов пока нет",
+  "groupManageTitle": "Управление: {name}",
+  "@groupManageTitle": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "groupManageChangeAvatar": "Изменить аватар",
+  "groupManageUploading": "Загрузка...",
+  "groupManageAvatarUpdated": "Аватар обновлён",
+  "groupManageChatUpdated": "Чат обновлён",
+  "groupManageSaveChanges": "Сохранить изменения",
+  "groupManageIdentity": "Основное",
+  "groupManageLinks": "Ссылки и метаданные",
+  "groupManageLeaveTitle": "Покинуть чат?",
+  "groupManageLeaveBody": "Вы больше не будете видеть этот чат.",
+  "groupManageLeave": "Покинуть чат",
+  "commonEnabled": "Включено",
+  "commonDisabled": "Выключено",
+  "timeNow": "сейчас",
+  "timeYesterday": "вчера",
+  "settingsProfileSetupSubtitle": "Настройте профиль",
+  "settingsSectionsTitle": "Разделы настроек",
+  "settingsSectionsSubtitle": "Здесь показаны только рабочие разделы.",
+  "settingsStorageTitle": "Хранилище",
+  "settingsStorageSubtitle": "Данные приложения, черновики и кэш, который можно очистить.",
+  "settingsStorageBreakdown": "Состав хранилища",
+  "settingsStorageBreakdownSubtitle": "Посчитано на этом устройстве.",
+  "settingsStorageAppData": "Данные приложения",
+  "settingsStorageAppDataSubtitle": "Локальные файлы, нужные приложению.",
+  "settingsStorageTemporaryCache": "Временный кэш",
+  "settingsStorageTemporaryCacheSubtitle": "Файлы, которые приложение может создать заново.",
+  "settingsStorageDrafts": "Черновики",
+  "settingsStorageDraftsSubtitle": "{count, plural, =0{Нет сохранённых черновиков} =1{1 сохранённый черновик} other{{count} сохранённых черновиков}}",
+  "@settingsStorageDraftsSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsStorageActions": "Действия",
+  "settingsStorageActionsSubtitle": "Очищаются только данные, которые безопасно восстановить.",
+  "settingsStorageRefresh": "Обновить расчёт",
+  "settingsStorageRefreshSubtitle": "Заново посчитать локальное хранилище",
+  "settingsStorageCheckIntegrity": "Проверить хранилище",
+  "settingsStorageCheckIntegritySubtitle": "Проверить схему, папки и черновики",
+  "settingsStorageClearTemporary": "Очистить временный кэш",
+  "settingsStorageClearTemporarySubtitle": "Удалить файлы из папки кэша приложения",
+  "settingsStorageClearDrafts": "Очистить черновики",
+  "settingsStorageClearDraftsSubtitle": "Удалить неотправленный локальный текст",
+  "settingsStorageClearTemporaryConfirmTitle": "Очистить временный кэш?",
+  "settingsStorageClearTemporaryConfirmBody": "Кэш будет создан заново при необходимости. Аккаунт и настройки не будут затронуты.",
+  "settingsStorageClearDraftsConfirmTitle": "Очистить черновики?",
+  "settingsStorageClearDraftsConfirmBody": "Неотправленный текст черновиков на этом устройстве будет удалён.",
+  "settingsStorageCleared": "Хранилище очищено",
+  "settingsStorageHealthOkTitle": "Хранилище в порядке",
+  "settingsStorageHealthOkBody": "Локальная схема версии {schemaVersion} готова, проблем целостности нет.",
+  "@settingsStorageHealthOkBody": {
+    "placeholders": {
+      "schemaVersion": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsStorageHealthIssueTitle": "Хранилище требует внимания",
+  "settingsStorageUsedByApp": "Занято NiosMess на этом устройстве",
+  "settingsStorageCleanable": "{size} можно очистить без выхода из аккаунта.",
+  "@settingsStorageCleanable": {
+    "placeholders": {
+      "size": {}
+    }
+  },
+  "settingsLegalPoliciesSubtitle": "Документы. Лицензии перенесены в скрытое меню.",
+  "settingsHiddenMenuTitle": "Скрытые инструменты",
+  "settingsHiddenMenuSubtitle": "Открываются долгим нажатием на версию приложения.",
+  "settingsDiagnosticsTitle": "Диагностика",
+  "settingsDiagnosticsSubtitle": "Информация для разработчиков",
+  "settingsDiagnosticsStorageSummary": "Схема v{schemaVersion}, локально занято {size}",
+  "@settingsDiagnosticsStorageSummary": {
+    "placeholders": {
+      "schemaVersion": {
+        "type": "int"
+      },
+      "size": {}
+    }
+  },
+  "settingsDiagnosticsLogsTitle": "Локальные логи",
+  "settingsDiagnosticsLogsSubtitle": "Последние ошибки и события на этом устройстве.",
+  "settingsDiagnosticsNoLogs": "Локальных ошибок нет",
+  "settingsDiagnosticsActions": "Действия диагностики",
+  "settingsDiagnosticsRefresh": "Обновить диагностику",
+  "settingsDiagnosticsRefreshSubtitle": "Заново прочитать версию, звук, хранилище и логи",
+  "settingsDiagnosticsTestSound": "Проверить звук интерфейса",
+  "settingsDiagnosticsTestSoundSubtitle": "Проиграть текущий звук перехода",
+  "settingsDiagnosticsCopyLogs": "Скопировать локальные логи",
+  "settingsDiagnosticsCopyLogsSubtitle": "Скопировать последние ошибки и события",
+  "settingsDiagnosticsLogsCopied": "Локальные логи скопированы",
+  "settingsEditProfileSubtitle": "Изменить имя, аватар и описание",
+  "appearanceVariantTonalSpot": "Мягкая",
+  "appearanceVariantVibrant": "Насыщенная",
+  "appearanceVariantExpressive": "Выразительная",
+  "appearanceVariantNeutral": "Нейтральная",
+  "appearanceVariantMonochrome": "Монохромная",
+  "appearanceVariantFidelity": "Резкая",
+  "appearancePaletteNiosMess": "Фирменная тема NiosMess",
+  "appearancePaletteOcean": "Океан",
+  "appearancePaletteForest": "Лес",
+  "appearancePaletteSunset": "Закат",
+  "appearancePaletteRose": "Роза",
+  "appearancePaletteSignal": "Сигнал",
+  "resetPasswordRequestTitle": "Сброс пароля",
+  "resetPasswordRequestHeroTitle": "Сброс пароля",
+  "resetPasswordRequestHeroSubtitle": "Мы отправим код для сброса на ваш email.",
+  "resetPasswordRequestEmailLabel": "Электронная почта",
+  "resetPasswordRequestEmailError": "Введите корректный email",
+  "resetPasswordRequestSubmit": "Отправить код",
+  "resetPasswordRequestSubmitting": "Отправка...",
+  "resetPasswordRequestSent": "Запрос отправлен",
+  "resetPasswordConfirmTitle": "Подтверждение сброса",
+  "resetPasswordConfirmHeroTitle": "Введите код",
+  "resetPasswordConfirmHeroSubtitle": "Введите код, отправленный на ваш email.",
+  "resetPasswordConfirmEmailLabel": "Электронная почта",
+  "resetPasswordConfirmEmailError": "Введите корректный email",
+  "resetPasswordConfirmCodeLabel": "Код",
+  "resetPasswordConfirmCodeError": "Введите 6 цифр",
+  "resetPasswordConfirmPasswordLabel": "Новый пароль",
+  "resetPasswordConfirmPasswordError": "Минимум 8 символов",
+  "resetPasswordConfirmSubmit": "Сбросить пароль",
+  "resetPasswordConfirmSubmitting": "Применение...",
+  "resetPasswordConfirmDone": "Пароль успешно изменён",
+  "sessionsTitle": "Активные сессии",
+  "sessionsRevokeTitle": "Отозвать сессию?",
+  "sessionsRevokeConfirm": "Отозвать",
+  "sessionsCancel": "Отмена",
+  "sessionsRevokeTooltip": "Отозвать сессию",
+  "sessionsRevokedSuccess": "Сессия отозвана",
+  "sessionsEmpty": "Нет активных сессий",
+  "sessionsRetry": "Повторить",
+  "sessionsRevokeAll": "Отозвать все другие сессии",
+  "contactsTitle": "Контакты",
+  "contactsRecent": "Недавние",
+  "contactsRecentPeople": "Недавние контакты...",
+  "contactsSearch": "Поиск",
+  "contactsNoRecent": "Пока нет недавних контактов...",
+  "contactsTypeUsername": "Введите имя пользователя...",
+  "contactsNoMatches": "Совпадений не найдено.",
+  "contactsMessage": "Сообщение",
+  "contactsChat": "Чат",
+  "contactDetailTitle": "Контакт",
+  "contactDetailOverview": "Обзор контакта",
+  "contactDetailSharedContext": "Общий контекст",
+  "contactDetailUsername": "Имя пользователя",
+  "contactDetailBio": "О себе",
+  "contactDetailSharedContextDesc": "Общие группы и медиа появятся здесь, как только эти данные станут доступны из API.",
+  "contactDetailNoBio": "Нет публичной информации",
+  "contactsSubtitle": "Недавние контакты, быстрые сообщения и поиск.",
+  "contactsNotAuth": "Вы еще не авторизованы.",
+  "contactsNoRecentFull": "Пока нет недавних контактов.\nНачните общение через вкладку Поиск.",
+  "contactsSearchHint": "Поиск по имени, username или тексту",
+  "contactsSearchEmpty": "Введите username или имя для поиска пользователей, чатов и сообщений.",
+  "contactsUsers": "Пользователи",
+  "contactsChats": "Чаты",
+  "contactsMessages": "Сообщения",
+  "contactsNoMessagesYet": "Сообщений пока нет",
+  "contactsForwardedFrom": "Переслано от {name}",
+  "@contactsForwardedFrom": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "mediaActionSave": "Сохранить",
+  "mediaActionCopy": "Скопировать ссылку",
+  "mediaActionOpenIn": "Открыть в...",
+  "mediaViewerTitle": "Вложение",
+  "mediaViewerCannotPreview": "Предпросмотр этого файла недоступен",
+  "mediaViewerOpenExternal": "Открыть во внешнем приложении",
+  "chatUploadCancelTitle": "Отменить загрузку?",
+  "chatUploadCancelBody": "Идёт загрузка медиа. Прервать?",
+  "commonYes": "Да",
+  "commonNo": "Нет",
+  "chatScrollToBottom": "К последним сообщениям",
+  "chatTypingOne": "{name} печатает...",
+  "@chatTypingOne": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "chatTypingMultiple": "Несколько человек печатают...",
+  "chatUnreadMessages": "{count, plural, =1 {1 непрочитанное} few {{count} непрочитанных} many {{count} непрочитанных} other {{count} непрочитанных}}",
+  "@chatUnreadMessages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatEditingMessage": "Редактирование",
+  "chatEditCancel": "Отменить редактирование",
+  "chatScrollLoadingEarlier": "Загрузка сообщений...",
+  "appearanceOptimizeWeakDevices": "Оптимизация для слабых устройств",
+  "appearanceOptimizeWeakDevicesSubtitle": "Отключает размытие фона и тяжелые BackdropFilter эффекты для повышения FPS",
+  "searchSemantic": "Семантический поиск",
+  "searchSemanticHint": "Искать по смыслу с помощью ИИ",
+  "searchSemanticFallback": "Семантический поиск временно недоступен. Выполнен обычный поиск.",
+  "chatCreatePersonal": "Создать личный чат",
+  "chatCreatePersonalSubtitle": "Начать прямой диалог по имени пользователя",
+  "chatCreatePersonalPrompt": "Начать личный чат",
+  "chatCreatePersonalUsernameLabel": "Имя пользователя (username)",
+  "chatCreatePersonalUsernameHint": "username",
+  "chatCreatePersonalStart": "Начать",
+  "chatCreatePersonalErrorEmpty": "Имя пользователя не может быть пустым",
+  "settingsAdminTitle": "Панель админа",
+  "settingsAdminSubtitle": "Управление пользователями и чатами",
+  "settingsBadgesTitle": "Бейджи",
+  "settingsBadgesSubtitle": "Просмотр и управление бейджами",
+  "settingsBotsTitle": "Боты",
+  "settingsBotsSubtitle": "Создание и управление ботами",
+  "settingsSecretChatsTitle": "Секретные чаты",
+  "settingsSecretChatsSubtitle": "Сквозное шифрование (E2EE)",
+  "settingsSecretChatsButton": "Секретный чат"
+}

@@ -1,0 +1,902 @@
+{
+  "@@locale": "en",
+  "appName": "NiosMess",
+  "tabChats": "Chats",
+  "tabCalls": "Calls",
+  "tabContacts": "Contacts",
+  "tabProfile": "Profile",
+  "commonContinue": "Continue",
+  "commonSkip": "Skip",
+  "commonSave": "Save",
+  "commonRetry": "Retry",
+  "commonCancel": "Cancel",
+  "commonOk": "OK",
+  "commonDelete": "Delete",
+  "commonPreview": "Preview",
+  "commonSearch": "Search",
+  "commonSystem": "System",
+  "commonLight": "Light",
+  "commonDark": "Dark",
+  "commonAutomatic": "Automatic",
+  "commonManual": "Manual",
+  "commonLoading": "Loading...",
+  "commonNoDescription": "No public description yet.",
+  "commonFailed": "Failed: {error}",
+  "@commonFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "commonPasteFromClipboard": "Paste from clipboard",
+  "splashTagline": "Fluid connection, clear communication",
+  "loginTitle": "Welcome back",
+  "loginSubtitle": "Sign in with email or username.",
+  "loginIdentifierLabel": "Email or username",
+  "loginIdentifierError": "Enter email or username",
+  "loginPasswordLabel": "Password",
+  "loginPasswordError": "Minimum 4 characters",
+  "loginForgotPassword": "Forgot password?",
+  "loginSubmit": "Sign in",
+  "loginSubmitting": "Signing in...",
+  "loginCreateAccount": "Create account",
+  "loginFailed": "Login failed",
+  "twoFaTitle": "Security check",
+  "twoFaHeroTitle": "Enter your 2FA code",
+  "twoFaHeroSubtitle": "We sent a 6-digit code to your email. This keeps your NiosMess session protected.",
+  "twoFaCodeLabel": "Verification code",
+  "twoFaCodeError": "Enter 6 digits",
+  "twoFaVerify": "Verify code",
+  "twoFaVerifying": "Verifying...",
+  "twoFaProtected": "Protected sign-in",
+  "twoFaExpires": "Short-lived code",
+  "twoFaHint": "Tip: paste the code directly; spaces are ignored.",
+  "twoFaFailed": "2FA verification failed",
+  "registerTitle": "Create account",
+  "registerEmailLabel": "Email",
+  "registerEmailError": "Enter valid email",
+  "registerUsernameLabel": "Username",
+  "registerUsernameError": "At least 3 characters",
+  "registerDisplayNameLabel": "Display name",
+  "registerDisplayNameError": "At least 2 characters",
+  "registerPasswordLabel": "Password",
+  "registerPasswordError": "Minimum 8 characters",
+  "registerSubmit": "Create account",
+  "registerSubmitting": "Creating...",
+  "registerFailed": "Registration failed",
+  "verifyEmailTitle": "Verify email",
+  "verifyEmailCodeLabel": "6-digit code",
+  "verifyEmailCodeError": "Enter 6 digits",
+  "verifyEmailSubmit": "Verify",
+  "verifyEmailSubmitting": "Verifying...",
+  "verifyEmailDone": "Done",
+  "setupWelcomeTitle": "Nice to meet you!",
+  "setupWelcomeBody": "Let's quickly set up NiosMess for you.\nThis takes about 30 seconds.",
+  "setupLanguageTitle": "Choose your language",
+  "setupTimezoneTitle": "Your time zone",
+  "setupTimezoneUseDevice": "Uses your device's current time zone",
+  "setupTimezoneChooseManual": "Choose manually",
+  "setupStartMessaging": "Start messaging",
+  "languageEnglish": "English",
+  "languageRussian": "Russian",
+  "languageRussianNative": "Русский",
+  "profileTitle": "Profile",
+  "profilePublicView": "Your public view",
+  "profilePublicProfile": "Public profile",
+  "profileMessage": "Message",
+  "profileCall": "Call",
+  "profileVideo": "Video",
+  "profileAbout": "About",
+  "profileDisplayName": "Display name",
+  "profileUsername": "Username",
+  "profileDescription": "Description",
+  "profilePreferences": "Preferences",
+  "profileMyProfile": "My profile",
+  "profileQuickSettings": "Quick settings",
+  "profileDoNotDisturb": "Do not disturb",
+  "profileDoNotDisturbSubtitle": "Pause push notifications on this device",
+  "profileHideOnline": "Hide online",
+  "profileHideOnlineSubtitle": "Keep presence quieter in the app UI",
+  "profileStorage": "Storage",
+  "profileStorageUsed": "{used} of {total} used",
+  "@profileStorageUsed": {
+    "placeholders": {
+      "used": {},
+      "total": {}
+    }
+  },
+  "profileAccountSection": "Account",
+  "profileDangerZone": "Danger zone",
+  "profileAppearance": "Appearance",
+  "profileAppearanceSubtitle": "Theme mode, colors, density",
+  "profileHaptics": "Haptics",
+  "profileHapticsSubtitle": "Feedback on taps and controls",
+  "profileAccount": "Account",
+  "profileAccountSubtitle": "Profile, password, sessions",
+  "profilePrivacy": "Privacy",
+  "profilePrivacySubtitle": "Visibility and permissions",
+  "profileHelp": "Help",
+  "profileHelpSubtitle": "FAQ, support, contacts",
+  "profileSession": "Session",
+  "profileLogoutSubtitle": "Log out from this device only.",
+  "profileLogout": "Log out",
+  "profileEdit": "Edit profile",
+  "profileThemeStudio": "Theme studio",
+  "profileGuestName": "Guest",
+  "profileGuestUsername": "guest",
+  "profileDefaultBio": "NiosMess user",
+  "appearanceTitle": "Appearance",
+  "appearanceStudioTitle": "Theme studio",
+  "appearanceStudioSubtitle": "Tune palette, mode, density, and feedback with a live preview.",
+  "appearancePreviewTitle": "Live preview",
+  "appearancePreviewSubtitle": "A compact look at your current UI style.",
+  "appearancePreviewChat": "Preview chat",
+  "appearanceIncomingPreview": "Incoming message preview",
+  "appearanceAccentPreview": "Accent color preview",
+  "appearanceThemeMode": "Theme mode",
+  "appearanceModeSystemSubtitle": "Follow device",
+  "appearanceModeLightSubtitle": "Clean daylight UI",
+  "appearanceModeDarkSubtitle": "Low-glare night UI",
+  "appearanceAccentPalette": "Accent palette",
+  "appearanceAccentPaletteSubtitle": "Material 3 generates the whole color system from this seed.",
+  "appearanceMaterialVariant": "Material variant",
+  "appearanceInteraction": "Interaction",
+  "appearanceInteractionSubtitle": "Behavior, region and motion preferences.",
+  "appearanceCompactMode": "Compact mode",
+  "appearanceCompactModeSubtitle": "Tighter spacing in chat and list screens",
+  "appearanceDarkCallBackdrop": "Dark call backdrop",
+  "appearanceDarkCallBackdropSubtitle": "Darker style on active call screen",
+  "appearanceHapticsSubtitle": "Tap feedback for chips, buttons, and rows",
+  "appearanceSoundEffects": "Sound effects",
+  "appearanceSoundEffectsSubtitle": "Message tones, call sounds, and navigation clicks",
+  "appearanceSoundVolume": "Sound volume",
+  "appearanceSoundVolumeSubtitle": "Controls interface clicks, messages and call tones",
+  "appearanceSoundVolumeValue": "{percent}%",
+  "@appearanceSoundVolumeValue": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "appearanceLanguageRegion": "Language & region",
+  "appearanceLanguageRegionSubtitle": "App language, time zone, and regional format",
+  "languageRegionTitle": "Language & region",
+  "languageRegionSubtitle": "Choose app language and how time is shown.",
+  "languageRegionAppLanguage": "App language",
+  "languageRegionUseSystemLanguage": "Use system language",
+  "languageRegionTimeZone": "Time zone",
+  "languageRegionTimeZoneMode": "Time zone mode",
+  "languageRegionCurrentTime": "Current time in app",
+  "languageRegionSelectTimeZone": "Select time zone",
+  "languageRegionSearchTimeZones": "Search time zones",
+  "settingsAccountTitle": "Account",
+  "settingsCenterTitle": "Settings center",
+  "settingsCenterSubtitle": "Account, appearance, privacy and support in one place.",
+  "settingsQuickControls": "Quick controls",
+  "settingsPersonalizationTitle": "Personalization",
+  "settingsPersonalizationSubtitle": "Theme, language, density and interaction style",
+  "settingsAccountSecurityTitle": "Account & security",
+  "settingsAccountSecuritySubtitle": "Identity, recovery, sessions and 2FA",
+  "settingsPrivacyNotificationsTitle": "Privacy & notifications",
+  "settingsPrivacyNotificationsSubtitle": "Visibility, alerts, receipts and server limits",
+  "settingsSupportAboutTitle": "Support & about",
+  "settingsSupportAboutSubtitle": "Help, build info, legal pages and project links",
+  "settingsAccountSubtitle": "Profile identity, security, sessions, and account recovery.",
+  "settingsAccountAccessTitle": "Account access",
+  "settingsAccountAccessSubtitle": "Verification and recovery tools for your account.",
+  "settingsProtectionTitle": "Protection",
+  "settingsProtectionSubtitle": "Keep account access under control.",
+  "settingsSecurityTitle": "Security",
+  "settingsSecuritySubtitle": "Manage app access, trusted devices, alerts, and protection levels.",
+  "settingsSecurityCheckupTitle": "Security checkup",
+  "settingsSecurityCheckupEnabled": "Your account already has a stronger sign-in layer.",
+  "settingsSecurityCheckupDisabled": "Enable extra protection for sign-in and recovery.",
+  "settingsPrivacyTitle": "Privacy",
+  "settingsPrivacySubtitle": "Notifications, message visibility, and delivery-related account limits.",
+  "settingsPrivacyVisibilityTitle": "Visibility",
+  "settingsPrivacyVisibilitySubtitle": "What the app surfaces on this device and to other people.",
+  "settingsHelpTitle": "Help",
+  "settingsHelpSubtitle": "Support options, common questions, and quick issue reporting.",
+  "settingsHelpSupportTitle": "Support",
+  "settingsHelpSupportSubtitle": "Get answers, contact support, or send a bug report.",
+  "settingsAboutTitle": "About NiosMess",
+  "settingsAboutSubtitle": "Build information, diagnostics, legal links, and runtime environment.",
+  "settingsBuildSnapshotTitle": "Build snapshot",
+  "settingsBuildSnapshotSubtitle": "Structured communication with a clean Material 3 interface.",
+  "settingsRuntimeTitle": "Runtime environment",
+  "settingsRuntimeSubtitle": "Current app target, storage model and backend state.",
+  "settingsLinksCreditsTitle": "Project links",
+  "settingsLinksCreditsSubtitle": "Public pages for NiosMess.",
+  "settingsVersion": "Version",
+  "settingsApi": "API",
+  "settingsApiEnvironment": "API environment",
+  "settingsReleaseChannel": "Release channel",
+  "settingsLocalStorage": "Local storage",
+  "settingsProduction": "Production",
+  "settingsClientCache": "Client cache",
+  "settingsReleaseLiveHint": "This build connects to the live NiosMess API.",
+  "settingsLocalStorageHint": "Messages, drafts, and session data are stored locally.",
+  "settingsDevelopers": "Developers",
+  "settingsDevelopersSubtitle": "Meet the people behind NiosMess",
+  "settingsOpenWebsite": "Open website",
+  "settingsOpenWebsiteSubtitle": "Open {url} in your browser",
+  "@settingsOpenWebsiteSubtitle": {
+    "placeholders": {
+      "url": {}
+    }
+  },
+  "settingsCopyApiUrl": "Copy API base URL",
+  "settingsApiUrlCopied": "API base URL copied",
+  "settingsLicenses": "Open source licenses",
+  "settingsLicensesSubtitle": "Review Flutter and package licenses used by the app",
+  "settingsPrivacyPolicy": "Privacy Policy",
+  "settingsTermsOfService": "Terms of Service",
+  "settingsLegalTitle": "Legal",
+  "settingsLegalSubtitle": "Policies and licenses",
+  "settingsCouldNotOpenLink": "Could not open link in browser",
+  "settingsPushNotifications": "Push notifications",
+  "settingsPushNotificationsSubtitle": "Message and call updates on this device",
+  "settingsReadReceipts": "Read receipts",
+  "settingsReadReceiptsSubtitle": "Let others know you've seen their messages",
+  "settingsTypingIndicator": "Typing indicator",
+  "settingsTypingIndicatorSubtitle": "Show when you are typing a message",
+  "settingsSpamBlockTitle": "Spam block active",
+  "settingsSpamBlockSubtitle": "You cannot start new DMs, join groups, or be invited. Contact support if this is a mistake.",
+  "settingsServerLimitsTitle": "Server-side limits",
+  "settingsServerLimitsSubtitle": "Typing indicator and read receipts are currently enforced by the backend and will become configurable later.",
+  "settingsTwoFactorStatus": "Two-factor status",
+  "settingsTwoFactor": "Two-factor authentication",
+  "settingsTwoFactorEnabledShort": "Enabled on your account",
+  "settingsTwoFactorDisabledShort": "Disabled on your account",
+  "settingsTwoFactorOpenAccount": "Open account settings to enable or disable 2FA",
+  "settingsTrustedDevices": "Trusted devices",
+  "settingsTrustedDevicesSubtitle": "Review current sessions and revoke old devices",
+  "settingsResetPassword": "Reset password",
+  "settingsResetPasswordSubtitle": "Request a password reset email code",
+  "settingsVerifyEmail": "Verify email",
+  "settingsVerifyEmailSubtitle": "Confirm your email for recovery and safer sign-in flows",
+  "settingsActiveSessions": "Active sessions",
+  "settingsActiveSessionsSubtitle": "Manage logged-in devices",
+  "settingsNoUsername": "No username",
+  "settingsUserFallback": "User",
+  "settingsAvatarUpdated": "Avatar updated",
+  "settingsDisable2faTitle": "Disable 2FA?",
+  "settingsDisable2faBody": "Your account will be less secure.",
+  "settingsDisable": "Disable",
+  "settingsConfirm": "Confirm",
+  "settingsConfirmPassword": "Confirm password",
+  "settingsDisable2fa": "Disable 2FA",
+  "settingsEnable2fa": "Enable 2FA",
+  "settings2faEnabled": "2FA enabled",
+  "settings2faDisabled": "2FA disabled",
+  "settingsContactSupport": "Contact support",
+  "settingsReportIssue": "Report issue",
+  "settingsReportIssueSubtitle": "Describe the problem you encountered",
+  "settingsReportIssueHint": "Describe the issue...",
+  "settingsSubmit": "Submit",
+  "settingsSupportCopied": "Support email copied to clipboard",
+  "settingsSupportRequestSubject": "NiosMess Support Request",
+  "settingsSupportRequestBody": "Describe your issue here.",
+  "settingsBugReportSubject": "NiosMess Bug Report",
+  "settingsBugReportEmpty": "Issue description was not provided.",
+  "settingsFaq": "FAQ",
+  "settingsFaqResetQ": "How do I reset my password?",
+  "settingsFaqResetA": "Go to Account > Reset password. Enter your email and follow the link.",
+  "settingsFaq2faQ": "How do I enable 2FA?",
+  "settingsFaq2faA": "Go to Account > Two-factor authentication and confirm with your password.",
+  "settingsFaqJoinQ": "How do I join a group?",
+  "settingsFaqJoinA": "Use an invite link or tap the link icon on the Chats screen to join by slug.",
+  "settingsFaqSpamQ": "Why can't I start new chats?",
+  "settingsFaqSpamA": "Your account may have a spam block. Contact support.",
+  "developersTeamTitle": "NiosMess Team",
+  "developersHeroSubtitle": "Backend, client architecture and sound design in one focused crew.",
+  "developersSanlsanRole": "Founder & Backend Architect",
+  "developersSanlsanDescription": "Server core, API, auth and messaging foundation.",
+  "developersSh20fkRole": "App Lead & Client Architect",
+  "developersSh20fkDescription": "Mobile app, client architecture, product flow and UI.",
+  "developersKarlovPrimeRole": "Sound Designer",
+  "developersKarlovPrimeDescription": "Call, message and interface sound identity.",
+  "developersTagBackend": "Backend",
+  "developersTagApi": "API",
+  "developersTagAuth": "Auth",
+  "developersTagFlutter": "Flutter",
+  "developersTagUx": "UX",
+  "developersTagClient": "Client",
+  "developersTagSound": "Sound",
+  "developersTagCalls": "Calls",
+  "developersTagIdentity": "Identity",
+  "chatListFilterAll": "All",
+  "chatListFilterUnread": "Unread",
+  "chatListFilterGroups": "Groups",
+  "chatListFilterChannels": "Channels",
+  "chatListFilterDirect": "Direct",
+  "chatListFilterBots": "Bots",
+  "chatListSearch": "Search chats",
+  "chatListSearchMessagesHint": "Search chats and messages",
+  "chatListMessageMatches": "Message matches",
+  "chatListNoChats": "No chats found.",
+  "chatListNotAuthenticated": "You are not authenticated yet.",
+  "chatListMarkRead": "Mark as read",
+  "chatListMarkReadSubtitle": "Clear unread state for this chat",
+  "chatListMute": "Mute",
+  "chatListPin": "Pin",
+  "chatListArchive": "Archive",
+  "chatListMuteSubtitle": "Mute is not available from API yet",
+  "chatListLeave": "Leave chat",
+  "chatListLeaveSubtitle": "Remove this conversation from your account",
+  "chatListFailedLoad": "Failed to load chats: {error}",
+  "@chatListFailedLoad": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "chatListMuteUnsupported": "Mute is not supported by API yet",
+  "chatListPinUnsupported": "Pin is not supported by API yet",
+  "chatListArchiveUnsupported": "Archive is not supported by API yet",
+  "chatListLeft": "Left chat",
+  "chatListChannelPreview": "Channel • {preview}",
+  "@chatListChannelPreview": {
+    "placeholders": {
+      "preview": {}
+    }
+  },
+  "chatListGroupPreview": "Group • {preview}",
+  "@chatListGroupPreview": {
+    "placeholders": {
+      "preview": {}
+    }
+  },
+  "chatListUnreadCount": "{count} unread",
+  "@chatListUnreadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatPreviewForwardedFrom": "Forwarded from {name}",
+  "@chatPreviewForwardedFrom": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "chatPreviewPhoto": "Photo",
+  "chatPreviewVideo": "Video",
+  "chatPreviewAudio": "Audio",
+  "chatPreviewFile": "File",
+  "chatTitleFallback": "Chat #{id}",
+  "@chatTitleFallback": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "chatInvalidId": "Invalid chat ID",
+  "chatToday": "Today",
+  "chatYesterday": "Yesterday",
+  "chatMemberCount": "{count, plural, =0 {No members} =1 {1 member} other {{count} members}}",
+  "@chatMemberCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatNoMessages": "No messages yet",
+  "chatSendFirst": "Send the first message",
+  "chatLoadEarlier": "Load earlier messages",
+  "chatNoMoreMessages": "No more messages",
+  "chatVoiceCall": "Voice call",
+  "chatVideoCall": "Video call",
+  "chatMembers": "Members",
+  "chatManage": "Manage chat",
+  "chatReply": "Reply",
+  "chatResendTo": "Resend to...",
+  "chatResendSubtitle": "Copies message text to another chat",
+  "chatComments": "Comments",
+  "chatCommentsCount": "{count} comments",
+  "@chatCommentsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatEdit": "Edit",
+  "chatDelete": "Delete",
+  "chatEditMessageTitle": "Edit message",
+  "chatEditMessageHint": "Message text",
+  "chatDeleteMessageTitle": "Delete message?",
+  "chatDeleteMessageBody": "This action cannot be undone.",
+  "chatMessageDeleted": "Message deleted",
+  "chatMessageForwarded": "Message forwarded",
+  "chatMediaSent": "Media sent successfully",
+  "chatForwardTo": "Forward to...",
+  "chatAttachment": "Attachment",
+  "chatOpenAttachment": "Open attachment",
+  "chatTapToPreview": "Tap to preview",
+  "chatReplyToId": "Reply to #{id}",
+  "@chatReplyToId": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "chatForwardedTitle": "Forwarded message",
+  "chatForwardedFrom": "From {name}",
+  "@chatForwardedFrom": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "chatEdited": "edited",
+  "chatFailedLoadMessages": "Failed to load messages: {error}",
+  "@chatFailedLoadMessages": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "chatCancelReply": "Cancel reply",
+  "chatAttachMedia": "Attach media",
+  "chatMessageHint": "Type a message",
+  "chatOnlyAdminsCanPost": "Only admins can post in this channel",
+  "chatMembersTitle": "{name} members",
+  "@chatMembersTitle": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "chatMembersInviteUser": "Invite user",
+  "chatMembersSearchHint": "Search by username or name",
+  "chatMembersSearchPrompt": "Type a name to search",
+  "chatMembersInvited": "Invited @{username}",
+  "@chatMembersInvited": {
+    "placeholders": {
+      "username": {}
+    }
+  },
+  "chatMembersEmpty": "No members",
+  "chatMembersRoleOwner": "owner",
+  "chatMembersRoleAdmin": "admin",
+  "chatMembersRoleMember": "member",
+  "chatMembersMuted": "muted",
+  "chatMembersBanned": "banned",
+  "chatMembersBan": "Ban",
+  "chatMembersUnban": "Unban",
+  "chatMembersMute": "Mute",
+  "chatMembersUnmute": "Unmute",
+  "chatMembersPromoteAdmin": "Promote to admin",
+  "chatMembersDemoteMember": "Demote to member",
+  "commentsTitle": "Post comments",
+  "commentsEmpty": "No comments yet",
+  "commentsDeleted": "Comment deleted",
+  "commentsHint": "Write a comment",
+  "commentsFailedLoad": "Failed to load comments: {error}",
+  "@commentsFailedLoad": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "commentsFailedSend": "Failed to send comment: {error}",
+  "@commentsFailedSend": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "callsSubtitle": "Recent voice and video activity with quick callback actions.",
+  "callsNoHistory": "No call history yet. Start a call from any chat.",
+  "callsFailedToStart": "Failed to start call: {error}",
+  "@callsFailedToStart": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "callsFailedLoadChats": "Failed to load chats: {error}",
+  "@callsFailedLoadChats": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "callsMissed": "Missed • {time}",
+  "@callsMissed": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "callsDeclined": "Declined • {time}",
+  "@callsDeclined": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "callsDeclinedShort": "Declined",
+  "callsOutgoing": "Outgoing • {time}",
+  "@callsOutgoing": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "callsOutgoingShort": "Outgoing",
+  "callsIncoming": "Incoming • {time}",
+  "@callsIncoming": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "callsIncomingShort": "Incoming",
+  "callsInProgress": "In progress",
+  "callsTotalCount": "{count, plural, =0 {No calls} =1 {1 call} other {{count} calls}}",
+  "@callsTotalCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "callsMissedCount": "{count, plural, =0 {No missed} =1 {1 missed} other {{count} missed}}",
+  "@callsMissedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "callsVideoCount": "{count, plural, =0 {No video} =1 {1 video} other {{count} video}}",
+  "@callsVideoCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "callsSearchHint": "Search calls",
+  "callsFilterAll": "All",
+  "callsFilterMissed": "Missed",
+  "callsFilterVideo": "Video",
+  "callsQuickTitle": "Call hub",
+  "callsLatestCall": "Latest call with {name}",
+  "@callsLatestCall": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "callsQuickPeople": "Quick call",
+  "callsQuickAdd": "Add",
+  "callsResultCount": "{count, plural, =0 {No matching calls} =1 {1 matching call} other {{count} matching calls}}",
+  "@callsResultCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activeCallTitle": "Call",
+  "activeCallInvalidChat": "Invalid chat id",
+  "activeCallRefresh": "Refresh call status",
+  "activeCallResponseFailed": "Call response failed: {error}",
+  "@activeCallResponseFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "activeCallEndFailed": "Failed to end call: {error}",
+  "@activeCallEndFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "activeCallVoice": "Voice",
+  "activeCallVideo": "Video",
+  "activeCallRinging": "Ringing",
+  "activeCallActive": "Active",
+  "activeCallEnded": "Ended",
+  "activeCallMissed": "Missed",
+  "activeCallDeclined": "Declined",
+  "activeCallVideoPreview": "Video preview is ready",
+  "activeCallCameraOn": "Camera on",
+  "activeCallCameraOff": "Camera off",
+  "activeCallAnswer": "Answer",
+  "activeCallDecline": "Decline",
+  "activeCallEnd": "End call",
+  "activeCallMute": "Mute",
+  "activeCallUnmute": "Unmute",
+  "activeCallSpeaker": "Speaker",
+  "groupTypeGroup": "Group",
+  "groupTypeChannel": "Channel",
+  "groupTypeStep": "Type",
+  "groupDetailsStep": "Details",
+  "groupPrivacyStep": "Privacy",
+  "groupReviewStep": "Review",
+  "groupWizardTypeSubtitle": "Choose what you want to create.",
+  "groupWizardDetailsSubtitle": "Set the name and short description.",
+  "groupWizardPrivacySubtitle": "Decide if the chat should be public or private.",
+  "groupWizardReviewSubtitle": "Check your settings before creating.",
+  "groupNewGroup": "New group",
+  "groupNewChannel": "New channel",
+  "groupCreateOrJoin": "Create or join",
+  "groupCreateSharedSubtitle": "Create a shared chat for members and discussion",
+  "groupCreateBroadcastSubtitle": "Create a broadcast space for posts and updates",
+  "groupJoinByInvite": "Join by invite",
+  "groupJoinByInviteSubtitle": "Paste an invite link or slug to enter a chat",
+  "groupTypeGroupSubtitle": "Members can all talk together. Best for teams and friends.",
+  "groupTypeChannelSubtitle": "Broadcast updates, posts, and announcements to subscribers.",
+  "groupYourNewChannel": "Your new channel",
+  "groupYourNewGroup": "Your new group",
+  "groupEditLater": "You can edit avatar, members, and links later.",
+  "groupNameLabel": "Name",
+  "groupNameHint": "My team chat",
+  "groupDescriptionChannelLabel": "Channel description (optional)",
+  "groupDescriptionGroupLabel": "Group description (optional)",
+  "groupDescriptionChannelHint": "What this channel is about",
+  "groupDescriptionGroupHint": "What this group is for",
+  "groupPrivate": "Private",
+  "groupPrivateSubtitle": "People can join only through an invite link.",
+  "groupPublic": "Public",
+  "groupPublicSubtitle": "People can find it via public username or slug.",
+  "groupPublicUsername": "Public username",
+  "groupEnableComments": "Enable comments",
+  "groupEnableCommentsSubtitle": "Members can comment on channel posts in a linked discussion chat.",
+  "groupBack": "Back",
+  "groupContinue": "Continue",
+  "groupCreate": "Create",
+  "groupCreating": "Creating...",
+  "groupAlreadyHaveInvite": "Already have an invite? Join by link",
+  "groupVisibility": "Visibility",
+  "groupUsernameLabel": "Username",
+  "groupCreatedChannel": "Channel created successfully",
+  "groupCreatedGroup": "Group created successfully",
+  "groupCreateFailed": "Failed to create chat: {error}",
+  "@groupCreateFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "groupNameTooShort": "Name must be at least 3 characters",
+  "groupUsernameRules": "Use 3-32 chars: letters, digits, dot, underscore",
+  "groupJoinTitle": "Join by invite",
+  "groupJoinHeadline": "Join with invite link or slug",
+  "groupJoinSubtitle": "Paste a private invite link or a public slug to preview the chat before joining.",
+  "groupInviteLinkOrSlug": "Invite link or slug",
+  "groupPreviewInvite": "Preview invite",
+  "groupInvitePreviewNotFound": "Invite preview not found.",
+  "groupJoinChat": "Join chat",
+  "groupJoining": "Joining...",
+  "groupInviteFailedLoad": "Failed to load invite: {error}",
+  "@groupInviteFailedLoad": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "groupJoinFailed": "Failed to join chat: {error}",
+  "@groupJoinFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "groupSignInToJoin": "Sign in to join chats by invite.",
+  "groupChannelPreview": "Channel preview",
+  "groupGroupPreview": "Group preview",
+  "groupNoPostsYet": "No posts yet",
+  "groupManageTitle": "Manage {name}",
+  "@groupManageTitle": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "groupManageChangeAvatar": "Change avatar",
+  "groupManageUploading": "Uploading...",
+  "groupManageAvatarUpdated": "Avatar updated",
+  "groupManageChatUpdated": "Chat updated",
+  "groupManageSaveChanges": "Save changes",
+  "groupManageIdentity": "Identity",
+  "groupManageLinks": "Links & metadata",
+  "groupManageLeaveTitle": "Leave chat?",
+  "groupManageLeaveBody": "You will no longer see this chat.",
+  "groupManageLeave": "Leave chat",
+  "commonEnabled": "Enabled",
+  "commonDisabled": "Disabled",
+  "timeNow": "now",
+  "timeYesterday": "yesterday",
+  "settingsProfileSetupSubtitle": "Set up your profile",
+  "settingsSectionsTitle": "Settings",
+  "settingsSectionsSubtitle": "Only active sections are shown here.",
+  "settingsStorageTitle": "Storage",
+  "settingsStorageSubtitle": "Review app data, drafts, and cleanable cache.",
+  "settingsStorageBreakdown": "Storage breakdown",
+  "settingsStorageBreakdownSubtitle": "Measured on this device.",
+  "settingsStorageAppData": "App data",
+  "settingsStorageAppDataSubtitle": "Local files required by the app.",
+  "settingsStorageTemporaryCache": "Temporary cache",
+  "settingsStorageTemporaryCacheSubtitle": "Files that can be recreated safely.",
+  "settingsStorageDrafts": "Drafts",
+  "settingsStorageDraftsSubtitle": "{count, plural, =0{No saved drafts} =1{1 saved draft} other{{count} saved drafts}}",
+  "@settingsStorageDraftsSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsStorageActions": "Actions",
+  "settingsStorageActionsSubtitle": "Clean only data that is safe to rebuild.",
+  "settingsStorageRefresh": "Refresh usage",
+  "settingsStorageRefreshSubtitle": "Recalculate local storage now",
+  "settingsStorageCheckIntegrity": "Check storage",
+  "settingsStorageCheckIntegritySubtitle": "Verify schema, folders, and draft records",
+  "settingsStorageClearTemporary": "Clear temporary cache",
+  "settingsStorageClearTemporarySubtitle": "Remove files from the app cache folder",
+  "settingsStorageClearDrafts": "Clear message drafts",
+  "settingsStorageClearDraftsSubtitle": "Remove unsent local draft text",
+  "settingsStorageClearTemporaryConfirmTitle": "Clear temporary cache?",
+  "settingsStorageClearTemporaryConfirmBody": "Cached files will be recreated when needed. Account data and settings will stay untouched.",
+  "settingsStorageClearDraftsConfirmTitle": "Clear message drafts?",
+  "settingsStorageClearDraftsConfirmBody": "Unsent draft text saved on this device will be removed.",
+  "settingsStorageCleared": "Storage cleaned",
+  "settingsStorageHealthOkTitle": "Storage is healthy",
+  "settingsStorageHealthOkBody": "Local schema version {schemaVersion} is ready and no integrity issues were found.",
+  "@settingsStorageHealthOkBody": {
+    "placeholders": {
+      "schemaVersion": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsStorageHealthIssueTitle": "Storage needs attention",
+  "settingsStorageUsedByApp": "Used by NiosMess on this device",
+  "settingsStorageCleanable": "{size} can be cleaned without logging out.",
+  "@settingsStorageCleanable": {
+    "placeholders": {
+      "size": {}
+    }
+  },
+  "settingsLegalPoliciesSubtitle": "Policy documents. Licenses are in the hidden menu.",
+  "settingsHiddenMenuTitle": "Hidden tools",
+  "settingsHiddenMenuSubtitle": "Long-press app version to open this menu.",
+  "settingsDiagnosticsTitle": "Diagnostics",
+  "settingsDiagnosticsSubtitle": "Runtime details, API target, and build state",
+  "settingsDiagnosticsStorageSummary": "Schema v{schemaVersion}, {size} stored locally",
+  "@settingsDiagnosticsStorageSummary": {
+    "placeholders": {
+      "schemaVersion": {
+        "type": "int"
+      },
+      "size": {}
+    }
+  },
+  "settingsDiagnosticsLogsTitle": "Local logs",
+  "settingsDiagnosticsLogsSubtitle": "Last errors and runtime events kept on this device.",
+  "settingsDiagnosticsNoLogs": "No local errors recorded",
+  "settingsDiagnosticsActions": "Diagnostics actions",
+  "settingsDiagnosticsRefresh": "Refresh diagnostics",
+  "settingsDiagnosticsRefreshSubtitle": "Reload build, storage, sound and log state",
+  "settingsDiagnosticsTestSound": "Test interface sound",
+  "settingsDiagnosticsTestSoundSubtitle": "Play the current navigation click",
+  "settingsDiagnosticsCopyLogs": "Copy local logs",
+  "settingsDiagnosticsCopyLogsSubtitle": "Copy recent errors and events to clipboard",
+  "settingsDiagnosticsLogsCopied": "Local logs copied",
+  "settingsEditProfileSubtitle": "Change name, avatar, and bio",
+  "appearanceVariantTonalSpot": "Tonal spot",
+  "appearanceVariantVibrant": "Vibrant",
+  "appearanceVariantExpressive": "Expressive",
+  "appearanceVariantNeutral": "Neutral",
+  "appearanceVariantMonochrome": "Monochrome",
+  "appearanceVariantFidelity": "Fidelity",
+  "appearancePaletteNiosMess": "NiosMess",
+  "appearancePaletteOcean": "Ocean",
+  "appearancePaletteForest": "Forest",
+  "appearancePaletteSunset": "Sunset",
+  "appearancePaletteRose": "Rose",
+  "appearancePaletteSignal": "Signal",
+  "resetPasswordRequestTitle": "Reset password",
+  "resetPasswordRequestHeroTitle": "Reset password",
+  "resetPasswordRequestHeroSubtitle": "We will send a reset code to your email.",
+  "resetPasswordRequestEmailLabel": "Email",
+  "resetPasswordRequestEmailError": "Enter valid email",
+  "resetPasswordRequestSubmit": "Send code",
+  "resetPasswordRequestSubmitting": "Sending...",
+  "resetPasswordRequestSent": "Request sent",
+  "resetPasswordConfirmTitle": "Confirm reset",
+  "resetPasswordConfirmHeroTitle": "Enter code",
+  "resetPasswordConfirmHeroSubtitle": "Enter the code we sent to your email.",
+  "resetPasswordConfirmEmailLabel": "Email",
+  "resetPasswordConfirmEmailError": "Enter valid email",
+  "resetPasswordConfirmCodeLabel": "Code",
+  "resetPasswordConfirmCodeError": "Enter 6 digits",
+  "resetPasswordConfirmPasswordLabel": "New password",
+  "resetPasswordConfirmPasswordError": "Minimum 8 characters",
+  "resetPasswordConfirmSubmit": "Reset password",
+  "resetPasswordConfirmSubmitting": "Applying...",
+  "resetPasswordConfirmDone": "Password reset successfully",
+  "sessionsTitle": "Active sessions",
+  "sessionsRevokeTitle": "Revoke session?",
+  "sessionsRevokeConfirm": "Revoke",
+  "sessionsCancel": "Cancel",
+  "sessionsRevokeTooltip": "Revoke session",
+  "sessionsRevokedSuccess": "Session revoked",
+  "sessionsEmpty": "No active sessions",
+  "sessionsRetry": "Retry",
+  "sessionsRevokeAll": "Revoke all other sessions",
+  "contactsTitle": "Contacts",
+  "contactsRecent": "Recent",
+  "contactsRecentPeople": "Recent people...",
+  "contactsSearch": "Search",
+  "contactsNoRecent": "No recent contacts yet...",
+  "contactsTypeUsername": "Type a username...",
+  "contactsNoMatches": "No matches found.",
+  "contactsMessage": "Message",
+  "contactsChat": "Chat",
+  "contactDetailTitle": "Contact",
+  "contactDetailOverview": "Contact overview",
+  "contactDetailSharedContext": "Shared context",
+  "contactDetailUsername": "Username",
+  "contactDetailBio": "Bio",
+  "contactDetailSharedContextDesc": "Mutual groups and shared media will appear here as soon as this data becomes available from the API.",
+  "contactDetailNoBio": "No public bio yet",
+  "contactsSubtitle": "Recent people, quick message actions, and search across users.",
+  "contactsNotAuth": "You are not authenticated yet.",
+  "contactsNoRecentFull": "No recent contacts yet.\nStart a conversation from the Search tab.",
+  "contactsSearchHint": "Search by username, name, or text",
+  "contactsSearchEmpty": "Type a username or name to search users, chats, and messages.",
+  "contactsUsers": "Users",
+  "contactsChats": "Chats",
+  "contactsMessages": "Messages",
+  "contactsNoMessagesYet": "No messages yet",
+  "contactsForwardedFrom": "Forwarded from {name}",
+  "@contactsForwardedFrom": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "mediaActionSave": "Save",
+  "mediaActionCopy": "Copy link",
+  "mediaActionOpenIn": "Open in...",
+  "mediaViewerTitle": "Attachment",
+  "mediaViewerCannotPreview": "Cannot preview this file",
+  "mediaViewerOpenExternal": "Open Externally",
+  "chatUploadCancelTitle": "Cancel upload?",
+  "chatUploadCancelBody": "Media is uploading. Cancel it?",
+  "commonYes": "Yes",
+  "commonNo": "No",
+  "chatScrollToBottom": "Scroll to latest",
+  "chatTypingOne": "{name} is typing...",
+  "@chatTypingOne": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "chatTypingMultiple": "Several people are typing...",
+  "chatUnreadMessages": "{count, plural, =1 {1 unread} other {{count} unread}}",
+  "@chatUnreadMessages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatEditingMessage": "Editing",
+  "chatEditCancel": "Cancel editing",
+  "chatScrollLoadingEarlier": "Loading messages...",
+  "appearanceOptimizeWeakDevices": "Optimize for weak devices",
+  "appearanceOptimizeWeakDevicesSubtitle": "Disables background blur and heavy BackdropFilter effects to increase FPS",
+  "searchSemantic": "Semantic search",
+  "searchSemanticHint": "Search by meaning using AI",
+  "searchSemanticFallback": "Semantic search is temporarily unavailable. Regular search performed.",
+  "chatCreatePersonal": "Create direct chat",
+  "chatCreatePersonalSubtitle": "Start a direct conversation by username",
+  "chatCreatePersonalPrompt": "Start direct chat",
+  "chatCreatePersonalUsernameLabel": "Username",
+  "chatCreatePersonalUsernameHint": "username",
+  "chatCreatePersonalStart": "Start",
+  "chatCreatePersonalErrorEmpty": "Username cannot be empty",
+  "settingsAdminTitle": "Admin Panel",
+  "settingsAdminSubtitle": "Manage users and chats",
+  "settingsBadgesTitle": "Badges",
+  "settingsBadgesSubtitle": "View and manage profile badges",
+  "settingsBotsTitle": "Bots",
+  "settingsBotsSubtitle": "Create and manage your bots",
+  "settingsSecretChatsTitle": "Secret Chats",
+  "settingsSecretChatsSubtitle": "End-to-end encrypted messaging",
+  "settingsSecretChatsButton": "Secret Chat"
+}

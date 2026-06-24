@@ -1,0 +1,22 @@
+{
+  "name": "niosmess-stagehand-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsx scripts/check-env.ts",
+    "test:auth": "tsx scripts/test-auth.ts",
+    "test:chat": "tsx scripts/test-chat.ts",
+    "test:search": "tsx scripts/test-search.ts",
+    "test:login": "tsx scripts/test-login.ts"
+  },
+  "dependencies": {
+    "@browserbasehq/stagehand": "^3.6.0",
+    "@playwright/test": "^1.61.0",
+    "dotenv": "^17.4.2",
+    "playwright": "^1.61.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "zod": "^4.4.3"
+  }
+}

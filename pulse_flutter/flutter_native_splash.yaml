@@ -1,0 +1,7 @@
+flutter_native_splash:
+  color: "#18181A" # Dark theme background color for NiosMess
+  image: "assets/NiosMess_icon.png"
+  
+  android_12:
+    color: "#18181A"
+    image: "assets/NiosMess_icon.png"
