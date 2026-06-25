@@ -60,6 +60,10 @@ dependencies:
   asn1lib: ^1.5.8
   loading_indicator_m3e: ^0.1.1
   uuid: ^4.5.1
+  flutter_m3shapes: ^1.0.0+2
+  web_socket_channel: ^3.0.3
+  universal_io: ^2.3.1
+  animations: ^2.2.0
 
 dev_dependencies:
   flutter_test:

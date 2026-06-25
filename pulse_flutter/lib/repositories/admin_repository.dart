@@ -1,13 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-
-Map<String, dynamic> asStringMap(dynamic value) {
-  if (value is Map<String, dynamic>) return value;
-  if (value is Map) {
-    return value.map((dynamic key, dynamic val) => MapEntry(key.toString(), val));
-  }
-  return <String, dynamic>{};
-}
 
 class AdminRepository {
   const AdminRepository(this._ref);

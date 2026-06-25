@@ -91,6 +91,7 @@ class AppBottomNav extends ConsumerWidget {
                     )
                   : Icon(item.selectedIcon),
               label: item.label,
+              tooltip: item.label,
             ),
           )
           .toList(growable: false),

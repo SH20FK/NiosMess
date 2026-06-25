@@ -454,6 +454,86 @@ class AppLocalizationsEn extends AppLocalizations {
       'App language, time zone, and regional format';
 
   @override
+  String get appearancePersonalizationTitle => 'Appearance & themes';
+
+  @override
+  String get appearancePersonalizationSubtitle =>
+      'Material 3 palettes, soft accent color haze, and manual visual rhythm tuning.';
+
+  @override
+  String get appearancePaletteTitle => 'Palette';
+
+  @override
+  String get appearancePaletteSubtitle =>
+      'Choose accent colors for the interface, text, and buttons';
+
+  @override
+  String get appearanceDensityTitle => 'Interface density';
+
+  @override
+  String get appearanceDensitySubtitle =>
+      'Affects preview size, palette, and visual rhythm of the screen';
+
+  @override
+  String get appearanceDensitySoft => 'Soft';
+
+  @override
+  String get appearanceDensityRich => 'Rich';
+
+  @override
+  String get appearanceDensityExpressive => 'Expressive';
+
+  @override
+  String get appearanceThemeParamsTitle => 'Theme parameters';
+
+  @override
+  String get appearanceThemeParamsSubtitle => 'Material 3 system toggles';
+
+  @override
+  String get appearanceDynamicColors => 'Dynamic colors';
+
+  @override
+  String get appearanceDynamicColorsSubtitle =>
+      'Use a more expressive tonal scheme';
+
+  @override
+  String get appearanceDarkTheme => 'Dark theme';
+
+  @override
+  String get appearanceDarkThemeSubtitle =>
+      'Manually switch between light and dark Material 3 theme';
+
+  @override
+  String get appearanceLabelLight => 'Light';
+
+  @override
+  String get appearanceLabelDark => 'Dark';
+
+  @override
+  String get appearanceLabelAmethyst => 'Amethyst';
+
+  @override
+  String get appearanceLabelLagoon => 'Lagoon';
+
+  @override
+  String get appearanceLabelMeadow => 'Meadow';
+
+  @override
+  String get appearanceLabelEmber => 'Ember';
+
+  @override
+  String get appearanceLabelOrchid => 'Orchid';
+
+  @override
+  String get appearanceLabelSlate => 'Slate';
+
+  @override
+  String get appearanceLabelSky => 'Sky';
+
+  @override
+  String get appearanceLabelRose => 'Rose';
+
+  @override
   String get languageRegionTitle => 'Language & region';
 
   @override
@@ -2198,4 +2278,301 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsSecretChatsButton => 'Secret Chat';
+
+  @override
+  String adminUserBanned(int id) {
+    return 'User $id banned';
+  }
+
+  @override
+  String adminUserUnbanned(int id) {
+    return 'User $id unbanned';
+  }
+
+  @override
+  String adminUserFrozen(int id) {
+    return 'User $id frozen';
+  }
+
+  @override
+  String adminUserUnfrozen(int id) {
+    return 'User $id unfrozen';
+  }
+
+  @override
+  String adminSpamBlockEnabled(int id) {
+    return 'Spam block enabled for user $id';
+  }
+
+  @override
+  String adminSpamBlockDisabled(int id) {
+    return 'Spam block disabled for user $id';
+  }
+
+  @override
+  String adminChatBanned(int id) {
+    return 'Chat $id banned';
+  }
+
+  @override
+  String adminChatUnbanned(int id) {
+    return 'Chat $id unbanned';
+  }
+
+  @override
+  String adminTabUsers(int count) {
+    return 'Users ($count)';
+  }
+
+  @override
+  String adminTabChats(int count) {
+    return 'Chats ($count)';
+  }
+
+  @override
+  String get adminActionBan => 'Ban';
+
+  @override
+  String get adminActionUnban => 'Unban';
+
+  @override
+  String get adminActionFreeze => 'Freeze';
+
+  @override
+  String get adminActionUnfreeze => 'Unfreeze';
+
+  @override
+  String get adminActionSpamBlock => 'Spam Block';
+
+  @override
+  String get adminActionUnspamBlock => 'Remove Spam Block';
+
+  @override
+  String get badgeCreateTitle => 'Create Badge';
+
+  @override
+  String get badgeAwardTitle => 'Award Badge';
+
+  @override
+  String get badgeActionCreate => 'Create';
+
+  @override
+  String get badgeActionAward => 'Award';
+
+  @override
+  String get badgeCreated => 'Badge created';
+
+  @override
+  String badgeDeleted(int id) {
+    return 'Badge $id deleted';
+  }
+
+  @override
+  String badgeAwarded(int badgeId, int userId) {
+    return 'Badge $badgeId awarded to user $userId';
+  }
+
+  @override
+  String get badgeNoBadges => 'No badges available';
+
+  @override
+  String get badgeListRefresh => 'Refresh';
+
+  @override
+  String get botCreateTitle => 'Create Bot';
+
+  @override
+  String get botBotToken => 'Bot Token';
+
+  @override
+  String get botActionUse => 'Use';
+
+  @override
+  String get botTokenCopied => 'Token copied';
+
+  @override
+  String get botNoUpdates => 'No updates';
+
+  @override
+  String get e2eeKeyGenerated => 'E2EE key generated and uploaded';
+
+  @override
+  String get mediaDownloadAndOpen => 'Download & Open';
+
+  @override
+  String mediaSavedTo(Object path) {
+    return 'Saved to $path';
+  }
+
+  @override
+  String get mediaDownloadFailedExt =>
+      'Could not download. Try opening externally.';
+
+  @override
+  String mediaDownloadFailed(Object error) {
+    return 'Download failed: $error';
+  }
+
+  @override
+  String get dialogCancelChatCreationTitle => 'Cancel?';
+
+  @override
+  String get dialogCancelChatCreationBody =>
+      'Chat creation is in progress. Cancel?';
+
+  @override
+  String get dialogCancelCommentTitle => 'Cancel?';
+
+  @override
+  String get dialogCancelCommentBody =>
+      'Comment sending is in progress. Cancel?';
+
+  @override
+  String get emptyStateNoItems => 'No items found';
+
+  @override
+  String get emptyStateNoItemsDesc => 'There\'s nothing to show here yet.';
+
+  @override
+  String get offlineWaiting => 'Waiting for network...';
+
+  @override
+  String get filePreviewSave => 'Save';
+
+  @override
+  String get filePreviewLink => 'Link';
+
+  @override
+  String get filePreviewOpen => 'Open';
+
+  @override
+  String get filePreviewForward => 'Forward';
+
+  @override
+  String get filePreviewFileName => 'File name';
+
+  @override
+  String get filePreviewClose => 'Close';
+
+  @override
+  String get filePreviewLinkCopied => 'Link copied to clipboard';
+
+  @override
+  String get filePreviewPathCopied => 'File path copied to clipboard';
+
+  @override
+  String get filePreviewSaved => 'File saved';
+
+  @override
+  String filePreviewSaveError(Object error) {
+    return 'Could not save file: $error';
+  }
+
+  @override
+  String get filePreviewPause => 'Pause';
+
+  @override
+  String get filePreviewPlay => 'Play';
+
+  @override
+  String get filePickerGallery => 'Gallery';
+
+  @override
+  String get filePickerDocument => 'Document';
+
+  @override
+  String get filePickerAudio => 'Audio';
+
+  @override
+  String get filePickerFile => 'File';
+
+  @override
+  String get filePickerReadError => 'Could not read selected file';
+
+  @override
+  String get badgeFieldName => 'Name';
+
+  @override
+  String get badgeFieldDescription => 'Description';
+
+  @override
+  String get badgeFieldIcon => 'Icon (emoji)';
+
+  @override
+  String get badgeFieldColor => 'Color (hex)';
+
+  @override
+  String get badgeFieldUserId => 'User ID';
+
+  @override
+  String get badgeFieldBadgeId => 'Badge ID';
+
+  @override
+  String get badgeAdminPassword => 'Admin Password';
+
+  @override
+  String get badgeAdminMode => 'Admin Mode';
+
+  @override
+  String get badgeAdminSubtitle => 'Show admin badge management';
+
+  @override
+  String get botFieldName => 'Bot Name';
+
+  @override
+  String get botFieldUsername => 'Username';
+
+  @override
+  String get botFieldDescription => 'Description (optional)';
+
+  @override
+  String get botFieldToken => 'Enter bot token';
+
+  @override
+  String get botSectionTitle => 'Bots';
+
+  @override
+  String get botSectionSubtitle => 'Create and manage your bots.';
+
+  @override
+  String get botCreateSubtitle => 'Create a new bot';
+
+  @override
+  String get botCreateDescription => 'Register a bot account';
+
+  @override
+  String get botUpdatesTitle => 'Bot Updates';
+
+  @override
+  String get botGetUpdates => 'Get updates';
+
+  @override
+  String get botPollSubtitle => 'Poll for new bot messages and callbacks';
+
+  @override
+  String get botCreated => 'Bot created!';
+
+  @override
+  String get botCopied => 'Copied';
+
+  @override
+  String get fluidPreviewM3Title => 'M3 Expressive Design';
+
+  @override
+  String get fluidPreviewM3Subtitle =>
+      'New indicators and smooth transitions are already available!';
+
+  @override
+  String get profileAvatarUpdated => 'Avatar updated';
+
+  @override
+  String profileError(Object error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String get chatImageUnavailable => 'Image unavailable';
+
+  @override
+  String get settingsRevokeSession => 'Revoke session';
 }

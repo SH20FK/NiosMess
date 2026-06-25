@@ -110,7 +110,7 @@ class _TwoFaScreenState extends ConsumerState<TwoFaScreen> {
                           ),
                           boxShadow: <BoxShadow>[
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
+                              color: scheme.shadow.withValues(alpha: 0.08),
                               blurRadius: 24,
                               offset: const Offset(0, 12),
                             ),
@@ -235,9 +235,9 @@ class _TwoFaScreenState extends ConsumerState<TwoFaScreen> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                           ),
                           child: auth.busy
-                              ? const SizedBox.square(
+                              ? SizedBox.square(
                                   dimension: 22,
-                                  child: CircularProgressIndicator(year2023: false, strokeWidth: 3, color: Colors.white),
+                                    child: CircularProgressIndicator( strokeWidth: 3, color: Theme.of(context).colorScheme.onPrimary),
                                 )
                               : Row(
                                   mainAxisAlignment: MainAxisAlignment.center,

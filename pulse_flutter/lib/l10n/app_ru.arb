@@ -160,6 +160,31 @@
   },
   "appearanceLanguageRegion": "Язык и регион",
   "appearanceLanguageRegionSubtitle": "Язык приложения, часовой пояс и региональный формат",
+  "appearancePersonalizationTitle": "Оформление и темы",
+  "appearancePersonalizationSubtitle": "Material 3-палитры, мягкая дымка акцентных цветов и ручная настройка визуального ритма.",
+  "appearancePaletteTitle": "Палитра",
+  "appearancePaletteSubtitle": "Выберите акцентные цвета для интерфейса, текста и кнопок",
+  "appearanceDensityTitle": "Плотность интерфейса",
+  "appearanceDensitySubtitle": "Влияет на размер превью, палитр и визуальный ритм экрана",
+  "appearanceDensitySoft": "Мягкая",
+  "appearanceDensityRich": "Насыщенная",
+  "appearanceDensityExpressive": "Выразительная",
+  "appearanceThemeParamsTitle": "Параметры темы",
+  "appearanceThemeParamsSubtitle": "Системные переключатели Material 3",
+  "appearanceDynamicColors": "Динамические цвета",
+  "appearanceDynamicColorsSubtitle": "Использовать более выразительную тональную схему",
+  "appearanceDarkTheme": "Тёмная тема",
+  "appearanceDarkThemeSubtitle": "Переключать светлую и тёмную Material 3 тему вручную",
+  "appearanceLabelLight": "Светлая",
+  "appearanceLabelDark": "Тёмная",
+  "appearanceLabelAmethyst": "Аметист",
+  "appearanceLabelLagoon": "Лагуна",
+  "appearanceLabelMeadow": "Луг",
+  "appearanceLabelEmber": "Янтарь",
+  "appearanceLabelOrchid": "Орхидея",
+  "appearanceLabelSlate": "Сланец",
+  "appearanceLabelSky": "Небо",
+  "appearanceLabelRose": "Роза",
   "languageRegionTitle": "Язык и регион",
   "languageRegionSubtitle": "Выберите язык приложения и способ отображения времени.",
   "languageRegionAppLanguage": "Язык приложения",
@@ -898,5 +923,199 @@
   "settingsBotsSubtitle": "Создание и управление ботами",
   "settingsSecretChatsTitle": "Секретные чаты",
   "settingsSecretChatsSubtitle": "Сквозное шифрование (E2EE)",
-  "settingsSecretChatsButton": "Секретный чат"
+  "settingsSecretChatsButton": "Секретный чат",
+  "adminUserBanned": "Пользователь {id} забанен",
+  "@adminUserBanned": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminUserUnbanned": "Пользователь {id} разбанен",
+  "@adminUserUnbanned": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminUserFrozen": "Пользователь {id} заморожен",
+  "@adminUserFrozen": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminUserUnfrozen": "Пользователь {id} разморожен",
+  "@adminUserUnfrozen": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminSpamBlockEnabled": "Спам-блок включен для {id}",
+  "@adminSpamBlockEnabled": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminSpamBlockDisabled": "Спам-блок отключен для {id}",
+  "@adminSpamBlockDisabled": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminChatBanned": "Чат {id} забанен",
+  "@adminChatBanned": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminChatUnbanned": "Чат {id} разбанен",
+  "@adminChatUnbanned": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminTabUsers": "Пользователи ({count})",
+  "@adminTabUsers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminTabChats": "Чаты ({count})",
+  "@adminTabChats": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminActionBan": "Забанить",
+  "adminActionUnban": "Разбанить",
+  "adminActionFreeze": "Заморозить",
+  "adminActionUnfreeze": "Разморозить",
+  "adminActionSpamBlock": "Спам-блок",
+  "adminActionUnspamBlock": "Снять спам-блок",
+  "badgeCreateTitle": "Создать бейдж",
+  "badgeAwardTitle": "Выдать бейдж",
+  "badgeActionCreate": "Создать",
+  "badgeActionAward": "Выдать",
+  "badgeCreated": "Бейдж создан",
+  "badgeDeleted": "Бейдж {id} удалён",
+  "@badgeDeleted": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "badgeAwarded": "Бейдж {badgeId} выдан пользователю {userId}",
+  "@badgeAwarded": {
+    "placeholders": {
+      "badgeId": {
+        "type": "int"
+      },
+      "userId": {
+        "type": "int"
+      }
+    }
+  },
+  "badgeNoBadges": "Нет доступных бейджей",
+  "badgeListRefresh": "Обновить",
+  "botCreateTitle": "Создать бота",
+  "botBotToken": "Токен бота",
+  "botActionUse": "Использовать",
+  "botTokenCopied": "Токен скопирован",
+  "botNoUpdates": "Нет обновлений",
+  "e2eeKeyGenerated": "E2EE ключ сгенерирован и загружен",
+  "mediaDownloadAndOpen": "Скачать и открыть",
+  "mediaSavedTo": "Сохранено в {path}",
+  "@mediaSavedTo": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "mediaDownloadFailedExt": "Не удалось скачать. Попробуйте открыть во внешнем приложении.",
+  "mediaDownloadFailed": "Ошибка скачивания: {error}",
+  "@mediaDownloadFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "dialogCancelChatCreationTitle": "Отменить?",
+  "dialogCancelChatCreationBody": "Идёт создание чата. Отменить?",
+  "dialogCancelCommentTitle": "Отменить?",
+  "dialogCancelCommentBody": "Идёт отправка комментария. Отменить?",
+  "emptyStateNoItems": "Ничего не найдено",
+  "emptyStateNoItemsDesc": "Здесь пока ничего нет.",
+  "offlineWaiting": "Ожидание сети...",
+  "filePreviewSave": "Сохранить",
+  "filePreviewLink": "Ссылка",
+  "filePreviewOpen": "Открыть",
+  "filePreviewForward": "Переслать",
+  "filePreviewFileName": "Имя файла",
+  "filePreviewClose": "Закрыть",
+  "filePreviewLinkCopied": "Ссылка скопирована",
+  "filePreviewPathCopied": "Путь скопирован",
+  "filePreviewSaved": "Файл сохранён",
+  "filePreviewSaveError": "Не удалось сохранить: {error}",
+  "@filePreviewSaveError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "filePreviewPause": "Пауза",
+  "filePreviewPlay": "Воспроизвести",
+  "filePickerGallery": "Галерея",
+  "filePickerDocument": "Документ",
+  "filePickerAudio": "Аудио",
+  "filePickerFile": "Файл",
+  "filePickerReadError": "Не удалось прочитать файл",
+  "badgeFieldName": "Название",
+  "badgeFieldDescription": "Описание",
+  "badgeFieldIcon": "Иконка (эмодзи)",
+  "badgeFieldColor": "Цвет (hex)",
+  "badgeFieldUserId": "ID пользователя",
+  "badgeFieldBadgeId": "ID бейджа",
+  "badgeAdminPassword": "Пароль админа",
+  "badgeAdminMode": "Режим админа",
+  "badgeAdminSubtitle": "Показать управление бейджами",
+  "botFieldName": "Имя бота",
+  "botFieldUsername": "Username",
+  "botFieldDescription": "Описание (необязательно)",
+  "botFieldToken": "Введите токен бота",
+  "botSectionTitle": "Боты",
+  "botSectionSubtitle": "Создавайте и управляйте ботами.",
+  "botCreateSubtitle": "Создать нового бота",
+  "botCreateDescription": "Зарегистрировать бота",
+  "botUpdatesTitle": "Обновления бота",
+  "botGetUpdates": "Получить обновления",
+  "botPollSubtitle": "Опросить новые сообщения и колбэки",
+  "botCreated": "Бот создан!",
+  "botCopied": "Скопировано",
+  "fluidPreviewM3Title": "Оформление M3 Expressive",
+  "fluidPreviewM3Subtitle": "Новые индикаторы и плавные переходы уже доступны!",
+  "profileAvatarUpdated": "Аватар обновлён",
+  "profileError": "Ошибка: {error}",
+  "@profileError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "chatImageUnavailable": "Изображение недоступно",
+  "settingsRevokeSession": "Завершить сессию"
 }

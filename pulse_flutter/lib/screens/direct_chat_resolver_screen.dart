@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -139,13 +140,13 @@ class _DirectChatResolverScreenState
                           children: <Widget>[
                             OutlinedButton(
                               onPressed: () => context.pop(),
-                              child: const Text('Back'),
+                              child: Text(context.l10n.groupBack),
                             ),
                             const SizedBox(width: 12),
                             FilledButton.icon(
                               onPressed: _resolve,
                               icon: const Icon(Icons.refresh_rounded),
-                              label: const Text('Retry'),
+                              label: Text(context.l10n.commonRetry),
                             ),
                           ],
                         ),

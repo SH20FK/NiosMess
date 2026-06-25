@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsAboutScreen extends StatefulWidget {
@@ -25,28 +26,35 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     return SettingsScaffold(
       title: context.l10n.settingsAboutTitle,
       children: <Widget>[
         SettingsNavBanner(
           icon: Icons.info_outline_rounded,
           title: context.l10n.settingsAboutTitle,
-          subtitle: context.l10n.settingsSupportAboutSubtitle,
-          iconColor: Colors.indigo,
+          subtitle: 'Поддержка, правовая информация и сведения о приложении.',
+          iconColor: scheme.primary,
         ),
         SettingsSection(
           title: context.l10n.settingsHelpSupportTitle,
+          subtitle: 'Частые вопросы и способы связи',
           children: <Widget>[
             ExpansionTile(
               leading: Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  color: scheme.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.quiz_rounded, color: Colors.amber, size: 20),
+                child: Icon(
+                  Icons.quiz_rounded,
+                  color: scheme.onTertiaryContainer,
+                  size: 20,
+                ),
               ),
               title: Text(
                 context.l10n.settingsFaq,
@@ -83,7 +91,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
               icon: Icons.support_agent_rounded,
               title: context.l10n.settingsContactSupport,
               subtitle: 'support@ni-os.ru',
-              iconColor: Colors.blue,
+              iconColor: scheme.primary,
               onTap: () => _composeSupportEmail(
                 context,
                 subject: context.l10n.settingsSupportRequestSubject,
@@ -94,7 +102,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
               icon: Icons.bug_report_rounded,
               title: context.l10n.settingsReportIssue,
               subtitle: context.l10n.settingsReportIssueSubtitle,
-              iconColor: Colors.red,
+              iconColor: scheme.error,
               onTap: () => _showReportDialog(context),
             ),
           ],
@@ -109,19 +117,20 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
 
             return SettingsSection(
               title: 'NiosMess',
+              subtitle: 'Версия приложения и служебные пункты',
               children: <Widget>[
                 SettingsInfoTile(
                   icon: Icons.sell_rounded,
                   title: context.l10n.settingsVersion,
                   subtitle: version,
-                  iconColor: Colors.indigo,
+                  iconColor: scheme.secondary,
                   onLongPress: () => _showHiddenMenu(context),
                 ),
                 SettingsTile(
                   icon: Icons.auto_awesome_rounded,
                   title: context.l10n.settingsDevelopers,
                   subtitle: context.l10n.settingsDevelopersSubtitle,
-                  iconColor: Colors.purple,
+                  iconColor: scheme.tertiary,
                   onTap: () => context.push('/settings/developers'),
                 ),
               ],
@@ -130,26 +139,27 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
         ),
         SettingsSection(
           title: context.l10n.settingsLegalTitle,
+          subtitle: 'Политики и внешние ресурсы',
           children: <Widget>[
             SettingsTile(
               icon: Icons.policy_rounded,
               title: context.l10n.settingsPrivacyPolicy,
               subtitle: 'ni-os.ru/privacy',
-              iconColor: Colors.teal,
+              iconColor: scheme.primary,
               onTap: () => _openUrl(context, 'https://ni-os.ru/privacy'),
             ),
             SettingsTile(
               icon: Icons.gavel_rounded,
               title: context.l10n.settingsTermsOfService,
               subtitle: 'ni-os.ru/terms',
-              iconColor: Colors.teal,
+              iconColor: scheme.secondary,
               onTap: () => _openUrl(context, 'https://ni-os.ru/terms'),
             ),
             SettingsTile(
               icon: Icons.public_rounded,
               title: context.l10n.settingsOpenWebsite,
               subtitle: 'ni-os.ru',
-              iconColor: Colors.blue,
+              iconColor: scheme.tertiary,
               onTap: () => _openUrl(context, 'https://ni-os.ru'),
             ),
           ],
@@ -232,39 +242,40 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
 
   Future<void> _showReportDialog(BuildContext context) async {
     final TextEditingController descController = TextEditingController();
-    await showDialog<void>(
+    await showAppDialog<void>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        title: Text(context.l10n.settingsReportIssue),
-        content: TextField(
-          controller: descController,
-          maxLines: 5,
-          minLines: 2,
-          decoration: InputDecoration(
-            hintText: context.l10n.settingsReportIssueHint,
+      builder: (BuildContext dialogContext) {
+        return AppDialog(
+          title: context.l10n.settingsReportIssue,
+          icon: Icons.bug_report_rounded,
+          actions: <AppDialogAction>[
+            AppDialogAction(
+              label: context.l10n.commonCancel,
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            AppDialogAction(
+              label: context.l10n.settingsSubmit,
+              isPrimary: true,
+              onPressed: () async {
+                final String description = descController.text.trim();
+                Navigator.of(dialogContext).pop();
+                await _composeSupportEmail(
+                  context,
+                  subject: context.l10n.settingsBugReportSubject,
+                  body: description.isEmpty
+                      ? context.l10n.settingsBugReportEmpty
+                      : description,
+                );
+              },
+            ),
+          ],
+          child: AppTextFieldDialogContent(
+            controller: descController,
+            hint: context.l10n.settingsReportIssueHint,
+            maxLines: 5,
           ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(context.l10n.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final String description = descController.text.trim();
-              Navigator.of(ctx).pop();
-              await _composeSupportEmail(
-                context,
-                subject: context.l10n.settingsBugReportSubject,
-                body: description.isEmpty
-                    ? context.l10n.settingsBugReportEmpty
-                    : description,
-              );
-            },
-            child: Text(context.l10n.settingsSubmit),
-          ),
-        ],
-      ),
+        );
+      },
     );
     descController.dispose();
   }
@@ -304,7 +315,10 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(question, style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            question,
+            style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 3),
           Text(
             answer,

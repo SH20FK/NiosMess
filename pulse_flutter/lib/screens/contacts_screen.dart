@@ -314,6 +314,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                                               icon: badge.icon,
                                               color: badge.color,
                                               interactive: false,
+                                              mode: BadgeResolver.isStatusBadge(badge) ? BadgeDisplayMode.statusIcon : BadgeDisplayMode.infoLabel,
                                             ),
                                           ),
                                           if (hiddenBadgeCount > 0)
@@ -342,7 +343,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                           const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(year2023: false, strokeWidth: 2),
+                            child: CircularProgressIndicator( strokeWidth: 2),
                           )
                         else ...<Widget>[
                           IconButton(
@@ -634,7 +635,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                 ? const SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(year2023: false, strokeWidth: 2),
+                    child: CircularProgressIndicator( strokeWidth: 2),
                   )
                 : Row(
                     mainAxisSize: MainAxisSize.min,

@@ -160,6 +160,31 @@
   },
   "appearanceLanguageRegion": "Language & region",
   "appearanceLanguageRegionSubtitle": "App language, time zone, and regional format",
+  "appearancePersonalizationTitle": "Appearance & themes",
+  "appearancePersonalizationSubtitle": "Material 3 palettes, soft accent color haze, and manual visual rhythm tuning.",
+  "appearancePaletteTitle": "Palette",
+  "appearancePaletteSubtitle": "Choose accent colors for the interface, text, and buttons",
+  "appearanceDensityTitle": "Interface density",
+  "appearanceDensitySubtitle": "Affects preview size, palette, and visual rhythm of the screen",
+  "appearanceDensitySoft": "Soft",
+  "appearanceDensityRich": "Rich",
+  "appearanceDensityExpressive": "Expressive",
+  "appearanceThemeParamsTitle": "Theme parameters",
+  "appearanceThemeParamsSubtitle": "Material 3 system toggles",
+  "appearanceDynamicColors": "Dynamic colors",
+  "appearanceDynamicColorsSubtitle": "Use a more expressive tonal scheme",
+  "appearanceDarkTheme": "Dark theme",
+  "appearanceDarkThemeSubtitle": "Manually switch between light and dark Material 3 theme",
+  "appearanceLabelLight": "Light",
+  "appearanceLabelDark": "Dark",
+  "appearanceLabelAmethyst": "Amethyst",
+  "appearanceLabelLagoon": "Lagoon",
+  "appearanceLabelMeadow": "Meadow",
+  "appearanceLabelEmber": "Ember",
+  "appearanceLabelOrchid": "Orchid",
+  "appearanceLabelSlate": "Slate",
+  "appearanceLabelSky": "Sky",
+  "appearanceLabelRose": "Rose",
   "languageRegionTitle": "Language & region",
   "languageRegionSubtitle": "Choose app language and how time is shown.",
   "languageRegionAppLanguage": "App language",
@@ -898,5 +923,199 @@
   "settingsBotsSubtitle": "Create and manage your bots",
   "settingsSecretChatsTitle": "Secret Chats",
   "settingsSecretChatsSubtitle": "End-to-end encrypted messaging",
-  "settingsSecretChatsButton": "Secret Chat"
+  "settingsSecretChatsButton": "Secret Chat",
+  "adminUserBanned": "User {id} banned",
+  "@adminUserBanned": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminUserUnbanned": "User {id} unbanned",
+  "@adminUserUnbanned": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminUserFrozen": "User {id} frozen",
+  "@adminUserFrozen": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminUserUnfrozen": "User {id} unfrozen",
+  "@adminUserUnfrozen": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminSpamBlockEnabled": "Spam block enabled for user {id}",
+  "@adminSpamBlockEnabled": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminSpamBlockDisabled": "Spam block disabled for user {id}",
+  "@adminSpamBlockDisabled": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminChatBanned": "Chat {id} banned",
+  "@adminChatBanned": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminChatUnbanned": "Chat {id} unbanned",
+  "@adminChatUnbanned": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "adminTabUsers": "Users ({count})",
+  "@adminTabUsers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminTabChats": "Chats ({count})",
+  "@adminTabChats": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminActionBan": "Ban",
+  "adminActionUnban": "Unban",
+  "adminActionFreeze": "Freeze",
+  "adminActionUnfreeze": "Unfreeze",
+  "adminActionSpamBlock": "Spam Block",
+  "adminActionUnspamBlock": "Remove Spam Block",
+  "badgeCreateTitle": "Create Badge",
+  "badgeAwardTitle": "Award Badge",
+  "badgeActionCreate": "Create",
+  "badgeActionAward": "Award",
+  "badgeCreated": "Badge created",
+  "badgeDeleted": "Badge {id} deleted",
+  "@badgeDeleted": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "badgeAwarded": "Badge {badgeId} awarded to user {userId}",
+  "@badgeAwarded": {
+    "placeholders": {
+      "badgeId": {
+        "type": "int"
+      },
+      "userId": {
+        "type": "int"
+      }
+    }
+  },
+  "badgeNoBadges": "No badges available",
+  "badgeListRefresh": "Refresh",
+  "botCreateTitle": "Create Bot",
+  "botBotToken": "Bot Token",
+  "botActionUse": "Use",
+  "botTokenCopied": "Token copied",
+  "botNoUpdates": "No updates",
+  "e2eeKeyGenerated": "E2EE key generated and uploaded",
+  "mediaDownloadAndOpen": "Download & Open",
+  "mediaSavedTo": "Saved to {path}",
+  "@mediaSavedTo": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "mediaDownloadFailedExt": "Could not download. Try opening externally.",
+  "mediaDownloadFailed": "Download failed: {error}",
+  "@mediaDownloadFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "dialogCancelChatCreationTitle": "Cancel?",
+  "dialogCancelChatCreationBody": "Chat creation is in progress. Cancel?",
+  "dialogCancelCommentTitle": "Cancel?",
+  "dialogCancelCommentBody": "Comment sending is in progress. Cancel?",
+  "emptyStateNoItems": "No items found",
+  "emptyStateNoItemsDesc": "There's nothing to show here yet.",
+  "offlineWaiting": "Waiting for network...",
+  "filePreviewSave": "Save",
+  "filePreviewLink": "Link",
+  "filePreviewOpen": "Open",
+  "filePreviewForward": "Forward",
+  "filePreviewFileName": "File name",
+  "filePreviewClose": "Close",
+  "filePreviewLinkCopied": "Link copied to clipboard",
+  "filePreviewPathCopied": "File path copied to clipboard",
+  "filePreviewSaved": "File saved",
+  "filePreviewSaveError": "Could not save file: {error}",
+  "@filePreviewSaveError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "filePreviewPause": "Pause",
+  "filePreviewPlay": "Play",
+  "filePickerGallery": "Gallery",
+  "filePickerDocument": "Document",
+  "filePickerAudio": "Audio",
+  "filePickerFile": "File",
+  "filePickerReadError": "Could not read selected file",
+  "badgeFieldName": "Name",
+  "badgeFieldDescription": "Description",
+  "badgeFieldIcon": "Icon (emoji)",
+  "badgeFieldColor": "Color (hex)",
+  "badgeFieldUserId": "User ID",
+  "badgeFieldBadgeId": "Badge ID",
+  "badgeAdminPassword": "Admin Password",
+  "badgeAdminMode": "Admin Mode",
+  "badgeAdminSubtitle": "Show admin badge management",
+  "botFieldName": "Bot Name",
+  "botFieldUsername": "Username",
+  "botFieldDescription": "Description (optional)",
+  "botFieldToken": "Enter bot token",
+  "botSectionTitle": "Bots",
+  "botSectionSubtitle": "Create and manage your bots.",
+  "botCreateSubtitle": "Create a new bot",
+  "botCreateDescription": "Register a bot account",
+  "botUpdatesTitle": "Bot Updates",
+  "botGetUpdates": "Get updates",
+  "botPollSubtitle": "Poll for new bot messages and callbacks",
+  "botCreated": "Bot created!",
+  "botCopied": "Copied",
+  "fluidPreviewM3Title": "M3 Expressive Design",
+  "fluidPreviewM3Subtitle": "New indicators and smooth transitions are already available!",
+  "profileAvatarUpdated": "Avatar updated",
+  "profileError": "Error: {error}",
+  "@profileError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "chatImageUnavailable": "Image unavailable",
+  "settingsRevokeSession": "Revoke session"
 }

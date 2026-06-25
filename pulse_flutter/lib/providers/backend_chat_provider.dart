@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
+import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -164,6 +165,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   ChatMessagesNotifier(this._chatId);
 
   final int _chatId;
+  int _sendCounter = 0;
 
   @override
   Future<List<ApiMessage>> build() async {
@@ -186,7 +188,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
     // Load cache immediately
     try {
-      final List<ApiMessage> cached = ref.read(cacheServiceProvider).getCachedMessages(_chatId);
+      final List<ApiMessage> cached = await EncryptedMessageCache.loadMessages(_chatId);
       if (cached.isNotEmpty) {
         state = AsyncData<List<ApiMessage>>(cached);
       }
@@ -236,7 +238,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   Future<List<ApiMessage>> _fetch() async {
     final List<ApiMessage> messages = await ref.read(chatRepositoryProvider).getHistory(_chatId, pageSize: 80);
     try {
-      await ref.read(cacheServiceProvider).saveMessages(_chatId, messages);
+      await EncryptedMessageCache.saveMessages(_chatId, messages);
     } catch (e) {
       debugPrint('[backend_chat_provider.dart] Save messages cache error: $e');
     }
@@ -245,7 +247,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   Future<void> _saveToCache(List<ApiMessage> messages) async {
     try {
-      await ref.read(cacheServiceProvider).saveMessages(_chatId, messages);
+      await EncryptedMessageCache.saveMessages(_chatId, messages);
     } catch (e) {
       debugPrint('[backend_chat_provider.dart] Save messages cache error: $e');
     }
@@ -327,7 +329,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       return;
     }
 
-    final int tempId = DateTime.now().millisecondsSinceEpoch;
+    final int tempId = -(DateTime.now().millisecondsSinceEpoch + _sendCounter++);
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     final String myUsername = ref.read(authProvider).session?.username ?? '';
 

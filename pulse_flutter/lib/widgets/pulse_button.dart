@@ -25,7 +25,7 @@ class PulseButton extends StatelessWidget {
             const SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(year2023: false, strokeWidth: 2),
+              child: CircularProgressIndicator(strokeWidth: 2),
             )
           else if (icon != null)
             Icon(icon, size: 18),

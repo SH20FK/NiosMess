@@ -129,6 +129,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   }
 
   Future<void> _load() async {
+    try {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? modeRaw = prefs.getString(_themeModeKey);
     final String? variantRaw = prefs.getString(_variantKey);
@@ -165,6 +166,9 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       optimizeForWeakDevices:
           prefs.getBool(_optimizeWeakKey) ?? state.optimizeForWeakDevices,
     );
+    } catch (e) {
+      debugPrint('[UiSettingsNotifier] Failed to load settings: $e');
+    }
   }
 
   Future<void> _persist(UiSettingsState nextState) async {

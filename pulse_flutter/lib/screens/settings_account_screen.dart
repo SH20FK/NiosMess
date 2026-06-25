@@ -6,6 +6,7 @@ import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class SettingsAccountScreen extends ConsumerStatefulWidget {
@@ -43,29 +44,30 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
     final TextEditingController passwordController = TextEditingController();
     final String? password = await showDialog<String>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        title: Text(
-          currentlyEnabled
-              ? context.l10n.settingsDisable2fa
-              : context.l10n.settingsEnable2fa,
-        ),
-        content: TextField(
-          controller: passwordController,
-          obscureText: true,
-          decoration: InputDecoration(
-            labelText: context.l10n.settingsConfirmPassword,
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
+      builder: (BuildContext ctx) => AppDialog(
+        title: currentlyEnabled
+            ? context.l10n.settingsDisable2fa
+            : context.l10n.settingsEnable2fa,
+        subtitle: context.l10n.settingsConfirmPassword,
+        icon: Icons.password_rounded,
+        actions: <AppDialogAction>[
+          AppDialogAction(
+            label: context.l10n.commonCancel,
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(context.l10n.commonCancel),
           ),
-          FilledButton(
+          AppDialogAction(
+            label: context.l10n.settingsConfirm,
+            icon: Icons.check_rounded,
+            isPrimary: true,
             onPressed: () => Navigator.of(ctx).pop(passwordController.text),
-            child: Text(context.l10n.settingsConfirm),
           ),
         ],
+        child: AppTextFieldDialogContent(
+          controller: passwordController,
+          obscureText: true,
+          label: context.l10n.settingsConfirmPassword,
+          prefixIcon: Icons.lock_rounded,
+        ),
       ),
     );
     passwordController.dispose();
@@ -109,31 +111,32 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
         SettingsNavBanner(
           icon: Icons.admin_panel_settings_rounded,
           title: context.l10n.settingsAccountTitle,
-          subtitle: context.l10n.settingsAccountAccessSubtitle,
-          iconColor: Colors.blue,
+          subtitle: 'Безопасность входа, подтверждение почты и активные сессии.',
+          iconColor: scheme.primary,
         ),
         SettingsSection(
           title: context.l10n.settingsAccountAccessTitle,
+          subtitle: 'Основные действия для доступа и восстановления аккаунта',
           children: <Widget>[
             SettingsTile(
               icon: Icons.verified_user_rounded,
               title: context.l10n.settingsVerifyEmail,
               subtitle: context.l10n.settingsVerifyEmailSubtitle,
-              iconColor: Colors.blue,
+              iconColor: scheme.primary,
               onTap: () => context.push('/verify-email'),
             ),
             SettingsTile(
               icon: Icons.key_rounded,
               title: context.l10n.settingsResetPassword,
               subtitle: context.l10n.settingsResetPasswordSubtitle,
-              iconColor: Colors.blue,
+              iconColor: scheme.tertiary,
               onTap: () => context.push('/reset-password/request'),
             ),
             SettingsTile(
               icon: Icons.devices_rounded,
               title: context.l10n.settingsActiveSessions,
               subtitle: context.l10n.settingsActiveSessionsSubtitle,
-              iconColor: Colors.blueGrey,
+              iconColor: scheme.secondary,
               onTap: () => context.push('/settings/sessions'),
             ),
           ],
@@ -148,7 +151,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
               subtitle: twoFaEnabled
                   ? context.l10n.settingsTwoFactorEnabledShort
                   : context.l10n.settingsTwoFactorDisabledShort,
-              iconColor: twoFaEnabled ? Colors.green : scheme.onSurfaceVariant,
+              iconColor: twoFaEnabled ? scheme.primary : scheme.onSurfaceVariant,
               value: twoFaEnabled,
               onChanged: _toggling2fa ? null : (_) => _toggle2fa(),
             ),

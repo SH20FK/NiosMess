@@ -208,9 +208,9 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         ),
                         child: auth.busy
-                            ? const SizedBox.square(
+                            ? SizedBox.square(
                                 dimension: 22,
-                                child: CircularProgressIndicator(year2023: false, strokeWidth: 3, color: Colors.white),
+                                child: CircularProgressIndicator( strokeWidth: 3, color: Theme.of(context).colorScheme.onPrimary),
                               )
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,

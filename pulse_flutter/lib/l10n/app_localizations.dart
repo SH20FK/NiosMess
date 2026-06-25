@@ -950,6 +950,156 @@ abstract class AppLocalizations {
   /// **'App language, time zone, and regional format'**
   String get appearanceLanguageRegionSubtitle;
 
+  /// No description provided for @appearancePersonalizationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance & themes'**
+  String get appearancePersonalizationTitle;
+
+  /// No description provided for @appearancePersonalizationSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Material 3 palettes, soft accent color haze, and manual visual rhythm tuning.'**
+  String get appearancePersonalizationSubtitle;
+
+  /// No description provided for @appearancePaletteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Palette'**
+  String get appearancePaletteTitle;
+
+  /// No description provided for @appearancePaletteSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose accent colors for the interface, text, and buttons'**
+  String get appearancePaletteSubtitle;
+
+  /// No description provided for @appearanceDensityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface density'**
+  String get appearanceDensityTitle;
+
+  /// No description provided for @appearanceDensitySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Affects preview size, palette, and visual rhythm of the screen'**
+  String get appearanceDensitySubtitle;
+
+  /// No description provided for @appearanceDensitySoft.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft'**
+  String get appearanceDensitySoft;
+
+  /// No description provided for @appearanceDensityRich.
+  ///
+  /// In en, this message translates to:
+  /// **'Rich'**
+  String get appearanceDensityRich;
+
+  /// No description provided for @appearanceDensityExpressive.
+  ///
+  /// In en, this message translates to:
+  /// **'Expressive'**
+  String get appearanceDensityExpressive;
+
+  /// No description provided for @appearanceThemeParamsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme parameters'**
+  String get appearanceThemeParamsTitle;
+
+  /// No description provided for @appearanceThemeParamsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Material 3 system toggles'**
+  String get appearanceThemeParamsSubtitle;
+
+  /// No description provided for @appearanceDynamicColors.
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamic colors'**
+  String get appearanceDynamicColors;
+
+  /// No description provided for @appearanceDynamicColorsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a more expressive tonal scheme'**
+  String get appearanceDynamicColorsSubtitle;
+
+  /// No description provided for @appearanceDarkTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark theme'**
+  String get appearanceDarkTheme;
+
+  /// No description provided for @appearanceDarkThemeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manually switch between light and dark Material 3 theme'**
+  String get appearanceDarkThemeSubtitle;
+
+  /// No description provided for @appearanceLabelLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get appearanceLabelLight;
+
+  /// No description provided for @appearanceLabelDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get appearanceLabelDark;
+
+  /// No description provided for @appearanceLabelAmethyst.
+  ///
+  /// In en, this message translates to:
+  /// **'Amethyst'**
+  String get appearanceLabelAmethyst;
+
+  /// No description provided for @appearanceLabelLagoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Lagoon'**
+  String get appearanceLabelLagoon;
+
+  /// No description provided for @appearanceLabelMeadow.
+  ///
+  /// In en, this message translates to:
+  /// **'Meadow'**
+  String get appearanceLabelMeadow;
+
+  /// No description provided for @appearanceLabelEmber.
+  ///
+  /// In en, this message translates to:
+  /// **'Ember'**
+  String get appearanceLabelEmber;
+
+  /// No description provided for @appearanceLabelOrchid.
+  ///
+  /// In en, this message translates to:
+  /// **'Orchid'**
+  String get appearanceLabelOrchid;
+
+  /// No description provided for @appearanceLabelSlate.
+  ///
+  /// In en, this message translates to:
+  /// **'Slate'**
+  String get appearanceLabelSlate;
+
+  /// No description provided for @appearanceLabelSky.
+  ///
+  /// In en, this message translates to:
+  /// **'Sky'**
+  String get appearanceLabelSky;
+
+  /// No description provided for @appearanceLabelRose.
+  ///
+  /// In en, this message translates to:
+  /// **'Rose'**
+  String get appearanceLabelRose;
+
   /// No description provided for @languageRegionTitle.
   ///
   /// In en, this message translates to:
@@ -4021,6 +4171,528 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Secret Chat'**
   String get settingsSecretChatsButton;
+
+  /// No description provided for @adminUserBanned.
+  ///
+  /// In en, this message translates to:
+  /// **'User {id} banned'**
+  String adminUserBanned(int id);
+
+  /// No description provided for @adminUserUnbanned.
+  ///
+  /// In en, this message translates to:
+  /// **'User {id} unbanned'**
+  String adminUserUnbanned(int id);
+
+  /// No description provided for @adminUserFrozen.
+  ///
+  /// In en, this message translates to:
+  /// **'User {id} frozen'**
+  String adminUserFrozen(int id);
+
+  /// No description provided for @adminUserUnfrozen.
+  ///
+  /// In en, this message translates to:
+  /// **'User {id} unfrozen'**
+  String adminUserUnfrozen(int id);
+
+  /// No description provided for @adminSpamBlockEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Spam block enabled for user {id}'**
+  String adminSpamBlockEnabled(int id);
+
+  /// No description provided for @adminSpamBlockDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Spam block disabled for user {id}'**
+  String adminSpamBlockDisabled(int id);
+
+  /// No description provided for @adminChatBanned.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat {id} banned'**
+  String adminChatBanned(int id);
+
+  /// No description provided for @adminChatUnbanned.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat {id} unbanned'**
+  String adminChatUnbanned(int id);
+
+  /// No description provided for @adminTabUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'Users ({count})'**
+  String adminTabUsers(int count);
+
+  /// No description provided for @adminTabChats.
+  ///
+  /// In en, this message translates to:
+  /// **'Chats ({count})'**
+  String adminTabChats(int count);
+
+  /// No description provided for @adminActionBan.
+  ///
+  /// In en, this message translates to:
+  /// **'Ban'**
+  String get adminActionBan;
+
+  /// No description provided for @adminActionUnban.
+  ///
+  /// In en, this message translates to:
+  /// **'Unban'**
+  String get adminActionUnban;
+
+  /// No description provided for @adminActionFreeze.
+  ///
+  /// In en, this message translates to:
+  /// **'Freeze'**
+  String get adminActionFreeze;
+
+  /// No description provided for @adminActionUnfreeze.
+  ///
+  /// In en, this message translates to:
+  /// **'Unfreeze'**
+  String get adminActionUnfreeze;
+
+  /// No description provided for @adminActionSpamBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Spam Block'**
+  String get adminActionSpamBlock;
+
+  /// No description provided for @adminActionUnspamBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Spam Block'**
+  String get adminActionUnspamBlock;
+
+  /// No description provided for @badgeCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Badge'**
+  String get badgeCreateTitle;
+
+  /// No description provided for @badgeAwardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Award Badge'**
+  String get badgeAwardTitle;
+
+  /// No description provided for @badgeActionCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get badgeActionCreate;
+
+  /// No description provided for @badgeActionAward.
+  ///
+  /// In en, this message translates to:
+  /// **'Award'**
+  String get badgeActionAward;
+
+  /// No description provided for @badgeCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Badge created'**
+  String get badgeCreated;
+
+  /// No description provided for @badgeDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Badge {id} deleted'**
+  String badgeDeleted(int id);
+
+  /// No description provided for @badgeAwarded.
+  ///
+  /// In en, this message translates to:
+  /// **'Badge {badgeId} awarded to user {userId}'**
+  String badgeAwarded(int badgeId, int userId);
+
+  /// No description provided for @badgeNoBadges.
+  ///
+  /// In en, this message translates to:
+  /// **'No badges available'**
+  String get badgeNoBadges;
+
+  /// No description provided for @badgeListRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get badgeListRefresh;
+
+  /// No description provided for @botCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Bot'**
+  String get botCreateTitle;
+
+  /// No description provided for @botBotToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Bot Token'**
+  String get botBotToken;
+
+  /// No description provided for @botActionUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Use'**
+  String get botActionUse;
+
+  /// No description provided for @botTokenCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Token copied'**
+  String get botTokenCopied;
+
+  /// No description provided for @botNoUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'No updates'**
+  String get botNoUpdates;
+
+  /// No description provided for @e2eeKeyGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'E2EE key generated and uploaded'**
+  String get e2eeKeyGenerated;
+
+  /// No description provided for @mediaDownloadAndOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Download & Open'**
+  String get mediaDownloadAndOpen;
+
+  /// No description provided for @mediaSavedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to {path}'**
+  String mediaSavedTo(Object path);
+
+  /// No description provided for @mediaDownloadFailedExt.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not download. Try opening externally.'**
+  String get mediaDownloadFailedExt;
+
+  /// No description provided for @mediaDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed: {error}'**
+  String mediaDownloadFailed(Object error);
+
+  /// No description provided for @dialogCancelChatCreationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel?'**
+  String get dialogCancelChatCreationTitle;
+
+  /// No description provided for @dialogCancelChatCreationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat creation is in progress. Cancel?'**
+  String get dialogCancelChatCreationBody;
+
+  /// No description provided for @dialogCancelCommentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel?'**
+  String get dialogCancelCommentTitle;
+
+  /// No description provided for @dialogCancelCommentBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment sending is in progress. Cancel?'**
+  String get dialogCancelCommentBody;
+
+  /// No description provided for @emptyStateNoItems.
+  ///
+  /// In en, this message translates to:
+  /// **'No items found'**
+  String get emptyStateNoItems;
+
+  /// No description provided for @emptyStateNoItemsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'There\'s nothing to show here yet.'**
+  String get emptyStateNoItemsDesc;
+
+  /// No description provided for @offlineWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for network...'**
+  String get offlineWaiting;
+
+  /// No description provided for @filePreviewSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get filePreviewSave;
+
+  /// No description provided for @filePreviewLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Link'**
+  String get filePreviewLink;
+
+  /// No description provided for @filePreviewOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get filePreviewOpen;
+
+  /// No description provided for @filePreviewForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Forward'**
+  String get filePreviewForward;
+
+  /// No description provided for @filePreviewFileName.
+  ///
+  /// In en, this message translates to:
+  /// **'File name'**
+  String get filePreviewFileName;
+
+  /// No description provided for @filePreviewClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get filePreviewClose;
+
+  /// No description provided for @filePreviewLinkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Link copied to clipboard'**
+  String get filePreviewLinkCopied;
+
+  /// No description provided for @filePreviewPathCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'File path copied to clipboard'**
+  String get filePreviewPathCopied;
+
+  /// No description provided for @filePreviewSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'File saved'**
+  String get filePreviewSaved;
+
+  /// No description provided for @filePreviewSaveError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save file: {error}'**
+  String filePreviewSaveError(Object error);
+
+  /// No description provided for @filePreviewPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get filePreviewPause;
+
+  /// No description provided for @filePreviewPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get filePreviewPlay;
+
+  /// No description provided for @filePickerGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Gallery'**
+  String get filePickerGallery;
+
+  /// No description provided for @filePickerDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Document'**
+  String get filePickerDocument;
+
+  /// No description provided for @filePickerAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get filePickerAudio;
+
+  /// No description provided for @filePickerFile.
+  ///
+  /// In en, this message translates to:
+  /// **'File'**
+  String get filePickerFile;
+
+  /// No description provided for @filePickerReadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read selected file'**
+  String get filePickerReadError;
+
+  /// No description provided for @badgeFieldName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get badgeFieldName;
+
+  /// No description provided for @badgeFieldDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get badgeFieldDescription;
+
+  /// No description provided for @badgeFieldIcon.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon (emoji)'**
+  String get badgeFieldIcon;
+
+  /// No description provided for @badgeFieldColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color (hex)'**
+  String get badgeFieldColor;
+
+  /// No description provided for @badgeFieldUserId.
+  ///
+  /// In en, this message translates to:
+  /// **'User ID'**
+  String get badgeFieldUserId;
+
+  /// No description provided for @badgeFieldBadgeId.
+  ///
+  /// In en, this message translates to:
+  /// **'Badge ID'**
+  String get badgeFieldBadgeId;
+
+  /// No description provided for @badgeAdminPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Password'**
+  String get badgeAdminPassword;
+
+  /// No description provided for @badgeAdminMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Mode'**
+  String get badgeAdminMode;
+
+  /// No description provided for @badgeAdminSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show admin badge management'**
+  String get badgeAdminSubtitle;
+
+  /// No description provided for @botFieldName.
+  ///
+  /// In en, this message translates to:
+  /// **'Bot Name'**
+  String get botFieldName;
+
+  /// No description provided for @botFieldUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get botFieldUsername;
+
+  /// No description provided for @botFieldDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get botFieldDescription;
+
+  /// No description provided for @botFieldToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter bot token'**
+  String get botFieldToken;
+
+  /// No description provided for @botSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bots'**
+  String get botSectionTitle;
+
+  /// No description provided for @botSectionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create and manage your bots.'**
+  String get botSectionSubtitle;
+
+  /// No description provided for @botCreateSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a new bot'**
+  String get botCreateSubtitle;
+
+  /// No description provided for @botCreateDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Register a bot account'**
+  String get botCreateDescription;
+
+  /// No description provided for @botUpdatesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bot Updates'**
+  String get botUpdatesTitle;
+
+  /// No description provided for @botGetUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Get updates'**
+  String get botGetUpdates;
+
+  /// No description provided for @botPollSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Poll for new bot messages and callbacks'**
+  String get botPollSubtitle;
+
+  /// No description provided for @botCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Bot created!'**
+  String get botCreated;
+
+  /// No description provided for @botCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get botCopied;
+
+  /// No description provided for @fluidPreviewM3Title.
+  ///
+  /// In en, this message translates to:
+  /// **'M3 Expressive Design'**
+  String get fluidPreviewM3Title;
+
+  /// No description provided for @fluidPreviewM3Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New indicators and smooth transitions are already available!'**
+  String get fluidPreviewM3Subtitle;
+
+  /// No description provided for @profileAvatarUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Avatar updated'**
+  String get profileAvatarUpdated;
+
+  /// No description provided for @profileError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {error}'**
+  String profileError(Object error);
+
+  /// No description provided for @chatImageUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Image unavailable'**
+  String get chatImageUnavailable;
+
+  /// No description provided for @settingsRevokeSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke session'**
+  String get settingsRevokeSession;
 }
 
 class _AppLocalizationsDelegate

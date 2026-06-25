@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
-import 'package:pulse_flutter/core/network/api_constants.dart';
+import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/chat_actions_models.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
@@ -12,19 +11,7 @@ import 'package:pulse_flutter/models/api/invite_models.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/models/api/upload_models.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-import 'package:pulse_flutter/providers/token_provider.dart';
-
-Map<String, dynamic> asStringMap(dynamic value) {
-  if (value is Map<String, dynamic>) {
-    return value;
-  }
-  if (value is Map) {
-    return value.map(
-      (dynamic key, dynamic val) => MapEntry(key.toString(), val),
-    );
-  }
-  return <String, dynamic>{};
-}
+import 'package:pulse_flutter/providers/api_provider.dart';
 
 class ChatRepository {
   const ChatRepository(this._ref);
@@ -730,34 +717,10 @@ class ChatRepository {
   }
 
   Future<List<int>> downloadMedia(String filePath) async {
-    final String? token = _ref.read(authTokenProvider);
-    final Uri uri = Uri.parse('${ApiConstants.baseUrl}/media/download');
-
-    final http.Response response = await http
-        .post(
-          uri,
-          headers: <String, String>{'Content-Type': 'application/json'},
-          body: jsonEncode(<String, dynamic>{
-            'file_path': filePath,
-            'token': token ?? '',
-          }),
-        )
-        .timeout(const Duration(seconds: 30));
-
-    if (response.statusCode == 200) {
-      return response.bodyBytes;
-    }
-
-    if (response.statusCode == 401) {
-      throw Exception('Unauthorized: invalid or expired token');
-    }
-    if (response.statusCode == 403) {
-      throw Exception('Access denied: not a member of this chat');
-    }
-    if (response.statusCode == 404) {
-      throw Exception('File not found');
-    }
-    throw Exception('Download failed: HTTP ${response.statusCode}');
+    return _ref.read(apiClientProvider).postBytes(
+      '/media/download',
+      body: <String, dynamic>{'file_path': filePath},
+    );
   }
 }
 

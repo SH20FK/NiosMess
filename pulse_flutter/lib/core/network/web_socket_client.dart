@@ -1,22 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:uuid/uuid.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
-
-Map<String, dynamic> asStringMap(dynamic value) {
-  if (value is Map<String, dynamic>) {
-    return value;
-  }
-  if (value is Map) {
-    return value.map(
-      (dynamic key, dynamic val) => MapEntry(key.toString(), val),
-    );
-  }
-  return <String, dynamic>{};
-}
+import 'package:pulse_flutter/core/utils/shared_utilities.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'ws_stub.dart'
+    if (dart.library.io) 'ws_io.dart'
+    if (dart.library.html) 'ws_web.dart';
 
 class WebSocketClient {
   WebSocketClient({
@@ -29,8 +21,12 @@ class WebSocketClient {
   final String? Function() readToken;
   final VoidCallback? onUnauthorized;
 
-  WebSocket? _webSocket;
+  WebSocketChannel? _channel;
+  StreamSubscription<dynamic>? _channelSubscription;
   bool _isConnecting = false;
+  bool _isSocketOpen = false;
+  bool _closed = false;
+  Timer? _reconnectTimer;
   Completer<void>? _connectionReadyCompleter;
 
   // Encryption
@@ -48,10 +44,7 @@ class WebSocketClient {
 
   Stream<Map<String, dynamic>> get pushStream => _pushStreamController.stream;
 
-  bool get _socketOpen =>
-      _webSocket != null && _webSocket!.readyState == WebSocket.open;
-
-  bool get isConnected => _socketOpen && _secretKey != null;
+  bool get isConnected => _isSocketOpen && _secretKey != null;
 
   String _getWsUrl() {
     final Uri uri = Uri.parse(baseUrl);
@@ -65,6 +58,7 @@ class WebSocketClient {
   }
 
   Future<void> connect() async {
+    if (_closed) return;
     if (isConnected) return;
     if (_isConnecting) {
       await _connectionReadyCompleter?.future;
@@ -78,11 +72,13 @@ class WebSocketClient {
     debugPrint('[WebSocketClient] Connecting to $wsUrl ...');
 
     try {
-      _webSocket = await WebSocket.connect(wsUrl)
-          .timeout(const Duration(seconds: 10));
+      final uri = Uri.parse(wsUrl);
+      _channel = connectWs(uri);
+      await _channel!.ready.timeout(const Duration(seconds: 10));
+      _isSocketOpen = true;
       debugPrint('[WebSocketClient] Socket open, waiting for key exchange...');
 
-      _webSocket!.listen(
+      _channelSubscription = _channel!.stream.listen(
         _onMessage,
         onError: _onError,
         onDone: _onDone,
@@ -91,6 +87,7 @@ class WebSocketClient {
     } catch (e) {
       debugPrint('[WebSocketClient] Connection failed: $e');
       _isConnecting = false;
+      _isSocketOpen = false;
       if (_connectionReadyCompleter != null &&
           !_connectionReadyCompleter!.isCompleted) {
         _connectionReadyCompleter!
@@ -106,8 +103,12 @@ class WebSocketClient {
 
   void _onError(Object error) {
     debugPrint('[WebSocketClient] Socket error: $error');
+    _channelSubscription?.cancel();
+    _channelSubscription = null;
     _failPendingRequests('Ошибка соединения с сервером');
-    _webSocket = null;
+    _channel?.sink.close();
+    _channel = null;
+    _isSocketOpen = false;
     _secretKey = null;
     _isConnecting = false;
     _scheduleReconnect();
@@ -115,16 +116,21 @@ class WebSocketClient {
 
   void _onDone() {
     debugPrint('[WebSocketClient] Socket closed by server.');
+    _channelSubscription?.cancel();
+    _channelSubscription = null;
     _failPendingRequests('Соединение с сервером закрыто');
-    _webSocket = null;
+    _channel?.sink.close();
+    _channel = null;
+    _isSocketOpen = false;
     _secretKey = null;
     _isConnecting = false;
     _scheduleReconnect();
   }
 
   void _scheduleReconnect() {
-    Timer(const Duration(seconds: 3), () {
-      if (!isConnected && !_isConnecting) {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(const Duration(seconds: 3), () {
+      if (!_closed && !isConnected && !_isConnecting) {
         connect().catchError((e) {
           debugPrint('[WebSocketClient] Reconnect error: $e');
         });
@@ -267,6 +273,10 @@ class WebSocketClient {
     final int requestId = ++_requestIdCounter;
     final Completer<Map<String, dynamic>> completer =
         Completer<Map<String, dynamic>>();
+    if (_pendingRequests.length >= 100) {
+      completer.completeError(StateError('Too many pending WebSocket requests'));
+      return completer.future;
+    }
     _pendingRequests[requestId] = completer;
 
     final Map<String, dynamic> requestObj = <String, dynamic>{
@@ -296,11 +306,11 @@ class WebSocketClient {
         toSend = jsonStr;
       }
 
-      if (!_socketOpen) {
+      if (!_isSocketOpen || _channel == null) {
         throw ApiException(statusCode: 0, message: 'Соединение с сервером разорвано');
       }
 
-      _webSocket!.add(toSend);
+      _channel!.sink.add(toSend);
     } catch (e) {
       _pendingRequests.remove(requestId);
       completer.completeError(e);
@@ -351,9 +361,16 @@ class WebSocketClient {
   Future<Map<String, dynamic>> _decryptMessage(
       Map<String, dynamic> outerMsg) async {
     final Map<String, dynamic> data = asStringMap(outerMsg['data']);
-    final List<int> ciphertext = base64Decode(data['ciphertext'] as String);
-    final List<int> iv = base64Decode(data['iv'] as String);
-    final List<int> tag = base64Decode(data['tag'] as String);
+    final String? ciphertextB64 = data['ciphertext'] as String?;
+    final String? ivB64 = data['iv'] as String?;
+    final String? tagB64 = data['tag'] as String?;
+    if (ciphertextB64 == null || ivB64 == null || tagB64 == null) {
+      throw StateError('Missing ciphertext, iv, or tag in encrypted message');
+    }
+
+    final List<int> ciphertext = base64Decode(ciphertextB64);
+    final List<int> iv = base64Decode(ivB64);
+    final List<int> tag = base64Decode(tagB64);
 
     final SecretBox secretBox = SecretBox(ciphertext, nonce: iv, mac: Mac(tag));
     final List<int> decrypted =
@@ -371,9 +388,15 @@ class WebSocketClient {
   }
 
   void close() {
+    _closed = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _channelSubscription?.cancel();
+    _channelSubscription = null;
     _failPendingRequests('WebSocket закрыт');
-    _webSocket?.close();
-    _webSocket = null;
+    _channel?.sink.close();
+    _channel = null;
+    _isSocketOpen = false;
     _secretKey = null;
     _isConnecting = false;
   }

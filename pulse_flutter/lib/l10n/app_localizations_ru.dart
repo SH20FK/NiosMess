@@ -455,6 +455,87 @@ class AppLocalizationsRu extends AppLocalizations {
       'Язык приложения, часовой пояс и региональный формат';
 
   @override
+  String get appearancePersonalizationTitle => 'Оформление и темы';
+
+  @override
+  String get appearancePersonalizationSubtitle =>
+      'Material 3-палитры, мягкая дымка акцентных цветов и ручная настройка визуального ритма.';
+
+  @override
+  String get appearancePaletteTitle => 'Палитра';
+
+  @override
+  String get appearancePaletteSubtitle =>
+      'Выберите акцентные цвета для интерфейса, текста и кнопок';
+
+  @override
+  String get appearanceDensityTitle => 'Плотность интерфейса';
+
+  @override
+  String get appearanceDensitySubtitle =>
+      'Влияет на размер превью, палитр и визуальный ритм экрана';
+
+  @override
+  String get appearanceDensitySoft => 'Мягкая';
+
+  @override
+  String get appearanceDensityRich => 'Насыщенная';
+
+  @override
+  String get appearanceDensityExpressive => 'Выразительная';
+
+  @override
+  String get appearanceThemeParamsTitle => 'Параметры темы';
+
+  @override
+  String get appearanceThemeParamsSubtitle =>
+      'Системные переключатели Material 3';
+
+  @override
+  String get appearanceDynamicColors => 'Динамические цвета';
+
+  @override
+  String get appearanceDynamicColorsSubtitle =>
+      'Использовать более выразительную тональную схему';
+
+  @override
+  String get appearanceDarkTheme => 'Тёмная тема';
+
+  @override
+  String get appearanceDarkThemeSubtitle =>
+      'Переключать светлую и тёмную Material 3 тему вручную';
+
+  @override
+  String get appearanceLabelLight => 'Светлая';
+
+  @override
+  String get appearanceLabelDark => 'Тёмная';
+
+  @override
+  String get appearanceLabelAmethyst => 'Аметист';
+
+  @override
+  String get appearanceLabelLagoon => 'Лагуна';
+
+  @override
+  String get appearanceLabelMeadow => 'Луг';
+
+  @override
+  String get appearanceLabelEmber => 'Янтарь';
+
+  @override
+  String get appearanceLabelOrchid => 'Орхидея';
+
+  @override
+  String get appearanceLabelSlate => 'Сланец';
+
+  @override
+  String get appearanceLabelSky => 'Небо';
+
+  @override
+  String get appearanceLabelRose => 'Роза';
+
+  @override
   String get languageRegionTitle => 'Язык и регион';
 
   @override
@@ -2213,4 +2294,299 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsSecretChatsButton => 'Секретный чат';
+
+  @override
+  String adminUserBanned(int id) {
+    return 'Пользователь $id забанен';
+  }
+
+  @override
+  String adminUserUnbanned(int id) {
+    return 'Пользователь $id разбанен';
+  }
+
+  @override
+  String adminUserFrozen(int id) {
+    return 'Пользователь $id заморожен';
+  }
+
+  @override
+  String adminUserUnfrozen(int id) {
+    return 'Пользователь $id разморожен';
+  }
+
+  @override
+  String adminSpamBlockEnabled(int id) {
+    return 'Спам-блок включен для $id';
+  }
+
+  @override
+  String adminSpamBlockDisabled(int id) {
+    return 'Спам-блок отключен для $id';
+  }
+
+  @override
+  String adminChatBanned(int id) {
+    return 'Чат $id забанен';
+  }
+
+  @override
+  String adminChatUnbanned(int id) {
+    return 'Чат $id разбанен';
+  }
+
+  @override
+  String adminTabUsers(int count) {
+    return 'Пользователи ($count)';
+  }
+
+  @override
+  String adminTabChats(int count) {
+    return 'Чаты ($count)';
+  }
+
+  @override
+  String get adminActionBan => 'Забанить';
+
+  @override
+  String get adminActionUnban => 'Разбанить';
+
+  @override
+  String get adminActionFreeze => 'Заморозить';
+
+  @override
+  String get adminActionUnfreeze => 'Разморозить';
+
+  @override
+  String get adminActionSpamBlock => 'Спам-блок';
+
+  @override
+  String get adminActionUnspamBlock => 'Снять спам-блок';
+
+  @override
+  String get badgeCreateTitle => 'Создать бейдж';
+
+  @override
+  String get badgeAwardTitle => 'Выдать бейдж';
+
+  @override
+  String get badgeActionCreate => 'Создать';
+
+  @override
+  String get badgeActionAward => 'Выдать';
+
+  @override
+  String get badgeCreated => 'Бейдж создан';
+
+  @override
+  String badgeDeleted(int id) {
+    return 'Бейдж $id удалён';
+  }
+
+  @override
+  String badgeAwarded(int badgeId, int userId) {
+    return 'Бейдж $badgeId выдан пользователю $userId';
+  }
+
+  @override
+  String get badgeNoBadges => 'Нет доступных бейджей';
+
+  @override
+  String get badgeListRefresh => 'Обновить';
+
+  @override
+  String get botCreateTitle => 'Создать бота';
+
+  @override
+  String get botBotToken => 'Токен бота';
+
+  @override
+  String get botActionUse => 'Использовать';
+
+  @override
+  String get botTokenCopied => 'Токен скопирован';
+
+  @override
+  String get botNoUpdates => 'Нет обновлений';
+
+  @override
+  String get e2eeKeyGenerated => 'E2EE ключ сгенерирован и загружен';
+
+  @override
+  String get mediaDownloadAndOpen => 'Скачать и открыть';
+
+  @override
+  String mediaSavedTo(Object path) {
+    return 'Сохранено в $path';
+  }
+
+  @override
+  String get mediaDownloadFailedExt =>
+      'Не удалось скачать. Попробуйте открыть во внешнем приложении.';
+
+  @override
+  String mediaDownloadFailed(Object error) {
+    return 'Ошибка скачивания: $error';
+  }
+
+  @override
+  String get dialogCancelChatCreationTitle => 'Отменить?';
+
+  @override
+  String get dialogCancelChatCreationBody => 'Идёт создание чата. Отменить?';
+
+  @override
+  String get dialogCancelCommentTitle => 'Отменить?';
+
+  @override
+  String get dialogCancelCommentBody => 'Идёт отправка комментария. Отменить?';
+
+  @override
+  String get emptyStateNoItems => 'Ничего не найдено';
+
+  @override
+  String get emptyStateNoItemsDesc => 'Здесь пока ничего нет.';
+
+  @override
+  String get offlineWaiting => 'Ожидание сети...';
+
+  @override
+  String get filePreviewSave => 'Сохранить';
+
+  @override
+  String get filePreviewLink => 'Ссылка';
+
+  @override
+  String get filePreviewOpen => 'Открыть';
+
+  @override
+  String get filePreviewForward => 'Переслать';
+
+  @override
+  String get filePreviewFileName => 'Имя файла';
+
+  @override
+  String get filePreviewClose => 'Закрыть';
+
+  @override
+  String get filePreviewLinkCopied => 'Ссылка скопирована';
+
+  @override
+  String get filePreviewPathCopied => 'Путь скопирован';
+
+  @override
+  String get filePreviewSaved => 'Файл сохранён';
+
+  @override
+  String filePreviewSaveError(Object error) {
+    return 'Не удалось сохранить: $error';
+  }
+
+  @override
+  String get filePreviewPause => 'Пауза';
+
+  @override
+  String get filePreviewPlay => 'Воспроизвести';
+
+  @override
+  String get filePickerGallery => 'Галерея';
+
+  @override
+  String get filePickerDocument => 'Документ';
+
+  @override
+  String get filePickerAudio => 'Аудио';
+
+  @override
+  String get filePickerFile => 'Файл';
+
+  @override
+  String get filePickerReadError => 'Не удалось прочитать файл';
+
+  @override
+  String get badgeFieldName => 'Название';
+
+  @override
+  String get badgeFieldDescription => 'Описание';
+
+  @override
+  String get badgeFieldIcon => 'Иконка (эмодзи)';
+
+  @override
+  String get badgeFieldColor => 'Цвет (hex)';
+
+  @override
+  String get badgeFieldUserId => 'ID пользователя';
+
+  @override
+  String get badgeFieldBadgeId => 'ID бейджа';
+
+  @override
+  String get badgeAdminPassword => 'Пароль админа';
+
+  @override
+  String get badgeAdminMode => 'Режим админа';
+
+  @override
+  String get badgeAdminSubtitle => 'Показать управление бейджами';
+
+  @override
+  String get botFieldName => 'Имя бота';
+
+  @override
+  String get botFieldUsername => 'Username';
+
+  @override
+  String get botFieldDescription => 'Описание (необязательно)';
+
+  @override
+  String get botFieldToken => 'Введите токен бота';
+
+  @override
+  String get botSectionTitle => 'Боты';
+
+  @override
+  String get botSectionSubtitle => 'Создавайте и управляйте ботами.';
+
+  @override
+  String get botCreateSubtitle => 'Создать нового бота';
+
+  @override
+  String get botCreateDescription => 'Зарегистрировать бота';
+
+  @override
+  String get botUpdatesTitle => 'Обновления бота';
+
+  @override
+  String get botGetUpdates => 'Получить обновления';
+
+  @override
+  String get botPollSubtitle => 'Опросить новые сообщения и колбэки';
+
+  @override
+  String get botCreated => 'Бот создан!';
+
+  @override
+  String get botCopied => 'Скопировано';
+
+  @override
+  String get fluidPreviewM3Title => 'Оформление M3 Expressive';
+
+  @override
+  String get fluidPreviewM3Subtitle =>
+      'Новые индикаторы и плавные переходы уже доступны!';
+
+  @override
+  String get profileAvatarUpdated => 'Аватар обновлён';
+
+  @override
+  String profileError(Object error) {
+    return 'Ошибка: $error';
+  }
+
+  @override
+  String get chatImageUnavailable => 'Изображение недоступно';
+
+  @override
+  String get settingsRevokeSession => 'Завершить сессию';
 }

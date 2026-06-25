@@ -1,8 +1,10 @@
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/repositories/admin_repository.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/widgets/empty_state_widget.dart';
 
 class AdminScreen extends ConsumerStatefulWidget {
   const AdminScreen({super.key});
@@ -62,7 +64,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     try {
       await ref.read(adminRepositoryProvider).banUser(_adminPassword!, userId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('User $userId banned')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.adminUserBanned(userId))));
       _authenticate();
     } catch (e) {
       if (!mounted) return;
@@ -75,7 +77,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     try {
       await ref.read(adminRepositoryProvider).unbanUser(_adminPassword!, userId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('User $userId unbanned')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.adminUserUnbanned(userId))));
       _authenticate();
     } catch (e) {
       if (!mounted) return;
@@ -88,7 +90,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     try {
       await ref.read(adminRepositoryProvider).freezeUser(_adminPassword!, userId, freeze);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('User $userId ${freeze ? "frozen" : "unfrozen"}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(freeze ? context.l10n.adminUserFrozen(userId) : context.l10n.adminUserUnfrozen(userId))));
       _authenticate();
     } catch (e) {
       if (!mounted) return;
@@ -101,7 +103,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     try {
       await ref.read(adminRepositoryProvider).spamBlock(_adminPassword!, userId, block);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Spam block ${block ? "enabled" : "disabled"} for user $userId')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(block ? context.l10n.adminSpamBlockEnabled(userId) : context.l10n.adminSpamBlockDisabled(userId))));
       _authenticate();
     } catch (e) {
       if (!mounted) return;
@@ -114,7 +116,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     try {
       await ref.read(adminRepositoryProvider).banChat(_adminPassword!, chatId, ban);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Chat $chatId ${ban ? "banned" : "unbanned"}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ban ? context.l10n.adminChatBanned(chatId) : context.l10n.adminChatUnbanned(chatId))));
       _authenticate();
     } catch (e) {
       if (!mounted) return;
@@ -155,7 +157,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 child: FilledButton.icon(
                   onPressed: _loading ? null : _authenticate,
                   icon: _loading
-                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(year2023: false, strokeWidth: 2))
+                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator( strokeWidth: 2))
                       : Icon(Icons.login_rounded),
                   label: Text(_loading ? 'Connecting...' : 'Connect'),
                 ),
@@ -175,8 +177,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 Expanded(
                   child: SegmentedButton<_AdminTab>(
                     segments: [
-                      ButtonSegment(value: _AdminTab.users, label: Text('Users (${_users.length})')),
-                      ButtonSegment(value: _AdminTab.chats, label: Text('Chats (${_chats.length})')),
+                      ButtonSegment(value: _AdminTab.users, label: Text(context.l10n.adminTabUsers(_users.length))),
+                      ButtonSegment(value: _AdminTab.chats, label: Text(context.l10n.adminTabChats(_chats.length))),
                     ],
                     selected: {_tab},
                     onSelectionChanged: (v) => setState(() => _tab = v.first),
@@ -200,9 +202,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             )),
           if ((_tab == _AdminTab.users && _users.isEmpty) ||
               (_tab == _AdminTab.chats && _chats.isEmpty))
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(child: Text('No items', style: TextStyle(color: scheme.onSurfaceVariant))),
+            EmptyStateWidget(
+              icon: Icons.list_alt_rounded,
+              title: context.l10n.emptyStateNoItems,
+              subtitle: context.l10n.emptyStateNoItemsDesc,
             ),
         ],
       ],
@@ -268,9 +271,9 @@ class _UserCard extends StatelessWidget {
                   if (isFrozen) _StatusChip(label: 'Frozen', active: false, activeColor: Colors.blue, inactiveColor: Colors.blue),
                   if (spamBlock) _StatusChip(label: 'Spam Block', active: false, activeColor: Colors.orange, inactiveColor: Colors.orange),
                   if (isBanned)
-                    ActionChip(label: const Text('Unban'), onPressed: onUnban)
+                    ActionChip(label: Text(context.l10n.adminActionUnban), onPressed: onUnban)
                   else
-                    ActionChip(label: const Text('Ban'), onPressed: onBan),
+                    ActionChip(label: Text(context.l10n.adminActionBan), onPressed: onBan),
                   ActionChip(
                     label: Text(isFrozen ? 'Unfreeze' : 'Freeze'),
                     onPressed: () => onFreeze(!isFrozen),

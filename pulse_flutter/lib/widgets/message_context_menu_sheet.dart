@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 
@@ -55,12 +56,13 @@ class MessageContextMenuSheet extends StatelessWidget {
                     .map(
                       (String emoji) => GestureDetector(
                         onTap: () {
+                          HapticFeedback.lightImpact();
                           Navigator.of(context).pop();
                           onReact(emoji);
                         },
                         behavior: HitTestBehavior.opaque,
                         child: Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: scheme.surfaceContainerHighest,
@@ -174,6 +176,7 @@ class _ActionTile extends StatelessWidget {
     final Color effectiveColor = color ?? scheme.onSurface;
 
     return InkWell(
+      borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

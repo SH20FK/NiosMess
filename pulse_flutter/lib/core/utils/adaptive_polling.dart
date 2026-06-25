@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
-class AdaptivePoller with WidgetsBindingObserver {
+class AdaptivePoller {
   AdaptivePoller({
     required this.onRefresh,
     this.foregroundInterval = const Duration(seconds: 3),
@@ -19,10 +19,13 @@ class AdaptivePoller with WidgetsBindingObserver {
   Timer? _timer;
   bool _paused = false;
   bool _disposed = false;
+  late final AppLifecycleListener _lifecycle;
 
   void start() {
     if (_disposed) return;
-    WidgetsBinding.instance.addObserver(this);
+    _lifecycle = AppLifecycleListener(
+      onStateChange: _onStateChange,
+    );
     _schedule(foregroundInterval);
   }
 
@@ -48,11 +51,10 @@ class AdaptivePoller with WidgetsBindingObserver {
     _disposed = true;
     _timer?.cancel();
     _timer = null;
-    WidgetsBinding.instance.removeObserver(this);
+    _lifecycle.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  void _onStateChange(AppLifecycleState state) {
     if (_disposed) return;
     switch (state) {
       case AppLifecycleState.resumed:
@@ -96,12 +98,7 @@ class VisibilityPoller extends StatefulWidget {
   State<VisibilityPoller> createState() => _VisibilityPollerState();
 }
 
-class _VisibilityPollerState extends State<VisibilityPoller> with RouteAware {
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-  }
-
+class _VisibilityPollerState extends State<VisibilityPoller> {
   @override
   void initState() {
     super.initState();

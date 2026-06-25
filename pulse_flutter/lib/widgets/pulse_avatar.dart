@@ -30,9 +30,11 @@ class PulseAvatar extends StatelessWidget {
     final Color foreground = textColor ?? scheme.onPrimaryContainer;
     final String initials = _initials(name);
     final String rawUrl = (avatarUrl ?? '').trim();
-    final String url = rawUrl.isEmpty 
-        ? '' 
-        : (rawUrl.startsWith('http') ? rawUrl : '${ApiConstants.origin}${rawUrl.startsWith('/') ? '' : '/'}$rawUrl');
+    final String url = rawUrl.isEmpty
+        ? ''
+        : (rawUrl.startsWith('http')
+            ? rawUrl
+            : '${ApiConstants.origin}${rawUrl.startsWith('/') ? '' : '/'}$rawUrl');
 
     final Widget fallback = _fallbackAvatar(
       context,
@@ -44,26 +46,14 @@ class PulseAvatar extends StatelessWidget {
 
     final Widget child = url.isEmpty
         ? fallback
-        : ClipOval(
-            child: CachedNetworkImage(
-              imageUrl: url,
-              fit: BoxFit.cover,
-              width: radius * 2,
-              height: radius * 2,
-              memCacheWidth: (radius * 2 * 2).toInt(),
-              memCacheHeight: (radius * 2 * 2).toInt(),
-              maxWidthDiskCache: 200,
-              maxHeightDiskCache: 200,
-              fadeInDuration: const Duration(milliseconds: 140),
-              placeholder: (BuildContext context, String _) => fallback,
-              errorWidget: (BuildContext context, String _, Object error) {
-                return fallback;
-              },
-            ),
+        : _CachedAvatar(
+            url: url,
+            radius: radius,
+            fallback: fallback,
           );
 
     if (borderWidth <= 0) {
-      return SizedBox(width: radius * 2, height: radius * 2, child: child);
+      return SizedBox(width: radius * 2, height: radius * 2, child: ClipOval(child: child));
     }
 
     return Container(
@@ -110,5 +100,89 @@ class PulseAvatar extends StatelessWidget {
     }
     return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
         .toUpperCase();
+  }
+}
+
+class _CachedAvatar extends StatefulWidget {
+  const _CachedAvatar({
+    required this.url,
+    required this.radius,
+    required this.fallback,
+  });
+
+  final String url;
+  final double radius;
+  final Widget fallback;
+
+  @override
+  State<_CachedAvatar> createState() => _CachedAvatarState();
+}
+
+class _CachedAvatarState extends State<_CachedAvatar> {
+  ImageStream? _imageStream;
+  ImageInfo? _currentInfo;
+  bool _listening = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveImage();
+  }
+
+  @override
+  void didUpdateWidget(_CachedAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _stopListening();
+      _resolveImage();
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopListening();
+    super.dispose();
+  }
+
+  void _resolveImage() {
+    final ImageProvider provider = CachedNetworkImageProvider(
+      widget.url,
+      maxWidth: (widget.radius * 2 * 2).toInt(),
+      maxHeight: (widget.radius * 2 * 2).toInt(),
+    );
+
+    final ImageStream stream = provider.resolve(
+      ImageConfiguration.empty,
+    );
+
+    _stopListening();
+    _imageStream = stream;
+    stream.addListener(ImageStreamListener(_onImage));
+    _listening = true;
+  }
+
+  void _onImage(ImageInfo info, bool _) {
+    if (!mounted) return;
+    setState(() => _currentInfo = info);
+  }
+
+  void _stopListening() {
+    if (_listening && _imageStream != null) {
+      _imageStream!.removeListener(ImageStreamListener(_onImage));
+      _listening = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_currentInfo != null) {
+      return RawImage(
+        image: _currentInfo!.image,
+        width: widget.radius * 2,
+        height: widget.radius * 2,
+        fit: BoxFit.cover,
+      );
+    }
+    return widget.fallback;
   }
 }

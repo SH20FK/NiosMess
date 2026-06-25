@@ -1,8 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
@@ -107,9 +109,17 @@ class MessageBubble extends ConsumerWidget {
           children: <Widget>[
             InkWell(
               borderRadius: bubbleRadius,
-              onLongPress: onLongPress,
+              onLongPress: onLongPress != null
+                  ? () {
+                      HapticFeedback.mediumImpact();
+                      onLongPress!();
+                    }
+                  : null,
               onSecondaryTapUp: (_) {
-                if (onLongPress != null) onLongPress!();
+                if (onLongPress != null) {
+                  HapticFeedback.mediumImpact();
+                  onLongPress!();
+                }
               },
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 320),
@@ -119,13 +129,15 @@ class MessageBubble extends ConsumerWidget {
                   borderRadius: bubbleRadius,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
+                      color: scheme.shadow.withValues(alpha: 0.06),
                       blurRadius: 2,
                       offset: const Offset(0, 1),
                     ),
                   ],
                 ),
-                child: Stack(
+                child: Semantics(
+                  label: isMine ? 'Sent by me' : (senderDisplayName ?? 'Message'),
+                  child: Stack(
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,6 +308,7 @@ class MessageBubble extends ConsumerWidget {
                     ),
                   ],
                 ),
+                ),
               ),
             ),
             if (replyMarkup != null && replyMarkup!.inlineKeyboard.isNotEmpty)
@@ -361,7 +374,9 @@ class MessageBubble extends ConsumerWidget {
       return content;
     }
 
-    return content.animate().fade(duration: 180.ms, curve: Curves.easeOutCubic).slideY(begin: 0.04, end: 0, duration: 180.ms, curve: Curves.easeOutCubic);
+    return RepaintBoundary(
+      child: content.animate().fade(duration: 180.ms, curve: Curves.easeOutCubic).slideY(begin: 0.04, end: 0, duration: 180.ms, curve: Curves.easeOutCubic),
+    );
   }
 
   Widget _mediaPreview(
@@ -390,7 +405,7 @@ class MessageBubble extends ConsumerWidget {
               height: 180,
               child: Center(
                 child: CircularProgressIndicator(
-                  year2023: false,
+                  
                   strokeWidth: 2,
                   color: isMine ? scheme.onPrimary : scheme.primary,
                 ),
@@ -404,9 +419,12 @@ class MessageBubble extends ConsumerWidget {
                 color: isMine
                     ? scheme.onPrimary.withValues(alpha: 0.12)
                     : scheme.surfaceContainerHigh,
-                child: Text(
-                  'Image unavailable',
-                  style: textTheme.bodySmall?.copyWith(color: textColor),
+                child: Semantics(
+                  label: context.l10n.chatImageUnavailable,
+                  child: Text(
+                    context.l10n.chatImageUnavailable,
+                    style: textTheme.bodySmall?.copyWith(color: textColor),
+                  ),
                 ),
               );
             },
@@ -446,7 +464,7 @@ class MessageBubble extends ConsumerWidget {
               ),
               alignment: Alignment.center,
               child: Icon(
-                _getFileIcon(mediaLabel ?? ''),
+                getIconDataByName(FileTypeDetector.detect(fileName: mediaLabel ?? '').icon),
                 color: isMine ? scheme.onPrimary : scheme.primary,
                 size: 20,
               ),
@@ -491,32 +509,6 @@ class MessageBubble extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  IconData _getFileIcon(String fileName) {
-    final FileTypeInfo typeInfo = FileTypeDetector.detect(fileName: fileName);
-    switch (typeInfo.icon) {
-      case 'image':
-        return Icons.image_rounded;
-      case 'videocam':
-        return Icons.videocam_rounded;
-      case 'audiotrack':
-        return Icons.audiotrack_rounded;
-      case 'description':
-        return Icons.description_rounded;
-      case 'android':
-        return Icons.android_rounded;
-      case 'desktop_windows':
-        return Icons.desktop_windows_rounded;
-      case 'folder_zip':
-        return Icons.folder_zip_rounded;
-      case 'text_snippet':
-        return Icons.text_snippet_rounded;
-      case 'code':
-        return Icons.code_rounded;
-      default:
-        return Icons.insert_drive_file_rounded;
-    }
   }
 
   _ForwardedPayload? _parseForwarded(String rawText) {

@@ -1,9 +1,12 @@
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/repositories/badge_repository.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
+import 'package:pulse_flutter/widgets/empty_state_widget.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 
 class BadgeScreen extends ConsumerStatefulWidget {
   const BadgeScreen({super.key});
@@ -46,23 +49,23 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
     final iconCtl = TextEditingController(text: '✓');
     final colorCtl = TextEditingController(text: '#4f46e5');
 
-    final result = await showDialog<bool>(
+    final result = await showAppDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create Badge'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameCtl, decoration: const InputDecoration(labelText: 'Name')),
-            TextField(controller: descCtl, decoration: const InputDecoration(labelText: 'Description')),
-            TextField(controller: iconCtl, decoration: const InputDecoration(labelText: 'Icon (emoji)')),
-            TextField(controller: colorCtl, decoration: const InputDecoration(labelText: 'Color (hex)')),
+      builder: (ctx) => AppDialog(
+        title: context.l10n.badgeCreateTitle,
+        icon: Icons.workspace_premium_rounded,
+        actions: [
+          AppDialogAction(label: context.l10n.commonCancel, onPressed: () => Navigator.of(ctx).pop(false)),
+          AppDialogAction(label: context.l10n.badgeActionCreate, isPrimary: true, onPressed: () => Navigator.of(ctx).pop(true)),
+        ],
+        child: AppDialogFormContent(
+          fields: [
+            AppDialogField(controller: nameCtl, label: context.l10n.badgeFieldName),
+            AppDialogField(controller: descCtl, label: context.l10n.badgeFieldDescription),
+            AppDialogField(controller: iconCtl, label: context.l10n.badgeFieldIcon),
+            AppDialogField(controller: colorCtl, label: context.l10n.badgeFieldColor),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Create')),
-        ],
       ),
     );
 
@@ -96,7 +99,7 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
     try {
       await ref.read(badgeRepositoryProvider).deleteBadge(adminPassword: password, badgeId: badgeId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Badge $badgeId deleted')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.badgeDeleted(badgeId))));
       _loadBadges();
     } catch (e) {
       if (!mounted) return;
@@ -111,21 +114,21 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
     final userIdCtl = TextEditingController();
     final badgeIdCtl = TextEditingController();
 
-    final result = await showDialog<bool>(
+    final result = await showAppDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Award Badge'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: userIdCtl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'User ID')),
-            TextField(controller: badgeIdCtl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Badge ID')),
+      builder: (ctx) => AppDialog(
+        title: context.l10n.badgeAwardTitle,
+        icon: Icons.person_add_rounded,
+        actions: [
+          AppDialogAction(label: context.l10n.commonCancel, onPressed: () => Navigator.of(ctx).pop(false)),
+          AppDialogAction(label: context.l10n.badgeActionAward, isPrimary: true, onPressed: () => Navigator.of(ctx).pop(true)),
+        ],
+        child: AppDialogFormContent(
+          fields: [
+            AppDialogField(controller: userIdCtl, label: context.l10n.badgeFieldUserId, keyboardType: TextInputType.number),
+            AppDialogField(controller: badgeIdCtl, label: context.l10n.badgeFieldBadgeId, keyboardType: TextInputType.number),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Award')),
-        ],
       ),
     );
 
@@ -143,7 +146,7 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
     try {
       await ref.read(badgeRepositoryProvider).awardBadge(adminPassword: password, userId: userId, badgeId: badgeId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Badge $badgeId awarded to user $userId')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.badgeAwarded(badgeId, userId))));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
@@ -170,7 +173,7 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
             if (_loading)
               const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator(year2023: false)),
+                child: Center(child: CircularProgressIndicator()),
               ),
             if (_error != null)
               Padding(
@@ -178,9 +181,10 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
                 child: Text(_error!, style: TextStyle(color: scheme.error)),
               ),
             if (_badges.isEmpty && !_loading)
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Center(child: Text('No badges available', style: TextStyle(color: scheme.onSurfaceVariant))),
+              EmptyStateWidget(
+                icon: Icons.workspace_premium_rounded,
+                title: context.l10n.badgeNoBadges,
+                subtitle: context.l10n.emptyStateNoItemsDesc,
               ),
             if (!_loading)
               ..._badges.map((badge) => ListTile(
@@ -200,7 +204,7 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
                 child: TextButton.icon(
                   onPressed: _loading ? null : _loadBadges,
                   icon: Icon(Icons.refresh_rounded),
-                  label: Text('Refresh'),
+                  label: Text(context.l10n.badgeListRefresh),
                 ),
               ),
             ),
@@ -215,16 +219,16 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
                 child: TextField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Admin Password', prefixIcon: Icon(Icons.lock_rounded)),
+                  decoration: InputDecoration(labelText: context.l10n.badgeAdminPassword, prefixIcon: const Icon(Icons.lock_rounded)),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Row(
                   children: [
-                    Expanded(child: FilledButton.icon(onPressed: _createBadge, icon: const Icon(Icons.add_rounded), label: const Text('Create'))),
+                    Expanded(child: FilledButton.icon(onPressed: _createBadge, icon: const Icon(Icons.add_rounded), label: Text(context.l10n.badgeActionCreate))),
                     const SizedBox(width: 8),
-                    Expanded(child: OutlinedButton.icon(onPressed: _awardBadge, icon: const Icon(Icons.person_add_rounded), label: const Text('Award'))),
+                    Expanded(child: OutlinedButton.icon(onPressed: _awardBadge, icon: const Icon(Icons.person_add_rounded), label: Text(context.l10n.badgeActionAward))),
                   ],
                 ),
               ),
@@ -232,8 +236,8 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
           ),
         SettingsSwitchTile(
           icon: Icons.admin_panel_settings_rounded,
-          title: 'Admin Mode',
-          subtitle: 'Show admin badge management',
+          title: context.l10n.badgeAdminMode,
+          subtitle: context.l10n.badgeAdminSubtitle,
           value: _showAdmin,
           onChanged: (v) => setState(() => _showAdmin = v),
           iconColor: Colors.red,

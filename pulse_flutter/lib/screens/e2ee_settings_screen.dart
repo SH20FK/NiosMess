@@ -77,7 +77,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
             if (_loading)
               const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator(year2023: false)),
+                child: Center(child: CircularProgressIndicator()),
               ),
             if (_error != null)
               Padding(

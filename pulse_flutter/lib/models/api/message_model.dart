@@ -29,6 +29,7 @@ class ApiMessage {
     this.isFailed = false,
     this.isE2ee = false,
     this.e2eeContent,
+    this.isRead = false,
   });
 
   final int id;
@@ -56,6 +57,7 @@ class ApiMessage {
   final bool isFailed;
   final bool isE2ee;
   final String? e2eeContent;
+  final bool isRead;
 
   bool get isEdited => editedAt != null;
 
@@ -124,6 +126,7 @@ class ApiMessage {
           : null,
       isE2ee: isE2ee,
       e2eeContent: e2eeContentRaw,
+      isRead: json['is_read'] as bool? ?? false,
     );
   }
 
@@ -150,6 +153,7 @@ class ApiMessage {
       'edited_at': editedAt?.toIso8601String(),
       'is_deleted': isDeleted,
       'is_e2ee': isE2ee,
+      'is_read': isRead,
       if (e2eeContent != null) 'e2ee_content': e2eeContent,
       if (replyMarkup != null) 'reply_markup': replyMarkup!.toJson(),
     };

@@ -5,18 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/network/api_exception.dart';
-
-Map<String, dynamic> asStringMap(dynamic value) {
-  if (value is Map<String, dynamic>) {
-    return value;
-  }
-  if (value is Map) {
-    return value.map(
-      (dynamic key, dynamic val) => MapEntry(key.toString(), val),
-    );
-  }
-  return <String, dynamic>{};
-}
+export 'package:pulse_flutter/core/utils/shared_utilities.dart' show asStringMap;
 
 class ApiClient {
   ApiClient({
@@ -124,6 +113,46 @@ class ApiClient {
     return _request('DELETE', path, body: body, query: query, auth: auth);
   }
 
+  Future<List<int>> postBytes(
+    String path, {
+    Object? body,
+    Map<String, String>? query,
+    bool auth = true,
+  }) async {
+    final Uri uri = _buildUri(path, query: query);
+    final Map<String, String> headers = _buildHeaders(
+      auth: auth,
+      withJson: body != null,
+    );
+
+    http.Response response;
+    try {
+      response = await _http.post(
+        uri,
+        headers: headers,
+        body: body == null ? null : jsonEncode(body),
+      ).timeout(connectTimeout);
+    } on TimeoutException {
+      throw ApiException(statusCode: 0, message: 'Превышено время ожидания ответа от сервера');
+    } catch (error) {
+      throw ApiException(statusCode: 0, message: _networkErrorMessage(error));
+    }
+
+    if (response.statusCode == 401) {
+      onUnauthorized?.call();
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final dynamic payload = await _tryDecode(response.body);
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _extractError(payload, response.body),
+        payload: payload,
+      );
+    }
+
+    return response.bodyBytes;
+  }
+
   Future<dynamic> _request(
     String method,
     String path, {
@@ -225,7 +254,7 @@ class ApiClient {
       return null;
     }
     try {
-      return await compute(jsonDecode, body);
+      return jsonDecode(body);
     } catch (_) {
       return body;
     }
@@ -249,8 +278,12 @@ class ApiClient {
   }
 
   String _networkErrorMessage(Object error) {
-    if (error is SocketException) {
-      final String lowered = error.message.toLowerCase();
+    final String text = '$error';
+    final String lowered = text.toLowerCase();
+    
+    final bool isSocketException = error is SocketException ||
+        lowered.contains('socketexception');
+    if (isSocketException) {
       if (lowered.contains('failed host lookup') ||
           lowered.contains('no address associated with hostname')) {
         return 'Ошибка DNS: невозможно разрешить адрес сервера.';
@@ -258,8 +291,6 @@ class ApiClient {
       return 'Ошибка сетевого подключения.';
     }
 
-    final String text = '$error';
-    final String lowered = text.toLowerCase();
     if (lowered.contains('failed host lookup') ||
         lowered.contains('no address associated with hostname')) {
       return 'Ошибка DNS: невозможно разрешить адрес сервера.';

@@ -34,12 +34,28 @@ class E2eeService {
   }
 
   Future<String> getPublicKeyBase64() async {
-    final existingPrivate = await loadPrivateKey();
-    if (existingPrivate != null) {
-      final publicKey = RSAPublicKey(existingPrivate.modulus!, existingPrivate.publicExponent!);
-      final publicKeyDer = _encodePublicKeyToDer(publicKey);
-      return base64Encode(publicKeyDer);
+    RSAPrivateKey? existingPrivate;
+    try {
+      existingPrivate = await loadPrivateKey();
+    } catch (e) {
+      debugPrint('[E2eeService] Corrupt key detected, regenerating: $e');
+      await _storage.delete(key: _privateKeyStorageKey);
+      existingPrivate = null;
     }
+
+    if (existingPrivate != null) {
+      try {
+        final publicKey = RSAPublicKey(
+            existingPrivate.modulus!, existingPrivate.publicExponent!);
+        final publicKeyDer = _encodePublicKeyToDer(publicKey);
+        return base64Encode(publicKeyDer);
+      } catch (e) {
+        debugPrint('[E2eeService] Key unusable, regenerating: $e');
+        await _storage.delete(key: _privateKeyStorageKey);
+        existingPrivate = null;
+      }
+    }
+
     final pair = await generateKeyPair();
     await savePrivateKey(pair.privateKey);
     final publicKey = pair.publicKey as RSAPublicKey;
@@ -60,7 +76,15 @@ class E2eeService {
     final String? raw = await _storage.read(key: _privateKeyStorageKey);
     if (raw == null || raw.isEmpty) return null;
     final derBytes = base64Decode(raw);
-    return _decodePrivateKeyFromDer(derBytes);
+    final key = _decodePrivateKeyFromDer(derBytes);
+    // Explicit validation — pointycastle uses assert() which is stripped in release
+    if (key.modulus == null || key.p == null || key.q == null) {
+      throw StateError('RSA key has null components');
+    }
+    if (key.p! * key.q! != key.modulus!) {
+      throw ArgumentError('modulus inconsistent with RSA p and q');
+    }
+    return key;
   }
 
   Future<String> encryptE2EEMessage({
@@ -172,9 +196,9 @@ class E2eeService {
     return RSAPrivateKey(
       (seq.elements[1] as ASN1Integer).valueAsBigInteger,
       (seq.elements[3] as ASN1Integer).valueAsBigInteger,
-      (seq.elements[2] as ASN1Integer).valueAsBigInteger,
       (seq.elements[4] as ASN1Integer).valueAsBigInteger,
       (seq.elements[5] as ASN1Integer).valueAsBigInteger,
+      (seq.elements[2] as ASN1Integer).valueAsBigInteger,
     );
   }
 

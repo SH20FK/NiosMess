@@ -215,7 +215,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                           ),
                           boxShadow: <BoxShadow>[
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
+                              color: scheme.shadow.withValues(alpha: 0.06),
                               blurRadius: 16,
                               offset: const Offset(0, 8),
                             ),
@@ -226,24 +226,57 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                           children: <Widget>[
                             Hero(
                               tag: 'user-avatar-${profile.username}',
-                              child: PulseAvatar(
-                                name: profile.displayName,
-                                avatarUrl: profile.avatarUrl,
-                                radius: 44,
-                                fallbackColor: scheme.primaryContainer,
-                                textColor: scheme.onPrimaryContainer,
+                              child: Stack(
+                                children: [
+                                  PulseAvatar(
+                                    name: profile.displayName,
+                                    avatarUrl: profile.avatarUrl,
+                                    radius: 44,
+                                    fallbackColor: scheme.primaryContainer,
+                                    textColor: scheme.onPrimaryContainer,
+                                  ),
+                                  if (profile.badges.isNotEmpty)
+                                    Positioned(
+                                      right: 0,
+                                      bottom: 0,
+                                      child: BadgeChip(
+                                        id: profile.badges.first.id,
+                                        name: profile.badges.first.name,
+                                        icon: profile.badges.first.icon,
+                                        color: profile.badges.first.color,
+                                        mode: BadgeDisplayMode.avatarBadge,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 12),
-                            Text(
-                              profile.displayName,
-                              style: textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.3,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    profile.displayName,
+                                    style: textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (profile.badges.where((b) => BadgeResolver.isStatusBadge(b)).isNotEmpty) ...[
+                                  const SizedBox(width: 6),
+                                  ...profile.badges.where((b) => BadgeResolver.isStatusBadge(b)).map((b) => Padding(
+                                    padding: const EdgeInsets.only(right: 4),
+                                    child: BadgeChip(
+                                      id: b.id, name: b.name, icon: b.icon, color: b.color,
+                                      mode: BadgeDisplayMode.statusIcon,
+                                    ),
+                                  )),
+                                ],
+                              ],
                             ),
                             const SizedBox(height: 2),
                             Text(
@@ -275,13 +308,13 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                                 ),
                               ],
                             ),
-                            if (profile.badges.isNotEmpty) ...<Widget>[
+                            if (profile.badges.where((b) => !BadgeResolver.isStatusBadge(b)).isNotEmpty) ...<Widget>[
                               const SizedBox(height: 12),
                               Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
+                                spacing: 4,
+                                runSpacing: 4,
                                 alignment: WrapAlignment.center,
-                                children: profile.badges
+                                children: profile.badges.where((b) => !BadgeResolver.isStatusBadge(b))
                                     .map(
                                       (badge) => BadgeChip(
                                         id: badge.id,
@@ -289,6 +322,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                                         icon: badge.icon,
                                         color: badge.color,
                                         showName: true,
+                                        mode: BadgeDisplayMode.infoLabel,
                                       ),
                                     )
                                     .toList(growable: false),
@@ -482,7 +516,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         ),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: scheme.shadow.withValues(alpha: 0.04),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),

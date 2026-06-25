@@ -1,7 +1,11 @@
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/repositories/bot_repository.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/widgets/empty_state_widget.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 
 class BotScreen extends ConsumerStatefulWidget {
   const BotScreen({super.key});
@@ -22,22 +26,22 @@ class _BotScreenState extends ConsumerState<BotScreen> {
     final usernameCtl = TextEditingController();
     final descCtl = TextEditingController();
 
-    final result = await showDialog<bool>(
+    final result = await showAppDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create Bot'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameCtl, decoration: const InputDecoration(labelText: 'Bot Name')),
-            TextField(controller: usernameCtl, decoration: const InputDecoration(labelText: 'Username')),
-            TextField(controller: descCtl, decoration: const InputDecoration(labelText: 'Description (optional)'), maxLines: 2),
+      builder: (ctx) => AppDialog(
+        title: context.l10n.botCreateTitle,
+        icon: Icons.smart_toy_rounded,
+        actions: [
+          AppDialogAction(label: context.l10n.commonCancel, onPressed: () => Navigator.of(ctx).pop(false)),
+          AppDialogAction(label: context.l10n.botCreateTitle, isPrimary: true, onPressed: () => Navigator.of(ctx).pop(true)),
+        ],
+        child: AppDialogFormContent(
+          fields: [
+            AppDialogField(controller: nameCtl, label: context.l10n.botFieldName),
+            AppDialogField(controller: usernameCtl, label: context.l10n.botFieldUsername),
+            AppDialogField(controller: descCtl, label: context.l10n.botFieldDescription, maxLines: 2),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Create')),
-        ],
       ),
     );
 
@@ -60,7 +64,7 @@ class _BotScreenState extends ConsumerState<BotScreen> {
         _creating = false;
         _botToken = token;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(token != null ? 'Bot created! Token: $token' : 'Bot created')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bot created!')));
     } catch (e) {
       nameCtl.dispose(); usernameCtl.dispose(); descCtl.dispose();
       if (!mounted) return;
@@ -71,15 +75,19 @@ class _BotScreenState extends ConsumerState<BotScreen> {
   Future<void> _getUpdates() async {
     if (_botToken == null || _botToken!.isEmpty) {
       final tokenCtl = TextEditingController();
-      final tokenResult = await showDialog<String>(
+      final tokenResult = await showAppDialog<String>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Bot Token'),
-          content: TextField(controller: tokenCtl, decoration: const InputDecoration(labelText: 'Enter bot token')),
+        builder: (ctx) => AppDialog(
+          title: context.l10n.botBotToken,
+          icon: Icons.vpn_key_rounded,
           actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.of(ctx).pop(tokenCtl.text.trim()), child: const Text('Use')),
+            AppDialogAction(label: context.l10n.commonCancel, onPressed: () => Navigator.of(ctx).pop()),
+            AppDialogAction(label: context.l10n.botActionUse, isPrimary: true, onPressed: () => Navigator.of(ctx).pop(tokenCtl.text.trim())),
           ],
+          child: AppTextFieldDialogContent(
+            controller: tokenCtl,
+            label: context.l10n.botFieldToken,
+          ),
         ),
       );
       tokenCtl.dispose();
@@ -104,21 +112,21 @@ class _BotScreenState extends ConsumerState<BotScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     return SettingsScaffold(
-      title: 'Bots',
+      title: context.l10n.botSectionTitle,
       children: [
         SettingsNavBanner(
           icon: Icons.smart_toy_rounded,
-          title: 'Bots',
-          subtitle: 'Create and manage your bots.',
+          title: context.l10n.botSectionTitle,
+          subtitle: context.l10n.botSectionSubtitle,
           iconColor: Colors.cyan,
         ),
         SettingsSection(
-          title: 'Create Bot',
+          title: context.l10n.botCreateTitle,
           children: [
             SettingsTile(
               icon: Icons.add_circle_rounded,
-              title: 'Create a new bot',
-              subtitle: 'Register a bot account',
+              title: context.l10n.botCreateSubtitle,
+              subtitle: context.l10n.botCreateDescription,
               iconColor: Colors.cyan,
               onTap: _creating ? () {} : _createBot,
             ),
@@ -128,15 +136,15 @@ class _BotScreenState extends ConsumerState<BotScreen> {
                 child: Text(_error!, style: TextStyle(color: scheme.error, fontSize: 13)),
               ),
             if (_creating)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator(year2023: false)),
+                child: Center(child: CircularProgressIndicator()),
               ),
           ],
         ),
         if (_botToken != null)
           SettingsSection(
-            title: 'Bot Token',
+            title: context.l10n.botBotToken,
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -147,8 +155,9 @@ class _BotScreenState extends ConsumerState<BotScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.copy_rounded),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Token copied')));
+                        onPressed: () {
+                        Clipboard.setData(ClipboardData(text: _botToken ?? ''));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.botCopied)));
                       },
                     ),
                   ],
@@ -156,25 +165,26 @@ class _BotScreenState extends ConsumerState<BotScreen> {
               ),
             ],
           ),
-        SettingsSection(
-          title: 'Bot Updates',
-          children: [
-            SettingsTile(
-              icon: Icons.refresh_rounded,
-              title: 'Get updates',
-              subtitle: 'Poll for new bot messages and callbacks',
+          SettingsSection(
+            title: context.l10n.botUpdatesTitle,
+            children: [
+              SettingsTile(
+                icon: Icons.refresh_rounded,
+                title: context.l10n.botGetUpdates,
+                subtitle: context.l10n.botPollSubtitle,
               iconColor: Colors.teal,
               onTap: _loading ? () {} : _getUpdates,
             ),
             if (_loading)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator(year2023: false)),
+                child: Center(child: CircularProgressIndicator()),
               ),
             if (_updates != null && _updates!.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: Text('No updates')),
+              EmptyStateWidget(
+                icon: Icons.notifications_none_rounded,
+                title: context.l10n.botNoUpdates,
+                subtitle: context.l10n.emptyStateNoItemsDesc,
               ),
             if (_updates != null)
               ..._updates!.map((update) => ListTile(

@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 
@@ -114,22 +115,14 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
   }
 
   Future<void> _leaveChat() async {
-    final bool? confirmed = await showDialog<bool>(
+    final bool? confirmed = await showAppConfirmDialog(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        title: Text(context.l10n.groupManageLeaveTitle),
-        content: Text(context.l10n.groupManageLeaveBody),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(context.l10n.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(context.l10n.groupManageLeave),
-          ),
-        ],
-      ),
+      title: context.l10n.groupManageLeaveTitle,
+      subtitle: context.l10n.groupManageLeaveBody,
+      confirmLabel: context.l10n.groupManageLeave,
+      cancelLabel: context.l10n.commonCancel,
+      destructive: true,
+      icon: Icons.logout_rounded,
     );
     if (confirmed != true) return;
 
@@ -144,6 +137,14 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
         SnackBar(content: Text(e is ApiException ? e.message : '$e')),
       );
     }
+  }
+
+  Future<void> _copyMeta(String title, String value) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$title copied')));
   }
 
   @override
@@ -345,6 +346,23 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                         context,
                         title: 'Invite link',
                         value: chat!.inviteLink!,
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: <Widget>[
+                          OutlinedButton.icon(
+                            onPressed: () => _copyMeta('Invite link', chat.inviteLink!),
+                            icon: const Icon(Icons.copy_rounded),
+                            label: const Text('Copy invite'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => _copyMeta('Invite link', chat.inviteLink!),
+                            icon: const Icon(Icons.share_rounded),
+                            label: const Text('Share invite'),
+                          ),
+                        ],
                       ),
                     ],
                     if ((chat?.shareLink ?? '').isNotEmpty) ...<Widget>[

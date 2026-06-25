@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/repositories/search_repository.dart';
@@ -80,7 +79,6 @@ class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
         mergedUsers[u.username.toLowerCase()] = u;
       }
 
-      final String lowerQuery = query.toLowerCase();
       List<ApiSearchUser> finalUsers = mergedUsers.values.toList();
 
       List<ApiSearchChat> finalChats = backendResult.chats;
@@ -91,11 +89,11 @@ class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
         messages: backendResult.messages,
       );
 
-      if (seq == _seq && mounted) {
+      if (seq == _seq) {
         state = AsyncData<ApiSearchResult>(finalResult);
       }
-    } on Object catch (error) {
-      if (seq == _seq && mounted) {
+    } on Object {
+      if (seq == _seq) {
         state = AsyncData<ApiSearchResult>(ApiSearchResult(
           users: localUsers,
           chats: [],
@@ -104,8 +102,6 @@ class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
       }
     }
   }
-
-  bool get mounted => true;
 
   void clear() {
     _debounce?.cancel();

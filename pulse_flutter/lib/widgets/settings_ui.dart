@@ -1,7 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -27,6 +30,7 @@ class SettingsScaffold extends ConsumerWidget {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -35,7 +39,7 @@ class SettingsScaffold extends ConsumerWidget {
             ? Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Material(
-                  color: scheme.surfaceContainerHigh.withValues(alpha: 0.72),
+                  color: scheme.surface.withValues(alpha: 0.78),
                   shape: const CircleBorder(),
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back_rounded),
@@ -48,59 +52,72 @@ class SettingsScaffold extends ConsumerWidget {
               )
             : null,
       ),
-      body: PulseScaffoldBody(
-        maxWidth: 920,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            AppConstants.screenHorizontalPadding,
-            topPadding,
-            AppConstants.screenHorizontalPadding,
-            28,
-          ),
-          children: <Widget>[
-            if (!hasNavBanner)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16, left: 4),
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: scheme.onSurface,
-                      ),
-                ),
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[
+              Color.alphaBlend(
+                scheme.primary.withValues(alpha: 0.035),
+                scheme.surface,
               ),
-            ...children.asMap().entries.map((MapEntry<int, Widget> entry) {
-              final Widget child = entry.value;
-              if (optimize) {
-                return child;
-              }
-              final int index = entry.key;
-              final int delayMs = (index < 6) ? index * 45 : 0;
-              return child
-                  .animate()
-                  .fade(
-                    duration: const Duration(milliseconds: 260),
-                    delay: Duration(milliseconds: delayMs),
-                    curve: Curves.easeOutCubic,
-                  )
-                  .slideY(
-                    begin: 0.05,
-                    end: 0,
-                    duration: const Duration(milliseconds: 260),
-                    delay: Duration(milliseconds: delayMs),
-                    curve: Curves.easeOutCubic,
-                  );
-            }),
-          ],
+              scheme.surface,
+            ],
+          ),
+        ),
+        child: PulseScaffoldBody(
+          maxWidth: 920,
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              AppConstants.screenHorizontalPadding,
+              topPadding,
+              AppConstants.screenHorizontalPadding,
+              28,
+            ),
+            children: <Widget>[
+              if (!hasNavBanner)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16, left: 4),
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          color: scheme.onSurface,
+                        ),
+                  ),
+                ),
+              ...children.asMap().entries.map((MapEntry<int, Widget> entry) {
+                final Widget child = entry.value;
+                if (optimize) {
+                  return child;
+                }
+                final int index = entry.key;
+                final int delayMs = (index < 6) ? index * 45 : 0;
+                return child
+                    .animate()
+                    .fade(
+                      duration: const Duration(milliseconds: 260),
+                      delay: Duration(milliseconds: delayMs),
+                      curve: Curves.easeOutCubic,
+                    )
+                    .slideY(
+                      begin: 0.05,
+                      end: 0,
+                      duration: const Duration(milliseconds: 260),
+                      delay: Duration(milliseconds: delayMs),
+                      curve: Curves.easeOutCubic,
+                    );
+              }),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Маленький заголовок-описание страницы настроек.
-/// Заменяет громоздкий SettingsHeroCard.
 class SettingsNavBanner extends StatelessWidget {
   const SettingsNavBanner({
     required this.icon,
@@ -121,17 +138,23 @@ class SettingsNavBanner extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final Color resolvedColor = iconColor ?? scheme.primary;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20, top: 8),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20, top: 8),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.14)),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Container(
-            width: 48,
-            height: 48,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: resolvedColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
+              color: resolvedColor.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(18),
             ),
             alignment: Alignment.center,
             child: Icon(icon, color: resolvedColor, size: 24),
@@ -143,18 +166,18 @@ class SettingsNavBanner extends StatelessWidget {
               children: <Widget>[
                 Text(
                   title,
-                  style: textTheme.headlineMedium?.copyWith(
+                  style: textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
                     color: scheme.onSurface,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   subtitle,
                   style: textTheme.bodyMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
-                    height: 1.3,
+                    height: 1.35,
                   ),
                 ),
               ],
@@ -184,42 +207,49 @@ class SettingsSection extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           if (title != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
                     title!,
-                    style: textTheme.labelLarge?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
+                    style: textTheme.titleSmall?.copyWith(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.1,
                     ),
                   ),
                   if (subtitle != null) ...<Widget>[
-                    const SizedBox(height: 1),
+                    const SizedBox(height: 4),
                     Text(
                       subtitle!,
                       style: textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
+                        height: 1.3,
                       ),
                     ),
                   ],
                 ],
               ),
             ),
-          Material(
-            color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: _buildSeparatedChildren(scheme, children),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Material(
+                color: scheme.surfaceContainer.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _buildSeparatedChildren(scheme, children),
+                ),
+              ),
             ),
           ),
         ],
@@ -231,18 +261,17 @@ class SettingsSection extends StatelessWidget {
     if (items.isEmpty) return items;
     final List<Widget> result = <Widget>[];
     for (int i = 0; i < items.length; i++) {
-      // Clip first and last items to match card corners
       Widget item = items[i];
       if (i == 0 && items.length == 1) {
-        item = ClipRRect(borderRadius: BorderRadius.circular(20), child: item);
+        item = ClipRRect(borderRadius: BorderRadius.circular(28), child: item);
       } else if (i == 0) {
         item = ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           child: item,
         );
       } else if (i == items.length - 1) {
         item = ClipRRect(
-          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
           child: item,
         );
       }
@@ -251,9 +280,9 @@ class SettingsSection extends StatelessWidget {
         result.add(
           Divider(
             height: 1,
-            indent: 56,
-            endIndent: 0,
-            color: scheme.outlineVariant.withValues(alpha: 0.18),
+            indent: 68,
+            endIndent: 16,
+            color: scheme.outlineVariant.withValues(alpha: 0.16),
           ),
         );
       }
@@ -280,7 +309,6 @@ class SettingsTile extends ConsumerWidget {
   final VoidCallback onTap;
   final Widget? trailing;
   final Color? foregroundColor;
-  /// Цвет иконки и её фона (отдельный от foregroundColor для текста).
   final Color? iconColor;
 
   @override
@@ -291,13 +319,14 @@ class SettingsTile extends ConsumerWidget {
     final Color resolvedTextColor = foregroundColor ?? scheme.onSurface;
 
     return ListTile(
-      minVerticalPadding: 12,
+      minVerticalPadding: 14,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: resolvedIconColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
         alignment: Alignment.center,
         child: Icon(icon, color: resolvedIconColor, size: 20),
@@ -307,6 +336,7 @@ class SettingsTile extends ConsumerWidget {
         style: textTheme.bodyLarge?.copyWith(
           color: resolvedTextColor,
           fontWeight: FontWeight.w600,
+          height: 1.15,
         ),
       ),
       subtitle: subtitle != null
@@ -314,6 +344,7 @@ class SettingsTile extends ConsumerWidget {
               subtitle!,
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
+                height: 1.3,
               ),
             )
           : null,
@@ -388,25 +419,32 @@ class SettingsSwitchTile extends ConsumerWidget {
     final Color resolvedIconColor = iconColor ?? scheme.onSurfaceVariant;
 
     return ListTile(
-      minVerticalPadding: 12,
+      minVerticalPadding: 14,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: resolvedIconColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
         alignment: Alignment.center,
         child: Icon(icon, color: resolvedIconColor, size: 20),
       ),
       title: Text(
         title,
-        style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+        style: textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w600,
+          height: 1.15,
+        ),
       ),
       subtitle: subtitle != null
           ? Text(
               subtitle!,
-              style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              style: textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                height: 1.3,
+              ),
             )
           : null,
       trailing: Switch(
@@ -449,25 +487,32 @@ class SettingsInfoTile extends ConsumerWidget {
     final Color resolvedIconColor = iconColor ?? scheme.onSurfaceVariant;
 
     return ListTile(
-      minVerticalPadding: 12,
+      minVerticalPadding: 14,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: resolvedIconColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
         alignment: Alignment.center,
         child: Icon(icon, color: resolvedIconColor, size: 20),
       ),
       title: Text(
         title,
-        style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+        style: textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w600,
+          height: 1.15,
+        ),
       ),
       subtitle: subtitle != null
           ? Text(
               subtitle!,
-              style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              style: textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                height: 1.3,
+              ),
             )
           : null,
       trailing: value == null
@@ -510,26 +555,21 @@ class SettingsConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return AlertDialog(
-      title: Text(title),
-      content: Text(body),
-      actions: <Widget>[
-        TextButton(
+    return AppDialog(
+      title: title,
+      actions: <AppDialogAction>[
+        AppDialogAction(
+          label: cancelLabel,
           onPressed: () => Navigator.of(context).pop(false),
-          child: Text(cancelLabel),
         ),
-        FilledButton(
-          style: destructive
-              ? FilledButton.styleFrom(
-                  backgroundColor: scheme.error,
-                  foregroundColor: scheme.onError,
-                )
-              : null,
+        AppDialogAction(
+          label: confirmLabel,
+          isPrimary: !destructive,
+          destructive: destructive,
           onPressed: () => Navigator.of(context).pop(true),
-          child: Text(confirmLabel),
         ),
       ],
+      child: Text(body),
     );
   }
 }
@@ -560,15 +600,16 @@ class SettingsSessionTile extends ConsumerWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return ListTile(
-      minVerticalPadding: 12,
+      minVerticalPadding: 14,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: isCurrent
               ? scheme.primaryContainer
               : scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
         alignment: Alignment.center,
         child: Icon(
@@ -584,15 +625,16 @@ class SettingsSessionTile extends ConsumerWidget {
               title,
               style: textTheme.bodyLarge?.copyWith(
                 fontWeight: FontWeight.w600,
+                height: 1.15,
               ),
             ),
           ),
           if (isCurrent)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
                 currentLabel,
@@ -604,26 +646,18 @@ class SettingsSessionTile extends ConsumerWidget {
             ),
         ],
       ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const SizedBox(height: 3),
-          Text(subtitle),
-          const SizedBox(height: 1),
-          Text(
-            ip,
-            style: textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-            ),
-          ),
-        ],
+      subtitle: Text(
+        '$subtitle · $ip',
+        style: textTheme.bodySmall?.copyWith(
+          color: scheme.onSurfaceVariant,
+          height: 1.3,
+        ),
       ),
-      trailing: isCurrent
-          ? null
-          : IconButton(
-              icon: Icon(Icons.logout_rounded, color: scheme.error),
-              onPressed: onRevoke,
-            ),
+      trailing: IconButton(
+        onPressed: onRevoke,
+        icon: const Icon(Icons.logout_rounded),
+        tooltip: context.l10n.settingsRevokeSession,
+      ),
     );
   }
 }

@@ -13,6 +13,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final AuthState auth = ref.watch(authProvider);
     final bool spamBlock = auth.profile?.spamBlock ?? false;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return SettingsScaffold(
       title: context.l10n.settingsPrivacyTitle,
@@ -20,20 +21,37 @@ class SettingsPrivacyScreen extends ConsumerWidget {
         SettingsNavBanner(
           icon: Icons.privacy_tip_rounded,
           title: context.l10n.settingsPrivacyTitle,
-          subtitle: context.l10n.settingsPrivacyNotificationsSubtitle,
-          iconColor: Colors.orange,
+          subtitle: 'Уведомления, видимость и системные ограничения аккаунта.',
+          iconColor: scheme.primary,
         ),
         SettingsSection(
           title: context.l10n.settingsPrivacyNotificationsTitle,
+          subtitle: 'Управление push-уведомлениями приложения',
           children: <Widget>[
             SettingsSwitchTile(
               icon: Icons.notifications_active_rounded,
               title: context.l10n.settingsPushNotifications,
               subtitle: context.l10n.settingsPushNotificationsSubtitle,
-              iconColor: Colors.orange,
+              iconColor: scheme.tertiary,
               value: settings.notifications,
               onChanged: (bool value) {
                 ref.read(uiSettingsProvider.notifier).setNotifications(value);
+              },
+            ),
+          ],
+        ),
+        SettingsSection(
+          title: 'Видимость',
+          subtitle: 'Контроль статуса присутствия в приложении',
+          children: <Widget>[
+            SettingsSwitchTile(
+              icon: Icons.visibility_off_rounded,
+              title: 'Скрывать онлайн-статус',
+              subtitle: 'Не показывать другим пользователям ваш статус присутствия',
+              iconColor: scheme.secondary,
+              value: settings.hideOnline,
+              onChanged: (bool value) {
+                ref.read(uiSettingsProvider.notifier).setHideOnline(value);
               },
             ),
           ],
@@ -48,7 +66,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                 title: context.l10n.settingsServerLimitsTitle,
                 subtitle: context.l10n.settingsServerLimitsSubtitle,
                 value: context.l10n.settingsProduction,
-                iconColor: Colors.red,
+                iconColor: scheme.error,
               ),
             ],
           ),

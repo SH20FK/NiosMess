@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
@@ -6,6 +7,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 
 class CreateChatScreen extends ConsumerStatefulWidget {
@@ -63,16 +65,55 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
       await ref.read(chatsProvider.notifier).refresh();
 
       if (!mounted) return;
-      context.replace('/chat/${result.chatId}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _chatType == 'channel'
-                ? context.l10n.groupCreatedChannel
-                : context.l10n.groupCreatedGroup,
-          ),
+      final bool? nextStep = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext dialogContext) => AppDialog(
+          title: _chatType == 'channel' ? 'Channel created' : 'Group created',
+          subtitle: 'Choose what you want to do next.',
+          icon: _chatType == 'channel'
+              ? Icons.campaign_rounded
+              : Icons.groups_rounded,
+          actions: <AppDialogAction>[
+            AppDialogAction(
+              label: 'Open chat',
+              icon: Icons.chat_bubble_rounded,
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              isPrimary: true,
+            ),
+            AppDialogAction(
+              label: 'Copy invite',
+              icon: Icons.link_rounded,
+              onPressed: () async {
+                final chat = ref.read(chatByIdProvider(result.chatId));
+                final String? link = chat?.inviteLink ?? chat?.shareLink;
+                if (link != null && link.trim().isNotEmpty) {
+                  await Clipboard.setData(ClipboardData(text: link));
+                }
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop(false);
+                }
+              },
+            ),
+          ],
         ),
       );
+      if (!mounted) return;
+      context.replace('/chat/${result.chatId}');
+      if (nextStep == false) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invite link copied')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _chatType == 'channel'
+                  ? context.l10n.groupCreatedChannel
+                  : context.l10n.groupCreatedGroup,
+            ),
+          ),
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       final String message = error is ApiException
@@ -130,16 +171,13 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
       canPop: !_busy,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (didPop) return;
-        final bool? confirm = await showDialog<bool>(
+        final bool? confirm = await showAppConfirmDialog(
           context: context,
-          builder: (BuildContext context) => AlertDialog(
-            title: const Text('Отменить?'),
-            content: const Text('Идёт создание чата. Отменить?'),
-            actions: <Widget>[
-              TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Нет')),
-              TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Да')),
-            ],
-          ),
+          title: context.l10n.dialogCancelChatCreationTitle,
+          subtitle: context.l10n.dialogCancelChatCreationBody,
+          confirmLabel: context.l10n.commonYes,
+          cancelLabel: context.l10n.commonNo,
+          icon: Icons.close_rounded,
         );
         if (confirm == true && mounted) {
           context.pop();

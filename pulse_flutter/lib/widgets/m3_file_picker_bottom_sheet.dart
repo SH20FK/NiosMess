@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 
 class M3FilePickerResult {
@@ -58,7 +59,7 @@ class _CompactAttachmentMenu extends StatelessWidget {
 
     if (readStream == null && filePath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not read selected file')),
+        SnackBar(content: Text(context.l10n.filePickerReadError)),
       );
       return;
     }
@@ -81,14 +82,14 @@ class _CompactAttachmentMenu extends StatelessWidget {
     final List<_AttachItem> items = <_AttachItem>[
       _AttachItem(
         icon: Icons.photo_rounded,
-        label: 'Gallery',
+        label: context.l10n.filePickerGallery,
         containerColor: scheme.primaryContainer,
         iconColor: scheme.onPrimaryContainer,
         onTap: () => _pickFile(context, type: FileType.media, mediaSubtype: 'media'),
       ),
       _AttachItem(
         icon: Icons.description_rounded,
-        label: 'Document',
+        label: context.l10n.filePickerDocument,
         containerColor: scheme.secondaryContainer,
         iconColor: scheme.onSecondaryContainer,
         onTap: () => _pickFile(
@@ -100,14 +101,14 @@ class _CompactAttachmentMenu extends StatelessWidget {
       ),
       _AttachItem(
         icon: Icons.music_note_rounded,
-        label: 'Audio',
+        label: context.l10n.filePickerAudio,
         containerColor: scheme.tertiaryContainer,
         iconColor: scheme.onTertiaryContainer,
         onTap: () => _pickFile(context, type: FileType.audio, mediaSubtype: 'voice'),
       ),
       _AttachItem(
         icon: Icons.folder_rounded,
-        label: 'File',
+        label: context.l10n.filePickerFile,
         containerColor: scheme.surfaceContainerHighest,
         iconColor: scheme.onSurfaceVariant,
         onTap: () => _pickFile(context, type: FileType.any, mediaSubtype: 'media'),

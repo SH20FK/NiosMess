@@ -3,10 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
@@ -79,7 +82,7 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
                   child: Row(
                     children: <Widget>[
                       Icon(
-                        _getIconData(typeInfo.icon),
+                         getIconDataByName(typeInfo.icon),
                         color: Color(typeInfo.color),
                         size: 20,
                       ),
@@ -111,26 +114,26 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
                 children: <Widget>[
                   _PreviewActionButton(
                     icon: Icons.save_alt_rounded,
-                    label: 'Save',
+                    label: context.l10n.filePreviewSave,
                     onPressed: canDownloadNow ? () => _saveFile(context) : null,
                   ),
                   _PreviewActionButton(
                     icon: Icons.link_rounded,
-                    label: 'Link',
+                    label: context.l10n.filePreviewLink,
                     onPressed: canCopyReference
                         ? () => _copyReference(context)
                         : null,
                   ),
                   _PreviewActionButton(
                     icon: Icons.open_in_new_rounded,
-                    label: 'Open',
+                    label: context.l10n.filePreviewOpen,
                     onPressed: canPreviewNow || canOpenNow
                         ? () => _openPrimary(context)
                         : null,
                   ),
                   _PreviewActionButton(
                     icon: Icons.forward_to_inbox_rounded,
-                    label: 'Forward',
+                    label: context.l10n.filePreviewForward,
                     onPressed: onForward == null
                         ? null
                         : () => _forwardFile(context),
@@ -157,17 +160,19 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
   }
 
   Future<void> _showFullName(BuildContext context) async {
-    await showDialog<void>(
+    await showAppDialog<void>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        title: const Text('File name'),
-        content: SelectableText(fileName),
-        actions: <Widget>[
-          TextButton(
+      builder: (BuildContext ctx) => AppDialog(
+        title: context.l10n.filePreviewFileName,
+        icon: Icons.description_rounded,
+        actions: <AppDialogAction>[
+          AppDialogAction(
+            label: context.l10n.filePreviewClose,
+            isPrimary: true,
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close'),
           ),
         ],
+        child: SelectableText(fileName),
       ),
     );
   }
@@ -197,11 +202,12 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
   }
 
   Future<void> _previewFile(BuildContext context) async {
-    Navigator.of(context).pop();
+    final NavigatorState nav = Navigator.of(context);
+    nav.pop();
 
     if (typeInfo.isImage) {
       if (hasRemoteUrl) {
-        await Navigator.of(context).push(
+        await nav.push(
           MaterialPageRoute<void>(
             builder: (_) => MediaViewerScreen(
               url: mediaUrl!,
@@ -304,36 +310,11 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
       SnackBar(
         content: Text(
           hasRemoteUrl
-              ? 'Link copied to clipboard'
-              : 'File path copied to clipboard',
+              ? context.l10n.filePreviewLinkCopied
+              : context.l10n.filePreviewPathCopied,
         ),
       ),
     );
-  }
-
-  IconData _getIconData(String iconName) {
-    switch (iconName) {
-      case 'image':
-        return Icons.image_rounded;
-      case 'videocam':
-        return Icons.videocam_rounded;
-      case 'audiotrack':
-        return Icons.audiotrack_rounded;
-      case 'description':
-        return Icons.description_rounded;
-      case 'android':
-        return Icons.android_rounded;
-      case 'desktop_windows':
-        return Icons.desktop_windows_rounded;
-      case 'folder_zip':
-        return Icons.folder_zip_rounded;
-      case 'text_snippet':
-        return Icons.text_snippet_rounded;
-      case 'code':
-        return Icons.code_rounded;
-      default:
-        return Icons.insert_drive_file_rounded;
-    }
   }
 }
 
@@ -405,7 +386,7 @@ Future<void> saveM3File({
       try {
         final http.StreamedResponse response = await client.send(
           http.Request('GET', Uri.parse(mediaUrl!)),
-        );
+        ).timeout(const Duration(seconds: 60));
         if (response.statusCode < 200 || response.statusCode >= 300) {
           throw Exception('Download failed (${response.statusCode})');
         }
@@ -427,12 +408,12 @@ Future<void> saveM3File({
     if (!context.mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('File saved')));
+    ).showSnackBar(SnackBar(content: Text(context.l10n.filePreviewSaved)));
   } catch (error) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('Could not save file: $error')));
+    ).showSnackBar(SnackBar(content: Text(context.l10n.filePreviewSaveError(error))));
   }
 }
 
@@ -500,13 +481,11 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
                           ? Icons.pause_rounded
                           : Icons.play_arrow_rounded,
                     ),
-                    label: Text(
-                      _controller!.value.isPlaying ? 'Pause' : 'Play',
-                    ),
+                    label: Text(_controller!.value.isPlaying ? context.l10n.filePreviewPause : context.l10n.filePreviewPlay),
                   ),
                 ],
               )
-            : const CircularProgressIndicator(year2023: false),
+            : const CircularProgressIndicator(),
       ),
     );
   }
@@ -553,12 +532,21 @@ class _AudioPreviewContentState extends State<_AudioPreviewContent> {
       return;
     }
 
-    if ((widget.remoteUrl ?? '').trim().isNotEmpty) {
-      await _player.play(UrlSource(widget.remoteUrl!));
-    } else if ((widget.localPath ?? '').trim().isNotEmpty) {
-      await _player.play(DeviceFileSource(widget.localPath!));
+    try {
+      if ((widget.remoteUrl ?? '').trim().isNotEmpty) {
+        await _player.play(UrlSource(widget.remoteUrl!));
+      } else if ((widget.localPath ?? '').trim().isNotEmpty) {
+        await _player.play(DeviceFileSource(widget.localPath!));
+      }
+      if (mounted) setState(() => _playing = true);
+    } catch (e) {
+      debugPrint('[AudioPreview] Play error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to play audio: $e')),
+        );
+      }
     }
-    if (mounted) setState(() => _playing = true);
   }
 
   @override
@@ -576,7 +564,7 @@ class _AudioPreviewContentState extends State<_AudioPreviewContent> {
         FilledButton.icon(
           onPressed: _toggle,
           icon: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
-          label: Text(_playing ? 'Pause' : 'Play'),
+          label: Text(_playing ? context.l10n.filePreviewPause : context.l10n.filePreviewPlay),
         ),
       ],
     );

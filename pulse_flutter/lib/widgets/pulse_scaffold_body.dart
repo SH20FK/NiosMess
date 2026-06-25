@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -27,7 +26,9 @@ class PulseScaffoldBody extends StatelessWidget {
 
   bool get _isDesktop {
     if (kIsWeb) return false;
-    return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+    return defaultTargetPlatform == TargetPlatform.windows ||
+           defaultTargetPlatform == TargetPlatform.macOS ||
+           defaultTargetPlatform == TargetPlatform.linux;
   }
 
   @override

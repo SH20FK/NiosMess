@@ -150,45 +150,52 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           const SizedBox(width: 8),
         ],
       ),
-      body: NotificationListener<UserScrollNotification>(
-        onNotification: _handleUserScroll,
-        child: CustomScrollView(
-          physics: const ClampingScrollPhysics(),
-          slivers: <Widget>[
-            SliverPadding(
-              padding: EdgeInsets.only(
-                top: MediaQuery.viewPaddingOf(context).top + kToolbarHeight,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.screenHorizontalPadding,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const SizedBox(height: 10),
-                    _searchAndFilter(scheme, textTheme, searchAsync),
-                    const SizedBox(height: 12),
-                  ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          HapticFeedback.mediumImpact();
+          await ref.read(chatsProvider.notifier).refresh();
+        },
+        displacement: 40,
+        child: NotificationListener<UserScrollNotification>(
+          onNotification: _handleUserScroll,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: <Widget>[
+              SliverPadding(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.viewPaddingOf(context).top + kToolbarHeight,
                 ),
               ),
-            ),
-            ..._buildChatSlivers(
-              auth,
-              chatsAsync,
-              compact,
-              scheme,
-              textTheme,
-              searchAsync.asData?.value,
-            ),
-            SliverPadding(
-              padding: EdgeInsets.only(
-                bottom: 16 + MediaQuery.viewPaddingOf(context).bottom,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.screenHorizontalPadding,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const SizedBox(height: 10),
+                      _searchAndFilter(scheme, textTheme, searchAsync),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+              ..._buildChatSlivers(
+                auth,
+                chatsAsync,
+                compact,
+                scheme,
+                textTheme,
+                searchAsync.asData?.value,
+              ),
+              SliverPadding(
+                padding: EdgeInsets.only(
+                  bottom: 16 + MediaQuery.viewPaddingOf(context).bottom,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -141,9 +141,11 @@ class LocalStorageService {
 
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      for (final String key in prefs.getKeys()) {
-        if (!key.startsWith(_draftPrefix)) continue;
-        prefs.getString(key);
+      final List<String> draftKeys = prefs.getKeys()
+          .where((String key) => key.startsWith(_draftPrefix))
+          .toList();
+      if (draftKeys.length > 100) {
+        issues.add('Excessive draft count: ${draftKeys.length}');
       }
     } catch (error) {
       issues.add('Could not read local draft keys: $error');

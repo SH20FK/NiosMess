@@ -26,12 +26,6 @@ class AppColors {
   static const Color error = Color(0xFFA8364B);
   static const Color onError = Color(0xFFFFFFFF);
 
-  static const LinearGradient heroGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: <Color>[Color(0xFFEEE2FF), Color(0xFFFDF7FE), Color(0xFFECE3FF)],
-  );
-
   static const List<Color> avatarPalette = <Color>[
     Color(0xFF5E6BBD),
     Color(0xFFA04C86),

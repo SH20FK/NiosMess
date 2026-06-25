@@ -15,12 +15,14 @@ import 'package:pulse_flutter/router/app_router.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
+import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 
 Future<void> main() async {
   await runZonedGuarded<Future<void>>(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
       await const CacheService().ensureInitialized();
+      await EncryptedMessageCache.ensureInitialized();
       final AppLogger logger = AppLogger.instance;
       FlutterError.onError = (FlutterErrorDetails details) {
         FlutterError.presentError(details);

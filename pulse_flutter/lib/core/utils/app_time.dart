@@ -46,7 +46,7 @@ class AppTimeSettings {
 
   static DateTime resolve(DateTime dateTime) {
     initialize();
-    final DateTime base = dateTime.isUtc ? dateTime : dateTime.toLocal();
+    final DateTime base = dateTime.isUtc ? dateTime.toLocal() : dateTime;
     if (_timeZoneMode == AppTimeZoneMode.manual &&
         (_timeZoneId ?? '').trim().isNotEmpty) {
       try {
@@ -55,10 +55,10 @@ class AppTimeSettings {
           tz.getLocation(_timeZoneId!.trim()),
         );
       } catch (_) {
-        return base.toLocal();
+        return base;
       }
     }
-    return base.toLocal();
+    return base;
   }
 }
 

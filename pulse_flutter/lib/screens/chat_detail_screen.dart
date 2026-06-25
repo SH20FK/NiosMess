@@ -31,6 +31,7 @@ import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 
 class ChatDetailScreen extends ConsumerStatefulWidget {
   const ChatDetailScreen({
@@ -48,14 +49,17 @@ class ChatDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatDetailScreen> createState() => _ChatDetailScreenState();
 }
 
-class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
-    with WidgetsBindingObserver {
+class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late final FocusNode _inputFocusNode;
 
   // Cache providers that may be needed in dispose()
   late DraftStorage _draftStorage;
+
+  Timer? _draftSaveTimer;
+  String? _lastAiOriginalText;
+  bool _showDraftRestoredBanner = false;
 
   bool _uploadingMedia = false;
   double _uploadProgress = 0;
@@ -70,8 +74,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   String? _editingOriginalText;
 
   // Scroll-to-bottom FAB
+  // Scroll-to-bottom FAB
   bool _showScrollToBottom = false;
-  bool _isLoadingOlder = false;
+  final ValueNotifier<bool> _loadingOlderNotifier = ValueNotifier<bool>(false);
 
   bool _isInputEmpty = true;
   bool _isAiProcessing = false;
@@ -216,7 +221,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   void initState() {
     super.initState();
     _draftStorage = ref.read(draftStorageProvider); // cache before dispose
-    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
     _inputController.addListener(_onInputChanged);
     _inputFocusNode = FocusNode()..addListener(() {
@@ -238,18 +242,18 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       setState(() => _showScrollToBottom = shouldShow);
     }
     // Auto-load older messages when near the top (end of reversed list)
-    if (offset > maxExtent - 400 && !_isLoadingOlder) {
+    if (offset > maxExtent - 400 && !_loadingOlderNotifier.value) {
       _autoLoadOlderMessages();
     }
   }
 
   Future<void> _autoLoadOlderMessages() async {
-    if (_isLoadingOlder) return;
-    setState(() => _isLoadingOlder = true);
+    if (_loadingOlderNotifier.value) return;
+    _loadingOlderNotifier.value = true;
     try {
       await _loadOlderMessages();
     } finally {
-      if (mounted) setState(() => _isLoadingOlder = false);
+      _loadingOlderNotifier.value = false;
     }
   }
 
@@ -265,7 +269,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _loadingOlderNotifier.dispose();
+    _draftSaveTimer?.cancel();
     _saveDraft();
     _scrollController.removeListener(_onScroll);
     _inputController.removeListener(_onInputChanged);
@@ -277,6 +282,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   void _onInputChanged() {
     final bool isEmpty = _inputController.text.trim().isEmpty;
+    _scheduleDraftSave();
     if (_isInputEmpty != isEmpty) {
       setState(() {
         _isInputEmpty = isEmpty;
@@ -284,9 +290,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
+  void _scheduleDraftSave() {
+    _draftSaveTimer?.cancel();
+    _draftSaveTimer = Timer(const Duration(milliseconds: 500), _saveDraft);
+  }
+
   Future<void> _processTextWithAi(String action, {String? targetLanguage}) async {
     final String currentText = _inputController.text.trim();
     if (currentText.isEmpty) return;
+
+    _lastAiOriginalText = _inputController.text;
 
     setState(() {
       _isAiProcessing = true;
@@ -311,7 +324,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   ? 'Текст успешно изменен ИИ'
                   : 'Text successfully processed by AI',
             ),
-            duration: const Duration(seconds: 1),
+            duration: const Duration(seconds: 2),
+            action: SnackBarAction(
+              label: Localizations.localeOf(context).languageCode == 'ru'
+                  ? 'Отменить'
+                  : 'Undo',
+              onPressed: _undoLastAiTransform,
+            ),
           ),
         );
       }
@@ -337,6 +356,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
+  void _undoLastAiTransform() {
+    final String? previous = _lastAiOriginalText;
+    if (previous == null) return;
+    _inputController.text = previous;
+    _inputController.selection = TextSelection.fromPosition(
+      TextPosition(offset: previous.length),
+    );
+    _lastAiOriginalText = null;
+  }
+
   Widget _buildAiButton(ColorScheme scheme) {
     final bool isRu = Localizations.localeOf(context).languageCode == 'ru';
 
@@ -349,7 +378,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             width: 20,
             height: 20,
             child: CircularProgressIndicator(
-              year2023: false,
+              
               strokeWidth: 2,
               color: scheme.primary,
             ),
@@ -492,6 +521,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final String? draft = await ref.read(draftStorageProvider).get(chatId);
     if (draft != null && draft.isNotEmpty && _inputController.text.isEmpty) {
       _inputController.text = draft;
+      _showDraftRestoredBanner = true;
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
@@ -514,15 +547,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     final int? replyId = _replyToMessageId;
+    final String originalText = _inputController.text;
+    final String? originalReplyPreview = _replyPreviewText;
 
-    // Очищаем поле ввода и панель ответа мгновенно для отзывчивости
     _inputController.clear();
     _clearReply();
-
-    // Прокручиваем к самому низу чата (так как отправлено новое сообщение)
     _scrollToBottom();
 
-    // Запускаем отправку в фоне, не блокируя UI-поток
     unawaited(
       ref
           .read(chatMessagesProvider(chatId).notifier)
@@ -531,12 +562,22 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         if (!mounted) {
           return;
         }
+        _inputController.text = originalText;
+        _inputController.selection = TextSelection.fromPosition(
+          TextPosition(offset: originalText.length),
+        );
+        if (replyId != null && originalReplyPreview != null) {
+          setState(() {
+            _replyToMessageId = replyId;
+            _replyPreviewText = originalReplyPreview;
+          });
+        }
         final String message = error is ApiException
             ? error.message
             : 'Failed to send message: $error';
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
       }),
     );
   }
@@ -664,7 +705,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? editId = _editingMessageId;
     if (chatId == null || editId == null) return;
     final String edited = _inputController.text.trim();
-    if (edited.isEmpty || edited == (_editingOriginalText ?? '').trim()) {
+    final String originalDraft = _inputController.text;
+    final String? originalText = _editingOriginalText;
+    if (edited.isEmpty || edited == (originalText ?? '').trim()) {
       _cancelEdit();
       return;
     }
@@ -675,6 +718,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           .editMessage(editId, edited);
     } catch (error) {
       if (!mounted) return;
+      setState(() {
+        _editingMessageId = editId;
+        _editingOriginalText = originalText;
+        _inputController.text = originalDraft;
+        _inputController.selection = TextSelection.fromPosition(
+          TextPosition(offset: originalDraft.length),
+        );
+      });
       final String text = error is ApiException
           ? error.message
           : 'Failed to edit message: $error';
@@ -697,24 +748,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     final bool confirmed =
-        await showDialog<bool>(
+        await showAppConfirmDialog(
           context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text(context.l10n.chatDeleteMessageTitle),
-              content: Text(context.l10n.chatDeleteMessageBody),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: Text(context.l10n.commonCancel),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: Text(context.l10n.commonDelete),
-                ),
-              ],
-            );
-          },
+          title: context.l10n.chatDeleteMessageTitle,
+          subtitle: context.l10n.chatDeleteMessageBody,
+          confirmLabel: context.l10n.commonDelete,
+          cancelLabel: context.l10n.commonCancel,
+          destructive: true,
+          icon: Icons.delete_outline_rounded,
         ) ??
         false;
 
@@ -1149,16 +1190,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       canPop: !_uploadingMedia,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (didPop) return;
-        final bool? confirm = await showDialog<bool>(
+        final bool? confirm = await showAppConfirmDialog(
           context: context,
-          builder: (BuildContext context) => AlertDialog(
-            title: Text(context.l10n.chatUploadCancelTitle),
-            content: Text(context.l10n.chatUploadCancelBody),
-            actions: <Widget>[
-              TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(context.l10n.commonNo)),
-              TextButton(onPressed: () => Navigator.of(context).pop(true), child: Text(context.l10n.commonYes)),
-            ],
-          ),
+          title: context.l10n.dialogCancelChatCreationTitle,
+          subtitle: context.l10n.dialogCancelChatCreationBody,
+          confirmLabel: context.l10n.commonYes,
+          cancelLabel: context.l10n.commonNo,
+          icon: Icons.close_rounded,
         );
         if (confirm == true && context.mounted) {
           context.pop();
@@ -1301,14 +1339,17 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         bottomSafe: false,
         child: Column(
           children: <Widget>[
-            OfflineBanner(isOffline: ref.watch(connectivityProvider).value ?? false),
+            OfflineBanner(isOffline: !(ref.watch(connectivityProvider).value ?? true)),
             // Loading older messages indicator at top
-            AnimatedSize(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOut,
-              child: _isLoadingOlder
-                  ? const LinearProgressIndicator(year2023: false, minHeight: 2)
-                  : const SizedBox.shrink(),
+            ValueListenableBuilder<bool>(
+              valueListenable: _loadingOlderNotifier,
+              builder: (context, isLoading, _) => AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                child: isLoading
+                    ? const LinearProgressIndicator( minHeight: 2)
+                    : const SizedBox.shrink(),
+              ),
             ),
             Expanded(
               child: Stack(
@@ -1409,7 +1450,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                               formattedTime: formatMessageTime(message.sentAt),
                               isEdited: message.isEdited,
                               isDeleted: message.isDeleted,
-                              isRead: isMine,
+                              isRead: message.isRead,
                               replyPreview: _replyPreviewFor(message, byId),
                               reactions: message.reactions,
                               mediaUrl: mediaUrl,
@@ -1470,7 +1511,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                                         child: SizedBox(
                                           width: 14,
                                           height: 14,
-                                          child: CircularProgressIndicator(year2023: false, strokeWidth: 2),
+                                          child: CircularProgressIndicator( strokeWidth: 2),
                                         ),
                                       ),
                                     if (message.isFailed)
@@ -1559,6 +1600,50 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: <Widget>[
+                                if (_showDraftRestoredBanner)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: scheme.tertiaryContainer.withValues(alpha: 0.76),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        children: <Widget>[
+                                          Icon(
+                                            Icons.drafts_rounded,
+                                            size: 16,
+                                            color: scheme.onTertiaryContainer,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'Draft restored on this device',
+                                              style: textTheme.bodySmall?.copyWith(
+                                                color: scheme.onTertiaryContainer,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                _showDraftRestoredBanner = false;
+                                              });
+                                            },
+                                            icon: const Icon(Icons.close_rounded),
+                                            iconSize: 18,
+                                            color: scheme.onTertiaryContainer,
+                                            tooltip: context.l10n.commonCancel,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                                 if (_uploadingMedia && _uploadFileName != null)
                                   FileUploadProgressWidget(
                                     fileName: _uploadFileName!,
@@ -1747,7 +1832,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                                                     width: 20,
                                                     height: 20,
                                                     child: CircularProgressIndicator(
-                                                      year2023: false,
+                                                      
                                                       strokeWidth: 2,
                                                       color: scheme.primary,
                                                     ),

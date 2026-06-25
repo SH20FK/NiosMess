@@ -1,21 +1,10 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/models/api/session_model.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-
-Map<String, dynamic> asStringMap(dynamic value) {
-  if (value is Map<String, dynamic>) {
-    return value;
-  }
-  if (value is Map) {
-    return value.map(
-      (dynamic key, dynamic val) => MapEntry(key.toString(), val),
-    );
-  }
-  return <String, dynamic>{};
-}
 
 class AuthRepository {
   const AuthRepository(this._ref);
@@ -217,7 +206,7 @@ class AuthRepository {
         .read(webSocketClientProvider)
         .request(
           'kick_session',
-          payload: <String, dynamic>{'session_id': sessionId.toString()},
+          payload: <String, dynamic>{'session_id': sessionId},
         );
   }
 

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,7 +52,7 @@ class MediaViewerScreen extends ConsumerWidget {
                   imageUrl: url,
                   fit: BoxFit.contain,
                   placeholder: (BuildContext context, String _) {
-                    return const Center(child: CircularProgressIndicator(year2023: false));
+                    return const Center(child: CircularProgressIndicator());
                   },
                   errorWidget: (BuildContext context, String _, Object error) {
                     return Padding(
@@ -78,7 +78,7 @@ class MediaViewerScreen extends ConsumerWidget {
                   FilledButton.icon(
                     onPressed: () => _downloadMedia(context, ref),
                     icon: const Icon(Icons.download_rounded),
-                    label: const Text('Download & Open'),
+                    label: Text(context.l10n.mediaDownloadAndOpen),
                   ),
                   const SizedBox(height: 8),
                   TextButton.icon(
@@ -104,7 +104,7 @@ class MediaViewerScreen extends ConsumerWidget {
         await file.writeAsBytes(bytes);
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saved to $savePath')),
+          SnackBar(content: Text(context.l10n.mediaSavedTo(savePath))),
         );
       } else {
         try {
@@ -113,7 +113,7 @@ class MediaViewerScreen extends ConsumerWidget {
           await file.writeAsBytes(bytes);
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Saved to $savePath')),
+            SnackBar(content: Text(context.l10n.mediaSavedTo(savePath))),
           );
         } catch (_) {
           if (!context.mounted) return;
@@ -125,7 +125,7 @@ class MediaViewerScreen extends ConsumerWidget {
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Download failed: $e')),
+        SnackBar(content: Text(context.l10n.mediaDownloadFailed('$e'))),
       );
     }
   }

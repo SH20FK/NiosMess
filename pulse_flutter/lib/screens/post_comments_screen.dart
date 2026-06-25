@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
@@ -96,16 +97,13 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
       canPop: !_busy,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (didPop) return;
-        final bool? confirm = await showDialog<bool>(
+        final bool? confirm = await showAppConfirmDialog(
           context: context,
-          builder: (BuildContext context) => AlertDialog(
-            title: const Text('Отменить?'),
-            content: const Text('Идёт отправка комментария. Отменить?'),
-            actions: <Widget>[
-              TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Нет')),
-              TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Да')),
-            ],
-          ),
+          title: context.l10n.dialogCancelCommentTitle,
+          subtitle: context.l10n.dialogCancelCommentBody,
+          confirmLabel: context.l10n.commonYes,
+          cancelLabel: context.l10n.commonNo,
+          icon: Icons.close_rounded,
         );
         if (confirm == true && mounted) {
           context.pop();
@@ -162,7 +160,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                     },
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator(year2023: false)),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (Object error, StackTrace trace) {
                   return Center(
                     child: Padding(
@@ -240,13 +238,13 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                           ),
                           onPressed: _busy ? null : _send,
                           child: _busy
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 24,
                                   height: 24,
                                   child: CircularProgressIndicator(
-                                    year2023: false,
+                                    
                                     strokeWidth: 2,
-                                    color: Colors.white,
+                                    color: Theme.of(context).colorScheme.onPrimary,
                                   ),
                                 )
                               : const Icon(Icons.send_rounded),

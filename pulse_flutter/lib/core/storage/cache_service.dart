@@ -10,10 +10,14 @@ class CacheService {
   static const String _chatsBoxName = 'chats_cache_box';
   static const String _messagesBoxName = 'messages_cache_box';
   static const String _contactsBoxName = 'contacts_cache_box';
+  static bool _hiveInitialized = false;
 
   Future<void> ensureInitialized() async {
     try {
-      await Hive.initFlutter();
+      if (!_hiveInitialized) {
+        await Hive.initFlutter();
+        _hiveInitialized = true;
+      }
       await Hive.openBox<List<dynamic>>(_chatsBoxName);
       await Hive.openBox<List<dynamic>>(_messagesBoxName);
       await Hive.openBox<List<dynamic>>(_contactsBoxName);

@@ -19,8 +19,6 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
         settings.timeZoneMode == AppTimeZoneMode.auto
         ? '${DateTime.now().timeZoneName} (${_offsetLabel(DateTime.now().timeZoneOffset)})'
         : _manualZoneLabel(manualZone);
-
-    // Determine selected language key
     final String? selectedLocale = settings.localeCode;
 
     return SettingsScaffold(
@@ -30,16 +28,16 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
           icon: Icons.language_rounded,
           title: context.l10n.languageRegionTitle,
           subtitle: context.l10n.languageRegionSubtitle,
-          iconColor: Colors.teal,
+          iconColor: scheme.primary,
         ),
-
-        // --- Язык ---
         SettingsSection(
           title: context.l10n.languageRegionAppLanguage,
+          subtitle: 'Язык интерфейса и локализация элементов приложения',
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: SegmentedButton<String?>(
+                showSelectedIcon: false,
                 segments: <ButtonSegment<String?>>[
                   ButtonSegment<String?>(
                     value: null,
@@ -56,21 +54,31 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                   ),
                 ],
                 selected: <String?>{selectedLocale},
-                onSelectionChanged: (Set<String?> s) => ref
-                    .read(uiSettingsProvider.notifier)
-                    .setLocaleCode(s.first),
+                onSelectionChanged: (Set<String?> s) =>
+                    ref.read(uiSettingsProvider.notifier).setLocaleCode(s.first),
               ),
+            ),
+            SettingsInfoTile(
+              icon: Icons.translate_rounded,
+              title: 'Текущий язык',
+              subtitle: selectedLocale == null
+                  ? context.l10n.commonAutomatic
+                  : (selectedLocale == 'ru'
+                        ? context.l10n.languageRussian
+                        : context.l10n.languageEnglish),
+              value: selectedLocale == null ? 'Auto' : selectedLocale.toUpperCase(),
+              iconColor: scheme.primary,
             ),
           ],
         ),
-
-        // --- Часовой пояс ---
         SettingsSection(
           title: context.l10n.languageRegionTimeZone,
+          subtitle: 'Автоматическое определение или ручной выбор часового пояса',
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: SegmentedButton<AppTimeZoneMode>(
+                showSelectedIcon: false,
                 segments: <ButtonSegment<AppTimeZoneMode>>[
                   ButtonSegment<AppTimeZoneMode>(
                     value: AppTimeZoneMode.auto,
@@ -93,56 +101,41 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                 },
               ),
             ),
-            ListTile(
-              leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.teal.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(Icons.schedule_rounded, color: Colors.teal, size: 20),
-              ),
-              title: Text(
-                currentZoneLabel,
-                style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                settings.timeZoneMode == AppTimeZoneMode.auto
-                    ? context.l10n.commonAutomatic
-                    : context.l10n.commonManual,
-                style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-              ),
+            SettingsTile(
+              icon: Icons.schedule_rounded,
+              title: currentZoneLabel,
+              subtitle: settings.timeZoneMode == AppTimeZoneMode.auto
+                  ? context.l10n.commonAutomatic
+                  : context.l10n.commonManual,
+              iconColor: scheme.tertiary,
               trailing: settings.timeZoneMode == AppTimeZoneMode.manual
-                  ? Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant, size: 20)
-                  : null,
+                  ? Icon(
+                      Icons.chevron_right_rounded,
+                      color: scheme.onSurfaceVariant,
+                      size: 20,
+                    )
+                  : Text(
+                      context.l10n.commonAutomatic,
+                      style: textTheme.labelMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
               onTap: settings.timeZoneMode == AppTimeZoneMode.manual
                   ? () => _showTimeZonePicker(context, ref, manualZone)
-                  : null,
+                  : () {},
             ),
           ],
         ),
-
-        // --- Текущее время ---
         SettingsSection(
           title: context.l10n.languageRegionCurrentTime,
+          subtitle: 'Предпросмотр текущих даты и времени',
           children: <Widget>[
-            ListTile(
-              leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.indigo.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(Icons.access_time_rounded, color: Colors.indigo, size: 20),
-              ),
-              title: Text(
-                formatFullDateTime(AppTimeSettings.now()),
-                style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
-              ),
+            SettingsInfoTile(
+              icon: Icons.access_time_rounded,
+              title: 'Локальное время',
+              subtitle: formatFullDateTime(AppTimeSettings.now()),
+              iconColor: scheme.secondary,
             ),
           ],
         ),
@@ -224,12 +217,10 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                           selected: selected,
                           selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.3),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           onTap: () {
-                            ref
-                                .read(uiSettingsProvider.notifier)
-                                .useManualTimeZone(option.id);
+                            ref.read(uiSettingsProvider.notifier).useManualTimeZone(option.id);
                             Navigator.of(context).pop();
                           },
                         );

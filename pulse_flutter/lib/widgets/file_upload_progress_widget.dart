@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 
 class FileUploadProgressWidget extends StatelessWidget {
   const FileUploadProgressWidget({
@@ -51,7 +52,7 @@ class FileUploadProgressWidget extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
-                  _getIconData(typeInfo.icon),
+                   getIconDataByName(typeInfo.icon),
                   color: Color(typeInfo.color),
                   size: 18,
                 ),
@@ -92,8 +93,8 @@ class FileUploadProgressWidget extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              year2023: false,
-              value: progress.clamp(0, 1),
+              
+              value: progress.clamp(0.0, 1.0),
               minHeight: 6,
               backgroundColor: colorScheme.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
@@ -102,30 +103,5 @@ class FileUploadProgressWidget extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  IconData _getIconData(String iconName) {
-    switch (iconName) {
-      case 'image':
-        return Icons.image_rounded;
-      case 'videocam':
-        return Icons.videocam_rounded;
-      case 'audiotrack':
-        return Icons.audiotrack_rounded;
-      case 'description':
-        return Icons.description_rounded;
-      case 'android':
-        return Icons.android_rounded;
-      case 'desktop_windows':
-        return Icons.desktop_windows_rounded;
-      case 'folder_zip':
-        return Icons.folder_zip_rounded;
-      case 'text_snippet':
-        return Icons.text_snippet_rounded;
-      case 'code':
-        return Icons.code_rounded;
-      default:
-        return Icons.insert_drive_file_rounded;
-    }
   }
 }

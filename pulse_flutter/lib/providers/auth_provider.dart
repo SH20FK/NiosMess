@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
-import 'package:pulse_flutter/providers/app_resume_provider.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
@@ -106,7 +105,7 @@ class AuthNotifier extends Notifier<AuthState> {
     }
 
     if (session != null && session.accessToken.isNotEmpty) {
-      ref.read(authTokenProvider.notifier).state = session.accessToken;
+      ref.read(authTokenProvider.notifier).setToken(session.accessToken);
     }
 
     state = state.copyWith(hydrated: true, session: session);
@@ -119,12 +118,12 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> _saveSession(AuthSession session) async {
     final String serialized = jsonEncode(session.toJson());
     await _storage.write(key: _sessionKey, value: serialized);
-    ref.read(authTokenProvider.notifier).state = session.accessToken;
+    ref.read(authTokenProvider.notifier).setToken(session.accessToken);
   }
 
   Future<void> _clearSessionStorage() async {
     await _storage.delete(key: _sessionKey);
-    ref.read(authTokenProvider.notifier).state = null;
+    ref.read(authTokenProvider.notifier).clear();
   }
 
   Future<AuthActionResult> login({
@@ -383,7 +382,6 @@ class AuthNotifier extends Notifier<AuthState> {
     } catch (e) { debugPrint('[auth_provider.dart] Error: $e'); }
 
     await _clearSessionStorage();
-    await ref.read(appResumeProvider.notifier).clear();
     try {
       await ref.read(cacheServiceProvider).clearAll();
     } catch (e) {

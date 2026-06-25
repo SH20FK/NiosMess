@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 
 class OfflineBanner extends StatelessWidget {
   const OfflineBanner({this.isOffline = false, super.key});
@@ -30,7 +31,7 @@ class OfflineBanner extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Ожидание сети...',
+                      context.l10n.offlineWaiting,
                       style: textTheme.labelMedium?.copyWith(
                         color: scheme.onErrorContainer,
                         fontWeight: FontWeight.w600,

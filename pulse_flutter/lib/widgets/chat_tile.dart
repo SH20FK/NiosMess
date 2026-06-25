@@ -21,6 +21,8 @@ class ChatTile extends StatefulWidget {
     this.isOnline = false,
     this.partnerBadges = const <ApiBadge>[],
     this.animateEntrance = false,
+    this.actions = const <Widget>[],
+    this.draftLabel,
     super.key,
   });
 
@@ -39,6 +41,8 @@ class ChatTile extends StatefulWidget {
   final bool isOnline;
   final List<ApiBadge> partnerBadges;
   final bool animateEntrance;
+  final List<Widget> actions;
+  final String? draftLabel;
 
   @override
   State<ChatTile> createState() => _ChatTileState();
@@ -50,6 +54,7 @@ class _ChatTileState extends State<ChatTile>
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
   bool _isHovered = false;
+  bool _isExpanded = false;
 
   @override
   void initState() {
@@ -79,6 +84,15 @@ class _ChatTileState extends State<ChatTile>
     super.dispose();
   }
 
+  void _handleLongPress() {
+    if (widget.actions.isNotEmpty) {
+      setState(() {
+        _isExpanded = !_isExpanded;
+      });
+    }
+    widget.onLongPress?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
@@ -92,129 +106,184 @@ class _ChatTileState extends State<ChatTile>
     final double vertical = widget.compact ? 9 : 12;
     final double titleGap = widget.compact ? 4 : 6;
 
+    final String semanticsLabel =
+        '${widget.title}${widget.draftLabel != null ? ', draft: ${widget.draftLabel}' : ''}'
+        '${widget.unreadCount > 0 ? ', ${widget.unreadCount} unread' : ''}';
+
     final Widget content = RepaintBoundary(
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),
-        child: InkWell(
-          onTap: widget.onTap,
-          onLongPress: widget.onLongPress,
-          borderRadius: BorderRadius.circular(24),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            padding: EdgeInsets.symmetric(horizontal: 14, vertical: vertical),
-            decoration: BoxDecoration(
-              color: _isHovered
-                  ? scheme.primaryContainer.withValues(alpha: 0.28)
-                  : scheme.surfaceContainerLow.withValues(alpha: 0.82),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: _isHovered
-                    ? scheme.primary.withValues(alpha: 0.24)
-                    : scheme.outlineVariant.withValues(alpha: 0.20),
-              ),
-            ),
-            child: Row(
-              children: <Widget>[
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: <Widget>[
-                    PulseAvatar(
-                      key: ValueKey<String>(
-                        '${widget.avatarText}_${widget.avatarUrl ?? ''}',
-                      ),
-                      radius: 26,
-                      name: widget.avatarText,
-                      avatarUrl: widget.avatarUrl,
-                      fallbackColor: widget.avatarColor,
-                      textColor: scheme.onPrimary,
-                    ),
-                    if (widget.isOnline)
-                      Positioned(
-                        right: -1,
-                        bottom: -1,
-                        child: Container(
-                          width: 13,
-                          height: 13,
-                          decoration: BoxDecoration(
-                            color: scheme.primary,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: scheme.surface, width: 2),
-                          ),
-                        ),
-                      ),
-                  ],
+        child: Semantics(
+          button: true,
+          label: semanticsLabel,
+          child: InkWell(
+            onTap: widget.onTap,
+            onLongPress: _handleLongPress,
+            borderRadius: BorderRadius.circular(24),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOutCubic,
+              padding: EdgeInsets.symmetric(horizontal: 14, vertical: vertical),
+              decoration: BoxDecoration(
+                color: _isHovered || _isExpanded
+                    ? scheme.primaryContainer.withValues(alpha: 0.28)
+                    : scheme.surfaceContainerLow.withValues(alpha: 0.82),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: _isHovered || _isExpanded
+                      ? scheme.primary.withValues(alpha: 0.24)
+                      : scheme.outlineVariant.withValues(alpha: 0.20),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Row(
                     children: <Widget>[
-                      Row(
+                      Stack(
+                        clipBehavior: Clip.none,
                         children: <Widget>[
-                          Expanded(
-                            child: Row(
-                              children: <Widget>[
-                                Flexible(
-                                  child: Text(
-                                    widget.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: textTheme.titleMedium,
+                          PulseAvatar(
+                            key: ValueKey<String>(
+                              '${widget.avatarText}_${widget.avatarUrl ?? ''}',
+                            ),
+                            radius: 26,
+                            name: widget.avatarText,
+                            avatarUrl: widget.avatarUrl,
+                            fallbackColor: widget.avatarColor,
+                            textColor: scheme.onPrimary,
+                          ),
+                          if (widget.isOnline)
+                            Positioned(
+                              right: -1,
+                              bottom: -1,
+                              child: Container(
+                                width: 13,
+                                height: 13,
+                                decoration: BoxDecoration(
+                                  color: scheme.primary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: scheme.surface,
+                                    width: 2,
                                   ),
                                 ),
-                                if (widget.isPinned) ...<Widget>[
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    Icons.push_pin_rounded,
-                                    size: 15,
-                                    color: scheme.primary,
-                                  ),
-                                ],
-                                if (visibleBadges.isNotEmpty)
-                                  _ChatBadgeStrip(
-                                    badges: visibleBadges,
-                                    hiddenCount: hiddenBadgeCount,
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(widget.formattedTime, style: textTheme.bodySmall),
-                        ],
-                      ),
-                      SizedBox(height: titleGap),
-                      Row(
-                        children: <Widget>[
-                          if (widget.subtitleIcon != null) ...<Widget>[
-                            Icon(
-                              widget.subtitleIcon,
-                              size: 16,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                          ],
-                          Expanded(
-                            child: Text(
-                              widget.subtitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: scheme.onSurfaceVariant,
                               ),
                             ),
-                          ),
-                          if (widget.unreadCount > 0) ...<Widget>[
-                            const SizedBox(width: 8),
-                            _AnimatedBadge(count: widget.unreadCount),
-                          ],
                         ],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: Row(
+                                    children: <Widget>[
+                                      Flexible(
+                                        child: Text(
+                                          widget.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: textTheme.titleMedium,
+                                        ),
+                                      ),
+                                      if (widget.isPinned) ...<Widget>[
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.push_pin_rounded,
+                                          size: 15,
+                                          color: scheme.primary,
+                                        ),
+                                      ],
+                                      if (visibleBadges.isNotEmpty)
+                                        _ChatBadgeStrip(
+                                          badges: visibleBadges,
+                                          hiddenCount: hiddenBadgeCount,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  widget.formattedTime,
+                                  style: textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: titleGap),
+                            Row(
+                              children: <Widget>[
+                                if (widget.subtitleIcon != null) ...<Widget>[
+                                  Icon(
+                                    widget.subtitleIcon,
+                                    size: 16,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 4),
+                                ],
+                                if (widget.draftLabel != null) ...<Widget>[
+                                  Text(
+                                    widget.draftLabel!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: scheme.tertiary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    widget.subtitle,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                                if (widget.unreadCount > 0) ...<Widget>[
+                                  const SizedBox(width: 8),
+                                  _AnimatedBadge(count: widget.unreadCount),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutBack,
+                    alignment: Alignment.topCenter,
+                    child: !_isExpanded || widget.actions.isEmpty
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerHigh
+                                    .withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: widget.actions,
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -296,6 +365,9 @@ class _ChatBadgeStrip extends StatelessWidget {
                   icon: badge.icon,
                   color: badge.color,
                   interactive: false,
+                  mode: BadgeResolver.isStatusBadge(badge)
+                      ? BadgeDisplayMode.statusIcon
+                      : BadgeDisplayMode.infoLabel,
                 ),
               ),
             if (hiddenCount > 0) BadgeOverflowChip(count: hiddenCount),

@@ -117,11 +117,11 @@ class SoundService {
   }
 
   Future<void> dispose() async {
-    await _effectPlayer.dispose();
+    try { await _effectPlayer.dispose(); } catch (_) {}
     for (final AudioPlayer player in _uiPlayers) {
-      await player.dispose();
+      try { await player.dispose(); } catch (_) {}
     }
-    await _loopPlayer.dispose();
+    try { await _loopPlayer.dispose(); } catch (_) {}
   }
 
   double _effectiveVolume(double requestedVolume) {
