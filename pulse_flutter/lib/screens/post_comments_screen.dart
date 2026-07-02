@@ -6,6 +6,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
@@ -125,10 +126,12 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                       message.id: message,
                   };
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                    itemCount: comments.length,
-                    itemBuilder: (BuildContext context, int index) {
+                  return RefreshIndicator(
+                    onRefresh: () => ref.read(postCommentsProvider(_args).notifier).refresh(),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                      itemCount: comments.length,
+                      itemBuilder: (BuildContext context, int index) {
                       final ApiMessage message = comments[index];
                       final bool isMine =
                           message.senderId == (auth.session?.userId ?? -1);
@@ -149,6 +152,8 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                         isDeleted: message.isDeleted,
                         reactions: message.reactions,
                         replyPreview: replyPreview,
+                        senderDisplayName: message.senderDisplayName,
+                        senderBadges: message.senderBadges,
                         onLongPress: () {
                           setState(() {
                             _replyToMessageId = message.id;
@@ -158,9 +163,36 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                         },
                       );
                     },
+                    ),
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => ListView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  itemCount: 6,
+                  itemBuilder: (_, int i) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const PulseSkeleton(width: 36, height: 36, borderRadius: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              PulseSkeleton(width: 100 + (i % 3) * 20.0, height: 12),
+                              const SizedBox(height: 8),
+                              PulseSkeleton(width: double.infinity, height: 14, borderRadius: 6),
+                              const SizedBox(height: 4),
+                              PulseSkeleton(width: 180, height: 10, borderRadius: 5),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 error: (Object error, StackTrace trace) {
                   return Center(
                     child: Padding(

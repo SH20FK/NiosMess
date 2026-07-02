@@ -17,6 +17,7 @@
   "commonSystem": "Системная",
   "commonLight": "Светлая",
   "commonDark": "Тёмная",
+  "commonDismiss": "Закрыть",
   "commonAutomatic": "Автоматически",
   "commonManual": "Вручную",
   "commonLoading": "Загрузка...",
@@ -28,7 +29,11 @@
     }
   },
   "commonPasteFromClipboard": "Вставить из буфера",
+  "commonDiscardChanges": "Отменить изменения?",
+  "commonDiscardChangesDesc": "У вас есть несохранённые изменения, которые будут потеряны.",
+  "commonDiscardChangesConfirm": "Отменить",
   "splashTagline": "НАШ мессенджер",
+  "splashGraphicsOptimization": "Оптимизация графики...",
   "loginTitle": "С возвращением",
   "loginSubtitle": "Войдите по email или username.",
   "loginIdentifierLabel": "Email или username",
@@ -924,6 +929,30 @@
   "settingsSecretChatsTitle": "Секретные чаты",
   "settingsSecretChatsSubtitle": "Сквозное шифрование (E2EE)",
   "settingsSecretChatsButton": "Секретный чат",
+  "tabNiosgram": "Лента",
+  "niosgramTitle": "NiosGram",
+  "niosgramCreatePost": "Новый пост",
+  "niosgramPublish": "Опубликовать",
+  "niosgramWhatMind": "О чём думаешь?",
+  "niosgramAttachMedia": "Прикрепить медиа",
+  "niosgramRemove": "Убрать",
+  "niosgramEmptyFeed": "Постов пока нет",
+  "niosgramEmptyFeedDesc": "Будь первым, кто поделится чем-то!",
+  "niosgramLoadMore": "Загрузить ещё",
+  "niosgramComments": "Комментарии",
+  "niosgramWriteComment": "Напишите комментарий...",
+  "niosgramLike": "Нравится",
+  "niosgramDislike": "Не нравится",
+  "niosgramDeletePost": "Удалить пост?",
+  "niosgramDeletePostConfirm": "Это действие нельзя отменить.",
+  "niosgramCopied": "Скопировано в буфер обмена",
+  "niosgramEdit": "Изменить",
+  "niosgramDelete": "Удалить",
+  "niosgramCopyText": "Скопировать текст",
+  "niosgramEditPost": "Отредактируйте пост...",
+  "niosgramFileTooLarge": "Файл превышает 10 МБ",
+  "niosgramEmptyContent": "Напишите что-нибудь или прикрепите файл",
+  "niosgramFailedLoad": "Не удалось загрузить ленту",
   "adminUserBanned": "Пользователь {id} забанен",
   "@adminUserBanned": {
     "placeholders": {
@@ -1117,5 +1146,257 @@
     }
   },
   "chatImageUnavailable": "Изображение недоступно",
-  "settingsRevokeSession": "Завершить сессию"
+  "settingsRevokeSession": "Завершить сессию",
+  "settingsPrivacyBannerSubtitle": "Уведомления, видимость и системные ограничения аккаунта.",
+  "settingsPrivacyNotificationsManage": "Управление push-уведомлениями приложения",
+  "settingsPrivacyVisibilityTitle": "Видимость",
+  "settingsPrivacyVisibilityDesc": "Контроль статуса присутствия в приложении",
+  "settingsPrivacyHideOnline": "Скрывать онлайн-статус",
+  "settingsPrivacyHideOnlineDesc": "Не показывать другим пользователям ваш статус присутствия",
+  "settingsStorageBannerSubtitle": "Использование памяти, кеша и черновиков приложения.",
+  "settingsStorageRefresh": "Обновить",
+  "settingsStorageLegendCache": "Кеш",
+  "settingsStorageLegendDrafts": "Черновики",
+  "settingsStorageCategoryAppData": "Данные",
+  "settingsStorageCategoryCache": "Кеш",
+  "settingsStorageCategoryDrafts": "Черновики",
+  "settingsAboutBannerSubtitle": "Поддержка, правовая информация и сведения о приложении.",
+  "settingsAboutHelpDesc": "Частые вопросы и способы связи",
+  "settingsAboutVersionTitle": "NiosMess",
+  "settingsAboutVersionDesc": "Версия приложения и служебные пункты",
+  "settingsAboutLegalDesc": "Политики и внешние ресурсы",
+  "settingsAccountBannerSubtitle": "Безопасность входа, подтверждение почты и активные сессии.",
+  "settingsAccountAccessDesc": "Основные действия для доступа и восстановления аккаунта",
+  "settingsLanguageBannerDesc": "Язык интерфейса и локализация элементов приложения",
+  "settingsLanguageCurrentLang": "Текущий язык",
+  "settingsLanguageTzDesc": "Автоматическое определение или ручной выбор часового пояса",
+  "settingsLanguageTimePreview": "Предпросмотр текущих даты и времени",
+  "settingsLanguageLocalTime": "Локальное время",
+  "sessionsBannerSubtitle": "Управление активными устройствами и сессиями.",
+  "sessionsRevokeBody": "Это устройство будет отключено, если это текущая сессия.",
+  "sessionsActive": "Активна: {time}",
+  "@sessionsActive": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "sessionsCreated": "Создана: {time}",
+  "@sessionsCreated": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "sessionsCurrent": "Текущая",
+  "onboardingSlide1Title": "Быстрые звонки без лишнего",
+  "onboardingSlide1Desc": "Звоните коллегам в одно касание и переключайтесь между голосом и видео не離開ая разговор.",
+  "onboardingSlide2Title": "Упорядоченные беседы",
+  "onboardingSlide2Desc": "Держите чаты, звонки и контакты в одном удобном пространстве.",
+  "onboardingSlide3Title": "Для повседневного ритма",
+  "onboardingSlide3Desc": "Плавные переходы и чёткая иерархия сохраняют спокойствие общения даже в напряжённый день.",
+  "onboardingGetStarted": "Начать",
+  "onboardingNext": "Далее",
+  "mediaViewerDownload": "Скачать",
+  "mediaViewerImageLoadFailed": "Не удалось загрузить изображение: {error}",
+  "@mediaViewerImageLoadFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "mediaViewerDownloadWeb": "Скачивание недоступно в веб-версии",
+  "mediaViewerDownloadFailedExt": "Не удалось скачать. Попробуйте открыть во внешнем приложении.",
+  "directResolverResolving": "Распознаём @{username}",
+  "@directResolverResolving": {
+    "placeholders": {
+      "username": {}
+    }
+  },
+  "directResolverSecretEstablishing": "Устанавливаем сквозное шифрование...",
+  "directResolverPreparing": "Подготавливаем защищённый диалог в NiosMess.",
+  "directResolverUserNotFound": "Пользователь не найден",
+  "directResolverUserNotFoundDesc": "Не удалось найти этого пользователя.",
+  "directResolverSecretTitle": "Секретный чат",
+  "postNewPost": "Новый пост",
+  "postPublish": "Опубликовать",
+  "postHint": "О чём думаешь?",
+  "postRemove": "Убрать",
+  "postAttachMedia": "Прикрепить медиа",
+  "postFileTooLarge": "Файл превышает 10 МБ",
+  "postEmptyContent": "Напишите что-нибудь или прикрепите файл",
+  "chatCreateFailed": "Не удалось создать чат",
+  "chatChannelCreated": "Канал создан",
+  "chatGroupCreated": "Группа создана",
+  "chatChooseNextStep": "Выберите, что сделать дальше.",
+  "chatOpenChat": "Открыть чат",
+  "chatCopyInvite": "Скопировать инвайт",
+  "chatInviteLinkCopied": "Ссылка-приглашение скопирована",
+  "chatCommentsEnabled": "Включены",
+  "chatCommentsDisabled": "Выключены",
+  "profileSettingsSection": "Настройки",
+  "profileSettingsSectionDesc": "Основные параметры аккаунта и приложения",
+  "profileSectionQuickSettings": "Быстрые настройки",
+  "profileSectionPrivacy": "Конфиденциальность",
+  "profileSectionAccount": "Аккаунт",
+  "profileSectionData": "Данные",
+  "profileSectionAbout": "О приложении",
+  "profileAppearance": "Внешний вид",
+  "profileAppearanceDesc": "Тема, цвета",
+  "profileLanguage": "Язык",
+  "profileLanguageDesc": "Язык приложения",
+  "profileTeamTools": "Команда и инструменты",
+  "profileTeamToolsDesc": "Команда проекта и дополнительные разделы",
+  "chatManageInviteLink": "Ссылка-приглашение",
+  "chatManageCopyInvite": "Скопировать инвайт",
+  "chatManageShareInvite": "Поделиться инвайтом",
+  "chatManageShareLink": "Поделиться ссылкой",
+  "chatManageCommentsChatId": "ID чата комментариев",
+  "chatManageCopied": "{title} скопировано",
+  "@chatManageCopied": {
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "chatManageCopy": "Копировать",
+  "chatManageName": "Название",
+  "chatManageDescription": "Описание",
+  "chatManageSaveChanges": "Сохранить изменения",
+  "chatManageChannel": "Канал",
+  "chatManageGroup": "Группа",
+  "adminPanelTitle": "Панель админа",
+  "adminPanelSubtitle": "Управление пользователями и чатами с паролем админа.",
+  "adminAuthentication": "Авторизация",
+  "adminPasswordLabel": "Пароль админа",
+  "adminConnecting": "Подключение...",
+  "adminConnect": "Подключиться",
+  "adminStatusBanned": "Забанен",
+  "adminStatusActive": "Активен",
+  "adminStatusFrozen": "Заморожен",
+  "adminStatusSpamBlock": "Спам-блок",
+  "adminActionUnfreeze": "Разморозить",
+  "adminActionFreeze": "Заморозить",
+  "adminActionUnblockSpam": "Снять спам-блок",
+  "adminActionSpamBlock": "Спам-блок",
+  "adminChatUnban": "Разбанить",
+  "adminChatBan": "Забанить",
+  "badgeScreenTitle": "Бейджи",
+  "badgeAvailableBadges": "Доступные бейджи",
+  "badgeAdminActions": "Действия админа",
+  "badgeCopied": "Бейдж создан",
+  "e2eeScreenTitle": "Секретные чаты",
+  "e2eeBannerTitle": "Секретные чаты (E2EE)",
+  "e2eeBannerSubtitle": "Сквозное шифрование привязано к устройству. Сгенерируйте ключ для использования секретных чатов.",
+  "e2eeDeviceKey": "Ключ устройства",
+  "e2eeKeyPairReady": "Пара ключей готова",
+  "e2eeNoKeyPair": "Нет пары ключей",
+  "e2eeTapToRegenerate": "Нажмите для регенерации",
+  "e2eeGenerateKeyPair": "Сгенерировать RSA-2048 ключ для E2EE",
+  "e2eeRotateKey": "Ротация ключа",
+  "e2eeRotateKeySubtitle": "Создать новую пару ключей (старые секретные чаты сломаются)",
+  "e2eeHowItWorks": "Как это работает",
+  "e2eeHowItWorksDesc": "• Каждое устройство генерирует свою RSA-2048 пару ключей\n• Публичный ключ передаётся на сервер\n• Приватный ключ остаётся только на этом устройстве\n• Секретные чаты видны только на этом устройстве\n• Сообщения шифруются AES-256-GCM\n• AES-ключ шифруется публичным RSA-ключом получателя",
+  "e2eeCreateSecretChat": "Создать секретный чат",
+  "e2eeCreateSecretChatDesc": "Для начала секретного чата откройте личный диалог из контактов.\nОпция секретного чата станет доступна после генерации ключей.",
+  "e2eeRotateConfirmTitle": "Ротировать ключ?",
+  "e2eeRotateConfirmBody": "Старые секретные чаты станут недоступны после ротации. Новые сообщения будут использовать новый ключ.",
+  "e2eeRotateConfirm": "Ротировать",
+  "e2eeGeneratingKeys": "Генерация ключей шифрования",
+  "e2eeGeneratingKeysDesc": "Создаётся RSA-2048 пара ключей.\nЭто может занять несколько секунд...",
+  "e2eeKeyRotated": "Ключ ротирован и загружен",
+  "chatMembersBanConfirmTitle": "Забанить участника?",
+  "chatMembersUnbanConfirmTitle": "Разбанить участника?",
+  "chatMembersBanConfirmBody": "Участник потеряет доступ до тех пор, пока вы не восстановите его.",
+  "chatMembersUnbanConfirmBody": "Восстановите участника и позвольте ему вернуться в беседу.",
+  "chatMembersMuteConfirmTitle": "Заглушить участника?",
+  "chatMembersUnmuteConfirmTitle": "Снять мут?",
+  "chatMembersMuteConfirmBody": "Заглушенные участники остаются в чате, но не могут нормально участвовать.",
+  "chatMembersUnmuteConfirmBody": "Разрешите участнику снова участвовать в беседе.",
+  "chatMembersFailed": "Ошибка: {error}",
+  "@chatMembersFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "contactsFailedToLoad": "Не удалось загрузить: {error}",
+  "@contactsFailedToLoad": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "contactsFailedToSearch": "Не удалось найти: {error}",
+  "@contactsFailedToSearch": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "contactsCouldNotOpenChat": "Не удалось открыть личный чат",
+  "contactsFailedToOpenChat": "Не удалось открыть личный чат: {error}",
+  "@contactsFailedToOpenChat": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "contactsMembersCount": "{count} участников",
+  "@contactsMembersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSupportEmail": "support@ni-os.ru",
+  "settingsPrivacyPolicyUrl": "ni-os.ru/privacy",
+  "settingsTermsOfServiceUrl": "ni-os.ru/terms",
+  "settingsWebsiteUrl": "ni-os.ru",
+  "settingsAboutNiosMess": "NiosMess",
+  "biometricTitle": "Биометрия",
+  "biometricEnabled": "Включена — вход по отпечатку/лицу",
+  "biometricDisabled": "Отключена",
+  "biometricAuthReason": "Подтвердите личность для включения биометрии",
+  "chatManageCopiedLabel": "{title} скопировано",
+  "@chatManageCopiedLabel": {
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "chatAiAssistant": "ИИ помощник",
+  "chatAiProcessed": "Текст успешно изменен ИИ",
+  "chatAiUndo": "Отменить",
+  "chatAiError": "Ошибка обработки ИИ: {error}",
+  "@chatAiError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "chatAiFixErrors": "Исправить",
+  "chatAiFormal": "Деловой",
+  "chatAiTranslate": "Перевести",
+  "chatAiLangEn": "Англ.",
+  "chatAiLangRu": "Рус.",
+  "chatAiLangDe": "Нем.",
+  "chatAiLangFr": "Фран.",
+  "chatAiLangEs": "Исп.",
+  "chatAiLangZh": "Кит.",
+  "chatDraftRestored": "Черновик восстановлен на этом устройстве",
+  "fileOpenerInvalidUrl": "Неверный URL файла",
+  "fileOpenerFailedOpenRemote": "Не удалось открыть удалённый файл",
+  "fileOpenerCannotOpenType": "Не удалось открыть файл этого типа",
+  "fileOpenerApkAndroidOnly": "APK-файлы можно установить только на Android-устройствах",
+  "fileOpenerFailedApk": "Не удалось открыть APK: {error}",
+  "@fileOpenerFailedApk": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "fileOpenerExeNotOnMobile": "EXE-файлы нельзя открыть на мобильных устройствах",
+  "fileOpenerFailedExe": "Не удалось открыть EXE: {error}",
+  "@fileOpenerFailedExe": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "fileOpenerNoAppFound": "Не найдено приложение для открытия файлов типа {type}",
+  "@fileOpenerNoAppFound": {
+    "placeholders": {
+      "type": {}
+    }
+  }
 }

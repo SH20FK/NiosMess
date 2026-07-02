@@ -32,7 +32,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
         ),
         SettingsSection(
           title: context.l10n.languageRegionAppLanguage,
-          subtitle: 'Язык интерфейса и локализация элементов приложения',
+          subtitle: context.l10n.settingsLanguageBannerDesc,
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -60,7 +60,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
             ),
             SettingsInfoTile(
               icon: Icons.translate_rounded,
-              title: 'Текущий язык',
+              title: context.l10n.settingsLanguageCurrentLang,
               subtitle: selectedLocale == null
                   ? context.l10n.commonAutomatic
                   : (selectedLocale == 'ru'
@@ -73,7 +73,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
         ),
         SettingsSection(
           title: context.l10n.languageRegionTimeZone,
-          subtitle: 'Автоматическое определение или ручной выбор часового пояса',
+          subtitle: context.l10n.settingsLanguageTzDesc,
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -129,11 +129,11 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
         ),
         SettingsSection(
           title: context.l10n.languageRegionCurrentTime,
-          subtitle: 'Предпросмотр текущих даты и времени',
+          subtitle: context.l10n.settingsLanguageTimePreview,
           children: <Widget>[
             SettingsInfoTile(
               icon: Icons.access_time_rounded,
-              title: 'Локальное время',
+              title: context.l10n.settingsLanguageLocalTime,
               subtitle: formatFullDateTime(AppTimeSettings.now()),
               iconColor: scheme.secondary,
             ),

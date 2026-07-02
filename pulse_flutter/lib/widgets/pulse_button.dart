@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
 class PulseButton extends StatelessWidget {
   const PulseButton({
@@ -16,9 +17,18 @@ class PulseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: isLoading ? null : onPressed,
-      child: Row(
+    return Semantics(
+      label: label,
+      button: true,
+      enabled: !isLoading,
+      child: ElevatedButton(
+        onPressed: isLoading
+            ? null
+            : () {
+                HapticService.tap();
+                onPressed?.call();
+              },
+        child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
           if (isLoading)
@@ -31,7 +41,8 @@ class PulseButton extends StatelessWidget {
             Icon(icon, size: 18),
           if (isLoading || icon != null) const SizedBox(width: 8),
           Text(label),
-        ],
+          ],
+        ),
       ),
     );
   }

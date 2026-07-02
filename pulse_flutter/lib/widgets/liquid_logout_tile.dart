@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
 class LiquidLogoutTile extends StatefulWidget {
   const LiquidLogoutTile({
@@ -35,7 +35,7 @@ class _LiquidLogoutTileState extends State<LiquidLogoutTile> with SingleTickerPr
   }
 
   void _onPointerDown() {
-    HapticFeedback.lightImpact();
+    HapticService.tap();
     _controller.forward();
   }
 

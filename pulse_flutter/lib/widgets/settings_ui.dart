@@ -1,7 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -14,11 +13,13 @@ class SettingsScaffold extends ConsumerWidget {
   const SettingsScaffold({
     required this.title,
     required this.children,
+    this.onRefresh,
     super.key,
   });
 
   final String title;
   final List<Widget> children;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -68,14 +69,15 @@ class SettingsScaffold extends ConsumerWidget {
         ),
         child: PulseScaffoldBody(
           maxWidth: 920,
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(
-              AppConstants.screenHorizontalPadding,
-              topPadding,
-              AppConstants.screenHorizontalPadding,
-              28,
-            ),
-            children: <Widget>[
+          child: () {
+            final Widget listView = ListView(
+              padding: EdgeInsets.fromLTRB(
+                AppConstants.screenHorizontalPadding,
+                topPadding,
+                AppConstants.screenHorizontalPadding,
+                28,
+              ),
+              children: <Widget>[
               if (!hasNavBanner)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16, left: 4),
@@ -111,7 +113,11 @@ class SettingsScaffold extends ConsumerWidget {
                     );
               }),
             ],
-          ),
+          );
+          return onRefresh != null
+              ? RefreshIndicator(onRefresh: onRefresh!, child: listView)
+              : listView;
+          }(),
         ),
       ),
     );
@@ -240,9 +246,7 @@ class SettingsSection extends StatelessWidget {
             ),
           ClipRRect(
             borderRadius: BorderRadius.circular(28),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Material(
+            child: Material(
                 color: scheme.surfaceContainer.withValues(alpha: 0.72),
                 borderRadius: BorderRadius.circular(28),
                 child: Column(
@@ -251,7 +255,6 @@ class SettingsSection extends StatelessWidget {
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -318,49 +321,54 @@ class SettingsTile extends ConsumerWidget {
     final Color resolvedIconColor = iconColor ?? foregroundColor ?? scheme.onSurfaceVariant;
     final Color resolvedTextColor = foregroundColor ?? scheme.onSurface;
 
-    return ListTile(
-      minVerticalPadding: 14,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: resolvedIconColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        alignment: Alignment.center,
-        child: Icon(icon, color: resolvedIconColor, size: 20),
-      ),
-      title: Text(
-        title,
-        style: textTheme.bodyLarge?.copyWith(
-          color: resolvedTextColor,
-          fontWeight: FontWeight.w600,
-          height: 1.15,
-        ),
-      ),
-      subtitle: subtitle != null
-          ? Text(
-              subtitle!,
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                height: 1.3,
-              ),
-            )
-          : null,
-      trailing: trailing ??
-          Icon(
-            Icons.chevron_right_rounded,
-            color: scheme.onSurfaceVariant,
-            size: 20,
+    return Semantics(
+      label: '$title${subtitle != null ? ', $subtitle' : ''}',
+      button: true,
+      child: ListTile(
+        titleAlignment: ListTileTitleAlignment.threeLine,
+        minVerticalPadding: 14,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: resolvedIconColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(16),
           ),
-      onTap: () {
-        ref.read(appSoundProvider).playUiTick();
-        if (ref.read(uiSettingsProvider).haptics) {
-          HapticFeedback.selectionClick();
-        }
-        onTap();
-      },
+          alignment: Alignment.center,
+          child: Icon(icon, color: resolvedIconColor, size: 20),
+        ),
+        title: Text(
+          title,
+          style: textTheme.bodyLarge?.copyWith(
+            color: resolvedTextColor,
+            fontWeight: FontWeight.w600,
+            height: 1.15,
+          ),
+        ),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle!,
+                style: textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.3,
+                ),
+              )
+            : null,
+        trailing: trailing ??
+            Icon(
+              Icons.chevron_right_rounded,
+              color: scheme.onSurfaceVariant,
+              size: 20,
+            ),
+        onTap: () {
+          ref.read(appSoundProvider).playUiTick();
+          if (ref.read(uiSettingsProvider).haptics) {
+            HapticService.tap();
+          }
+          onTap();
+        },
+      ),
     );
   }
 }
@@ -415,49 +423,53 @@ class SettingsSwitchTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final Color resolvedIconColor = iconColor ?? scheme.onSurfaceVariant;
 
-    return ListTile(
-      minVerticalPadding: 14,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: resolvedIconColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(16),
+    return Semantics(
+      label: '$title, ${value ? 'on' : 'off'}',
+      toggled: true,
+      child: ListTile(
+        titleAlignment: ListTileTitleAlignment.threeLine,
+        minVerticalPadding: 14,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: resolvedIconColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          alignment: Alignment.center,
+          child: Icon(icon, color: resolvedIconColor, size: 20),
         ),
-        alignment: Alignment.center,
-        child: Icon(icon, color: resolvedIconColor, size: 20),
-      ),
-      title: Text(
-        title,
-        style: textTheme.bodyLarge?.copyWith(
-          fontWeight: FontWeight.w600,
-          height: 1.15,
+        title: Text(
+          title,
+          style: textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            height: 1.15,
+          ),
         ),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle!,
+                style: textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.3,
+                ),
+              )
+            : null,
+        trailing: Switch(
+          value: value,
+          onChanged: onChanged == null
+              ? null
+              : (bool next) {
+                  ref.read(appSoundProvider).playUiTick();
+                  if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
+                  onChanged!(next);
+                },
+        ),
+        onTap: onChanged == null ? null : () => onChanged!(!value),
       ),
-      subtitle: subtitle != null
-          ? Text(
-              subtitle!,
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                height: 1.3,
-              ),
-            )
-          : null,
-      trailing: Switch(
-        value: value,
-        onChanged: onChanged == null
-            ? null
-            : (bool next) {
-                ref.read(appSoundProvider).playUiTick();
-                if (settings.haptics) HapticFeedback.selectionClick();
-                onChanged!(next);
-              },
-      ),
-      onTap: onChanged == null ? null : () => onChanged!(!value),
     );
   }
 }
@@ -487,6 +499,7 @@ class SettingsInfoTile extends ConsumerWidget {
     final Color resolvedIconColor = iconColor ?? scheme.onSurfaceVariant;
 
     return ListTile(
+      titleAlignment: ListTileTitleAlignment.threeLine,
       minVerticalPadding: 14,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
@@ -529,7 +542,7 @@ class SettingsInfoTile extends ConsumerWidget {
           : () {
               ref.read(appSoundProvider).playUiTick(volume: 0.65);
               if (ref.read(uiSettingsProvider).haptics) {
-                HapticFeedback.mediumImpact();
+                HapticService.confirm();
               }
               onLongPress!();
             },
@@ -600,6 +613,7 @@ class SettingsSessionTile extends ConsumerWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return ListTile(
+      titleAlignment: ListTileTitleAlignment.threeLine,
       minVerticalPadding: 14,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(

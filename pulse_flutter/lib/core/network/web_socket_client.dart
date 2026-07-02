@@ -105,7 +105,7 @@ class WebSocketClient {
     debugPrint('[WebSocketClient] Socket error: $error');
     _channelSubscription?.cancel();
     _channelSubscription = null;
-    _failPendingRequests('Ошибка соединения с сервером');
+    _failPendingRequests('Connection to server lost');
     _channel?.sink.close();
     _channel = null;
     _isSocketOpen = false;
@@ -118,7 +118,7 @@ class WebSocketClient {
     debugPrint('[WebSocketClient] Socket closed by server.');
     _channelSubscription?.cancel();
     _channelSubscription = null;
-    _failPendingRequests('Соединение с сервером закрыто');
+    _failPendingRequests('Connection to server closed');
     _channel?.sink.close();
     _channel = null;
     _isSocketOpen = false;
@@ -307,14 +307,16 @@ class WebSocketClient {
       }
 
       if (!_isSocketOpen || _channel == null) {
-        throw ApiException(statusCode: 0, message: 'Соединение с сервером разорвано');
+        throw ApiException(statusCode: 0, message: 'Connection to server lost');
       }
 
       _channel!.sink.add(toSend);
     } catch (e) {
       _pendingRequests.remove(requestId);
       completer.completeError(e);
+      return completer.future;
     }
+
 
     final Map<String, dynamic> response = await completer.future.timeout(
       timeout,
@@ -322,7 +324,7 @@ class WebSocketClient {
         _pendingRequests.remove(requestId);
         throw ApiException(
           statusCode: 0,
-          message: 'Превышено время ожидания ответа от сервера',
+          message: 'Server response timed out',
         );
       },
     );
@@ -393,7 +395,7 @@ class WebSocketClient {
     _reconnectTimer = null;
     _channelSubscription?.cancel();
     _channelSubscription = null;
-    _failPendingRequests('WebSocket закрыт');
+    _failPendingRequests('WebSocket closed');
     _channel?.sink.close();
     _channel = null;
     _isSocketOpen = false;

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/repositories/admin_repository.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
-import 'package:pulse_flutter/widgets/empty_state_widget.dart';
+import 'package:pulse_flutter/widgets/empty_feed_widget.dart';
 
 class AdminScreen extends ConsumerStatefulWidget {
   const AdminScreen({super.key});
@@ -68,7 +68,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       _authenticate();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.commonFailed('$e'))));
     }
   }
 
@@ -81,7 +81,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       _authenticate();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.commonFailed('$e'))));
     }
   }
 
@@ -94,7 +94,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       _authenticate();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.commonFailed('$e'))));
     }
   }
 
@@ -107,7 +107,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       _authenticate();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.commonFailed('$e'))));
     }
   }
 
@@ -120,7 +120,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       _authenticate();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.commonFailed('$e'))));
     }
   }
 
@@ -129,17 +129,18 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     return SettingsScaffold(
-      title: 'Admin Panel',
+      title: context.l10n.adminPanelTitle,
+      onRefresh: _authenticate,
       children: [
         SettingsNavBanner(
           icon: Icons.admin_panel_settings_rounded,
-          title: 'Admin Panel',
-          subtitle: 'Manage users and chats with admin password.',
+          title: context.l10n.adminPanelTitle,
+          subtitle: context.l10n.adminPanelSubtitle,
           iconColor: Colors.red,
         ),
         if (_adminPassword == null)
           SettingsSection(
-            title: 'Authentication',
+            title: context.l10n.adminAuthentication,
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -147,7 +148,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   controller: _passwordController,
                   obscureText: true,
                   decoration: InputDecoration(
-                    labelText: 'Admin Password',
+                    labelText: context.l10n.adminPasswordLabel,
                     prefixIcon: Icon(Icons.lock_rounded),
                   ),
                 ),
@@ -159,7 +160,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   icon: _loading
                       ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator( strokeWidth: 2))
                       : Icon(Icons.login_rounded),
-                  label: Text(_loading ? 'Connecting...' : 'Connect'),
+                  label: Text(_loading ? context.l10n.adminConnecting : context.l10n.adminConnect),
                 ),
               ),
               if (_error != null)
@@ -202,10 +203,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             )),
           if ((_tab == _AdminTab.users && _users.isEmpty) ||
               (_tab == _AdminTab.chats && _chats.isEmpty))
-            EmptyStateWidget(
-              icon: Icons.list_alt_rounded,
+            EmptyFeedWidget(
               title: context.l10n.emptyStateNoItems,
-              subtitle: context.l10n.emptyStateNoItemsDesc,
+              description: context.l10n.emptyStateNoItemsDesc,
             ),
         ],
       ],
@@ -267,19 +267,19 @@ class _UserCard extends StatelessWidget {
               Wrap(
                 spacing: 6, runSpacing: 6,
                 children: [
-                  _StatusChip(label: isBanned ? 'Banned' : 'Active', active: !isBanned, activeColor: Colors.green, inactiveColor: Colors.red),
-                  if (isFrozen) _StatusChip(label: 'Frozen', active: false, activeColor: Colors.blue, inactiveColor: Colors.blue),
-                  if (spamBlock) _StatusChip(label: 'Spam Block', active: false, activeColor: Colors.orange, inactiveColor: Colors.orange),
+                  _StatusChip(label: isBanned ? context.l10n.adminStatusBanned : context.l10n.adminStatusActive, active: !isBanned, activeColor: Colors.green, inactiveColor: Colors.red),
+                  if (isFrozen) _StatusChip(label: context.l10n.adminStatusFrozen, active: false, activeColor: Colors.blue, inactiveColor: Colors.blue),
+                  if (spamBlock) _StatusChip(label: context.l10n.adminStatusSpamBlock, active: false, activeColor: Colors.orange, inactiveColor: Colors.orange),
                   if (isBanned)
                     ActionChip(label: Text(context.l10n.adminActionUnban), onPressed: onUnban)
                   else
                     ActionChip(label: Text(context.l10n.adminActionBan), onPressed: onBan),
-                  ActionChip(
-                    label: Text(isFrozen ? 'Unfreeze' : 'Freeze'),
+                   ActionChip(
+                    label: Text(isFrozen ? context.l10n.adminActionUnfreeze : context.l10n.adminActionFreeze),
                     onPressed: () => onFreeze(!isFrozen),
                   ),
                   ActionChip(
-                    label: Text(spamBlock ? 'Unblock Spam' : 'Spam Block'),
+                    label: Text(spamBlock ? context.l10n.adminActionUnblockSpam : context.l10n.adminActionSpamBlock),
                     onPressed: () => onSpamBlock(!spamBlock),
                   ),
                 ],
@@ -341,7 +341,7 @@ class _ChatCard extends StatelessWidget {
           title: Text(name, style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
           subtitle: Text('ID: $id • $chatType', style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
           trailing: ActionChip(
-            label: Text(isBanned ? 'Unban' : 'Ban'),
+            label: Text(isBanned ? context.l10n.adminChatUnban : context.l10n.adminChatBan),
             onPressed: () => onBan(!isBanned),
           ),
         ),

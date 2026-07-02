@@ -61,3 +61,9 @@ audit_results.json
 parse_settings_screens.py
 more_screens_analysis.txt
 screen_analysis_raw.txt
+pulse_flutter/wget-log
+pulse_flutter/profile_original.dart
+pulse_flutter/test_audio_context.dart
+set-sway-default.sh
+setup-wallpaper.sh
+switch-to-greetd.sh

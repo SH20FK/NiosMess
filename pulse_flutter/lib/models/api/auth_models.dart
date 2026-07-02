@@ -58,8 +58,12 @@ class AuthSession {
   }
 
   factory AuthSession.fromJson(Map<String, dynamic> json) {
+    final String token = (json['access_token'] as String?) ?? '';
+    if (token.isEmpty) {
+      throw const FormatException('AuthSession: access_token is empty');
+    }
     return AuthSession(
-      accessToken: (json['access_token'] as String?) ?? '',
+      accessToken: token,
       userId: (json['user_id'] as int?) ?? 0,
       username: (json['username'] as String?) ?? '',
       displayName: (json['display_name'] as String?) ?? '',

@@ -19,7 +19,7 @@ class AdaptivePoller {
   Timer? _timer;
   bool _paused = false;
   bool _disposed = false;
-  late final AppLifecycleListener _lifecycle;
+  AppLifecycleListener? _lifecycle;
 
   void start() {
     if (_disposed) return;
@@ -51,7 +51,7 @@ class AdaptivePoller {
     _disposed = true;
     _timer?.cancel();
     _timer = null;
-    _lifecycle.dispose();
+    _lifecycle?.dispose();
   }
 
   void _onStateChange(AppLifecycleState state) {

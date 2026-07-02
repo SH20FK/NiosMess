@@ -41,7 +41,7 @@ class DirectChatOpenResult {
     return DirectChatOpenResult(
       chatId: json['chat_id'] as int? ?? 0,
       chatType: json['chat_type'] as String? ?? 'direct',
-      isSecret: json['is_secret'] as bool? ?? false,
+      isSecret: json['is_secret'] == true || json['is_secret'] == 1 || json['is_secret'] == '1' || json['is_secret'] == 'true',
       withUser: withUserRaw is Map<String, dynamic>
           ? DirectChatWithUser.fromJson(withUserRaw)
           : (withUserRaw is Map

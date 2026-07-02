@@ -78,24 +78,22 @@ class LocalStorageService {
       draftBytes += value.length * 2;
     }
 
-    final Directory documents = await getApplicationDocumentsDirectory();
-    final Directory temporary = await getTemporaryDirectory();
-    final Directory? support = await _tryDirectory(
-      getApplicationSupportDirectory,
-    );
+    int documentsBytes = 0;
+    int supportBytes = 0;
+    int temporaryBytes = 0;
 
-    final Set<String> countedPaths = <String>{};
-    final int documentsBytes = await _directorySizeUnique(
-      documents,
-      countedPaths,
-    );
-    final int supportBytes = support == null
-        ? 0
-        : await _directorySizeUnique(support, countedPaths);
-    final int temporaryBytes = await _directorySizeUnique(
-      temporary,
-      countedPaths,
-    );
+    if (!kIsWeb) {
+      final Directory documents = await getApplicationDocumentsDirectory();
+      final Directory temporary = await getTemporaryDirectory();
+      final Directory? support = await _tryDirectory(
+        getApplicationSupportDirectory,
+      );
+
+      final Set<String> countedPaths = <String>{};
+      documentsBytes = await _directorySizeUnique(documents, countedPaths);
+      supportBytes = support == null ? 0 : await _directorySizeUnique(support, countedPaths);
+      temporaryBytes = await _directorySizeUnique(temporary, countedPaths);
+    }
 
     return LocalStorageSnapshot(
       documentsBytes: documentsBytes,
@@ -127,13 +125,15 @@ class LocalStorageService {
     }
 
     try {
-      final Directory documents = await getApplicationDocumentsDirectory();
-      final Directory temporary = await getTemporaryDirectory();
-      if (!await documents.exists()) {
-        issues.add('Documents directory is not available.');
-      }
-      if (!await temporary.exists()) {
-        issues.add('Temporary directory is not available.');
+      if (!kIsWeb) {
+        final Directory documents = await getApplicationDocumentsDirectory();
+        final Directory temporary = await getTemporaryDirectory();
+        if (!await documents.exists()) {
+          issues.add('Documents directory is not available.');
+        }
+        if (!await temporary.exists()) {
+          issues.add('Temporary directory is not available.');
+        }
       }
     } catch (error) {
       issues.add('Could not inspect app directories: $error');

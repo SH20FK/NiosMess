@@ -1,6 +1,6 @@
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -9,12 +9,14 @@ import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
 import 'package:pulse_flutter/screens/chat_list_screen.dart';
 import 'package:pulse_flutter/screens/chat_detail_screen.dart';
 import 'package:pulse_flutter/screens/contacts_screen.dart';
+import 'package:pulse_flutter/screens/niosgram_screen.dart';
 import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
 import 'package:pulse_flutter/widgets/chat_creation_surfaces.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
+import 'package:pulse_flutter/core/services/biometric_service.dart';
 
 class MainShellScreen extends ConsumerStatefulWidget {
   const MainShellScreen({required this.tab, super.key});
@@ -29,6 +31,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
   static const List<String> _tabs = <String>[
     'chats',
     'contacts',
+    'niosgram',
     'profile',
   ];
 
@@ -39,6 +42,17 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _tabIndex(widget.tab));
+    _checkBiometricLock();
+  }
+
+  Future<void> _checkBiometricLock() async {
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    final BiometricService biometric = ref.read(biometricServiceProvider);
+    final bool authenticated = await biometric.authenticateIfEnabled();
+    if (!authenticated && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -89,7 +103,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
       heroTag: 'compose_chat_fab',
       onPressed: () {
         if (ref.read(uiSettingsProvider).haptics) {
-          HapticFeedback.lightImpact();
+          HapticService.tap();
         }
         _showCreateMenu(context);
       },
@@ -140,6 +154,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
           else
             ChatListScreen(onFabExtendedChanged: _setFabExtended),
           const ContactsScreen(),
+          const NiosgramScreen(),
           const ProfileScreen(),
         ];
         final Widget body = PageTransitionSwitcher(
@@ -184,7 +199,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
                             elevation: 0,
                             onPressed: () {
                               if (ref.read(uiSettingsProvider).haptics) {
-                                HapticFeedback.lightImpact();
+                                HapticService.tap();
                               }
                               _showCreateMenu(context);
                             },
@@ -201,6 +216,11 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
                             icon: const Icon(Icons.people_outline_rounded),
                             selectedIcon: const Icon(Icons.people_rounded),
                             label: Text(context.l10n.tabContacts),
+                          ),
+                          NavigationRailDestination(
+                            icon: const Icon(Icons.grid_view_rounded),
+                            selectedIcon: const Icon(Icons.grid_view_rounded),
+                            label: Text(context.l10n.tabNiosgram),
                           ),
                           NavigationRailDestination(
                             icon: const Icon(Icons.person_outline_rounded),

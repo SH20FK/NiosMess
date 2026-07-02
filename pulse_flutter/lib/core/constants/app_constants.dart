@@ -1,7 +1,5 @@
 class AppConstants {
-  const AppConstants._();
-
-  static const String currentUserId = 'me';
+  AppConstants._();
 
   static const double screenHorizontalPadding = 20;
   static const double cardRadius = 28;

@@ -10,6 +10,7 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/widgets/app_error_banner.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
@@ -294,7 +295,11 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
         child: _loading
             ? const Center(child: PulseLoadingIndicator())
             : _error != null
-            ? Center(child: Text(_error!))
+            ? AppErrorBanner(
+                message: _error!,
+                variant: AppErrorBannerVariant.centered,
+                onRetry: _loadMembers,
+              )
             : Column(
                 children: <Widget>[
                   Padding(
@@ -315,150 +320,153 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                   Expanded(
                     child: visibleMembers.isEmpty
                         ? Center(child: Text(context.l10n.chatMembersEmpty))
-                        : ListView.separated(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppConstants.screenHorizontalPadding,
-                              vertical: 12,
-                            ),
-                            itemCount: visibleMembers.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 8),
-                            itemBuilder: (BuildContext context, int index) {
-                              final ApiChatMember member = visibleMembers[index];
-                              final bool isMe = member.userId == _myUserId;
+                        : RefreshIndicator(
+                            onRefresh: _loadMembers,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppConstants.screenHorizontalPadding,
+                                vertical: 12,
+                              ),
+                              itemCount: visibleMembers.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: 8),
+                              itemBuilder: (BuildContext context, int index) {
+                                final ApiChatMember member = visibleMembers[index];
+                                final bool isMe = member.userId == _myUserId;
 
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: scheme.surfaceContainer,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  children: <Widget>[
-                                    PulseAvatar(
-                                      radius: 22,
-                                      name: member.displayName,
-                                      avatarUrl: member.avatarUrl,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: <Widget>[
-                                          Row(
-                                            children: <Widget>[
-                                              Flexible(
-                                                child: Text(
-                                                  member.displayName,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: textTheme.titleMedium,
-                                                ),
-                                              ),
-                                              if (member.badges.isNotEmpty) ...<Widget>[
-                                                const SizedBox(width: 6),
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: scheme.surfaceContainer,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    children: <Widget>[
+                                      PulseAvatar(
+                                        radius: 22,
+                                        name: member.displayName,
+                                        avatarUrl: member.avatarUrl,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: <Widget>[
+                                            Row(
+                                              children: <Widget>[
                                                 Flexible(
-                                                  child: Wrap(
-                                                    spacing: 4,
-                                                    runSpacing: 2,
-                                                    children: member.badges
-                                                        .map(
-                                                          (badge) => BadgeChip(
-                                                            id: badge.id,
-                                                            name: badge.name,
-                                                            icon: badge.icon,
-                                                            color: badge.color,
-                                                            mode: BadgeResolver.isStatusBadge(badge)
-                                                                ? BadgeDisplayMode.statusIcon
-                                                                : BadgeDisplayMode.infoLabel,
-                                                          ),
-                                                        )
-                                                        .toList(growable: false),
+                                                  child: Text(
+                                                    member.displayName,
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: textTheme.titleMedium,
                                                   ),
                                                 ),
+                                                if (member.badges.isNotEmpty) ...<Widget>[
+                                                  const SizedBox(width: 6),
+                                                  Flexible(
+                                                    child: Wrap(
+                                                      spacing: 4,
+                                                      runSpacing: 2,
+                                                      children: member.badges
+                                                          .map(
+                                                            (badge) => BadgeChip(
+                                                              id: badge.id,
+                                                              name: badge.name,
+                                                              icon: badge.icon,
+                                                              color: badge.color,
+                                                              mode: BadgeResolver.isStatusBadge(badge)
+                                                                  ? BadgeDisplayMode.statusIcon
+                                                                  : BadgeDisplayMode.infoLabel,
+                                                            ),
+                                                          )
+                                                          .toList(growable: false),
+                                                    ),
+                                                  ),
+                                                ],
+                                                if (member.isOwner) ...<Widget>[
+                                                  const SizedBox(width: 6),
+                                                  Icon(
+                                                    Icons.star_rounded,
+                                                    size: 16,
+                                                    color: scheme.primary,
+                                                  ),
+                                                ],
+                                                if (member.isAdmin && !member.isOwner) ...<Widget>[
+                                                  const SizedBox(width: 6),
+                                                  Icon(
+                                                    Icons.shield_rounded,
+                                                    size: 14,
+                                                    color: scheme.tertiary,
+                                                  ),
+                                                ],
                                               ],
-                                              if (member.isOwner) ...<Widget>[
-                                                const SizedBox(width: 6),
-                                                Icon(
-                                                  Icons.star_rounded,
-                                                  size: 16,
-                                                  color: scheme.primary,
-                                                ),
-                                              ],
-                                              if (member.isAdmin && !member.isOwner) ...<Widget>[
-                                                const SizedBox(width: 6),
-                                                Icon(
-                                                  Icons.shield_rounded,
-                                                  size: 14,
-                                                  color: scheme.tertiary,
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            _memberSubtitle(member),
-                                            style: textTheme.bodySmall?.copyWith(
-                                              color: scheme.onSurfaceVariant,
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _memberSubtitle(member),
+                                              style: textTheme.bodySmall?.copyWith(
+                                                color: scheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    if (!isMe && !_actionBusy)
-                                      PopupMenuButton<String>(
-                                        onSelected: (String action) {
-                                          switch (action) {
-                                            case 'ban':
-                                              _toggleBan(member, !member.isBanned);
-                                            case 'mute':
-                                              _toggleMute(member, !member.isMuted);
-                                            case 'admin':
-                                              _promote(member, 'admin');
-                                            case 'member':
-                                              _promote(member, 'member');
-                                          }
-                                        },
-                                        itemBuilder: (BuildContext ctx) =>
-                                            <PopupMenuEntry<String>>[
-                                              PopupMenuItem<String>(
-                                                value: 'ban',
-                                                child: Text(
-                                                  member.isBanned
-                                                      ? context.l10n.chatMembersUnban
-                                                      : context.l10n.chatMembersBan,
-                                                ),
-                                              ),
-                                              PopupMenuItem<String>(
-                                                value: 'mute',
-                                                child: Text(
-                                                  member.isMuted
-                                                      ? context.l10n.chatMembersUnmute
-                                                      : context.l10n.chatMembersMute,
-                                                ),
-                                              ),
-                                              if (!member.isAdmin && !member.isOwner)
+                                      if (!isMe && !_actionBusy)
+                                        PopupMenuButton<String>(
+                                          onSelected: (String action) {
+                                            switch (action) {
+                                              case 'ban':
+                                                _toggleBan(member, !member.isBanned);
+                                              case 'mute':
+                                                _toggleMute(member, !member.isMuted);
+                                              case 'admin':
+                                                _promote(member, 'admin');
+                                              case 'member':
+                                                _promote(member, 'member');
+                                            }
+                                          },
+                                          itemBuilder: (BuildContext ctx) =>
+                                              <PopupMenuEntry<String>>[
                                                 PopupMenuItem<String>(
-                                                  value: 'admin',
+                                                  value: 'ban',
                                                   child: Text(
-                                                    context.l10n.chatMembersPromoteAdmin,
+                                                    member.isBanned
+                                                        ? context.l10n.chatMembersUnban
+                                                        : context.l10n.chatMembersBan,
                                                   ),
                                                 ),
-                                              if (member.isAdmin && !member.isOwner)
                                                 PopupMenuItem<String>(
-                                                  value: 'member',
+                                                  value: 'mute',
                                                   child: Text(
-                                                    context.l10n.chatMembersDemoteMember,
+                                                    member.isMuted
+                                                        ? context.l10n.chatMembersUnmute
+                                                        : context.l10n.chatMembersMute,
                                                   ),
                                                 ),
-                                            ],
-                                      ),
-                                  ],
-                                ),
-                              );
-                            },
+                                                if (!member.isAdmin && !member.isOwner)
+                                                  PopupMenuItem<String>(
+                                                    value: 'admin',
+                                                    child: Text(
+                                                      context.l10n.chatMembersPromoteAdmin,
+                                                    ),
+                                                  ),
+                                                if (member.isAdmin && !member.isOwner)
+                                                  PopupMenuItem<String>(
+                                                    value: 'member',
+                                                    child: Text(
+                                                      context.l10n.chatMembersDemoteMember,
+                                                    ),
+                                                  ),
+                                              ],
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                   ),
                 ],

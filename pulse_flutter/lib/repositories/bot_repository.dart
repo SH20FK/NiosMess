@@ -27,7 +27,7 @@ class BotRepository {
   Future<List<Map<String, dynamic>>> getBotUpdates(String botToken) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request('get_bot_updates', payload: <String, dynamic>{});
+        .request('get_bot_updates', payload: <String, dynamic>{'bot_token': botToken});
     if (response is! Map) return const <Map<String, dynamic>>[];
     final dynamic updatesRaw = response['updates'];
     if (updatesRaw is! List) return const <Map<String, dynamic>>[];

@@ -1,8 +1,10 @@
 import 'package:universal_io/io.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -36,7 +38,7 @@ class MediaViewerScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.download_rounded),
-            tooltip: 'Download',
+            tooltip: context.l10n.mediaViewerDownload,
             onPressed: () => _downloadMedia(context, ref),
           ),
         ],
@@ -52,13 +54,13 @@ class MediaViewerScreen extends ConsumerWidget {
                   imageUrl: url,
                   fit: BoxFit.contain,
                   placeholder: (BuildContext context, String _) {
-                    return const Center(child: CircularProgressIndicator());
+                    return PulseLoadingIndicator(size: 32);
                   },
                   errorWidget: (BuildContext context, String _, Object error) {
                     return Padding(
                       padding: const EdgeInsets.all(24),
                       child: Text(
-                        'Failed to load image: $error',
+                        context.l10n.mediaViewerImageLoadFailed('$error'),
                         textAlign: TextAlign.center,
                         style: TextStyle(color: scheme.onSurface),
                       ),
@@ -93,6 +95,13 @@ class MediaViewerScreen extends ConsumerWidget {
   }
 
   Future<void> _downloadMedia(BuildContext context, WidgetRef ref) async {
+    if (kIsWeb) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.mediaViewerDownloadWeb)),
+      );
+      return;
+    }
     try {
       final fileName = mediaName ?? title ?? 'download';
       final dir = await getApplicationDocumentsDirectory();
@@ -118,7 +127,7 @@ class MediaViewerScreen extends ConsumerWidget {
         } catch (_) {
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not download. Try opening externally.')),
+            SnackBar(content: Text(context.l10n.mediaViewerDownloadFailedExt)),
           );
         }
       }

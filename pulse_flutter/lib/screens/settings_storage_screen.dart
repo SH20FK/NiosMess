@@ -99,7 +99,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
         SettingsNavBanner(
           icon: Icons.storage_rounded,
           title: context.l10n.settingsStorageTitle,
-          subtitle: 'Использование памяти, кеша и черновиков приложения.',
+          subtitle: context.l10n.settingsStorageBannerSubtitle,
           iconColor: scheme.primary,
         ),
         FutureBuilder<LocalStorageSnapshot>(
@@ -169,7 +169,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                               backgroundColor: scheme.secondaryContainer,
                               foregroundColor: scheme.onSecondaryContainer,
                             ),
-                            tooltip: 'Refresh',
+                            tooltip: context.l10n.settingsStorageRefresh,
                           ),
                         ],
                       ),
@@ -188,8 +188,8 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                             color: scheme.primary,
                             label: context.l10n.settingsStorageAppData,
                           ),
-                          _LegendItem(color: scheme.tertiary, label: 'Cache'),
-                          _LegendItem(color: scheme.secondary, label: 'Drafts'),
+                          _LegendItem(color: scheme.tertiary, label: context.l10n.settingsStorageLegendCache),
+                          _LegendItem(color: scheme.secondary, label: context.l10n.settingsStorageLegendDrafts),
                         ],
                       ),
                     ],
@@ -200,14 +200,14 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                   children: <Widget>[
                     _StorageCategoryCard(
                       icon: Icons.folder_rounded,
-                      title: 'App Data',
+                      title: context.l10n.settingsStorageCategoryAppData,
                       value: _format(appDataBytes),
                       color: scheme.primary,
                     ),
                     const SizedBox(width: 10),
                     _StorageCategoryCard(
                       icon: Icons.cached_rounded,
-                      title: 'Cache',
+                      title: context.l10n.settingsStorageCategoryCache,
                       value: _format(cacheBytes),
                       color: scheme.tertiary,
                       onDelete: cacheBytes > 0 && !_busy ? _clearTemporaryFiles : null,
@@ -216,7 +216,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                     const SizedBox(width: 10),
                     _StorageCategoryCard(
                       icon: Icons.edit_note_rounded,
-                      title: 'Drafts',
+                      title: context.l10n.settingsStorageCategoryDrafts,
                       value: _format(draftBytes),
                       color: scheme.secondary,
                       onDelete: draftBytes > 0 && !_busy ? _clearDrafts : null,

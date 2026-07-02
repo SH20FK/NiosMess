@@ -47,7 +47,7 @@ class AppLogger {
   AppLogger._();
 
   static final AppLogger instance = AppLogger._();
-  static const int _maxEntries = 80;
+  static const int _maxEntries = 500;
 
   final List<AppLogEntry> _entries = <AppLogEntry>[];
 
@@ -81,31 +81,18 @@ class AppLogger {
         timestamp: DateTime.now(),
         level: AppLogLevel.error,
         source: source,
-        message: error.toString(),
+        message: '$error',
         stackTrace: stackTrace,
       ),
     );
   }
 
   void flutterError(FlutterErrorDetails details) {
-    _add(
-      AppLogEntry(
-        timestamp: DateTime.now(),
-        level: AppLogLevel.error,
-        source: details.context?.toDescription() ?? 'flutter',
-        message: details.exceptionAsString(),
-        stackTrace: details.stack,
-      ),
+    error(
+      details.exception,
+      details.stack ?? StackTrace.empty,
+      source: 'flutter',
     );
-  }
-
-  String exportText() {
-    if (_entries.isEmpty) return 'No local log entries.';
-    return _entries.map((AppLogEntry entry) => entry.toLogLine()).join('\n\n');
-  }
-
-  void clear() {
-    _entries.clear();
   }
 
   void _add(AppLogEntry entry) {
@@ -115,8 +102,16 @@ class AppLogger {
     }
     debugPrint(entry.toLogLine());
   }
+
+  String exportLogs() {
+    return _entries.map((AppLogEntry e) => e.toLogLine()).join('\n');
+  }
+
+  void clear() {
+    _entries.clear();
+  }
 }
 
-final Provider<AppLogger> appLoggerProvider = Provider<AppLogger>(
-  (Ref ref) => AppLogger.instance,
-);
+final Provider<AppLogger> appLoggerProvider = Provider<AppLogger>((Ref ref) {
+  return AppLogger.instance;
+});

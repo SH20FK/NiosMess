@@ -144,7 +144,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('$title copied')));
+    ).showSnackBar(SnackBar(content: Text(context.l10n.chatManageCopied(title))));
   }
 
   @override
@@ -155,13 +155,28 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
     final bool isChannel = chat?.chatType == 'channel';
     final bool isPublic = (chat?.username ?? '').trim().isNotEmpty;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          context.l10n.groupManageTitle(chat?.name ?? context.l10n.tabChats),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final bool? confirm = await showAppConfirmDialog(
+          context: context,
+          title: context.l10n.commonDiscardChanges,
+          subtitle: context.l10n.commonDiscardChangesDesc,
+          confirmLabel: context.l10n.commonDiscardChangesConfirm,
+          cancelLabel: context.l10n.commonCancel,
+        );
+        if (confirm == true && mounted) {
+          context.pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            context.l10n.groupManageTitle(chat?.name ?? context.l10n.tabChats),
+          ),
         ),
-      ),
-      body: SafeArea(
+        body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(
             horizontal: AppConstants.screenHorizontalPadding,
@@ -197,12 +212,12 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                               spacing: 8,
                               runSpacing: 8,
                               children: <Widget>[
-                                _metaPill(
+                                 _metaPill(
                                   context,
                                   icon: isChannel
                                       ? Icons.campaign_rounded
                                       : Icons.groups_rounded,
-                                  label: isChannel ? 'Channel' : 'Group',
+                                  label: isChannel ? context.l10n.chatManageChannel : context.l10n.chatManageGroup,
                                 ),
                                 _metaPill(
                                   context,
@@ -265,10 +280,10 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                     style: textTheme.titleLarge,
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                   TextField(
                     controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Name',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.chatManageName,
                       prefixIcon: Icon(Icons.title_rounded),
                     ),
                   ),
@@ -276,8 +291,8 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                   TextField(
                     controller: _descController,
                     maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.chatManageDescription,
                       prefixIcon: Icon(Icons.description_rounded),
                     ),
                   ),
@@ -340,11 +355,11 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                       context.l10n.groupManageLinks,
                       style: textTheme.titleLarge,
                     ),
-                    if ((chat?.inviteLink ?? '').isNotEmpty) ...<Widget>[
+                     if ((chat?.inviteLink ?? '').isNotEmpty) ...<Widget>[
                       const SizedBox(height: 12),
                       _metaRow(
                         context,
-                        title: 'Invite link',
+                        title: context.l10n.chatManageInviteLink,
                         value: chat!.inviteLink!,
                       ),
                       const SizedBox(height: 10),
@@ -353,14 +368,14 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                         runSpacing: 10,
                         children: <Widget>[
                           OutlinedButton.icon(
-                            onPressed: () => _copyMeta('Invite link', chat.inviteLink!),
+                            onPressed: () => _copyMeta(context.l10n.chatManageInviteLink, chat.inviteLink!),
                             icon: const Icon(Icons.copy_rounded),
-                            label: const Text('Copy invite'),
+                            label: Text(context.l10n.chatManageCopyInvite),
                           ),
                           OutlinedButton.icon(
-                            onPressed: () => _copyMeta('Invite link', chat.inviteLink!),
+                            onPressed: () => _copyMeta(context.l10n.chatManageInviteLink, chat.inviteLink!),
                             icon: const Icon(Icons.share_rounded),
-                            label: const Text('Share invite'),
+                            label: Text(context.l10n.chatManageShareInvite),
                           ),
                         ],
                       ),
@@ -369,7 +384,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                       const SizedBox(height: 12),
                       _metaRow(
                         context,
-                        title: 'Share link',
+                        title: context.l10n.chatManageShareLink,
                         value: chat!.shareLink!,
                       ),
                     ],
@@ -377,7 +392,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                       const SizedBox(height: 12),
                       _metaRow(
                         context,
-                        title: 'Comments chat ID',
+                        title: context.l10n.chatManageCommentsChatId,
                         value: '${chat!.commentsChatId}',
                         copyable: false,
                       ),
@@ -390,7 +405,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
             PulseButton(
               label: _saving
                   ? context.l10n.commonLoading
-                  : '${context.l10n.commonSave} changes',
+                  : context.l10n.groupManageSaveChanges,
               icon: Icons.check_circle_outline_rounded,
               onPressed: _saving ? () {} : _save,
             ),
@@ -405,6 +420,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -487,7 +503,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
               ).showSnackBar(SnackBar(content: Text('$title copied')));
             },
             icon: Icon(Icons.copy_rounded, color: scheme.primary),
-            tooltip: 'Copy',
+            tooltip: context.l10n.chatManageCopy,
           ),
       ],
     );

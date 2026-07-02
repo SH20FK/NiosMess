@@ -223,7 +223,7 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
                 ? context.l10n.languageRussian
                 : context.l10n.languageEnglish,
           ),
-          (code: 'en', name: context.l10n.languageEnglish, subtitle: 'English'),
+          (code: 'en', name: context.l10n.languageEnglish, subtitle: context.l10n.languageEnglish),
           (
             code: 'ru',
             name: context.l10n.languageRussian,

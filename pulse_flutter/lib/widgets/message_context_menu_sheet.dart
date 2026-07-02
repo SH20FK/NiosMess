@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 
@@ -56,7 +56,7 @@ class MessageContextMenuSheet extends StatelessWidget {
                     .map(
                       (String emoji) => GestureDetector(
                         onTap: () {
-                          HapticFeedback.lightImpact();
+                          HapticService.tap();
                           Navigator.of(context).pop();
                           onReact(emoji);
                         },

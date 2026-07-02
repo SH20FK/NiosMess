@@ -4,8 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/repositories/bot_repository.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
-import 'package:pulse_flutter/widgets/empty_state_widget.dart';
+import 'package:pulse_flutter/widgets/empty_feed_widget.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 
 class BotScreen extends ConsumerStatefulWidget {
   const BotScreen({super.key});
@@ -64,7 +65,7 @@ class _BotScreenState extends ConsumerState<BotScreen> {
         _creating = false;
         _botToken = token;
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bot created!')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.botCreated)));
     } catch (e) {
       nameCtl.dispose(); usernameCtl.dispose(); descCtl.dispose();
       if (!mounted) return;
@@ -113,6 +114,7 @@ class _BotScreenState extends ConsumerState<BotScreen> {
 
     return SettingsScaffold(
       title: context.l10n.botSectionTitle,
+      onRefresh: _getUpdates,
       children: [
         SettingsNavBanner(
           icon: Icons.smart_toy_rounded,
@@ -138,7 +140,16 @@ class _BotScreenState extends ConsumerState<BotScreen> {
             if (_creating)
               Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      PulseSkeleton(width: 180, height: 14),
+                      const SizedBox(height: 8),
+                      PulseSkeleton(width: 120, height: 10, borderRadius: 5),
+                    ],
+                  ),
+                ),
               ),
           ],
         ),
@@ -178,13 +189,32 @@ class _BotScreenState extends ConsumerState<BotScreen> {
             if (_loading)
               Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
+                child: Column(
+                  children: List<Widget>.generate(3, (int i) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      children: <Widget>[
+                        PulseSkeleton(width: 40, height: 40, borderRadius: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              PulseSkeleton(width: 160, height: 12),
+                              const SizedBox(height: 6),
+                              PulseSkeleton(width: 100, height: 10, borderRadius: 5),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+                ),
               ),
             if (_updates != null && _updates!.isEmpty)
-              EmptyStateWidget(
-                icon: Icons.notifications_none_rounded,
-                title: context.l10n.botNoUpdates,
-                subtitle: context.l10n.emptyStateNoItemsDesc,
+              EmptyFeedWidget(
+                title: context.l10n.emptyStateNoItems,
+                description: context.l10n.emptyStateNoItemsDesc,
               ),
             if (_updates != null)
               ..._updates!.map((update) => ListTile(

@@ -17,6 +17,7 @@
   "commonSystem": "System",
   "commonLight": "Light",
   "commonDark": "Dark",
+  "commonDismiss": "Dismiss",
   "commonAutomatic": "Automatic",
   "commonManual": "Manual",
   "commonLoading": "Loading...",
@@ -28,7 +29,11 @@
     }
   },
   "commonPasteFromClipboard": "Paste from clipboard",
+  "commonDiscardChanges": "Discard changes?",
+  "commonDiscardChangesDesc": "You have unsaved changes that will be lost.",
+  "commonDiscardChangesConfirm": "Discard",
   "splashTagline": "Fluid connection, clear communication",
+  "splashGraphicsOptimization": "Optimizing graphics...",
   "loginTitle": "Welcome back",
   "loginSubtitle": "Sign in with email or username.",
   "loginIdentifierLabel": "Email or username",
@@ -1117,5 +1122,283 @@
     }
   },
   "chatImageUnavailable": "Image unavailable",
-  "settingsRevokeSession": "Revoke session"
+  "settingsRevokeSession": "Revoke session",
+  "tabNiosgram": "Feed",
+  "niosgramTitle": "NiosGram",
+  "niosgramCreatePost": "New post",
+  "niosgramPublish": "Publish",
+  "niosgramWhatMind": "What's on your mind?",
+  "niosgramAttachMedia": "Attach media",
+  "niosgramRemove": "Remove",
+  "niosgramEmptyFeed": "No posts yet",
+  "niosgramEmptyFeedDesc": "Be the first to share something!",
+  "niosgramLoadMore": "Load more",
+  "niosgramComments": "Comments",
+  "niosgramWriteComment": "Write a comment...",
+  "niosgramLike": "Like",
+  "niosgramDislike": "Dislike",
+  "niosgramDeletePost": "Delete post?",
+  "niosgramDeletePostConfirm": "This cannot be undone.",
+  "niosgramCopied": "Copied to clipboard",
+  "niosgramEdit": "Edit",
+  "niosgramDelete": "Delete",
+  "niosgramCopyText": "Copy text",
+  "niosgramEditPost": "Edit your post...",
+  "niosgramFileTooLarge": "File exceeds 10 MB limit",
+  "niosgramEmptyContent": "Write something or attach a file",
+  "niosgramFailedLoad": "Failed to load feed",
+  "settingsPrivacyBannerSubtitle": "Notifications, visibility and system account limits.",
+  "settingsPrivacyNotificationsManage": "Manage app push notifications",
+  "settingsPrivacyVisibilityTitle": "Visibility",
+  "settingsPrivacyVisibilityDesc": "Control presence status in the app",
+  "settingsPrivacyHideOnline": "Hide online status",
+  "settingsPrivacyHideOnlineDesc": "Don't show your presence status to other users",
+  "settingsStorageBannerSubtitle": "Memory usage, cache and app drafts.",
+  "settingsStorageRefresh": "Refresh",
+  "settingsStorageLegendCache": "Cache",
+  "settingsStorageLegendDrafts": "Drafts",
+  "settingsStorageCategoryAppData": "App Data",
+  "settingsStorageCategoryCache": "Cache",
+  "settingsStorageCategoryDrafts": "Drafts",
+  "settingsAboutBannerSubtitle": "Support, legal information and app details.",
+  "settingsAboutHelpDesc": "FAQ and contact options",
+  "settingsAboutVersionTitle": "NiosMess",
+  "settingsAboutVersionDesc": "App version and service items",
+  "settingsAboutLegalDesc": "Policies and external resources",
+  "settingsAccountBannerSubtitle": "Login security, email verification and active sessions.",
+  "settingsAccountAccessDesc": "Main actions for access and account recovery",
+  "settingsLanguageBannerDesc": "App language and UI localization",
+  "settingsLanguageCurrentLang": "Current language",
+  "settingsLanguageTzDesc": "Auto-detection or manual timezone selection",
+  "settingsLanguageTimePreview": "Date and time preview",
+  "settingsLanguageLocalTime": "Local time",
+  "sessionsBannerSubtitle": "Manage your active devices and sessions.",
+  "sessionsRevokeBody": "This device will be logged out if it's the current session.",
+  "sessionsActive": "Active: {time}",
+  "@sessionsActive": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "sessionsCreated": "Created: {time}",
+  "@sessionsCreated": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "sessionsCurrent": "Current",
+  "onboardingSlide1Title": "Fast calls with less friction",
+  "onboardingSlide1Desc": "Call teammates in one tap and switch between voice and video without leaving the flow.",
+  "onboardingSlide2Title": "Organized conversations",
+  "onboardingSlide2Desc": "Keep your chats, calls, and contacts in one focused workspace that stays easy to scan.",
+  "onboardingSlide3Title": "Designed for daily rhythm",
+  "onboardingSlide3Desc": "Smooth transitions and clear hierarchy keep communication calm even on a busy day.",
+  "onboardingGetStarted": "Get started",
+  "onboardingNext": "Next",
+  "mediaViewerDownload": "Download",
+  "mediaViewerImageLoadFailed": "Failed to load image: {error}",
+  "@mediaViewerImageLoadFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "mediaViewerDownloadWeb": "Download is not supported in web version",
+  "mediaViewerDownloadFailedExt": "Could not download. Try opening externally.",
+  "directResolverResolving": "Resolving @{username}",
+  "@directResolverResolving": {
+    "placeholders": {
+      "username": {}
+    }
+  },
+  "directResolverSecretEstablishing": "Establishing end-to-end encrypted channel...",
+  "directResolverPreparing": "Preparing your secure direct conversation in NiosMess.",
+  "directResolverUserNotFound": "User not found",
+  "directResolverUserNotFoundDesc": "We could not resolve this user right now.",
+  "directResolverSecretTitle": "Secret Chat",
+  "postNewPost": "New post",
+  "postPublish": "Publish",
+  "postHint": "What's on your mind?",
+  "postRemove": "Remove",
+  "postAttachMedia": "Attach media",
+  "postFileTooLarge": "File exceeds 10 MB limit",
+  "postEmptyContent": "Write something or attach a file",
+  "chatCreateFailed": "Could not create chat",
+  "chatChannelCreated": "Channel created",
+  "chatGroupCreated": "Group created",
+  "chatChooseNextStep": "Choose what you want to do next.",
+  "chatOpenChat": "Open chat",
+  "chatCopyInvite": "Copy invite",
+  "chatInviteLinkCopied": "Invite link copied",
+  "chatCommentsEnabled": "Enabled",
+  "chatCommentsDisabled": "Disabled",
+  "profileSettingsSection": "Settings",
+  "profileSettingsSectionDesc": "Main account and app settings",
+  "profileSectionQuickSettings": "Quick Settings",
+  "profileSectionPrivacy": "Privacy",
+  "profileSectionAccount": "Account",
+  "profileSectionData": "Data",
+  "profileSectionAbout": "About",
+  "profileAppearance": "Appearance",
+  "profileAppearanceDesc": "Theme, colors",
+  "profileLanguage": "Language",
+  "profileLanguageDesc": "App language",
+  "profileTeamTools": "Team & tools",
+  "profileTeamToolsDesc": "Project team and additional sections",
+  "chatManageInviteLink": "Invite link",
+  "chatManageCopyInvite": "Copy invite",
+  "chatManageShareInvite": "Share invite",
+  "chatManageShareLink": "Share link",
+  "chatManageCommentsChatId": "Comments chat ID",
+  "chatManageCopied": "{title} copied",
+  "@chatManageCopied": {
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "chatManageCopy": "Copy",
+  "chatManageName": "Name",
+  "chatManageDescription": "Description",
+  "chatManageSaveChanges": "Save changes",
+  "chatManageChannel": "Channel",
+  "chatManageGroup": "Group",
+  "adminPanelTitle": "Admin Panel",
+  "adminPanelSubtitle": "Manage users and chats with admin password.",
+  "adminAuthentication": "Authentication",
+  "adminPasswordLabel": "Admin Password",
+  "adminConnecting": "Connecting...",
+  "adminConnect": "Connect",
+  "adminStatusBanned": "Banned",
+  "adminStatusActive": "Active",
+  "adminStatusFrozen": "Frozen",
+  "adminStatusSpamBlock": "Spam Block",
+  "adminActionUnfreeze": "Unfreeze",
+  "adminActionFreeze": "Freeze",
+  "adminActionUnblockSpam": "Unblock Spam",
+  "adminActionSpamBlock": "Spam Block",
+  "adminChatUnban": "Unban",
+  "adminChatBan": "Ban",
+  "adminActionUnfreeze": "Unfreeze",
+  "adminActionFreeze": "Freeze",
+  "badgeScreenTitle": "Badges",
+  "badgeAvailableBadges": "Available Badges",
+  "badgeAdminActions": "Admin Actions",
+  "badgeCopied": "Badge created",
+  "e2eeScreenTitle": "Secret Chats",
+  "e2eeBannerTitle": "Secret Chats (E2EE)",
+  "e2eeBannerSubtitle": "End-to-end encrypted chats are tied to this device. Generate a key pair to enable secret chats.",
+  "e2eeDeviceKey": "Device Key",
+  "e2eeKeyPairReady": "Key pair ready",
+  "e2eeNoKeyPair": "No key pair",
+  "e2eeTapToRegenerate": "Tap to regenerate",
+  "e2eeGenerateKeyPair": "Generate RSA-2048 key pair for E2EE",
+  "e2eeRotateKey": "Rotate Key",
+  "e2eeRotateKeySubtitle": "Generate new key pair (old secret chats will break)",
+  "e2eeHowItWorks": "How it works",
+  "e2eeHowItWorksDesc": "• Each device generates its own RSA-2048 key pair\n• Public key is shared with the server\n• Private key stays on this device only\n• Secret chats are visible only on this device\n• Messages are encrypted with AES-256-GCM\n• The AES key is encrypted with the recipient's RSA public key",
+  "e2eeCreateSecretChat": "Create Secret Chat",
+  "e2eeCreateSecretChatDesc": "To start a secret chat, open a direct chat from contacts.\nSecret chat option will be available after generating your key pair.",
+  "e2eeRotateConfirmTitle": "Rotate Key?",
+  "e2eeRotateConfirmBody": "Your old secret chats will become undecryptable after key rotation. New messages will use the fresh key.",
+  "e2eeRotateConfirm": "Rotate",
+  "e2eeGeneratingKeys": "Generating encryption keys",
+  "e2eeGeneratingKeysDesc": "RSA-2048 key pair is being created.\nThis may take a few seconds...",
+  "e2eeKeyRotated": "Key rotated and uploaded",
+  "chatMembersBanConfirmTitle": "Ban member?",
+  "chatMembersUnbanConfirmTitle": "Unban member?",
+  "chatMembersBanConfirmBody": "This member will lose access until you restore them.",
+  "chatMembersUnbanConfirmBody": "Restore this member and let them rejoin the conversation.",
+  "chatMembersMuteConfirmTitle": "Mute member?",
+  "chatMembersUnmuteConfirmTitle": "Unmute member?",
+  "chatMembersMuteConfirmBody": "Muted members can stay in the chat but cannot participate normally.",
+  "chatMembersUnmuteConfirmBody": "Allow this member to participate again.",
+  "chatMembersFailed": "Failed: {error}",
+  "@chatMembersFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "contactsFailedToLoad": "Failed to load: {error}",
+  "@contactsFailedToLoad": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "contactsFailedToSearch": "Failed to search: {error}",
+  "@contactsFailedToSearch": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "contactsCouldNotOpenChat": "Could not open direct chat",
+  "contactsFailedToOpenChat": "Failed to open direct chat: {error}",
+  "@contactsFailedToOpenChat": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "contactsMembersCount": "{count} members",
+  "@contactsMembersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSupportEmail": "support@ni-os.ru",
+  "settingsPrivacyPolicyUrl": "ni-os.ru/privacy",
+  "settingsTermsOfServiceUrl": "ni-os.ru/terms",
+  "settingsWebsiteUrl": "ni-os.ru",
+  "settingsAboutNiosMess": "NiosMess",
+  "biometricTitle": "Biometrics",
+  "biometricEnabled": "Enabled — sign in with fingerprint/face",
+  "biometricDisabled": "Disabled",
+  "biometricAuthReason": "Confirm your identity to enable biometrics",
+  "chatManageCopiedLabel": "{title} copied",
+  "@chatManageCopiedLabel": {
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "chatAiAssistant": "AI Assistant",
+  "chatAiProcessed": "Text successfully processed by AI",
+  "chatAiUndo": "Undo",
+  "chatAiError": "AI processing error: {error}",
+  "@chatAiError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "chatAiFixErrors": "Fix errors",
+  "chatAiFormal": "Formal",
+  "chatAiTranslate": "Translate",
+  "chatAiLangEn": "Eng",
+  "chatAiLangRu": "Rus",
+  "chatAiLangDe": "Deu",
+  "chatAiLangFr": "Fra",
+  "chatAiLangEs": "Esp",
+  "chatAiLangZh": "Zho",
+  "chatDraftRestored": "Draft restored on this device",
+  "fileOpenerInvalidUrl": "Invalid file URL",
+  "fileOpenerFailedOpenRemote": "Failed to open remote file",
+  "fileOpenerCannotOpenType": "Cannot open this file type",
+  "fileOpenerApkAndroidOnly": "APK files can only be installed on Android devices",
+  "fileOpenerFailedApk": "Failed to open APK: {error}",
+  "@fileOpenerFailedApk": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "fileOpenerExeNotOnMobile": "EXE files cannot be opened on mobile devices",
+  "fileOpenerFailedExe": "Failed to open EXE: {error}",
+  "@fileOpenerFailedExe": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "fileOpenerNoAppFound": "No app found to open {type} files",
+  "@fileOpenerNoAppFound": {
+    "placeholders": {
+      "type": {}
+    }
+  }
 }

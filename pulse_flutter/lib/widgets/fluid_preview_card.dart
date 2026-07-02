@@ -43,10 +43,14 @@ class _FluidPreviewCardState extends State<FluidPreviewCard>
   }
 
   void _onPageScroll() {
-    if (!_pageController.hasClients) return;
+    if (!_pageController.hasClients) {
+      return;
+    }
     final double offset = _pageController.offset;
     final double viewport = _pageController.viewportFraction;
-    if (viewport == 0) return;
+    if (viewport == 0) {
+      return;
+    }
     final double raw = offset / viewport;
     final double pageDiff = raw - _currentPage;
     setState(() => _squishFactor = (pageDiff * 6).clamp(-12, 12));
@@ -63,7 +67,9 @@ class _FluidPreviewCardState extends State<FluidPreviewCard>
   void _onPageChanged(int page) {
     _currentPage = page;
     _squishController.forward(from: 0).then((_) {
-      if (mounted) setState(() => _squishFactor = 0);
+      if (mounted) {
+        setState(() => _squishFactor = 0);
+      }
     });
   }
 
@@ -76,10 +82,12 @@ class _FluidPreviewCardState extends State<FluidPreviewCard>
 
   void _onPanEnd(DragEndDetails d) {
     _squishController.forward(from: 0).then((_) {
-      if (mounted) setState(() {
-        _parallaxDx = 0;
-        _parallaxDy = 0;
-      });
+      if (mounted) {
+        setState(() {
+          _parallaxDx = 0;
+          _parallaxDy = 0;
+        });
+      }
     });
   }
 
@@ -98,9 +106,11 @@ class _FluidPreviewCardState extends State<FluidPreviewCard>
               transform: Matrix4.identity()
                 ..setEntry(3, 2, 0.001)
                 ..setEntry(1, 0, squishOffset * 0.008)
-                ..translate(
+                ..translateByDouble(
                   _parallaxDx * (1 - _squishController.value * 0.5),
                   _parallaxDy * (1 - _squishController.value * 0.5),
+                  0,
+                  1.0,
                 ),
               child: Container(
                 decoration: BoxDecoration(

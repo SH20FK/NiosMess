@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:pulse_flutter/core/network/api_exception.dart';
-export 'package:pulse_flutter/core/utils/shared_utilities.dart' show asStringMap;
+import 'package:pulse_flutter/core/exceptions/api_exception.dart';
 
 class ApiClient {
   ApiClient({
@@ -19,138 +17,26 @@ class ApiClient {
   final String? Function() readToken;
   final VoidCallback? onUnauthorized;
   final http.Client _http;
-  static const Duration connectTimeout = Duration(seconds: 10);
+  static const Duration _timeout = Duration(seconds: 15);
 
-  Future<dynamic> get(
-    String path, {
-    Map<String, String>? query,
-    bool auth = true,
-  }) {
-    return _request('GET', path, query: query, auth: auth);
+  Future<dynamic> get(String path, {Map<String, String>? query}) {
+    return _request('GET', path, query: query);
   }
 
-  Future<dynamic> post(
-    String path, {
-    Object? body,
-    Map<String, String>? query,
-    bool auth = true,
-  }) {
-    return _request('POST', path, body: body, query: query, auth: auth);
+  Future<dynamic> post(String path, {Object? body, Map<String, String>? query}) {
+    return _request('POST', path, body: body, query: query);
   }
 
-  Future<dynamic> postMultipart(
-    String path, {
-    Map<String, String>? fields,
-    String? fileField,
-    List<int>? fileBytes,
-    String? fileName,
-    Map<String, String>? query,
-    bool auth = true,
-  }) async {
-    final Uri uri = _buildUri(path, query: query);
-    final Map<String, String> headers = _buildHeaders(
-      auth: auth,
-      withJson: false,
-    );
-
-    final http.MultipartRequest request = http.MultipartRequest('POST', uri)
-      ..headers.addAll(headers);
-
-    if (fields != null && fields.isNotEmpty) {
-      request.fields.addAll(fields);
-    }
-
-    if (fileField != null && fileBytes != null) {
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          fileField,
-          fileBytes,
-          filename: fileName ?? 'chunk.bin',
-        ),
-      );
-    }
-
-    http.Response response;
-    try {
-      final http.StreamedResponse streamed = await request.send();
-      response = await http.Response.fromStream(streamed);
-    } on TimeoutException {
-      throw ApiException(statusCode: 0, message: 'Превышено время ожидания ответа от сервера');
-    } catch (error) {
-      throw ApiException(statusCode: 0, message: _networkErrorMessage(error));
-    }
-
-    final dynamic payload = await _tryDecode(response.body);
-    if (response.statusCode == 401) {
-      onUnauthorized?.call();
-    }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(
-        statusCode: response.statusCode,
-        message: _extractError(payload, response.body),
-        payload: payload,
-      );
-    }
-
-    return payload;
+  Future<dynamic> put(String path, {Object? body, Map<String, String>? query}) {
+    return _request('PUT', path, body: body, query: query);
   }
 
-  Future<dynamic> patch(
-    String path, {
-    Object? body,
-    Map<String, String>? query,
-    bool auth = true,
-  }) {
-    return _request('PATCH', path, body: body, query: query, auth: auth);
+  Future<dynamic> patch(String path, {Object? body, Map<String, String>? query}) {
+    return _request('PATCH', path, body: body, query: query);
   }
 
-  Future<dynamic> delete(
-    String path, {
-    Object? body,
-    Map<String, String>? query,
-    bool auth = true,
-  }) {
-    return _request('DELETE', path, body: body, query: query, auth: auth);
-  }
-
-  Future<List<int>> postBytes(
-    String path, {
-    Object? body,
-    Map<String, String>? query,
-    bool auth = true,
-  }) async {
-    final Uri uri = _buildUri(path, query: query);
-    final Map<String, String> headers = _buildHeaders(
-      auth: auth,
-      withJson: body != null,
-    );
-
-    http.Response response;
-    try {
-      response = await _http.post(
-        uri,
-        headers: headers,
-        body: body == null ? null : jsonEncode(body),
-      ).timeout(connectTimeout);
-    } on TimeoutException {
-      throw ApiException(statusCode: 0, message: 'Превышено время ожидания ответа от сервера');
-    } catch (error) {
-      throw ApiException(statusCode: 0, message: _networkErrorMessage(error));
-    }
-
-    if (response.statusCode == 401) {
-      onUnauthorized?.call();
-    }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      final dynamic payload = await _tryDecode(response.body);
-      throw ApiException(
-        statusCode: response.statusCode,
-        message: _extractError(payload, response.body),
-        payload: payload,
-      );
-    }
-
-    return response.bodyBytes;
+  Future<dynamic> delete(String path, {Map<String, String>? query}) {
+    return _request('DELETE', path, query: query);
   }
 
   Future<dynamic> _request(
@@ -158,144 +44,106 @@ class ApiClient {
     String path, {
     Object? body,
     Map<String, String>? query,
-    bool auth = true,
   }) async {
     final Uri uri = _buildUri(path, query: query);
-    final Map<String, String> headers = _buildHeaders(
-      auth: auth,
-      withJson: body != null,
-    );
-
-    http.Response response;
+    final Map<String, String> headers = _buildHeaders(body: body);
 
     try {
+      final http.Response response;
       switch (method) {
         case 'GET':
-          response = await _http.get(uri, headers: headers).timeout(connectTimeout);
+          response = await _http.get(uri, headers: headers).timeout(_timeout);
         case 'POST':
-          response = await _http.post(
-            uri,
-            headers: headers,
-            body: body == null ? null : jsonEncode(body),
-          ).timeout(connectTimeout);
+          response = await _http
+              .post(uri, headers: headers, body: body != null ? jsonEncode(body) : null)
+              .timeout(_timeout);
+        case 'PUT':
+          response = await _http
+              .put(uri, headers: headers, body: body != null ? jsonEncode(body) : null)
+              .timeout(_timeout);
         case 'PATCH':
-          response = await _http.patch(
-            uri,
-            headers: headers,
-            body: body == null ? null : jsonEncode(body),
-          ).timeout(connectTimeout);
+          response = await _http
+              .patch(uri, headers: headers, body: body != null ? jsonEncode(body) : null)
+              .timeout(_timeout);
         case 'DELETE':
-          response = await _http.delete(
-            uri,
-            headers: headers,
-            body: body == null ? null : jsonEncode(body),
-          ).timeout(connectTimeout);
+          response = await _http.delete(uri, headers: headers).timeout(_timeout);
         default:
-          throw ApiException(
-            statusCode: 0,
-            message: 'Неподдерживаемый метод запроса',
-          );
+          throw ApiException(statusCode: 0, message: 'Unsupported method: $method');
       }
+
+      if (response.statusCode == 401) {
+        onUnauthorized?.call();
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final String bodyText = response.body;
+        String errorMessage = 'Server error (${response.statusCode})';
+        try {
+          final dynamic json = jsonDecode(bodyText);
+          if (json is Map<String, dynamic>) {
+            errorMessage = json['message'] as String? ??
+                json['error'] as String? ??
+                json['detail'] as String? ??
+                errorMessage;
+          }
+        } catch (_) {}
+        throw ApiException(statusCode: response.statusCode, message: errorMessage);
+      }
+
+      if (response.body.isEmpty) return null;
+      return jsonDecode(response.body);
+    } on ApiException {
+      rethrow;
     } on TimeoutException {
-      throw ApiException(statusCode: 0, message: 'Превышено время ожидания ответа от сервера');
-    } catch (error) {
-      throw ApiException(statusCode: 0, message: _networkErrorMessage(error));
+      throw ApiException(statusCode: 0, message: 'Request timed out');
+    } catch (e) {
+      throw ApiException(statusCode: 0, message: 'Network error: $e');
     }
-
-    final dynamic payload = await _tryDecode(response.body);
-    if (response.statusCode == 401) {
-      onUnauthorized?.call();
-    }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(
-        statusCode: response.statusCode,
-        message: _extractError(payload, response.body),
-        payload: payload,
-      );
-    }
-
-    return payload;
   }
 
   Uri _buildUri(String path, {Map<String, String>? query}) {
-    final bool absolute =
-        path.startsWith('http://') || path.startsWith('https://');
-    final Uri rawUri = absolute ? Uri.parse(path) : Uri.parse('$baseUrl$path');
-    if (query == null || query.isEmpty) {
-      return rawUri;
-    }
-    return rawUri.replace(
-      queryParameters: <String, String>{...rawUri.queryParameters, ...query},
-    );
+    final Uri rawUri = Uri.parse('$baseUrl$path');
+    if (query == null || query.isEmpty) return rawUri;
+    return rawUri.replace(queryParameters: {...rawUri.queryParameters, ...query});
   }
 
-  Map<String, String> _buildHeaders({
-    required bool auth,
-    required bool withJson,
-  }) {
+  Map<String, String> _buildHeaders({Object? body}) {
     final Map<String, String> headers = <String, String>{
       'Accept': 'application/json',
     };
-    if (withJson) {
+    if (body != null) {
       headers['Content-Type'] = 'application/json';
     }
-
-    if (auth) {
-      final String? token = readToken();
-      if (token != null && token.isNotEmpty) {
-        headers['Authorization'] = 'Bearer $token';
-      }
+    final String? token = readToken();
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
     }
     return headers;
   }
 
-  Future<dynamic> _tryDecode(String body) async {
-    if (body.trim().isEmpty) {
-      return null;
-    }
+  void close() {
+    _http.close();
+  }
+
+  Future<List<int>> postBytes(String path, {Object? body, Map<String, String>? query}) async {
+    final Uri uri = _buildUri(path, query: query);
+    final Map<String, String> headers = _buildHeaders(body: body);
+
     try {
-      return jsonDecode(body);
-    } catch (_) {
-      return body;
-    }
-  }
+      final http.Response response = await _http
+          .post(uri, headers: headers, body: body != null ? jsonEncode(body) : null)
+          .timeout(_timeout);
 
-  String _extractError(dynamic payload, String body) {
-    if (payload is Map<String, dynamic>) {
-      final Object? detail = payload['detail'];
-      if (detail is String && detail.isNotEmpty) {
-        return detail;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw ApiException(statusCode: response.statusCode, message: 'Upload failed');
       }
-      final Object? message = payload['message'];
-      if (message is String && message.isNotEmpty) {
-        return message;
-      }
+      return response.bodyBytes;
+    } on ApiException {
+      rethrow;
+    } on TimeoutException {
+      throw ApiException(statusCode: 0, message: 'Request timed out');
+    } catch (e) {
+      throw ApiException(statusCode: 0, message: 'Network error: $e');
     }
-    if (body.trim().isNotEmpty) {
-      return body; // Возвращаем тело только если уверены, что оно полезно. Часто тут HTML от 502/404.
-    }
-    return 'Произошла неизвестная ошибка';
-  }
-
-  String _networkErrorMessage(Object error) {
-    final String text = '$error';
-    final String lowered = text.toLowerCase();
-    
-    final bool isSocketException = error is SocketException ||
-        lowered.contains('socketexception');
-    if (isSocketException) {
-      if (lowered.contains('failed host lookup') ||
-          lowered.contains('no address associated with hostname')) {
-        return 'Ошибка DNS: невозможно разрешить адрес сервера.';
-      }
-      return 'Ошибка сетевого подключения.';
-    }
-
-    if (lowered.contains('failed host lookup') ||
-        lowered.contains('no address associated with hostname')) {
-      return 'Ошибка DNS: невозможно разрешить адрес сервера.';
-    }
-
-    return 'Проблема с сетью: проверьте интернет-соединение.';
   }
 }

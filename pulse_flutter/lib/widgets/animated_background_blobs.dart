@@ -73,7 +73,7 @@ class _AnimatedBackgroundBlobsState extends ConsumerState<AnimatedBackgroundBlob
           Positioned.fill(
             child: ClipRect(
               child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Container(color: Colors.transparent),
               ),
             ),

@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/storage/local_storage_service.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/core/utils/image_compressor.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
@@ -35,7 +37,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           await ref.read(localStorageServiceProvider).snapshot();
       if (!mounted) return;
       setState(() => _storageSnapshot = snapshot);
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('Failed to load storage snapshot: $e\n$st');
+    }
   }
 
   Future<void> _uploadAvatar() async {
@@ -50,7 +54,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     try {
       final PlatformFile file = result.files.first;
-      await ref.read(authRepositoryProvider).uploadAvatar(file.bytes!, file.name);
+      Uint8List bytes = file.bytes!;
+      final Uint8List? compressed = await ImageCompressor.compressImageBytes(
+        bytes: bytes,
+        fileName: file.name,
+      );
+      if (compressed != null) bytes = compressed;
+      await ref.read(authRepositoryProvider).uploadAvatar(bytes, file.name);
       await ref.read(authProvider.notifier).refreshProfile();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -121,8 +131,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: Column(
                 children: [
                   SettingsSection(
-                    title: 'Settings',
-                    subtitle: 'Основные параметры аккаунта и приложения',
+                    title: context.l10n.profileSectionQuickSettings,
+                    children: <Widget>[
+                      SettingsTile(
+                        icon: Icons.color_lens_rounded,
+                        title: context.l10n.profileAppearance,
+                        subtitle: context.l10n.profileAppearanceDesc,
+                        onTap: () => context.push('/settings/appearance'),
+                      ),
+                      SettingsTile(
+                        icon: Icons.language_rounded,
+                        title: context.l10n.profileLanguage,
+                        subtitle: context.l10n.profileLanguageDesc,
+                        onTap: () => context.push('/settings/language-region'),
+                      ),
+                    ],
+                  ),
+                  SettingsSection(
+                    title: context.l10n.profileSectionPrivacy,
+                    children: <Widget>[
+                      SettingsTile(
+                        icon: Icons.lock_outline_rounded,
+                        title: context.l10n.settingsPrivacyTitle,
+                        subtitle: context.l10n.settingsPrivacySubtitle,
+                        onTap: () => context.push('/settings/privacy'),
+                      ),
+                    ],
+                  ),
+                  SettingsSection(
+                    title: context.l10n.profileSectionAccount,
                     children: <Widget>[
                       SettingsTile(
                         icon: Icons.manage_accounts_rounded,
@@ -130,24 +167,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         subtitle: context.l10n.settingsAccountSubtitle,
                         onTap: () => context.push('/settings/account'),
                       ),
-                      SettingsTile(
-                        icon: Icons.color_lens_rounded,
-                        title: 'Appearance',
-                        subtitle: 'Theme, colors',
-                        onTap: () => context.push('/settings/appearance'),
-                      ),
-                      SettingsTile(
-                        icon: Icons.language_rounded,
-                        title: 'Language',
-                        subtitle: 'App language',
-                        onTap: () => context.push('/settings/language-region'),
-                      ),
-                      SettingsTile(
-                        icon: Icons.lock_outline_rounded,
-                        title: context.l10n.settingsPrivacyTitle,
-                        subtitle: context.l10n.settingsPrivacySubtitle,
-                        onTap: () => context.push('/settings/privacy'),
-                      ),
+                    ],
+                  ),
+                  SettingsSection(
+                    title: context.l10n.profileSectionData,
+                    children: <Widget>[
                       SettingsTile(
                         icon: Icons.sd_storage_rounded,
                         title: context.l10n.settingsStorageTitle,
@@ -156,6 +180,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             : context.l10n.settingsStorageSubtitle,
                         onTap: () => context.push('/settings/storage'),
                       ),
+                    ],
+                  ),
+                  SettingsSection(
+                    title: context.l10n.profileSectionAbout,
+                    children: <Widget>[
                       SettingsTile(
                         icon: Icons.info_outline_rounded,
                         title: context.l10n.settingsAboutTitle,
@@ -165,8 +194,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ],
                   ),
                   SettingsSection(
-                    title: 'Team & tools',
-                    subtitle: 'Команда проекта и дополнительные разделы',
+                    title: context.l10n.profileTeamTools,
+                    subtitle: context.l10n.profileTeamToolsDesc,
                     children: <Widget>[
                       SettingsTile(
                         icon: Icons.groups_rounded,
@@ -262,7 +291,7 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text(context.l10n.profileError('$e'))),
       );
       setState(() => _saving = false);
     }
@@ -271,8 +300,8 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
   @override
   Widget build(BuildContext context) {
     return AppDialog(
-      title: 'Edit profile',
-      subtitle: 'Update your public name and short bio.',
+      title: context.l10n.profileEdit,
+      subtitle: context.l10n.settingsEditProfileSubtitle,
       icon: Icons.edit_note_rounded,
       actions: <AppDialogAction>[
         AppDialogAction(

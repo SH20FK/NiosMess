@@ -34,12 +34,12 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
         SettingsNavBanner(
           icon: Icons.info_outline_rounded,
           title: context.l10n.settingsAboutTitle,
-          subtitle: 'Поддержка, правовая информация и сведения о приложении.',
+          subtitle: context.l10n.settingsAboutBannerSubtitle,
           iconColor: scheme.primary,
         ),
         SettingsSection(
           title: context.l10n.settingsHelpSupportTitle,
-          subtitle: 'Частые вопросы и способы связи',
+          subtitle: context.l10n.settingsAboutHelpDesc,
           children: <Widget>[
             ExpansionTile(
               leading: Container(
@@ -90,7 +90,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
             SettingsTile(
               icon: Icons.support_agent_rounded,
               title: context.l10n.settingsContactSupport,
-              subtitle: 'support@ni-os.ru',
+              subtitle: context.l10n.settingsSupportEmail,
               iconColor: scheme.primary,
               onTap: () => _composeSupportEmail(
                 context,
@@ -116,8 +116,8 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
                 : '${info.version} (${info.buildNumber})';
 
             return SettingsSection(
-              title: 'NiosMess',
-              subtitle: 'Версия приложения и служебные пункты',
+              title: context.l10n.settingsAboutVersionTitle,
+              subtitle: context.l10n.settingsAboutVersionDesc,
               children: <Widget>[
                 SettingsInfoTile(
                   icon: Icons.sell_rounded,
@@ -139,26 +139,26 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
         ),
         SettingsSection(
           title: context.l10n.settingsLegalTitle,
-          subtitle: 'Политики и внешние ресурсы',
+          subtitle: context.l10n.settingsAboutLegalDesc,
           children: <Widget>[
             SettingsTile(
               icon: Icons.policy_rounded,
               title: context.l10n.settingsPrivacyPolicy,
-              subtitle: 'ni-os.ru/privacy',
+              subtitle: context.l10n.settingsPrivacyPolicyUrl,
               iconColor: scheme.primary,
               onTap: () => _openUrl(context, 'https://ni-os.ru/privacy'),
             ),
             SettingsTile(
               icon: Icons.gavel_rounded,
               title: context.l10n.settingsTermsOfService,
-              subtitle: 'ni-os.ru/terms',
+              subtitle: context.l10n.settingsTermsOfServiceUrl,
               iconColor: scheme.secondary,
               onTap: () => _openUrl(context, 'https://ni-os.ru/terms'),
             ),
             SettingsTile(
               icon: Icons.public_rounded,
               title: context.l10n.settingsOpenWebsite,
-              subtitle: 'ni-os.ru',
+              subtitle: context.l10n.settingsWebsiteUrl,
               iconColor: scheme.tertiary,
               onTap: () => _openUrl(context, 'https://ni-os.ru'),
             ),
@@ -199,7 +199,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
                   Navigator.of(sheetContext).pop();
                   showLicensePage(
                     context: context,
-                    applicationName: 'NiosMess',
+                    applicationName: context.l10n.settingsAboutNiosMess,
                   );
                 },
               ),

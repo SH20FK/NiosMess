@@ -60,6 +60,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonDark => 'Dark';
 
   @override
+  String get commonDismiss => 'Dismiss';
+
+  @override
   String get commonAutomatic => 'Automatic';
 
   @override
@@ -80,7 +83,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonPasteFromClipboard => 'Paste from clipboard';
 
   @override
+  String get commonDiscardChanges => 'Discard changes?';
+
+  @override
+  String get commonDiscardChangesDesc =>
+      'You have unsaved changes that will be lost.';
+
+  @override
+  String get commonDiscardChangesConfirm => 'Discard';
+
+  @override
   String get splashTagline => 'Fluid connection, clear communication';
+
+  @override
+  String get splashGraphicsOptimization => 'Optimizing graphics...';
 
   @override
   String get loginTitle => 'Welcome back';
@@ -1817,7 +1833,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Clean only data that is safe to rebuild.';
 
   @override
-  String get settingsStorageRefresh => 'Refresh usage';
+  String get settingsStorageRefresh => 'Refresh';
 
   @override
   String get settingsStorageRefreshSubtitle => 'Recalculate local storage now';
@@ -2575,4 +2591,646 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsRevokeSession => 'Revoke session';
+
+  @override
+  String get tabNiosgram => 'Feed';
+
+  @override
+  String get niosgramTitle => 'NiosGram';
+
+  @override
+  String get niosgramCreatePost => 'New post';
+
+  @override
+  String get niosgramPublish => 'Publish';
+
+  @override
+  String get niosgramWhatMind => 'What\'s on your mind?';
+
+  @override
+  String get niosgramAttachMedia => 'Attach media';
+
+  @override
+  String get niosgramRemove => 'Remove';
+
+  @override
+  String get niosgramEmptyFeed => 'No posts yet';
+
+  @override
+  String get niosgramEmptyFeedDesc => 'Be the first to share something!';
+
+  @override
+  String get niosgramLoadMore => 'Load more';
+
+  @override
+  String get niosgramComments => 'Comments';
+
+  @override
+  String get niosgramWriteComment => 'Write a comment...';
+
+  @override
+  String get niosgramLike => 'Like';
+
+  @override
+  String get niosgramDislike => 'Dislike';
+
+  @override
+  String get niosgramDeletePost => 'Delete post?';
+
+  @override
+  String get niosgramDeletePostConfirm => 'This cannot be undone.';
+
+  @override
+  String get niosgramCopied => 'Copied to clipboard';
+
+  @override
+  String get niosgramEdit => 'Edit';
+
+  @override
+  String get niosgramDelete => 'Delete';
+
+  @override
+  String get niosgramCopyText => 'Copy text';
+
+  @override
+  String get niosgramEditPost => 'Edit your post...';
+
+  @override
+  String get niosgramFileTooLarge => 'File exceeds 10 MB limit';
+
+  @override
+  String get niosgramEmptyContent => 'Write something or attach a file';
+
+  @override
+  String get niosgramFailedLoad => 'Failed to load feed';
+
+  @override
+  String get settingsPrivacyBannerSubtitle =>
+      'Notifications, visibility and system account limits.';
+
+  @override
+  String get settingsPrivacyNotificationsManage =>
+      'Manage app push notifications';
+
+  @override
+  String get settingsPrivacyVisibilityDesc =>
+      'Control presence status in the app';
+
+  @override
+  String get settingsPrivacyHideOnline => 'Hide online status';
+
+  @override
+  String get settingsPrivacyHideOnlineDesc =>
+      'Don\'t show your presence status to other users';
+
+  @override
+  String get settingsStorageBannerSubtitle =>
+      'Memory usage, cache and app drafts.';
+
+  @override
+  String get settingsStorageLegendCache => 'Cache';
+
+  @override
+  String get settingsStorageLegendDrafts => 'Drafts';
+
+  @override
+  String get settingsStorageCategoryAppData => 'App Data';
+
+  @override
+  String get settingsStorageCategoryCache => 'Cache';
+
+  @override
+  String get settingsStorageCategoryDrafts => 'Drafts';
+
+  @override
+  String get settingsAboutBannerSubtitle =>
+      'Support, legal information and app details.';
+
+  @override
+  String get settingsAboutHelpDesc => 'FAQ and contact options';
+
+  @override
+  String get settingsAboutVersionTitle => 'NiosMess';
+
+  @override
+  String get settingsAboutVersionDesc => 'App version and service items';
+
+  @override
+  String get settingsAboutLegalDesc => 'Policies and external resources';
+
+  @override
+  String get settingsAccountBannerSubtitle =>
+      'Login security, email verification and active sessions.';
+
+  @override
+  String get settingsAccountAccessDesc =>
+      'Main actions for access and account recovery';
+
+  @override
+  String get settingsLanguageBannerDesc => 'App language and UI localization';
+
+  @override
+  String get settingsLanguageCurrentLang => 'Current language';
+
+  @override
+  String get settingsLanguageTzDesc =>
+      'Auto-detection or manual timezone selection';
+
+  @override
+  String get settingsLanguageTimePreview => 'Date and time preview';
+
+  @override
+  String get settingsLanguageLocalTime => 'Local time';
+
+  @override
+  String get sessionsBannerSubtitle =>
+      'Manage your active devices and sessions.';
+
+  @override
+  String get sessionsRevokeBody =>
+      'This device will be logged out if it\'s the current session.';
+
+  @override
+  String sessionsActive(Object time) {
+    return 'Active: $time';
+  }
+
+  @override
+  String sessionsCreated(Object time) {
+    return 'Created: $time';
+  }
+
+  @override
+  String get sessionsCurrent => 'Current';
+
+  @override
+  String get onboardingSlide1Title => 'Fast calls with less friction';
+
+  @override
+  String get onboardingSlide1Desc =>
+      'Call teammates in one tap and switch between voice and video without leaving the flow.';
+
+  @override
+  String get onboardingSlide2Title => 'Organized conversations';
+
+  @override
+  String get onboardingSlide2Desc =>
+      'Keep your chats, calls, and contacts in one focused workspace that stays easy to scan.';
+
+  @override
+  String get onboardingSlide3Title => 'Designed for daily rhythm';
+
+  @override
+  String get onboardingSlide3Desc =>
+      'Smooth transitions and clear hierarchy keep communication calm even on a busy day.';
+
+  @override
+  String get onboardingGetStarted => 'Get started';
+
+  @override
+  String get onboardingNext => 'Next';
+
+  @override
+  String get mediaViewerDownload => 'Download';
+
+  @override
+  String mediaViewerImageLoadFailed(Object error) {
+    return 'Failed to load image: $error';
+  }
+
+  @override
+  String get mediaViewerDownloadWeb =>
+      'Download is not supported in web version';
+
+  @override
+  String get mediaViewerDownloadFailedExt =>
+      'Could not download. Try opening externally.';
+
+  @override
+  String directResolverResolving(Object username) {
+    return 'Resolving @$username';
+  }
+
+  @override
+  String get directResolverSecretEstablishing =>
+      'Establishing end-to-end encrypted channel...';
+
+  @override
+  String get directResolverPreparing =>
+      'Preparing your secure direct conversation in NiosMess.';
+
+  @override
+  String get directResolverUserNotFound => 'User not found';
+
+  @override
+  String get directResolverUserNotFoundDesc =>
+      'We could not resolve this user right now.';
+
+  @override
+  String get directResolverSecretTitle => 'Secret Chat';
+
+  @override
+  String get postNewPost => 'New post';
+
+  @override
+  String get postPublish => 'Publish';
+
+  @override
+  String get postHint => 'What\'s on your mind?';
+
+  @override
+  String get postRemove => 'Remove';
+
+  @override
+  String get postAttachMedia => 'Attach media';
+
+  @override
+  String get postFileTooLarge => 'File exceeds 10 MB limit';
+
+  @override
+  String get postEmptyContent => 'Write something or attach a file';
+
+  @override
+  String get chatCreateFailed => 'Could not create chat';
+
+  @override
+  String get chatChannelCreated => 'Channel created';
+
+  @override
+  String get chatGroupCreated => 'Group created';
+
+  @override
+  String get chatChooseNextStep => 'Choose what you want to do next.';
+
+  @override
+  String get chatOpenChat => 'Open chat';
+
+  @override
+  String get chatCopyInvite => 'Copy invite';
+
+  @override
+  String get chatInviteLinkCopied => 'Invite link copied';
+
+  @override
+  String get chatCommentsEnabled => 'Enabled';
+
+  @override
+  String get chatCommentsDisabled => 'Disabled';
+
+  @override
+  String get profileSettingsSection => 'Settings';
+
+  @override
+  String get profileSettingsSectionDesc => 'Main account and app settings';
+
+  @override
+  String get profileSectionQuickSettings => 'Quick Settings';
+
+  @override
+  String get profileSectionPrivacy => 'Privacy';
+
+  @override
+  String get profileSectionAccount => 'Account';
+
+  @override
+  String get profileSectionData => 'Data';
+
+  @override
+  String get profileSectionAbout => 'About';
+
+  @override
+  String get profileAppearanceDesc => 'Theme, colors';
+
+  @override
+  String get profileLanguage => 'Language';
+
+  @override
+  String get profileLanguageDesc => 'App language';
+
+  @override
+  String get profileTeamTools => 'Team & tools';
+
+  @override
+  String get profileTeamToolsDesc => 'Project team and additional sections';
+
+  @override
+  String get chatManageInviteLink => 'Invite link';
+
+  @override
+  String get chatManageCopyInvite => 'Copy invite';
+
+  @override
+  String get chatManageShareInvite => 'Share invite';
+
+  @override
+  String get chatManageShareLink => 'Share link';
+
+  @override
+  String get chatManageCommentsChatId => 'Comments chat ID';
+
+  @override
+  String chatManageCopied(Object title) {
+    return '$title copied';
+  }
+
+  @override
+  String get chatManageCopy => 'Copy';
+
+  @override
+  String get chatManageName => 'Name';
+
+  @override
+  String get chatManageDescription => 'Description';
+
+  @override
+  String get chatManageSaveChanges => 'Save changes';
+
+  @override
+  String get chatManageChannel => 'Channel';
+
+  @override
+  String get chatManageGroup => 'Group';
+
+  @override
+  String get adminPanelTitle => 'Admin Panel';
+
+  @override
+  String get adminPanelSubtitle =>
+      'Manage users and chats with admin password.';
+
+  @override
+  String get adminAuthentication => 'Authentication';
+
+  @override
+  String get adminPasswordLabel => 'Admin Password';
+
+  @override
+  String get adminConnecting => 'Connecting...';
+
+  @override
+  String get adminConnect => 'Connect';
+
+  @override
+  String get adminStatusBanned => 'Banned';
+
+  @override
+  String get adminStatusActive => 'Active';
+
+  @override
+  String get adminStatusFrozen => 'Frozen';
+
+  @override
+  String get adminStatusSpamBlock => 'Spam Block';
+
+  @override
+  String get adminActionUnblockSpam => 'Unblock Spam';
+
+  @override
+  String get adminChatUnban => 'Unban';
+
+  @override
+  String get adminChatBan => 'Ban';
+
+  @override
+  String get badgeScreenTitle => 'Badges';
+
+  @override
+  String get badgeAvailableBadges => 'Available Badges';
+
+  @override
+  String get badgeAdminActions => 'Admin Actions';
+
+  @override
+  String get badgeCopied => 'Badge created';
+
+  @override
+  String get e2eeScreenTitle => 'Secret Chats';
+
+  @override
+  String get e2eeBannerTitle => 'Secret Chats (E2EE)';
+
+  @override
+  String get e2eeBannerSubtitle =>
+      'End-to-end encrypted chats are tied to this device. Generate a key pair to enable secret chats.';
+
+  @override
+  String get e2eeDeviceKey => 'Device Key';
+
+  @override
+  String get e2eeKeyPairReady => 'Key pair ready';
+
+  @override
+  String get e2eeNoKeyPair => 'No key pair';
+
+  @override
+  String get e2eeTapToRegenerate => 'Tap to regenerate';
+
+  @override
+  String get e2eeGenerateKeyPair => 'Generate RSA-2048 key pair for E2EE';
+
+  @override
+  String get e2eeRotateKey => 'Rotate Key';
+
+  @override
+  String get e2eeRotateKeySubtitle =>
+      'Generate new key pair (old secret chats will break)';
+
+  @override
+  String get e2eeHowItWorks => 'How it works';
+
+  @override
+  String get e2eeHowItWorksDesc =>
+      '• Each device generates its own RSA-2048 key pair\n• Public key is shared with the server\n• Private key stays on this device only\n• Secret chats are visible only on this device\n• Messages are encrypted with AES-256-GCM\n• The AES key is encrypted with the recipient\'s RSA public key';
+
+  @override
+  String get e2eeCreateSecretChat => 'Create Secret Chat';
+
+  @override
+  String get e2eeCreateSecretChatDesc =>
+      'To start a secret chat, open a direct chat from contacts.\nSecret chat option will be available after generating your key pair.';
+
+  @override
+  String get e2eeRotateConfirmTitle => 'Rotate Key?';
+
+  @override
+  String get e2eeRotateConfirmBody =>
+      'Your old secret chats will become undecryptable after key rotation. New messages will use the fresh key.';
+
+  @override
+  String get e2eeRotateConfirm => 'Rotate';
+
+  @override
+  String get e2eeGeneratingKeys => 'Generating encryption keys';
+
+  @override
+  String get e2eeGeneratingKeysDesc =>
+      'RSA-2048 key pair is being created.\nThis may take a few seconds...';
+
+  @override
+  String get e2eeKeyRotated => 'Key rotated and uploaded';
+
+  @override
+  String get chatMembersBanConfirmTitle => 'Ban member?';
+
+  @override
+  String get chatMembersUnbanConfirmTitle => 'Unban member?';
+
+  @override
+  String get chatMembersBanConfirmBody =>
+      'This member will lose access until you restore them.';
+
+  @override
+  String get chatMembersUnbanConfirmBody =>
+      'Restore this member and let them rejoin the conversation.';
+
+  @override
+  String get chatMembersMuteConfirmTitle => 'Mute member?';
+
+  @override
+  String get chatMembersUnmuteConfirmTitle => 'Unmute member?';
+
+  @override
+  String get chatMembersMuteConfirmBody =>
+      'Muted members can stay in the chat but cannot participate normally.';
+
+  @override
+  String get chatMembersUnmuteConfirmBody =>
+      'Allow this member to participate again.';
+
+  @override
+  String chatMembersFailed(Object error) {
+    return 'Failed: $error';
+  }
+
+  @override
+  String contactsFailedToLoad(Object error) {
+    return 'Failed to load: $error';
+  }
+
+  @override
+  String contactsFailedToSearch(Object error) {
+    return 'Failed to search: $error';
+  }
+
+  @override
+  String get contactsCouldNotOpenChat => 'Could not open direct chat';
+
+  @override
+  String contactsFailedToOpenChat(Object error) {
+    return 'Failed to open direct chat: $error';
+  }
+
+  @override
+  String contactsMembersCount(int count) {
+    return '$count members';
+  }
+
+  @override
+  String get settingsSupportEmail => 'support@ni-os.ru';
+
+  @override
+  String get settingsPrivacyPolicyUrl => 'ni-os.ru/privacy';
+
+  @override
+  String get settingsTermsOfServiceUrl => 'ni-os.ru/terms';
+
+  @override
+  String get settingsWebsiteUrl => 'ni-os.ru';
+
+  @override
+  String get settingsAboutNiosMess => 'NiosMess';
+
+  @override
+  String get biometricTitle => 'Biometrics';
+
+  @override
+  String get biometricEnabled => 'Enabled — sign in with fingerprint/face';
+
+  @override
+  String get biometricDisabled => 'Disabled';
+
+  @override
+  String get biometricAuthReason =>
+      'Confirm your identity to enable biometrics';
+
+  @override
+  String chatManageCopiedLabel(Object title) {
+    return '$title copied';
+  }
+
+  @override
+  String get chatAiAssistant => 'AI Assistant';
+
+  @override
+  String get chatAiProcessed => 'Text successfully processed by AI';
+
+  @override
+  String get chatAiUndo => 'Undo';
+
+  @override
+  String chatAiError(Object error) {
+    return 'AI processing error: $error';
+  }
+
+  @override
+  String get chatAiFixErrors => 'Fix errors';
+
+  @override
+  String get chatAiFormal => 'Formal';
+
+  @override
+  String get chatAiTranslate => 'Translate';
+
+  @override
+  String get chatAiLangEn => 'Eng';
+
+  @override
+  String get chatAiLangRu => 'Rus';
+
+  @override
+  String get chatAiLangDe => 'Deu';
+
+  @override
+  String get chatAiLangFr => 'Fra';
+
+  @override
+  String get chatAiLangEs => 'Esp';
+
+  @override
+  String get chatAiLangZh => 'Zho';
+
+  @override
+  String get chatDraftRestored => 'Draft restored on this device';
+
+  @override
+  String get fileOpenerInvalidUrl => 'Invalid file URL';
+
+  @override
+  String get fileOpenerFailedOpenRemote => 'Failed to open remote file';
+
+  @override
+  String get fileOpenerCannotOpenType => 'Cannot open this file type';
+
+  @override
+  String get fileOpenerApkAndroidOnly =>
+      'APK files can only be installed on Android devices';
+
+  @override
+  String fileOpenerFailedApk(Object error) {
+    return 'Failed to open APK: $error';
+  }
+
+  @override
+  String get fileOpenerExeNotOnMobile =>
+      'EXE files cannot be opened on mobile devices';
+
+  @override
+  String fileOpenerFailedExe(Object error) {
+    return 'Failed to open EXE: $error';
+  }
+
+  @override
+  String fileOpenerNoAppFound(Object type) {
+    return 'No app found to open $type files';
+  }
 }

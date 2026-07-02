@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/app_curves.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
@@ -19,10 +20,12 @@ class ChatTile extends StatefulWidget {
     this.isPinned = false,
     this.compact = false,
     this.isOnline = false,
+    this.isSecret = false,
     this.partnerBadges = const <ApiBadge>[],
     this.animateEntrance = false,
     this.actions = const <Widget>[],
     this.draftLabel,
+    this.chatId,
     super.key,
   });
 
@@ -39,10 +42,12 @@ class ChatTile extends StatefulWidget {
   final bool isPinned;
   final bool compact;
   final bool isOnline;
+  final bool isSecret;
   final List<ApiBadge> partnerBadges;
   final bool animateEntrance;
   final List<Widget> actions;
   final String? draftLabel;
+  final int? chatId;
 
   @override
   State<ChatTile> createState() => _ChatTileState();
@@ -97,9 +102,9 @@ class _ChatTileState extends State<ChatTile>
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final List<ApiBadge> visibleBadges = widget.partnerBadges.length > 2
-        ? widget.partnerBadges.take(1).toList(growable: false)
-        : widget.partnerBadges.take(2).toList(growable: false);
+    final List<ApiBadge> visibleBadges = widget.partnerBadges.length > 3
+        ? widget.partnerBadges.take(2).toList(growable: false)
+        : widget.partnerBadges.take(3).toList(growable: false);
     final int hiddenBadgeCount =
         widget.partnerBadges.length - visibleBadges.length;
 
@@ -119,7 +124,10 @@ class _ChatTileState extends State<ChatTile>
           button: true,
           label: semanticsLabel,
           child: InkWell(
-            onTap: widget.onTap,
+            onTap: () {
+              HapticService.tap();
+              widget.onTap();
+            },
             onLongPress: _handleLongPress,
             borderRadius: BorderRadius.circular(24),
             child: AnimatedContainer(
@@ -145,15 +153,18 @@ class _ChatTileState extends State<ChatTile>
                       Stack(
                         clipBehavior: Clip.none,
                         children: <Widget>[
-                          PulseAvatar(
-                            key: ValueKey<String>(
-                              '${widget.avatarText}_${widget.avatarUrl ?? ''}',
+                          Hero(
+                            tag: 'chat_avatar_${widget.chatId ?? widget.avatarText}',
+                            child: PulseAvatar(
+                              key: ValueKey<String>(
+                                '${widget.avatarText}_${widget.avatarUrl ?? ''}',
+                              ),
+                              radius: 26,
+                              name: widget.avatarText,
+                              avatarUrl: widget.avatarUrl,
+                              fallbackColor: widget.avatarColor,
+                              textColor: scheme.onPrimary,
                             ),
-                            radius: 26,
-                            name: widget.avatarText,
-                            avatarUrl: widget.avatarUrl,
-                            fallbackColor: widget.avatarColor,
-                            textColor: scheme.onPrimary,
                           ),
                           if (widget.isOnline)
                             Positioned(
@@ -192,6 +203,14 @@ class _ChatTileState extends State<ChatTile>
                                           style: textTheme.titleMedium,
                                         ),
                                       ),
+                                      if (widget.isSecret) ...<Widget>[
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.lock_rounded,
+                                          size: 14,
+                                          color: Colors.green,
+                                        ),
+                                      ],
                                       if (widget.isPinned) ...<Widget>[
                                         const SizedBox(width: 4),
                                         Icon(

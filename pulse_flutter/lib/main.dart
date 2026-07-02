@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -16,6 +17,10 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:pulse_flutter/core/services/push_notification_service.dart';
+import 'package:pulse_flutter/core/services/deep_link_service.dart';
+import 'package:pulse_flutter/firebase_options.dart';
 
 Future<void> main() async {
   await runZonedGuarded<Future<void>>(
@@ -38,6 +43,13 @@ Future<void> main() async {
 
       await SharedPreferences.getInstance();
       AppTimeSettings.initialize();
+      if (!kIsWeb) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        await PushNotificationService.init();
+        await DeepLinkService.init();
+      }
       logger.info('Application started', source: 'bootstrap');
       runApp(const ProviderScope(child: PulseApp()));
     },

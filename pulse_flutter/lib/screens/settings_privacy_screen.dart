@@ -21,12 +21,12 @@ class SettingsPrivacyScreen extends ConsumerWidget {
         SettingsNavBanner(
           icon: Icons.privacy_tip_rounded,
           title: context.l10n.settingsPrivacyTitle,
-          subtitle: 'Уведомления, видимость и системные ограничения аккаунта.',
+          subtitle: context.l10n.settingsPrivacyBannerSubtitle,
           iconColor: scheme.primary,
         ),
         SettingsSection(
           title: context.l10n.settingsPrivacyNotificationsTitle,
-          subtitle: 'Управление push-уведомлениями приложения',
+          subtitle: context.l10n.settingsPrivacyNotificationsManage,
           children: <Widget>[
             SettingsSwitchTile(
               icon: Icons.notifications_active_rounded,
@@ -41,13 +41,13 @@ class SettingsPrivacyScreen extends ConsumerWidget {
           ],
         ),
         SettingsSection(
-          title: 'Видимость',
-          subtitle: 'Контроль статуса присутствия в приложении',
+          title: context.l10n.settingsPrivacyVisibilityTitle,
+          subtitle: context.l10n.settingsPrivacyVisibilityDesc,
           children: <Widget>[
             SettingsSwitchTile(
               icon: Icons.visibility_off_rounded,
-              title: 'Скрывать онлайн-статус',
-              subtitle: 'Не показывать другим пользователям ваш статус присутствия',
+              title: context.l10n.settingsPrivacyHideOnline,
+              subtitle: context.l10n.settingsPrivacyHideOnlineDesc,
               iconColor: scheme.secondary,
               value: settings.hideOnline,
               onChanged: (bool value) {

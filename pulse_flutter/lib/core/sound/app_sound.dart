@@ -90,8 +90,20 @@ class SoundService {
     } catch (e) { debugPrint('[app_sound.dart] Error: $e'); }
   }
 
+  int _uiPlayerIndex = 0;
+
   Future<void> playUiTick({double volume = 0.85}) async {
-    // Disabled to prevent audio session interruption of background music on desktop
+    if (!_enabled) return;
+    try {
+      await initialize();
+      final AudioPlayer player = _uiPlayers[_uiPlayerIndex % _uiPlayers.length];
+      _uiPlayerIndex++;
+      await player.stop();
+      await player.play(
+        AssetSource('sounds/nav1.ogg'),
+        volume: _effectiveVolume(volume * 0.5),
+      );
+    } catch (e) { debugPrint('[app_sound.dart] playUiTick error: $e'); }
   }
 
   Future<void> startLoop(AppSound sound, {double volume = 0.75}) async {

@@ -146,7 +146,7 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
           Positioned.fill(
             child: ClipRect(
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Container(
                   color: Colors.transparent,
                 ),

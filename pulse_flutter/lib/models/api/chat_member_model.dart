@@ -1,5 +1,12 @@
 import 'package:pulse_flutter/models/api/badge_model.dart';
 
+bool _parseBool(dynamic value) {
+  return value == true ||
+      value == 1 ||
+      value == '1' ||
+      value == 'true';
+}
+
 class ApiChatMember {
   const ApiChatMember({
     required this.userId,
@@ -46,8 +53,8 @@ class ApiChatMember {
       username: json['username'] as String? ?? '',
       displayName: json['display_name'] as String? ?? '',
       role: json['role'] as String? ?? 'member',
-      isMuted: json['is_muted'] as bool? ?? false,
-      isBanned: json['is_banned'] as bool? ?? false,
+      isMuted: _parseBool(json['is_muted']),
+      isBanned: _parseBool(json['is_banned']),
       avatarUrl: json['avatar_url'] as String?,
       badges: badges,
     );

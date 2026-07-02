@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:asn1lib/asn1lib.dart';
 import 'package:cryptography/cryptography.dart' as crypto;
 import 'package:flutter/foundation.dart';
@@ -15,6 +14,12 @@ class E2eeService {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   Uint8List _uint8list(List<int> bytes) => Uint8List.fromList(bytes);
+
+  Future<void> rotateKeyPair() async {
+    debugPrint('[E2eeService] Rotating key pair');
+    final pair = await generateKeyPair();
+    await savePrivateKey(pair.privateKey);
+  }
 
   Future<AsymmetricKeyPair<PublicKey, PrivateKey>> generateKeyPair() async {
     final keyGen = RSAKeyGenerator()

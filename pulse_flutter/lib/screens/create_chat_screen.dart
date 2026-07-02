@@ -68,20 +68,20 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
       final bool? nextStep = await showDialog<bool>(
         context: context,
         builder: (BuildContext dialogContext) => AppDialog(
-          title: _chatType == 'channel' ? 'Channel created' : 'Group created',
-          subtitle: 'Choose what you want to do next.',
+          title: _chatType == 'channel' ? context.l10n.chatChannelCreated : context.l10n.chatGroupCreated,
+          subtitle: context.l10n.chatChooseNextStep,
           icon: _chatType == 'channel'
               ? Icons.campaign_rounded
               : Icons.groups_rounded,
           actions: <AppDialogAction>[
             AppDialogAction(
-              label: 'Open chat',
+              label: context.l10n.chatOpenChat,
               icon: Icons.chat_bubble_rounded,
               onPressed: () => Navigator.of(dialogContext).pop(true),
               isPrimary: true,
             ),
             AppDialogAction(
-              label: 'Copy invite',
+              label: context.l10n.chatCopyInvite,
               icon: Icons.link_rounded,
               onPressed: () async {
                 final chat = ref.read(chatByIdProvider(result.chatId));
@@ -101,7 +101,7 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
       context.replace('/chat/${result.chatId}');
       if (nextStep == false) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invite link copied')),
+          SnackBar(content: Text(context.l10n.chatInviteLinkCopied)),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -561,7 +561,7 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
             controller: _usernameController,
             decoration: InputDecoration(
               labelText: context.l10n.groupPublicUsername,
-              hintText: 'team_updates',
+              hintText: context.l10n.groupNameHint,
               prefixIcon: Icon(Icons.alternate_email_rounded),
             ),
           ),
@@ -713,7 +713,7 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
               if (_chatType == 'channel')
                 row(
                   label: context.l10n.chatComments,
-                  value: _commentsEnabled ? 'Enabled' : 'Disabled',
+                  value: _commentsEnabled ? context.l10n.chatCommentsEnabled : context.l10n.chatCommentsDisabled,
                 ),
             ],
           ),

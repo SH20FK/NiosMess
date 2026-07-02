@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
 class JellySwitch extends StatefulWidget {
   const JellySwitch({
@@ -74,7 +74,7 @@ class _JellySwitchState extends State<JellySwitch> with SingleTickerProviderStat
   }
 
   void _toggle() {
-    HapticFeedback.lightImpact();
+    HapticService.tap();
     widget.onChanged(!widget.value);
   }
 

@@ -160,7 +160,7 @@ class _LavaLampPainter extends CustomPainter {
     rightPath.lineTo(size.width, size.height);
     rightPath.lineTo(center.dx * (1 + wave), size.height);
 
-    for (double y = 0; y <= size.height; y += 2) {
+    for (double y = 0; y <= size.height; y += 4) {
       final double localWave = math.sin(t * 1.3 + y * 0.05) * 4;
       final double x = center.dx * (1 + wave) + localWave;
       leftPath.lineTo(x.clamp(0, center.dx * 2), y);

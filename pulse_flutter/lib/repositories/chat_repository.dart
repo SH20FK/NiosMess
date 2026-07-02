@@ -265,9 +265,13 @@ class ChatRepository {
     final String normalizedContent = (content ?? '').trim();
     final Map<String, dynamic> payload = <String, dynamic>{
       'chat_id': chatId,
-      'reply_to_id': replyToId,
-      'upload_id': uploadId,
     };
+    if (replyToId != null) {
+      payload['reply_to_id'] = replyToId;
+    }
+    if (uploadId != null) {
+      payload['upload_id'] = uploadId;
+    }
 
     if (e2eeContent != null && e2eeContent.isNotEmpty) {
       payload['e2ee_content'] = e2eeContent;
@@ -508,24 +512,29 @@ class ChatRepository {
     int postId, {
     required String content,
     int? replyToId,
+    int senderId = 0,
   }) async {
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'post_id': postId,
+      'content': content,
+      'reply_to_id': replyToId,
+    };
+    if (channelId > 0) {
+      payload['channel_id'] = channelId;
+    }
+
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request(
-          'post_comment',
-          payload: <String, dynamic>{
-            'channel_id': channelId,
-            'post_id': postId,
-            'content': content,
-            'reply_to_id': replyToId,
-          },
+          channelId > 0 ? 'post_comment' : 'comment_post',
+          payload: payload,
         );
 
     if (response is! Map) {
       return ApiMessage(
         id: DateTime.now().millisecondsSinceEpoch,
         chatId: channelId,
-        senderId: 0,
+        senderId: senderId,
         senderUsername: 'me',
         senderDisplayName: 'Me',
         senderBadges: const [],
@@ -560,15 +569,20 @@ class ChatRepository {
     int page = 1,
     int pageSize = 50,
   }) async {
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'post_id': postId,
+      'page': page,
+      'page_size': pageSize,
+    };
+    if (channelId > 0) {
+      payload['channel_id'] = channelId;
+    }
+
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request(
-          'get_comments',
-          payload: <String, dynamic>{
-            'channel_id': channelId,
-            'post_id': postId,
-            'page': page,
-          },
+          channelId > 0 ? 'get_comments' : 'get_post_comments',
+          payload: payload,
         );
 
     if (response is! Map) {

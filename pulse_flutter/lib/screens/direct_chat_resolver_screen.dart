@@ -77,7 +77,7 @@ class _DirectChatResolverScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isSecret ? 'Secret Chat' : 'NiosMess'),
+        title: Text(widget.isSecret ? context.l10n.directResolverSecretTitle : context.l10n.appName),
       ),
       body: PulseScaffoldBody(
         maxWidth: 560,
@@ -100,14 +100,14 @@ class _DirectChatResolverScreenState
                         const PulseLoadingIndicator(size: 64),
                         const SizedBox(height: 24),
                         Text(
-                          'Resolving @${widget.username}',
+                          context.l10n.directResolverResolving(widget.username),
                           style: textTheme.headlineSmall,
                         ),
                         const SizedBox(height: 8),
                         Text(
                           widget.isSecret
-                              ? 'Establishing end-to-end encrypted channel...'
-                              : 'Preparing your secure direct conversation in NiosMess.',
+                              ? context.l10n.directResolverSecretEstablishing
+                              : context.l10n.directResolverPreparing,
                           textAlign: TextAlign.center,
                           style: textTheme.bodyMedium?.copyWith(
                             color: scheme.onSurfaceVariant,
@@ -125,10 +125,10 @@ class _DirectChatResolverScreenState
                           color: scheme.error,
                         ),
                         const SizedBox(height: 20),
-                        Text('User not found', style: textTheme.headlineSmall),
+                        Text(context.l10n.directResolverUserNotFound, style: textTheme.headlineSmall),
                         const SizedBox(height: 8),
                         Text(
-                          _error ?? 'We could not resolve this user right now.',
+                          _error ?? context.l10n.directResolverUserNotFoundDesc,
                           textAlign: TextAlign.center,
                           style: textTheme.bodyMedium?.copyWith(
                             color: scheme.onSurfaceVariant,

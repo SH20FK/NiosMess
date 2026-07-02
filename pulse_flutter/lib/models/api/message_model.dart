@@ -2,6 +2,13 @@ import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 
+bool _parseBool(dynamic value) {
+  return value == true ||
+      value == 1 ||
+      value == '1' ||
+      value == 'true';
+}
+
 class ApiMessage {
   const ApiMessage({
     required this.id,
@@ -65,6 +72,64 @@ class ApiMessage {
 
   DateTime get resolvedSentAt => AppTimeSettings.resolve(sentAt);
 
+  ApiMessage copyWith({
+    int? id,
+    int? chatId,
+    int? senderId,
+    String? senderUsername,
+    String? senderDisplayName,
+    String? senderAvatarUrl,
+    List<ApiBadge>? senderBadges,
+    String? content,
+    String? msgType,
+    int? replyToId,
+    String? mediaUrl,
+    String? mediaType,
+    String? mediaName,
+    int? mediaSize,
+    int? mediaDuration,
+    int? commentsCount,
+    Map<String, int>? reactions,
+    DateTime? sentAt,
+    DateTime? editedAt,
+    bool? isDeleted,
+    InlineKeyboardMarkup? replyMarkup,
+    bool? isSending,
+    bool? isFailed,
+    bool? isE2ee,
+    String? e2eeContent,
+    bool? isRead,
+  }) {
+    return ApiMessage(
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      senderId: senderId ?? this.senderId,
+      senderUsername: senderUsername ?? this.senderUsername,
+      senderDisplayName: senderDisplayName ?? this.senderDisplayName,
+      senderAvatarUrl: senderAvatarUrl ?? this.senderAvatarUrl,
+      senderBadges: senderBadges ?? this.senderBadges,
+      content: content ?? this.content,
+      msgType: msgType ?? this.msgType,
+      replyToId: replyToId ?? this.replyToId,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      mediaType: mediaType ?? this.mediaType,
+      mediaName: mediaName ?? this.mediaName,
+      mediaSize: mediaSize ?? this.mediaSize,
+      mediaDuration: mediaDuration ?? this.mediaDuration,
+      commentsCount: commentsCount ?? this.commentsCount,
+      reactions: reactions ?? this.reactions,
+      sentAt: sentAt ?? this.sentAt,
+      editedAt: editedAt ?? this.editedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      replyMarkup: replyMarkup ?? this.replyMarkup,
+      isSending: isSending ?? this.isSending,
+      isFailed: isFailed ?? this.isFailed,
+      isE2ee: isE2ee ?? this.isE2ee,
+      e2eeContent: e2eeContent ?? this.e2eeContent,
+      isRead: isRead ?? this.isRead,
+    );
+  }
+
   factory ApiMessage.fromJson(Map<String, dynamic> json) {
     final dynamic badgesRaw = json['sender_badges'];
     final List<ApiBadge> badges;
@@ -97,7 +162,7 @@ class ApiMessage {
       });
     }
 
-    final bool isE2ee = json['is_e2ee'] == true;
+    final bool isE2ee = _parseBool(json['is_e2ee']);
     final String? e2eeContentRaw = json['e2ee_content'] as String?;
 
     return ApiMessage(
@@ -120,13 +185,13 @@ class ApiMessage {
       reactions: reactions,
       sentAt: parseApiDateTime(json['sent_at'] as String?),
       editedAt: parseApiDateTimeNullable(json['edited_at'] as String?),
-      isDeleted: json['is_deleted'] as bool? ?? false,
+      isDeleted: _parseBool(json['is_deleted']),
       replyMarkup: json['reply_markup'] != null
           ? InlineKeyboardMarkup.fromJson(json['reply_markup'] as Map<String, dynamic>)
           : null,
       isE2ee: isE2ee,
       e2eeContent: e2eeContentRaw,
-      isRead: json['is_read'] as bool? ?? false,
+      isRead: _parseBool(json['is_read']),
     );
   }
 

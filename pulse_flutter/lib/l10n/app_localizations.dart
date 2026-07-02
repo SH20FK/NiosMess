@@ -200,6 +200,12 @@ abstract class AppLocalizations {
   /// **'Dark'**
   String get commonDark;
 
+  /// No description provided for @commonDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get commonDismiss;
+
   /// No description provided for @commonAutomatic.
   ///
   /// In en, this message translates to:
@@ -236,11 +242,35 @@ abstract class AppLocalizations {
   /// **'Paste from clipboard'**
   String get commonPasteFromClipboard;
 
+  /// No description provided for @commonDiscardChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes?'**
+  String get commonDiscardChanges;
+
+  /// No description provided for @commonDiscardChangesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved changes that will be lost.'**
+  String get commonDiscardChangesDesc;
+
+  /// No description provided for @commonDiscardChangesConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get commonDiscardChangesConfirm;
+
   /// No description provided for @splashTagline.
   ///
   /// In en, this message translates to:
   /// **'Fluid connection, clear communication'**
   String get splashTagline;
+
+  /// No description provided for @splashGraphicsOptimization.
+  ///
+  /// In en, this message translates to:
+  /// **'Optimizing graphics...'**
+  String get splashGraphicsOptimization;
 
   /// No description provided for @loginTitle.
   ///
@@ -3329,7 +3359,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsStorageRefresh.
   ///
   /// In en, this message translates to:
-  /// **'Refresh usage'**
+  /// **'Refresh'**
   String get settingsStorageRefresh;
 
   /// No description provided for @settingsStorageRefreshSubtitle.
@@ -4693,6 +4723,1164 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Revoke session'**
   String get settingsRevokeSession;
+
+  /// No description provided for @tabNiosgram.
+  ///
+  /// In en, this message translates to:
+  /// **'Feed'**
+  String get tabNiosgram;
+
+  /// No description provided for @niosgramTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'NiosGram'**
+  String get niosgramTitle;
+
+  /// No description provided for @niosgramCreatePost.
+  ///
+  /// In en, this message translates to:
+  /// **'New post'**
+  String get niosgramCreatePost;
+
+  /// No description provided for @niosgramPublish.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish'**
+  String get niosgramPublish;
+
+  /// No description provided for @niosgramWhatMind.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s on your mind?'**
+  String get niosgramWhatMind;
+
+  /// No description provided for @niosgramAttachMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach media'**
+  String get niosgramAttachMedia;
+
+  /// No description provided for @niosgramRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get niosgramRemove;
+
+  /// No description provided for @niosgramEmptyFeed.
+  ///
+  /// In en, this message translates to:
+  /// **'No posts yet'**
+  String get niosgramEmptyFeed;
+
+  /// No description provided for @niosgramEmptyFeedDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Be the first to share something!'**
+  String get niosgramEmptyFeedDesc;
+
+  /// No description provided for @niosgramLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get niosgramLoadMore;
+
+  /// No description provided for @niosgramComments.
+  ///
+  /// In en, this message translates to:
+  /// **'Comments'**
+  String get niosgramComments;
+
+  /// No description provided for @niosgramWriteComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a comment...'**
+  String get niosgramWriteComment;
+
+  /// No description provided for @niosgramLike.
+  ///
+  /// In en, this message translates to:
+  /// **'Like'**
+  String get niosgramLike;
+
+  /// No description provided for @niosgramDislike.
+  ///
+  /// In en, this message translates to:
+  /// **'Dislike'**
+  String get niosgramDislike;
+
+  /// No description provided for @niosgramDeletePost.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete post?'**
+  String get niosgramDeletePost;
+
+  /// No description provided for @niosgramDeletePostConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This cannot be undone.'**
+  String get niosgramDeletePostConfirm;
+
+  /// No description provided for @niosgramCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard'**
+  String get niosgramCopied;
+
+  /// No description provided for @niosgramEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get niosgramEdit;
+
+  /// No description provided for @niosgramDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get niosgramDelete;
+
+  /// No description provided for @niosgramCopyText.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy text'**
+  String get niosgramCopyText;
+
+  /// No description provided for @niosgramEditPost.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit your post...'**
+  String get niosgramEditPost;
+
+  /// No description provided for @niosgramFileTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'File exceeds 10 MB limit'**
+  String get niosgramFileTooLarge;
+
+  /// No description provided for @niosgramEmptyContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Write something or attach a file'**
+  String get niosgramEmptyContent;
+
+  /// No description provided for @niosgramFailedLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load feed'**
+  String get niosgramFailedLoad;
+
+  /// No description provided for @settingsPrivacyBannerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications, visibility and system account limits.'**
+  String get settingsPrivacyBannerSubtitle;
+
+  /// No description provided for @settingsPrivacyNotificationsManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage app push notifications'**
+  String get settingsPrivacyNotificationsManage;
+
+  /// No description provided for @settingsPrivacyVisibilityDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Control presence status in the app'**
+  String get settingsPrivacyVisibilityDesc;
+
+  /// No description provided for @settingsPrivacyHideOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide online status'**
+  String get settingsPrivacyHideOnline;
+
+  /// No description provided for @settingsPrivacyHideOnlineDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t show your presence status to other users'**
+  String get settingsPrivacyHideOnlineDesc;
+
+  /// No description provided for @settingsStorageBannerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory usage, cache and app drafts.'**
+  String get settingsStorageBannerSubtitle;
+
+  /// No description provided for @settingsStorageLegendCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache'**
+  String get settingsStorageLegendCache;
+
+  /// No description provided for @settingsStorageLegendDrafts.
+  ///
+  /// In en, this message translates to:
+  /// **'Drafts'**
+  String get settingsStorageLegendDrafts;
+
+  /// No description provided for @settingsStorageCategoryAppData.
+  ///
+  /// In en, this message translates to:
+  /// **'App Data'**
+  String get settingsStorageCategoryAppData;
+
+  /// No description provided for @settingsStorageCategoryCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache'**
+  String get settingsStorageCategoryCache;
+
+  /// No description provided for @settingsStorageCategoryDrafts.
+  ///
+  /// In en, this message translates to:
+  /// **'Drafts'**
+  String get settingsStorageCategoryDrafts;
+
+  /// No description provided for @settingsAboutBannerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Support, legal information and app details.'**
+  String get settingsAboutBannerSubtitle;
+
+  /// No description provided for @settingsAboutHelpDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'FAQ and contact options'**
+  String get settingsAboutHelpDesc;
+
+  /// No description provided for @settingsAboutVersionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'NiosMess'**
+  String get settingsAboutVersionTitle;
+
+  /// No description provided for @settingsAboutVersionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'App version and service items'**
+  String get settingsAboutVersionDesc;
+
+  /// No description provided for @settingsAboutLegalDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Policies and external resources'**
+  String get settingsAboutLegalDesc;
+
+  /// No description provided for @settingsAccountBannerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Login security, email verification and active sessions.'**
+  String get settingsAccountBannerSubtitle;
+
+  /// No description provided for @settingsAccountAccessDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Main actions for access and account recovery'**
+  String get settingsAccountAccessDesc;
+
+  /// No description provided for @settingsLanguageBannerDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'App language and UI localization'**
+  String get settingsLanguageBannerDesc;
+
+  /// No description provided for @settingsLanguageCurrentLang.
+  ///
+  /// In en, this message translates to:
+  /// **'Current language'**
+  String get settingsLanguageCurrentLang;
+
+  /// No description provided for @settingsLanguageTzDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-detection or manual timezone selection'**
+  String get settingsLanguageTzDesc;
+
+  /// No description provided for @settingsLanguageTimePreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Date and time preview'**
+  String get settingsLanguageTimePreview;
+
+  /// No description provided for @settingsLanguageLocalTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Local time'**
+  String get settingsLanguageLocalTime;
+
+  /// No description provided for @sessionsBannerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage your active devices and sessions.'**
+  String get sessionsBannerSubtitle;
+
+  /// No description provided for @sessionsRevokeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This device will be logged out if it\'s the current session.'**
+  String get sessionsRevokeBody;
+
+  /// No description provided for @sessionsActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active: {time}'**
+  String sessionsActive(Object time);
+
+  /// No description provided for @sessionsCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Created: {time}'**
+  String sessionsCreated(Object time);
+
+  /// No description provided for @sessionsCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get sessionsCurrent;
+
+  /// No description provided for @onboardingSlide1Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast calls with less friction'**
+  String get onboardingSlide1Title;
+
+  /// No description provided for @onboardingSlide1Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Call teammates in one tap and switch between voice and video without leaving the flow.'**
+  String get onboardingSlide1Desc;
+
+  /// No description provided for @onboardingSlide2Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Organized conversations'**
+  String get onboardingSlide2Title;
+
+  /// No description provided for @onboardingSlide2Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep your chats, calls, and contacts in one focused workspace that stays easy to scan.'**
+  String get onboardingSlide2Desc;
+
+  /// No description provided for @onboardingSlide3Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Designed for daily rhythm'**
+  String get onboardingSlide3Title;
+
+  /// No description provided for @onboardingSlide3Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Smooth transitions and clear hierarchy keep communication calm even on a busy day.'**
+  String get onboardingSlide3Desc;
+
+  /// No description provided for @onboardingGetStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Get started'**
+  String get onboardingGetStarted;
+
+  /// No description provided for @onboardingNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get onboardingNext;
+
+  /// No description provided for @mediaViewerDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get mediaViewerDownload;
+
+  /// No description provided for @mediaViewerImageLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load image: {error}'**
+  String mediaViewerImageLoadFailed(Object error);
+
+  /// No description provided for @mediaViewerDownloadWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Download is not supported in web version'**
+  String get mediaViewerDownloadWeb;
+
+  /// No description provided for @mediaViewerDownloadFailedExt.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not download. Try opening externally.'**
+  String get mediaViewerDownloadFailedExt;
+
+  /// No description provided for @directResolverResolving.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolving @{username}'**
+  String directResolverResolving(Object username);
+
+  /// No description provided for @directResolverSecretEstablishing.
+  ///
+  /// In en, this message translates to:
+  /// **'Establishing end-to-end encrypted channel...'**
+  String get directResolverSecretEstablishing;
+
+  /// No description provided for @directResolverPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your secure direct conversation in NiosMess.'**
+  String get directResolverPreparing;
+
+  /// No description provided for @directResolverUserNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'User not found'**
+  String get directResolverUserNotFound;
+
+  /// No description provided for @directResolverUserNotFoundDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not resolve this user right now.'**
+  String get directResolverUserNotFoundDesc;
+
+  /// No description provided for @directResolverSecretTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret Chat'**
+  String get directResolverSecretTitle;
+
+  /// No description provided for @postNewPost.
+  ///
+  /// In en, this message translates to:
+  /// **'New post'**
+  String get postNewPost;
+
+  /// No description provided for @postPublish.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish'**
+  String get postPublish;
+
+  /// No description provided for @postHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s on your mind?'**
+  String get postHint;
+
+  /// No description provided for @postRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get postRemove;
+
+  /// No description provided for @postAttachMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach media'**
+  String get postAttachMedia;
+
+  /// No description provided for @postFileTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'File exceeds 10 MB limit'**
+  String get postFileTooLarge;
+
+  /// No description provided for @postEmptyContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Write something or attach a file'**
+  String get postEmptyContent;
+
+  /// No description provided for @chatCreateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not create chat'**
+  String get chatCreateFailed;
+
+  /// No description provided for @chatChannelCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel created'**
+  String get chatChannelCreated;
+
+  /// No description provided for @chatGroupCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Group created'**
+  String get chatGroupCreated;
+
+  /// No description provided for @chatChooseNextStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what you want to do next.'**
+  String get chatChooseNextStep;
+
+  /// No description provided for @chatOpenChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Open chat'**
+  String get chatOpenChat;
+
+  /// No description provided for @chatCopyInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy invite'**
+  String get chatCopyInvite;
+
+  /// No description provided for @chatInviteLinkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite link copied'**
+  String get chatInviteLinkCopied;
+
+  /// No description provided for @chatCommentsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get chatCommentsEnabled;
+
+  /// No description provided for @chatCommentsDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get chatCommentsDisabled;
+
+  /// No description provided for @profileSettingsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get profileSettingsSection;
+
+  /// No description provided for @profileSettingsSectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Main account and app settings'**
+  String get profileSettingsSectionDesc;
+
+  /// No description provided for @profileSectionQuickSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Settings'**
+  String get profileSectionQuickSettings;
+
+  /// No description provided for @profileSectionPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy'**
+  String get profileSectionPrivacy;
+
+  /// No description provided for @profileSectionAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get profileSectionAccount;
+
+  /// No description provided for @profileSectionData.
+  ///
+  /// In en, this message translates to:
+  /// **'Data'**
+  String get profileSectionData;
+
+  /// No description provided for @profileSectionAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get profileSectionAbout;
+
+  /// No description provided for @profileAppearanceDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme, colors'**
+  String get profileAppearanceDesc;
+
+  /// No description provided for @profileLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get profileLanguage;
+
+  /// No description provided for @profileLanguageDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'App language'**
+  String get profileLanguageDesc;
+
+  /// No description provided for @profileTeamTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Team & tools'**
+  String get profileTeamTools;
+
+  /// No description provided for @profileTeamToolsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Project team and additional sections'**
+  String get profileTeamToolsDesc;
+
+  /// No description provided for @chatManageInviteLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite link'**
+  String get chatManageInviteLink;
+
+  /// No description provided for @chatManageCopyInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy invite'**
+  String get chatManageCopyInvite;
+
+  /// No description provided for @chatManageShareInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'Share invite'**
+  String get chatManageShareInvite;
+
+  /// No description provided for @chatManageShareLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Share link'**
+  String get chatManageShareLink;
+
+  /// No description provided for @chatManageCommentsChatId.
+  ///
+  /// In en, this message translates to:
+  /// **'Comments chat ID'**
+  String get chatManageCommentsChatId;
+
+  /// No description provided for @chatManageCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} copied'**
+  String chatManageCopied(Object title);
+
+  /// No description provided for @chatManageCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get chatManageCopy;
+
+  /// No description provided for @chatManageName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get chatManageName;
+
+  /// No description provided for @chatManageDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get chatManageDescription;
+
+  /// No description provided for @chatManageSaveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get chatManageSaveChanges;
+
+  /// No description provided for @chatManageChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel'**
+  String get chatManageChannel;
+
+  /// No description provided for @chatManageGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get chatManageGroup;
+
+  /// No description provided for @adminPanelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Panel'**
+  String get adminPanelTitle;
+
+  /// No description provided for @adminPanelSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage users and chats with admin password.'**
+  String get adminPanelSubtitle;
+
+  /// No description provided for @adminAuthentication.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication'**
+  String get adminAuthentication;
+
+  /// No description provided for @adminPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Password'**
+  String get adminPasswordLabel;
+
+  /// No description provided for @adminConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting...'**
+  String get adminConnecting;
+
+  /// No description provided for @adminConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get adminConnect;
+
+  /// No description provided for @adminStatusBanned.
+  ///
+  /// In en, this message translates to:
+  /// **'Banned'**
+  String get adminStatusBanned;
+
+  /// No description provided for @adminStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get adminStatusActive;
+
+  /// No description provided for @adminStatusFrozen.
+  ///
+  /// In en, this message translates to:
+  /// **'Frozen'**
+  String get adminStatusFrozen;
+
+  /// No description provided for @adminStatusSpamBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Spam Block'**
+  String get adminStatusSpamBlock;
+
+  /// No description provided for @adminActionUnblockSpam.
+  ///
+  /// In en, this message translates to:
+  /// **'Unblock Spam'**
+  String get adminActionUnblockSpam;
+
+  /// No description provided for @adminChatUnban.
+  ///
+  /// In en, this message translates to:
+  /// **'Unban'**
+  String get adminChatUnban;
+
+  /// No description provided for @adminChatBan.
+  ///
+  /// In en, this message translates to:
+  /// **'Ban'**
+  String get adminChatBan;
+
+  /// No description provided for @badgeScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Badges'**
+  String get badgeScreenTitle;
+
+  /// No description provided for @badgeAvailableBadges.
+  ///
+  /// In en, this message translates to:
+  /// **'Available Badges'**
+  String get badgeAvailableBadges;
+
+  /// No description provided for @badgeAdminActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Actions'**
+  String get badgeAdminActions;
+
+  /// No description provided for @badgeCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Badge created'**
+  String get badgeCopied;
+
+  /// No description provided for @e2eeScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret Chats'**
+  String get e2eeScreenTitle;
+
+  /// No description provided for @e2eeBannerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret Chats (E2EE)'**
+  String get e2eeBannerTitle;
+
+  /// No description provided for @e2eeBannerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'End-to-end encrypted chats are tied to this device. Generate a key pair to enable secret chats.'**
+  String get e2eeBannerSubtitle;
+
+  /// No description provided for @e2eeDeviceKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Key'**
+  String get e2eeDeviceKey;
+
+  /// No description provided for @e2eeKeyPairReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Key pair ready'**
+  String get e2eeKeyPairReady;
+
+  /// No description provided for @e2eeNoKeyPair.
+  ///
+  /// In en, this message translates to:
+  /// **'No key pair'**
+  String get e2eeNoKeyPair;
+
+  /// No description provided for @e2eeTapToRegenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to regenerate'**
+  String get e2eeTapToRegenerate;
+
+  /// No description provided for @e2eeGenerateKeyPair.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate RSA-2048 key pair for E2EE'**
+  String get e2eeGenerateKeyPair;
+
+  /// No description provided for @e2eeRotateKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotate Key'**
+  String get e2eeRotateKey;
+
+  /// No description provided for @e2eeRotateKeySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate new key pair (old secret chats will break)'**
+  String get e2eeRotateKeySubtitle;
+
+  /// No description provided for @e2eeHowItWorks.
+  ///
+  /// In en, this message translates to:
+  /// **'How it works'**
+  String get e2eeHowItWorks;
+
+  /// No description provided for @e2eeHowItWorksDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'• Each device generates its own RSA-2048 key pair\n• Public key is shared with the server\n• Private key stays on this device only\n• Secret chats are visible only on this device\n• Messages are encrypted with AES-256-GCM\n• The AES key is encrypted with the recipient\'s RSA public key'**
+  String get e2eeHowItWorksDesc;
+
+  /// No description provided for @e2eeCreateSecretChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Secret Chat'**
+  String get e2eeCreateSecretChat;
+
+  /// No description provided for @e2eeCreateSecretChatDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'To start a secret chat, open a direct chat from contacts.\nSecret chat option will be available after generating your key pair.'**
+  String get e2eeCreateSecretChatDesc;
+
+  /// No description provided for @e2eeRotateConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotate Key?'**
+  String get e2eeRotateConfirmTitle;
+
+  /// No description provided for @e2eeRotateConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your old secret chats will become undecryptable after key rotation. New messages will use the fresh key.'**
+  String get e2eeRotateConfirmBody;
+
+  /// No description provided for @e2eeRotateConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotate'**
+  String get e2eeRotateConfirm;
+
+  /// No description provided for @e2eeGeneratingKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating encryption keys'**
+  String get e2eeGeneratingKeys;
+
+  /// No description provided for @e2eeGeneratingKeysDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'RSA-2048 key pair is being created.\nThis may take a few seconds...'**
+  String get e2eeGeneratingKeysDesc;
+
+  /// No description provided for @e2eeKeyRotated.
+  ///
+  /// In en, this message translates to:
+  /// **'Key rotated and uploaded'**
+  String get e2eeKeyRotated;
+
+  /// No description provided for @chatMembersBanConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ban member?'**
+  String get chatMembersBanConfirmTitle;
+
+  /// No description provided for @chatMembersUnbanConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unban member?'**
+  String get chatMembersUnbanConfirmTitle;
+
+  /// No description provided for @chatMembersBanConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This member will lose access until you restore them.'**
+  String get chatMembersBanConfirmBody;
+
+  /// No description provided for @chatMembersUnbanConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore this member and let them rejoin the conversation.'**
+  String get chatMembersUnbanConfirmBody;
+
+  /// No description provided for @chatMembersMuteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute member?'**
+  String get chatMembersMuteConfirmTitle;
+
+  /// No description provided for @chatMembersUnmuteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute member?'**
+  String get chatMembersUnmuteConfirmTitle;
+
+  /// No description provided for @chatMembersMuteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Muted members can stay in the chat but cannot participate normally.'**
+  String get chatMembersMuteConfirmBody;
+
+  /// No description provided for @chatMembersUnmuteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow this member to participate again.'**
+  String get chatMembersUnmuteConfirmBody;
+
+  /// No description provided for @chatMembersFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed: {error}'**
+  String chatMembersFailed(Object error);
+
+  /// No description provided for @contactsFailedToLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load: {error}'**
+  String contactsFailedToLoad(Object error);
+
+  /// No description provided for @contactsFailedToSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to search: {error}'**
+  String contactsFailedToSearch(Object error);
+
+  /// No description provided for @contactsCouldNotOpenChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open direct chat'**
+  String get contactsCouldNotOpenChat;
+
+  /// No description provided for @contactsFailedToOpenChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open direct chat: {error}'**
+  String contactsFailedToOpenChat(Object error);
+
+  /// No description provided for @contactsMembersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} members'**
+  String contactsMembersCount(int count);
+
+  /// No description provided for @settingsSupportEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'support@ni-os.ru'**
+  String get settingsSupportEmail;
+
+  /// No description provided for @settingsPrivacyPolicyUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'ni-os.ru/privacy'**
+  String get settingsPrivacyPolicyUrl;
+
+  /// No description provided for @settingsTermsOfServiceUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'ni-os.ru/terms'**
+  String get settingsTermsOfServiceUrl;
+
+  /// No description provided for @settingsWebsiteUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'ni-os.ru'**
+  String get settingsWebsiteUrl;
+
+  /// No description provided for @settingsAboutNiosMess.
+  ///
+  /// In en, this message translates to:
+  /// **'NiosMess'**
+  String get settingsAboutNiosMess;
+
+  /// No description provided for @biometricTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometrics'**
+  String get biometricTitle;
+
+  /// No description provided for @biometricEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled — sign in with fingerprint/face'**
+  String get biometricEnabled;
+
+  /// No description provided for @biometricDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get biometricDisabled;
+
+  /// No description provided for @biometricAuthReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm your identity to enable biometrics'**
+  String get biometricAuthReason;
+
+  /// No description provided for @chatManageCopiedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} copied'**
+  String chatManageCopiedLabel(Object title);
+
+  /// No description provided for @chatAiAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Assistant'**
+  String get chatAiAssistant;
+
+  /// No description provided for @chatAiProcessed.
+  ///
+  /// In en, this message translates to:
+  /// **'Text successfully processed by AI'**
+  String get chatAiProcessed;
+
+  /// No description provided for @chatAiUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get chatAiUndo;
+
+  /// No description provided for @chatAiError.
+  ///
+  /// In en, this message translates to:
+  /// **'AI processing error: {error}'**
+  String chatAiError(Object error);
+
+  /// No description provided for @chatAiFixErrors.
+  ///
+  /// In en, this message translates to:
+  /// **'Fix errors'**
+  String get chatAiFixErrors;
+
+  /// No description provided for @chatAiFormal.
+  ///
+  /// In en, this message translates to:
+  /// **'Formal'**
+  String get chatAiFormal;
+
+  /// No description provided for @chatAiTranslate.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate'**
+  String get chatAiTranslate;
+
+  /// No description provided for @chatAiLangEn.
+  ///
+  /// In en, this message translates to:
+  /// **'Eng'**
+  String get chatAiLangEn;
+
+  /// No description provided for @chatAiLangRu.
+  ///
+  /// In en, this message translates to:
+  /// **'Rus'**
+  String get chatAiLangRu;
+
+  /// No description provided for @chatAiLangDe.
+  ///
+  /// In en, this message translates to:
+  /// **'Deu'**
+  String get chatAiLangDe;
+
+  /// No description provided for @chatAiLangFr.
+  ///
+  /// In en, this message translates to:
+  /// **'Fra'**
+  String get chatAiLangFr;
+
+  /// No description provided for @chatAiLangEs.
+  ///
+  /// In en, this message translates to:
+  /// **'Esp'**
+  String get chatAiLangEs;
+
+  /// No description provided for @chatAiLangZh.
+  ///
+  /// In en, this message translates to:
+  /// **'Zho'**
+  String get chatAiLangZh;
+
+  /// No description provided for @chatDraftRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft restored on this device'**
+  String get chatDraftRestored;
+
+  /// No description provided for @fileOpenerInvalidUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid file URL'**
+  String get fileOpenerInvalidUrl;
+
+  /// No description provided for @fileOpenerFailedOpenRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open remote file'**
+  String get fileOpenerFailedOpenRemote;
+
+  /// No description provided for @fileOpenerCannotOpenType.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot open this file type'**
+  String get fileOpenerCannotOpenType;
+
+  /// No description provided for @fileOpenerApkAndroidOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'APK files can only be installed on Android devices'**
+  String get fileOpenerApkAndroidOnly;
+
+  /// No description provided for @fileOpenerFailedApk.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open APK: {error}'**
+  String fileOpenerFailedApk(Object error);
+
+  /// No description provided for @fileOpenerExeNotOnMobile.
+  ///
+  /// In en, this message translates to:
+  /// **'EXE files cannot be opened on mobile devices'**
+  String get fileOpenerExeNotOnMobile;
+
+  /// No description provided for @fileOpenerFailedExe.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open EXE: {error}'**
+  String fileOpenerFailedExe(Object error);
+
+  /// No description provided for @fileOpenerNoAppFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No app found to open {type} files'**
+  String fileOpenerNoAppFound(Object type);
 }
 
 class _AppLocalizationsDelegate

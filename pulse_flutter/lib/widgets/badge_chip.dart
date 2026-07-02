@@ -10,7 +10,7 @@ enum BadgeDisplayMode {
   avatarBadge,
 }
 
-enum _BadgeType { verified, developer, admin, premium, support, bot, default_ }
+enum _BadgeType { verified, developer, admin, premium, support, bot, fire, diamond, trophy, default_ }
 
 class _BadgeResolved {
   const _BadgeResolved({
@@ -30,6 +30,66 @@ class _BadgeResolved {
 }
 
 class BadgeResolver {
+  static const Map<String, IconData> _emojiToIcon = <String, IconData>{
+    '\u2705': Icons.check_circle_rounded,
+    '\u2714': Icons.verified_rounded,
+    '\uD83D\uDC51': Icons.workspace_premium_rounded,
+    '\uD83D\uDD20': Icons.code_rounded,
+    '\uD83D\uDEE0': Icons.build_rounded,
+    '\uD83D\uDCBB': Icons.computer_rounded,
+    '\uD83D\uDC68\u200D\uD83D\uDCBB': Icons.developer_board_rounded,
+    '\uD83D\uDD12': Icons.lock_rounded,
+    '\uD83D\uDD35': Icons.shield_rounded,
+    '\uD83D\uDEE1': Icons.shield_rounded,
+    '\u2B50': Icons.star_rounded,
+    '\u2B50\uFE0F': Icons.star_rounded,
+    '\uD83C\uDF1F': Icons.auto_awesome_rounded,
+    '\uD83E\uDD16': Icons.smart_toy_rounded,
+    '\uD83D\uDC7E': Icons.smart_toy_rounded,
+    '\uD83D\uDCFB': Icons.headset_mic_rounded,
+    '\uD83D\uDDA5': Icons.headset_mic_rounded,
+    '\uD83D\uDD25': Icons.local_fire_department_rounded,
+    '\uD83D\uDD25\uFE0F': Icons.local_fire_department_rounded,
+    '\uD83D\uDC8E': Icons.diamond_rounded,
+    '\uD83C\uDFC6': Icons.emoji_events_rounded,
+    '\uD83C\uDFC5': Icons.emoji_events_rounded,
+    '\uD83C\uDFAF': Icons.gps_fixed_rounded,
+    '\uD83D\uDCA1': Icons.lightbulb_rounded,
+    '\uD83C\uDFA8': Icons.palette_rounded,
+    '\uD83D\uDCF8': Icons.camera_alt_rounded,
+    '\uD83C\uDFB5': Icons.music_note_rounded,
+    '\uD83C\uDFB6': Icons.queue_music_rounded,
+    '\uD83D\uDCB0': Icons.monetization_on_rounded,
+    '\uD83D\uDCB3': Icons.payments_rounded,
+    '\uD83D\uDCAF': Icons.bolt_rounded,
+    '\u26A1': Icons.bolt_rounded,
+    '\u26A1\uFE0F': Icons.bolt_rounded,
+    '\uD83C\uDF81': Icons.card_giftcard_rounded,
+    '\uD83D\uDCA3': Icons.whatshot_rounded,
+    '\uD83D\uDC4D': Icons.thumb_up_rounded,
+    '\uD83D\uDC4E': Icons.thumb_down_rounded,
+    '\uD83D\uDE0D': Icons.favorite_rounded,
+    '\u2764': Icons.favorite_rounded,
+    '\u2764\uFE0F': Icons.favorite_rounded,
+    '\uD83D\uDCAB': Icons.auto_awesome_rounded,
+    '\uD83C\uDF08': Icons.auto_awesome_rounded,
+    '\uD83C\uDF19': Icons.nightlight_round,
+    '\uD83C\uDF1E': Icons.wb_sunny_rounded,
+    '\uD83D\uDC36': Icons.pets_rounded,
+    '\uD83D\uDC31': Icons.pets_rounded,
+    '\uD83D\uDE80': Icons.rocket_launch_rounded,
+    '\uD83D\uDD10': Icons.lock_rounded,
+    '\uD83D\uDD11': Icons.key_rounded,
+    '\u2139': Icons.info_rounded,
+    '\u2139\uFE0F': Icons.info_rounded,
+    '\u2757': Icons.error_rounded,
+    '\u2753': Icons.help_rounded,
+    '\u267E': Icons.accessibility_new_rounded,
+    '\u267E\uFE0F': Icons.accessibility_new_rounded,
+    '\uD83C\uDD98': Icons.add_moderator_rounded,
+    '\uD83D\uDEAB': Icons.block_rounded,
+  };
+
   static bool _isEmoji(String text) {
     if (text.isEmpty) return false;
     for (final int rune in text.runes) {
@@ -48,70 +108,105 @@ class BadgeResolver {
 
   static _BadgeResolved resolve(String name, String icon) {
     final String cleanIcon = icon.trim();
+
+    // Phase 1: keyword-based resolution (most reliable)
+    final _BadgeResolved? keyword = _resolveByKeywords(name, cleanIcon);
+    if (keyword != null) return keyword;
+
+    // Phase 2: emoji → try mapping, then fallback to icon
     if (_isEmoji(cleanIcon)) {
+      final IconData? mapped = _emojiToIcon[cleanIcon];
+      if (mapped != null) {
+        return _BadgeResolved(type: _BadgeType.default_, iconData: mapped);
+      }
+      // Unknown emoji — still show as icon, not as text emoji
       return _BadgeResolved(type: _BadgeType.default_, emoji: cleanIcon);
     }
 
+    // Phase 3: plain text icon field that looks like a known symbol
+    if (cleanIcon == '\u2714' || cleanIcon == '\u2714\uFE0F' ||
+        cleanIcon == '\u2705' || cleanIcon == '\u2713') {
+      return const _BadgeResolved(type: _BadgeType.verified, iconData: Icons.verified_rounded);
+    }
+
+    // Phase 4: first-letter fallback
+    final String fallback = name.trim().isNotEmpty
+        ? String.fromCharCode(name.trim().runes.first).toUpperCase()
+        : (cleanIcon.isNotEmpty && !_isEmoji(cleanIcon)
+            ? String.fromCharCode(cleanIcon.runes.first).toUpperCase()
+            : '\u2022');
+    return _BadgeResolved(type: _BadgeType.default_, fallbackText: fallback);
+  }
+
+  static _BadgeResolved? _resolveByKeywords(String name, String icon) {
     final String source = '${name.toLowerCase()} ${icon.toLowerCase()}';
 
     if (source.contains('verified') || source.contains('check') ||
-        icon.contains('\u2714') || icon.contains('\u2705')) {
-      return const _BadgeResolved(
-        type: _BadgeType.verified,
-        iconData: Icons.verified_rounded,
-      );
+        source.contains('confirm') || source.contains('auth')) {
+      return const _BadgeResolved(type: _BadgeType.verified, iconData: Icons.verified_rounded);
     }
     if (source.contains('crown') || source.contains('founder') ||
-        source.contains('premium') || icon.contains('\uD83D\uDC51')) {
-      return const _BadgeResolved(
-        type: _BadgeType.premium,
-        iconData: Icons.workspace_premium_rounded,
-      );
+        source.contains('premium') || source.contains('vip') ||
+        source.contains('king') || source.contains('queen')) {
+      return const _BadgeResolved(type: _BadgeType.premium, iconData: Icons.workspace_premium_rounded);
     }
     if (source.contains('hammer') || source.contains('tool') ||
-        source.contains('build') || icon.contains('\uD83D\uDD20') ||
-        source.contains('code') || source.contains('dev')) {
-      return const _BadgeResolved(
-        type: _BadgeType.developer,
-        iconData: Icons.code_rounded,
-      );
+        source.contains('build') || source.contains('code') ||
+        source.contains('dev') || source.contains('engineer') ||
+        source.contains('developer')) {
+      return const _BadgeResolved(type: _BadgeType.developer, iconData: Icons.build_rounded);
     }
     if (source.contains('shield') || source.contains('mod') ||
-        source.contains('admin')) {
-      return const _BadgeResolved(
-        type: _BadgeType.admin,
-        iconData: Icons.shield_rounded,
-      );
+        source.contains('admin') || source.contains('guard')) {
+      return const _BadgeResolved(type: _BadgeType.admin, iconData: Icons.shield_rounded);
     }
-    if (source.contains('star')) {
-      return const _BadgeResolved(
-        type: _BadgeType.premium,
-        iconData: Icons.star_rounded,
-      );
+    if (source.contains('star') || source.contains('top') ||
+        source.contains('best') || source.contains('mvp')) {
+      return const _BadgeResolved(type: _BadgeType.premium, iconData: Icons.star_rounded);
     }
-    if (source.contains('bot')) {
-      return const _BadgeResolved(
-        type: _BadgeType.bot,
-        iconData: Icons.smart_toy_rounded,
-      );
+    if (source.contains('bot') || source.contains('ai') ||
+        source.contains('auto') || source.contains('system')) {
+      return const _BadgeResolved(type: _BadgeType.bot, iconData: Icons.smart_toy_rounded);
     }
-    if (source.contains('support')) {
-      return const _BadgeResolved(
-        type: _BadgeType.support,
-        iconData: Icons.headset_mic_rounded,
-      );
+    if (source.contains('support') || source.contains('help') ||
+        source.contains('service')) {
+      return const _BadgeResolved(type: _BadgeType.support, iconData: Icons.headset_mic_rounded);
     }
-
-    final String fallback = name.trim().isNotEmpty
-        ? String.fromCharCode(name.trim().runes.first).toUpperCase()
-        : (cleanIcon.isNotEmpty
-            ? String.fromCharCode(cleanIcon.runes.first).toUpperCase()
-            : '\u2022');
-
-    if (_isEmoji(fallback)) {
-      return _BadgeResolved(type: _BadgeType.default_, emoji: fallback);
+    if (source.contains('fire') || source.contains('hot') ||
+        source.contains('flame') || source.contains('lit')) {
+      return const _BadgeResolved(type: _BadgeType.fire, iconData: Icons.local_fire_department_rounded);
     }
-    return _BadgeResolved(type: _BadgeType.default_, fallbackText: fallback);
+    if (source.contains('diamond') || source.contains('gem') ||
+        source.contains('jewel') || source.contains('elite')) {
+      return const _BadgeResolved(type: _BadgeType.diamond, iconData: Icons.diamond_rounded);
+    }
+    if (source.contains('trophy') || source.contains('winner') ||
+        source.contains('champion') || source.contains('award')) {
+      return const _BadgeResolved(type: _BadgeType.trophy, iconData: Icons.emoji_events_rounded);
+    }
+    if (source.contains('bolt') || source.contains('lightning') ||
+        source.contains('fast') || source.contains('power')) {
+      return const _BadgeResolved(type: _BadgeType.default_, iconData: Icons.bolt_rounded);
+    }
+    if (source.contains('lock') || source.contains('secure')) {
+      return const _BadgeResolved(type: _BadgeType.default_, iconData: Icons.lock_rounded);
+    }
+    if (source.contains('key') || source.contains('access')) {
+      return const _BadgeResolved(type: _BadgeType.default_, iconData: Icons.key_rounded);
+    }
+    if (source.contains('info') || source.contains('notice')) {
+      return const _BadgeResolved(type: _BadgeType.default_, iconData: Icons.info_rounded);
+    }
+    if (source.contains('alert') || source.contains('warn')) {
+      return const _BadgeResolved(type: _BadgeType.default_, iconData: Icons.warning_rounded);
+    }
+    if (source.contains('love') || source.contains('heart')) {
+      return const _BadgeResolved(type: _BadgeType.default_, iconData: Icons.favorite_rounded);
+    }
+    if (source.contains('new') || source.contains('fresh')) {
+      return const _BadgeResolved(type: _BadgeType.default_, iconData: Icons.new_releases_rounded);
+    }
+    return null;
   }
 
   static bool isStatusBadge(ApiBadge badge) {

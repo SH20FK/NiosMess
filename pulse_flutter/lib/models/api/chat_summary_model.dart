@@ -1,6 +1,10 @@
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 
+bool _parseBool(dynamic value) {
+  return value == true || value == 1 || value == '1' || value == 'true';
+}
+
 class ApiChatSummary {
   const ApiChatSummary({
     required this.id,
@@ -17,6 +21,7 @@ class ApiChatSummary {
     this.commentsChatId,
     this.inviteLink,
     this.shareLink,
+    this.isSecret = false,
   });
 
   final int id;
@@ -33,6 +38,7 @@ class ApiChatSummary {
   final int? commentsChatId;
   final String? inviteLink;
   final String? shareLink;
+  final bool isSecret;
 
   DateTime get lastActivity =>
       lastMessage?.sentAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -66,10 +72,11 @@ class ApiChatSummary {
       membersCount: json['members_count'] as int? ?? 0,
       partnerBadges: partnerBadges,
       description: json['description'] as String? ?? '',
-      commentsEnabled: json['comments_enabled'] as bool?,
+      commentsEnabled: json['comments_enabled'] != null ? _parseBool(json['comments_enabled']) : null,
       commentsChatId: json['comments_chat_id'] as int?,
       inviteLink: json['invite_link'] as String?,
       shareLink: json['share_link'] as String?,
+      isSecret: _parseBool(json['is_secret']),
       lastMessage: last is Map<String, dynamic>
           ? ApiMessage.fromJson(last)
           : null,
@@ -91,6 +98,7 @@ class ApiChatSummary {
     int? commentsChatId,
     String? inviteLink,
     String? shareLink,
+    bool? isSecret,
   }) {
     return ApiChatSummary(
       id: id ?? this.id,
@@ -107,6 +115,7 @@ class ApiChatSummary {
       commentsChatId: commentsChatId ?? this.commentsChatId,
       inviteLink: inviteLink ?? this.inviteLink,
       shareLink: shareLink ?? this.shareLink,
+      isSecret: isSecret ?? this.isSecret,
     );
   }
 
@@ -125,6 +134,7 @@ class ApiChatSummary {
       'comments_chat_id': commentsChatId,
       'invite_link': inviteLink,
       'share_link': shareLink,
+      'is_secret': isSecret,
       'last_message': lastMessage?.toJson(),
     };
   }

@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 class AppDialogAction {
@@ -52,9 +50,7 @@ class AppDialog extends StatelessWidget {
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(32),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-            child: DecoratedBox(
+          child: DecoratedBox(
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHigh.withValues(alpha: 0.90),
                 borderRadius: BorderRadius.circular(32),
@@ -141,7 +137,6 @@ class AppDialog extends StatelessWidget {
                 ),
               ),
             ),
-          ),
         ),
       ),
     );

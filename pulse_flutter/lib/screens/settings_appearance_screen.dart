@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
@@ -160,7 +160,7 @@ class _VaffuruThemeSettingsScreenState
   void _playFeedback(UiSettingsState settings) {
     ref.read(appSoundProvider).playUiTick();
     if (settings.haptics) {
-      HapticFeedback.selectionClick();
+      HapticService.tap();
     }
   }
 
@@ -220,7 +220,7 @@ class _VaffuruThemeSettingsScreenState
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: _paletteOrder.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (BuildContext context, int index) {
                   final _ThemePaletteId palette = _paletteOrder[index];
                   final Color seed = _paletteSeeds[palette]!;
@@ -424,10 +424,11 @@ class _ThemeHeroCard extends StatelessWidget {
                 final double t = _VaffuruThemeSettingsScreenState._expressiveCurve
                     .transform(controller.value);
                 return CustomPaint(
-                  painter: _AccentFogPainter(
+                  painter: _LiquidMeshPainter(
                     progress: t,
                     scheme: scheme,
                     density: density,
+                    optimize: settings.optimizeForWeakDevices,
                   ),
                 );
               },
@@ -618,181 +619,162 @@ class _SwitchCardTile extends StatelessWidget {
   }
 }
 
-class _AccentFogPainter extends CustomPainter {
-  const _AccentFogPainter({
+class _LiquidMeshPainter extends CustomPainter {
+  const _LiquidMeshPainter({
     required this.progress,
     required this.scheme,
     required this.density,
+    required this.optimize,
   });
 
   final double progress;
   final ColorScheme scheme;
   final _DensitySpec density;
+  final bool optimize;
+
+  static final List<Color Function(ColorScheme)> _backColors = <Color Function(ColorScheme)>[
+    (ColorScheme s) => s.primary,
+    (ColorScheme s) => s.secondary,
+    (ColorScheme s) => s.tertiary,
+    (ColorScheme s) => s.primaryContainer,
+    (ColorScheme s) => s.secondaryContainer,
+  ];
+
+  static final List<Color Function(ColorScheme)> _frontColors = <Color Function(ColorScheme)>[
+    (ColorScheme s) => s.tertiary,
+    (ColorScheme s) => s.primary,
+    (ColorScheme s) => s.secondaryContainer,
+    (ColorScheme s) => s.primaryContainer,
+  ];
 
   @override
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
-    final Paint base = Paint()
+    final Paint basePaint = Paint()
       ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
         colors: <Color>[
           Color.alphaBlend(
-            scheme.primary.withValues(alpha: 0.045),
-            scheme.surfaceContainerHighest,
+            scheme.primary.withValues(alpha: 0.06),
+            scheme.surfaceContainerHigh,
           ),
           Color.alphaBlend(
-            scheme.tertiary.withValues(alpha: 0.03),
+            scheme.secondary.withValues(alpha: 0.04),
             scheme.surfaceContainerLow,
+          ),
+          Color.alphaBlend(
+            scheme.tertiary.withValues(alpha: 0.05),
+            scheme.surfaceContainerHighest,
           ),
         ],
       ).createShader(rect);
-    canvas.drawRect(rect, base);
+    canvas.drawRect(rect, basePaint);
 
+    final double t = progress * math.pi * 2;
     final double amp = density.fogAmplitude;
-    final double blur = density.fogBlurBoost;
+    final double blurBoost = density.fogBlurBoost;
 
-    _drawFogCluster(
-      canvas,
-      center: Offset(
-        size.width * (0.22 + 0.038 * math.sin(progress * math.pi * 2) * amp),
-        size.height * 0.24,
-      ),
-      radiusX: size.width * 0.20,
-      radiusY: 32 * amp,
-      color: scheme.primary.withValues(alpha: 0.15),
-      blurSigma: 24 * blur,
-      lobeScale: 0.94,
-    );
-    _drawFogCluster(
-      canvas,
-      center: Offset(
-        size.width * (0.52 + 0.03 * math.cos(progress * math.pi * 2.1) * amp),
-        size.height * 0.35,
-      ),
-      radiusX: size.width * 0.24,
-      radiusY: 36 * amp,
-      color: scheme.secondary.withValues(alpha: 0.12),
-      blurSigma: 26 * blur,
-      lobeScale: 1.0,
-    );
-    _drawFogCluster(
-      canvas,
-      center: Offset(
-        size.width * (0.76 + 0.024 * math.sin(progress * math.pi * 2.0 + 0.9) * amp),
-        size.height * 0.28,
-      ),
-      radiusX: size.width * 0.16,
-      radiusY: 26 * amp,
-      color: scheme.primaryContainer.withValues(alpha: 0.17),
-      blurSigma: 22 * blur,
-      lobeScale: 0.88,
-    );
-    _drawFogCluster(
-      canvas,
-      center: Offset(
-        size.width * (0.42 + 0.026 * math.sin(progress * math.pi * 2.5 + 1.2) * amp),
-        size.height * 0.60,
-      ),
-      radiusX: size.width * 0.28,
-      radiusY: 42 * amp,
-      color: scheme.tertiary.withValues(alpha: 0.13),
-      blurSigma: 28 * blur,
-      lobeScale: 1.04,
-    );
-    _drawFogCluster(
-      canvas,
-      center: Offset(
-        size.width * (0.72 + 0.022 * math.cos(progress * math.pi * 2.4 + 0.8) * amp),
-        size.height * 0.68,
-      ),
-      radiusX: size.width * 0.20,
-      radiusY: 30 * amp,
-      color: scheme.primary.withValues(alpha: 0.10),
-      blurSigma: 24 * blur,
-      lobeScale: 0.90,
+    _drawMeshLayer(
+      canvas: canvas,
+      size: size,
+      t: t,
+      amp: amp,
+      blurBoost: blurBoost,
+      cols: optimize ? 3 : 6,
+      rows: optimize ? 3 : 5,
+      colorPickers: _backColors,
+      alpha: 0.14,
+      blurBase: optimize ? 52.0 : 38.0,
+      radiusFactor: 0.34,
+      blendMode: BlendMode.softLight,
+      speedMul: 0.6,
+      phaseOffset: 0.0,
     );
 
-
+    _drawMeshLayer(
+      canvas: canvas,
+      size: size,
+      t: t,
+      amp: amp,
+      blurBoost: blurBoost,
+      cols: optimize ? 2 : 5,
+      rows: optimize ? 2 : 4,
+      colorPickers: _frontColors,
+      alpha: 0.16,
+      blurBase: optimize ? 44.0 : 28.0,
+      radiusFactor: 0.26,
+      blendMode: BlendMode.overlay,
+      speedMul: 1.0,
+      phaseOffset: 1.7,
+    );
   }
 
-  void _drawFogCluster(
-    Canvas canvas, {
-    required Offset center,
-    required double radiusX,
-    required double radiusY,
-    required Color color,
-    required double blurSigma,
-    required double lobeScale,
+  void _drawMeshLayer({
+    required Canvas canvas,
+    required Size size,
+    required double t,
+    required double amp,
+    required double blurBoost,
+    required int cols,
+    required int rows,
+    required List<Color Function(ColorScheme)> colorPickers,
+    required double alpha,
+    required double blurBase,
+    required double radiusFactor,
+    required BlendMode blendMode,
+    required double speedMul,
+    required double phaseOffset,
   }) {
-    final Paint corePaint = Paint()
-      ..color = color
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurSigma);
-    final Paint edgePaint = Paint()
-      ..color = color.withValues(alpha: color.a * 0.52)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurSigma * 0.55);
+    canvas.saveLayer(Offset.zero & size, Paint()..blendMode = blendMode);
 
-    final Path body = Path()
-      ..addOval(
-        Rect.fromCenter(
-          center: center,
-          width: radiusX * 2.0,
-          height: radiusY * 2.0,
-        ),
-      )
-      ..addOval(
-        Rect.fromCenter(
-          center: center.translate(-radiusX * 0.34, radiusY * 0.06),
-          width: radiusX * 1.05 * lobeScale,
-          height: radiusY * 1.10 * lobeScale,
-        ),
-      )
-      ..addOval(
-        Rect.fromCenter(
-          center: center.translate(radiusX * 0.30, -radiusY * 0.08),
-          width: radiusX * 1.18 * lobeScale,
-          height: radiusY * 1.22 * lobeScale,
-        ),
-      )
-      ..addOval(
-        Rect.fromCenter(
-          center: center.translate(radiusX * 0.02, -radiusY * 0.22),
-          width: radiusX * 0.96 * lobeScale,
-          height: radiusY * 0.92 * lobeScale,
-        ),
-      )
-      ..addOval(
-        Rect.fromCenter(
-          center: center.translate(-radiusX * 0.12, radiusY * 0.20),
-          width: radiusX * 1.20 * lobeScale,
-          height: radiusY * 0.88 * lobeScale,
-        ),
-      );
+    final double cellW = size.width / (cols - 1);
+    final double cellH = size.height / (rows - 1);
+    final double baseRadius = size.shortestSide * radiusFactor;
 
-    final Path accent = Path()
-      ..addOval(
-        Rect.fromCenter(
-          center: center.translate(radiusX * 0.08, -radiusY * 0.10),
-          width: radiusX * 1.10,
-          height: radiusY * 0.92,
-        ),
-      )
-      ..addOval(
-        Rect.fromCenter(
-          center: center.translate(-radiusX * 0.24, -radiusY * 0.04),
-          width: radiusX * 0.86,
-          height: radiusY * 0.82,
-        ),
-      );
+    for (int row = 0; row < rows; row++) {
+      for (int col = 0; col < cols; col++) {
+        final int idx = row * cols + col;
+        final double seed = idx * 1.618033988749895;
+        final double freqX = 0.3 + (seed % 1.0) * 0.5;
+        final double freqY = 0.25 + ((seed * 1.3) % 1.0) * 0.45;
+        final double phaseX = seed * 2.399963;
+        final double phaseY = seed * 4.188790;
+        final double driftX = math.sin(t * freqX * speedMul + phaseX) * amp * 18;
+        final double driftY = math.cos(t * freqY * speedMul + phaseY) * amp * 14;
 
-    canvas.drawPath(body, corePaint);
-    canvas.drawPath(accent, edgePaint);
+        final double px = col * cellW + driftX;
+        final double py = row * cellH + driftY;
+
+        final Color baseColor = colorPickers[idx % colorPickers.length](scheme);
+        final double jitteredAlpha = alpha + ((seed * 7.0) % 1.0 - 0.5) * 0.04;
+        final Color color = baseColor.withValues(alpha: jitteredAlpha.clamp(0.06, 0.22));
+        final double sigma = blurBase * blurBoost + ((seed * 3.0) % 1.0) * 8;
+        final double r = baseRadius * (0.85 + ((seed * 5.0) % 1.0) * 0.3);
+
+        final Paint paint = Paint()
+          ..shader = RadialGradient(
+            colors: <Color>[
+              color,
+              color.withValues(alpha: color.a * 0.4),
+              color.withValues(alpha: 0.0),
+            ],
+            stops: const <double>[0.0, 0.45, 1.0],
+          ).createShader(Rect.fromCircle(center: Offset(px, py), radius: r))
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, sigma);
+
+        canvas.drawCircle(Offset(px, py), r, paint);
+      }
+    }
+
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant _AccentFogPainter oldDelegate) {
+  bool shouldRepaint(covariant _LiquidMeshPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.scheme != scheme ||
-        oldDelegate.density != density;
+        oldDelegate.density != density ||
+        oldDelegate.optimize != optimize;
   }
 }

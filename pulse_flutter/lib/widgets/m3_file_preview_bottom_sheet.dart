@@ -543,7 +543,7 @@ class _AudioPreviewContentState extends State<_AudioPreviewContent> {
       debugPrint('[AudioPreview] Play error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to play audio: $e')),
+          SnackBar(content: Text(context.l10n.commonFailed('$e'))),
         );
       }
     }

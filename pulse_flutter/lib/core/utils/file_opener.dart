@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:open_file/open_file.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -9,7 +10,7 @@ class FileOpener {
     final Uri? uri = Uri.tryParse(url);
     if (uri == null) {
       if (context.mounted) {
-        _showError(context, 'Invalid file URL');
+        _showError(context, context.l10n.fileOpenerInvalidUrl);
       }
       return;
     }
@@ -19,7 +20,7 @@ class FileOpener {
       mode: LaunchMode.externalApplication,
     );
     if (!launched && context.mounted) {
-      _showError(context, 'Failed to open remote file');
+      _showError(context, context.l10n.fileOpenerFailedOpenRemote);
     }
   }
 
@@ -37,7 +38,7 @@ class FileOpener {
 
     if (!typeInfo.canOpen) {
       if (context.mounted) {
-        _showError(context, 'Cannot open this file type');
+        _showError(context, context.l10n.fileOpenerCannotOpenType);
       }
       return;
     }
@@ -56,7 +57,7 @@ class FileOpener {
       if (context.mounted) {
         _showError(
           context,
-          'APK files can only be installed on Android devices',
+          context.l10n.fileOpenerApkAndroidOnly,
         );
       }
       return;
@@ -64,7 +65,7 @@ class FileOpener {
 
     final OpenResult result = await OpenFile.open(filePath);
     if (result.type != ResultType.done && context.mounted) {
-      _showError(context, 'Failed to open APK: ${result.message}');
+      _showError(context, context.l10n.fileOpenerFailedApk(result.message));
     }
   }
 
@@ -73,14 +74,14 @@ class FileOpener {
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS) {
       if (context.mounted) {
-        _showError(context, 'EXE files cannot be opened on mobile devices');
+        _showError(context, context.l10n.fileOpenerExeNotOnMobile);
       }
       return;
     }
 
     final OpenResult result = await OpenFile.open(filePath);
     if (result.type != ResultType.done && context.mounted) {
-      _showError(context, 'Failed to open EXE: ${result.message}');
+      _showError(context, context.l10n.fileOpenerFailedExe(result.message));
     }
   }
 
@@ -92,7 +93,7 @@ class FileOpener {
     final OpenResult result = await OpenFile.open(filePath);
 
     if (result.type != ResultType.done && context.mounted) {
-      _showError(context, 'No app found to open ${typeInfo.label} files');
+      _showError(context, context.l10n.fileOpenerNoAppFound(typeInfo.label));
     }
   }
 

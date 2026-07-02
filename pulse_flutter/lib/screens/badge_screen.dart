@@ -5,8 +5,9 @@ import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/repositories/badge_repository.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
-import 'package:pulse_flutter/widgets/empty_state_widget.dart';
+import 'package:pulse_flutter/widgets/empty_feed_widget.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 
 class BadgeScreen extends ConsumerStatefulWidget {
   const BadgeScreen({super.key});
@@ -84,7 +85,7 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
       );
       nameCtl.dispose(); descCtl.dispose(); iconCtl.dispose(); colorCtl.dispose();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Badge created')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.badgeCopied)));
       _loadBadges();
     } catch (e) {
       nameCtl.dispose(); descCtl.dispose(); iconCtl.dispose(); colorCtl.dispose();
@@ -159,21 +160,42 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     return SettingsScaffold(
-      title: 'Badges',
+      title: context.l10n.badgeScreenTitle,
+      onRefresh: _loadBadges,
       children: [
         SettingsNavBanner(
           icon: Icons.verified_rounded,
-          title: 'Badges',
-          subtitle: 'View and manage profile badges.',
+          title: context.l10n.badgeScreenTitle,
+          subtitle: context.l10n.settingsBadgesSubtitle,
           iconColor: Colors.amber,
         ),
         SettingsSection(
-          title: 'Available Badges',
+          title: context.l10n.badgeAvailableBadges,
           children: [
             if (_loading)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: List<Widget>.generate(4, (int i) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: <Widget>[
+                        PulseSkeleton(width: 44, height: 44, borderRadius: 22),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              PulseSkeleton(width: 140 + (i % 3) * 20.0, height: 14),
+                              const SizedBox(height: 6),
+                              PulseSkeleton(width: 200, height: 10, borderRadius: 5),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+                ),
               ),
             if (_error != null)
               Padding(
@@ -181,10 +203,9 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
                 child: Text(_error!, style: TextStyle(color: scheme.error)),
               ),
             if (_badges.isEmpty && !_loading)
-              EmptyStateWidget(
-                icon: Icons.workspace_premium_rounded,
-                title: context.l10n.badgeNoBadges,
-                subtitle: context.l10n.emptyStateNoItemsDesc,
+              EmptyFeedWidget(
+                title: context.l10n.emptyStateNoItems,
+                description: context.l10n.emptyStateNoItemsDesc,
               ),
             if (!_loading)
               ..._badges.map((badge) => ListTile(
@@ -212,7 +233,7 @@ class _BadgeScreenState extends ConsumerState<BadgeScreen> {
         ),
         if (_showAdmin)
           SettingsSection(
-            title: 'Admin Actions',
+            title: context.l10n.badgeAdminActions,
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),

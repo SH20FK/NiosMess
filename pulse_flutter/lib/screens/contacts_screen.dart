@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +15,7 @@ import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
+import 'package:pulse_flutter/widgets/centered_note.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -82,7 +84,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       if (!mounted) return;
       final String message = error is ApiException
           ? error.message
-          : 'Failed to open direct chat: $error';
+          : context.l10n.contactsFailedToOpenChat('$error');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
@@ -225,7 +227,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     if (!auth.isAuthenticated) {
       return <Widget>[
         SliverFillRemaining(
-          child: _CenteredNote(context.l10n.contactsNotAuth),
+          child: CenteredNote(context.l10n.contactsNotAuth),
         ),
       ];
     }
@@ -235,7 +237,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         if (direct.isEmpty) {
           return <Widget>[
             SliverFillRemaining(
-              child: _CenteredNote(
+              child: CenteredNote(
                 context.l10n.contactsNoRecentFull,
               ),
             ),
@@ -347,7 +349,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                           )
                         else ...<Widget>[
                           IconButton(
-                            onPressed: () => context.push('/chat/${chat.id}'),
+                            onPressed: () {
+                              if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+                              context.push('/chat/${chat.id}');
+                            },
                             icon: const Icon(Icons.chat_rounded),
                             tooltip: context.l10n.contactsMessage,
                             iconSize: 20,
@@ -388,7 +393,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         ),
       ],
       error: (Object error, StackTrace _) => <Widget>[
-        SliverFillRemaining(child: _CenteredNote('Failed to load: $error')),
+        SliverFillRemaining(child: CenteredNote(context.l10n.contactsFailedToLoad('$error'))),
       ],
     );
   }
@@ -402,7 +407,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     if (!auth.isAuthenticated) {
       return <Widget>[
         SliverFillRemaining(
-          child: _CenteredNote(context.l10n.contactsNotAuth),
+          child: CenteredNote(context.l10n.contactsNotAuth),
         ),
       ];
     }
@@ -433,14 +438,15 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                   prefixIcon: const Icon(Icons.person_search_rounded),
                   suffixIcon: query.isEmpty
                       ? null
-                      : IconButton(
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _query = '');
-                            ref.read(debouncedSearchProvider.notifier).clear();
-                          },
-                          icon: const Icon(Icons.close_rounded),
-                        ),
+                       : IconButton(
+                           onPressed: () {
+                             if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+                             _searchController.clear();
+                             setState(() => _query = '');
+                             ref.read(debouncedSearchProvider.notifier).clear();
+                           },
+                           icon: const Icon(Icons.close_rounded),
+                         ),
                 ),
               ),
             ],
@@ -450,7 +456,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       const SliverToBoxAdapter(child: SizedBox(height: 12)),
       if (query.isEmpty)
         SliverFillRemaining(
-          child: _CenteredNote(
+          child: CenteredNote(
             context.l10n.contactsSearchEmpty,
           ),
         )
@@ -469,7 +475,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       data: (ApiSearchResult results) {
         if (results.isEmpty) {
           return <Widget>[
-            SliverFillRemaining(child: _CenteredNote(context.l10n.contactsNoMatches)),
+            SliverFillRemaining(child: CenteredNote(context.l10n.contactsNoMatches)),
           ];
         }
 
@@ -527,8 +533,8 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       ],
       error: (Object error, StackTrace _) => <Widget>[
         SliverFillRemaining(
-          child: _CenteredNote(
-            error is ApiException ? error.message : 'Failed to search: $error',
+          child: CenteredNote(
+            error is ApiException ? error.message : context.l10n.contactsFailedToSearch('$error'),
           ),
         ),
       ],
@@ -543,7 +549,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     ColorScheme scheme,
   ) {
     final List<ApiBadge> visibleBadges = user.badges
-        .take(2)
+        .take(3)
         .toList(growable: false);
     final int hiddenBadgeCount = user.badges.length - visibleBadges.length;
 
@@ -643,7 +649,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                       IconButton(
                         onPressed: user.username.isEmpty
                             ? null
-                            : () => _openDirectChat(user.username),
+                            : () {
+                                if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+                                _openDirectChat(user.username);
+                              },
                         icon: const Icon(Icons.chat_rounded),
                         tooltip: context.l10n.contactsChat,
                         iconSize: 20,
@@ -662,7 +671,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     ColorScheme scheme,
   ) {
     return InkWell(
-      onTap: () => context.push('/chat/${chat.id}'),
+      onTap: () {
+        if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+        context.push('/chat/${chat.id}');
+      },
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -690,7 +702,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                   Text(chat.name, style: textTheme.titleSmall),
                   const SizedBox(height: 2),
                   Text(
-                    '@${chat.username ?? '-'} • ${chat.membersCount} members',
+                    '@${chat.username ?? '-'} • ${context.l10n.contactsMembersCount(chat.membersCount)}',
                     style: textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
@@ -812,22 +824,6 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _CenteredNote extends StatelessWidget {
-  const _CenteredNote(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(text, textAlign: TextAlign.center),
-      ),
     );
   }
 }

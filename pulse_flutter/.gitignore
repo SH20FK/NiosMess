@@ -47,3 +47,4 @@ app.*.map.json
 /android/.gradle
 /android/.gradle-user-home
 /android/.kotlin
+**/google-services.json

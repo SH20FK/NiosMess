@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/core/services/biometric_service.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
@@ -19,6 +20,42 @@ class SettingsAccountScreen extends ConsumerStatefulWidget {
 
 class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
   bool _toggling2fa = false;
+  bool _biometricEnabled = false;
+  bool _biometricSupported = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricState();
+  }
+
+  Future<void> _loadBiometricState() async {
+    final BiometricService biometric = ref.read(biometricServiceProvider);
+    final bool enabled = await biometric.isBiometricEnabled;
+    final bool supported = await biometric.canCheckBiometrics;
+    if (mounted) {
+      setState(() {
+        _biometricEnabled = enabled;
+        _biometricSupported = supported;
+      });
+    }
+  }
+
+  Future<void> _toggleBiometric() async {
+    final BiometricService biometric = ref.read(biometricServiceProvider);
+    if (_biometricEnabled) {
+      await biometric.setBiometricEnabled(false);
+      setState(() => _biometricEnabled = false);
+    } else {
+      final bool authenticated = await biometric.authenticate(
+        reason: context.l10n.biometricAuthReason,
+      );
+      if (authenticated) {
+        await biometric.setBiometricEnabled(true);
+        if (mounted) setState(() => _biometricEnabled = true);
+      }
+    }
+  }
 
   Future<void> _toggle2fa() async {
     if (_toggling2fa) return;
@@ -111,12 +148,12 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
         SettingsNavBanner(
           icon: Icons.admin_panel_settings_rounded,
           title: context.l10n.settingsAccountTitle,
-          subtitle: 'Безопасность входа, подтверждение почты и активные сессии.',
+          subtitle: context.l10n.settingsAccountBannerSubtitle,
           iconColor: scheme.primary,
         ),
         SettingsSection(
           title: context.l10n.settingsAccountAccessTitle,
-          subtitle: 'Основные действия для доступа и восстановления аккаунта',
+          subtitle: context.l10n.settingsAccountAccessDesc,
           children: <Widget>[
             SettingsTile(
               icon: Icons.verified_user_rounded,
@@ -145,6 +182,17 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
           title: context.l10n.settingsProtectionTitle,
           subtitle: context.l10n.settingsProtectionSubtitle,
           children: <Widget>[
+            if (_biometricSupported)
+            SettingsSwitchTile(
+              icon: _biometricEnabled ? Icons.fingerprint : Icons.fingerprint_outlined,
+              title: context.l10n.biometricTitle,
+              subtitle: _biometricEnabled
+                  ? context.l10n.biometricEnabled
+                  : context.l10n.biometricDisabled,
+              iconColor: _biometricEnabled ? scheme.primary : scheme.onSurfaceVariant,
+              value: _biometricEnabled,
+              onChanged: (_) => _toggleBiometric(),
+            ),
             SettingsSwitchTile(
               icon: twoFaEnabled ? Icons.shield_rounded : Icons.shield_outlined,
               title: context.l10n.settingsTwoFactor,

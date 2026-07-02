@@ -122,7 +122,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 if (Theme.of(context).platform != TargetPlatform.android && Theme.of(context).platform != TargetPlatform.iOS) ...<Widget>[
                   const SizedBox(height: 32),
                   Text(
-                    'Оптимизация графики...',
+                    context.l10n.splashGraphicsOptimization,
                     style: textTheme.labelSmall?.copyWith(
                       color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
                     ),

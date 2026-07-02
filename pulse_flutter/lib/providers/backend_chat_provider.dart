@@ -6,11 +6,14 @@ import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
+import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/services/e2ee_service.dart';
 
 class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   @override
@@ -95,14 +98,18 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
 
   Future<List<ApiChatSummary>> _fetch() async {
     try {
-      final List<ApiChatSummary> chats = await ref.read(chatRepositoryProvider).listChats();
+      String? publicKey;
+      try {
+        final E2eeService e2ee = E2eeService();
+        publicKey = await e2ee.getPublicKeyBase64();
+      } catch (_) {}
+      final List<ApiChatSummary> chats = await ref.read(chatRepositoryProvider).listChats(publicKey: publicKey);
       // Save cache
       await ref.read(cacheServiceProvider).saveChats(chats);
       return chats;
     } catch (e) {
       final List<ApiChatSummary>? currentData = state.value;
       if (currentData != null && currentData.isNotEmpty) {
-        // Return cached data if network fails
         return currentData;
       }
       rethrow;
@@ -423,34 +430,64 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   Future<void> editMessage(int messageId, String content) async {
     final String trimmed = content.trim();
-    if (trimmed.isEmpty) {
-      return;
-    }
-
-    final ApiMessage? edited = await ref
-        .read(chatRepositoryProvider)
-        .editMessage(_chatId, messageId, content: trimmed);
-
-    if (edited == null) {
-      await refresh();
-      return;
-    }
+    if (trimmed.isEmpty) return;
 
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
-    final List<ApiMessage> next = List<ApiMessage>.from(current)
-      ..removeWhere((ApiMessage message) => message.id == edited.id)
-      ..add(edited)
-      ..sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+    final ApiMessage? target = current.firstWhere(
+      (ApiMessage m) => m.id == messageId,
+      orElse: () => ApiMessage(
+        id: 0, chatId: 0, senderId: 0, senderUsername: '', senderDisplayName: '',
+        senderBadges: const <ApiBadge>[], content: '', msgType: 'text', replyToId: null,
+        mediaUrl: null, mediaType: null, mediaName: null, mediaSize: null,
+        mediaDuration: null, commentsCount: 0, reactions: <String, int>{},
+        sentAt: DateTime.fromMillisecondsSinceEpoch(0), editedAt: null, isDeleted: false,
+      ),
+    );
 
-    state = AsyncData<List<ApiMessage>>(next);
-    await _saveToCache(next);
-    await ref.read(chatsProvider.notifier).refresh();
+    if (target == null || target.id == 0) return;
+
+    final ApiMessage optimisticEdited = target.copyWith(
+      content: trimmed,
+      editedAt: DateTime.now(),
+    );
+    final List<ApiMessage> optimisticNext = List<ApiMessage>.from(current)
+      ..removeWhere((ApiMessage m) => m.id == messageId)
+      ..add(optimisticEdited)
+      ..sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+    state = AsyncData<List<ApiMessage>>(optimisticNext);
+
+    try {
+      final ApiMessage? edited = await ref
+          .read(chatRepositoryProvider)
+          .editMessage(_chatId, messageId, content: trimmed);
+
+      if (edited != null) {
+        final List<ApiMessage> confirmed = List<ApiMessage>.from(state.value ?? const <ApiMessage>[])
+          ..removeWhere((ApiMessage m) => m.id == edited.id)
+          ..add(edited)
+          ..sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+        state = AsyncData<List<ApiMessage>>(confirmed);
+        await _saveToCache(confirmed);
+      }
+      await ref.read(chatsProvider.notifier).refresh();
+    } catch (e) {
+      state = AsyncData<List<ApiMessage>>(current);
+    }
   }
 
   Future<void> deleteMessage(int messageId) async {
-    await ref.read(chatRepositoryProvider).deleteMessage(_chatId, messageId);
-    await refresh();
-    await ref.read(chatsProvider.notifier).refresh();
+    final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    final List<ApiMessage> optimisticNext = List<ApiMessage>.from(current)
+      ..removeWhere((ApiMessage m) => m.id == messageId);
+    state = AsyncData<List<ApiMessage>>(optimisticNext);
+
+    try {
+      await ref.read(chatRepositoryProvider).deleteMessage(_chatId, messageId);
+      await _saveToCache(optimisticNext);
+      await ref.read(chatsProvider.notifier).refresh();
+    } catch (e) {
+      state = AsyncData<List<ApiMessage>>(current);
+    }
   }
 
   void removeLocalMessage(int messageId) {
@@ -470,15 +507,34 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   Future<void> toggleReaction(int messageId, String emoji) async {
-    if (emoji.trim().isEmpty) {
-      return;
-    }
+    if (emoji.trim().isEmpty) return;
 
-    await ref
-        .read(chatRepositoryProvider)
-        .toggleReaction(_chatId, messageId, emoji: emoji);
-    await refresh();
-    await ref.read(chatsProvider.notifier).refresh();
+    final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+
+    final List<ApiMessage> optimisticNext = current.map((ApiMessage m) {
+      if (m.id != messageId) return m;
+      final Map<String, int> newReactions = Map<String, int>.from(m.reactions);
+      if (newReactions.containsKey(emoji)) {
+        final int count = newReactions[emoji]!;
+        if (count <= 1) {
+          newReactions.remove(emoji);
+        } else {
+          newReactions[emoji] = count - 1;
+        }
+      } else {
+        newReactions[emoji] = (newReactions[emoji] ?? 0) + 1;
+      }
+      return m.copyWith(reactions: newReactions);
+    }).toList(growable: false);
+    state = AsyncData<List<ApiMessage>>(optimisticNext);
+
+    try {
+      await ref.read(chatRepositoryProvider).toggleReaction(_chatId, messageId, emoji: emoji);
+      await _saveToCache(optimisticNext);
+      await ref.read(chatsProvider.notifier).refresh();
+    } catch (e) {
+      state = AsyncData<List<ApiMessage>>(current);
+    }
   }
 }
 
@@ -543,6 +599,8 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
       return;
     }
 
+    final int userId = ref.read(authProvider).session?.userId ?? 0;
+
     final ApiMessage created = await ref
         .read(chatRepositoryProvider)
         .sendComment(
@@ -550,6 +608,7 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
           _args.postId,
           content: trimmed,
           replyToId: replyToId,
+          senderId: userId,
         );
 
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
@@ -559,7 +618,13 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
       ..sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
 
     state = AsyncData<List<ApiMessage>>(next);
-    await ref.read(chatMessagesProvider(_args.channelId).notifier).refresh();
+
+    if (_args.channelId != 0) {
+      await ref.read(chatMessagesProvider(_args.channelId).notifier).refresh();
+    } else {
+      ref.invalidate(niosgramProvider);
+    }
+
     await _playNotificationSound();
   }
 }

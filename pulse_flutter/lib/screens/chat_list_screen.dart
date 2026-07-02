@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
@@ -19,6 +19,7 @@ import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/chat_tile.dart';
+import 'package:pulse_flutter/widgets/centered_note.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 
@@ -152,7 +153,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          HapticFeedback.mediumImpact();
+          HapticService.confirm();
           await ref.read(chatsProvider.notifier).refresh();
         },
         displacement: 40,
@@ -220,11 +221,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             tooltip: context.l10n.commonCancel,
           )
         else
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.tune_rounded),
-            tooltip: context.l10n.commonSearch,
-          ),
+          const SizedBox.shrink(),
       ],
     );
 
@@ -490,7 +487,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     if (!auth.isAuthenticated) {
       return <Widget>[
         SliverFillRemaining(
-          child: _CenteredNote(
+          child: CenteredNote(
             context.l10n.chatListNotAuthenticated,
             icon: Icons.lock_outline_rounded,
           ),
@@ -522,7 +519,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         if (searched.isEmpty) {
           return <Widget>[
             SliverFillRemaining(
-              child: _CenteredNote(
+              child: CenteredNote(
                 context.l10n.chatListNoChats,
                 icon: Icons.chat_bubble_outline_rounded,
               ),
@@ -568,7 +565,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           avatarColor: _avatarColor(chat.id, scheme),
                           subtitleIcon: _chatPreviewIcon(chat),
                           compact: compact,
+                          isSecret: chat.isSecret,
                           partnerBadges: chat.partnerBadges,
+                          chatId: chat.id,
                           onTap: () {
                             if (MediaQuery.sizeOf(context).width >= 760) {
                               ref
@@ -639,7 +638,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         }
         return <Widget>[
           SliverFillRemaining(
-            child: _CenteredNote(
+            child: CenteredNote(
               context.l10n.chatListFailedLoad('$error'),
               icon: Icons.error_outline_rounded,
             ),
@@ -812,7 +811,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     DismissDirection direction,
   ) async {
     if (ref.read(uiSettingsProvider).haptics) {
-      HapticFeedback.lightImpact();
+      HapticService.tap();
     }
 
     final _ChatSwipeAction? action = await _showSwipeActionSheet(
@@ -1328,33 +1327,5 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     };
     if (chat.unreadCount <= 0) return type;
     return '${context.l10n.chatListUnreadCount(chat.unreadCount)} • $type';
-  }
-}
-
-class _CenteredNote extends StatelessWidget {
-  const _CenteredNote(this.text, {this.icon});
-
-  final String text;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (icon != null) ...<Widget>[
-              Icon(icon, size: 48, color: scheme.onSurfaceVariant),
-              const SizedBox(height: 12),
-            ],
-            Text(text, textAlign: TextAlign.center),
-          ],
-        ),
-      ),
-    );
   }
 }

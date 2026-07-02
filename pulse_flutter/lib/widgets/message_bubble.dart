@@ -1,9 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
@@ -64,6 +64,8 @@ class MessageBubble extends ConsumerWidget {
   final bool isNextSame;
   final bool animate;
 
+  static final RegExp _fwdRegExp = RegExp(r'^_fwd from\s+(.+?):\s*(.*)$');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -111,13 +113,13 @@ class MessageBubble extends ConsumerWidget {
               borderRadius: bubbleRadius,
               onLongPress: onLongPress != null
                   ? () {
-                      HapticFeedback.mediumImpact();
+                      HapticService.confirm();
                       onLongPress!();
                     }
                   : null,
               onSecondaryTapUp: (_) {
                 if (onLongPress != null) {
-                  HapticFeedback.mediumImpact();
+                  HapticService.confirm();
                   onLongPress!();
                 }
               },
@@ -513,8 +515,7 @@ class MessageBubble extends ConsumerWidget {
 
   _ForwardedPayload? _parseForwarded(String rawText) {
     final String trimmed = rawText.trim();
-    final RegExp match = RegExp(r'^_fwd from\s+(.+?):\s*(.*)$');
-    final Match? result = match.firstMatch(trimmed);
+    final Match? result = _fwdRegExp.firstMatch(trimmed);
     if (result == null) return null;
     final String sender = (result.group(1) ?? '').trim();
     final String body = (result.group(2) ?? '').trim();

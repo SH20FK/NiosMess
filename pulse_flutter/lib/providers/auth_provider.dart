@@ -5,8 +5,12 @@ import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
+import 'dart:async';
 import 'dart:convert';
+import 'package:universal_io/io.dart';
 import 'package:flutter/foundation.dart';
+import 'package:pulse_flutter/core/services/push_notification_service.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
 class AuthState {
   const AuthState({
@@ -78,6 +82,7 @@ class AuthNotifier extends Notifier<AuthState> {
   static const String _sessionKey = 'auth.session';
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   Future<void>? _loadFuture;
+  StreamSubscription<String>? _fcmTokenRefreshSubscription;
 
   @override
   AuthState build() {
@@ -174,6 +179,7 @@ class AuthNotifier extends Notifier<AuthState> {
         clearError: true,
       );
       await refreshProfile();
+      _registerFcmToken();
       return const AuthActionResult(success: true);
     } catch (error) {
       state = state.copyWith(busy: false, error: '$error');
@@ -221,6 +227,7 @@ class AuthNotifier extends Notifier<AuthState> {
         clearError: true,
       );
       await refreshProfile();
+      _registerFcmToken();
       return const AuthActionResult(success: true);
     } catch (error) {
       state = state.copyWith(busy: false, error: '$error');
@@ -381,6 +388,9 @@ class AuthNotifier extends Notifier<AuthState> {
       }
     } catch (e) { debugPrint('[auth_provider.dart] Error: $e'); }
 
+    await _fcmTokenRefreshSubscription?.cancel();
+    _fcmTokenRefreshSubscription = null;
+
     await _clearSessionStorage();
     try {
       await ref.read(cacheServiceProvider).clearAll();
@@ -401,6 +411,33 @@ class AuthNotifier extends Notifier<AuthState> {
 
   void setPendingIdentifier(String value) {
     state = state.copyWith(pendingIdentifier: value);
+  }
+
+  Future<void> _registerFcmToken() async {
+    if (kIsWeb) return;
+    await _fcmTokenRefreshSubscription?.cancel();
+    _fcmTokenRefreshSubscription = null;
+    PushNotificationService.getToken().then((fcmToken) {
+      if (fcmToken != null) {
+        ref.read(webSocketClientProvider).request(
+              'register_fcm_token',
+              payload: {
+                'token': fcmToken,
+                'platform': Platform.isAndroid ? 'android' : 'ios',
+              },
+            );
+      }
+    });
+
+    _fcmTokenRefreshSubscription = PushNotificationService.onTokenRefresh.listen((newToken) {
+      ref.read(webSocketClientProvider).request(
+            'register_fcm_token',
+            payload: {
+              'token': newToken,
+              'platform': Platform.isAndroid ? 'android' : 'ios',
+            },
+          );
+    });
   }
 }
 

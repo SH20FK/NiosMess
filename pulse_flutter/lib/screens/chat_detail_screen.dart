@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -12,10 +14,12 @@ import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/core/utils/image_compressor.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
@@ -319,16 +323,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              Localizations.localeOf(context).languageCode == 'ru'
-                  ? 'Текст успешно изменен ИИ'
-                  : 'Text successfully processed by AI',
-            ),
+            content: Text(context.l10n.chatAiProcessed),
             duration: const Duration(seconds: 2),
             action: SnackBarAction(
-              label: Localizations.localeOf(context).languageCode == 'ru'
-                  ? 'Отменить'
-                  : 'Undo',
+              label: context.l10n.chatAiUndo,
               onPressed: _undoLastAiTransform,
             ),
           ),
@@ -338,11 +336,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              Localizations.localeOf(context).languageCode == 'ru'
-                  ? 'Ошибка обработки ИИ: $e'
-                  : 'AI processing error: $e',
-            ),
+            content: Text(context.l10n.chatAiError('$e')),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -367,8 +361,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   }
 
   Widget _buildAiButton(ColorScheme scheme) {
-    final bool isRu = Localizations.localeOf(context).languageCode == 'ru';
-
     if (_isAiProcessing) {
       return SizedBox(
         width: 48,
@@ -388,9 +380,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     }
 
     return Tooltip(
-      message: isRu ? 'ИИ помощник' : 'AI Assistant',
+      message: context.l10n.chatAiAssistant,
       child: InkWell(
-        onTap: () => _showAiBottomSheet(context, scheme, isRu),
+        onTap: () {
+          if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
+          _showAiBottomSheet(context, scheme);
+        },
         borderRadius: BorderRadius.circular(20),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -406,7 +401,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     );
   }
 
-  void _showAiBottomSheet(BuildContext context, ColorScheme scheme, bool isRu) {
+  void _showAiBottomSheet(BuildContext context, ColorScheme scheme) {
     if (_isInputEmpty) return;
     showModalBottomSheet<void>(
       context: context,
@@ -430,7 +425,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                     Icon(Icons.auto_awesome_rounded, color: scheme.primary, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      isRu ? 'ИИ помощник' : 'AI Assistant',
+                      context.l10n.chatAiAssistant,
                       style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                     ),
                   ],
@@ -442,7 +437,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                     Expanded(
                       child: _AiActionCard(
                         icon: Icons.spellcheck_rounded,
-                        label: isRu ? 'Исправить' : 'Fix errors',
+                        label: context.l10n.chatAiFixErrors,
                         scheme: scheme,
                         onTap: () {
                           Navigator.of(ctx).pop();
@@ -454,7 +449,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                     Expanded(
                       child: _AiActionCard(
                         icon: Icons.business_center_rounded,
-                        label: isRu ? 'Деловой' : 'Formal',
+                        label: context.l10n.chatAiFormal,
                         scheme: scheme,
                         onTap: () {
                           Navigator.of(ctx).pop();
@@ -466,7 +461,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  isRu ? 'Перевести' : 'Translate',
+                  context.l10n.chatAiTranslate,
                   style: tt.labelMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
@@ -477,12 +472,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: <(String, String, String)>[
-                    ('translate:English', '🇬🇧', isRu ? 'Англ.' : 'Eng'),
-                    ('translate:Russian', '🇷🇺', isRu ? 'Рус.' : 'Rus'),
-                    ('translate:German', '🇩🇪', isRu ? 'Нем.' : 'Deu'),
-                    ('translate:French', '🇫🇷', isRu ? 'Фран.' : 'Fra'),
-                    ('translate:Spanish', '🇪🇸', isRu ? 'Исп.' : 'Esp'),
-                    ('translate:Chinese', '🇨🇳', isRu ? 'Кит.' : 'Zho'),
+                    ('translate:English', '🇬🇧', context.l10n.chatAiLangEn),
+                    ('translate:Russian', '🇷🇺', context.l10n.chatAiLangRu),
+                    ('translate:German', '🇩🇪', context.l10n.chatAiLangDe),
+                    ('translate:French', '🇫🇷', context.l10n.chatAiLangFr),
+                    ('translate:Spanish', '🇪🇸', context.l10n.chatAiLangEs),
+                    ('translate:Chinese', '🇨🇳', context.l10n.chatAiLangZh),
                   ].map(
                     ((String, String, String) item) => ActionChip(
                       avatar: Text(item.$2, style: const TextStyle(fontSize: 16)),
@@ -536,6 +531,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   }
 
   Future<void> _sendMessage() async {
+    if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
     final int? chatId = _chatId;
     if (chatId == null) {
       return;
@@ -574,7 +570,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         }
         final String message = error is ApiException
             ? error.message
-            : 'Failed to send message: $error';
+            : context.l10n.commonFailed('$error');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
@@ -598,7 +594,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       }
       final String text = error is ApiException
           ? error.message
-          : 'Failed to load older messages: $error';
+          : context.l10n.commonFailed('$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     } finally {
     }
@@ -619,22 +615,42 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     final String filename = result.fileName;
     final String mediaSubtype = result.mediaSubtype;
 
+    String? uploadFilePath = result.filePath;
+    Stream<List<int>>? uploadStream = result.readStream;
+    int uploadFileSize = result.fileSize;
+
+    if (uploadFilePath != null) {
+      try {
+        final File originalFile = File(uploadFilePath);
+        final File? compressed = await ImageCompressor.compressImageFile(
+          file: originalFile,
+          fileName: filename,
+        );
+        if (compressed != null) {
+          uploadFilePath = compressed.path;
+          uploadFileSize = await compressed.length();
+        }
+      } catch (e, st) {
+        debugPrint('Image compression failed: $e\n$st');
+      }
+    }
+
     setState(() {
       _uploadingMedia = true;
       _uploadProgress = 0;
       _uploadFileName = filename;
-      _uploadFileSize = result.fileSize;
+      _uploadFileSize = uploadFileSize;
     });
 
     try {
       final String uploadId = await ref
           .read(chatRepositoryProvider)
           .uploadStreamInChunks(
-            readStream: result.readStream,
-            filePath: result.filePath,
+            readStream: uploadStream,
+            filePath: uploadFilePath,
             filename: filename,
             mediaSubtype: mediaSubtype,
-            fileSize: result.fileSize,
+            fileSize: uploadFileSize,
             onProgress: (int sent, int total) {
               if (!mounted || total <= 0) {
                 return;
@@ -669,7 +685,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       }
       final String message = error is ApiException
           ? error.message
-          : 'Failed to upload media: $error';
+          : context.l10n.commonFailed('$error');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
@@ -701,6 +717,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   }
 
   Future<void> _commitEdit() async {
+    if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
     final int? chatId = _chatId;
     final int? editId = _editingMessageId;
     if (chatId == null || editId == null) return;
@@ -728,12 +745,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       });
       final String text = error is ApiException
           ? error.message
-          : 'Failed to edit message: $error';
+          : context.l10n.commonFailed('$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
   }
 
   void _cancelEdit() {
+    if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
     setState(() {
       _editingMessageId = null;
       _editingOriginalText = null;
@@ -773,7 +791,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       }
       final String text = error is ApiException
           ? error.message
-          : 'Failed to delete message: $error';
+          : context.l10n.commonFailed('$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
   }
@@ -793,7 +811,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       }
       final String text = error is ApiException
           ? error.message
-          : 'Failed to react: $error';
+          : context.l10n.commonFailed('$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
   }
@@ -808,6 +826,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   }
 
   void _clearReply() {
+    if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
     setState(() {
       _replyToMessageId = null;
       _replyPreviewText = null;
@@ -1114,6 +1133,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   }
 
   Future<void> _retrySend(ApiMessage message) async {
+    if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
     final int? chatId = _chatId;
     if (chatId == null) return;
     ref.read(chatMessagesProvider(chatId).notifier).removeLocalMessage(message.id);
@@ -1219,7 +1239,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         leading: widget.isDesktopSplit
             ? null
             : IconButton(
-                onPressed: _goBack,
+                onPressed: () {
+                  if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+                  _goBack();
+                },
                 icon: const Icon(Icons.arrow_back_rounded),
               ),
         title: InkWell(
@@ -1238,10 +1261,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                 Stack(
                   clipBehavior: Clip.none,
                   children: <Widget>[
-                    PulseAvatar(
-                      radius: 19,
-                      name: title,
-                      avatarUrl: chat?.avatarUrl,
+                    Hero(
+                      tag: 'chat_avatar_$chatId',
+                      child: PulseAvatar(
+                        radius: 19,
+                        name: title,
+                        avatarUrl: chat?.avatarUrl,
+                      ),
                     ),
                     Positioned(
                       right: -2,
@@ -1622,7 +1648,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                              'Draft restored on this device',
+                                              context.l10n.chatDraftRestored,
                                               style: textTheme.bodySmall?.copyWith(
                                                 color: scheme.onTertiaryContainer,
                                                 fontWeight: FontWeight.w600,
@@ -1760,15 +1786,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: <Widget>[
                                       Expanded(
                                         child: AnimatedContainer(
                                           duration: const Duration(milliseconds: 180),
                                           decoration: BoxDecoration(
-                                            color: _inputFocusNode.hasFocus
-                                                ? scheme.surfaceContainerLow
-                                                : scheme.surfaceContainer,
+                                            color: Colors.transparent,
                                             borderRadius: BorderRadius.circular(28),
                                             border: Border.all(
                                               color: _inputFocusNode.hasFocus
@@ -1842,7 +1866,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                                                 Tooltip(
                                                   message: context.l10n.chatAttachMedia,
                                                   child: InkWell(
-                                                    onTap: _pickAndUploadMedia,
+                                                    onTap: () {
+                                                      if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
+                                                      _pickAndUploadMedia();
+                                                    },
                                                     borderRadius: BorderRadius.circular(20),
                                                     child: Padding(
                                                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),

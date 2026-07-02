@@ -122,6 +122,8 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _timeZoneIdKey = 'ui.timeZoneId';
   static const String _optimizeWeakKey = 'ui.optimizeWeak';
 
+  bool _loaded = false;
+
   @override
   UiSettingsState build() {
     _load();
@@ -131,6 +133,8 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   Future<void> _load() async {
     try {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (_loaded) return;
+    _loaded = true;
     final String? modeRaw = prefs.getString(_themeModeKey);
     final String? variantRaw = prefs.getString(_variantKey);
     final int? seedRaw = prefs.getInt(_seedColorKey);

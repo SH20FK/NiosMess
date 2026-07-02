@@ -60,6 +60,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get commonDark => 'Тёмная';
 
   @override
+  String get commonDismiss => 'Закрыть';
+
+  @override
   String get commonAutomatic => 'Автоматически';
 
   @override
@@ -80,7 +83,20 @@ class AppLocalizationsRu extends AppLocalizations {
   String get commonPasteFromClipboard => 'Вставить из буфера';
 
   @override
+  String get commonDiscardChanges => 'Отменить изменения?';
+
+  @override
+  String get commonDiscardChangesDesc =>
+      'У вас есть несохранённые изменения, которые будут потеряны.';
+
+  @override
+  String get commonDiscardChangesConfirm => 'Отменить';
+
+  @override
   String get splashTagline => 'НАШ мессенджер';
+
+  @override
+  String get splashGraphicsOptimization => 'Оптимизация графики...';
 
   @override
   String get loginTitle => 'С возвращением';
@@ -1829,7 +1845,7 @@ class AppLocalizationsRu extends AppLocalizations {
       'Очищаются только данные, которые безопасно восстановить.';
 
   @override
-  String get settingsStorageRefresh => 'Обновить расчёт';
+  String get settingsStorageRefresh => 'Обновить';
 
   @override
   String get settingsStorageRefreshSubtitle =>
@@ -2589,4 +2605,648 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsRevokeSession => 'Завершить сессию';
+
+  @override
+  String get tabNiosgram => 'Лента';
+
+  @override
+  String get niosgramTitle => 'NiosGram';
+
+  @override
+  String get niosgramCreatePost => 'Новый пост';
+
+  @override
+  String get niosgramPublish => 'Опубликовать';
+
+  @override
+  String get niosgramWhatMind => 'О чём думаешь?';
+
+  @override
+  String get niosgramAttachMedia => 'Прикрепить медиа';
+
+  @override
+  String get niosgramRemove => 'Убрать';
+
+  @override
+  String get niosgramEmptyFeed => 'Постов пока нет';
+
+  @override
+  String get niosgramEmptyFeedDesc => 'Будь первым, кто поделится чем-то!';
+
+  @override
+  String get niosgramLoadMore => 'Загрузить ещё';
+
+  @override
+  String get niosgramComments => 'Комментарии';
+
+  @override
+  String get niosgramWriteComment => 'Напишите комментарий...';
+
+  @override
+  String get niosgramLike => 'Нравится';
+
+  @override
+  String get niosgramDislike => 'Не нравится';
+
+  @override
+  String get niosgramDeletePost => 'Удалить пост?';
+
+  @override
+  String get niosgramDeletePostConfirm => 'Это действие нельзя отменить.';
+
+  @override
+  String get niosgramCopied => 'Скопировано в буфер обмена';
+
+  @override
+  String get niosgramEdit => 'Изменить';
+
+  @override
+  String get niosgramDelete => 'Удалить';
+
+  @override
+  String get niosgramCopyText => 'Скопировать текст';
+
+  @override
+  String get niosgramEditPost => 'Отредактируйте пост...';
+
+  @override
+  String get niosgramFileTooLarge => 'Файл превышает 10 МБ';
+
+  @override
+  String get niosgramEmptyContent => 'Напишите что-нибудь или прикрепите файл';
+
+  @override
+  String get niosgramFailedLoad => 'Не удалось загрузить ленту';
+
+  @override
+  String get settingsPrivacyBannerSubtitle =>
+      'Уведомления, видимость и системные ограничения аккаунта.';
+
+  @override
+  String get settingsPrivacyNotificationsManage =>
+      'Управление push-уведомлениями приложения';
+
+  @override
+  String get settingsPrivacyVisibilityDesc =>
+      'Контроль статуса присутствия в приложении';
+
+  @override
+  String get settingsPrivacyHideOnline => 'Скрывать онлайн-статус';
+
+  @override
+  String get settingsPrivacyHideOnlineDesc =>
+      'Не показывать другим пользователям ваш статус присутствия';
+
+  @override
+  String get settingsStorageBannerSubtitle =>
+      'Использование памяти, кеша и черновиков приложения.';
+
+  @override
+  String get settingsStorageLegendCache => 'Кеш';
+
+  @override
+  String get settingsStorageLegendDrafts => 'Черновики';
+
+  @override
+  String get settingsStorageCategoryAppData => 'Данные';
+
+  @override
+  String get settingsStorageCategoryCache => 'Кеш';
+
+  @override
+  String get settingsStorageCategoryDrafts => 'Черновики';
+
+  @override
+  String get settingsAboutBannerSubtitle =>
+      'Поддержка, правовая информация и сведения о приложении.';
+
+  @override
+  String get settingsAboutHelpDesc => 'Частые вопросы и способы связи';
+
+  @override
+  String get settingsAboutVersionTitle => 'NiosMess';
+
+  @override
+  String get settingsAboutVersionDesc => 'Версия приложения и служебные пункты';
+
+  @override
+  String get settingsAboutLegalDesc => 'Политики и внешние ресурсы';
+
+  @override
+  String get settingsAccountBannerSubtitle =>
+      'Безопасность входа, подтверждение почты и активные сессии.';
+
+  @override
+  String get settingsAccountAccessDesc =>
+      'Основные действия для доступа и восстановления аккаунта';
+
+  @override
+  String get settingsLanguageBannerDesc =>
+      'Язык интерфейса и локализация элементов приложения';
+
+  @override
+  String get settingsLanguageCurrentLang => 'Текущий язык';
+
+  @override
+  String get settingsLanguageTzDesc =>
+      'Автоматическое определение или ручной выбор часового пояса';
+
+  @override
+  String get settingsLanguageTimePreview =>
+      'Предпросмотр текущих даты и времени';
+
+  @override
+  String get settingsLanguageLocalTime => 'Локальное время';
+
+  @override
+  String get sessionsBannerSubtitle =>
+      'Управление активными устройствами и сессиями.';
+
+  @override
+  String get sessionsRevokeBody =>
+      'Это устройство будет отключено, если это текущая сессия.';
+
+  @override
+  String sessionsActive(Object time) {
+    return 'Активна: $time';
+  }
+
+  @override
+  String sessionsCreated(Object time) {
+    return 'Создана: $time';
+  }
+
+  @override
+  String get sessionsCurrent => 'Текущая';
+
+  @override
+  String get onboardingSlide1Title => 'Быстрые звонки без лишнего';
+
+  @override
+  String get onboardingSlide1Desc =>
+      'Звоните коллегам в одно касание и переключайтесь между голосом и видео не離開ая разговор.';
+
+  @override
+  String get onboardingSlide2Title => 'Упорядоченные беседы';
+
+  @override
+  String get onboardingSlide2Desc =>
+      'Держите чаты, звонки и контакты в одном удобном пространстве.';
+
+  @override
+  String get onboardingSlide3Title => 'Для повседневного ритма';
+
+  @override
+  String get onboardingSlide3Desc =>
+      'Плавные переходы и чёткая иерархия сохраняют спокойствие общения даже в напряжённый день.';
+
+  @override
+  String get onboardingGetStarted => 'Начать';
+
+  @override
+  String get onboardingNext => 'Далее';
+
+  @override
+  String get mediaViewerDownload => 'Скачать';
+
+  @override
+  String mediaViewerImageLoadFailed(Object error) {
+    return 'Не удалось загрузить изображение: $error';
+  }
+
+  @override
+  String get mediaViewerDownloadWeb => 'Скачивание недоступно в веб-версии';
+
+  @override
+  String get mediaViewerDownloadFailedExt =>
+      'Не удалось скачать. Попробуйте открыть во внешнем приложении.';
+
+  @override
+  String directResolverResolving(Object username) {
+    return 'Распознаём @$username';
+  }
+
+  @override
+  String get directResolverSecretEstablishing =>
+      'Устанавливаем сквозное шифрование...';
+
+  @override
+  String get directResolverPreparing =>
+      'Подготавливаем защищённый диалог в NiosMess.';
+
+  @override
+  String get directResolverUserNotFound => 'Пользователь не найден';
+
+  @override
+  String get directResolverUserNotFoundDesc =>
+      'Не удалось найти этого пользователя.';
+
+  @override
+  String get directResolverSecretTitle => 'Секретный чат';
+
+  @override
+  String get postNewPost => 'Новый пост';
+
+  @override
+  String get postPublish => 'Опубликовать';
+
+  @override
+  String get postHint => 'О чём думаешь?';
+
+  @override
+  String get postRemove => 'Убрать';
+
+  @override
+  String get postAttachMedia => 'Прикрепить медиа';
+
+  @override
+  String get postFileTooLarge => 'Файл превышает 10 МБ';
+
+  @override
+  String get postEmptyContent => 'Напишите что-нибудь или прикрепите файл';
+
+  @override
+  String get chatCreateFailed => 'Не удалось создать чат';
+
+  @override
+  String get chatChannelCreated => 'Канал создан';
+
+  @override
+  String get chatGroupCreated => 'Группа создана';
+
+  @override
+  String get chatChooseNextStep => 'Выберите, что сделать дальше.';
+
+  @override
+  String get chatOpenChat => 'Открыть чат';
+
+  @override
+  String get chatCopyInvite => 'Скопировать инвайт';
+
+  @override
+  String get chatInviteLinkCopied => 'Ссылка-приглашение скопирована';
+
+  @override
+  String get chatCommentsEnabled => 'Включены';
+
+  @override
+  String get chatCommentsDisabled => 'Выключены';
+
+  @override
+  String get profileSettingsSection => 'Настройки';
+
+  @override
+  String get profileSettingsSectionDesc =>
+      'Основные параметры аккаунта и приложения';
+
+  @override
+  String get profileSectionQuickSettings => 'Быстрые настройки';
+
+  @override
+  String get profileSectionPrivacy => 'Конфиденциальность';
+
+  @override
+  String get profileSectionAccount => 'Аккаунт';
+
+  @override
+  String get profileSectionData => 'Данные';
+
+  @override
+  String get profileSectionAbout => 'О приложении';
+
+  @override
+  String get profileAppearanceDesc => 'Тема, цвета';
+
+  @override
+  String get profileLanguage => 'Язык';
+
+  @override
+  String get profileLanguageDesc => 'Язык приложения';
+
+  @override
+  String get profileTeamTools => 'Команда и инструменты';
+
+  @override
+  String get profileTeamToolsDesc => 'Команда проекта и дополнительные разделы';
+
+  @override
+  String get chatManageInviteLink => 'Ссылка-приглашение';
+
+  @override
+  String get chatManageCopyInvite => 'Скопировать инвайт';
+
+  @override
+  String get chatManageShareInvite => 'Поделиться инвайтом';
+
+  @override
+  String get chatManageShareLink => 'Поделиться ссылкой';
+
+  @override
+  String get chatManageCommentsChatId => 'ID чата комментариев';
+
+  @override
+  String chatManageCopied(Object title) {
+    return '$title скопировано';
+  }
+
+  @override
+  String get chatManageCopy => 'Копировать';
+
+  @override
+  String get chatManageName => 'Название';
+
+  @override
+  String get chatManageDescription => 'Описание';
+
+  @override
+  String get chatManageSaveChanges => 'Сохранить изменения';
+
+  @override
+  String get chatManageChannel => 'Канал';
+
+  @override
+  String get chatManageGroup => 'Группа';
+
+  @override
+  String get adminPanelTitle => 'Панель админа';
+
+  @override
+  String get adminPanelSubtitle =>
+      'Управление пользователями и чатами с паролем админа.';
+
+  @override
+  String get adminAuthentication => 'Авторизация';
+
+  @override
+  String get adminPasswordLabel => 'Пароль админа';
+
+  @override
+  String get adminConnecting => 'Подключение...';
+
+  @override
+  String get adminConnect => 'Подключиться';
+
+  @override
+  String get adminStatusBanned => 'Забанен';
+
+  @override
+  String get adminStatusActive => 'Активен';
+
+  @override
+  String get adminStatusFrozen => 'Заморожен';
+
+  @override
+  String get adminStatusSpamBlock => 'Спам-блок';
+
+  @override
+  String get adminActionUnblockSpam => 'Снять спам-блок';
+
+  @override
+  String get adminChatUnban => 'Разбанить';
+
+  @override
+  String get adminChatBan => 'Забанить';
+
+  @override
+  String get badgeScreenTitle => 'Бейджи';
+
+  @override
+  String get badgeAvailableBadges => 'Доступные бейджи';
+
+  @override
+  String get badgeAdminActions => 'Действия админа';
+
+  @override
+  String get badgeCopied => 'Бейдж создан';
+
+  @override
+  String get e2eeScreenTitle => 'Секретные чаты';
+
+  @override
+  String get e2eeBannerTitle => 'Секретные чаты (E2EE)';
+
+  @override
+  String get e2eeBannerSubtitle =>
+      'Сквозное шифрование привязано к устройству. Сгенерируйте ключ для использования секретных чатов.';
+
+  @override
+  String get e2eeDeviceKey => 'Ключ устройства';
+
+  @override
+  String get e2eeKeyPairReady => 'Пара ключей готова';
+
+  @override
+  String get e2eeNoKeyPair => 'Нет пары ключей';
+
+  @override
+  String get e2eeTapToRegenerate => 'Нажмите для регенерации';
+
+  @override
+  String get e2eeGenerateKeyPair => 'Сгенерировать RSA-2048 ключ для E2EE';
+
+  @override
+  String get e2eeRotateKey => 'Ротация ключа';
+
+  @override
+  String get e2eeRotateKeySubtitle =>
+      'Создать новую пару ключей (старые секретные чаты сломаются)';
+
+  @override
+  String get e2eeHowItWorks => 'Как это работает';
+
+  @override
+  String get e2eeHowItWorksDesc =>
+      '• Каждое устройство генерирует свою RSA-2048 пару ключей\n• Публичный ключ передаётся на сервер\n• Приватный ключ остаётся только на этом устройстве\n• Секретные чаты видны только на этом устройстве\n• Сообщения шифруются AES-256-GCM\n• AES-ключ шифруется публичным RSA-ключом получателя';
+
+  @override
+  String get e2eeCreateSecretChat => 'Создать секретный чат';
+
+  @override
+  String get e2eeCreateSecretChatDesc =>
+      'Для начала секретного чата откройте личный диалог из контактов.\nОпция секретного чата станет доступна после генерации ключей.';
+
+  @override
+  String get e2eeRotateConfirmTitle => 'Ротировать ключ?';
+
+  @override
+  String get e2eeRotateConfirmBody =>
+      'Старые секретные чаты станут недоступны после ротации. Новые сообщения будут использовать новый ключ.';
+
+  @override
+  String get e2eeRotateConfirm => 'Ротировать';
+
+  @override
+  String get e2eeGeneratingKeys => 'Генерация ключей шифрования';
+
+  @override
+  String get e2eeGeneratingKeysDesc =>
+      'Создаётся RSA-2048 пара ключей.\nЭто может занять несколько секунд...';
+
+  @override
+  String get e2eeKeyRotated => 'Ключ ротирован и загружен';
+
+  @override
+  String get chatMembersBanConfirmTitle => 'Забанить участника?';
+
+  @override
+  String get chatMembersUnbanConfirmTitle => 'Разбанить участника?';
+
+  @override
+  String get chatMembersBanConfirmBody =>
+      'Участник потеряет доступ до тех пор, пока вы не восстановите его.';
+
+  @override
+  String get chatMembersUnbanConfirmBody =>
+      'Восстановите участника и позвольте ему вернуться в беседу.';
+
+  @override
+  String get chatMembersMuteConfirmTitle => 'Заглушить участника?';
+
+  @override
+  String get chatMembersUnmuteConfirmTitle => 'Снять мут?';
+
+  @override
+  String get chatMembersMuteConfirmBody =>
+      'Заглушенные участники остаются в чате, но не могут нормально участвовать.';
+
+  @override
+  String get chatMembersUnmuteConfirmBody =>
+      'Разрешите участнику снова участвовать в беседе.';
+
+  @override
+  String chatMembersFailed(Object error) {
+    return 'Ошибка: $error';
+  }
+
+  @override
+  String contactsFailedToLoad(Object error) {
+    return 'Не удалось загрузить: $error';
+  }
+
+  @override
+  String contactsFailedToSearch(Object error) {
+    return 'Не удалось найти: $error';
+  }
+
+  @override
+  String get contactsCouldNotOpenChat => 'Не удалось открыть личный чат';
+
+  @override
+  String contactsFailedToOpenChat(Object error) {
+    return 'Не удалось открыть личный чат: $error';
+  }
+
+  @override
+  String contactsMembersCount(int count) {
+    return '$count участников';
+  }
+
+  @override
+  String get settingsSupportEmail => 'support@ni-os.ru';
+
+  @override
+  String get settingsPrivacyPolicyUrl => 'ni-os.ru/privacy';
+
+  @override
+  String get settingsTermsOfServiceUrl => 'ni-os.ru/terms';
+
+  @override
+  String get settingsWebsiteUrl => 'ni-os.ru';
+
+  @override
+  String get settingsAboutNiosMess => 'NiosMess';
+
+  @override
+  String get biometricTitle => 'Биометрия';
+
+  @override
+  String get biometricEnabled => 'Включена — вход по отпечатку/лицу';
+
+  @override
+  String get biometricDisabled => 'Отключена';
+
+  @override
+  String get biometricAuthReason =>
+      'Подтвердите личность для включения биометрии';
+
+  @override
+  String chatManageCopiedLabel(Object title) {
+    return '$title скопировано';
+  }
+
+  @override
+  String get chatAiAssistant => 'ИИ помощник';
+
+  @override
+  String get chatAiProcessed => 'Текст успешно изменен ИИ';
+
+  @override
+  String get chatAiUndo => 'Отменить';
+
+  @override
+  String chatAiError(Object error) {
+    return 'Ошибка обработки ИИ: $error';
+  }
+
+  @override
+  String get chatAiFixErrors => 'Исправить';
+
+  @override
+  String get chatAiFormal => 'Деловой';
+
+  @override
+  String get chatAiTranslate => 'Перевести';
+
+  @override
+  String get chatAiLangEn => 'Англ.';
+
+  @override
+  String get chatAiLangRu => 'Рус.';
+
+  @override
+  String get chatAiLangDe => 'Нем.';
+
+  @override
+  String get chatAiLangFr => 'Фран.';
+
+  @override
+  String get chatAiLangEs => 'Исп.';
+
+  @override
+  String get chatAiLangZh => 'Кит.';
+
+  @override
+  String get chatDraftRestored => 'Черновик восстановлен на этом устройстве';
+
+  @override
+  String get fileOpenerInvalidUrl => 'Неверный URL файла';
+
+  @override
+  String get fileOpenerFailedOpenRemote => 'Не удалось открыть удалённый файл';
+
+  @override
+  String get fileOpenerCannotOpenType => 'Не удалось открыть файл этого типа';
+
+  @override
+  String get fileOpenerApkAndroidOnly =>
+      'APK-файлы можно установить только на Android-устройствах';
+
+  @override
+  String fileOpenerFailedApk(Object error) {
+    return 'Не удалось открыть APK: $error';
+  }
+
+  @override
+  String get fileOpenerExeNotOnMobile =>
+      'EXE-файлы нельзя открыть на мобильных устройствах';
+
+  @override
+  String fileOpenerFailedExe(Object error) {
+    return 'Не удалось открыть EXE: $error';
+  }
+
+  @override
+  String fileOpenerNoAppFound(Object type) {
+    return 'Не найдено приложение для открытия файлов типа $type';
+  }
 }
