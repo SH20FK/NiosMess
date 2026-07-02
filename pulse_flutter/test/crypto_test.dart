@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'dart:developer' show log;
 import 'package:cryptography/cryptography.dart';
 
 void main() async {
-  print('Testing cryptography package inside project...');
+  log('Testing cryptography package inside project...');
   final algorithm = AesGcm.with256bits();
 
   // Test AES key (32 bytes)
@@ -12,7 +13,7 @@ void main() async {
   final message = 'Hello, NiosMess WebSocket Encryption!';
   final messageBytes = utf8.encode(message);
 
-  print('Original message: $message');
+  log('Original message: $message');
 
   // Encrypt
   final secretBox = await algorithm.encrypt(
@@ -24,9 +25,9 @@ void main() async {
   final ivBase64 = base64Encode(secretBox.nonce);
   final tagBase64 = base64Encode(secretBox.mac.bytes);
 
-  print('Ciphertext (Base64): $ciphertextBase64');
-  print('IV (Base64): $ivBase64');
-  print('Tag (Base64): $tagBase64');
+  log('Ciphertext (Base64): $ciphertextBase64');
+  log('IV (Base64): $ivBase64');
+  log('Tag (Base64): $tagBase64');
 
   // Decrypt
   final decodedCiphertext = base64Decode(ciphertextBase64);
@@ -45,11 +46,11 @@ void main() async {
   );
 
   final decryptedMessage = utf8.decode(decryptedBytes);
-  print('Decrypted message: $decryptedMessage');
+  log('Decrypted message: $decryptedMessage');
 
   if (decryptedMessage == message) {
-    print('SUCCESS! Cryptography works as expected.');
+    log('SUCCESS! Cryptography works as expected.');
   } else {
-    print('FAILURE! Decrypted message mismatch.');
+    log('FAILURE! Decrypted message mismatch.');
   }
 }
