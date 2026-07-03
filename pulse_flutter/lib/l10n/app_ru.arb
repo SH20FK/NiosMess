@@ -1412,5 +1412,7 @@
     }
   },
   "chatReadBy": "Прочитали",
-  "chatForwardedCard": "Пересланное сообщение"
+  "chatForwardedCard": "Пересланное сообщение",
+  "messageSentByMe": "Отправлено мной",
+  "messageSemantics": "Сообщение"
 }

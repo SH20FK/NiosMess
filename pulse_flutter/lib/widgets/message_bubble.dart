@@ -142,7 +142,7 @@ class MessageBubble extends ConsumerWidget {
                   ],
                 ),
                 child: Semantics(
-                  label: isMine ? 'Sent by me' : (senderDisplayName ?? 'Message'),
+                  label: isMine ? context.l10n.messageSentByMe : (senderDisplayName ?? context.l10n.messageSemantics),
                   child: Stack(
                   children: [
                     Column(

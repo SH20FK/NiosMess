@@ -1414,5 +1414,7 @@
     }
   },
   "chatReadBy": "Read by",
-  "chatForwardedCard": "Forwarded message"
+  "chatForwardedCard": "Forwarded message",
+  "messageSentByMe": "Sent by me",
+  "messageSemantics": "Message"
 }

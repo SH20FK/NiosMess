@@ -543,14 +543,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     );
   }
 
-  Future<void> _sendVoiceMessage(String filePath) async {
-    final int? chatId = _chatId;
-    if (chatId == null || _uploadingMedia) return;
-
-    final File file = File(filePath);
-    final int fileSize = await file.length();
-    final String filename = filePath.split('/').last;
-
+  Future<void> _uploadAndSend({
+    required int chatId,
+    String? filePath,
+    Stream<List<int>>? readStream,
+    required String filename,
+    required String mediaSubtype,
+    required int fileSize,
+    String text = '',
+    bool showSentSnackBar = false,
+  }) async {
     setState(() {
       _uploadingMedia = true;
       _uploadProgress = 0;
@@ -562,9 +564,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       final String uploadId = await ref
           .read(chatRepositoryProvider)
           .uploadStreamInChunks(
+            readStream: readStream,
             filePath: filePath,
             filename: filename,
-            mediaSubtype: 'audio',
+            mediaSubtype: mediaSubtype,
             fileSize: fileSize,
             onProgress: (int sent, int total) {
               if (!mounted || total <= 0) return;
@@ -574,10 +577,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
 
       await ref
           .read(chatMessagesProvider(chatId).notifier)
-          .send('', replyToId: _replyToMessageId, uploadId: uploadId);
+          .send(text, replyToId: _replyToMessageId, uploadId: uploadId);
 
       _clearReply();
       _scrollToBottom();
+
+      if (showSentSnackBar && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.chatMediaSent)),
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       final String message = error is ApiException
@@ -594,6 +603,23 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         });
       }
     }
+  }
+
+  Future<void> _sendVoiceMessage(String filePath) async {
+    final int? chatId = _chatId;
+    if (chatId == null || _uploadingMedia) return;
+
+    final File file = File(filePath);
+    final int fileSize = await file.length();
+    final String filename = filePath.split('/').last;
+
+    await _uploadAndSend(
+      chatId: chatId,
+      filePath: filePath,
+      filename: filename,
+      mediaSubtype: 'audio',
+      fileSize: fileSize,
+    );
   }
 
   Future<bool> _loadOlderMessages() async {
@@ -653,70 +679,18 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       }
     }
 
-    setState(() {
-      _uploadingMedia = true;
-      _uploadProgress = 0;
-      _uploadFileName = filename;
-      _uploadFileSize = uploadFileSize;
-    });
+    await _uploadAndSend(
+      chatId: chatId,
+      filePath: uploadFilePath,
+      readStream: uploadStream,
+      filename: filename,
+      mediaSubtype: mediaSubtype,
+      fileSize: uploadFileSize,
+      text: _inputController.text,
+      showSentSnackBar: true,
+    );
 
-    try {
-      final String uploadId = await ref
-          .read(chatRepositoryProvider)
-          .uploadStreamInChunks(
-            readStream: uploadStream,
-            filePath: uploadFilePath,
-            filename: filename,
-            mediaSubtype: mediaSubtype,
-            fileSize: uploadFileSize,
-            onProgress: (int sent, int total) {
-              if (!mounted || total <= 0) {
-                return;
-              }
-              setState(() {
-                _uploadProgress = sent / total;
-              });
-            },
-          );
-
-      await ref
-          .read(chatMessagesProvider(chatId).notifier)
-          .send(
-            _inputController.text,
-            replyToId: _replyToMessageId,
-            uploadId: uploadId,
-          );
-
-      _inputController.clear();
-      _clearReply();
-
-
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.chatMediaSent)));
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      final String message = error is ApiException
-          ? error.message
-          : context.l10n.commonFailed('$error');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _uploadingMedia = false;
-          _uploadProgress = 0;
-          _uploadFileName = null;
-          _uploadFileSize = null;
-        });
-      }
-    }
+    if (mounted) _inputController.clear();
   }
 
   Future<void> _editMessage(ApiMessage message) async {
