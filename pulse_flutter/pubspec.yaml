@@ -49,6 +49,7 @@ dependencies:
   path_provider: ^2.1.5
   audioplayers: ^6.1.0
   record: ^5.1.0
+  lottie: ^3.3.3
   flutter_file_dialog: ^3.0.2
   url_launcher: ^6.3.2
   package_info_plus: ^9.0.1
@@ -99,6 +100,7 @@ flutter:
     - assets/fonts/
     - assets/sounds/
     - assets/developers/
+    - assets/lottie/
     - assets/NiosMess_icon.png
 
   fonts:

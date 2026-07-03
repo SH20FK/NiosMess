@@ -191,6 +191,18 @@ class _VaffuruThemeSettingsScreenState
   Widget build(BuildContext context) {
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final Brightness brightness = scheme.brightness;
+    final Map<_ThemePaletteId, ColorScheme> previewSchemes = {
+      for (final _ThemePaletteId id in _paletteOrder)
+        id: ColorScheme.fromSeed(
+          seedColor: _paletteSeeds[id]!,
+          brightness: brightness,
+          dynamicSchemeVariant:
+              settings.variant == Md3Variant.expressive
+              ? DynamicSchemeVariant.expressive
+              : DynamicSchemeVariant.tonalSpot,
+        ),
+    };
 
     return SettingsScaffold(
       title: context.l10n.appearancePersonalizationTitle,
@@ -201,13 +213,15 @@ class _VaffuruThemeSettingsScreenState
           subtitle: context.l10n.appearancePersonalizationSubtitle,
           iconColor: scheme.primary,
         ),
-        _ThemeHeroCard(
-          controller: _waveController,
-          paletteLabel: _paletteLabel(_selectedPalette),
-          densityLabel: _densityLabel(_densityMode),
-          scheme: scheme,
-          settings: settings,
-          density: _density,
+        RepaintBoundary(
+          child: _ThemeHeroCard(
+            controller: _waveController,
+            paletteLabel: _paletteLabel(_selectedPalette),
+            densityLabel: _densityLabel(_densityMode),
+            scheme: scheme,
+            settings: settings,
+            density: _density,
+          ),
         ),
         SizedBox(height: _density.sectionSpacing),
         SettingsSection(
@@ -225,14 +239,7 @@ class _VaffuruThemeSettingsScreenState
                   final _ThemePaletteId palette = _paletteOrder[index];
                   final Color seed = _paletteSeeds[palette]!;
                   final bool selected = palette == _selectedPalette;
-                  final ColorScheme previewScheme = ColorScheme.fromSeed(
-                    seedColor: seed,
-                    brightness: scheme.brightness,
-                    dynamicSchemeVariant:
-                        settings.variant == Md3Variant.expressive
-                        ? DynamicSchemeVariant.expressive
-                        : DynamicSchemeVariant.tonalSpot,
-                  );
+                  final ColorScheme previewScheme = previewSchemes[palette]!;
                   return GestureDetector(
                     onTap: () {
                       _playFeedback(settings);
@@ -681,8 +688,8 @@ class _LiquidMeshPainter extends CustomPainter {
       t: t,
       amp: amp,
       blurBoost: blurBoost,
-      cols: optimize ? 3 : 6,
-      rows: optimize ? 3 : 5,
+      cols: optimize ? 2 : 4,
+      rows: optimize ? 2 : 3,
       colorPickers: _backColors,
       alpha: 0.14,
       blurBase: optimize ? 52.0 : 38.0,
@@ -698,8 +705,8 @@ class _LiquidMeshPainter extends CustomPainter {
       t: t,
       amp: amp,
       blurBoost: blurBoost,
-      cols: optimize ? 2 : 5,
-      rows: optimize ? 2 : 4,
+      cols: optimize ? 2 : 3,
+      rows: optimize ? 2 : 2,
       colorPickers: _frontColors,
       alpha: 0.16,
       blurBase: optimize ? 44.0 : 28.0,
@@ -726,8 +733,6 @@ class _LiquidMeshPainter extends CustomPainter {
     required double speedMul,
     required double phaseOffset,
   }) {
-    canvas.saveLayer(Offset.zero & size, Paint()..blendMode = blendMode);
-
     final double cellW = size.width / (cols - 1);
     final double cellH = size.height / (rows - 1);
     final double baseRadius = size.shortestSide * radiusFactor;
@@ -752,7 +757,9 @@ class _LiquidMeshPainter extends CustomPainter {
         final double sigma = blurBase * blurBoost + ((seed * 3.0) % 1.0) * 8;
         final double r = baseRadius * (0.85 + ((seed * 5.0) % 1.0) * 0.3);
 
+        final bool usesBlur = idx < 4;
         final Paint paint = Paint()
+          ..blendMode = blendMode
           ..shader = RadialGradient(
             colors: <Color>[
               color,
@@ -760,14 +767,15 @@ class _LiquidMeshPainter extends CustomPainter {
               color.withValues(alpha: 0.0),
             ],
             stops: const <double>[0.0, 0.45, 1.0],
-          ).createShader(Rect.fromCircle(center: Offset(px, py), radius: r))
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, sigma);
+          ).createShader(Rect.fromCircle(center: Offset(px, py), radius: r));
+
+        if (usesBlur) {
+          paint.maskFilter = MaskFilter.blur(BlurStyle.normal, sigma * 0.6);
+        }
 
         canvas.drawCircle(Offset(px, py), r, paint);
       }
     }
-
-    canvas.restore();
   }
 
   @override

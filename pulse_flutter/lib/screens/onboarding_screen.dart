@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -9,9 +10,6 @@ import 'package:pulse_flutter/providers/session_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/glass_card.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
-import 'package:pulse_flutter/widgets/onboarding/call_waves_painter.dart';
-import 'package:pulse_flutter/widgets/onboarding/chat_messages_painter.dart';
-import 'package:pulse_flutter/widgets/onboarding/bolt_spark_painter.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -21,38 +19,30 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
-    with SingleTickerProviderStateMixin {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late final PageController _pageController;
-  late final AnimationController _floatController;
   int _index = 0;
-
-  static const List<IconData> _slideIcons = <IconData>[
-    Icons.call_rounded,
-    Icons.chat_bubble_rounded,
-    Icons.bolt_rounded,
-  ];
 
   List<_SlideData> _slides(BuildContext context) => <_SlideData>[
     _SlideData(
       title: context.l10n.onboardingSlide1Title,
       description: context.l10n.onboardingSlide1Desc,
-      icon: _slideIcons[0],
-      painter: CallWavesPainter.new,
+      icon: Icons.call_rounded,
+      lottiePath: 'assets/lottie/onboarding_calls.json',
       tintIndex: 0,
     ),
     _SlideData(
       title: context.l10n.onboardingSlide2Title,
       description: context.l10n.onboardingSlide2Desc,
-      icon: _slideIcons[1],
-      painter: ChatMessagesPainter.new,
+      icon: Icons.chat_bubble_rounded,
+      lottiePath: 'assets/lottie/onboarding_chat.json',
       tintIndex: 1,
     ),
     _SlideData(
       title: context.l10n.onboardingSlide3Title,
       description: context.l10n.onboardingSlide3Desc,
-      icon: _slideIcons[2],
-      painter: BoltSparkPainter.new,
+      icon: Icons.bolt_rounded,
+      lottiePath: 'assets/lottie/onboarding_speed.json',
       tintIndex: 2,
     ),
   ];
@@ -61,16 +51,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   void initState() {
     super.initState();
     _pageController = PageController();
-    _floatController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _floatController.dispose();
     super.dispose();
   }
 
@@ -178,71 +163,63 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                     itemBuilder: (BuildContext context, int index) {
                       final _SlideData slide = slides[index];
 
-                      return AnimatedBuilder(
-                        animation: _floatController,
-                        builder: (_, Widget? child) {
-                          return SingleChildScrollView(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: <Widget>[
-                                const SizedBox(height: 20),
-                                Hero(
-                                  tag: 'onboarding_icon_${slide.tintIndex}',
-                                  child: GlassCard(
-                                    padding: const EdgeInsets.all(6),
-                                    child: SizedBox(
-                                      width: 140,
-                                      height: 140,
-                                      child: CustomPaint(
-                                        painter: slide.painter(
-                                          scheme,
-                                          _floatController.value,
+                      return SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            const SizedBox(height: 20),
+                            Hero(
+                              tag: 'onboarding_icon_${slide.tintIndex}',
+                              child: GlassCard(
+                                padding: const EdgeInsets.all(12),
+                                child: Lottie.asset(
+                                  slide.lottiePath,
+                                  width: 160,
+                                  height: 160,
+                                  fit: BoxFit.contain,
+                                  repeat: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: GlassCard(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Column(
+                                    children: <Widget>[
+                                      Text(
+                                        slide.title,
+                                        textAlign: TextAlign.center,
+                                        style: textTheme.headlineMedium?.copyWith(
+                                          fontWeight: FontWeight.w700,
                                         ),
                                       ),
-                                    ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        slide.description,
+                                        textAlign: TextAlign.center,
+                                        style: textTheme.bodyLarge?.copyWith(
+                                          color: scheme.onSurfaceVariant,
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(height: 24),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  child: GlassCard(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(20),
-                                      child: Column(
-                                        children: <Widget>[
-                                          Text(
-                                            slide.title,
-                                            textAlign: TextAlign.center,
-                                            style: textTheme.headlineMedium?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Text(
-                                            slide.description,
-                                            textAlign: TextAlign.center,
-                                            style: textTheme.bodyLarge?.copyWith(
-                                              color: scheme.onSurfaceVariant,
-                                              height: 1.4,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                    .animate(key: ValueKey<int>(index))
-                                    .fade(duration: 320.ms)
-                                    .slideY(
-                                      begin: 0.08,
-                                      end: 0,
-                                      curve: Curves.easeOutCubic,
-                                      duration: 360.ms,
-                                    ),
-                              ],
-                            ),
-                          );
-                        },
+                              ),
+                            )
+                                .animate(key: ValueKey<int>(index))
+                                .fade(duration: 320.ms)
+                                .slideY(
+                                  begin: 0.08,
+                                  end: 0,
+                                  curve: Curves.easeOutCubic,
+                                  duration: 360.ms,
+                                ),
+                          ],
+                        ),
                       );
                     },
                   ),
@@ -287,12 +264,12 @@ class _SlideData {
     required this.title,
     required this.description,
     required this.icon,
-    required this.painter,
+    required this.lottiePath,
     required this.tintIndex,
   });
   final String title;
   final String description;
   final IconData icon;
-  final CustomPainter Function(ColorScheme, double) painter;
+  final String lottiePath;
   final int tintIndex;
 }
