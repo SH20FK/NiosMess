@@ -1210,6 +1210,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatMessageDeleted => 'Message deleted';
 
   @override
+  String get chatEncryptedMessage => 'Encrypted message';
+
+  @override
   String get chatMessageForwarded => 'Message forwarded';
 
   @override

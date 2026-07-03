@@ -363,8 +363,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
 
     merged.sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
-    state = AsyncData<List<ApiMessage>>(merged);
-    await _saveToCache(merged);
+    final List<ApiMessage> decrypted = await _decryptE2eeMessages(merged);
+    state = AsyncData<List<ApiMessage>>(decrypted);
+    await _saveToCache(decrypted);
     return added;
   }
 

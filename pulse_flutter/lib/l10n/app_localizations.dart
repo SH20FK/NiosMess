@@ -2318,6 +2318,12 @@ abstract class AppLocalizations {
   /// **'Message deleted'**
   String get chatMessageDeleted;
 
+  /// No description provided for @chatEncryptedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted message'**
+  String get chatEncryptedMessage;
+
   /// No description provided for @chatMessageForwarded.
   ///
   /// In en, this message translates to:

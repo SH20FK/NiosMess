@@ -441,6 +441,7 @@
   "chatDeleteMessageTitle": "Delete message?",
   "chatDeleteMessageBody": "This action cannot be undone.",
   "chatMessageDeleted": "Message deleted",
+  "chatEncryptedMessage": "Encrypted message",
   "chatMessageForwarded": "Message forwarded",
   "chatMessageTextCopied": "Text copied to clipboard",
   "chatMediaSent": "Media sent successfully",

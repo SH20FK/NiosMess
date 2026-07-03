@@ -1214,6 +1214,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatMessageDeleted => 'Сообщение удалено';
 
   @override
+  String get chatEncryptedMessage => 'Зашифрованное сообщение';
+
+  @override
   String get chatMessageForwarded => 'Сообщение переслано';
 
   @override
