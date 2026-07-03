@@ -1,0 +1,17 @@
+name: record_linux
+version: 0.7.2
+description: A patched local fork of record_linux with minimal implementations to satisfy newer platform interface.
+homepage: https://github.com/SH20FK/NiosMess
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  record_platform_interface: ^1.6.0
+
+flutter:
+  plugin:
+    platforms:
+      linux:
+        pluginClass: RecordLinuxPlugin
