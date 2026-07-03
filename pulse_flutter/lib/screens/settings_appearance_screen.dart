@@ -30,14 +30,6 @@ enum _ThemePaletteId {
 
 enum _DensityMode { soft, rich, expressive }
 
-class VaffuruThemeSettingsScreen extends ConsumerStatefulWidget {
-  const VaffuruThemeSettingsScreen({super.key});
-
-  @override
-  ConsumerState<VaffuruThemeSettingsScreen> createState() =>
-      _VaffuruThemeSettingsScreenState();
-}
-
 class _DensitySpec {
   const _DensitySpec({
     required this.heroHeight,
@@ -47,8 +39,6 @@ class _DensitySpec {
     required this.heroSurfaceRadius,
     required this.sectionSpacing,
     required this.tileVerticalPadding,
-    required this.fogAmplitude,
-    required this.fogBlurBoost,
   });
 
   final double heroHeight;
@@ -58,50 +48,49 @@ class _DensitySpec {
   final double heroSurfaceRadius;
   final double sectionSpacing;
   final double tileVerticalPadding;
-  final double fogAmplitude;
-  final double fogBlurBoost;
+}
+
+class VaffuruThemeSettingsScreen extends ConsumerStatefulWidget {
+  const VaffuruThemeSettingsScreen({super.key});
+
+  @override
+  ConsumerState<VaffuruThemeSettingsScreen> createState() =>
+      _VaffuruThemeSettingsScreenState();
 }
 
 class _VaffuruThemeSettingsScreenState
     extends ConsumerState<VaffuruThemeSettingsScreen>
     with SingleTickerProviderStateMixin {
-  static const Cubic _expressiveCurve = Cubic(0.2, 0.0, 0.0, 1.0);
   static const Map<_DensityMode, _DensitySpec> _densitySpecs =
       <_DensityMode, _DensitySpec>{
-        _DensityMode.soft: _DensitySpec(
-          heroHeight: 268,
-          heroTopInset: 18,
-          heroBottomInset: 18,
-          heroPillSpacing: 8,
-          heroSurfaceRadius: 24,
-          sectionSpacing: 12,
-          tileVerticalPadding: 6,
-          fogAmplitude: 0.85,
-          fogBlurBoost: 0.88,
-        ),
-        _DensityMode.rich: _DensitySpec(
-          heroHeight: 308,
-          heroTopInset: 22,
-          heroBottomInset: 22,
-          heroPillSpacing: 10,
-          heroSurfaceRadius: 28,
-          sectionSpacing: 16,
-          tileVerticalPadding: 8,
-          fogAmplitude: 1.0,
-          fogBlurBoost: 1.0,
-        ),
-        _DensityMode.expressive: _DensitySpec(
-          heroHeight: 344,
-          heroTopInset: 24,
-          heroBottomInset: 24,
-          heroPillSpacing: 12,
-          heroSurfaceRadius: 32,
-          sectionSpacing: 20,
-          tileVerticalPadding: 10,
-          fogAmplitude: 1.18,
-          fogBlurBoost: 1.15,
-        ),
-      };
+    _DensityMode.soft: _DensitySpec(
+      heroHeight: 260,
+      heroTopInset: 18,
+      heroBottomInset: 18,
+      heroPillSpacing: 8,
+      heroSurfaceRadius: 24,
+      sectionSpacing: 12,
+      tileVerticalPadding: 6,
+    ),
+    _DensityMode.rich: _DensitySpec(
+      heroHeight: 300,
+      heroTopInset: 22,
+      heroBottomInset: 22,
+      heroPillSpacing: 10,
+      heroSurfaceRadius: 28,
+      sectionSpacing: 16,
+      tileVerticalPadding: 8,
+    ),
+    _DensityMode.expressive: _DensitySpec(
+      heroHeight: 340,
+      heroTopInset: 24,
+      heroBottomInset: 24,
+      heroPillSpacing: 12,
+      heroSurfaceRadius: 32,
+      sectionSpacing: 20,
+      tileVerticalPadding: 10,
+    ),
+  };
 
   static const List<_ThemePaletteId> _paletteOrder = <_ThemePaletteId>[
     _ThemePaletteId.amethyst,
@@ -116,40 +105,51 @@ class _VaffuruThemeSettingsScreenState
 
   static const Map<_ThemePaletteId, Color> _paletteSeeds =
       <_ThemePaletteId, Color>{
-        _ThemePaletteId.amethyst: Color(0xFF9C27B0),
-        _ThemePaletteId.lagoon: Color(0xFF00897B),
-        _ThemePaletteId.meadow: Color(0xFF558B2F),
-        _ThemePaletteId.ember: Color(0xFFD84315),
-        _ThemePaletteId.orchid: Color(0xFFC2185B),
-        _ThemePaletteId.slate: Color(0xFF546E7A),
-        _ThemePaletteId.sky: Color(0xFF2F6FED),
-        _ThemePaletteId.rose: Color(0xFFB3265F),
-      };
+    _ThemePaletteId.amethyst: Color(0xFF9C27B0),
+    _ThemePaletteId.lagoon: Color(0xFF00897B),
+    _ThemePaletteId.meadow: Color(0xFF558B2F),
+    _ThemePaletteId.ember: Color(0xFFD84315),
+    _ThemePaletteId.orchid: Color(0xFFC2185B),
+    _ThemePaletteId.slate: Color(0xFF546E7A),
+    _ThemePaletteId.sky: Color(0xFF2F6FED),
+    _ThemePaletteId.rose: Color(0xFFB3265F),
+  };
 
-  late final AnimationController _waveController;
+  late final AnimationController _ambientController;
+  late final PageController _palettePageController;
   late _ThemePaletteId _selectedPalette;
   _DensityMode _densityMode = _DensityMode.rich;
+
+  Map<_ThemePaletteId, ColorScheme> _previewSchemes = {};
+  Brightness? _cachedBrightness;
+  Md3Variant? _cachedVariant;
 
   _DensitySpec get _density => _densitySpecs[_densityMode]!;
 
   @override
   void initState() {
     super.initState();
-    _waveController = AnimationController(
+    _ambientController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 5200),
-    )..repeat();
+      duration: const Duration(milliseconds: 8000),
+    )..repeat(reverse: true);
     _selectedPalette = _paletteFromSeed(ref.read(uiSettingsProvider).seedColor);
+    _palettePageController = PageController(
+      initialPage: _paletteOrder.indexOf(_selectedPalette),
+      viewportFraction: 0.28,
+    );
   }
 
   @override
   void dispose() {
-    _waveController.dispose();
+    _ambientController.dispose();
+    _palettePageController.dispose();
     super.dispose();
   }
 
   _ThemePaletteId _paletteFromSeed(Color seed) {
-    for (final MapEntry<_ThemePaletteId, Color> entry in _paletteSeeds.entries) {
+    for (final MapEntry<_ThemePaletteId, Color> entry
+        in _paletteSeeds.entries) {
       if (entry.value.toARGB32() == seed.toARGB32()) {
         return entry.key;
       }
@@ -187,26 +187,46 @@ class _VaffuruThemeSettingsScreenState
     };
   }
 
+  Map<_ThemePaletteId, ColorScheme> _buildPreviewSchemes(
+    Brightness brightness,
+    Md3Variant variant,
+  ) {
+    if (_cachedBrightness == brightness && _cachedVariant == variant) {
+      return _previewSchemes;
+    }
+    _cachedBrightness = brightness;
+    _cachedVariant = variant;
+    _previewSchemes = {
+      for (final _ThemePaletteId id in _paletteOrder)
+        id: ColorScheme.fromSeed(
+          seedColor: _paletteSeeds[id]!,
+          brightness: brightness,
+          dynamicSchemeVariant: variant == Md3Variant.expressive
+              ? DynamicSchemeVariant.expressive
+              : DynamicSchemeVariant.tonalSpot,
+        ),
+    };
+    return _previewSchemes;
+  }
+
+  void _onPaletteSelected(int index) {
+    final palette = _paletteOrder[index];
+    if (_selectedPalette == palette) return;
+    setState(() => _selectedPalette = palette);
+    final seed = _paletteSeeds[palette]!;
+    ref.read(uiSettingsProvider.notifier).setSeedColor(seed);
+  }
+
   @override
   Widget build(BuildContext context) {
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final Brightness brightness = scheme.brightness;
-    final Map<_ThemePaletteId, ColorScheme> previewSchemes = {
-      for (final _ThemePaletteId id in _paletteOrder)
-        id: ColorScheme.fromSeed(
-          seedColor: _paletteSeeds[id]!,
-          brightness: brightness,
-          dynamicSchemeVariant:
-              settings.variant == Md3Variant.expressive
-              ? DynamicSchemeVariant.expressive
-              : DynamicSchemeVariant.tonalSpot,
-        ),
-    };
+    final previewSchemes = _buildPreviewSchemes(brightness, settings.variant);
 
     return SettingsScaffold(
       title: context.l10n.appearancePersonalizationTitle,
-      children: <Widget>[
+      children: [
         SettingsNavBanner(
           icon: Icons.palette_outlined,
           title: context.l10n.appearancePersonalizationTitle,
@@ -214,8 +234,8 @@ class _VaffuruThemeSettingsScreenState
           iconColor: scheme.primary,
         ),
         RepaintBoundary(
-          child: _ThemeHeroCard(
-            controller: _waveController,
+          child: _ThemePreviewCard(
+            controller: _ambientController,
             paletteLabel: _paletteLabel(_selectedPalette),
             densityLabel: _densityLabel(_densityMode),
             scheme: scheme,
@@ -227,39 +247,41 @@ class _VaffuruThemeSettingsScreenState
         SettingsSection(
           title: context.l10n.appearancePaletteTitle,
           subtitle: context.l10n.appearancePaletteSubtitle,
-          children: <Widget>[
+          children: [
             SizedBox(
-              height: 110,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+              height: 120,
+              child: PageView.builder(
+                controller: _palettePageController,
                 itemCount: _paletteOrder.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (BuildContext context, int index) {
-                  final _ThemePaletteId palette = _paletteOrder[index];
-                  final Color seed = _paletteSeeds[palette]!;
-                  final bool selected = palette == _selectedPalette;
-                  final ColorScheme previewScheme = previewSchemes[palette]!;
+                onPageChanged: _onPaletteSelected,
+                padEnds: true,
+                physics: const BouncingScrollPhysics(),
+                itemBuilder: (context, index) {
+                  final palette = _paletteOrder[index];
+                  final selected = palette == _selectedPalette;
+                  final previewScheme = previewSchemes[palette]!;
                   return GestureDetector(
                     onTap: () {
                       _playFeedback(settings);
-                      setState(() => _selectedPalette = palette);
-                      ref
-                          .read(uiSettingsProvider.notifier)
-                          .setSeedColor(seed);
+                      _palettePageController.animateToPage(
+                        index,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOutCubic,
+                      );
+                      _onPaletteSelected(index);
                     },
+                    behavior: HitTestBehavior.opaque,
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 400),
+                      duration: const Duration(milliseconds: 350),
                       curve: Curves.easeInOutCubic,
-                      width: 96,
-                      height: 96,
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: selected
                               ? scheme.primary
                               : Colors.transparent,
-                          width: 3,
+                          width: selected ? 3.5 : 0,
                         ),
                       ),
                       padding: const EdgeInsets.all(6),
@@ -271,6 +293,28 @@ class _VaffuruThemeSettingsScreenState
                 },
               ),
             ),
+            const SizedBox(height: 12),
+            // Индикатор страницы
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_paletteOrder.length, (index) {
+                final selected =
+                    index == _paletteOrder.indexOf(_selectedPalette);
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOutCubic,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: selected ? 18 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? scheme.primary
+                        : scheme.outlineVariant.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                );
+              }),
+            ),
             const SizedBox(height: 8),
           ],
         ),
@@ -278,7 +322,7 @@ class _VaffuruThemeSettingsScreenState
         SettingsSection(
           title: context.l10n.appearanceDensityTitle,
           subtitle: context.l10n.appearanceDensitySubtitle,
-          children: <Widget>[
+          children: [
             Padding(
               padding: EdgeInsets.all(_density.heroPillSpacing + 2),
               child: SegmentedButton<_DensityMode>(
@@ -292,6 +336,253 @@ class _VaffuruThemeSettingsScreenState
                     value: _DensityMode.rich,
                     label: Text(context.l10n.appearanceDensityRich),
                   ),
+                  ButtonSegment<_DensityMode>(
+                    value: _DensityMode.expressive,
+                    label: Text(context.l10n.appearanceDensityExpressive),
+                  ),
+                ],
+                selected: <_DensityMode>{_densityMode},
+                onSelectionChanged: (Set<_DensityMode> values) {
+                  _playFeedback(settings);
+                  setState(() => _densityMode = values.first);
+                },
+                style: ButtonStyle(
+                  shape: const WidgetStatePropertyAll(
+                    StadiumBorder(),
+                  ),
+                  backgroundColor: WidgetStateProperty.resolveWith(
+                    (Set<WidgetState> states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return scheme.primaryContainer;
+                      }
+                      return scheme.surfaceContainerLow;
+                    },
+                  ),
+                  foregroundColor: WidgetStateProperty.resolveWith(
+                    (Set<WidgetState> states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return scheme.onPrimaryContainer;
+                      }
+                      return scheme.onSurfaceVariant;
+                    },
+                  ),
+                  side: WidgetStateProperty.resolveWith(
+                    (Set<WidgetState> states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return BorderSide(
+                          color: scheme.primary.withValues(alpha: 0.18),
+                        );
+                      }
+                      return BorderSide(
+                        color: scheme.outlineVariant.withValues(alpha: 0.28),
+                      );
+                    },
+                  ),
+                  padding: const WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: _density.sectionSpacing * 0.25),
+        SettingsSection(
+          title: context.l10n.appearanceThemeParamsTitle,
+          subtitle: context.l10n.appearanceThemeParamsSubtitle,
+          children: [
+            _SwitchCardTile(
+              title: context.l10n.appearanceDynamicColors,
+              subtitle: context.l10n.appearanceDynamicColorsSubtitle,
+              icon: Icons.color_lens_outlined,
+              value: settings.variant == Md3Variant.expressive,
+              verticalPadding: _density.tileVerticalPadding,
+              onChanged: (bool value) {
+                _playFeedback(settings);
+                ref.read(uiSettingsProvider.notifier).setVariant(
+                      value ? Md3Variant.expressive : Md3Variant.tonalSpot,
+                    );
+              },
+            ),
+            _SwitchCardTile(
+              title: context.l10n.appearanceDarkTheme,
+              subtitle: context.l10n.appearanceDarkThemeSubtitle,
+              icon: Icons.dark_mode_outlined,
+              value: settings.themeMode == ThemeMode.dark,
+              verticalPadding: _density.tileVerticalPadding,
+              onChanged: (bool value) {
+                _playFeedback(settings);
+                ref.read(uiSettingsProvider.notifier).setThemeMode(
+                      value ? ThemeMode.dark : ThemeMode.light,
+                    );
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ThemePreviewCard extends StatelessWidget {
+  const _ThemePreviewCard({
+    required this.controller,
+    required this.paletteLabel,
+    required this.densityLabel,
+    required this.scheme,
+    required this.settings,
+    required this.density,
+  });
+
+  final AnimationController controller;
+  final String paletteLabel;
+  final String densityLabel;
+  final ColorScheme scheme;
+  final UiSettingsState settings;
+  final _DensitySpec density;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOutCubic,
+      height: density.heroHeight,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(density.heroSurfaceRadius + 4),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color.alphaBlend(
+              scheme.primary.withValues(alpha: 0.06),
+              scheme.surfaceContainerHigh,
+            ),
+            Color.alphaBlend(
+              scheme.tertiary.withValues(alpha: 0.04),
+              scheme.surfaceContainerLow,
+            ),
+          ],
+        ),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.12),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          // GPU-фон без MaskFilter.blur
+          Positioned.fill(
+            child: _AmbientMeshBackground(
+              controller: controller,
+              scheme: scheme,
+              optimize: settings.optimizeForWeakDevices,
+            ),
+          ),
+          // Вуаль для читаемости текста
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    scheme.surface.withValues(alpha: 0.0),
+                    scheme.surface.withValues(alpha: 0.35),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Пилюли
+          Positioned(
+            left: density.heroTopInset,
+            right: density.heroTopInset,
+            top: density.heroTopInset,
+            child: Wrap(
+              spacing: density.heroPillSpacing,
+              runSpacing: density.heroPillSpacing,
+              children: [
+                _InfoPill(icon: Icons.auto_awesome, label: paletteLabel),
+                _InfoPill(icon: Icons.tune, label: densityLabel),
+                _InfoPill(
+                  icon: settings.themeMode == ThemeMode.dark
+                      ? Icons.dark_mode_rounded
+                      : Icons.light_mode_rounded,
+                  label: settings.themeMode == ThemeMode.dark
+                      ? context.l10n.appearanceLabelDark
+                      : context.l10n.appearanceLabelLight,
+                ),
+              ],
+            ),
+          ),
+          // Мини-превью интерфейса
+          Positioned(
+            left: density.heroTopInset,
+            right: density.heroTopInset,
+            bottom: density.heroBottomInset,
+            child: _MiniUiPreview(scheme: scheme),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AmbientMeshBackground extends StatelessWidget {
+  const _AmbientMeshBackground({
+    required this.controller,
+    required this.scheme,
+    required this.optimize,
+  });
+
+  final AnimationController controller;
+  final ColorScheme scheme;
+  final bool optimize;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = [
+      scheme.primary.withValues(alpha: 0.18),
+      scheme.secondary.withValues(alpha: 0.14),
+      scheme.tertiary.withValues(alpha: 0.12),
+      scheme.primaryContainer.withValues(alpha: 0.10),
+      scheme.secondaryContainer.withValues(alpha: 0.10),
+    ];
+
+    final count = optimize ? 3 : 5;
+
+    // Для слабых девайсов — статичный фон, без анимации
+    if (optimize) {
+      return Stack(
+        children: List.generate(count, (index) {
+          final seed = index * 1.618033988749895;
+          final size = 80.0 + (index % 3) * 60;
+          final color = colors[index % colors.length];
+          return Positioned(
+            left: -20 + (index * 35) % 200,
+            top: -20 + (index * 47) % 140,
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [color, color.withValues(alpha: 0.0)],
+                  stops: const [0.2, 1.0],
+                ),
+              ),
+            ),
+          );
+        }),
+      );
+    }
+
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        final t = controller.value;
+        return Stack(
+          children: List.g              ),
                   ButtonSegment<_DensityMode>(
                     value: _DensityMode.expressive,
                     label: Text(context.l10n.appearanceDensityExpressive),
