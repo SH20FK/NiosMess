@@ -87,6 +87,9 @@ class AuthNotifier extends Notifier<AuthState> {
   @override
   AuthState build() {
     _loadFuture = _load();
+    ref.onDispose(() {
+      _fcmTokenRefreshSubscription?.cancel();
+    });
     return const AuthState.initial();
   }
 

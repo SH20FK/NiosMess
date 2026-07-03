@@ -170,7 +170,7 @@ class ApiMessage {
       chatId: json['chat_id'] as int? ?? 0,
       senderId: json['sender_id'] as int? ?? 0,
       senderUsername: json['sender_username'] as String? ?? '',
-      senderDisplayName: json['sender_display_name'] as String? ?? 'Unknown',
+      senderDisplayName: json['sender_display_name'] as String? ?? json['sender_username'] as String? ?? 'Unknown',
       senderAvatarUrl: json['sender_avatar_url'] as String?,
       senderBadges: badges,
       content: isE2ee ? '' : (json['content'] as String? ?? ''),

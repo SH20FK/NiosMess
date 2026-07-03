@@ -35,7 +35,7 @@ class NgPost {
         : const ApiProfile(
             id: 0,
             username: '',
-            displayName: 'Unknown',
+            displayName: '',
             bio: '',
           );
 

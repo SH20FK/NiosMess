@@ -15,17 +15,75 @@ import 'package:pulse_flutter/widgets/glass_card.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class PostCard extends ConsumerWidget {
+class PostCard extends ConsumerStatefulWidget {
   const PostCard({required this.post, super.key});
 
   final NgPost post;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends ConsumerState<PostCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _heartController;
+  late final Animation<double> _heartScale;
+  late final Animation<double> _heartOpacity;
+  bool _showHeart = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _heartController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _heartScale = TweenSequence<double>(<TweenSequenceItem<double>>[
+      TweenSequenceItem<double>(
+        tween: Tween<double>(begin: 0.0, end: 1.4),
+        weight: 25,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(begin: 1.4, end: 1.0),
+        weight: 25,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(begin: 1.0, end: 0.0),
+        weight: 50,
+      ),
+    ]).animate(CurvedAnimation(parent: _heartController, curve: Curves.easeOut));
+    _heartOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _heartController,
+        curve: const Interval(0.0, 0.3, curve: Curves.easeIn),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _heartController.dispose();
+    super.dispose();
+  }
+
+  void _onDoubleTapLike() {
+    final UiSettingsState settings = ref.read(uiSettingsProvider);
+    if (settings.haptics) HapticService.reaction();
+    ref.read(niosgramProvider.notifier).reactPost(widget.post.id, true);
+    if (!mounted) return;
+    setState(() => _showHeart = true);
+    _heartController.forward(from: 0.0).then((_) {
+      if (mounted) setState(() => _showHeart = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final AuthState auth = ref.watch(authProvider);
-    final bool isOwn = auth.profile?.id == post.author.id;
+    final bool isOwn = auth.profile?.id == widget.post.author.id;
+    final NgPost post = widget.post;
 
     return GlassCard(
       padding: const EdgeInsets.all(0),
@@ -49,19 +107,7 @@ class PostCard extends ConsumerWidget {
                   child: GestureDetector(
                     onTap: () =>
                         context.push('/profile/${post.author.username}'),
-                    child: ShaderMask(
-                      shaderCallback: (Rect bounds) {
-                        return LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: <Color>[
-                            scheme.onSurface,
-                            scheme.onSurface.withValues(alpha: 0.65),
-                          ],
-                        ).createShader(bounds);
-                      },
-                      blendMode: BlendMode.srcIn,
-                      child: Column(
+                    child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
@@ -71,6 +117,7 @@ class PostCard extends ConsumerWidget {
                             style: textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
+                              color: scheme.onSurface,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -89,7 +136,6 @@ class PostCard extends ConsumerWidget {
                       ),
                     ),
                   ),
-                ),
                 _PostMenu(post: post, isOwn: isOwn),
               ],
             ),
@@ -132,38 +178,62 @@ class PostCard extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: GestureDetector(
+                onDoubleTap: _onDoubleTapLike,
                 onTap: () => _openFullScreen(context, post.mediaUrl!),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: AspectRatio(
                     aspectRatio: 16 / 10,
-                    child: ColoredBox(
-                      color: scheme.surfaceContainerHighest,
-                      child: Hero(
-                        tag: 'post_media_${post.id}',
-                        child: CachedNetworkImage(
-                          imageUrl: post.mediaUrl!,
-                          fit: BoxFit.contain,
-                          memCacheWidth: 800,
-                          placeholder: (_, _) => Center(
-                            child: SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: scheme.onSurfaceVariant,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: <Widget>[
+                        ColoredBox(
+                          color: scheme.surfaceContainerHighest,
+                          child: Hero(
+                            tag: 'post_media_${post.id}',
+                            child: CachedNetworkImage(
+                              imageUrl: post.mediaUrl!,
+                              fit: BoxFit.contain,
+                              memCacheWidth: 800,
+                              placeholder: (_, _) => Center(
+                                child: SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (_, _, _) => Center(
+                                child: Icon(
+                                  Icons.broken_image_rounded,
+                                  color: scheme.outline,
+                                  size: 32,
+                                ),
                               ),
                             ),
                           ),
-                          errorWidget: (_, _, _) => Center(
-                            child: Icon(
-                              Icons.broken_image_rounded,
-                              color: scheme.outline,
-                              size: 32,
+                        ),
+                        if (_showHeart)
+                          AnimatedBuilder(
+                            animation: _heartController,
+                            builder: (_, __) => Transform.scale(
+                              scale: _heartScale.value,
+                              child: Opacity(
+                                opacity: _heartOpacity.value,
+                                child: const Icon(
+                                  Icons.favorite_rounded,
+                                  color: Color(0xFFFF3B5C),
+                                  size: 80,
+                                  shadows: <Shadow>[
+                                    Shadow(blurRadius: 20, color: Colors.black45),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
+                      ],
                     ),
                   ),
                 ),

@@ -111,14 +111,51 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(title: Text(context.l10n.commentsTitle)),
+        appBar: AppBar(
+          title: Text(context.l10n.commentsTitle),
+          bottom: commentsAsync.when(
+            data: (List<ApiMessage> comments) => PreferredSize(
+              preferredSize: const Size.fromHeight(24),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  '${comments.length}',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+            loading: () => null,
+            error: (_, __) => null,
+          ),
+        ),
         body: Column(
           children: <Widget>[
             Expanded(
               child: commentsAsync.when(
                 data: (List<ApiMessage> comments) {
                   if (comments.isEmpty) {
-                    return Center(child: Text(context.l10n.commentsEmpty));
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            Icons.chat_bubble_outline_rounded,
+                            size: 56,
+                            color: scheme.outlineVariant,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            context.l10n.commentsEmpty,
+                            style: textTheme.bodyLarge?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
                   }
 
                   final Map<int, ApiMessage> byId = <int, ApiMessage>{
@@ -153,6 +190,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                         reactions: message.reactions,
                         replyPreview: replyPreview,
                         senderDisplayName: message.senderDisplayName,
+                        senderAvatarUrl: message.senderAvatarUrl,
                         senderBadges: message.senderBadges,
                         onLongPress: () {
                           setState(() {

@@ -65,7 +65,7 @@ class ApiChatSummary {
     return ApiChatSummary(
       id: json['id'] as int? ?? 0,
       chatType: json['chat_type'] as String? ?? 'direct',
-      name: json['name'] as String? ?? 'Unknown chat',
+      name: json['name'] as String? ?? json['username'] as String? ?? '',
       username: json['username'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       unreadCount: json['unread_count'] as int? ?? 0,

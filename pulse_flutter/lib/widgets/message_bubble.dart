@@ -30,6 +30,7 @@ class MessageBubble extends ConsumerWidget {
     this.onLongPressMedia,
     this.senderBadges = const <ApiBadge>[],
     this.senderDisplayName,
+    this.senderAvatarUrl,
     this.onSwipeToReply,
     this.onReactionTap,
     this.replyMarkup,
@@ -58,6 +59,7 @@ class MessageBubble extends ConsumerWidget {
   final VoidCallback? onLongPressMedia;
   final List<ApiBadge> senderBadges;
   final String? senderDisplayName;
+  final String? senderAvatarUrl;
   final VoidCallback? onSwipeToReply;
   final ValueChanged<String>? onReactionTap;
   final InlineKeyboardMarkup? replyMarkup;
@@ -156,6 +158,18 @@ class MessageBubble extends ConsumerWidget {
                             spacing: 4,
                             runSpacing: 4,
                             children: <Widget>[
+                              if (senderAvatarUrl != null && senderAvatarUrl!.isNotEmpty)
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: CachedNetworkImage(
+                                    imageUrl: senderAvatarUrl!,
+                                    width: 16,
+                                    height: 16,
+                                    memCacheWidth: 32,
+                                    fit: BoxFit.cover,
+                                    errorWidget: (_, _, _) => const SizedBox.shrink(),
+                                  ),
+                                ),
                               if ((senderDisplayName ?? '').trim().isNotEmpty)
                                 Text(
                                   senderDisplayName!,
@@ -419,9 +433,10 @@ class MessageBubble extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: CachedNetworkImage(
-            imageUrl: mediaUrl!,
-            width: 220,
+                child: CachedNetworkImage(
+                  imageUrl: mediaUrl!,
+                  cacheKey: '${mediaUrl}_preview',
+                  width: 220,
             height: 180,
             fit: BoxFit.cover,
             memCacheWidth: 440,

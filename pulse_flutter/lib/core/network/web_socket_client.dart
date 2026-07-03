@@ -153,6 +153,7 @@ class WebSocketClient {
         ApiException(statusCode: 0, message: reason),
       );
     }
+    _connectionReadyCompleter = null;
   }
 
   void _onMessage(dynamic rawData) async {

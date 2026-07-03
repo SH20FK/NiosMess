@@ -238,11 +238,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     });
   }
 
+  bool _isSecret = false;
+
   void _applySecureFlag() {
     final int? chatId = _chatId;
     if (chatId == null) return;
     final ApiChatSummary? chat = ref.read(chatByIdProvider(chatId));
     if (chat?.isSecret == true) {
+      _isSecret = true;
       ScreenSecurityService.setSecureFlag(enabled: true);
     }
   }
@@ -292,12 +295,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     _inputController.dispose();
     _scrollController.dispose();
     _inputFocusNode.dispose();
-    final int? chatId = _chatId;
-    if (chatId != null) {
-      final ApiChatSummary? chat = ref.read(chatByIdProvider(chatId));
-      if (chat?.isSecret == true) {
-        ScreenSecurityService.setSecureFlag(enabled: false);
-      }
+    if (_isSecret) {
+      ScreenSecurityService.setSecureFlag(enabled: false);
     }
     super.dispose();
   }

@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -11,7 +10,8 @@ class AnimatedMeshBackground extends ConsumerStatefulWidget {
   final Widget child;
 
   @override
-  ConsumerState<AnimatedMeshBackground> createState() => _AnimatedMeshBackgroundState();
+  ConsumerState<AnimatedMeshBackground> createState() =>
+      _AnimatedMeshBackgroundState();
 }
 
 class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
@@ -36,22 +36,11 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final Size size = MediaQuery.sizeOf(context);
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final bool optimize = settings.optimizeForWeakDevices;
 
-    // Control animation controller based on optimize settings
     if (optimize) {
-      if (_controller.isAnimating) {
-        _controller.stop();
-      }
-    } else {
-      if (!_controller.isAnimating) {
-        _controller.repeat();
-      }
-    }
-
-    if (optimize) {
+      if (_controller.isAnimating) _controller.stop();
       return Scaffold(
         backgroundColor: scheme.surface,
         body: Container(
@@ -65,99 +54,101 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
       );
     }
 
+    if (!_controller.isAnimating) _controller.repeat();
+
     return Scaffold(
       backgroundColor: scheme.surface,
       body: Stack(
         children: <Widget>[
-          // Анимированные фоновые blobs
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (BuildContext context, Widget? child) {
-              final double t = _controller.value * 2 * math.pi;
-
-              // Координаты сфер
-              // Сфера 1: круговое движение
-              final double x1 = size.width * 0.3 + math.sin(t) * 100;
-              final double y1 = size.height * 0.3 + math.cos(t) * 100;
-
-              // Сфера 2: движение по восьмерке (лемнискате)
-              final double x2 = size.width * 0.7 + math.sin(t * 2) * 120;
-              final double y2 = size.height * 0.6 + math.cos(t) * 80;
-
-              // Сфера 3: хаотичное колебание снизу
-              final double x3 = size.width * 0.4 + math.cos(t * 1.5) * 150;
-              final double y3 = size.height * 0.8 + math.sin(t * 2.5) * 70;
-
-              return Stack(
-                children: <Widget>[
-                  // Основной фон
-                  Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    color: Color.alphaBlend(
-                      scheme.primary.withValues(alpha: 0.02),
-                      scheme.surface,
+          RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (BuildContext context, Widget? child) {
+                final double t = _controller.value * 2 * math.pi;
+                return Stack(
+                  children: <Widget>[
+                    _Blob(
+                      cx: 0.3,
+                      cy: 0.3,
+                      radius: 0.35,
+                      color: scheme.primary.withValues(alpha: 0.10),
+                      t: t,
+                      speed: 1.0,
                     ),
-                  ),
-                  // Blob 1 (Primary)
-                  Positioned(
-                    left: x1 - 180,
-                    top: y1 - 180,
-                    child: Container(
-                      width: 360,
-                      height: 360,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: scheme.primary.withValues(alpha: 0.16),
-                      ),
+                    _Blob(
+                      cx: 0.7,
+                      cy: 0.55,
+                      radius: 0.30,
+                      color: scheme.tertiaryContainer.withValues(alpha: 0.12),
+                      t: t * 0.7,
+                      speed: 0.7,
                     ),
-                  ),
-                  // Blob 2 (Tertiary Container / Secondary Container)
-                  Positioned(
-                    left: x2 - 200,
-                    top: y2 - 200,
-                    child: Container(
-                      width: 400,
-                      height: 400,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: scheme.tertiaryContainer.withValues(alpha: 0.18),
-                      ),
+                    _Blob(
+                      cx: 0.45,
+                      cy: 0.8,
+                      radius: 0.32,
+                      color: scheme.secondaryContainer.withValues(alpha: 0.08),
+                      t: t * 0.5,
+                      speed: 0.5,
                     ),
-                  ),
-                  // Blob 3 (Secondary Container)
-                  Positioned(
-                    left: x3 - 220,
-                    top: y3 - 220,
-                    child: Container(
-                      width: 440,
-                      height: 440,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: scheme.secondaryContainer.withValues(alpha: 0.14),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
-          // Эффект размытия матового стекла (Frosted Glass Blur)
           Positioned.fill(
-            child: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  color: Colors.transparent,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 1.2,
+                  colors: <Color>[
+                    Colors.transparent,
+                    scheme.surface.withValues(alpha: 0.4),
+                  ],
                 ),
               ),
             ),
           ),
-          // Контент поверх фона
-          Positioned.fill(
-            child: widget.child,
-          ),
+          Positioned.fill(child: widget.child),
         ],
+      ),
+    );
+  }
+}
+
+class _Blob extends StatelessWidget {
+  const _Blob({
+    required this.cx,
+    required this.cy,
+    required this.radius,
+    required this.color,
+    required this.t,
+    required this.speed,
+  });
+
+  final double cx, cy, radius, t, speed;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final Size size = MediaQuery.sizeOf(context);
+    final double dx = math.sin(t * speed) * 40;
+    final double dy = math.cos(t * speed * 0.7) * 30;
+
+    return Positioned(
+      left: size.width * cx - size.width * radius + dx,
+      top: size.height * cy - size.height * radius + dy,
+      width: size.width * radius * 2,
+      height: size.height * radius * 2,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: <Color>[color, color.withValues(alpha: 0)],
+            stops: const <double>[0.2, 1.0],
+          ),
+        ),
       ),
     );
   }

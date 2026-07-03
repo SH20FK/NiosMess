@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 class EmptyFeedWidget extends StatefulWidget {
   const EmptyFeedWidget({
@@ -51,17 +50,25 @@ class _EmptyFeedWidgetState extends State<EmptyFeedWidget>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              AnimatedBuilder(
-                animation: _floatController,
-                builder: (_, Widget? child) {
-                  return Transform.translate(
-                    offset: Offset(0, _floatController.value * -8),
-                    child: child,
-                  );
-                },
-                child: CustomPaint(
-                  size: const Size(140, 140),
-                  painter: _EmptyFeedPainter(scheme: scheme),
+              RepaintBoundary(
+                child: AnimatedBuilder(
+                  animation: _floatController,
+                  builder: (_, Widget? child) {
+                    return Transform.translate(
+                      offset: Offset(0, _floatController.value * -8),
+                      child: child,
+                    );
+                  },
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: <Widget>[
+                      CustomPaint(
+                        size: const Size(140, 140),
+                        painter: _EmptyFeedPainter(scheme: scheme),
+                      ),
+                      _Sparkles(scheme: scheme),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -71,10 +78,7 @@ class _EmptyFeedWidgetState extends State<EmptyFeedWidget>
                   fontWeight: FontWeight.w700,
                 ),
                 textAlign: TextAlign.center,
-              )
-                  .animate()
-                  .fadeIn(duration: 400.ms)
-                  .slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic),
+              ),
               const SizedBox(height: 10),
               Text(
                 widget.description,
@@ -82,20 +86,14 @@ class _EmptyFeedWidgetState extends State<EmptyFeedWidget>
                   color: scheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
-              )
-                  .animate()
-                  .fadeIn(duration: 400.ms, delay: 100.ms)
-                  .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+              ),
               if (widget.actionLabel != null && widget.onAction != null) ...[
                 const SizedBox(height: 24),
                 FilledButton.icon(
                   onPressed: widget.onAction,
                   icon: const Icon(Icons.add_rounded),
                   label: Text(widget.actionLabel!),
-                )
-                    .animate()
-                    .fadeIn(duration: 300.ms, delay: 200.ms)
-                    .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+                ),
               ],
             ],
           ),
@@ -151,22 +149,86 @@ class _EmptyFeedPainter extends CustomPainter {
     ]) {
       canvas.drawCircle(p, 2.5, dot);
     }
+  }
+
+  @override
+  bool shouldRepaint(_EmptyFeedPainter old) => scheme != old.scheme;
+}
+
+class _Sparkles extends StatefulWidget {
+  const _Sparkles({required this.scheme});
+
+  final ColorScheme scheme;
+
+  @override
+  State<_Sparkles> createState() => _SparklesState();
+}
+
+class _SparklesState extends State<_Sparkles>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _sparkleController;
+
+  @override
+  void initState() {
+    super.initState();
+    _sparkleController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _sparkleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 140,
+      height: 140,
+      child: AnimatedBuilder(
+        animation: _sparkleController,
+        builder: (_, __) {
+          return CustomPaint(
+            painter: _SparklePainter(
+              t: _sparkleController.value,
+              scheme: widget.scheme,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SparklePainter extends CustomPainter {
+  _SparklePainter({required this.t, required this.scheme});
+
+  final double t;
+  final ColorScheme scheme;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double cx = size.width / 2;
+    final double cy = size.height / 2;
 
     final Paint sparkle = Paint()
       ..color = scheme.tertiary.withValues(alpha: 0.6)
       ..style = PaintingStyle.fill;
 
-    final double t = DateTime.now().millisecondsSinceEpoch / 1000;
+    final double angle = t * 2 * math.pi;
     for (int i = 0; i < 5; i++) {
-      final double angle = t + i * 1.256;
-      final double r = 62 + math.sin(angle * 2) * 8;
-      final double sx = cx + math.cos(angle) * r;
-      final double sy = cy + math.sin(angle) * r;
-      final double s = 1.5 + math.sin(angle * 3) * 1.0;
+      final double a = angle + i * 1.256;
+      final double r = 62 + math.sin(a * 2) * 8;
+      final double sx = cx + math.cos(a) * r;
+      final double sy = cy + math.sin(a) * r;
+      final double s = 1.5 + math.sin(a * 3) * 1.0;
       canvas.drawCircle(Offset(sx, sy), s.clamp(1.0, 3.0), sparkle);
     }
   }
 
   @override
-  bool shouldRepaint(_EmptyFeedPainter old) => scheme != old.scheme;
+  bool shouldRepaint(_SparklePainter old) => t != old.t || scheme != old.scheme;
 }

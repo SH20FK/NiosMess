@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
 
-class PulseLoadingIndicator extends StatelessWidget {
+class PulseLoadingIndicator extends StatefulWidget {
   const PulseLoadingIndicator({
     this.size = 48.0,
     this.color,
@@ -13,49 +11,67 @@ class PulseLoadingIndicator extends StatelessWidget {
   final Color? color;
 
   @override
+  State<PulseLoadingIndicator> createState() => _PulseLoadingIndicatorState();
+}
+
+class _PulseLoadingIndicatorState extends State<PulseLoadingIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final Color effectiveColor = color ?? scheme.primary;
+    final Color effectiveColor = widget.color ?? scheme.primary;
 
     return Center(
       child: SizedBox.square(
-        dimension: size,
-        child: Stack(
-          alignment: Alignment.center,
-          children: <Widget>[
-            // Мягкий пульсирующий фон в стиле M3
-            Animate(
-              onPlay: (controller) => controller.repeat(),
-              effects: const <Effect<dynamic>>[
-                ScaleEffect(
-                  begin: Offset(0.8, 0.8),
-                  end: Offset(1.3, 1.3),
-                  duration: Duration(milliseconds: 1400),
-                  curve: Curves.easeInOut,
+        dimension: widget.size,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (_, __) {
+            final double t = _controller.value;
+            final double scale = 0.8 + t * 0.5;
+            final double opacity = 0.25 * (1 - t);
+
+            return Stack(
+              alignment: Alignment.center,
+              children: <Widget>[
+                Transform.scale(
+                  scale: scale,
+                  child: Container(
+                    width: widget.size * 1.5,
+                    height: widget.size * 1.5,
+                    decoration: BoxDecoration(
+                      color: effectiveColor.withValues(alpha: opacity),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                 ),
-                FadeEffect(
-                  begin: 0.25,
-                  end: 0.0,
-                  duration: Duration(milliseconds: 1400),
-                  curve: Curves.easeInOut,
+                SizedBox.square(
+                  dimension: widget.size,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(effectiveColor),
+                  ),
                 ),
               ],
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: effectiveColor.withValues(alpha: 0.16),
-                  shape: BoxShape.circle,
-                ),
-                child: SizedBox.square(dimension: size * 1.5),
-              ),
-            ),
-            // Красивый лоадер M3 Expressive (морфящийся многоугольник)
-            SizedBox.square(
-              dimension: size,
-              child: LoadingIndicatorM3E(
-                color: effectiveColor,
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );

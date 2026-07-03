@@ -6,6 +6,8 @@ import 'app_typography.dart';
 class AppTheme {
   const AppTheme._();
 
+  static final Map<int, ThemeData> _themeCache = {};
+
   static DynamicSchemeVariant _variant(Md3Variant variant) {
     return switch (variant) {
       Md3Variant.tonalSpot => DynamicSchemeVariant.tonalSpot,
@@ -46,10 +48,14 @@ class AppTheme {
   }
 
   static ThemeData themed(UiSettingsState settings, Brightness brightness) {
+    final int cacheKey = settings.seedColor.value ^ brightness.index ^ settings.variant.index;
+    final ThemeData? cached = _themeCache[cacheKey];
+    if (cached != null) return cached;
+
     final ColorScheme scheme = _scheme(settings, brightness);
     final TextTheme textTheme = AppTypography.build(scheme);
 
-    return ThemeData(
+    final ThemeData theme = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
@@ -270,5 +276,8 @@ class AppTheme {
         },
       ),
     );
+    if (_themeCache.length > 20) _themeCache.clear();
+    _themeCache[cacheKey] = theme;
+    return theme;
   }
 }

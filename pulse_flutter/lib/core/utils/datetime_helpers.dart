@@ -1,6 +1,11 @@
 import 'package:intl/intl.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 
+final DateFormat _timeFormat = DateFormat('HH:mm');
+final DateFormat _dateFormatShort = DateFormat('dd.MM');
+final DateFormat _dateFormatFull = DateFormat('dd.MM.yyyy');
+final DateFormat _dateTimeFormat = DateFormat('dd.MM.yyyy HH:mm');
+
 DateTime parseApiDateTime(String? iso) {
   if (iso == null || iso.trim().isEmpty) {
     return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
@@ -60,7 +65,7 @@ String formatRelativeTime(DateTime dateTime) {
       resolved.month == now.month &&
       resolved.day == now.day;
   if (sameDay) {
-    return DateFormat('HH:mm', AppTimeSettings.localeCode).format(resolved);
+    return _timeFormat.format(resolved);
   }
 
   final DateTime yesterday = now.subtract(const Duration(days: 1));
@@ -73,15 +78,15 @@ String formatRelativeTime(DateTime dateTime) {
   if (diff.inDays < 7) return '${diff.inDays}d';
 
   if (resolved.year == now.year) {
-    return DateFormat('dd.MM', AppTimeSettings.localeCode).format(resolved);
+    return _dateFormatShort.format(resolved);
   }
-  return DateFormat('dd.MM.yyyy', AppTimeSettings.localeCode).format(resolved);
+  return _dateFormatFull.format(resolved);
 }
 
 String formatMessageTime(DateTime dateTime) {
   if (dateTime.millisecondsSinceEpoch <= 0) return '--:--';
   final DateTime resolved = AppTimeSettings.resolve(dateTime);
-  return DateFormat('HH:mm', AppTimeSettings.localeCode).format(resolved);
+  return _timeFormat.format(resolved);
 }
 
 String formatCallDuration(Duration duration) {
@@ -99,10 +104,7 @@ String formatCallDuration(Duration duration) {
 String formatFullDateTime(DateTime dateTime) {
   if (dateTime.millisecondsSinceEpoch <= 0) return '--';
   final DateTime resolved = AppTimeSettings.resolve(dateTime);
-  return DateFormat(
-    'dd.MM.yyyy HH:mm',
-    AppTimeSettings.localeCode,
-  ).format(resolved);
+  return _dateTimeFormat.format(resolved);
 }
 
 Duration computeCallElapsed(DateTime? startedAt, int? durationSeconds) {

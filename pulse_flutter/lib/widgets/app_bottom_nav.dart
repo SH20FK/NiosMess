@@ -19,7 +19,9 @@ class AppBottomNav extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final int totalUnread = ref.watch(totalUnreadCountProvider);
+    final int totalUnread = ref.watch(
+      totalUnreadCountProvider.select((int c) => c > 99 ? 99 : c),
+    );
 
     final List<_NavItem> items = <_NavItem>[
       _NavItem(

@@ -257,23 +257,40 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     return decrypted;
   }
 
+  static final Map<int, String> _decryptionCache = {};
+
   Future<List<ApiMessage>> _decryptE2eeMessages(List<ApiMessage> messages) async {
     final List<ApiMessage> result = <ApiMessage>[];
+    dynamic privateKey;
+    bool privateKeyLoaded = false;
+
     for (final ApiMessage msg in messages) {
-      if (msg.isE2ee && msg.e2eeContent != null && msg.e2eeContent!.isNotEmpty && msg.content.isEmpty) {
-        try {
-          final dynamic privateKey = await E2eeService().loadPrivateKey();
-          if (privateKey != null) {
-            final String decrypted = await E2eeService().decryptE2EEMessage(
-              e2eeContentBase64: msg.e2eeContent!,
-              privateKey: privateKey,
-            );
-            result.add(msg.copyWith(content: decrypted));
-            continue;
-          }
-        } catch (e) {
-          debugPrint('[backend_chat_provider.dart] E2EE decrypt failed for msg ${msg.id}: $e');
+      if (!msg.isE2ee || msg.e2eeContent == null || msg.e2eeContent!.isEmpty || msg.content.isNotEmpty) {
+        result.add(msg);
+        continue;
+      }
+
+      if (_decryptionCache.containsKey(msg.id)) {
+        result.add(msg.copyWith(content: _decryptionCache[msg.id]!));
+        continue;
+      }
+
+      try {
+        if (!privateKeyLoaded) {
+          privateKey = await E2eeService().loadPrivateKey();
+          privateKeyLoaded = true;
         }
+        if (privateKey != null) {
+          final String decrypted = await E2eeService().decryptE2EEMessage(
+            e2eeContentBase64: msg.e2eeContent!,
+            privateKey: privateKey,
+          );
+          _decryptionCache[msg.id] = decrypted;
+          result.add(msg.copyWith(content: decrypted));
+          continue;
+        }
+      } catch (e) {
+        debugPrint('[backend_chat_provider.dart] E2EE decrypt failed for msg ${msg.id}: $e');
       }
       result.add(msg);
     }

@@ -12,6 +12,13 @@ class CacheService {
   static const String _contactsBoxName = 'contacts_cache_box';
   static bool _hiveInitialized = false;
 
+  Future<Box<List<dynamic>>> _ensureBox(String name) async {
+    if (!Hive.isBoxOpen(name)) {
+      await ensureInitialized();
+    }
+    return Hive.box<List<dynamic>>(name);
+  }
+
   Future<void> ensureInitialized() async {
     try {
       if (!_hiveInitialized) {
@@ -28,7 +35,7 @@ class CacheService {
 
   Future<void> saveChats(List<ApiChatSummary> chats) async {
     try {
-      final Box<List<dynamic>> box = Hive.box<List<dynamic>>(_chatsBoxName);
+      final Box<List<dynamic>> box = await _ensureBox(_chatsBoxName);
       final List<Map<String, dynamic>> jsonList = chats.map((e) => e.toJson()).toList();
       await box.put('list', jsonList);
     } catch (e) {
@@ -38,6 +45,7 @@ class CacheService {
 
   List<ApiChatSummary> getCachedChats() {
     try {
+      if (!Hive.isBoxOpen(_chatsBoxName)) return <ApiChatSummary>[];
       final Box<List<dynamic>> box = Hive.box<List<dynamic>>(_chatsBoxName);
       final List<dynamic>? list = box.get('list');
       if (list == null) return <ApiChatSummary>[];
@@ -53,7 +61,7 @@ class CacheService {
 
   Future<void> saveMessages(int chatId, List<ApiMessage> messages) async {
     try {
-      final Box<List<dynamic>> box = Hive.box<List<dynamic>>(_messagesBoxName);
+      final Box<List<dynamic>> box = await _ensureBox(_messagesBoxName);
       // Only keep the last 100 messages in cache to optimize local storage size
       final List<ApiMessage> trimmed = messages.length > 100 
           ? messages.sublist(messages.length - 100) 
@@ -67,6 +75,7 @@ class CacheService {
 
   List<ApiMessage> getCachedMessages(int chatId) {
     try {
+      if (!Hive.isBoxOpen(_messagesBoxName)) return <ApiMessage>[];
       final Box<List<dynamic>> box = Hive.box<List<dynamic>>(_messagesBoxName);
       final List<dynamic>? list = box.get(chatId.toString());
       if (list == null) return <ApiMessage>[];
@@ -82,7 +91,7 @@ class CacheService {
 
   Future<void> saveContacts(List<ApiChatSummary> contacts) async {
     try {
-      final Box<List<dynamic>> box = Hive.box<List<dynamic>>(_contactsBoxName);
+      final Box<List<dynamic>> box = await _ensureBox(_contactsBoxName);
       final List<Map<String, dynamic>> jsonList = contacts.map((e) => e.toJson()).toList();
       await box.put('list', jsonList);
     } catch (e) {
@@ -92,6 +101,7 @@ class CacheService {
 
   List<ApiChatSummary> getCachedContacts() {
     try {
+      if (!Hive.isBoxOpen(_contactsBoxName)) return <ApiChatSummary>[];
       final Box<List<dynamic>> box = Hive.box<List<dynamic>>(_contactsBoxName);
       final List<dynamic>? list = box.get('list');
       if (list == null) return <ApiChatSummary>[];
@@ -107,9 +117,9 @@ class CacheService {
 
   Future<void> clearAll() async {
     try {
-      await Hive.box<List<dynamic>>(_chatsBoxName).clear();
-      await Hive.box<List<dynamic>>(_messagesBoxName).clear();
-      await Hive.box<List<dynamic>>(_contactsBoxName).clear();
+      if (Hive.isBoxOpen(_chatsBoxName)) await Hive.box<List<dynamic>>(_chatsBoxName).clear();
+      if (Hive.isBoxOpen(_messagesBoxName)) await Hive.box<List<dynamic>>(_messagesBoxName).clear();
+      if (Hive.isBoxOpen(_contactsBoxName)) await Hive.box<List<dynamic>>(_contactsBoxName).clear();
     } catch (e) {
       debugPrint('[CacheService] Error clearing cache: $e');
     }
