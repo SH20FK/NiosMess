@@ -230,7 +230,10 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     _persist(nextState);
   }
 
-  void setThemeMode(ThemeMode value) => _set(state.copyWith(themeMode: value));
+  void setThemeMode(ThemeMode value) {
+    debugPrint('[UiSettingsNotifier] setThemeMode -> $value');
+    _set(state.copyWith(themeMode: value));
+  }
 
   void setVariant(Md3Variant value) => _set(state.copyWith(variant: value));
 
@@ -281,8 +284,10 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   void setOptimizeForWeakDevices(bool value) =>
       _set(state.copyWith(optimizeForWeakDevices: value));
 
-  void setPredictiveBackEnabled(bool value) =>
-      _set(state.copyWith(predictiveBackEnabled: value));
+  void setPredictiveBackEnabled(bool value) {
+    debugPrint('[UiSettingsNotifier] setPredictiveBackEnabled -> $value');
+    _set(state.copyWith(predictiveBackEnabled: value));
+  }
 
   void setBackgroundMode(BackgroundMode value) =>
       _set(state.copyWith(backgroundMode: value));
