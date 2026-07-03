@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,10 +24,19 @@ class SetupOnboardingScreen extends ConsumerStatefulWidget {
 class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
   final PageController _pageController = PageController();
   int _index = 0;
+  bool _loading = false;
 
   String? _selectedLanguageCode;
   AppTimeZoneMode _timeZoneMode = AppTimeZoneMode.auto;
   String _selectedTimeZoneId = 'Europe/Moscow';
+
+  // Live clock — updated once per second, NOT in build()
+  DateTime _now = DateTime.now();
+  Timer? _clockTimer;
+
+  // Cached device tz info — computed once in initState
+  late String _deviceTzName;
+  late String _deviceOffsetLabel;
 
   @override
   void initState() {
@@ -34,11 +44,45 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
     final UiSettingsState settings = ref.read(uiSettingsProvider);
     _selectedLanguageCode = settings.localeCode;
     _timeZoneMode = settings.timeZoneMode;
-    _selectedTimeZoneId = settings.timeZoneId ?? 'Europe/Moscow';
+
+    // Determine device timezone and use as default for manual selection
+    final DateTime deviceNow = DateTime.now();
+    _deviceTzName = deviceNow.timeZoneName;
+    final Duration offset = deviceNow.timeZoneOffset;
+    _deviceOffsetLabel =
+        '${offset.isNegative ? '-' : '+'}${offset.inHours.abs().toString().padLeft(2, '0')}:${(offset.inMinutes.abs() % 60).toString().padLeft(2, '0')}';
+
+    // Prefer stored manual tz; if none, pick the closest match from the list
+    if (settings.timeZoneId != null) {
+      _selectedTimeZoneId = settings.timeZoneId!;
+    } else {
+      // Try to find device tz name in our list; fall back to 'Europe/Moscow'
+      final String deviceTzId = _findClosestZone(deviceNow.timeZoneOffset);
+      _selectedTimeZoneId = deviceTzId;
+    }
+
+    // Start a 1-second ticker to update the clock preview
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  /// Find the zone in appTimeZoneOptions whose offset best matches [deviceOffset].
+  String _findClosestZone(Duration deviceOffset) {
+    for (final AppTimeZoneOption option in appTimeZoneOptions) {
+      // currentOffsetLabel is like '+03:00' — compare raw offset instead
+      // We check id contains the device tz name as a substring (e.g. 'Moscow')
+      if (option.id.toLowerCase().contains(_deviceTzName.toLowerCase())) {
+        return option.id;
+      }
+    }
+    // No name match — fall back to Europe/Moscow
+    return 'Europe/Moscow';
   }
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -55,12 +99,16 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
   }
 
   Future<void> _skip() async {
+    if (_loading) return;
+    setState(() => _loading = true);
     ref.read(uiSettingsProvider.notifier).setLocaleCode(null);
     ref.read(uiSettingsProvider.notifier).useAutomaticTimeZone();
     await _finish();
   }
 
   Future<void> _finish() async {
+    if (!mounted) return;
+    setState(() => _loading = true);
     ref.read(uiSettingsProvider.notifier).setLocaleCode(_selectedLanguageCode);
     if (_timeZoneMode == AppTimeZoneMode.auto) {
       ref.read(uiSettingsProvider.notifier).useAutomaticTimeZone();
@@ -95,7 +143,7 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: _skip,
+                    onPressed: _loading ? null : _skip,
                     child: Text(
                       context.l10n.commonSkip,
                       style: textTheme.bodyLarge?.copyWith(
@@ -147,7 +195,8 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
                   label: _index == 2
                       ? context.l10n.setupStartMessaging
                       : context.l10n.commonContinue,
-                  onPressed: _next,
+                  onPressed: _loading ? null : _next,
+                  isLoading: _loading && _index == 2,
                 ),
                 const SizedBox(height: 6),
               ],
@@ -327,11 +376,7 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
   }
 
   Widget _timezonePage(ColorScheme scheme, TextTheme textTheme) {
-    final Duration offset = DateTime.now().timeZoneOffset;
-    final String autoTzName = DateTime.now().timeZoneName;
-    final String offsetLabel =
-        '${offset.isNegative ? '-' : '+'}${offset.inHours.abs().toString().padLeft(2, '0')}:${(offset.inMinutes.abs() % 60).toString().padLeft(2, '0')}';
-
+    // _now and _deviceTzName/_deviceOffsetLabel are updated by Timer — NOT computed here
     return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
@@ -386,7 +431,7 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
                               ),
                             ),
                             Text(
-                              '$autoTzName (UTC$offsetLabel)',
+                              '$_deviceTzName (UTC$_deviceOffsetLabel)',
                               style: textTheme.bodySmall?.copyWith(
                                 color: _timeZoneMode == AppTimeZoneMode.auto
                                     ? scheme.onPrimaryContainer.withValues(
@@ -489,7 +534,8 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    formatFullDateTime(AppTimeSettings.now()),
+                    // _now is updated by Timer — safe to call formatFullDateTime here
+                    formatFullDateTime(_now),
                     style: textTheme.titleMedium,
                   ),
                 ],
