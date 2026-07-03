@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -485,7 +486,7 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
                   ),
                 ],
               )
-            : const CircularProgressIndicator(),
+            : const AppLoadingIndicator(),
       ),
     );
   }

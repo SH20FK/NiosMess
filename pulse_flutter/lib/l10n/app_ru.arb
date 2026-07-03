@@ -1423,5 +1423,17 @@
   "chatDisappearing5s": "5 секунд",
   "chatDisappearing1m": "1 минута",
   "chatDisappearing1h": "1 час",
-  "chatDisappearing1d": "1 день"
+  "chatDisappearing1d": "1 день",
+  "settingsPredictiveBackTitle": "Навигация",
+  "settingsPredictiveBackSubtitle": "Системные жесты и поведение кнопки «Назад»",
+  "settingsPredictiveBackToggle": "Предиктивный жест назад",
+  "settingsPredictiveBackDesc": "Анимация свайпа как в Android 13+",
+  "settingsBackgroundTitle": "Работа в фоне",
+  "settingsBackgroundSubtitle": "Как приложение работает в фоне",
+  "settingsBackgroundEconomy": "Экономичный",
+  "settingsBackgroundEconomyDesc": "Без уведомлений, но система может редко закрывать приложение",
+  "settingsBackgroundReliable": "Надёжный",
+  "settingsBackgroundReliableDesc": "С милым уведомлением для поддержания связи",
+  "settingsBackgroundNotAvailable": "Режимы фона",
+  "settingsBackgroundNotAvailableDesc": "Доступно только на Android"
 }

@@ -136,7 +136,7 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
                   if (feedState.isLoadingMore) {
                     return const Padding(
                       padding: EdgeInsets.all(16),
-                      child: PulseLoadingIndicator(size: 32),
+                      child: AppLoadingIndicator(size: 32),
                     );
                   }
                   return _LoadMoreTrigger(

@@ -293,7 +293,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
       body: PulseScaffoldBody(
         maxWidth: 980,
         child: _loading
-            ? const Center(child: PulseLoadingIndicator())
+            ? const Center(child: AppLoadingIndicator())
             : _error != null
             ? AppErrorBanner(
                 message: _error!,

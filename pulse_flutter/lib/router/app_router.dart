@@ -8,10 +8,6 @@ import 'package:pulse_flutter/screens/chat_members_screen.dart';
 import 'package:pulse_flutter/screens/contact_detail_screen.dart';
 import 'package:pulse_flutter/screens/create_chat_screen.dart';
 import 'package:pulse_flutter/screens/direct_chat_resolver_screen.dart';
-import 'package:pulse_flutter/screens/admin_screen.dart';
-import 'package:pulse_flutter/screens/badge_screen.dart';
-import 'package:pulse_flutter/screens/bot_screen.dart';
-import 'package:pulse_flutter/screens/developers_screen.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/join_chat_screen.dart';
 import 'package:pulse_flutter/screens/login_screen.dart';
@@ -282,22 +278,6 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/settings/about',
         pageBuilder: (context, state) => _fadeThroughPage(const SettingsAboutScreen(), state.pageKey),
-      ),
-      GoRoute(
-        path: '/settings/developers',
-        pageBuilder: (context, state) => _fadeThroughPage(const DevelopersScreen(), state.pageKey),
-      ),
-      GoRoute(
-        path: '/settings/admin',
-        pageBuilder: (context, state) => _fadeThroughPage(const AdminScreen(), state.pageKey),
-      ),
-      GoRoute(
-        path: '/settings/badges',
-        pageBuilder: (context, state) => _fadeThroughPage(const BadgeScreen(), state.pageKey),
-      ),
-      GoRoute(
-        path: '/settings/bots',
-        pageBuilder: (context, state) => _fadeThroughPage(const BotScreen(), state.pageKey),
       ),
       GoRoute(
         path: '/settings/e2ee',

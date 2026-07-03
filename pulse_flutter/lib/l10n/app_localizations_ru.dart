@@ -3312,4 +3312,43 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chatDisappearing1d => '1 день';
+
+  @override
+  String get settingsPredictiveBackTitle => 'Навигация';
+
+  @override
+  String get settingsPredictiveBackSubtitle =>
+      'Системные жесты и поведение кнопки «Назад»';
+
+  @override
+  String get settingsPredictiveBackToggle => 'Предиктивный жест назад';
+
+  @override
+  String get settingsPredictiveBackDesc => 'Анимация свайпа как в Android 13+';
+
+  @override
+  String get settingsBackgroundTitle => 'Работа в фоне';
+
+  @override
+  String get settingsBackgroundSubtitle => 'Как приложение работает в фоне';
+
+  @override
+  String get settingsBackgroundEconomy => 'Экономичный';
+
+  @override
+  String get settingsBackgroundEconomyDesc =>
+      'Без уведомлений, но система может редко закрывать приложение';
+
+  @override
+  String get settingsBackgroundReliable => 'Надёжный';
+
+  @override
+  String get settingsBackgroundReliableDesc =>
+      'С милым уведомлением для поддержания связи';
+
+  @override
+  String get settingsBackgroundNotAvailable => 'Режимы фона';
+
+  @override
+  String get settingsBackgroundNotAvailableDesc => 'Доступно только на Android';
 }

@@ -96,7 +96,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
         if (_loading)
           const Padding(
             padding: EdgeInsets.only(top: 40),
-            child: Center(child: PulseLoadingIndicator()),
+            child: Center(child: AppLoadingIndicator()),
           )
         else if (_error != null)
           Padding(

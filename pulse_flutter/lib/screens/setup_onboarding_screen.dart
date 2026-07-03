@@ -8,7 +8,6 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
-import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/session_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
@@ -119,8 +118,7 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
     }
     await ref.read(sessionProvider.notifier).completeOnboarding();
     if (!mounted) return;
-    final bool authenticated = ref.read(authProvider).isAuthenticated;
-    context.go(authenticated ? '/main/chats' : '/login');
+    context.go('/main/chats');
   }
 
   @override
@@ -128,7 +126,9 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
       body: Container(
         width: double.infinity,
         decoration: BoxDecoration(gradient: AppTheme.heroGradient(scheme)),
@@ -204,6 +204,7 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 

@@ -69,7 +69,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return AnimatedMeshBackground(
+    return PopScope(
+      canPop: false,
+      child: AnimatedMeshBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
@@ -253,6 +255,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

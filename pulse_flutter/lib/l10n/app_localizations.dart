@@ -6001,6 +6001,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'1 day'**
   String get chatDisappearing1d;
+
+  /// No description provided for @settingsPredictiveBackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigation'**
+  String get settingsPredictiveBackTitle;
+
+  /// No description provided for @settingsPredictiveBackSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'System gestures and back behavior'**
+  String get settingsPredictiveBackSubtitle;
+
+  /// No description provided for @settingsPredictiveBackToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Predictive back gesture'**
+  String get settingsPredictiveBackToggle;
+
+  /// No description provided for @settingsPredictiveBackDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Android 13+ swipe animation'**
+  String get settingsPredictiveBackDesc;
+
+  /// No description provided for @settingsBackgroundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Background'**
+  String get settingsBackgroundTitle;
+
+  /// No description provided for @settingsBackgroundSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How the app runs in background'**
+  String get settingsBackgroundSubtitle;
+
+  /// No description provided for @settingsBackgroundEconomy.
+  ///
+  /// In en, this message translates to:
+  /// **'Economy mode'**
+  String get settingsBackgroundEconomy;
+
+  /// No description provided for @settingsBackgroundEconomyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'No notification, but system may close app rarely'**
+  String get settingsBackgroundEconomyDesc;
+
+  /// No description provided for @settingsBackgroundReliable.
+  ///
+  /// In en, this message translates to:
+  /// **'Reliable mode'**
+  String get settingsBackgroundReliable;
+
+  /// No description provided for @settingsBackgroundReliableDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'With a cute notification to keep app alive'**
+  String get settingsBackgroundReliableDesc;
+
+  /// No description provided for @settingsBackgroundNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Background modes'**
+  String get settingsBackgroundNotAvailable;
+
+  /// No description provided for @settingsBackgroundNotAvailableDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Available only on Android'**
+  String get settingsBackgroundNotAvailableDesc;
 }
 
 class _AppLocalizationsDelegate

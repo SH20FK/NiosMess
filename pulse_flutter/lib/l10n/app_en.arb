@@ -1425,5 +1425,17 @@
   "chatDisappearing5s": "5 seconds",
   "chatDisappearing1m": "1 minute",
   "chatDisappearing1h": "1 hour",
-  "chatDisappearing1d": "1 day"
+  "chatDisappearing1d": "1 day",
+  "settingsPredictiveBackTitle": "Navigation",
+  "settingsPredictiveBackSubtitle": "System gestures and back behavior",
+  "settingsPredictiveBackToggle": "Predictive back gesture",
+  "settingsPredictiveBackDesc": "Android 13+ swipe animation",
+  "settingsBackgroundTitle": "Background",
+  "settingsBackgroundSubtitle": "How the app runs in background",
+  "settingsBackgroundEconomy": "Economy mode",
+  "settingsBackgroundEconomyDesc": "No notification, but system may close app rarely",
+  "settingsBackgroundReliable": "Reliable mode",
+  "settingsBackgroundReliableDesc": "With a cute notification to keep app alive",
+  "settingsBackgroundNotAvailable": "Background modes",
+  "settingsBackgroundNotAvailableDesc": "Available only on Android"
 }

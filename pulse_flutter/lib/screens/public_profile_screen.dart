@@ -89,7 +89,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       ),
         body: const PulseScaffoldBody(
           maxWidth: 980,
-          child: Center(child: PulseLoadingIndicator()),
+          child: Center(child: AppLoadingIndicator()),
         ),
       );
     }

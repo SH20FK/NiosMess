@@ -3297,4 +3297,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatDisappearing1d => '1 day';
+
+  @override
+  String get settingsPredictiveBackTitle => 'Navigation';
+
+  @override
+  String get settingsPredictiveBackSubtitle =>
+      'System gestures and back behavior';
+
+  @override
+  String get settingsPredictiveBackToggle => 'Predictive back gesture';
+
+  @override
+  String get settingsPredictiveBackDesc => 'Android 13+ swipe animation';
+
+  @override
+  String get settingsBackgroundTitle => 'Background';
+
+  @override
+  String get settingsBackgroundSubtitle => 'How the app runs in background';
+
+  @override
+  String get settingsBackgroundEconomy => 'Economy mode';
+
+  @override
+  String get settingsBackgroundEconomyDesc =>
+      'No notification, but system may close app rarely';
+
+  @override
+  String get settingsBackgroundReliable => 'Reliable mode';
+
+  @override
+  String get settingsBackgroundReliableDesc =>
+      'With a cute notification to keep app alive';
+
+  @override
+  String get settingsBackgroundNotAvailable => 'Background modes';
+
+  @override
+  String get settingsBackgroundNotAvailableDesc => 'Available only on Android';
 }

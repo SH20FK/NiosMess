@@ -634,7 +634,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       chatId: chatId,
       filePath: filePath,
       filename: filename,
-      mediaSubtype: 'audio',
+      mediaSubtype: 'voice',
       fileSize: fileSize,
     );
   }

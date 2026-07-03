@@ -54,7 +54,7 @@ class MediaViewerScreen extends ConsumerWidget {
                   imageUrl: url,
                   fit: BoxFit.contain,
                   placeholder: (BuildContext context, String _) {
-                    return PulseLoadingIndicator(size: 32);
+                    return AppLoadingIndicator(size: 32);
                   },
                   errorWidget: (BuildContext context, String _, Object error) {
                     return Padding(

@@ -97,7 +97,7 @@ class _DirectChatResolverScreenState
                           color: widget.isSecret ? Colors.green : scheme.primary,
                         ),
                         const SizedBox(height: 20),
-                        const PulseLoadingIndicator(size: 64),
+                        const AppLoadingIndicator(size: 64),
                         const SizedBox(height: 24),
                         Text(
                           context.l10n.directResolverResolving(widget.username),

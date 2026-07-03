@@ -68,7 +68,9 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final String code = _normalizedCode;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
       appBar: AppBar(
         title: Text(context.l10n.verifyEmailTitle),
         centerTitle: true,
@@ -232,6 +234,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

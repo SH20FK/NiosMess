@@ -198,34 +198,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     subtitle: context.l10n.profileTeamToolsDesc,
                     children: <Widget>[
                       SettingsTile(
-                        icon: Icons.groups_rounded,
-                        title: context.l10n.settingsDevelopers,
-                        subtitle: context.l10n.settingsDevelopersSubtitle,
-                        iconColor: scheme.tertiary,
-                        onTap: () => context.push('/settings/developers'),
-                      ),
-                      SettingsTile(
-                        icon: Icons.admin_panel_settings_rounded,
-                        title: context.l10n.settingsAdminTitle,
-                        subtitle: context.l10n.settingsAdminSubtitle,
-                        iconColor: scheme.error,
-                        onTap: () => context.push('/settings/admin'),
-                      ),
-                      SettingsTile(
-                        icon: Icons.workspace_premium_rounded,
-                        title: context.l10n.settingsBadgesTitle,
-                        subtitle: context.l10n.settingsBadgesSubtitle,
-                        iconColor: scheme.secondary,
-                        onTap: () => context.push('/settings/badges'),
-                      ),
-                      SettingsTile(
-                        icon: Icons.smart_toy_rounded,
-                        title: context.l10n.settingsBotsTitle,
-                        subtitle: context.l10n.settingsBotsSubtitle,
-                        iconColor: scheme.primary,
-                        onTap: () => context.push('/settings/bots'),
-                      ),
-                      SettingsTile(
                         icon: Icons.enhanced_encryption_rounded,
                         title: context.l10n.settingsSecretChatsTitle,
                         subtitle: context.l10n.settingsSecretChatsSubtitle,

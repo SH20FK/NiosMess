@@ -74,6 +74,8 @@ dependencies:
   flutter_markdown: ^0.7.7+1
   local_auth: ^2.3.0
   flutter_image_compress: ^2.3.4
+  flutter_foreground_task: ^8.0.0
+  android_intent_plus: ^5.2.1
 
 dev_dependencies:
   flutter_test:

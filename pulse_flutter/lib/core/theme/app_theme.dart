@@ -48,7 +48,7 @@ class AppTheme {
   }
 
   static ThemeData themed(UiSettingsState settings, Brightness brightness) {
-    final int cacheKey = settings.seedColor.value ^ brightness.index ^ settings.variant.index;
+    final int cacheKey = settings.seedColor.value ^ brightness.index ^ settings.variant.index ^ (settings.predictiveBackEnabled ? 1 : 0);
     final ThemeData? cached = _themeCache[cacheKey];
     if (cached != null) return cached;
 
@@ -266,13 +266,15 @@ class AppTheme {
           }),
         ),
       ),
-      pageTransitionsTheme: const PageTransitionsTheme(
+      pageTransitionsTheme: PageTransitionsTheme(
         builders: <TargetPlatform, PageTransitionsBuilder>{
-          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.android: settings.predictiveBackEnabled
+              ? const PredictiveBackPageTransitionsBuilder()
+              : const CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: const CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: const CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: const CupertinoPageTransitionsBuilder(),
         },
       ),
     );

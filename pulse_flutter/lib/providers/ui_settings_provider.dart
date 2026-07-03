@@ -13,6 +13,8 @@ enum Md3Variant {
 
 enum AppTimeZoneMode { auto, manual }
 
+enum BackgroundMode { off, economy, reliable }
+
 class UiSettingsState {
   const UiSettingsState({
     required this.themeMode,
@@ -29,6 +31,8 @@ class UiSettingsState {
     required this.timeZoneMode,
     required this.timeZoneId,
     required this.optimizeForWeakDevices,
+    required this.predictiveBackEnabled,
+    required this.backgroundMode,
   });
 
   const UiSettingsState.defaults()
@@ -45,7 +49,9 @@ class UiSettingsState {
       localeCode = null,
       timeZoneMode = AppTimeZoneMode.auto,
       timeZoneId = null,
-      optimizeForWeakDevices = false;
+      optimizeForWeakDevices = false,
+      predictiveBackEnabled = true,
+      backgroundMode = BackgroundMode.off;
 
   final ThemeMode themeMode;
   final Md3Variant variant;
@@ -61,6 +67,8 @@ class UiSettingsState {
   final AppTimeZoneMode timeZoneMode;
   final String? timeZoneId;
   final bool optimizeForWeakDevices;
+  final bool predictiveBackEnabled;
+  final BackgroundMode backgroundMode;
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
@@ -79,6 +87,8 @@ class UiSettingsState {
     String? timeZoneId,
     bool clearTimeZoneId = false,
     bool? optimizeForWeakDevices,
+    bool? predictiveBackEnabled,
+    BackgroundMode? backgroundMode,
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -96,6 +106,9 @@ class UiSettingsState {
       timeZoneId: clearTimeZoneId ? null : (timeZoneId ?? this.timeZoneId),
       optimizeForWeakDevices:
           optimizeForWeakDevices ?? this.optimizeForWeakDevices,
+      predictiveBackEnabled:
+          predictiveBackEnabled ?? this.predictiveBackEnabled,
+      backgroundMode: backgroundMode ?? this.backgroundMode,
     );
   }
 
@@ -121,6 +134,8 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _timeZoneModeKey = 'ui.timeZoneMode';
   static const String _timeZoneIdKey = 'ui.timeZoneId';
   static const String _optimizeWeakKey = 'ui.optimizeWeak';
+  static const String _predictiveBackKey = 'ui.predictiveBack';
+  static const String _backgroundModeKey = 'ui.backgroundMode';
 
   bool _loaded = false;
 
@@ -169,6 +184,13 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       timeZoneId: (timeZoneIdRaw ?? '').trim().isEmpty ? null : timeZoneIdRaw,
       optimizeForWeakDevices:
           prefs.getBool(_optimizeWeakKey) ?? state.optimizeForWeakDevices,
+      predictiveBackEnabled:
+          prefs.getBool(_predictiveBackKey) ?? state.predictiveBackEnabled,
+      backgroundMode: BackgroundMode.values.firstWhere(
+        (BackgroundMode mode) =>
+            mode.name == prefs.getString(_backgroundModeKey),
+        orElse: () => BackgroundMode.off,
+      ),
     );
     } catch (e) {
       debugPrint('[UiSettingsNotifier] Failed to load settings: $e');
@@ -198,6 +220,8 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       else
         prefs.setString(_timeZoneIdKey, nextState.timeZoneId!),
       prefs.setBool(_optimizeWeakKey, nextState.optimizeForWeakDevices),
+      prefs.setBool(_predictiveBackKey, nextState.predictiveBackEnabled),
+      prefs.setString(_backgroundModeKey, nextState.backgroundMode.name),
     ]);
   }
 
@@ -256,6 +280,12 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
 
   void setOptimizeForWeakDevices(bool value) =>
       _set(state.copyWith(optimizeForWeakDevices: value));
+
+  void setPredictiveBackEnabled(bool value) =>
+      _set(state.copyWith(predictiveBackEnabled: value));
+
+  void setBackgroundMode(BackgroundMode value) =>
+      _set(state.copyWith(backgroundMode: value));
 }
 
 final NotifierProvider<UiSettingsNotifier, UiSettingsState> uiSettingsProvider =

@@ -19,6 +19,7 @@ import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
+import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/services/deep_link_service.dart';
 import 'package:pulse_flutter/firebase_options.dart';
 
@@ -49,6 +50,7 @@ Future<void> main() async {
         );
         await PushNotificationService.init();
         await DeepLinkService.init();
+        BackgroundService.init();
       }
       logger.info('Application started', source: 'bootstrap');
       runApp(const ProviderScope(child: PulseApp()));

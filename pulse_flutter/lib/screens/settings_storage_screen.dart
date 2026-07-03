@@ -112,7 +112,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                 !snapshot.hasData) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 40),
-                child: Center(child: PulseLoadingIndicator()),
+                child: Center(child: AppLoadingIndicator()),
               );
             }
 

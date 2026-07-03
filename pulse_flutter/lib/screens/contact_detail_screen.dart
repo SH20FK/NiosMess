@@ -67,7 +67,7 @@ class _ContactDetailScreenState extends ConsumerState<ContactDetailScreen> {
       body: PulseScaffoldBody(
         maxWidth: 1120,
         child: _loading
-            ? const PulseLoadingIndicator()
+            ? const AppLoadingIndicator()
             : _profile == null
             ? Center(
                 child: Padding(

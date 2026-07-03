@@ -1,6 +1,7 @@
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -119,7 +120,14 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
     final int currentIndex = _tabIndex(widget.tab);
     final bool isOffline = !(ref.watch(connectivityProvider).value ?? true);
 
-    return LayoutBuilder(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (!didPop) {
+          SystemUtils.minimizeApp();
+        }
+      },
+      child: LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final bool isWide = constraints.maxWidth >= 760;
 
@@ -268,6 +276,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
           floatingActionButton: currentIndex == 0 ? _composeFab(context) : null,
         );
       },
+    ),
     );
   }
 

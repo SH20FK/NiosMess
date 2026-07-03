@@ -10,6 +10,8 @@ import 'dart:convert';
 import 'package:universal_io/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
+import 'package:pulse_flutter/core/services/background_service.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
 class AuthState {
@@ -83,6 +85,8 @@ class AuthNotifier extends Notifier<AuthState> {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   Future<void>? _loadFuture;
   StreamSubscription<String>? _fcmTokenRefreshSubscription;
+  String? _pendingEmail;
+  String? _pendingPassword;
 
   @override
   AuthState build() {
@@ -183,6 +187,7 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       await refreshProfile();
       _registerFcmToken();
+      _updateBackgroundService();
       return const AuthActionResult(success: true);
     } catch (error) {
       state = state.copyWith(busy: false, error: '$error');
@@ -231,6 +236,7 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       await refreshProfile();
       _registerFcmToken();
+      _updateBackgroundService();
       return const AuthActionResult(success: true);
     } catch (error) {
       state = state.copyWith(busy: false, error: '$error');
@@ -255,6 +261,8 @@ class AuthNotifier extends Notifier<AuthState> {
             password: password,
           );
       state = state.copyWith(busy: false);
+      _pendingEmail = email;
+      _pendingPassword = password;
       return AuthActionResult(
         success: true,
         message: response['message'] as String?,
@@ -275,12 +283,49 @@ class AuthNotifier extends Notifier<AuthState> {
           .read(authRepositoryProvider)
           .verifyEmail(email: email, code: code);
       state = state.copyWith(busy: false);
+
+      if (_pendingEmail != null && _pendingPassword != null) {
+        final AuthLoginResult loginResult = await ref
+            .read(authRepositoryProvider)
+            .login(identifier: _pendingEmail!, password: _pendingPassword!);
+
+        if (loginResult.isSuccess &&
+            loginResult.userId != null &&
+            loginResult.username != null) {
+          final AuthSession session = AuthSession(
+            accessToken: loginResult.accessToken!,
+            userId: loginResult.userId!,
+            username: loginResult.username!,
+            displayName: loginResult.displayName ?? loginResult.username!,
+          );
+          await _saveSession(session);
+          state = state.copyWith(
+            busy: false,
+            session: session,
+            clearError: true,
+          );
+          _pendingEmail = null;
+          _pendingPassword = null;
+          await refreshProfile();
+          _registerFcmToken();
+      _updateBackgroundService();
+          return AuthActionResult(
+            success: true,
+            message: response['message'] as String?,
+          );
+        }
+      }
+
+      _pendingEmail = null;
+      _pendingPassword = null;
       return AuthActionResult(
         success: true,
         message: response['message'] as String?,
       );
     } catch (error) {
       state = state.copyWith(busy: false, error: '$error');
+      _pendingEmail = null;
+      _pendingPassword = null;
       return AuthActionResult(success: false, message: '$error');
     }
   }
@@ -391,6 +436,7 @@ class AuthNotifier extends Notifier<AuthState> {
       }
     } catch (e) { debugPrint('[auth_provider.dart] Error: $e'); }
 
+    BackgroundService.stop();
     await _fcmTokenRefreshSubscription?.cancel();
     _fcmTokenRefreshSubscription = null;
 
@@ -441,6 +487,18 @@ class AuthNotifier extends Notifier<AuthState> {
             },
           );
     });
+  }
+
+  void _updateBackgroundService() {
+    if (kIsWeb) return;
+    try {
+      final BackgroundMode mode = ref.read(uiSettingsProvider).backgroundMode;
+      if (mode == BackgroundMode.reliable) {
+        BackgroundService.startReliable();
+      }
+    } catch (e) {
+      debugPrint('[auth_provider] _updateBackgroundService error: $e');
+    }
   }
 }
 
