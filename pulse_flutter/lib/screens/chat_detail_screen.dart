@@ -536,6 +536,59 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     );
   }
 
+  Future<void> _sendVoiceMessage(String filePath) async {
+    final int? chatId = _chatId;
+    if (chatId == null || _uploadingMedia) return;
+
+    final File file = File(filePath);
+    final int fileSize = await file.length();
+    final String filename = filePath.split('/').last;
+
+    setState(() {
+      _uploadingMedia = true;
+      _uploadProgress = 0;
+      _uploadFileName = filename;
+      _uploadFileSize = fileSize;
+    });
+
+    try {
+      final String uploadId = await ref
+          .read(chatRepositoryProvider)
+          .uploadStreamInChunks(
+            filePath: filePath,
+            filename: filename,
+            mediaSubtype: 'audio',
+            fileSize: fileSize,
+            onProgress: (int sent, int total) {
+              if (!mounted || total <= 0) return;
+              setState(() => _uploadProgress = sent / total);
+            },
+          );
+
+      await ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .send('', replyToId: _replyToMessageId, uploadId: uploadId);
+
+      _clearReply();
+      _scrollToBottom();
+    } catch (error) {
+      if (!mounted) return;
+      final String message = error is ApiException
+          ? error.message
+          : context.l10n.commonFailed('$error');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _uploadingMedia = false;
+          _uploadProgress = 0;
+          _uploadFileName = null;
+          _uploadFileSize = null;
+        });
+      }
+    }
+  }
+
   Future<bool> _loadOlderMessages() async {
     final int? chatId = _chatId;
     if (chatId == null) {
@@ -1580,6 +1633,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                                   onClearReply: _clearReply,
                                   onAttachMedia: _pickAndUploadMedia,
                                   onAiPressed: () => _showAiBottomSheet(context, scheme),
+                                  onVoiceSend: _sendVoiceMessage,
                                   hapticsEnabled: ref.read(uiSettingsProvider).haptics,
                                 ),
                               ],

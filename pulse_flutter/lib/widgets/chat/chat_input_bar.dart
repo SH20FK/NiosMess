@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
 
 class ChatInputBar extends StatefulWidget {
   const ChatInputBar({
@@ -22,6 +23,7 @@ class ChatInputBar extends StatefulWidget {
     required this.onClearReply,
     required this.onAttachMedia,
     required this.onAiPressed,
+    required this.onVoiceSend,
     this.hapticsEnabled = true,
     super.key,
   });
@@ -40,6 +42,7 @@ class ChatInputBar extends StatefulWidget {
   final VoidCallback onClearReply;
   final VoidCallback onAttachMedia;
   final VoidCallback onAiPressed;
+  final void Function(String filePath) onVoiceSend;
   final bool hapticsEnabled;
 
   @override
@@ -49,6 +52,7 @@ class ChatInputBar extends StatefulWidget {
 class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver {
   bool _showEmojiPicker = false;
   bool _isInputEmpty = true;
+  bool _isRecording = false;
   double _keyboardHeight = 280.0;
 
   @override
@@ -215,7 +219,23 @@ class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver
               ),
             ),
 
-          // Input Row
+          // Voice Recording Panel (when recording)
+          if (_isRecording)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: VoiceRecordingPanel(
+                onSend: (String filePath) {
+                  setState(() => _isRecording = false);
+                  widget.onVoiceSend(filePath);
+                },
+                onCancel: () {
+                  setState(() => _isRecording = false);
+                },
+              ),
+            ),
+
+          // Input Row (when not recording)
+          if (!_isRecording) ...<Widget>[
           const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -368,55 +388,100 @@ class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver
               ),
               const SizedBox(width: 8),
 
-              // Send/Check Button
-              AnimatedScale(
-                scale: showSendButton ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutBack,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  transitionBuilder: (Widget child, Animation<double> anim) =>
-                      ScaleTransition(scale: anim, child: child),
+              // Mic Button (when input empty, not editing)
+              if (_isInputEmpty && widget.editingMessageId == null)
+                Tooltip(
+                  message: context.l10n.chatVoiceMessage,
                   child: GestureDetector(
-                    key: ValueKey<bool>(widget.editingMessageId != null),
-                    onTap: widget.editingMessageId != null
-                        ? widget.onCommitEdit
-                        : (_isInputEmpty ? null : widget.onSend),
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: <Color>[
-                            scheme.primary,
-                            scheme.primary.withValues(alpha: 0.82),
+                    onLongPressStart: (_) async {
+                      if (widget.hapticsEnabled) HapticService.reaction();
+                      setState(() => _isRecording = true);
+                    },
+                    child: AnimatedScale(
+                      scale: showSendButton ? 0.0 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutBack,
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: <Color>[
+                              scheme.primary,
+                              scheme.primary.withValues(alpha: 0.82),
+                            ],
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: <BoxShadow>[
+                            BoxShadow(
+                              color: scheme.primary.withValues(alpha: 0.24),
+                              blurRadius: 8,
+                              spreadRadius: 0.5,
+                              offset: const Offset(0, 2),
+                            ),
                           ],
                         ),
-                        shape: BoxShape.circle,
-                        boxShadow: <BoxShadow>[
-                          BoxShadow(
-                            color: scheme.primary.withValues(alpha: 0.24),
-                            blurRadius: 8,
-                            spreadRadius: 0.5,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        widget.editingMessageId != null ? Icons.check_rounded : Icons.send_rounded,
-                        color: scheme.onPrimary,
-                        size: 22,
+                        child: Icon(
+                          Icons.mic_rounded,
+                          color: scheme.onPrimary,
+                          size: 22,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+
+              // Send/Check Button (when input has text or editing)
+              if (!_isInputEmpty || widget.editingMessageId != null)
+                AnimatedScale(
+                  scale: showSendButton ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutBack,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    transitionBuilder: (Widget child, Animation<double> anim) =>
+                        ScaleTransition(scale: anim, child: child),
+                    child: GestureDetector(
+                      key: ValueKey<bool>(widget.editingMessageId != null),
+                      onTap: widget.editingMessageId != null
+                          ? widget.onCommitEdit
+                          : widget.onSend,
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: <Color>[
+                              scheme.primary,
+                              scheme.primary.withValues(alpha: 0.82),
+                            ],
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: <BoxShadow>[
+                            BoxShadow(
+                              color: scheme.primary.withValues(alpha: 0.24),
+                              blurRadius: 8,
+                              spreadRadius: 0.5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          widget.editingMessageId != null ? Icons.check_rounded : Icons.send_rounded,
+                          color: scheme.onPrimary,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
-
-          // Emoji Picker Panel
+          ],
           AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeInOut,
