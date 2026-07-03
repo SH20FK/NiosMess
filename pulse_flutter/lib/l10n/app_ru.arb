@@ -1414,5 +1414,13 @@
   "chatReadBy": "Прочитали",
   "chatForwardedCard": "Пересланное сообщение",
   "messageSentByMe": "Отправлено мной",
-  "messageSemantics": "Сообщение"
+  "messageSemantics": "Сообщение",
+  "chatE2eeBanner": "Сообщения защищены сквозным шифрованием. Никто вне этого чата не может их прочитать.",
+  "chatForwardRestricted": "Пересылка запрещена в секретных чатах",
+  "chatDisappearingMessages": "Исчезающие сообщения",
+  "chatDisappearingOff": "Выкл",
+  "chatDisappearing5s": "5 секунд",
+  "chatDisappearing1m": "1 минута",
+  "chatDisappearing1h": "1 час",
+  "chatDisappearing1d": "1 день"
 }

@@ -1416,5 +1416,13 @@
   "chatReadBy": "Read by",
   "chatForwardedCard": "Forwarded message",
   "messageSentByMe": "Sent by me",
-  "messageSemantics": "Message"
+  "messageSemantics": "Message",
+  "chatE2eeBanner": "Messages are end-to-end encrypted. No one outside of this chat can read them.",
+  "chatForwardRestricted": "Forwarding is not allowed in secret chats",
+  "chatDisappearingMessages": "Disappearing messages",
+  "chatDisappearingOff": "Off",
+  "chatDisappearing5s": "5 seconds",
+  "chatDisappearing1m": "1 minute",
+  "chatDisappearing1h": "1 hour",
+  "chatDisappearing1d": "1 day"
 }

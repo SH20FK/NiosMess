@@ -5935,6 +5935,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Forwarded message'**
   String get chatForwardedCard;
+
+  /// No description provided for @messageSentByMe.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent by me'**
+  String get messageSentByMe;
+
+  /// No description provided for @messageSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get messageSemantics;
+
+  /// No description provided for @chatE2eeBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages are end-to-end encrypted. No one outside of this chat can read them.'**
+  String get chatE2eeBanner;
+
+  /// No description provided for @chatForwardRestricted.
+  ///
+  /// In en, this message translates to:
+  /// **'Forwarding is not allowed in secret chats'**
+  String get chatForwardRestricted;
+
+  /// No description provided for @chatDisappearingMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Disappearing messages'**
+  String get chatDisappearingMessages;
+
+  /// No description provided for @chatDisappearingOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get chatDisappearingOff;
+
+  /// No description provided for @chatDisappearing5s.
+  ///
+  /// In en, this message translates to:
+  /// **'5 seconds'**
+  String get chatDisappearing5s;
+
+  /// No description provided for @chatDisappearing1m.
+  ///
+  /// In en, this message translates to:
+  /// **'1 minute'**
+  String get chatDisappearing1m;
+
+  /// No description provided for @chatDisappearing1h.
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour'**
+  String get chatDisappearing1h;
+
+  /// No description provided for @chatDisappearing1d.
+  ///
+  /// In en, this message translates to:
+  /// **'1 day'**
+  String get chatDisappearing1d;
 }
 
 class _AppLocalizationsDelegate

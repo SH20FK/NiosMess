@@ -3278,4 +3278,35 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chatForwardedCard => 'Пересланное сообщение';
+
+  @override
+  String get messageSentByMe => 'Отправлено мной';
+
+  @override
+  String get messageSemantics => 'Сообщение';
+
+  @override
+  String get chatE2eeBanner =>
+      'Сообщения защищены сквозным шифрованием. Никто вне этого чата не может их прочитать.';
+
+  @override
+  String get chatForwardRestricted => 'Пересылка запрещена в секретных чатах';
+
+  @override
+  String get chatDisappearingMessages => 'Исчезающие сообщения';
+
+  @override
+  String get chatDisappearingOff => 'Выкл';
+
+  @override
+  String get chatDisappearing5s => '5 секунд';
+
+  @override
+  String get chatDisappearing1m => '1 минута';
+
+  @override
+  String get chatDisappearing1h => '1 час';
+
+  @override
+  String get chatDisappearing1d => '1 день';
 }

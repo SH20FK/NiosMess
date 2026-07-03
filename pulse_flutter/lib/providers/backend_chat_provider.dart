@@ -12,6 +12,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 
@@ -230,7 +231,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       return;
     }
 
-    final List<ApiMessage> next = List<ApiMessage>.from(current)..add(message);
+    final List<ApiMessage> decrypted = await _decryptE2eeMessages(<ApiMessage>[message]);
+    final ApiMessage finalMessage = decrypted.first;
+
+    final List<ApiMessage> next = List<ApiMessage>.from(current)..add(finalMessage);
     next.sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
 
     state = AsyncData<List<ApiMessage>>(next);
@@ -244,12 +248,36 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   Future<List<ApiMessage>> _fetch() async {
     final List<ApiMessage> messages = await ref.read(chatRepositoryProvider).getHistory(_chatId, pageSize: 80);
+    final List<ApiMessage> decrypted = await _decryptE2eeMessages(messages);
     try {
-      await EncryptedMessageCache.saveMessages(_chatId, messages);
+      await EncryptedMessageCache.saveMessages(_chatId, decrypted);
     } catch (e) {
       debugPrint('[backend_chat_provider.dart] Save messages cache error: $e');
     }
-    return messages;
+    return decrypted;
+  }
+
+  Future<List<ApiMessage>> _decryptE2eeMessages(List<ApiMessage> messages) async {
+    final List<ApiMessage> result = <ApiMessage>[];
+    for (final ApiMessage msg in messages) {
+      if (msg.isE2ee && msg.e2eeContent != null && msg.e2eeContent!.isNotEmpty && msg.content.isEmpty) {
+        try {
+          final dynamic privateKey = await E2eeService().loadPrivateKey();
+          if (privateKey != null) {
+            final String decrypted = await E2eeService().decryptE2EEMessage(
+              e2eeContentBase64: msg.e2eeContent!,
+              privateKey: privateKey,
+            );
+            result.add(msg.copyWith(content: decrypted));
+            continue;
+          }
+        } catch (e) {
+          debugPrint('[backend_chat_provider.dart] E2EE decrypt failed for msg ${msg.id}: $e');
+        }
+      }
+      result.add(msg);
+    }
+    return result;
   }
 
   Future<void> _saveToCache(List<ApiMessage> messages) async {
@@ -340,6 +368,35 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     final String myUsername = ref.read(authProvider).session?.username ?? '';
 
+    String? e2eeContent;
+    bool isE2ee = false;
+
+    final ApiChatSummary? chat = ref.read(chatByIdProvider(_chatId));
+    if (chat?.isSecret == true && trimmed.isNotEmpty) {
+      try {
+        final List<ApiChatMember> members =
+            ref.read(chatMembersProvider(_chatId)).value ?? const <ApiChatMember>[];
+        final int recipientUserId = members
+            .where((ApiChatMember m) => m.userId != myUserId)
+            .map((ApiChatMember m) => m.userId)
+            .firstOrNull ?? 0;
+        if (recipientUserId > 0) {
+          final Map<String, dynamic> keyData =
+              await ref.read(authRepositoryProvider).getPublicKey(recipientUserId);
+          final String? recipientPubKey = keyData['public_key'] as String?;
+          if (recipientPubKey != null && recipientPubKey.isNotEmpty) {
+            e2eeContent = await E2eeService().encryptE2EEMessage(
+              plaintext: trimmed,
+              recipientPublicKeyBase64: recipientPubKey,
+            );
+            isE2ee = true;
+          }
+        }
+      } catch (e) {
+        debugPrint('[backend_chat_provider.dart] E2EE encrypt failed: $e');
+      }
+    }
+
     final ApiMessage optimisticMessage = ApiMessage(
       id: tempId,
       chatId: _chatId,
@@ -347,7 +404,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       senderUsername: myUsername,
       senderDisplayName: myUsername.isEmpty ? 'Я' : myUsername,
       senderBadges: const [],
-      content: trimmed,
+      content: isE2ee ? '' : trimmed,
       msgType: uploadId != null ? 'media' : 'text',
       replyToId: replyToId,
       mediaUrl: null,
@@ -362,8 +419,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       isDeleted: false,
       isSending: true,
       isFailed: false,
-      isE2ee: false,
-      e2eeContent: null,
+      isE2ee: isE2ee,
+      e2eeContent: e2eeContent,
     );
 
     List<ApiMessage> current = state.value ?? const <ApiMessage>[];
@@ -376,9 +433,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           .read(chatRepositoryProvider)
           .sendMessage(
             _chatId,
-            content: trimmed,
+            content: isE2ee ? '' : trimmed,
             replyToId: replyToId,
             uploadId: uploadId,
+            e2eeContent: e2eeContent,
           );
 
       current = state.value ?? const <ApiMessage>[];

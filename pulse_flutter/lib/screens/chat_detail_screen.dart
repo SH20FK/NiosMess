@@ -33,6 +33,7 @@ import 'package:pulse_flutter/widgets/message_context_menu_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
+import 'package:pulse_flutter/core/utils/screen_security_service.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
@@ -233,7 +234,17 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _restoreDraft();
       _refreshNow();
+      _applySecureFlag();
     });
+  }
+
+  void _applySecureFlag() {
+    final int? chatId = _chatId;
+    if (chatId == null) return;
+    final ApiChatSummary? chat = ref.read(chatByIdProvider(chatId));
+    if (chat?.isSecret == true) {
+      ScreenSecurityService.setSecureFlag(enabled: true);
+    }
   }
 
   void _onScroll() {
@@ -281,6 +292,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     _inputController.dispose();
     _scrollController.dispose();
     _inputFocusNode.dispose();
+    final int? chatId = _chatId;
+    if (chatId != null) {
+      final ApiChatSummary? chat = ref.read(chatByIdProvider(chatId));
+      if (chat?.isSecret == true) {
+        ScreenSecurityService.setSecureFlag(enabled: false);
+      }
+    }
     super.dispose();
   }
 
@@ -900,6 +918,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         isMine: isMine,
         isChannel: isChannel,
         amAdminOrOwner: amAdminOrOwner,
+        isSecret: ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret == true,
         onReact: (String emoji) => _react(message, emoji),
         onShowAllReactions: () => _showAllReactionsPicker(message),
         onReply: () => _setReply(message),
@@ -1409,6 +1428,27 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         child: Column(
           children: <Widget>[
             OfflineBanner(isOffline: !(ref.watch(connectivityProvider).value ?? true)),
+            if (chat?.isSecret == true)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                color: scheme.primaryContainer.withValues(alpha: 0.35),
+                child: Row(
+                  children: <Widget>[
+                    Icon(Icons.lock_rounded, size: 14, color: scheme.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        context.l10n.chatE2eeBanner,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             // Loading older messages indicator at top
             ValueListenableBuilder<bool>(
               valueListenable: _loadingOlderNotifier,

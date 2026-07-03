@@ -17,6 +17,7 @@ class MessageContextMenuSheet extends StatelessWidget {
     required this.onComments,
     required this.onEdit,
     required this.onDelete,
+    this.isSecret = false,
     super.key,
   });
 
@@ -32,6 +33,7 @@ class MessageContextMenuSheet extends StatelessWidget {
   final VoidCallback onComments;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final bool isSecret;
 
   @override
   Widget build(BuildContext context) {
@@ -129,14 +131,16 @@ class MessageContextMenuSheet extends StatelessWidget {
                       ),
                       const Divider(height: 1),
                     ],
-                    _ActionTile(
-                      icon: Icons.forward_rounded,
-                      title: context.l10n.chatResendTo,
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        onForward();
-                      },
-                    ),
+                    if (!isSecret) ...<Widget>[
+                      _ActionTile(
+                        icon: Icons.forward_rounded,
+                        title: context.l10n.chatResendTo,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          onForward();
+                        },
+                      ),
+                    ],
                     if (isChannel) ...<Widget>[
                       const Divider(height: 1),
                       _ActionTile(

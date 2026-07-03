@@ -3262,4 +3262,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatForwardedCard => 'Forwarded message';
+
+  @override
+  String get messageSentByMe => 'Sent by me';
+
+  @override
+  String get messageSemantics => 'Message';
+
+  @override
+  String get chatE2eeBanner =>
+      'Messages are end-to-end encrypted. No one outside of this chat can read them.';
+
+  @override
+  String get chatForwardRestricted =>
+      'Forwarding is not allowed in secret chats';
+
+  @override
+  String get chatDisappearingMessages => 'Disappearing messages';
+
+  @override
+  String get chatDisappearingOff => 'Off';
+
+  @override
+  String get chatDisappearing5s => '5 seconds';
+
+  @override
+  String get chatDisappearing1m => '1 minute';
+
+  @override
+  String get chatDisappearing1h => '1 hour';
+
+  @override
+  String get chatDisappearing1d => '1 day';
 }
