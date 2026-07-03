@@ -1172,6 +1172,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatReply => 'Reply';
 
   @override
+  String get chatCopyText => 'Copy text';
+
+  @override
   String get chatResendTo => 'Resend to...';
 
   @override
@@ -1208,6 +1211,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatMessageForwarded => 'Message forwarded';
+
+  @override
+  String get chatMessageTextCopied => 'Text copied to clipboard';
 
   @override
   String get chatMediaSent => 'Media sent successfully';
@@ -3233,4 +3239,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String fileOpenerNoAppFound(Object type) {
     return 'No app found to open $type files';
   }
+
+  @override
+  String get chatEmojiToggle => 'Emoji';
+
+  @override
+  String get chatVoiceMessage => 'Voice message';
+
+  @override
+  String get chatSearchInChat => 'Search in chat';
+
+  @override
+  String get chatTyping => 'typing...';
+
+  @override
+  String chatReactedWith(Object emoji) {
+    return 'Reacted with $emoji';
+  }
+
+  @override
+  String get chatReadBy => 'Read by';
+
+  @override
+  String get chatForwardedCard => 'Forwarded message';
 }

@@ -10,7 +10,9 @@ class MessageContextMenuSheet extends StatelessWidget {
     required this.isChannel,
     required this.amAdminOrOwner,
     required this.onReact,
+    required this.onShowAllReactions,
     required this.onReply,
+    required this.onCopy,
     required this.onForward,
     required this.onComments,
     required this.onEdit,
@@ -23,7 +25,9 @@ class MessageContextMenuSheet extends StatelessWidget {
   final bool isChannel;
   final bool amAdminOrOwner;
   final void Function(String emoji) onReact;
+  final VoidCallback onShowAllReactions;
   final VoidCallback onReply;
+  final VoidCallback onCopy;
   final VoidCallback onForward;
   final VoidCallback onComments;
   final VoidCallback onEdit;
@@ -42,7 +46,7 @@ class MessageContextMenuSheet extends StatelessWidget {
           children: <Widget>[
             // Reactions Row
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(24),
@@ -52,26 +56,42 @@ class MessageContextMenuSheet extends StatelessWidget {
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: <String>['👍', '❤️', '🔥', '😂', '🎉', '👎']
-                    .map(
-                      (String emoji) => GestureDetector(
-                        onTap: () {
-                          HapticService.tap();
-                          Navigator.of(context).pop();
-                          onReact(emoji);
-                        },
-                        behavior: HitTestBehavior.opaque,
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: scheme.surfaceContainerHighest,
-                          ),
-                          child: Text(emoji, style: const TextStyle(fontSize: 24)),
+                children: <Widget>[
+                  ...<String>['👍', '❤️', '🔥', '😂', '🎉', '👎'].map(
+                    (String emoji) => GestureDetector(
+                      onTap: () {
+                        HapticService.tap();
+                        Navigator.of(context).pop();
+                        onReact(emoji);
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: scheme.surfaceContainerHighest,
                         ),
+                        child: Text(emoji, style: const TextStyle(fontSize: 22)),
                       ),
-                    )
-                    .toList(growable: false),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      HapticService.tap();
+                      Navigator.of(context).pop();
+                      onShowAllReactions();
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: scheme.surfaceContainerHighest,
+                      ),
+                      child: Icon(Icons.add_rounded, size: 26, color: scheme.primary),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -98,6 +118,17 @@ class MessageContextMenuSheet extends StatelessWidget {
                       },
                     ),
                     const Divider(height: 1),
+                    if (message.msgType == 'text' && !message.isDeleted) ...<Widget>[
+                      _ActionTile(
+                        icon: Icons.copy_rounded,
+                        title: context.l10n.chatCopyText,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          onCopy();
+                        },
+                      ),
+                      const Divider(height: 1),
+                    ],
                     _ActionTile(
                       icon: Icons.forward_rounded,
                       title: context.l10n.chatResendTo,

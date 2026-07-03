@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
@@ -14,10 +16,11 @@ class PulseAvatar extends StatelessWidget {
     super.key,
   });
 
-  static final Map<String, Color> _colorCache = <String, Color>{};
+  static final LinkedHashMap<String, Color> _colorCache = LinkedHashMap<String, Color>();
 
   static Color _colorFromName(String name) {
     if (_colorCache.containsKey(name)) return _colorCache[name]!;
+    if (_colorCache.length >= 200) _colorCache.remove(_colorCache.keys.first);
     final int hash = name.hashCode;
     final Color color = HSLColor.fromAHSL(
       1.0,
@@ -140,7 +143,7 @@ class _CachedAvatar extends StatefulWidget {
 class _CachedAvatarState extends State<_CachedAvatar> {
   ImageStream? _imageStream;
   ImageInfo? _currentInfo;
-  bool _listening = false;
+  ImageStreamListener? _listener;
 
   @override
   void didChangeDependencies() {
@@ -176,8 +179,8 @@ class _CachedAvatarState extends State<_CachedAvatar> {
 
     _stopListening();
     _imageStream = stream;
-    stream.addListener(ImageStreamListener(_onImage));
-    _listening = true;
+    _listener = ImageStreamListener(_onImage);
+    stream.addListener(_listener!);
   }
 
   void _onImage(ImageInfo info, bool _) {
@@ -186,9 +189,9 @@ class _CachedAvatarState extends State<_CachedAvatar> {
   }
 
   void _stopListening() {
-    if (_listening && _imageStream != null) {
-      _imageStream!.removeListener(ImageStreamListener(_onImage));
-      _listening = false;
+    if (_listener != null && _imageStream != null) {
+      _imageStream!.removeListener(_listener!);
+      _listener = null;
     }
   }
 

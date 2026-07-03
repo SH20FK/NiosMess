@@ -31,6 +31,7 @@ class MessageBubble extends ConsumerWidget {
     this.senderBadges = const <ApiBadge>[],
     this.senderDisplayName,
     this.onSwipeToReply,
+    this.onReactionTap,
     this.replyMarkup,
     this.onCallbackQuery,
     this.isPrevSame = false,
@@ -58,6 +59,7 @@ class MessageBubble extends ConsumerWidget {
   final List<ApiBadge> senderBadges;
   final String? senderDisplayName;
   final VoidCallback? onSwipeToReply;
+  final ValueChanged<String>? onReactionTap;
   final InlineKeyboardMarkup? replyMarkup;
   final ValueChanged<String>? onCallbackQuery;
   final bool isPrevSame;
@@ -124,7 +126,9 @@ class MessageBubble extends ConsumerWidget {
                 }
               },
               child: Container(
-                constraints: const BoxConstraints(maxWidth: 320),
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.sizeOf(context).width * 0.75,
+                ),
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
                 decoration: BoxDecoration(
                   color: bubbleColor,
@@ -206,8 +210,10 @@ class MessageBubble extends ConsumerWidget {
                           Container(
                             width: double.infinity,
                             margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                              borderRadius: BorderRadius.circular(8),
                               border: Border(
                                 left: BorderSide(
                                   color: scheme.outlineVariant,
@@ -218,13 +224,24 @@ class MessageBubble extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
-                                Text(
-                                  context.l10n.chatForwardedTitle,
-                                  style: textTheme.labelSmall?.copyWith(
-                                    color: scheme.primary,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                                Row(
+                                  children: <Widget>[
+                                    Icon(
+                                      Icons.forward_rounded,
+                                      size: 14,
+                                      color: scheme.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      context.l10n.chatForwardedCard,
+                                      style: textTheme.labelSmall?.copyWith(
+                                        color: scheme.primary,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                const SizedBox(height: 2),
                                 Text(
                                   context.l10n.chatForwardedFrom(
                                     forwarded.sender,
@@ -279,7 +296,7 @@ class MessageBubble extends ConsumerWidget {
                             Text(
                               context.l10n.chatEdited,
                               style: textTheme.labelSmall?.copyWith(
-                                fontSize: 10,
+                                fontSize: 11,
                                 color: scheme.onSurfaceVariant.withValues(
                                   alpha: 0.7,
                                 ),
@@ -289,7 +306,7 @@ class MessageBubble extends ConsumerWidget {
                           Text(
                             formattedTime,
                             style: textTheme.labelSmall?.copyWith(
-                              fontSize: 10,
+                              fontSize: 11,
                               color: scheme.onSurfaceVariant.withValues(
                                 alpha: 0.7,
                               ),
@@ -324,18 +341,26 @@ class MessageBubble extends ConsumerWidget {
                   alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
                   children: reactions.entries
                       .map((MapEntry<String, int> item) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '${item.key} ${item.value}',
-                            style: textTheme.labelSmall,
+                        return GestureDetector(
+                          onTap: onReactionTap != null
+                              ? () {
+                                  HapticService.reaction();
+                                  onReactionTap!(item.key);
+                                }
+                              : null,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '${item.key} ${item.value}',
+                              style: textTheme.labelSmall,
+                            ),
                           ),
                         );
                       })
@@ -371,7 +396,7 @@ class MessageBubble extends ConsumerWidget {
       );
     }
 
-    final bool optimize = ref.watch(uiSettingsProvider).optimizeForWeakDevices;
+    final bool optimize = ref.read(uiSettingsProvider).optimizeForWeakDevices;
     if (optimize || !animate) {
       return content;
     }
@@ -416,7 +441,7 @@ class MessageBubble extends ConsumerWidget {
             errorWidget: (BuildContext context, String _, Object error) {
               return Container(
                 width: 220,
-                height: 110,
+                height: 180,
                 alignment: Alignment.center,
                 color: isMine
                     ? scheme.onPrimary.withValues(alpha: 0.12)

@@ -422,6 +422,7 @@
   "chatMembers": "Участники",
   "chatManage": "Управление чатом",
   "chatReply": "Ответить",
+  "chatCopyText": "Копировать текст",
   "chatResendTo": "Переслать в...",
   "chatResendSubtitle": "Копирует текст сообщения в другой чат",
   "chatComments": "Комментарии",
@@ -441,6 +442,7 @@
   "chatDeleteMessageBody": "Это действие нельзя отменить.",
   "chatMessageDeleted": "Сообщение удалено",
   "chatMessageForwarded": "Сообщение переслано",
+  "chatMessageTextCopied": "Текст скопирован",
   "chatMediaSent": "Медиа отправлено",
   "chatForwardTo": "Переслать в...",
   "chatAttachment": "Вложение",
@@ -1398,5 +1400,17 @@
     "placeholders": {
       "type": {}
     }
-  }
+  },
+  "chatEmojiToggle": "Эмодзи",
+  "chatVoiceMessage": "Голосовое сообщение",
+  "chatSearchInChat": "Поиск в чате",
+  "chatTyping": "печатает...",
+  "chatReactedWith": "Отреагировал(а) {emoji}",
+  "@chatReactedWith": {
+    "placeholders": {
+      "emoji": {}
+    }
+  },
+  "chatReadBy": "Прочитали",
+  "chatForwardedCard": "Пересланное сообщение"
 }

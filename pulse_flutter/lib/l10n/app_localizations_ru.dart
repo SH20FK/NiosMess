@@ -1176,6 +1176,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatReply => 'Ответить';
 
   @override
+  String get chatCopyText => 'Копировать текст';
+
+  @override
   String get chatResendTo => 'Переслать в...';
 
   @override
@@ -1212,6 +1215,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chatMessageForwarded => 'Сообщение переслано';
+
+  @override
+  String get chatMessageTextCopied => 'Текст скопирован';
 
   @override
   String get chatMediaSent => 'Медиа отправлено';
@@ -2784,7 +2790,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get onboardingSlide1Desc =>
-      'Звоните коллегам в одно касание и переключайтесь между голосом и видео не離開ая разговор.';
+      'Звоните коллегам в одно касание и переключайтесь между голосом и видео не покидая разговор.';
 
   @override
   String get onboardingSlide2Title => 'Упорядоченные беседы';
@@ -3249,4 +3255,27 @@ class AppLocalizationsRu extends AppLocalizations {
   String fileOpenerNoAppFound(Object type) {
     return 'Не найдено приложение для открытия файлов типа $type';
   }
+
+  @override
+  String get chatEmojiToggle => 'Эмодзи';
+
+  @override
+  String get chatVoiceMessage => 'Голосовое сообщение';
+
+  @override
+  String get chatSearchInChat => 'Поиск в чате';
+
+  @override
+  String get chatTyping => 'печатает...';
+
+  @override
+  String chatReactedWith(Object emoji) {
+    return 'Отреагировал(а) $emoji';
+  }
+
+  @override
+  String get chatReadBy => 'Прочитали';
+
+  @override
+  String get chatForwardedCard => 'Пересланное сообщение';
 }

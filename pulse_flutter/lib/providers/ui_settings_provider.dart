@@ -177,28 +177,28 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
 
   Future<void> _persist(UiSettingsState nextState) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_themeModeKey, nextState.themeMode.name);
-    await prefs.setString(_variantKey, nextState.variant.name);
-    await prefs.setInt(_seedColorKey, nextState.seedColor.toARGB32());
-    await prefs.setBool(_notificationsKey, nextState.notifications);
-    await prefs.setBool(_darkBackdropKey, nextState.darkCallBackdrop);
-    await prefs.setBool(_compactKey, nextState.compactMode);
-    await prefs.setBool(_hapticsKey, nextState.haptics);
-    await prefs.setBool(_hideOnlineKey, nextState.hideOnline);
-    await prefs.setBool(_soundEffectsKey, nextState.soundEffects);
-    await prefs.setDouble(_soundVolumeKey, nextState.soundVolume);
-    if ((nextState.localeCode ?? '').trim().isEmpty) {
-      await prefs.remove(_localeCodeKey);
-    } else {
-      await prefs.setString(_localeCodeKey, nextState.localeCode!);
-    }
-    await prefs.setString(_timeZoneModeKey, nextState.timeZoneMode.name);
-    if ((nextState.timeZoneId ?? '').trim().isEmpty) {
-      await prefs.remove(_timeZoneIdKey);
-    } else {
-      await prefs.setString(_timeZoneIdKey, nextState.timeZoneId!);
-    }
-    await prefs.setBool(_optimizeWeakKey, nextState.optimizeForWeakDevices);
+    await Future.wait(<Future<bool>>[
+      prefs.setString(_themeModeKey, nextState.themeMode.name),
+      prefs.setString(_variantKey, nextState.variant.name),
+      prefs.setInt(_seedColorKey, nextState.seedColor.toARGB32()),
+      prefs.setBool(_notificationsKey, nextState.notifications),
+      prefs.setBool(_darkBackdropKey, nextState.darkCallBackdrop),
+      prefs.setBool(_compactKey, nextState.compactMode),
+      prefs.setBool(_hapticsKey, nextState.haptics),
+      prefs.setBool(_hideOnlineKey, nextState.hideOnline),
+      prefs.setBool(_soundEffectsKey, nextState.soundEffects),
+      prefs.setDouble(_soundVolumeKey, nextState.soundVolume),
+      if ((nextState.localeCode ?? '').trim().isEmpty)
+        prefs.remove(_localeCodeKey)
+      else
+        prefs.setString(_localeCodeKey, nextState.localeCode!),
+      prefs.setString(_timeZoneModeKey, nextState.timeZoneMode.name),
+      if ((nextState.timeZoneId ?? '').trim().isEmpty)
+        prefs.remove(_timeZoneIdKey)
+      else
+        prefs.setString(_timeZoneIdKey, nextState.timeZoneId!),
+      prefs.setBool(_optimizeWeakKey, nextState.optimizeForWeakDevices),
+    ]);
   }
 
   void _set(UiSettingsState nextState) {

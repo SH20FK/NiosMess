@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_linux
   dynamic_color
+  emoji_picker_flutter
   flutter_secure_storage_linux
   gtk
   open_file_linux

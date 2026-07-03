@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -44,6 +45,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   late final TabController _filterController;
   String _query = '';
   _ChatFilter _filter = _ChatFilter.all;
+  Timer? _searchDebounce;
 
   bool _isInitialLoaded = false;
 
@@ -66,6 +68,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _filterController.dispose();
     ref.read(chatListSearchProvider.notifier).clear();
     _searchController.dispose();
@@ -291,11 +294,16 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   void _onSearchChanged(String value) {
     setState(() => _query = value);
+    _searchDebounce?.cancel();
     if (value.trim().isEmpty) {
       ref.read(chatListSearchProvider.notifier).clear();
       return;
     }
-    ref.read(chatListSearchProvider.notifier).search(value);
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        ref.read(chatListSearchProvider.notifier).search(value);
+      }
+    });
   }
 
   void _clearSearch() {
@@ -389,7 +397,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           key: const ValueKey<String>('loading'),
           padding: const EdgeInsets.only(top: 10),
           child: LinearProgressIndicator(
-            year2023: false,
             minHeight: 2,
             borderRadius: BorderRadius.circular(999),
           ),

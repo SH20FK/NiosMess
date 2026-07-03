@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:pulse_flutter/widgets/chat/chat_input_bar.dart';
+import 'package:pulse_flutter/widgets/chat/chat_message_list.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
-import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
@@ -27,7 +28,6 @@ import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/widgets/file_upload_progress_widget.dart';
 import 'package:pulse_flutter/widgets/m3_file_picker_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
-import 'package:pulse_flutter/widgets/message_bubble.dart';
 import 'package:pulse_flutter/widgets/message_context_menu_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
@@ -77,7 +77,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   int? _editingMessageId;
   String? _editingOriginalText;
 
-  // Scroll-to-bottom FAB
   // Scroll-to-bottom FAB
   bool _showScrollToBottom = false;
   final ValueNotifier<bool> _loadingOlderNotifier = ValueNotifier<bool>(false);
@@ -358,47 +357,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       TextPosition(offset: previous.length),
     );
     _lastAiOriginalText = null;
-  }
-
-  Widget _buildAiButton(ColorScheme scheme) {
-    if (_isAiProcessing) {
-      return SizedBox(
-        width: 48,
-        height: 48,
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              
-              strokeWidth: 2,
-              color: scheme.primary,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Tooltip(
-      message: context.l10n.chatAiAssistant,
-      child: InkWell(
-        onTap: () {
-          if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
-          _showAiBottomSheet(context, scheme);
-        },
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          child: Icon(
-            Icons.auto_awesome_rounded,
-            size: 22,
-            color: _isInputEmpty
-                ? scheme.onSurfaceVariant.withValues(alpha: 0.5)
-                : scheme.primary,
-          ),
-        ),
-      ),
-    );
   }
 
   void _showAiBottomSheet(BuildContext context, ColorScheme scheme) {
@@ -909,7 +867,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         isChannel: isChannel,
         amAdminOrOwner: amAdminOrOwner,
         onReact: (String emoji) => _react(message, emoji),
+        onShowAllReactions: () => _showAllReactionsPicker(message),
         onReply: () => _setReply(message),
+        onCopy: () {
+          Clipboard.setData(ClipboardData(text: message.content));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.chatMessageTextCopied)),
+          );
+        },
         onForward: () => _forwardMessage(message),
         onComments: () {
           final int? chatId = _chatId;
@@ -919,6 +884,61 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         onEdit: () => _editMessage(message),
         onDelete: () => _deleteMessage(message),
       ),
+    );
+  }
+
+  void _showAllReactionsPicker(ApiMessage message) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: scheme.surfaceContainerLow,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: SizedBox(
+            height: 320,
+            child: EmojiPicker(
+              onEmojiSelected: (Category? category, Emoji emoji) {
+                Navigator.of(ctx).pop();
+                _react(message, emoji.emoji);
+              },
+              config: Config(
+                height: 320,
+                checkPlatformCompatibility: true,
+                emojiViewConfig: EmojiViewConfig(
+                  backgroundColor: scheme.surfaceContainerLow,
+                  columns: 7,
+                  emojiSizeMax: 28 * (Platform.isIOS ? 1.20 : 1.0),
+                  verticalSpacing: 0,
+                  horizontalSpacing: 0,
+                  gridPadding: EdgeInsets.zero,
+                  buttonMode: ButtonMode.MATERIAL,
+                ),
+                skinToneConfig: const SkinToneConfig(),
+                categoryViewConfig: CategoryViewConfig(
+                  backgroundColor: scheme.surfaceContainerLow,
+                  indicatorColor: scheme.primary,
+                  iconColor: scheme.onSurfaceVariant,
+                  iconColorSelected: scheme.primary,
+                  backspaceColor: scheme.primary,
+                ),
+                bottomActionBarConfig: BottomActionBarConfig(
+                  backgroundColor: scheme.surfaceContainerLow,
+                  buttonIconColor: scheme.onSurfaceVariant,
+                  buttonColor: scheme.surfaceContainerHigh,
+                ),
+                searchViewConfig: SearchViewConfig(
+                  backgroundColor: scheme.surfaceContainerLow,
+                  buttonIconColor: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1224,15 +1244,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: scheme.surfaceContainerLow.withValues(alpha: 0.70),
+          backgroundColor: scheme.surfaceContainerLow.withValues(alpha: 0.92),
           elevation: 0,
           scrolledUnderElevation: 0,
-          flexibleSpace: ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(color: Colors.transparent),
-            ),
-          ),
           titleSpacing: widget.isDesktopSplit
               ? NavigationToolbar.kMiddleSpacing
               : 0,
@@ -1411,172 +1425,34 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                         );
                       }
 
-                      final Map<int, ApiMessage> byId = <int, ApiMessage>{
-                        for (final ApiMessage message in messages)
-                          message.id: message,
-                      };
-
-                      final DateTime now = AppTimeSettings.now();
-
-                      return ListView.builder(
-                        controller: _scrollController,
-                        reverse: true,
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                        itemCount: messages.length,
-                        itemBuilder: (BuildContext context, int index) {
-                          final int reversedIndex = messages.length - 1 - index;
-                          final ApiMessage message = messages[reversedIndex];
-
-                          final bool showDateSep;
-                          if (reversedIndex == 0) {
-                            showDateSep = true;
-                          } else {
-                            final ApiMessage prev = messages[reversedIndex - 1];
-                            final DateTime messageDate = message.resolvedSentAt;
-                            final DateTime prevDate = prev.resolvedSentAt;
-                            showDateSep =
-                                messageDate.day != prevDate.day ||
-                                messageDate.month != prevDate.month ||
-                                messageDate.year != prevDate.year;
-                          }
-
-                          final bool isMine =
-                              message.senderId == (auth.session?.userId ?? -1);
-
-                          final bool isPrevSame = reversedIndex > 0 &&
-                              !showDateSep &&
-                              messages[reversedIndex - 1].senderId == message.senderId &&
-                              !messages[reversedIndex - 1].isDeleted;
-
-                          final bool isNextSame = reversedIndex < messages.length - 1 &&
-                              messages[reversedIndex + 1].resolvedSentAt.day == message.resolvedSentAt.day &&
-                              messages[reversedIndex + 1].resolvedSentAt.month == message.resolvedSentAt.month &&
-                              messages[reversedIndex + 1].resolvedSentAt.year == message.resolvedSentAt.year &&
-                              messages[reversedIndex + 1].senderId == message.senderId &&
-                              !messages[reversedIndex + 1].isDeleted;
-
-                          final String? mediaUrl = _mediaUrlFor(message);
-                          final bool hasMedia =
-                              mediaUrl != null && mediaUrl.trim().isNotEmpty;
-                          final bool isImageMedia = hasMedia
-                              ? _isImageMedia(message, mediaUrl)
-                              : false;
-                          final String? mediaLabel = hasMedia
-                              ? _mediaLabel(message, mediaUrl)
-                              : null;
-
-                          final Widget bubble = RepaintBoundary(
-                            child: MessageBubble(
-                              key: ValueKey<int>(message.id),
-                              text: _displayText(message),
-                              isMine: isMine,
-                              isE2ee: message.isE2ee,
-                              isPrevSame: isPrevSame,
-                              isNextSame: isNextSame,
-                              formattedTime: formatMessageTime(message.sentAt),
-                              isEdited: message.isEdited,
-                              isDeleted: message.isDeleted,
-                              isRead: message.isRead,
-                              replyPreview: _replyPreviewFor(message, byId),
-                              reactions: message.reactions,
-                              mediaUrl: mediaUrl,
-                              mediaIsImage: isImageMedia,
-                              mediaLabel: mediaLabel,
-                              senderBadges: message.senderBadges,
-                              senderDisplayName: message.senderDisplayName,
-                              animate: now.difference(message.resolvedSentAt).inSeconds < 4,
-                              onOpenMedia: hasMedia
-                                  ? () => _handleOpenMediaFor(message)
-                                  : null,
-                              onLongPressMedia: hasMedia
-                                  ? () => _handleLongPressMediaFor(
-                                      message,
-                                      isMine,
-                                      amAdminOrOwner,
-                                    )
-                                  : null,
-                              onLongPress: () => _handleLongPressFor(
-                                message,
-                                isMine,
-                                isChannel,
-                                amAdminOrOwner,
-                              ),
-                              onSwipeToReply: () => _setReply(message),
-                              replyMarkup: message.replyMarkup,
-                              onCallbackQuery: (String data) {
-                                final int? chatId = _chatId;
-                                if (chatId == null) return;
-                                ref
-                                    .read(chatMessagesProvider(chatId).notifier)
-                                    .sendCallbackQuery(message.id, data);
-                              },
-                            ),
-                          );
-
-                          final bool isNewest = index == 0;
-
-                          final Widget animatedBubble = _AnimatedMessage(
-                            key: ValueKey<int>(message.id),
-                            animate: isNewest,
+                      return ChatMessageList(
+                        messages: messages,
+                        scrollController: _scrollController,
+                        authUserId: auth.session?.userId ?? -1,
+                        amAdminOrOwner: amAdminOrOwner,
+                        isChannel: isChannel,
+                        onOpenMedia: _handleOpenMediaFor,
+                        onLongPressMedia: _handleLongPressMediaFor,
+                        onLongPress: _handleLongPressFor,
+                        onSwipeToReply: _setReply,
+                        onCallbackQuery: (ApiMessage message, String data) {
+                          final int? cid = _chatId;
+                          if (cid == null) return;
+                          ref.read(chatMessagesProvider(cid).notifier).sendCallbackQuery(message.id, data);
+                        },
+                        onRetrySend: _retrySend,
+                        displayTextBuilder: _displayText,
+                        mediaUrlBuilder: _mediaUrlFor,
+                        isImageMediaBuilder: _isImageMedia,
+                        mediaLabelBuilder: _mediaLabel,
+                        replyPreviewBuilder: _replyPreviewFor,
+                        dateSeparatorBuilder: _dateSeparator,
+                        animatedMessageBuilder: ({required int messageId, required bool animate, required bool isMine, required Widget child}) {
+                          return _AnimatedMessage(
+                            key: ValueKey<int>(messageId),
+                            animate: animate,
                             isMine: isMine,
-                            child: bubble,
-                          );
-
-                          if (isMine) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: <Widget>[
-                                if (showDateSep) _dateSeparator(message.resolvedSentAt, now),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: <Widget>[
-                                    if (message.isSending)
-                                      const Padding(
-                                        padding: EdgeInsets.only(right: 8, bottom: 12),
-                                        child: SizedBox(
-                                          width: 14,
-                                          height: 14,
-                                          child: CircularProgressIndicator( strokeWidth: 2),
-                                        ),
-                                      ),
-                                    if (message.isFailed)
-                                      Padding(
-                                        padding: const EdgeInsets.only(right: 4, bottom: 4),
-                                        child: IconButton(
-                                          icon: Icon(Icons.refresh_rounded, color: scheme.error, size: 22),
-                                          tooltip: context.l10n.commonRetry,
-                                          onPressed: () => _retrySend(message),
-                                        ),
-                                      ),
-                                    Flexible(child: animatedBubble),
-                                  ],
-                                ),
-                              ],
-                            );
-                          }
-
-                          return Column(
-                            children: <Widget>[
-                              if (showDateSep) _dateSeparator(message.resolvedSentAt, now),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: <Widget>[
-                                  GestureDetector(
-                                    onTap: () => context.push(
-                                      '/profile/${message.senderUsername}',
-                                    ),
-                                    child: PulseAvatar(
-                                      radius: 14,
-                                      name: message.senderDisplayName,
-                                      avatarUrl: message.senderAvatarUrl,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Flexible(child: animatedBubble),
-                                ],
-                              ),
-                            ],
+                            child: child,
                           );
                         },
                       );
@@ -1657,14 +1533,19 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                                           ),
                                           IconButton(
                                             onPressed: () {
+                                              final int? cid = _chatId;
+                                              if (cid != null) {
+                                                _draftStorage.remove(cid);
+                                              }
+                                              _inputController.clear();
                                               setState(() {
                                                 _showDraftRestoredBanner = false;
                                               });
                                             },
-                                            icon: const Icon(Icons.close_rounded),
+                                            icon: const Icon(Icons.delete_outline_rounded),
                                             iconSize: 18,
                                             color: scheme.onTertiaryContainer,
-                                            tooltip: context.l10n.commonCancel,
+                                            tooltip: context.l10n.commonDelete,
                                           ),
                                         ],
                                       ),
@@ -1684,259 +1565,26 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                                       });
                                     },
                                   ),
-                                // Inline Edit Panel
-                                if (_editingMessageId != null)
-                                  AnimatedSize(
-                                    duration: const Duration(milliseconds: 200),
-                                    curve: Curves.easeOutCubic,
-                                    child: Container(
-                                      margin: const EdgeInsets.only(bottom: 6),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: scheme.primaryContainer.withValues(alpha: 0.7),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border(
-                                          left: BorderSide(
-                                            color: scheme.primary,
-                                            width: 3,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: <Widget>[
-                                          Icon(
-                                            Icons.edit_rounded,
-                                            size: 16,
-                                            color: scheme.primary,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: <Widget>[
-                                                Text(
-                                                  context.l10n.chatEditingMessage,
-                                                  style: textTheme.labelSmall?.copyWith(
-                                                    color: scheme.primary,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  (_editingOriginalText ?? '').length > 80
-                                                      ? '${(_editingOriginalText ?? '').substring(0, 80)}...'
-                                                      : (_editingOriginalText ?? ''),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: textTheme.bodySmall?.copyWith(
-                                                    color: scheme.onSurfaceVariant,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          IconButton(
-                                            onPressed: _cancelEdit,
-                                            icon: const Icon(Icons.close_rounded),
-                                            tooltip: context.l10n.chatEditCancel,
-                                            iconSize: 18,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                // Reply Panel
-                                if (_replyToMessageId != null)
-                                  AnimatedSize(
-                                    duration: const Duration(milliseconds: 200),
-                                    curve: Curves.easeOutCubic,
-                                    child: Container(
-                                      margin: const EdgeInsets.only(bottom: 6),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: scheme.surfaceContainerHigh,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        children: <Widget>[
-                                          Expanded(
-                                            child: Text(
-                                              _replyPreviewText ??
-                                                  context.l10n.chatReply,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: textTheme.bodySmall,
-                                            ),
-                                          ),
-                                          IconButton(
-                                            onPressed: _clearReply,
-                                            icon: const Icon(Icons.close_rounded),
-                                            tooltip: context.l10n.chatCancelReply,
-                                            iconSize: 18,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: <Widget>[
-                                      Expanded(
-                                        child: AnimatedContainer(
-                                          duration: const Duration(milliseconds: 180),
-                                          decoration: BoxDecoration(
-                                            color: Colors.transparent,
-                                            borderRadius: BorderRadius.circular(28),
-                                            border: Border.all(
-                                              color: _inputFocusNode.hasFocus
-                                                  ? scheme.primary.withValues(alpha: 0.45)
-                                                  : scheme.outlineVariant.withValues(alpha: 0.30),
-                                              width: 1.0,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            crossAxisAlignment: CrossAxisAlignment.end,
-                                            children: <Widget>[
-                                              _buildAiButton(scheme),
-                                              Expanded(
-                                                child: Focus(
-                                                  onKeyEvent: (FocusNode node, KeyEvent event) {
-                                                    if (event is KeyDownEvent &&
-                                                        event.logicalKey.keyLabel == 'Enter') {
-                                                      if (HardwareKeyboard.instance.isShiftPressed) {
-                                                        return KeyEventResult.ignored;
-                                                      } else {
-                                                        _sendMessage();
-                                                        return KeyEventResult.handled;
-                                                      }
-                                                    }
-                                                    return KeyEventResult.ignored;
-                                                  },
-                                                  child: TextField(
-                                                    controller: _inputController,
-                                                    focusNode: _inputFocusNode,
-                                                    readOnly: _isAiProcessing,
-                                                    textInputAction: TextInputAction.newline,
-                                                    onSubmitted: (_) => _sendMessage(),
-                                                    maxLines: 5,
-                                                    minLines: 1,
-                                                    keyboardType: TextInputType.multiline,
-                                                    textCapitalization: TextCapitalization.sentences,
-                                                    style: textTheme.bodyMedium,
-                                                    decoration: InputDecoration(
-                                                      hintText: context.l10n.chatMessageHint,
-                                                      hintStyle: textTheme.bodyMedium?.copyWith(
-                                                        color: scheme.onSurfaceVariant.withValues(alpha: 0.50),
-                                                      ),
-                                                      filled: true,
-                                                      fillColor: Colors.transparent,
-                                                      border: InputBorder.none,
-                                                      enabledBorder: InputBorder.none,
-                                                      focusedBorder: InputBorder.none,
-                                                      contentPadding: const EdgeInsets.symmetric(
-                                                        horizontal: 0,
-                                                        vertical: 12,
-                                                      ),
-                                                      isDense: true,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              if (_uploadingMedia)
-                                                Padding(
-                                                  padding: const EdgeInsets.only(right: 14, bottom: 14),
-                                                  child: SizedBox(
-                                                    width: 20,
-                                                    height: 20,
-                                                    child: CircularProgressIndicator(
-                                                      
-                                                      strokeWidth: 2,
-                                                      color: scheme.primary,
-                                                    ),
-                                                  ),
-                                                )
-                                              else
-                                                Tooltip(
-                                                  message: context.l10n.chatAttachMedia,
-                                                  child: InkWell(
-                                                    onTap: () {
-                                                      if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
-                                                      _pickAndUploadMedia();
-                                                    },
-                                                    borderRadius: BorderRadius.circular(20),
-                                                    child: Padding(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                                      child: Icon(
-                                                        Icons.attach_file_rounded,
-                                                        size: 22,
-                                                        color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      AnimatedScale(
-                                        scale: _isInputEmpty && _editingMessageId == null ? 0.0 : 1.0,
-                                        duration: const Duration(milliseconds: 200),
-                                        curve: Curves.easeOutBack,
-                                        child: AnimatedSwitcher(
-                                          duration: const Duration(milliseconds: 180),
-                                          transitionBuilder: (Widget child, Animation<double> anim) =>
-                                              ScaleTransition(scale: anim, child: child),
-                                          child: GestureDetector(
-                                            key: ValueKey<bool>(_editingMessageId != null),
-                                            onTap: _editingMessageId != null
-                                                ? _commitEdit
-                                                : (_isInputEmpty ? null : _sendMessage),
-                                            child: Container(
-                                              width: 48,
-                                              height: 48,
-                                              decoration: BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                  colors: <Color>[
-                                                    scheme.primary,
-                                                    scheme.primary.withValues(alpha: 0.82),
-                                                  ],
-                                                ),
-                                                shape: BoxShape.circle,
-                                                boxShadow: <BoxShadow>[
-                                                  BoxShadow(
-                                                    color: scheme.primary.withValues(alpha: 0.24),
-                                                    blurRadius: 8,
-                                                    spreadRadius: 0.5,
-                                                    offset: const Offset(0, 2),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: Icon(
-                                                _editingMessageId != null
-                                                    ? Icons.check_rounded
-                                                    : Icons.send_rounded,
-                                                color: scheme.onPrimary,
-                                                size: 22,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            )
+                                ChatInputBar(
+                                  inputController: _inputController,
+                                  inputFocusNode: _inputFocusNode,
+                                  isAiProcessing: _isAiProcessing,
+                                  uploadingMedia: _uploadingMedia,
+                                  editingMessageId: _editingMessageId,
+                                  editingOriginalText: _editingOriginalText,
+                                  replyToMessageId: _replyToMessageId,
+                                  replyPreviewText: _replyPreviewText,
+                                  onSend: _sendMessage,
+                                  onCommitEdit: _commitEdit,
+                                  onCancelEdit: _cancelEdit,
+                                  onClearReply: _clearReply,
+                                  onAttachMedia: _pickAndUploadMedia,
+                                  onAiPressed: () => _showAiBottomSheet(context, scheme),
+                                  hapticsEnabled: ref.read(uiSettingsProvider).haptics,
+                                ),
+                              ],
+                            ),
+                          )
                         : Padding(
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                             child: SizedBox(

@@ -2246,6 +2246,12 @@ abstract class AppLocalizations {
   /// **'Reply'**
   String get chatReply;
 
+  /// No description provided for @chatCopyText.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy text'**
+  String get chatCopyText;
+
   /// No description provided for @chatResendTo.
   ///
   /// In en, this message translates to:
@@ -2317,6 +2323,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Message forwarded'**
   String get chatMessageForwarded;
+
+  /// No description provided for @chatMessageTextCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Text copied to clipboard'**
+  String get chatMessageTextCopied;
 
   /// No description provided for @chatMediaSent.
   ///
@@ -5881,6 +5893,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No app found to open {type} files'**
   String fileOpenerNoAppFound(Object type);
+
+  /// No description provided for @chatEmojiToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Emoji'**
+  String get chatEmojiToggle;
+
+  /// No description provided for @chatVoiceMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice message'**
+  String get chatVoiceMessage;
+
+  /// No description provided for @chatSearchInChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Search in chat'**
+  String get chatSearchInChat;
+
+  /// No description provided for @chatTyping.
+  ///
+  /// In en, this message translates to:
+  /// **'typing...'**
+  String get chatTyping;
+
+  /// No description provided for @chatReactedWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Reacted with {emoji}'**
+  String chatReactedWith(Object emoji);
+
+  /// No description provided for @chatReadBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Read by'**
+  String get chatReadBy;
+
+  /// No description provided for @chatForwardedCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Forwarded message'**
+  String get chatForwardedCard;
 }
 
 class _AppLocalizationsDelegate

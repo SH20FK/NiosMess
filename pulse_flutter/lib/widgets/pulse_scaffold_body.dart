@@ -74,6 +74,9 @@ class _PulseBackdrop extends ConsumerStatefulWidget {
 class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  Shader? _bgShader;
+  ColorScheme? _bgShaderScheme;
+  Size? _bgShaderSize;
 
   @override
   void initState() {
@@ -97,8 +100,9 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final Brightness brightness = Theme.of(context).brightness;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final Brightness brightness = theme.brightness;
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final bool optimize = settings.optimizeForWeakDevices;
 
@@ -116,12 +120,14 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
     }
 
     if (!shouldAnimate) {
+      _updateShaderCache(scheme, Size.infinite);
       return RepaintBoundary(
         child: CustomPaint(
           painter: _BackdropPainter(
             t: 0.5,
             scheme: scheme,
             brightness: brightness,
+            bgShader: _bgShader,
           ),
           size: Size.infinite,
         ),
@@ -132,17 +138,28 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (BuildContext context, Widget? child) {
+          _updateShaderCache(scheme, Size.infinite);
           return CustomPaint(
             painter: _BackdropPainter(
               t: _controller.value,
               scheme: scheme,
               brightness: brightness,
+              bgShader: _bgShader,
             ),
             size: Size.infinite,
           );
         },
       ),
     );
+  }
+
+  void _updateShaderCache(ColorScheme scheme, Size size) {
+    if (!identical(_bgShaderScheme, scheme) || _bgShaderSize != size) {
+      final Gradient gradient = AppTheme.heroGradient(scheme);
+      _bgShader = gradient.createShader(Offset.zero & size);
+      _bgShaderScheme = scheme;
+      _bgShaderSize = size;
+    }
   }
 }
 
@@ -151,19 +168,20 @@ class _BackdropPainter extends CustomPainter {
     required this.t,
     required this.scheme,
     required this.brightness,
+    this.bgShader,
   });
 
   final double t;
   final ColorScheme scheme;
   final Brightness brightness;
+  final Shader? bgShader;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
 
     final Rect rect = Offset.zero & size;
-    final Gradient gradient = AppTheme.heroGradient(scheme);
-    final Paint gradientPaint = Paint()..shader = gradient.createShader(rect);
+    final Paint gradientPaint = Paint()..shader = bgShader ?? AppTheme.heroGradient(scheme).createShader(rect);
     canvas.drawRect(rect, gradientPaint);
 
     final double tw = t * math.pi * 2;
@@ -297,7 +315,7 @@ class _BackdropPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _BackdropPainter oldDelegate) {
     return t != oldDelegate.t ||
-        scheme != oldDelegate.scheme ||
+        scheme.primary != oldDelegate.scheme.primary ||
         brightness != oldDelegate.brightness;
   }
 }

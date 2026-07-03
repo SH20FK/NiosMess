@@ -422,6 +422,7 @@
   "chatMembers": "Members",
   "chatManage": "Manage chat",
   "chatReply": "Reply",
+  "chatCopyText": "Copy text",
   "chatResendTo": "Resend to...",
   "chatResendSubtitle": "Copies message text to another chat",
   "chatComments": "Comments",
@@ -441,6 +442,7 @@
   "chatDeleteMessageBody": "This action cannot be undone.",
   "chatMessageDeleted": "Message deleted",
   "chatMessageForwarded": "Message forwarded",
+  "chatMessageTextCopied": "Text copied to clipboard",
   "chatMediaSent": "Media sent successfully",
   "chatForwardTo": "Forward to...",
   "chatAttachment": "Attachment",
@@ -1400,5 +1402,17 @@
     "placeholders": {
       "type": {}
     }
-  }
+  },
+  "chatEmojiToggle": "Emoji",
+  "chatVoiceMessage": "Voice message",
+  "chatSearchInChat": "Search in chat",
+  "chatTyping": "typing...",
+  "chatReactedWith": "Reacted with {emoji}",
+  "@chatReactedWith": {
+    "placeholders": {
+      "emoji": {}
+    }
+  },
+  "chatReadBy": "Read by",
+  "chatForwardedCard": "Forwarded message"
 }
