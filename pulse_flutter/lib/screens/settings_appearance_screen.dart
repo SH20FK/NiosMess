@@ -61,6 +61,7 @@ class VaffuruThemeSettingsScreen extends ConsumerStatefulWidget {
 class _VaffuruThemeSettingsScreenState
     extends ConsumerState<VaffuruThemeSettingsScreen>
     with SingleTickerProviderStateMixin {
+  static const Cubic _expressiveCurve = Cubic(0.2, 0.0, 0.0, 1.0);
   static const Map<_DensityMode, _DensitySpec> _densitySpecs =
       <_DensityMode, _DensitySpec>{
     _DensityMode.soft: _DensitySpec(
@@ -515,13 +516,6 @@ class _ThemePreviewCard extends StatelessWidget {
               ],
             ),
           ),
-          // Мини-превью интерфейса
-          Positioned(
-            left: density.heroTopInset,
-            right: density.heroTopInset,
-            bottom: density.heroBottomInset,
-            child: _MiniUiPreview(scheme: scheme),
-          ),
         ],
       ),
     );
@@ -580,93 +574,32 @@ class _AmbientMeshBackground extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, child) {
-        final t = controller.value;
+        final t = controller.value * 2 * math.pi;
         return Stack(
-          children: List.g              ),
-                  ButtonSegment<_DensityMode>(
-                    value: _DensityMode.expressive,
-                    label: Text(context.l10n.appearanceDensityExpressive),
-                  ),
-                ],
-                selected: <_DensityMode>{_densityMode},
-                onSelectionChanged: (Set<_DensityMode> values) {
-                  _playFeedback(settings);
-                  setState(() => _densityMode = values.first);
-                },
-                style: ButtonStyle(
-                  shape: const WidgetStatePropertyAll<OutlinedBorder>(
-                    StadiumBorder(),
-                  ),
-                  backgroundColor: WidgetStateProperty.resolveWith<Color?>(
-                    (Set<WidgetState> states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return scheme.primaryContainer;
-                      }
-                      return scheme.surfaceContainerLow;
-                    },
-                  ),
-                  foregroundColor: WidgetStateProperty.resolveWith<Color?>(
-                    (Set<WidgetState> states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return scheme.onPrimaryContainer;
-                      }
-                      return scheme.onSurfaceVariant;
-                    },
-                  ),
-                  side: WidgetStateProperty.resolveWith<BorderSide?>(
-                    (Set<WidgetState> states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return BorderSide(
-                          color: scheme.primary.withValues(alpha: 0.18),
-                        );
-                      }
-                      return BorderSide(
-                        color: scheme.outlineVariant.withValues(alpha: 0.28),
-                      );
-                    },
-                  ),
-                  padding: const WidgetStatePropertyAll<EdgeInsetsGeometry>(
-                    EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          children: List.generate(count, (index) {
+            final dx = math.sin(t + index * 1.3) * 40;
+            final dy = math.cos(t * 0.7 + index * 0.9) * 30;
+            final seed = index * 1.618033988749895;
+            final size = 80.0 + (index % 3) * 60;
+            final color = colors[index % colors.length];
+            return Positioned(
+              left: -20 + (index * 35) % 200 + dx,
+              top: -20 + (index * 47) % 140 + dy,
+              child: Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [color, color.withValues(alpha: 0.0)],
+                    stops: const [0.2, 1.0],
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-        SizedBox(height: _density.sectionSpacing * 0.25),
-        SettingsSection(
-          title: context.l10n.appearanceThemeParamsTitle,
-          subtitle: context.l10n.appearanceThemeParamsSubtitle,
-          children: <Widget>[
-            _SwitchCardTile(
-              title: context.l10n.appearanceDynamicColors,
-              subtitle: context.l10n.appearanceDynamicColorsSubtitle,
-              icon: Icons.color_lens_outlined,
-              value: settings.variant == Md3Variant.expressive,
-              verticalPadding: _density.tileVerticalPadding,
-              onChanged: (bool value) {
-                _playFeedback(settings);
-                ref.read(uiSettingsProvider.notifier).setVariant(
-                  value ? Md3Variant.expressive : Md3Variant.tonalSpot,
-                );
-              },
-            ),
-            _SwitchCardTile(
-              title: context.l10n.appearanceDarkTheme,
-              subtitle: context.l10n.appearanceDarkThemeSubtitle,
-              icon: Icons.dark_mode_outlined,
-              value: settings.themeMode == ThemeMode.dark,
-              verticalPadding: _density.tileVerticalPadding,
-              onChanged: (bool value) {
-                _playFeedback(settings);
-                ref.read(uiSettingsProvider.notifier).setThemeMode(
-                  value ? ThemeMode.dark : ThemeMode.light,
-                );
-              },
-            ),
-          ],
-        ),
-      ],
+            );
+          }),
+        );
+      },
     );
   }
 }
@@ -970,8 +903,8 @@ class _LiquidMeshPainter extends CustomPainter {
     canvas.drawRect(rect, basePaint);
 
     final double t = progress * math.pi * 2;
-    final double amp = density.fogAmplitude;
-    final double blurBoost = density.fogBlurBoost;
+    final double amp = 30.0;
+    final double blurBoost = 2.0;
 
     _drawMeshLayer(
       canvas: canvas,
