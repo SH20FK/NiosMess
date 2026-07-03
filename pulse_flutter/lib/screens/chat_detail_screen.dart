@@ -23,6 +23,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
+import 'package:pulse_flutter/providers/typing_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/widgets/file_upload_progress_widget.dart';
@@ -290,6 +291,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       setState(() {
         _isInputEmpty = isEmpty;
       });
+    }
+    if (!isEmpty) {
+      final int? chatId = _chatId;
+      if (chatId != null) {
+        ref.read(typingProvider(chatId).notifier).sendTyping();
+      }
     }
   }
 
@@ -1370,18 +1377,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        _chatSubtitle(
+                      _TypingSubtitle(
+                        chatId: chatId,
+                        fallback: _chatSubtitle(
                           chat,
                           isChannel,
                           isGroup,
                           directUsername: directUsername,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          height: 1.05,
                         ),
                       ),
                     ],
@@ -1719,6 +1721,37 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
       child: SlideTransition(
         position: _slide,
         child: widget.child,
+      ),
+    );
+  }
+}
+
+class _TypingSubtitle extends ConsumerWidget {
+  const _TypingSubtitle({required this.chatId, required this.fallback});
+  final int chatId;
+  final String fallback;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final TypingState typing = ref.watch(typingProvider(chatId));
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final int count = typing.typingUserIds.length;
+
+    String text = fallback;
+    if (count == 1) {
+      text = context.l10n.chatTyping;
+    } else if (count > 1) {
+      text = context.l10n.chatTypingMultiple;
+    }
+
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: count > 0 ? scheme.primary : scheme.onSurfaceVariant,
+        height: 1.05,
       ),
     );
   }
