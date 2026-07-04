@@ -21,9 +21,22 @@ class _ActiveColorOrbState extends State<ActiveColorOrb>
     with TickerProviderStateMixin {
   late final AnimationController _lavaController;
   late final AnimationController _pulseController;
-  Color? _cachedSeedPrimary;
-  Color? _cachedSeedColor;
-  Brightness? _cachedBrightness;
+  late Color _seedPrimary;
+  bool _isActive = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bool active = TickerMode.of(context);
+    if (active != _isActive) {
+      _isActive = active;
+      if (active) {
+        _lavaController.repeat();
+      } else {
+        _lavaController.stop();
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -37,11 +50,24 @@ class _ActiveColorOrbState extends State<ActiveColorOrb>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+
+    final Brightness brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    _seedPrimary = ColorScheme.fromSeed(
+      seedColor: widget.color,
+      brightness: brightness,
+    ).primary;
   }
 
   @override
   void didUpdateWidget(ActiveColorOrb old) {
     super.didUpdateWidget(old);
+    if (widget.color != old.color) {
+      final Brightness brightness = Theme.of(context).colorScheme.brightness;
+      _seedPrimary = ColorScheme.fromSeed(
+        seedColor: widget.color,
+        brightness: brightness,
+      ).primary;
+    }
     if (widget.selected && !old.selected) {
       _pulseController.forward(from: 0);
     } else if (!widget.selected && old.selected) {
@@ -59,17 +85,7 @@ class _ActiveColorOrbState extends State<ActiveColorOrb>
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    if (_cachedSeedPrimary == null ||
-        _cachedSeedColor != widget.color ||
-        _cachedBrightness != scheme.brightness) {
-      _cachedSeedColor = widget.color;
-      _cachedBrightness = scheme.brightness;
-      _cachedSeedPrimary = ColorScheme.fromSeed(
-        seedColor: widget.color,
-        brightness: scheme.brightness,
-      ).primary;
-    }
-    final Color seedSchemePrimary = _cachedSeedPrimary!;
+    final Color seedSchemePrimary = _seedPrimary;
 
     return GestureDetector(
       onTap: widget.onTap,

@@ -3351,4 +3351,51 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsBackgroundNotAvailableDesc => 'Доступно только на Android';
+
+  @override
+  String get deepLinkResolving => 'Resolving link...';
+
+  @override
+  String get deepLinkNotFound => 'Content not found';
+
+  @override
+  String get notificationsTitle => 'Notifications';
+
+  @override
+  String get notificationsEmpty => 'No notifications yet';
+
+  @override
+  String notificationsMentionBody(Object username) {
+    return '$username mentioned you in a post';
+  }
+
+  @override
+  String notificationsNewMessageBody(Object chatName) {
+    return 'New message in $chatName';
+  }
+
+  @override
+  String get niosgramFollow => 'Follow';
+
+  @override
+  String get niosgramUnfollow => 'Unfollow';
+
+  @override
+  String niosgramFollowers(Object count) {
+    return '$count followers';
+  }
+
+  @override
+  String niosgramFollowing(Object count) {
+    return '$count following';
+  }
+
+  @override
+  String get niosgramLoadComments => 'Load comments';
+
+  @override
+  String get niosgramCommentSent => 'Comment sent';
+
+  @override
+  String get niosgramFailedFollow => 'Failed to follow user';
 }

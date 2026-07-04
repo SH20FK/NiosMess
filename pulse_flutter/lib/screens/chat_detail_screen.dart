@@ -1,10 +1,12 @@
+import 'package:pulse_flutter/widgets/chat/chat_detail_app_bar.dart';
+import 'package:pulse_flutter/widgets/chat/chat_detail_fab.dart';
+import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
 import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:pulse_flutter/widgets/chat/chat_input_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_message_list.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,7 +28,6 @@ import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
 import 'package:pulse_flutter/providers/typing_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
-import 'package:pulse_flutter/widgets/file_upload_progress_widget.dart';
 import 'package:pulse_flutter/widgets/m3_file_picker_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/message_context_menu_sheet.dart';
@@ -55,7 +56,8 @@ class ChatDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatDetailScreen> createState() => _ChatDetailScreenState();
 }
 
-class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
+class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late final FocusNode _inputFocusNode;
@@ -80,11 +82,17 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   String? _editingOriginalText;
 
   // Scroll-to-bottom FAB
-  bool _showScrollToBottom = false;
+  final ValueNotifier<bool> _showScrollToBottomNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _loadingOlderNotifier = ValueNotifier<bool>(false);
 
   bool _isInputEmpty = true;
   bool _isAiProcessing = false;
+
+  // Secret chat polling
+  Timer? _secretPollTimer;
+
+  // Screenshot protection overlay
+  OverlayEntry? _screenshotOverlay;
 
   int? get _chatId => int.tryParse(widget.chatId);
 
@@ -225,6 +233,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _draftStorage = ref.read(draftStorageProvider); // cache before dispose
     _scrollController.addListener(_onScroll);
     _inputController.addListener(_onInputChanged);
@@ -247,7 +256,23 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     if (chat?.isSecret == true) {
       _isSecret = true;
       ScreenSecurityService.setSecureFlag(enabled: true);
+      _startSecretPollTimer();
     }
+  }
+
+  void _startSecretPollTimer() {
+    _secretPollTimer?.cancel();
+    _secretPollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _pollSecretChat();
+    });
+  }
+
+  Future<void> _pollSecretChat() async {
+    final int? chatId = _chatId;
+    if (chatId == null || !mounted) return;
+    try {
+      await ref.read(chatMessagesProvider(chatId).notifier).refresh();
+    } catch (_) {}
   }
 
   void _onScroll() {
@@ -256,8 +281,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     final double maxExtent = _scrollController.position.maxScrollExtent;
     // Since list is reversed, offset > threshold means scrolled UP (away from latest)
     final bool shouldShow = offset > 300;
-    if (shouldShow != _showScrollToBottom) {
-      setState(() => _showScrollToBottom = shouldShow);
+    if (shouldShow != _showScrollToBottomNotifier.value) {
+      _showScrollToBottomNotifier.value = shouldShow;
     }
     // Auto-load older messages when near the top (end of reversed list)
     if (offset > maxExtent - 400 && !_loadingOlderNotifier.value) {
@@ -287,6 +312,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _secretPollTimer?.cancel();
+    _removeScreenshotOverlay();
+    _showScrollToBottomNotifier.dispose();
     _loadingOlderNotifier.dispose();
     _draftSaveTimer?.cancel();
     _saveDraft();
@@ -299,6 +328,33 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       ScreenSecurityService.setSecureFlag(enabled: false);
     }
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_isSecret) return;
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _showScreenshotOverlay();
+    } else if (state == AppLifecycleState.resumed) {
+      _removeScreenshotOverlay();
+    }
+  }
+
+  void _showScreenshotOverlay() {
+    if (_screenshotOverlay != null) return;
+    _screenshotOverlay = OverlayEntry(
+      builder: (_) => Container(
+        color: Colors.black,
+        width: double.infinity,
+        height: double.infinity,
+      ),
+    );
+    Overlay.of(context, rootOverlay: true).insert(_screenshotOverlay!);
+  }
+
+  void _removeScreenshotOverlay() {
+    _screenshotOverlay?.remove();
+    _screenshotOverlay = null;
   }
 
   void _onInputChanged() {
@@ -1298,132 +1354,28 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: scheme.surfaceContainerLow.withValues(alpha: 0.92),
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          titleSpacing: widget.isDesktopSplit
-              ? NavigationToolbar.kMiddleSpacing
-              : 0,
-        leading: widget.isDesktopSplit
-            ? null
-            : IconButton(
-                onPressed: () {
-                  if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
-                  _goBack();
-                },
-                icon: const Icon(Icons.arrow_back_rounded),
-              ),
-        title: InkWell(
-          onTap: () {
-            if (isChannel || isGroup) {
-              context.push('/chat/$chatId/members');
-            } else if ((directUsername ?? '').isNotEmpty) {
-              context.push('/profile/$directUsername');
-            }
+        appBar: ChatDetailAppBar(
+          chatId: chatId,
+          isDesktopSplit: widget.isDesktopSplit,
+          title: title,
+          avatarUrl: chat?.avatarUrl,
+          headerIcon: _chatHeaderIcon(isChannel, isGroup),
+          showManage: showManage,
+          directUsername: directUsername,
+          onBack: () {
+            if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+            _goBack();
           },
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-            child: Row(
-              children: <Widget>[
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: <Widget>[
-                    Hero(
-                      tag: 'chat_avatar_$chatId',
-                      child: PulseAvatar(
-                        radius: 19,
-                        name: title,
-                        avatarUrl: chat?.avatarUrl,
-                      ),
-                    ),
-                    Positioned(
-                      right: -2,
-                      bottom: -2,
-                      child: Container(
-                        width: 18,
-                        height: 18,
-                        decoration: BoxDecoration(
-                          color: scheme.surface,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        alignment: Alignment.center,
-                        child: Icon(
-                          _chatHeaderIcon(isChannel, isGroup),
-                          size: 11,
-                          color: scheme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      _TypingSubtitle(
-                        chatId: chatId,
-                        fallback: _chatSubtitle(
-                          chat,
-                          isChannel,
-                          isGroup,
-                          directUsername: directUsername,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          typingSubtitle: _TypingSubtitle(
+            chatId: chatId,
+            fallback: _chatSubtitle(
+              chat,
+              isChannel,
+              isGroup,
+              directUsername: directUsername,
             ),
           ),
         ),
-        actions: <Widget>[
-          if (showManage)
-            PopupMenuButton<String>(
-              onSelected: (String action) {
-                switch (action) {
-                  case 'members':
-                    context.push('/chat/$chatId/members');
-                  case 'manage':
-                    context.push('/chat/$chatId/manage');
-                }
-              },
-              itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
-                PopupMenuItem<String>(
-                  value: 'members',
-                  child: Row(
-                    children: <Widget>[
-                      Icon(Icons.people_rounded),
-                      SizedBox(width: 8),
-                      Text(context.l10n.chatMembers),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: 'manage',
-                  child: Row(
-                    children: <Widget>[
-                      Icon(Icons.settings_rounded),
-                      SizedBox(width: 8),
-                      Text(context.l10n.chatManage),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
       body: PulseScaffoldBody(
         maxWidth: 1560,
         bottomSafe: false,
@@ -1541,137 +1493,60 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                     },
                   ),
                   // Scroll-to-bottom FAB overlay
-                  Positioned(
-                    right: 16,
-                    bottom: 8,
-                    child: AnimatedOpacity(
-                      opacity: _showScrollToBottom ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: AnimatedScale(
-                        scale: _showScrollToBottom ? 1.0 : 0.7,
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOutBack,
-                        child: FloatingActionButton.small(
-                          onPressed: _showScrollToBottom ? _scrollToBottom : null,
-                          heroTag: 'scroll_down_$chatId',
-                          tooltip: context.l10n.chatScrollToBottom,
-                          child: const Icon(Icons.keyboard_arrow_down_rounded),
-                        ),
-                      ),
-                    ),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _showScrollToBottomNotifier,
+                    builder: (context, showScroll, child) {
+                      return ChatDetailScrollToBottomFAB(
+                        show: showScroll,
+                        chatId: chatId,
+                        onPressed: _scrollToBottom,
+                      );
+                    },
                   ),
                 ],
               ),
             ),
-            SafeArea(
-              top: false,
-              child: Container(
-                    color: Colors.transparent,
-                    child: canPostInChannel
-                        ? Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                if (_showDraftRestoredBanner)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 6),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: scheme.tertiaryContainer.withValues(alpha: 0.76),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        children: <Widget>[
-                                          Icon(
-                                            Icons.drafts_rounded,
-                                            size: 16,
-                                            color: scheme.onTertiaryContainer,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              context.l10n.chatDraftRestored,
-                                              style: textTheme.bodySmall?.copyWith(
-                                                color: scheme.onTertiaryContainer,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                          IconButton(
-                                            onPressed: () {
-                                              final int? cid = _chatId;
-                                              if (cid != null) {
-                                                _draftStorage.remove(cid);
-                                              }
-                                              _inputController.clear();
-                                              setState(() {
-                                                _showDraftRestoredBanner = false;
-                                              });
-                                            },
-                                            icon: const Icon(Icons.delete_outline_rounded),
-                                            iconSize: 18,
-                                            color: scheme.onTertiaryContainer,
-                                            tooltip: context.l10n.commonDelete,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                if (_uploadingMedia && _uploadFileName != null)
-                                  FileUploadProgressWidget(
-                                    fileName: _uploadFileName!,
-                                    fileSize: _uploadFileSize ?? 0,
-                                    progress: _uploadProgress,
-                                    onCancel: () {
-                                      setState(() {
-                                        _uploadingMedia = false;
-                                        _uploadProgress = 0;
-                                        _uploadFileName = null;
-                                        _uploadFileSize = null;
-                                      });
-                                    },
-                                  ),
-                                ChatInputBar(
-                                  inputController: _inputController,
-                                  inputFocusNode: _inputFocusNode,
-                                  isAiProcessing: _isAiProcessing,
-                                  uploadingMedia: _uploadingMedia,
-                                  editingMessageId: _editingMessageId,
-                                  editingOriginalText: _editingOriginalText,
-                                  replyToMessageId: _replyToMessageId,
-                                  replyPreviewText: _replyPreviewText,
-                                  onSend: _sendMessage,
-                                  onCommitEdit: _commitEdit,
-                                  onCancelEdit: _cancelEdit,
-                                  onClearReply: _clearReply,
-                                  onAttachMedia: _pickAndUploadMedia,
-                                  onAiPressed: () => _showAiBottomSheet(context, scheme),
-                                  onVoiceSend: _sendVoiceMessage,
-                                  hapticsEnabled: ref.read(uiSettingsProvider).haptics,
-                                ),
-                              ],
-                            ),
-                          )
-                        : Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: Text(
-                                context.l10n.chatOnlyAdminsCanPost,
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                  ),
-                ),
-              ),
+            ChatDetailInputArea(
+              canPostInChannel: canPostInChannel,
+              showDraftRestoredBanner: _showDraftRestoredBanner,
+              onClearDraft: () {
+                final int? cid = _chatId;
+                if (cid != null) {
+                  _draftStorage.remove(cid);
+                }
+                _inputController.clear();
+                setState(() {
+                  _showDraftRestoredBanner = false;
+                });
+              },
+              uploadingMedia: _uploadingMedia,
+              uploadFileName: _uploadFileName,
+              uploadFileSize: _uploadFileSize,
+              uploadProgress: _uploadProgress,
+              onCancelUpload: () {
+                setState(() {
+                  _uploadingMedia = false;
+                  _uploadProgress = 0;
+                  _uploadFileName = null;
+                  _uploadFileSize = null;
+                });
+              },
+              inputController: _inputController,
+              inputFocusNode: _inputFocusNode,
+              isAiProcessing: _isAiProcessing,
+              editingMessageId: _editingMessageId,
+              editingOriginalText: _editingOriginalText,
+              replyToMessageId: _replyToMessageId,
+              replyPreviewText: _replyPreviewText,
+              onSend: _sendMessage,
+              onCommitEdit: _commitEdit,
+              onCancelEdit: _cancelEdit,
+              onClearReply: _clearReply,
+              onAttachMedia: _pickAndUploadMedia,
+              onAiPressed: () => _showAiBottomSheet(context, scheme),
+              onVoiceSend: _sendVoiceMessage,
+              hapticsEnabled: ref.read(uiSettingsProvider).haptics,
+            ),
           ],
         ),
       ),

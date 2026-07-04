@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
+import 'package:pulse_flutter/core/storage/notification_storage.dart';
 import 'package:pulse_flutter/models/api/post_model.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
 class NiosgramState {
@@ -81,6 +83,18 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
         posts: <NgPost>[post, ...current.value.posts],
       ),
     );
+
+    final String myUsername = ref.read(authProvider).session?.username ?? '';
+    if (myUsername.isNotEmpty && post.content.contains('@$myUsername')) {
+      final String authorName = post.author.displayName.isNotEmpty
+          ? post.author.displayName
+          : post.author.username;
+      NotificationStorage.createAndSave(
+        title: 'NiosGram',
+        body: '$authorName mentioned you in a post',
+        route: '/niosgram/post/${post.id}/comments',
+      );
+    }
   }
 
   Future<void> refresh() async {
@@ -224,6 +238,26 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
           ),
         );
       }
+    } catch (_) {
+      state = AsyncData<NiosgramState>(current.value);
+    }
+  }
+
+  Future<void> toggleFollow(String username) async {
+    final AsyncData<NiosgramState>? current = state.asData;
+    if (current == null) return;
+
+    final List<NgPost> updated = current.value.posts.map((NgPost p) {
+      if (p.author.username != username) return p;
+      return p.copyWith(isFollowing: !p.isFollowing);
+    }).toList(growable: false);
+    state = AsyncData<NiosgramState>(current.value.copyWith(posts: updated));
+
+    try {
+      await ref.read(webSocketClientProvider).request(
+        'follow_user',
+        payload: <String, dynamic>{'username': username},
+      );
     } catch (_) {
       state = AsyncData<NiosgramState>(current.value);
     }

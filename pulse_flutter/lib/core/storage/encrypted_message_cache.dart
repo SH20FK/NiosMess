@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -63,23 +64,28 @@ class EncryptedMessageCache {
   ) async {
     try {
       final SecretKey key = await _getOrCreateKey();
-      final List<ApiMessage> trimmed = messages.length > 100
-          ? messages.sublist(messages.length - 100)
-          : messages;
-      final String json = jsonEncode(
-        trimmed.map((m) => m.toJson()).toList(),
-      );
-      final List<int> plaintext = utf8.encode(json);
-      final SecretBox box = await _aes.encrypt(
-        plaintext,
-        secretKey: key,
-      );
-      final List<int> combined = [
-        ...box.nonce,
-        ...box.cipherText,
-        ...box.mac.bytes,
-      ];
-      final String encoded = base64.encode(combined);
+      final List<int> keyBytes = await key.extractBytes();
+      final List<Map<String, dynamic>> messagesJson = messages.length > 100
+          ? messages.sublist(messages.length - 100).map((m) => m.toJson()).toList()
+          : messages.map((m) => m.toJson()).toList();
+
+      final String encoded = await Isolate.run(() async {
+        final AesGcm isolateAes = AesGcm.with256bits();
+        final SecretKey isolateKey = SecretKey(keyBytes);
+        final String json = jsonEncode(messagesJson);
+        final List<int> plaintext = utf8.encode(json);
+        final SecretBox box = await isolateAes.encrypt(
+          plaintext,
+          secretKey: isolateKey,
+        );
+        final List<int> combined = [
+          ...box.nonce,
+          ...box.cipherText,
+          ...box.mac.bytes,
+        ];
+        return base64.encode(combined);
+      });
+
       final Box<String> hiveBox = Hive.box<String>(_boxName);
       await hiveBox.put(chatId.toString(), encoded);
     } catch (e) {
@@ -94,36 +100,45 @@ class EncryptedMessageCache {
       if (encoded == null) return [];
 
       final SecretKey key = await _getOrCreateKey();
-      final List<int> combined = base64.decode(encoded);
+      final List<int> keyBytes = await key.extractBytes();
 
-      const int nonceLen = 12;
-      const int macLen = 16;
-      if (combined.length < nonceLen + macLen) {
+      final List<Map<String, dynamic>>? messagesJson = await Isolate.run(() async {
+        final AesGcm isolateAes = AesGcm.with256bits();
+        final SecretKey isolateKey = SecretKey(keyBytes);
+        final List<int> combined = base64.decode(encoded);
+
+        const int nonceLen = 12;
+        const int macLen = 16;
+        if (combined.length < nonceLen + macLen) {
+          return null;
+        }
+        final List<int> nonce = combined.sublist(0, nonceLen);
+        final List<int> mac = combined.sublist(combined.length - macLen);
+        final List<int> cipherText = combined.sublist(
+          nonceLen,
+          combined.length - macLen,
+        );
+
+        final SecretBox box = SecretBox(
+          cipherText,
+          nonce: nonce,
+          mac: Mac(mac),
+        );
+        final List<int> plaintext = await isolateAes.decrypt(
+          box,
+          secretKey: isolateKey,
+        );
+        final String json = utf8.decode(plaintext);
+        final List<dynamic> list = jsonDecode(json) as List<dynamic>;
+        return list.whereType<Map<String, dynamic>>().toList();
+      });
+
+      if (messagesJson == null) {
         debugPrint('[EncryptedMessageCache] Corrupt data: too short');
         return [];
       }
-      final List<int> nonce = combined.sublist(0, nonceLen);
-      final List<int> mac = combined.sublist(combined.length - macLen);
-      final List<int> cipherText = combined.sublist(
-        nonceLen,
-        combined.length - macLen,
-      );
 
-      final SecretBox box = SecretBox(
-        cipherText,
-        nonce: nonce,
-        mac: Mac(mac),
-      );
-      final List<int> plaintext = await _aes.decrypt(
-        box,
-        secretKey: key,
-      );
-      final String json = utf8.decode(plaintext);
-      final List<dynamic> list = jsonDecode(json) as List<dynamic>;
-      return list
-          .whereType<Map<String, dynamic>>()
-          .map((e) => ApiMessage.fromJson(e))
-          .toList();
+      return messagesJson.map((e) => ApiMessage.fromJson(e)).toList();
     } catch (e) {
       debugPrint('[EncryptedMessageCache] Load error: $e');
       return [];

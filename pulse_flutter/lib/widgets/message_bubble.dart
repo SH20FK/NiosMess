@@ -68,6 +68,68 @@ class MessageBubble extends ConsumerWidget {
   final bool isNextSame;
   final bool animate;
 
+  static const BorderRadius _mineRadiusNoneSame = BorderRadius.all(
+    Radius.circular(16),
+  );
+  static const BorderRadius _mineRadiusPrevSame = BorderRadius.only(
+    topLeft: Radius.circular(16),
+    bottomLeft: Radius.circular(16),
+    topRight: Radius.circular(4),
+    bottomRight: Radius.circular(16),
+  );
+  static const BorderRadius _mineRadiusNextSame = BorderRadius.only(
+    topLeft: Radius.circular(16),
+    bottomLeft: Radius.circular(16),
+    topRight: Radius.circular(16),
+    bottomRight: Radius.circular(4),
+  );
+  static const BorderRadius _mineRadiusPrevSameNextSame = BorderRadius.only(
+    topLeft: Radius.circular(16),
+    bottomLeft: Radius.circular(16),
+    topRight: Radius.circular(4),
+    bottomRight: Radius.circular(4),
+  );
+
+  static const BorderRadius _theirsRadiusNoneSame = BorderRadius.all(
+    Radius.circular(16),
+  );
+  static const BorderRadius _theirsRadiusPrevSame = BorderRadius.only(
+    topRight: Radius.circular(16),
+    bottomRight: Radius.circular(16),
+    topLeft: Radius.circular(4),
+    bottomLeft: Radius.circular(16),
+  );
+  static const BorderRadius _theirsRadiusNextSame = BorderRadius.only(
+    topRight: Radius.circular(16),
+    bottomRight: Radius.circular(16),
+    topLeft: Radius.circular(16),
+    bottomLeft: Radius.circular(4),
+  );
+  static const BorderRadius _theirsRadiusPrevSameNextSame = BorderRadius.only(
+    topRight: Radius.circular(16),
+    bottomRight: Radius.circular(16),
+    topLeft: Radius.circular(4),
+    bottomLeft: Radius.circular(4),
+  );
+
+  static BorderRadius _getBubbleRadius(
+    bool isMine,
+    bool isPrevSame,
+    bool isNextSame,
+  ) {
+    if (isMine) {
+      if (isPrevSame && isNextSame) return _mineRadiusPrevSameNextSame;
+      if (isPrevSame) return _mineRadiusPrevSame;
+      if (isNextSame) return _mineRadiusNextSame;
+      return _mineRadiusNoneSame;
+    } else {
+      if (isPrevSame && isNextSame) return _theirsRadiusPrevSameNextSame;
+      if (isPrevSame) return _theirsRadiusPrevSame;
+      if (isNextSame) return _theirsRadiusNextSame;
+      return _theirsRadiusNoneSame;
+    }
+  }
+
   static final RegExp _fwdRegExp = RegExp(r'^_fwd from\s+(.+?):\s*(.*)$');
 
   @override
@@ -90,19 +152,11 @@ class MessageBubble extends ConsumerWidget {
     final String displayText = forwarded?.body ?? text;
     final bool hasText = displayText.trim().isNotEmpty;
 
-    final BorderRadius bubbleRadius = isMine
-        ? BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            bottomLeft: const Radius.circular(16),
-            topRight: Radius.circular(isPrevSame ? 4 : 16),
-            bottomRight: Radius.circular(isNextSame ? 16 : 4),
-          )
-        : BorderRadius.only(
-            topRight: const Radius.circular(16),
-            bottomRight: const Radius.circular(16),
-            topLeft: Radius.circular(isPrevSame ? 4 : 16),
-            bottomLeft: Radius.circular(isNextSame ? 16 : 4),
-          );
+    final BorderRadius bubbleRadius = _getBubbleRadius(
+      isMine,
+      isPrevSame,
+      isNextSame,
+    );
 
     Widget content = Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
@@ -144,203 +198,141 @@ class MessageBubble extends ConsumerWidget {
                   ],
                 ),
                 child: Semantics(
-                  label: isMine ? context.l10n.messageSentByMe : (senderDisplayName ?? context.l10n.messageSemantics),
+                  label: isMine
+                      ? context.l10n.messageSentByMe
+                      : (senderDisplayName ?? context.l10n.messageSemantics),
                   child: Stack(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        if (!isMine &&
-                            ((senderDisplayName ?? '').trim().isNotEmpty ||
-                                visibleBadges.isNotEmpty)) ...<Widget>[
-                          Wrap(
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: 4,
-                            runSpacing: 4,
-                            children: <Widget>[
-                              if (senderAvatarUrl != null && senderAvatarUrl!.isNotEmpty)
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: CachedNetworkImage(
-                                    imageUrl: senderAvatarUrl!,
-                                    width: 16,
-                                    height: 16,
-                                    memCacheWidth: 32,
-                                    fit: BoxFit.cover,
-                                    errorWidget: (_, _, _) => const SizedBox.shrink(),
-                                  ),
-                                ),
-                              if ((senderDisplayName ?? '').trim().isNotEmpty)
-                                Text(
-                                  senderDisplayName!,
-                                  style: textTheme.labelSmall?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: scheme.primary,
-                                  ),
-                                ),
-                              ...visibleBadges.map(
-                                (ApiBadge badge) => BadgeChip(
-                                  id: badge.id,
-                                  name: badge.name,
-                                  icon: badge.icon,
-                                  color: badge.color,
-                                  interactive: false,
-                                ),
-                              ),
-                              if (hiddenBadgeCount > 0)
-                                BadgeOverflowChip(count: hiddenBadgeCount),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                        ],
-                        if ((replyPreview ?? '').trim().isNotEmpty)
-                          Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.only(left: 8),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                left: BorderSide(
-                                  color: isMine
-                                      ? scheme.primary
-                                      : scheme.secondary,
-                                  width: 2.5,
-                                ),
-                              ),
-                            ),
-                            child: Text(
-                              replyPreview!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.labelSmall?.copyWith(
-                                color: isMine
-                                    ? scheme.primary
-                                    : scheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        if (forwarded != null) ...<Widget>[
-                          Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border(
-                                left: BorderSide(
-                                  color: scheme.outlineVariant,
-                                  width: 2.5,
-                                ),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Row(
-                                  children: <Widget>[
-                                    Icon(
-                                      Icons.forward_rounded,
-                                      size: 14,
-                                      color: scheme.primary,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      context.l10n.chatForwardedCard,
-                                      style: textTheme.labelSmall?.copyWith(
-                                        color: scheme.primary,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  context.l10n.chatForwardedFrom(
-                                    forwarded.sender,
-                                  ),
-                                  style: textTheme.labelSmall?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        if (hasMedia)
-                          _mediaPreview(
-                            context,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          _MessageBubbleHeader(
+                            isMine: isMine,
+                            senderDisplayName: senderDisplayName,
+                            senderAvatarUrl: senderAvatarUrl,
+                            visibleBadges: visibleBadges,
+                            hiddenBadgeCount: hiddenBadgeCount,
                             scheme: scheme,
                             textTheme: textTheme,
-                            textColor: textColor,
                           ),
-                        if (hasMedia && hasText) const SizedBox(height: 6),
-                        if (hasText)
-                          Padding(
-                            padding: EdgeInsets.only(
-                              bottom: 12,
-                              right: hasMedia ? 0 : 36,
-                            ),
-                            child: Text(
-                              displayText,
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: textColor,
-                                fontStyle: isDeleted ? FontStyle.italic : null,
+                          if ((replyPreview ?? '').trim().isNotEmpty)
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.only(left: 8),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  left: BorderSide(
+                                    color: isMine
+                                        ? scheme.primary
+                                        : scheme.secondary,
+                                    width: 2.5,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          if (isE2ee) ...[
-                            Icon(
-                              Icons.lock_rounded,
-                              size: 11,
-                              color: Colors.green.withValues(alpha: 0.7),
-                            ),
-                            const SizedBox(width: 3),
-                          ],
-                          if (isEdited)
-                            Text(
-                              context.l10n.chatEdited,
-                              style: textTheme.labelSmall?.copyWith(
-                                fontSize: 11,
-                                color: scheme.onSurfaceVariant.withValues(
-                                  alpha: 0.7,
+                              child: Text(
+                                replyPreview!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: isMine
+                                      ? scheme.primary
+                                      : scheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
-                          if (isEdited) const SizedBox(width: 4),
-                          Text(
-                            formattedTime,
-                            style: textTheme.labelSmall?.copyWith(
-                              fontSize: 11,
-                              color: scheme.onSurfaceVariant.withValues(
-                                alpha: 0.7,
+                          if (forwarded != null) ...<Widget>[
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.4),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border(
+                                  left: BorderSide(
+                                    color: scheme.outlineVariant,
+                                    width: 2.5,
+                                  ),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Row(
+                                    children: <Widget>[
+                                      Icon(
+                                        Icons.forward_rounded,
+                                        size: 14,
+                                        color: scheme.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        context.l10n.chatForwardedCard,
+                                        style: textTheme.labelSmall?.copyWith(
+                                          color: scheme.primary,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    context.l10n.chatForwardedFrom(
+                                      forwarded.sender,
+                                    ),
+                                    style: textTheme.labelSmall?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                          if (isMine && !isDeleted) ...<Widget>[
-                            const SizedBox(width: 3),
-                            Icon(
-                              isRead
-                                  ? Icons.done_all_rounded
-                                  : Icons.check_rounded,
-                              size: 13,
-                              color: scheme.primary.withValues(alpha: 0.8),
-                            ),
                           ],
+                          if (hasMedia)
+                            _mediaPreview(
+                              context,
+                              scheme: scheme,
+                              textTheme: textTheme,
+                              textColor: textColor,
+                            ),
+                          if (hasMedia && hasText) const SizedBox(height: 6),
+                          if (hasText)
+                            Padding(
+                              padding: EdgeInsets.only(
+                                bottom: 12,
+                                right: hasMedia ? 0 : 36,
+                              ),
+                              child: Text(
+                                displayText,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: textColor,
+                                  fontStyle: isDeleted
+                                      ? FontStyle.italic
+                                      : null,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: _MessageBubbleFooter(
+                          isMine: isMine,
+                          isE2ee: isE2ee,
+                          isEdited: isEdited,
+                          isDeleted: isDeleted,
+                          isRead: isRead,
+                          formattedTime: formattedTime,
+                          scheme: scheme,
+                          textTheme: textTheme,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -416,7 +408,15 @@ class MessageBubble extends ConsumerWidget {
     }
 
     return RepaintBoundary(
-      child: content.animate().fade(duration: 180.ms, curve: Curves.easeOutCubic).slideY(begin: 0.04, end: 0, duration: 180.ms, curve: Curves.easeOutCubic),
+      child: content
+          .animate()
+          .fade(duration: 180.ms, curve: Curves.easeOutCubic)
+          .slideY(
+            begin: 0.04,
+            end: 0,
+            duration: 180.ms,
+            curve: Curves.easeOutCubic,
+          ),
     );
   }
 
@@ -433,10 +433,10 @@ class MessageBubble extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(
-                  imageUrl: mediaUrl!,
-                  cacheKey: '${mediaUrl}_preview',
-                  width: 220,
+          child: CachedNetworkImage(
+            imageUrl: mediaUrl!,
+            cacheKey: '${mediaUrl}_preview',
+            width: 220,
             height: 180,
             fit: BoxFit.cover,
             memCacheWidth: 440,
@@ -447,7 +447,6 @@ class MessageBubble extends ConsumerWidget {
               height: 180,
               child: Center(
                 child: CircularProgressIndicator(
-                  
                   strokeWidth: 2,
                   color: isMine ? scheme.onPrimary : scheme.primary,
                 ),
@@ -506,7 +505,9 @@ class MessageBubble extends ConsumerWidget {
               ),
               alignment: Alignment.center,
               child: Icon(
-                getIconDataByName(FileTypeDetector.detect(fileName: mediaLabel ?? '').icon),
+                getIconDataByName(
+                  FileTypeDetector.detect(fileName: mediaLabel ?? '').icon,
+                ),
                 color: isMine ? scheme.onPrimary : scheme.primary,
                 size: 20,
               ),
@@ -567,46 +568,65 @@ class MessageBubble extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: Column(
-        crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: replyMarkup!.inlineKeyboard.map((List<InlineKeyboardButton> row) {
-          if (row.isEmpty) return const SizedBox.shrink();
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
-              children: row.map((InlineKeyboardButton btn) {
-                return OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    minimumSize: const Size(0, 36),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: () async {
-                    if (btn.url != null && btn.url!.trim().isNotEmpty) {
-                      final Uri? uri = Uri.tryParse(btn.url!);
-                      if (uri != null) {
-                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                      }
-                    } else if (btn.callbackData != null && onCallbackQuery != null) {
-                      onCallbackQuery!(btn.callbackData!);
-                    }
-                  },
-                  child: Text(
-                    btn.text,
-                    style: textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: scheme.primary,
-                    ),
-                  ),
-                );
-              }).toList(growable: false),
-            ),
-          );
-        }).toList(growable: false),
+        crossAxisAlignment: isMine
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: replyMarkup!.inlineKeyboard
+            .map((List<InlineKeyboardButton> row) {
+              if (row.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
+                  children: row
+                      .map((InlineKeyboardButton btn) {
+                        return OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            minimumSize: const Size(0, 36),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            side: BorderSide(
+                              color: scheme.outlineVariant.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () async {
+                            if (btn.url != null && btn.url!.trim().isNotEmpty) {
+                              final Uri? uri = Uri.tryParse(btn.url!);
+                              if (uri != null) {
+                                await launchUrl(
+                                  uri,
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              }
+                            } else if (btn.callbackData != null &&
+                                onCallbackQuery != null) {
+                              onCallbackQuery!(btn.callbackData!);
+                            }
+                          },
+                          child: Text(
+                            btn.text,
+                            style: textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: scheme.primary,
+                            ),
+                          ),
+                        );
+                      })
+                      .toList(growable: false),
+                ),
+              );
+            })
+            .toList(growable: false),
       ),
     );
   }
@@ -617,4 +637,135 @@ class _ForwardedPayload {
 
   final String sender;
   final String body;
+}
+
+class _MessageBubbleHeader extends StatelessWidget {
+  const _MessageBubbleHeader({
+    required this.isMine,
+    required this.senderDisplayName,
+    required this.senderAvatarUrl,
+    required this.visibleBadges,
+    required this.hiddenBadgeCount,
+    required this.scheme,
+    required this.textTheme,
+  });
+
+  final bool isMine;
+  final String? senderDisplayName;
+  final String? senderAvatarUrl;
+  final List<ApiBadge> visibleBadges;
+  final int hiddenBadgeCount;
+  final ColorScheme scheme;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isMine ||
+        ((senderDisplayName ?? '').trim().isEmpty && visibleBadges.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 4,
+        runSpacing: 4,
+        children: <Widget>[
+          if (senderAvatarUrl != null && senderAvatarUrl!.isNotEmpty)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: CachedNetworkImage(
+                imageUrl: senderAvatarUrl!,
+                width: 16,
+                height: 16,
+                memCacheWidth: 32,
+                fit: BoxFit.cover,
+                errorWidget: (_, _, _) => const SizedBox.shrink(),
+              ),
+            ),
+          if ((senderDisplayName ?? '').trim().isNotEmpty)
+            Text(
+              senderDisplayName!,
+              style: textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: scheme.primary,
+              ),
+            ),
+          ...visibleBadges.map(
+            (ApiBadge badge) => BadgeChip(
+              id: badge.id,
+              name: badge.name,
+              icon: badge.icon,
+              color: badge.color,
+              interactive: false,
+            ),
+          ),
+          if (hiddenBadgeCount > 0) BadgeOverflowChip(count: hiddenBadgeCount),
+        ],
+      ),
+    );
+  }
+}
+
+class _MessageBubbleFooter extends StatelessWidget {
+  const _MessageBubbleFooter({
+    required this.isMine,
+    required this.isE2ee,
+    required this.isEdited,
+    required this.isDeleted,
+    required this.isRead,
+    required this.formattedTime,
+    required this.scheme,
+    required this.textTheme,
+  });
+
+  final bool isMine;
+  final bool isE2ee;
+  final bool isEdited;
+  final bool isDeleted;
+  final bool isRead;
+  final String formattedTime;
+  final ColorScheme scheme;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        if (isE2ee) ...[
+          Icon(
+            Icons.lock_rounded,
+            size: 11,
+            color: Colors.green.withValues(alpha: 0.7),
+          ),
+          const SizedBox(width: 3),
+        ],
+        if (isEdited)
+          Text(
+            context.l10n.chatEdited,
+            style: textTheme.labelSmall?.copyWith(
+              fontSize: 11,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
+          ),
+        if (isEdited) const SizedBox(width: 4),
+        Text(
+          formattedTime,
+          style: textTheme.labelSmall?.copyWith(
+            fontSize: 11,
+            color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+          ),
+        ),
+        if (isMine && !isDeleted) ...<Widget>[
+          const SizedBox(width: 3),
+          Icon(
+            isRead ? Icons.done_all_rounded : Icons.check_rounded,
+            size: 13,
+            color: scheme.primary.withValues(alpha: 0.8),
+          ),
+        ],
+      ],
+    );
+  }
 }

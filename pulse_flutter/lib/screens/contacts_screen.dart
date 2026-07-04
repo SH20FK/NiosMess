@@ -103,6 +103,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     return text;
   }
 
+  @override
   Widget build(BuildContext context) {
     final AuthState auth = ref.watch(authProvider);
     final UiSettingsState settings = ref.watch(uiSettingsProvider);

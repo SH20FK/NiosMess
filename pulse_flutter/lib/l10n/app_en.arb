@@ -1437,5 +1437,38 @@
   "settingsBackgroundReliable": "Reliable mode",
   "settingsBackgroundReliableDesc": "With a cute notification to keep app alive",
   "settingsBackgroundNotAvailable": "Background modes",
-  "settingsBackgroundNotAvailableDesc": "Available only on Android"
+  "settingsBackgroundNotAvailableDesc": "Available only on Android",
+  "deepLinkResolving": "Resolving link...",
+  "deepLinkNotFound": "Content not found",
+  "notificationsTitle": "Notifications",
+  "notificationsEmpty": "No notifications yet",
+  "notificationsMentionBody": "{username} mentioned you in a post",
+  "@notificationsMentionBody": {
+    "placeholders": {
+      "username": {}
+    }
+  },
+  "notificationsNewMessageBody": "New message in {chatName}",
+  "@notificationsNewMessageBody": {
+    "placeholders": {
+      "chatName": {}
+    }
+  },
+  "niosgramFollow": "Follow",
+  "niosgramUnfollow": "Unfollow",
+  "niosgramFollowers": "{count} followers",
+  "@niosgramFollowers": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "niosgramFollowing": "{count} following",
+  "@niosgramFollowing": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "niosgramLoadComments": "Load comments",
+  "niosgramCommentSent": "Comment sent",
+  "niosgramFailedFollow": "Failed to follow user"
 }

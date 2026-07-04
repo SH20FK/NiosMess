@@ -1,12 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/network/api_constants.dart';
-import 'package:pulse_flutter/widgets/app_dialogs.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class SettingsAboutScreen extends StatefulWidget {
   const SettingsAboutScreen({super.key});
@@ -41,7 +37,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return DefaultTabController(
-      length: 4,
+      length: 3,
       child: Scaffold(
         backgroundColor: scheme.surface,
         body: CustomScrollView(
@@ -61,7 +57,6 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
               centerTitle: true,
             ),
             SliverToBoxAdapter(child: _HeroBlock(animation: _heroController)),
-            const SliverToBoxAdapter(child: _PremiumBadge()),
             SliverToBoxAdapter(
               child: Container(
                 margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -80,7 +75,6 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                   tabs: const <Tab>[
                     Tab(text: '👨‍💻', iconMargin: EdgeInsets.zero),
                     Tab(text: '❓', iconMargin: EdgeInsets.zero),
-                    Tab(text: '💖', iconMargin: EdgeInsets.zero),
                     Tab(text: '🎉', iconMargin: EdgeInsets.zero),
                   ],
                 ),
@@ -92,7 +86,6 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                 children: <Widget>[
                   _DevelopersTab(),
                   _FaqTab(),
-                  _SupportTab(packageInfo: _packageInfo),
                   _ChangelogTab(packageInfo: _packageInfo),
                 ],
               ),
@@ -132,7 +125,7 @@ class _HeroBlock extends StatelessWidget {
         ),
         child: Column(
           children: <Widget>[
-            _AnimatedLogoRow(
+            _AnimatedLogo(
               animation: animation,
               scheme: scheme,
               textTheme: textTheme,
@@ -150,8 +143,8 @@ class _HeroBlock extends StatelessWidget {
   }
 }
 
-class _AnimatedLogoRow extends StatelessWidget {
-  const _AnimatedLogoRow({
+class _AnimatedLogo extends StatelessWidget {
+  const _AnimatedLogo({
     required this.animation,
     required this.scheme,
     required this.textTheme,
@@ -165,48 +158,50 @@ class _AnimatedLogoRow extends StatelessWidget {
     const String nios = 'Nios';
     const String mess = 'Mess';
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        for (int i = 0; i < nios.length; i++)
-          _AnimatedLetter(
-            letter: nios[i],
-            animation: animation,
-            beginDelay: i * 80,
-            totalDuration: 800,
-            beginY: -30,
-            beginX: 0,
-            style: textTheme.displaySmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: scheme.primary,
-              fontSize: 48,
-              letterSpacing: -1,
-            ) ?? const TextStyle(),
-          ),
-        const SizedBox(width: 4),
-        Transform.rotate(
-          angle: 18 * math.pi / 180,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              for (int i = 0; i < mess.length; i++)
-                _AnimatedLetter(
-                  letter: mess[i],
-                  animation: animation,
-                  beginDelay: 400 + i * 80,
-                  totalDuration: 800,
-                  beginY: 0,
-                  beginX: -20,
-                  style: textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: scheme.secondary,
-                    fontSize: 34,
-                  ) ?? const TextStyle(),
-                ),
-            ],
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: <Widget>[
+            for (int i = 0; i < nios.length; i++)
+              _AnimatedLetter(
+                letter: nios[i],
+                animation: animation,
+                beginDelay: i * 80,
+                totalDuration: 800,
+                beginY: -30,
+                beginX: 0,
+                style: textTheme.displaySmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: scheme.primary,
+                  fontSize: 48,
+                  letterSpacing: -1,
+                ) ?? const TextStyle(),
+              ),
+          ],
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const SizedBox(width: 24),
+            for (int i = 0; i < mess.length; i++)
+              _AnimatedLetter(
+                letter: mess[i],
+                animation: animation,
+                beginDelay: 400 + i * 80,
+                totalDuration: 800,
+                beginY: 20,
+                beginX: 0,
+                style: textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: scheme.secondary,
+                  fontSize: 34,
+                ) ?? const TextStyle(),
+              ),
+          ],
         ),
       ],
     );
@@ -306,68 +301,6 @@ class _AnimatedTagline extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-// ─── Premium Badge ─────────────────────────────────────────────────────────
-
-class _PremiumBadge extends StatelessWidget {
-  const _PremiumBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Material(
-        color: scheme.tertiaryContainer,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Следите за обновлениями!')),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: <Widget>[
-                const Text('✨', style: TextStyle(fontSize: 18)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'NiosMess Premium — скоро',
-                        style: textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: scheme.onTertiaryContainer,
-                        ),
-                      ),
-                      Text(
-                        'Ранний доступ',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onTertiaryContainer.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 14,
-                  color: scheme.onTertiaryContainer.withValues(alpha: 0.5),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -583,24 +516,61 @@ class _FaqTab extends StatelessWidget {
 
     final List<(String, String)> faqs = <(String, String)>[
       (
-        'Как сбросить пароль?',
-        'Перейдите на экран входа и нажмите «Забыли пароль?». Мы отправим письмо с ссылкой для восстановления.',
+        'Что такое секретные чаты и чем они отличаются от обычных?',
+        'Секретные чаты используют сквозное шифрование E2EE (RSA-2048 + AES-256-GCM). '
+            'Сообщения шифруются на вашем устройстве и расшифровываются только на устройстве получателя. '
+            'Сервер не имеет доступа к содержимому. Обычные чаты шифруются при передаче (AES-256-GCM), '
+            'но сервер может прочитать сообщения.',
       ),
       (
-        'Что такое секретные чаты?',
-        'Секретные чаты используют сквозное шифрование (E2EE). Сообщения доступны только вам и собеседнику.',
+        'Как создать секретный чат?',
+        'Откройте вкладку «Контакты», найдите пользователя и нажмите на иконку замка рядом с его именем. '
+            'Или зайдите в его профиль и нажмите «Секретный чат». Ключи генерируются автоматически на ваших устройствах.',
       ),
       (
-        'Как присоединиться к группе?',
-        'Нажмите «+» → «Присоединиться к группе» и введите код приглашения или ссылку.',
+        'Что произойдёт, если я потеряю устройство?',
+        'Секретные чаты привязаны к конкретному устройству — ключи хранятся только на нём. '
+            'Потеря устройства означает потерю доступа к истории секретных чатов. '
+            'Обычные чаты восстанавливаются при входе с нового устройства.',
       ),
       (
-        'Как защититься от спама?',
-        'В настройках приватности включите фильтр спама и ограничьте кто может писать вам.',
+        'Можно ли использовать NiosMess на нескольких устройствах?',
+        'Да, обычные чаты синхронизируются между устройствами. Секретные чаты — нет, '
+            'они привязаны к одному устройству. Чтобы общаться с секретного чата на новом устройстве, '
+            'нужно создать новый секретный чат с тем же пользователем.',
+      ),
+      (
+        'Как присоединиться к группе или каналу?',
+        'Нажмите «+» на вкладке «Чаты» → «Присоединиться к группе». Введите код приглашения (slug) '
+            'или откройте ссылку-приглашение. Коды выдаёт создатель группы.',
+      ),
+      (
+        'Какие файлы можно отправлять?',
+        'Изображения, видео, документы (PDF, DOC, XLS и др.), аудио и голосовые сообщения. '
+            'Максимальный размер файла — 100 МБ. Изображения автоматически сжимаются для экономии трафика.',
+      ),
+      (
+        'Что такое NiosGram и чем он отличается от обычных чатов?',
+        'NiosGram — это лента постов в стиле соцсети. Вы можете писать посты с Markdown-разметкой, '
+            'прикреплять медиа, ставить лайки/дизлайки, комментировать и подписываться на авторов. '
+            'В отличие от чатов, контент публичный и доступен всем пользователям.',
+      ),
+      (
+        'Как работает ИИ-помощник в чатах?',
+        'ИИ-помощник исправляет ошибки, формализует текст и переводит на другие языки. '
+            'Выделите сообщение → нажмите «ИИ» → выберите действие. Текст обрабатывается '
+            'на сервере и не сохраняется после обработки.',
       ),
       (
         'Где хранятся мои данные?',
-        'Данные хранятся на защищённых серверах в России. Секретные чаты не покидают ваши устройства.',
+        'Обычные сообщения хранятся на сервере в зашифрованном виде. Секретные чаты — '
+            'только на ваших устройствах. Локальный кеш сообщений шифруется AES-256-GCM '
+            'с ключом, хранящимся в безопасном хранилище устройства (Keystore/Keychain).',
+      ),
+      (
+        'Как сообщить о баге или предложить улучшение?',
+        'Настройки → О NiosMess → нажмите на вкладку «🎉» → «Сообщить о проблеме». '
+            'Опишите проблему — письмо уйдёт на support@ni-os.ru. Или напишите напрямую.',
       ),
     ];
 
@@ -641,241 +611,6 @@ class _FaqTab extends StatelessWidget {
   }
 }
 
-// ─── Support Tab ───────────────────────────────────────────────────────────
-
-class _SupportTab extends StatelessWidget {
-  const _SupportTab({required this.packageInfo});
-  final Future<PackageInfo> packageInfo;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      children: <Widget>[
-        // Donate card
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[
-                scheme.primaryContainer,
-                scheme.secondaryContainer,
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                'Поддержите NiosMess',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: scheme.onPrimaryContainer,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Проект развивается благодаря вам. Любая сумма помогает нам расти.',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
-                ),
-              ),
-              const SizedBox(height: 14),
-              FilledButton.icon(
-                onPressed: () => _openUrl(context, 'https://boosty.to/niosmess'),
-                icon: const Icon(Icons.favorite_rounded, size: 18),
-                label: const Text('Задонатить'),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Visa • Mastercard • СБП',
-                style: textTheme.labelSmall?.copyWith(
-                  color: scheme.onPrimaryContainer.withValues(alpha: 0.5),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Support actions
-        _SupportAction(
-          icon: Icons.support_agent_rounded,
-          title: 'Написать в поддержку',
-          subtitle: 'support@ni-os.ru',
-          iconColor: scheme.primary,
-          onTap: () => _composeSupportEmail(
-            context,
-            subject: 'Поддержка NiosMess',
-            body: '',
-          ),
-        ),
-        _SupportAction(
-          icon: Icons.bug_report_rounded,
-          title: context.l10n.settingsReportIssue,
-          subtitle: context.l10n.settingsReportIssueSubtitle,
-          iconColor: scheme.error,
-          onTap: () => _showReportDialog(context),
-        ),
-        _SupportAction(
-          icon: Icons.link_rounded,
-          title: 'Копировать API URL',
-          subtitle: ApiConstants.baseUrl,
-          iconColor: scheme.secondary,
-          onTap: () async {
-            await Clipboard.setData(
-              const ClipboardData(text: ApiConstants.baseUrl),
-            );
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(context.l10n.settingsApiUrlCopied)),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Future<void> _openUrl(BuildContext context, String url) async {
-    final Uri? uri = Uri.tryParse(url);
-    if (uri == null) return;
-    final bool launched = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!launched && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.settingsCouldNotOpenLink)),
-      );
-    }
-  }
-
-  Future<void> _composeSupportEmail(
-    BuildContext context, {
-    required String subject,
-    required String body,
-  }) async {
-    final Uri uri = Uri(
-      scheme: 'mailto',
-      path: 'support@ni-os.ru',
-      queryParameters: <String, String>{'subject': subject, 'body': body},
-    );
-    final bool launched = await launchUrl(uri);
-    if (!launched) {
-      await Clipboard.setData(
-        ClipboardData(text: 'support@ni-os.ru\n\n$subject\n\n$body'),
-      );
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.settingsSupportCopied)),
-      );
-    }
-  }
-
-  Future<void> _showReportDialog(BuildContext context) async {
-    final TextEditingController descController = TextEditingController();
-    await showAppDialog<void>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AppDialog(
-          title: context.l10n.settingsReportIssue,
-          icon: Icons.bug_report_rounded,
-          actions: <AppDialogAction>[
-            AppDialogAction(
-              label: context.l10n.commonCancel,
-              onPressed: () => Navigator.of(dialogContext).pop(),
-            ),
-            AppDialogAction(
-              label: context.l10n.settingsSubmit,
-              isPrimary: true,
-              onPressed: () async {
-                final String description = descController.text.trim();
-                Navigator.of(dialogContext).pop();
-                await _composeSupportEmail(
-                  context,
-                  subject: context.l10n.settingsBugReportSubject,
-                  body: description.isEmpty
-                      ? context.l10n.settingsBugReportEmpty
-                      : description,
-                );
-              },
-            ),
-          ],
-          child: AppTextFieldDialogContent(
-            controller: descController,
-            hint: context.l10n.settingsReportIssueHint,
-            maxLines: 5,
-          ),
-        );
-      },
-    );
-    descController.dispose();
-  }
-}
-
-class _SupportAction extends StatelessWidget {
-  const _SupportAction({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.iconColor,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color iconColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          alignment: Alignment.center,
-          child: Icon(icon, color: iconColor, size: 20),
-        ),
-        title: Text(
-          title,
-          style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: textTheme.bodySmall?.copyWith(
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
-        trailing: Icon(
-          Icons.chevron_right_rounded,
-          color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
-          size: 20,
-        ),
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
 // ─── Changelog Tab ─────────────────────────────────────────────────────────
 
 class _ChangelogTab extends StatelessWidget {
@@ -890,31 +625,35 @@ class _ChangelogTab extends StatelessWidget {
     final List<_Release> releases = <_Release>[
       _Release(
         version: 'v2.1.0',
-        date: '2026',
+        date: 'Июнь 2026',
         changes: <String>[
-          'Предиктивный жест назад',
-          'Улучшена производительность',
-          'Новые темы оформления',
-          'Работа в фоне',
+          'Предиктивный жест «Назад» (Android 13+)',
+          'Работа в фоне — экономный и надёжный режимы',
+          'Новые темы оформления и цветовые схемы',
+          'Оптимизация производительности списков чатов',
+          'Скриншот-защита в секретных чатах',
         ],
       ),
       _Release(
         version: 'v2.0.5',
-        date: '2025',
+        date: 'Март 2026',
         changes: <String>[
-          'Исправлены лаги в чатах',
+          'Исправлены лаги при прокрутке в чатах',
           'Обновлён эмодзи-пикер',
-          'Улучшены анимации',
+          'Улучшены анимации переходов',
+          'Исправлена работа голосовых сообщений',
         ],
       ),
       _Release(
         version: 'v2.0.0',
-        date: '2025',
+        date: 'Январь 2026',
         changes: <String>[
-          'Релиз NiosMess 2.0',
-          'Полный редизайн',
-          'Сквозное шифрование (E2EE)',
-          'Новые emoji и реакции',
+          'Полный редизайн приложения',
+          'Сквозное шифрование (E2EE) для секретных чатов',
+          'NiosGram — лента постов с реакциями и комментариями',
+          'ИИ-помощник: исправление ошибок, формализация, перевод',
+          'Групповые чаты и каналы',
+          'Голосовые и видео-звонки',
         ],
       ),
     ];
@@ -929,7 +668,7 @@ class _ChangelogTab extends StatelessWidget {
           future: packageInfo,
           builder: (BuildContext context, AsyncSnapshot<PackageInfo> snapshot) {
             final String version = snapshot.data != null
-                ? '${snapshot.data!.version} (${snapshot.data!.buildNumber})'
+                ? '${snapshot.data!.version}+${snapshot.data!.buildNumber}'
                 : '...';
             return Text(
               'Текущая версия: $version',

@@ -136,6 +136,27 @@ class _PostCardState extends ConsumerState<PostCard>
                       ),
                     ),
                   ),
+                if (!isOwn)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: TextButton(
+                      onPressed: () {
+                        ref.read(niosgramProvider.notifier).toggleFollow(post.author.username);
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        post.isFollowing ? context.l10n.niosgramUnfollow : context.l10n.niosgramFollow,
+                        style: textTheme.labelMedium?.copyWith(
+                          color: post.isFollowing ? scheme.onSurfaceVariant : scheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
                 _PostMenu(post: post, isOwn: isOwn),
               ],
             ),
@@ -218,7 +239,7 @@ class _PostCardState extends ConsumerState<PostCard>
                         if (_showHeart)
                           AnimatedBuilder(
                             animation: _heartController,
-                            builder: (_, __) => Transform.scale(
+                            builder: (_, anim) => Transform.scale(
                               scale: _heartScale.value,
                               child: Opacity(
                                 opacity: _heartOpacity.value,

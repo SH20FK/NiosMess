@@ -55,7 +55,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
       if (!mounted) return;
       setState(() {
         _hasKey = true;
-        _publicKeyPreview = publicKeyB64.substring(0, 40) + '...';
+        _publicKeyPreview = '${publicKeyB64.substring(0, 40)}...';
         _loading = false;
       });
       if (!mounted) return;
@@ -109,7 +109,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
       if (mounted) Navigator.of(context).pop();
       if (!mounted) return;
       setState(() {
-        _publicKeyPreview = publicKeyB64.substring(0, 40) + '...';
+        _publicKeyPreview = '${publicKeyB64.substring(0, 40)}...';
         _loading = false;
       });
       if (!mounted) return;

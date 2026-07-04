@@ -29,14 +29,14 @@ class ImageCompressor {
     if (bytes.length < _minSizeThreshold) return null;
 
     try {
-      final Uint8List? result = await FlutterImageCompress.compressWithList(
+      final Uint8List result = await FlutterImageCompress.compressWithList(
         bytes,
         minWidth: maxWidth ?? _maxWidth,
         minHeight: maxHeight ?? _maxHeight,
         quality: quality,
         format: CompressFormat.jpeg,
       );
-      if (result != null && result.length < bytes.length) {
+      if (result.length < bytes.length) {
         return result;
       }
       return null;

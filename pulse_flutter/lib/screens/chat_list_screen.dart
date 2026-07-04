@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/rendering.dart';
@@ -23,8 +22,11 @@ import 'package:pulse_flutter/widgets/chat_tile.dart';
 import 'package:pulse_flutter/widgets/centered_note.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
+import 'package:pulse_flutter/providers/chat_filter_provider.dart';
+import 'package:pulse_flutter/widgets/chat/chat_list_filter_bar.dart';
+import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
+import 'package:pulse_flutter/widgets/chat/chat_search_field.dart';
 
-enum _ChatFilter { all, unread, groups, channels, direct, bots }
 
 enum _LastMessageKind { photo, video, audio, file }
 
@@ -41,21 +43,13 @@ class ChatListScreen extends ConsumerStatefulWidget {
 
 class _ChatListScreenState extends ConsumerState<ChatListScreen>
     with SingleTickerProviderStateMixin {
-  final SearchController _searchController = SearchController();
-  late final TabController _filterController;
-  String _query = '';
-  _ChatFilter _filter = _ChatFilter.all;
-  Timer? _searchDebounce;
+
 
   bool _isInitialLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    _filterController = TabController(
-      length: _ChatFilter.values.length,
-      vsync: this,
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(chatsProvider.notifier).refresh();
       Future<void>.delayed(const Duration(milliseconds: 600), () {
@@ -66,39 +60,31 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     });
   }
 
-  @override
-  void dispose() {
-    _searchDebounce?.cancel();
-    _filterController.dispose();
-    ref.read(chatListSearchProvider.notifier).clear();
-    _searchController.dispose();
-    super.dispose();
-  }
 
   List<ApiChatSummary> _applyFilter(
     List<ApiChatSummary> chats,
-    _ChatFilter filter,
+    ChatFilter filter,
   ) {
     switch (filter) {
-      case _ChatFilter.all:
+      case ChatFilter.all:
         return chats;
-      case _ChatFilter.unread:
+      case ChatFilter.unread:
         return chats
             .where((ApiChatSummary c) => c.unreadCount > 0)
             .toList(growable: false);
-      case _ChatFilter.groups:
+      case ChatFilter.groups:
         return chats
             .where((ApiChatSummary c) => c.chatType == 'group')
             .toList(growable: false);
-      case _ChatFilter.channels:
+      case ChatFilter.channels:
         return chats
             .where((ApiChatSummary c) => c.chatType == 'channel')
             .toList(growable: false);
-      case _ChatFilter.direct:
+      case ChatFilter.direct:
         return chats
             .where((ApiChatSummary c) => c.chatType == 'direct')
             .toList(growable: false);
-      case _ChatFilter.bots:
+      case ChatFilter.bots:
         return chats
             .where((ApiChatSummary c) => c.chatType == 'bot')
             .toList(growable: false);
@@ -109,50 +95,20 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   Widget build(BuildContext context) {
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final bool compact = settings.compactMode;
-    final bool optimize = settings.optimizeForWeakDevices;
     final AuthState auth = ref.watch(authProvider);
     final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.watch(
       chatsProvider,
     );
-    final String query = _query.trim();
-    final AsyncValue<ApiSearchResult> searchAsync = query.isEmpty
-        ? const AsyncValue<ApiSearchResult>.data(ApiSearchResult.empty())
-        : ref.watch(chatListSearchProvider);
+    final AsyncValue<ApiSearchResult> searchAsync = ref.watch(chatListSearchProvider);
+    final filter = ref.watch(chatFilterProvider);
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: optimize
-              ? Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: scheme.surface.withValues(alpha: 0.95),
-                  child: Text(context.l10n.tabChats),
-                )
-              : BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    color: scheme.surface.withValues(alpha: 0.6),
-                    child: Text(context.l10n.tabChats),
-                  ),
-                ),
-        ),
-        centerTitle: false,
-        scrolledUnderElevation: 0,
-        backgroundColor: Colors.transparent,
-        actions: <Widget>[
-          IconButton(
-            onPressed: () => _showCreateMenu(context),
-            tooltip: context.l10n.groupCreateOrJoin,
-            icon: const Icon(Icons.add_circle_outline_rounded),
-          ),
-          const SizedBox(width: 8),
-        ],
+      appBar: ChatListHeader(
+        onCreatePressed: () => _showCreateMenu(context),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -179,7 +135,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       const SizedBox(height: 10),
-                      _searchAndFilter(scheme, textTheme, searchAsync),
+                      const ChatSearchField(),
+                      const SizedBox(height: 10),
+                      const ChatListFilterBar(),
                       const SizedBox(height: 12),
                     ],
                   ),
@@ -192,6 +150,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 scheme,
                 textTheme,
                 searchAsync.asData?.value,
+                filter,
               ),
               SliverPadding(
                 padding: EdgeInsets.only(
@@ -202,80 +161,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           ),
         ),
       ),
-    );
-  }
-
-  Widget _searchAndFilter(
-    ColorScheme scheme,
-    TextTheme textTheme,
-    AsyncValue<ApiSearchResult> searchAsync,
-  ) {
-    final Widget searchField = SearchBar(
-      controller: _searchController,
-      onChanged: _onSearchChanged,
-      onSubmitted: (_) => _openFirstMessageMatch(searchAsync),
-      hintText: context.l10n.chatListSearchMessagesHint,
-      leading: const Icon(Icons.search_rounded),
-      trailing: <Widget>[
-        if (_query.isNotEmpty)
-          IconButton(
-            onPressed: _clearSearch,
-            icon: const Icon(Icons.close_rounded),
-            tooltip: context.l10n.commonCancel,
-          )
-        else
-          const SizedBox.shrink(),
-      ],
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        searchField,
-        _messageSearchPreview(searchAsync, scheme, textTheme),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 48,
-          child: TabBar(
-            controller: _filterController,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            onTap: (int index) {
-              setState(() => _filter = _ChatFilter.values[index]);
-            },
-            dividerColor: Colors.transparent,
-            indicatorSize: TabBarIndicatorSize.tab,
-            indicator: BoxDecoration(
-              color: scheme.primaryContainer,
-              borderRadius: BorderRadius.circular(28),
-            ),
-            labelColor: scheme.onPrimaryContainer,
-            unselectedLabelColor: scheme.onSurfaceVariant,
-            labelStyle: textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-            unselectedLabelStyle: textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
-            labelPadding: const EdgeInsets.symmetric(horizontal: 14),
-            splashBorderRadius: BorderRadius.circular(28),
-            tabs: _ChatFilter.values
-                .map(
-                  (_ChatFilter value) => Tab(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(_filterIcon(value), size: 18),
-                        const SizedBox(width: 7),
-                        Text(_filterShortLabel(value)),
-                      ],
-                    ),
-                  ),
-                )
-                .toList(growable: false),
-          ),
-        ),
-      ],
     );
   }
 
@@ -292,197 +177,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     return false;
   }
 
-  void _onSearchChanged(String value) {
-    setState(() => _query = value);
-    _searchDebounce?.cancel();
-    if (value.trim().isEmpty) {
-      ref.read(chatListSearchProvider.notifier).clear();
-      return;
-    }
-    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        ref.read(chatListSearchProvider.notifier).search(value);
-      }
-    });
-  }
-
-  void _clearSearch() {
-    _searchController.clear();
-    setState(() => _query = '');
-    ref.read(chatListSearchProvider.notifier).clear();
-  }
-
-  void _openFirstMessageMatch(AsyncValue<ApiSearchResult> searchAsync) {
-    final ApiSearchResult? result = searchAsync.asData?.value;
-    if (result == null || result.messages.isEmpty) {
-      return;
-    }
-    final ApiSearchMessage message = result.messages.first;
-    if (MediaQuery.sizeOf(context).width >= 760) {
-      ref.read(desktopSelectedChatProvider.notifier).setSelectedChat(message.chatId);
-      // We also need to handle message highlighting on desktop later if possible, but basic routing first
-    } else {
-      context.push('/chat/${message.chatId}?highlight=${message.id}');
-    }
-  }
-
-  Widget _messageSearchPreview(
-    AsyncValue<ApiSearchResult> searchAsync,
-    ColorScheme scheme,
-    TextTheme textTheme,
-  ) {
-    if (_query.trim().isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      child: searchAsync.when(
-        data: (ApiSearchResult result) {
-          if (result.messages.isEmpty) {
-            return const SizedBox.shrink();
-          }
-          final List<ApiSearchMessage> messages = result.messages
-              .take(3)
-              .toList(growable: false);
-          return Padding(
-            key: ValueKey<int>(messages.length),
-            padding: const EdgeInsets.only(top: 10),
-            child: Container(
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerLow.withValues(alpha: 0.86),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.20),
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
-                    child: Row(
-                      children: <Widget>[
-                        Icon(
-                          Icons.manage_search_rounded,
-                          size: 20,
-                          color: scheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          context.l10n.chatListMessageMatches,
-                          style: textTheme.labelLarge?.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          '${result.messages.length}',
-                          style: textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  for (final ApiSearchMessage message in messages)
-                    _messageResultTile(message, scheme, textTheme),
-                ],
-              ),
-            ),
-          );
-        },
-        loading: () => Padding(
-          key: const ValueKey<String>('loading'),
-          padding: const EdgeInsets.only(top: 10),
-          child: LinearProgressIndicator(
-            minHeight: 2,
-            borderRadius: BorderRadius.circular(999),
-          ),
-        ),
-        error: (_, _) => const SizedBox.shrink(key: ValueKey<String>('error')),
-      ),
-    );
-  }
-
-  Widget _messageResultTile(
-    ApiSearchMessage message,
-    ColorScheme scheme,
-    TextTheme textTheme,
-  ) {
-    return InkWell(
-      onTap: () {
-        if (MediaQuery.sizeOf(context).width >= 760) {
-          ref.read(desktopSelectedChatProvider.notifier).setSelectedChat(message.chatId);
-        } else {
-          context.push('/chat/${message.chatId}?highlight=${message.id}');
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-        child: Row(
-          children: <Widget>[
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                Icons.chat_bubble_outline_rounded,
-                size: 18,
-                color: scheme.onPrimaryContainer,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    message.senderDisplayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.labelLarge,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    message.content,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 14,
-              color: scheme.onSurfaceVariant,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _filterShortLabel(_ChatFilter value) {
-    return switch (value) {
-      _ChatFilter.all => context.l10n.chatListFilterAll,
-      _ChatFilter.unread => context.l10n.chatListFilterUnread,
-      _ChatFilter.groups => context.l10n.chatListFilterGroups,
-      _ChatFilter.channels => context.l10n.chatListFilterChannels,
-      _ChatFilter.direct => context.l10n.chatListFilterDirect,
-      _ChatFilter.bots => context.l10n.chatListFilterBots,
-    };
-  }
-
   List<Widget> _buildChatSlivers(
     AuthState auth,
     AsyncValue<List<ApiChatSummary>> chatsAsync,
@@ -490,6 +184,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     ColorScheme scheme,
     TextTheme textTheme,
     ApiSearchResult? searchResult,
+    ChatFilter filter,
   ) {
     if (!auth.isAuthenticated) {
       return <Widget>[
@@ -504,22 +199,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
     return chatsAsync.when(
       data: (List<ApiChatSummary> chats) {
-        final List<ApiChatSummary> filtered = _applyFilter(chats, _filter);
-        final String query = _query.trim().toLowerCase();
+        final List<ApiChatSummary> filtered = _applyFilter(chats, filter);
         final Set<int> resultChatIds = <int>{
           ...?searchResult?.chats.map((ApiSearchChat chat) => chat.id),
           ...?searchResult?.messages.map(
             (ApiSearchMessage message) => message.chatId,
           ),
         };
+        final bool isSearchActive = searchResult != null && searchResult.messages.isNotEmpty;
         final List<ApiChatSummary> searched = filtered
             .where((ApiChatSummary chat) {
-              if (query.isEmpty) return true;
-              return chat.name.toLowerCase().contains(query) ||
-                  (chat.lastMessage?.content ?? '').toLowerCase().contains(
-                    query,
-                  ) ||
-                  resultChatIds.contains(chat.id);
+              if (!isSearchActive) return true;
+              return resultChatIds.contains(chat.id);
             })
             .toList(growable: false);
 
@@ -621,6 +312,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             scheme,
             textTheme,
             searchResult,
+            filter,
           );
         }
         return <Widget>[
@@ -641,6 +333,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             scheme,
             textTheme,
             searchResult,
+            filter,
           );
         }
         return <Widget>[
@@ -653,17 +346,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         ];
       },
     );
-  }
-
-  IconData _filterIcon(_ChatFilter value) {
-    return switch (value) {
-      _ChatFilter.all => Icons.inbox_rounded,
-      _ChatFilter.unread => Icons.mark_chat_unread_rounded,
-      _ChatFilter.groups => Icons.groups_rounded,
-      _ChatFilter.channels => Icons.campaign_rounded,
-      _ChatFilter.direct => Icons.person_rounded,
-      _ChatFilter.bots => Icons.smart_toy_rounded,
-    };
   }
 
   String _previewText(String? raw) {

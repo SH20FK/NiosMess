@@ -1,10 +1,10 @@
-import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/screens/chat_detail_screen.dart';
 import 'package:pulse_flutter/screens/chat_manage_screen.dart';
 import 'package:pulse_flutter/screens/chat_members_screen.dart';
+import 'package:pulse_flutter/screens/chat_redirect_screen.dart';
 import 'package:pulse_flutter/screens/contact_detail_screen.dart';
 import 'package:pulse_flutter/screens/create_chat_screen.dart';
 import 'package:pulse_flutter/screens/direct_chat_resolver_screen.dart';
@@ -38,104 +38,10 @@ class AppRouter {
       GlobalKey<NavigatorState>();
 }
 
-CustomTransitionPage<void> _page(GoRouterState state, Widget child, {LocalKey? pageKey}) {
-  return CustomTransitionPage<void>(
+MaterialPage<void> _page(GoRouterState state, Widget child, {LocalKey? pageKey}) {
+  return MaterialPage<void>(
     key: pageKey ?? state.pageKey,
     child: child,
-    transitionsBuilder: (BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
-      final Animatable<Offset> slideIn = Tween<Offset>(
-        begin: const Offset(0.08, 0.0),
-        end: Offset.zero,
-      ).chain(CurveTween(curve: Curves.easeOutCubic));
-
-      final Animatable<double> fadeIn = Tween<double>(
-        begin: 0.0,
-        end: 1.0,
-      ).chain(CurveTween(curve: Curves.easeOutCubic));
-
-      final Animatable<Offset> slideOut = Tween<Offset>(
-        begin: Offset.zero,
-        end: const Offset(-0.04, 0.0),
-      ).chain(CurveTween(curve: Curves.easeOutCubic));
-
-      final Animatable<double> fadeOut = Tween<double>(
-        begin: 1.0,
-        end: 0.6,
-      ).chain(CurveTween(curve: Curves.easeOutCubic));
-
-      return SlideTransition(
-        position: animation.drive(slideIn),
-        child: FadeTransition(
-          opacity: animation.drive(fadeIn),
-          child: SlideTransition(
-            position: secondaryAnimation.drive(slideOut),
-            child: FadeTransition(
-              opacity: secondaryAnimation.drive(fadeOut),
-              child: child,
-            ),
-          ),
-        ),
-      );
-    },
-    transitionDuration: const Duration(milliseconds: 320),
-    reverseTransitionDuration: const Duration(milliseconds: 260),
-  );
-}
-
-CustomTransitionPage<void> _sharedAxisPage(Widget child, LocalKey pageKey) {
-  return CustomTransitionPage<void>(
-    key: pageKey,
-    child: child,
-    transitionsBuilder: (_, animation, __, child) {
-      return SharedAxisTransition(
-        animation: animation,
-        secondaryAnimation: __,
-        transitionType: SharedAxisTransitionType.scaled,
-        child: child,
-      );
-    },
-  );
-}
-
-CustomTransitionPage<void> _fadeThroughPage(Widget child, LocalKey pageKey) {
-  return CustomTransitionPage<void>(
-    key: pageKey,
-    child: child,
-    transitionsBuilder: (_, animation, __, child) {
-      return FadeThroughTransition(
-        animation: animation,
-        secondaryAnimation: __,
-        child: child,
-      );
-    },
-  );
-}
-
-CustomTransitionPage<void> _slideUpPage(Widget child, LocalKey pageKey) {
-  return CustomTransitionPage<void>(
-    key: pageKey,
-    child: child,
-    transitionsBuilder: (_, animation, secondaryAnimation, child) {
-      final Animatable<Offset> slideUp = Tween<Offset>(
-        begin: const Offset(0.0, 0.3),
-        end: Offset.zero,
-      ).chain(CurveTween(curve: Curves.easeOutCubic));
-
-      final Animatable<double> fadeIn = Tween<double>(
-        begin: 0.0,
-        end: 1.0,
-      ).chain(CurveTween(curve: Curves.easeOutCubic));
-
-      return SlideTransition(
-        position: animation.drive(slideUp),
-        child: FadeTransition(
-          opacity: animation.drive(fadeIn),
-          child: child,
-        ),
-      );
-    },
-    transitionDuration: const Duration(milliseconds: 320),
-    reverseTransitionDuration: const Duration(milliseconds: 260),
   );
 }
 
@@ -215,7 +121,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/chat/:chatId',
-        pageBuilder: (context, state) => _sharedAxisPage(ChatDetailScreen(chatId: state.pathParameters['chatId']!, highlightMessageId: int.tryParse(state.uri.queryParameters['highlight'] ?? '')), state.pageKey),
+        pageBuilder: (context, state) => _page(state, ChatDetailScreen(chatId: state.pathParameters['chatId']!, highlightMessageId: int.tryParse(state.uri.queryParameters['highlight'] ?? '')), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/chat/dm/:username',
@@ -248,6 +154,14 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         pageBuilder: (context, state) => _page(state, PublicProfileScreen(username: state.pathParameters['username']!)),
       ),
       GoRoute(
+        path: '/g/:username',
+        redirect: (context, state) => '/profile/${state.pathParameters['username']}',
+      ),
+      GoRoute(
+        path: '/u/:slug',
+        pageBuilder: (context, state) => _page(state, ChatRedirectScreen(slug: state.pathParameters['slug']!)),
+      ),
+      GoRoute(
         path: '/contact/:username',
         pageBuilder: (context, state) => _page(state, ContactDetailScreen(username: state.pathParameters['username']!)),
       ),
@@ -257,35 +171,35 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/settings/appearance',
-        pageBuilder: (context, state) => _fadeThroughPage(const SettingsAppearanceScreen(), state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsAppearanceScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/language-region',
-        pageBuilder: (context, state) => _fadeThroughPage(const SettingsLanguageRegionScreen(), state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsLanguageRegionScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/account',
-        pageBuilder: (context, state) => _fadeThroughPage(const SettingsAccountScreen(), state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsAccountScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/privacy',
-        pageBuilder: (context, state) => _fadeThroughPage(const SettingsPrivacyScreen(), state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsPrivacyScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/storage',
-        pageBuilder: (context, state) => _fadeThroughPage(const SettingsStorageScreen(), state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsStorageScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/about',
-        pageBuilder: (context, state) => _fadeThroughPage(const SettingsAboutScreen(), state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsAboutScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/e2ee',
-        pageBuilder: (context, state) => _fadeThroughPage(const E2eeSettingsScreen(), state.pageKey),
+        pageBuilder: (context, state) => _page(state, const E2eeSettingsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/sessions',
-        pageBuilder: (context, state) => _fadeThroughPage(const SessionsScreen(), state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SessionsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/two-fa',
@@ -293,7 +207,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/niosgram/create',
-        pageBuilder: (context, state) => _slideUpPage(const CreatePostScreen(), state.pageKey),
+        pageBuilder: (context, state) => _page(state, const CreatePostScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/niosgram/post/:postId/comments',

@@ -6073,6 +6073,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Available only on Android'**
   String get settingsBackgroundNotAvailableDesc;
+
+  /// No description provided for @deepLinkResolving.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolving link...'**
+  String get deepLinkResolving;
+
+  /// No description provided for @deepLinkNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Content not found'**
+  String get deepLinkNotFound;
+
+  /// No description provided for @notificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationsTitle;
+
+  /// No description provided for @notificationsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications yet'**
+  String get notificationsEmpty;
+
+  /// No description provided for @notificationsMentionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{username} mentioned you in a post'**
+  String notificationsMentionBody(Object username);
+
+  /// No description provided for @notificationsNewMessageBody.
+  ///
+  /// In en, this message translates to:
+  /// **'New message in {chatName}'**
+  String notificationsNewMessageBody(Object chatName);
+
+  /// No description provided for @niosgramFollow.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow'**
+  String get niosgramFollow;
+
+  /// No description provided for @niosgramUnfollow.
+  ///
+  /// In en, this message translates to:
+  /// **'Unfollow'**
+  String get niosgramUnfollow;
+
+  /// No description provided for @niosgramFollowers.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} followers'**
+  String niosgramFollowers(Object count);
+
+  /// No description provided for @niosgramFollowing.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} following'**
+  String niosgramFollowing(Object count);
+
+  /// No description provided for @niosgramLoadComments.
+  ///
+  /// In en, this message translates to:
+  /// **'Load comments'**
+  String get niosgramLoadComments;
+
+  /// No description provided for @niosgramCommentSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment sent'**
+  String get niosgramCommentSent;
+
+  /// No description provided for @niosgramFailedFollow.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to follow user'**
+  String get niosgramFailedFollow;
 }
 
 class _AppLocalizationsDelegate

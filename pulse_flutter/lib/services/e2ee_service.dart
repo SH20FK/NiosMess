@@ -122,14 +122,60 @@ class E2eeService {
     return base64Encode(utf8.encode(jsonEncode(e2eeStructure)));
   }
 
+  /// Encrypts [plaintext] once, wraps the AES key with both [recipientPublicKeyBase64]
+  /// and [senderPublicKeyBase64] RSA-OAEP. Returns a single base64-encoded JSON
+  /// structure with both wrapped keys so the server can store one copy that both
+  /// parties can decrypt with their own private key (re-keying from server).
+  Future<String> encryptE2EEMessageForBoth({
+    required String plaintext,
+    required String recipientPublicKeyBase64,
+    required String senderPublicKeyBase64,
+  }) async {
+    final aesKeyBytes = _generateAes256Key();
+    final aesGcm = crypto.AesGcm.with256bits();
+    final aesSecretKey = crypto.SecretKey(aesKeyBytes);
+    final iv = _generateIv();
+    final plaintextBytes = utf8.encode(plaintext);
+
+    final secretBox = await aesGcm.encrypt(
+      plaintextBytes,
+      secretKey: aesSecretKey,
+      nonce: iv,
+    );
+
+    final recipientPubKey = _decodePublicKeyFromDer(
+      base64Decode(recipientPublicKeyBase64),
+    );
+    final senderPubKey = _decodePublicKeyFromDer(
+      base64Decode(senderPublicKeyBase64),
+    );
+
+    final encryptedAesKeyForRecipient = _rsaOaepEncrypt(recipientPubKey, aesKeyBytes);
+    final encryptedAesKeyForSender = _rsaOaepEncrypt(senderPubKey, aesKeyBytes);
+
+    final e2eeStructure = {
+      'encrypted_key': base64Encode(encryptedAesKeyForRecipient),
+      'sender_encrypted_key': base64Encode(encryptedAesKeyForSender),
+      'ciphertext': base64Encode(secretBox.cipherText),
+      'iv': base64Encode(iv),
+      'tag': base64Encode(secretBox.mac.bytes),
+    };
+
+    return base64Encode(utf8.encode(jsonEncode(e2eeStructure)));
+  }
+
   Future<String> decryptE2EEMessage({
     required String e2eeContentBase64,
     required RSAPrivateKey privateKey,
+    bool useSenderKey = false,
   }) async {
     final jsonStr = utf8.decode(base64Decode(e2eeContentBase64));
     final structure = jsonDecode(jsonStr) as Map<String, dynamic>;
 
-    final encryptedAesKey = base64Decode(structure['encrypted_key'] as String);
+    final String keyField = useSenderKey && structure.containsKey('sender_encrypted_key')
+        ? 'sender_encrypted_key'
+        : 'encrypted_key';
+    final encryptedAesKey = base64Decode(structure[keyField] as String);
     final ciphertext = base64Decode(structure['ciphertext'] as String);
     final iv = base64Decode(structure['iv'] as String);
     final tag = base64Decode(structure['tag'] as String);

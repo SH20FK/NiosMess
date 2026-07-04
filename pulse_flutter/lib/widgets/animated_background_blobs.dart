@@ -22,6 +22,21 @@ class _AnimatedBackgroundBlobsState
     extends ConsumerState<AnimatedBackgroundBlobs>
     with SingleTickerProviderStateMixin {
   late final AnimationController _blobController;
+  bool _isActive = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bool active = TickerMode.of(context);
+    if (active != _isActive) {
+      _isActive = active;
+      if (active) {
+        _blobController.repeat();
+      } else {
+        _blobController.stop();
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -51,8 +66,6 @@ class _AnimatedBackgroundBlobsState
         body: widget.child,
       );
     }
-
-    if (!_blobController.isAnimating) _blobController.repeat();
 
     return Scaffold(
       backgroundColor: scheme.surface,

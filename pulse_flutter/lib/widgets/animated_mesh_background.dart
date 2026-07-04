@@ -17,6 +17,21 @@ class AnimatedMeshBackground extends ConsumerStatefulWidget {
 class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  bool _isActive = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bool active = TickerMode.of(context);
+    if (active != _isActive) {
+      _isActive = active;
+      if (active) {
+        _controller.repeat();
+      } else {
+        _controller.stop();
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -53,8 +68,6 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
         ),
       );
     }
-
-    if (!_controller.isAnimating) _controller.repeat();
 
     return Scaffold(
       backgroundColor: scheme.surface,

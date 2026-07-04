@@ -736,6 +736,19 @@ class ChatRepository {
       body: <String, dynamic>{'file_path': filePath},
     );
   }
+
+  Future<String?> resolveShortLink(String slug) async {
+    final dynamic response = await _ref
+        .read(webSocketClientProvider)
+        .request('resolve_short_link', payload: <String, dynamic>{'slug': slug});
+    if (response is Map && response['path'] != null) {
+      return response['path'] as String;
+    }
+    if (response is String && response.isNotEmpty) {
+      return response;
+    }
+    return null;
+  }
 }
 
 final Provider<ChatRepository> chatRepositoryProvider =

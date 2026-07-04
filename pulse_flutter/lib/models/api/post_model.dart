@@ -11,6 +11,7 @@ class NgPost {
     required this.commentsCount,
     this.mediaUrl,
     this.myReaction,
+    this.isFollowing = false,
   });
 
   final int id;
@@ -21,6 +22,7 @@ class NgPost {
   final int commentsCount;
   /// true = liked, false = disliked, null = no reaction
   final bool? myReaction;
+  final bool isFollowing;
   final ApiProfile author;
   final DateTime createdAt;
 
@@ -55,6 +57,7 @@ class NgPost {
       dislikesCount: json['dislikes_count'] as int? ?? 0,
       commentsCount: json['comments_count'] as int? ?? 0,
       myReaction: myReaction,
+      isFollowing: json['is_following'] as bool? ?? false,
       author: author,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
@@ -72,6 +75,7 @@ class NgPost {
         'my_reaction': myReaction == null
             ? null
             : (myReaction! ? 'like' : 'dislike'),
+        'is_following': isFollowing,
         'created_at': createdAt.toIso8601String(),
       };
 
@@ -83,6 +87,7 @@ class NgPost {
     int? dislikesCount,
     int? commentsCount,
     bool? Function()? myReaction,
+    bool? isFollowing,
     ApiProfile? author,
     DateTime? createdAt,
   }) {
@@ -94,6 +99,7 @@ class NgPost {
       dislikesCount: dislikesCount ?? this.dislikesCount,
       commentsCount: commentsCount ?? this.commentsCount,
       myReaction: myReaction != null ? myReaction() : this.myReaction,
+      isFollowing: isFollowing ?? this.isFollowing,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
     );

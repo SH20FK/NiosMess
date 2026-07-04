@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
+import 'package:pulse_flutter/core/storage/notification_storage.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
@@ -11,7 +12,7 @@ import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/providers/websocket_dispatcher_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
@@ -27,13 +28,10 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       return const <ApiChatSummary>[];
     }
 
-    final StreamSubscription<Map<String, dynamic>> subscription = ref
-        .read(webSocketClientProvider)
-        .pushStream
-        .listen(_handlePushEvent);
-
+    ref.read(webSocketDispatcherProvider);
+    WebSocketPushDispatcher.registerChat(-1, _handleNewMessagePush);
     ref.onDispose(() {
-      subscription.cancel();
+      WebSocketPushDispatcher.unregisterChat(-1);
     });
 
     // Load cache immediately
@@ -47,21 +45,6 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     }
 
     return _fetch();
-  }
-
-  void _handlePushEvent(Map<String, dynamic> event) {
-    final String? action = event['action'] as String?;
-    if (action == 'new_message') {
-      final dynamic payload = event['payload'];
-      if (payload is Map<String, dynamic>) {
-        try {
-          final ApiMessage message = ApiMessage.fromJson(payload);
-          _handleNewMessagePush(message);
-        } catch (e) {
-          debugPrint('[backend_chat_provider.dart] Error parsing message push: $e');
-        }
-      }
-    }
   }
 
   void _handleNewMessagePush(ApiMessage message) {
@@ -92,6 +75,18 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
 
       state = AsyncData<List<ApiChatSummary>>(updated);
       ref.read(cacheServiceProvider).saveChats(updated);
+
+      if (message.senderId != myUserId) {
+        final String chatName = chat.name.isNotEmpty ? chat.name : 'NiosMess';
+        final String body = message.content.isNotEmpty
+            ? message.content
+            : (message.msgType == 'media' ? '📎 Media' : '...');
+        NotificationStorage.createAndSave(
+          title: chatName,
+          body: body,
+          route: '/chat/${message.chatId}',
+        );
+      }
     } else {
       refresh();
     }
@@ -185,13 +180,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       return const <ApiMessage>[];
     }
 
-    final StreamSubscription<Map<String, dynamic>> subscription = ref
-        .read(webSocketClientProvider)
-        .pushStream
-        .listen(_handlePushEvent);
-
+    ref.read(webSocketDispatcherProvider);
+    WebSocketPushDispatcher.registerChat(_chatId, handlePush);
     ref.onDispose(() {
-      subscription.cancel();
+      WebSocketPushDispatcher.unregisterChat(_chatId);
     });
 
     // Load cache immediately
@@ -207,20 +199,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     return _fetch();
   }
 
-  void _handlePushEvent(Map<String, dynamic> event) {
-    final String? action = event['action'] as String?;
-    if (action == 'new_message') {
-      final dynamic payload = event['payload'];
-      if (payload is Map<String, dynamic>) {
-        try {
-          final ApiMessage message = ApiMessage.fromJson(payload);
-          if (message.chatId == _chatId) {
-            _handleNewIncomingMessage(message);
-          }
-        } catch (e) {
-          debugPrint('[backend_chat_provider.dart] Message push parse error: $e');
-        }
-      }
+  void handlePush(ApiMessage message) {
+    if (message.chatId == _chatId) {
+      _handleNewIncomingMessage(message);
     }
   }
 
@@ -263,6 +244,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final List<ApiMessage> result = <ApiMessage>[];
     dynamic privateKey;
     bool privateKeyLoaded = false;
+    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
 
     for (final ApiMessage msg in messages) {
       if (!msg.isE2ee || msg.e2eeContent == null || msg.e2eeContent!.isEmpty || msg.content.isNotEmpty) {
@@ -281,8 +263,22 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           privateKeyLoaded = true;
         }
         if (privateKey != null) {
-          final String decrypted = await E2eeService().decryptE2EEMessage(
-            e2eeContentBase64: msg.e2eeContent!,
+          final E2eeService e2eeService = E2eeService();
+          String e2eeContent = msg.e2eeContent!;
+
+          if (msg.senderId == myUserId) {
+            final String decrypted = await e2eeService.decryptE2EEMessage(
+              e2eeContentBase64: e2eeContent,
+              privateKey: privateKey,
+              useSenderKey: true,
+            );
+            _decryptionCache[msg.id] = decrypted;
+            result.add(msg.copyWith(content: decrypted));
+            continue;
+          }
+
+          final String decrypted = await e2eeService.decryptE2EEMessage(
+            e2eeContentBase64: e2eeContent,
             privateKey: privateKey,
           );
           _decryptionCache[msg.id] = decrypted;
@@ -399,13 +395,16 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
             .map((ApiChatMember m) => m.userId)
             .firstOrNull ?? 0;
         if (recipientUserId > 0) {
+          final E2eeService e2eeService = E2eeService();
+          final String senderPubKey = await e2eeService.getPublicKeyBase64();
           final Map<String, dynamic> keyData =
               await ref.read(authRepositoryProvider).getPublicKey(recipientUserId);
           final String? recipientPubKey = keyData['public_key'] as String?;
           if (recipientPubKey != null && recipientPubKey.isNotEmpty) {
-            e2eeContent = await E2eeService().encryptE2EEMessage(
+            e2eeContent = await e2eeService.encryptE2EEMessageForBoth(
               plaintext: trimmed,
               recipientPublicKeyBase64: recipientPubKey,
+              senderPublicKeyBase64: senderPubKey,
             );
             isE2ee = true;
           }
@@ -509,7 +508,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     if (trimmed.isEmpty) return;
 
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
-    final ApiMessage? target = current.firstWhere(
+    final ApiMessage target = current.firstWhere(
       (ApiMessage m) => m.id == messageId,
       orElse: () => ApiMessage(
         id: 0, chatId: 0, senderId: 0, senderUsername: '', senderDisplayName: '',
@@ -520,7 +519,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       ),
     );
 
-    if (target == null || target.id == 0) return;
+    if (target.id == 0) return;
 
     final ApiMessage optimisticEdited = target.copyWith(
       content: trimmed,

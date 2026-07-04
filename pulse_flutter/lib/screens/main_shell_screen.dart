@@ -268,10 +268,12 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
               ),
             ],
           ),
-          bottomNavigationBar: AppBottomNav(
-            currentIndex: currentIndex,
-            onTap: _onTapTab,
-            hapticsEnabled: settings.haptics,
+          bottomNavigationBar: RepaintBoundary(
+            child: AppBottomNav(
+              currentIndex: currentIndex,
+              onTap: _onTapTab,
+              hapticsEnabled: settings.haptics,
+            ),
           ),
           floatingActionButton: currentIndex == 0 ? _composeFab(context) : null,
         );

@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
@@ -6,7 +8,8 @@ import 'app_typography.dart';
 class AppTheme {
   const AppTheme._();
 
-  static final Map<int, ThemeData> _themeCache = {};
+  static final LinkedHashMap<int, ThemeData> _themeCache =
+      LinkedHashMap<int, ThemeData>();
 
   static DynamicSchemeVariant _variant(Md3Variant variant) {
     return switch (variant) {
@@ -48,7 +51,7 @@ class AppTheme {
   }
 
   static ThemeData themed(UiSettingsState settings, Brightness brightness) {
-    final int cacheKey = settings.seedColor.value ^ brightness.index ^ settings.variant.index ^ (settings.predictiveBackEnabled ? 1 : 0);
+    final int cacheKey = settings.seedColor.toARGB32() ^ brightness.index ^ settings.variant.index ^ (settings.predictiveBackEnabled ? 1 : 0);
     final ThemeData? cached = _themeCache[cacheKey];
     if (cached != null) return cached;
 
@@ -278,8 +281,10 @@ class AppTheme {
         },
       ),
     );
-    if (_themeCache.length > 20) _themeCache.clear();
     _themeCache[cacheKey] = theme;
+    while (_themeCache.length > 20) {
+      _themeCache.remove(_themeCache.keys.first);
+    }
     return theme;
   }
 }

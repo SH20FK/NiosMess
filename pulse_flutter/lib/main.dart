@@ -2,8 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:pulse_flutter/core/diagnostics/app_logger.dart';
@@ -66,24 +65,62 @@ class PulseApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final UiSettingsState settings = ref.watch(uiSettingsProvider);
+    final ThemeMode themeMode =
+        ref.watch(uiSettingsProvider.select((s) => s.themeMode));
+    final Color seedColor =
+        ref.watch(uiSettingsProvider.select((s) => s.seedColor));
+    final String? localeCode =
+        ref.watch(uiSettingsProvider.select((s) => s.localeCode));
+    final AppTimeZoneMode timeZoneMode =
+        ref.watch(uiSettingsProvider.select((s) => s.timeZoneMode));
+    final String? timeZoneId =
+        ref.watch(uiSettingsProvider.select((s) => s.timeZoneId));
+    final Md3Variant variant =
+        ref.watch(uiSettingsProvider.select((s) => s.variant));
+    final bool predictiveBackEnabled =
+        ref.watch(uiSettingsProvider.select((s) => s.predictiveBackEnabled));
     final GoRouter router = ref.watch(appRouterProvider);
     final String systemLanguageCode =
         WidgetsBinding.instance.platformDispatcher.locale.languageCode;
-    final String localeCode = settings.effectiveLocaleCode(systemLanguageCode);
-    final Locale? appLocale = settings.localeCode == null
-        ? null
-        : Locale(localeCode);
+    final String normalized = (localeCode ?? '').trim().toLowerCase();
+    final String effectiveLocaleCode =
+        (normalized == 'ru' || normalized == 'en')
+            ? normalized
+            : systemLanguageCode.toLowerCase().startsWith('ru')
+                ? 'ru'
+                : 'en';
+    final Locale? appLocale =
+        localeCode == null ? null : Locale(effectiveLocaleCode);
 
     AppTimeSettings.configure(
+      localeCode: effectiveLocaleCode,
+      timeZoneMode: timeZoneMode,
+      timeZoneId: timeZoneId,
+    );
+
+    final UiSettingsState settingsForTheme = UiSettingsState(
+      themeMode: themeMode,
+      variant: variant,
+      seedColor: seedColor,
+      notifications: false,
+      darkCallBackdrop: false,
+      compactMode: false,
+      haptics: false,
+      hideOnline: false,
+      soundEffects: false,
+      soundVolume: 0,
       localeCode: localeCode,
-      timeZoneMode: settings.timeZoneMode,
-      timeZoneId: settings.timeZoneId,
+      timeZoneMode: timeZoneMode,
+      timeZoneId: timeZoneId,
+      optimizeForWeakDevices: false,
+      predictiveBackEnabled: predictiveBackEnabled,
+      backgroundMode: BackgroundMode.off,
     );
 
     return MaterialApp.router(
       onGenerateTitle: (BuildContext context) => context.l10n.appName,
       debugShowCheckedModeBanner: false,
+      showPerformanceOverlay: kDebugMode,
       locale: appLocale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
@@ -92,35 +129,12 @@ class PulseApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: AppTheme.themed(settings, Brightness.light),
-      darkTheme: AppTheme.themed(settings, Brightness.dark),
-      themeMode: settings.themeMode,
+      theme: AppTheme.themed(settingsForTheme, Brightness.light),
+      darkTheme: AppTheme.themed(settingsForTheme, Brightness.dark),
+      themeMode: themeMode,
       routerConfig: router,
       builder: (BuildContext context, Widget? child) {
-        return Shortcuts(
-          shortcuts: <LogicalKeySet, Intent>{
-            LogicalKeySet(LogicalKeyboardKey.escape): const DismissIntent(),
-          },
-          child: Actions(
-            actions: <Type, Action<Intent>>{
-              DismissIntent: CallbackAction<DismissIntent>(
-                onInvoke: (DismissIntent intent) {
-                  if (router.canPop()) {
-                    router.pop();
-                    return true;
-                  }
-                  final String currentPath = router.routerDelegate.currentConfiguration.uri.path;
-                  if (currentPath != '/main/chats' && currentPath != '/') {
-                    router.go('/main/chats');
-                    return true;
-                  }
-                  return false;
-                },
-              ),
-            },
-            child: child ?? const SizedBox.shrink(),
-          ),
-        );
+        return child ?? const SizedBox.shrink();
       },
     );
   }
