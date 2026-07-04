@@ -137,9 +137,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          Localizations.localeOf(context).languageCode == 'ru'
-                              ? 'Заполните данные для создания аккаунта'
-                              : 'Fill in the details to create an account',
+                          context.l10n.registerSubtitle,
                           textAlign: TextAlign.center,
                           style: textTheme.bodyMedium?.copyWith(
                             color: scheme.onSurfaceVariant,

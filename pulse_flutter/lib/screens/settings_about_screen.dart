@@ -294,7 +294,7 @@ class _AnimatedTagline extends StatelessWidget {
         return Opacity(
           opacity: opacity.value,
           child: Text(
-            'Мессенджер нового поколения',
+            context.l10n.aboutTagline,
             style: textTheme.bodyLarge?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
@@ -515,63 +515,16 @@ class _FaqTab extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     final List<(String, String)> faqs = <(String, String)>[
-      (
-        'Что такое секретные чаты и чем они отличаются от обычных?',
-        'Секретные чаты используют сквозное шифрование E2EE (RSA-2048 + AES-256-GCM). '
-            'Сообщения шифруются на вашем устройстве и расшифровываются только на устройстве получателя. '
-            'Сервер не имеет доступа к содержимому. Обычные чаты шифруются при передаче (AES-256-GCM), '
-            'но сервер может прочитать сообщения.',
-      ),
-      (
-        'Как создать секретный чат?',
-        'Откройте вкладку «Контакты», найдите пользователя и нажмите на иконку замка рядом с его именем. '
-            'Или зайдите в его профиль и нажмите «Секретный чат». Ключи генерируются автоматически на ваших устройствах.',
-      ),
-      (
-        'Что произойдёт, если я потеряю устройство?',
-        'Секретные чаты привязаны к конкретному устройству — ключи хранятся только на нём. '
-            'Потеря устройства означает потерю доступа к истории секретных чатов. '
-            'Обычные чаты восстанавливаются при входе с нового устройства.',
-      ),
-      (
-        'Можно ли использовать NiosMess на нескольких устройствах?',
-        'Да, обычные чаты синхронизируются между устройствами. Секретные чаты — нет, '
-            'они привязаны к одному устройству. Чтобы общаться с секретного чата на новом устройстве, '
-            'нужно создать новый секретный чат с тем же пользователем.',
-      ),
-      (
-        'Как присоединиться к группе или каналу?',
-        'Нажмите «+» на вкладке «Чаты» → «Присоединиться к группе». Введите код приглашения (slug) '
-            'или откройте ссылку-приглашение. Коды выдаёт создатель группы.',
-      ),
-      (
-        'Какие файлы можно отправлять?',
-        'Изображения, видео, документы (PDF, DOC, XLS и др.), аудио и голосовые сообщения. '
-            'Максимальный размер файла — 100 МБ. Изображения автоматически сжимаются для экономии трафика.',
-      ),
-      (
-        'Что такое NiosGram и чем он отличается от обычных чатов?',
-        'NiosGram — это лента постов в стиле соцсети. Вы можете писать посты с Markdown-разметкой, '
-            'прикреплять медиа, ставить лайки/дизлайки, комментировать и подписываться на авторов. '
-            'В отличие от чатов, контент публичный и доступен всем пользователям.',
-      ),
-      (
-        'Как работает ИИ-помощник в чатах?',
-        'ИИ-помощник исправляет ошибки, формализует текст и переводит на другие языки. '
-            'Выделите сообщение → нажмите «ИИ» → выберите действие. Текст обрабатывается '
-            'на сервере и не сохраняется после обработки.',
-      ),
-      (
-        'Где хранятся мои данные?',
-        'Обычные сообщения хранятся на сервере в зашифрованном виде. Секретные чаты — '
-            'только на ваших устройствах. Локальный кеш сообщений шифруется AES-256-GCM '
-            'с ключом, хранящимся в безопасном хранилище устройства (Keystore/Keychain).',
-      ),
-      (
-        'Как сообщить о баге или предложить улучшение?',
-        'Настройки → О NiosMess → нажмите на вкладку «🎉» → «Сообщить о проблеме». '
-            'Опишите проблему — письмо уйдёт на support@ni-os.ru. Или напишите напрямую.',
-      ),
+      (context.l10n.aboutFaqQ1, context.l10n.aboutFaqA1),
+      (context.l10n.aboutFaqQ2, context.l10n.aboutFaqA2),
+      (context.l10n.aboutFaqQ3, context.l10n.aboutFaqA3),
+      (context.l10n.aboutFaqQ4, context.l10n.aboutFaqA4),
+      (context.l10n.aboutFaqQ5, context.l10n.aboutFaqA5),
+      (context.l10n.aboutFaqQ6, context.l10n.aboutFaqA6),
+      (context.l10n.aboutFaqQ7, context.l10n.aboutFaqA7),
+      (context.l10n.aboutFaqQ8, context.l10n.aboutFaqA8),
+      (context.l10n.aboutFaqQ9, context.l10n.aboutFaqA9),
+      (context.l10n.aboutFaqQ10, context.l10n.aboutFaqA10),
     ];
 
     return ListView.builder(
@@ -625,35 +578,35 @@ class _ChangelogTab extends StatelessWidget {
     final List<_Release> releases = <_Release>[
       _Release(
         version: 'v2.1.0',
-        date: 'Июнь 2026',
+        date: context.l10n.aboutChangelogDateJune2026,
         changes: <String>[
-          'Предиктивный жест «Назад» (Android 13+)',
-          'Работа в фоне — экономный и надёжный режимы',
-          'Новые темы оформления и цветовые схемы',
-          'Оптимизация производительности списков чатов',
-          'Скриншот-защита в секретных чатах',
+          context.l10n.aboutChangelogV210C1,
+          context.l10n.aboutChangelogV210C2,
+          context.l10n.aboutChangelogV210C3,
+          context.l10n.aboutChangelogV210C4,
+          context.l10n.aboutChangelogV210C5,
         ],
       ),
       _Release(
         version: 'v2.0.5',
-        date: 'Март 2026',
+        date: context.l10n.aboutChangelogDateMarch2026,
         changes: <String>[
-          'Исправлены лаги при прокрутке в чатах',
-          'Обновлён эмодзи-пикер',
-          'Улучшены анимации переходов',
-          'Исправлена работа голосовых сообщений',
+          context.l10n.aboutChangelogV205C1,
+          context.l10n.aboutChangelogV205C2,
+          context.l10n.aboutChangelogV205C3,
+          context.l10n.aboutChangelogV205C4,
         ],
       ),
       _Release(
         version: 'v2.0.0',
-        date: 'Январь 2026',
+        date: context.l10n.aboutChangelogDateJanuary2026,
         changes: <String>[
-          'Полный редизайн приложения',
-          'Сквозное шифрование (E2EE) для секретных чатов',
-          'NiosGram — лента постов с реакциями и комментариями',
-          'ИИ-помощник: исправление ошибок, формализация, перевод',
-          'Групповые чаты и каналы',
-          'Голосовые и видео-звонки',
+          context.l10n.aboutChangelogV200C1,
+          context.l10n.aboutChangelogV200C2,
+          context.l10n.aboutChangelogV200C3,
+          context.l10n.aboutChangelogV200C4,
+          context.l10n.aboutChangelogV200C5,
+          context.l10n.aboutChangelogV200C6,
         ],
       ),
     ];
@@ -671,7 +624,7 @@ class _ChangelogTab extends StatelessWidget {
                 ? '${snapshot.data!.version}+${snapshot.data!.buildNumber}'
                 : '...';
             return Text(
-              'Текущая версия: $version',
+              context.l10n.aboutCurrentVersion(version),
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),

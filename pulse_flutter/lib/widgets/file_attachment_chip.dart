@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 
@@ -73,7 +74,7 @@ class FileAttachmentChip extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   child: Semantics(
                     button: true,
-                    label: 'Remove $fileName',
+                    label: context.l10n.semanticsRemove(fileName),
                     child: Icon(
                       Icons.close_rounded,
                       size: 18,

@@ -6151,6 +6151,306 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to follow user'**
   String get niosgramFailedFollow;
+
+  /// No description provided for @aboutTagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Next-gen messenger'**
+  String get aboutTagline;
+
+  /// No description provided for @aboutFaqQ1.
+  ///
+  /// In en, this message translates to:
+  /// **'What are secret chats and how are they different from regular ones?'**
+  String get aboutFaqQ1;
+
+  /// No description provided for @aboutFaqA1.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret chats use end-to-end encryption E2EE (RSA-2048 + AES-256-GCM). Messages are encrypted on your device and decrypted only on the recipient\'s device. The server has no access to the content. Regular chats are encrypted in transit (AES-256-GCM), but the server can read messages.'**
+  String get aboutFaqA1;
+
+  /// No description provided for @aboutFaqQ2.
+  ///
+  /// In en, this message translates to:
+  /// **'How to create a secret chat?'**
+  String get aboutFaqQ2;
+
+  /// No description provided for @aboutFaqA2.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the Contacts tab, find the user and tap the lock icon next to their name. Or go to their profile and tap Secret Chat. Keys are generated automatically on your devices.'**
+  String get aboutFaqA2;
+
+  /// No description provided for @aboutFaqQ3.
+  ///
+  /// In en, this message translates to:
+  /// **'What happens if I lose my device?'**
+  String get aboutFaqQ3;
+
+  /// No description provided for @aboutFaqA3.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret chats are tied to a specific device — keys are stored only on it. Losing a device means losing access to secret chat history. Regular chats are restored when you sign in from a new device.'**
+  String get aboutFaqA3;
+
+  /// No description provided for @aboutFaqQ4.
+  ///
+  /// In en, this message translates to:
+  /// **'Can I use NiosMess on multiple devices?'**
+  String get aboutFaqQ4;
+
+  /// No description provided for @aboutFaqA4.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, regular chats sync between devices. Secret chats do not — they are tied to one device. To communicate from a secret chat on a new device, you need to create a new secret chat with the same user.'**
+  String get aboutFaqA4;
+
+  /// No description provided for @aboutFaqQ5.
+  ///
+  /// In en, this message translates to:
+  /// **'How to join a group or channel?'**
+  String get aboutFaqQ5;
+
+  /// No description provided for @aboutFaqA5.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap \"+\" on the Chats tab → Join Group. Enter the invitation code (slug) or open the invite link. Codes are issued by the group creator.'**
+  String get aboutFaqA5;
+
+  /// No description provided for @aboutFaqQ6.
+  ///
+  /// In en, this message translates to:
+  /// **'What files can I send?'**
+  String get aboutFaqQ6;
+
+  /// No description provided for @aboutFaqA6.
+  ///
+  /// In en, this message translates to:
+  /// **'Images, videos, documents (PDF, DOC, XLS, etc.), audio and voice messages. Maximum file size is 100 MB. Images are automatically compressed to save traffic.'**
+  String get aboutFaqA6;
+
+  /// No description provided for @aboutFaqQ7.
+  ///
+  /// In en, this message translates to:
+  /// **'What is NiosGram and how is it different from regular chats?'**
+  String get aboutFaqQ7;
+
+  /// No description provided for @aboutFaqA7.
+  ///
+  /// In en, this message translates to:
+  /// **'NiosGram is a social-media-style post feed. You can write posts with Markdown formatting, attach media, like/dislike, comment and follow authors. Unlike chats, content is public and accessible to all users.'**
+  String get aboutFaqA7;
+
+  /// No description provided for @aboutFaqQ8.
+  ///
+  /// In en, this message translates to:
+  /// **'How does the AI assistant work in chats?'**
+  String get aboutFaqQ8;
+
+  /// No description provided for @aboutFaqA8.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI assistant corrects errors, formalizes text and translates to other languages. Select a message → tap AI → choose an action. The text is processed on the server and is not saved after processing.'**
+  String get aboutFaqA8;
+
+  /// No description provided for @aboutFaqQ9.
+  ///
+  /// In en, this message translates to:
+  /// **'Where is my data stored?'**
+  String get aboutFaqQ9;
+
+  /// No description provided for @aboutFaqA9.
+  ///
+  /// In en, this message translates to:
+  /// **'Regular messages are stored on the server encrypted. Secret chats exist only on your devices. The local message cache is encrypted with AES-256-GCM with a key stored in the device\'s secure storage (Keystore/Keychain).'**
+  String get aboutFaqA9;
+
+  /// No description provided for @aboutFaqQ10.
+  ///
+  /// In en, this message translates to:
+  /// **'How to report a bug or suggest an improvement?'**
+  String get aboutFaqQ10;
+
+  /// No description provided for @aboutFaqA10.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings → About NiosMess → tap the Changelog tab → Report a Problem. Describe the issue — the email will be sent to support@ni-os.ru. Or write directly.'**
+  String get aboutFaqA10;
+
+  /// No description provided for @aboutChangelogDateJune2026.
+  ///
+  /// In en, this message translates to:
+  /// **'June 2026'**
+  String get aboutChangelogDateJune2026;
+
+  /// No description provided for @aboutChangelogDateMarch2026.
+  ///
+  /// In en, this message translates to:
+  /// **'March 2026'**
+  String get aboutChangelogDateMarch2026;
+
+  /// No description provided for @aboutChangelogDateJanuary2026.
+  ///
+  /// In en, this message translates to:
+  /// **'January 2026'**
+  String get aboutChangelogDateJanuary2026;
+
+  /// No description provided for @aboutChangelogV210C1.
+  ///
+  /// In en, this message translates to:
+  /// **'Predictive back gesture (Android 13+)'**
+  String get aboutChangelogV210C1;
+
+  /// No description provided for @aboutChangelogV210C2.
+  ///
+  /// In en, this message translates to:
+  /// **'Background modes — economy and reliable'**
+  String get aboutChangelogV210C2;
+
+  /// No description provided for @aboutChangelogV210C3.
+  ///
+  /// In en, this message translates to:
+  /// **'New themes and color schemes'**
+  String get aboutChangelogV210C3;
+
+  /// No description provided for @aboutChangelogV210C4.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat list performance optimizations'**
+  String get aboutChangelogV210C4;
+
+  /// No description provided for @aboutChangelogV210C5.
+  ///
+  /// In en, this message translates to:
+  /// **'Screenshot protection in secret chats'**
+  String get aboutChangelogV210C5;
+
+  /// No description provided for @aboutChangelogV205C1.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed chat scroll lags'**
+  String get aboutChangelogV205C1;
+
+  /// No description provided for @aboutChangelogV205C2.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated emoji picker'**
+  String get aboutChangelogV205C2;
+
+  /// No description provided for @aboutChangelogV205C3.
+  ///
+  /// In en, this message translates to:
+  /// **'Improved transition animations'**
+  String get aboutChangelogV205C3;
+
+  /// No description provided for @aboutChangelogV205C4.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed voice message playback'**
+  String get aboutChangelogV205C4;
+
+  /// No description provided for @aboutChangelogV200C1.
+  ///
+  /// In en, this message translates to:
+  /// **'Full app redesign'**
+  String get aboutChangelogV200C1;
+
+  /// No description provided for @aboutChangelogV200C2.
+  ///
+  /// In en, this message translates to:
+  /// **'End-to-end encryption (E2EE) for secret chats'**
+  String get aboutChangelogV200C2;
+
+  /// No description provided for @aboutChangelogV200C3.
+  ///
+  /// In en, this message translates to:
+  /// **'NiosGram — post feed with reactions and comments'**
+  String get aboutChangelogV200C3;
+
+  /// No description provided for @aboutChangelogV200C4.
+  ///
+  /// In en, this message translates to:
+  /// **'AI assistant: error correction, formalization, translation'**
+  String get aboutChangelogV200C4;
+
+  /// No description provided for @aboutChangelogV200C5.
+  ///
+  /// In en, this message translates to:
+  /// **'Group chats and channels'**
+  String get aboutChangelogV200C5;
+
+  /// No description provided for @aboutChangelogV200C6.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice and video calls'**
+  String get aboutChangelogV200C6;
+
+  /// No description provided for @aboutCurrentVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Current version: {version}'**
+  String aboutCurrentVersion(Object version);
+
+  /// No description provided for @registerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the details to create an account'**
+  String get registerSubtitle;
+
+  /// No description provided for @chatMembersActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Action failed: {error}'**
+  String chatMembersActionFailed(Object error);
+
+  /// No description provided for @semanticsToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle'**
+  String get semanticsToggle;
+
+  /// No description provided for @semanticsSegmentSelector.
+  ///
+  /// In en, this message translates to:
+  /// **'Segment selector'**
+  String get semanticsSegmentSelector;
+
+  /// No description provided for @semanticsClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get semanticsClose;
+
+  /// No description provided for @semanticsRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {fileName}'**
+  String semanticsRemove(Object fileName);
+
+  /// No description provided for @semanticsAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} avatar'**
+  String semanticsAvatar(Object name);
+
+  /// No description provided for @semanticsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'on'**
+  String get semanticsOn;
+
+  /// No description provided for @semanticsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'off'**
+  String get semanticsOff;
+
+  /// No description provided for @dialogCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get dialogCancel;
 }
 
 class _AppLocalizationsDelegate

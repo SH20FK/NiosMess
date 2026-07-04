@@ -3383,4 +3383,177 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get niosgramFailedFollow => 'Failed to follow user';
+
+  @override
+  String get aboutTagline => 'Next-gen messenger';
+
+  @override
+  String get aboutFaqQ1 =>
+      'What are secret chats and how are they different from regular ones?';
+
+  @override
+  String get aboutFaqA1 =>
+      'Secret chats use end-to-end encryption E2EE (RSA-2048 + AES-256-GCM). Messages are encrypted on your device and decrypted only on the recipient\'s device. The server has no access to the content. Regular chats are encrypted in transit (AES-256-GCM), but the server can read messages.';
+
+  @override
+  String get aboutFaqQ2 => 'How to create a secret chat?';
+
+  @override
+  String get aboutFaqA2 =>
+      'Open the Contacts tab, find the user and tap the lock icon next to their name. Or go to their profile and tap Secret Chat. Keys are generated automatically on your devices.';
+
+  @override
+  String get aboutFaqQ3 => 'What happens if I lose my device?';
+
+  @override
+  String get aboutFaqA3 =>
+      'Secret chats are tied to a specific device — keys are stored only on it. Losing a device means losing access to secret chat history. Regular chats are restored when you sign in from a new device.';
+
+  @override
+  String get aboutFaqQ4 => 'Can I use NiosMess on multiple devices?';
+
+  @override
+  String get aboutFaqA4 =>
+      'Yes, regular chats sync between devices. Secret chats do not — they are tied to one device. To communicate from a secret chat on a new device, you need to create a new secret chat with the same user.';
+
+  @override
+  String get aboutFaqQ5 => 'How to join a group or channel?';
+
+  @override
+  String get aboutFaqA5 =>
+      'Tap \"+\" on the Chats tab → Join Group. Enter the invitation code (slug) or open the invite link. Codes are issued by the group creator.';
+
+  @override
+  String get aboutFaqQ6 => 'What files can I send?';
+
+  @override
+  String get aboutFaqA6 =>
+      'Images, videos, documents (PDF, DOC, XLS, etc.), audio and voice messages. Maximum file size is 100 MB. Images are automatically compressed to save traffic.';
+
+  @override
+  String get aboutFaqQ7 =>
+      'What is NiosGram and how is it different from regular chats?';
+
+  @override
+  String get aboutFaqA7 =>
+      'NiosGram is a social-media-style post feed. You can write posts with Markdown formatting, attach media, like/dislike, comment and follow authors. Unlike chats, content is public and accessible to all users.';
+
+  @override
+  String get aboutFaqQ8 => 'How does the AI assistant work in chats?';
+
+  @override
+  String get aboutFaqA8 =>
+      'The AI assistant corrects errors, formalizes text and translates to other languages. Select a message → tap AI → choose an action. The text is processed on the server and is not saved after processing.';
+
+  @override
+  String get aboutFaqQ9 => 'Where is my data stored?';
+
+  @override
+  String get aboutFaqA9 =>
+      'Regular messages are stored on the server encrypted. Secret chats exist only on your devices. The local message cache is encrypted with AES-256-GCM with a key stored in the device\'s secure storage (Keystore/Keychain).';
+
+  @override
+  String get aboutFaqQ10 => 'How to report a bug or suggest an improvement?';
+
+  @override
+  String get aboutFaqA10 =>
+      'Settings → About NiosMess → tap the Changelog tab → Report a Problem. Describe the issue — the email will be sent to support@ni-os.ru. Or write directly.';
+
+  @override
+  String get aboutChangelogDateJune2026 => 'June 2026';
+
+  @override
+  String get aboutChangelogDateMarch2026 => 'March 2026';
+
+  @override
+  String get aboutChangelogDateJanuary2026 => 'January 2026';
+
+  @override
+  String get aboutChangelogV210C1 => 'Predictive back gesture (Android 13+)';
+
+  @override
+  String get aboutChangelogV210C2 => 'Background modes — economy and reliable';
+
+  @override
+  String get aboutChangelogV210C3 => 'New themes and color schemes';
+
+  @override
+  String get aboutChangelogV210C4 => 'Chat list performance optimizations';
+
+  @override
+  String get aboutChangelogV210C5 => 'Screenshot protection in secret chats';
+
+  @override
+  String get aboutChangelogV205C1 => 'Fixed chat scroll lags';
+
+  @override
+  String get aboutChangelogV205C2 => 'Updated emoji picker';
+
+  @override
+  String get aboutChangelogV205C3 => 'Improved transition animations';
+
+  @override
+  String get aboutChangelogV205C4 => 'Fixed voice message playback';
+
+  @override
+  String get aboutChangelogV200C1 => 'Full app redesign';
+
+  @override
+  String get aboutChangelogV200C2 =>
+      'End-to-end encryption (E2EE) for secret chats';
+
+  @override
+  String get aboutChangelogV200C3 =>
+      'NiosGram — post feed with reactions and comments';
+
+  @override
+  String get aboutChangelogV200C4 =>
+      'AI assistant: error correction, formalization, translation';
+
+  @override
+  String get aboutChangelogV200C5 => 'Group chats and channels';
+
+  @override
+  String get aboutChangelogV200C6 => 'Voice and video calls';
+
+  @override
+  String aboutCurrentVersion(Object version) {
+    return 'Current version: $version';
+  }
+
+  @override
+  String get registerSubtitle => 'Fill in the details to create an account';
+
+  @override
+  String chatMembersActionFailed(Object error) {
+    return 'Action failed: $error';
+  }
+
+  @override
+  String get semanticsToggle => 'Toggle';
+
+  @override
+  String get semanticsSegmentSelector => 'Segment selector';
+
+  @override
+  String get semanticsClose => 'Close';
+
+  @override
+  String semanticsRemove(Object fileName) {
+    return 'Remove $fileName';
+  }
+
+  @override
+  String semanticsAvatar(Object name) {
+    return '$name avatar';
+  }
+
+  @override
+  String get semanticsOn => 'on';
+
+  @override
+  String get semanticsOff => 'off';
+
+  @override
+  String get dialogCancel => 'Cancel';
 }

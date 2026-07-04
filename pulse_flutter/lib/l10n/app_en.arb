@@ -1470,5 +1470,81 @@
   },
   "niosgramLoadComments": "Load comments",
   "niosgramCommentSent": "Comment sent",
-  "niosgramFailedFollow": "Failed to follow user"
+  "niosgramFailedFollow": "Failed to follow user",
+  "aboutTagline": "Next-gen messenger",
+  "aboutFaqQ1": "What are secret chats and how are they different from regular ones?",
+  "aboutFaqA1": "Secret chats use end-to-end encryption E2EE (RSA-2048 + AES-256-GCM). Messages are encrypted on your device and decrypted only on the recipient's device. The server has no access to the content. Regular chats are encrypted in transit (AES-256-GCM), but the server can read messages.",
+  "aboutFaqQ2": "How to create a secret chat?",
+  "aboutFaqA2": "Open the Contacts tab, find the user and tap the lock icon next to their name. Or go to their profile and tap Secret Chat. Keys are generated automatically on your devices.",
+  "aboutFaqQ3": "What happens if I lose my device?",
+  "aboutFaqA3": "Secret chats are tied to a specific device — keys are stored only on it. Losing a device means losing access to secret chat history. Regular chats are restored when you sign in from a new device.",
+  "aboutFaqQ4": "Can I use NiosMess on multiple devices?",
+  "aboutFaqA4": "Yes, regular chats sync between devices. Secret chats do not — they are tied to one device. To communicate from a secret chat on a new device, you need to create a new secret chat with the same user.",
+  "aboutFaqQ5": "How to join a group or channel?",
+  "aboutFaqA5": "Tap \"+\" on the Chats tab → Join Group. Enter the invitation code (slug) or open the invite link. Codes are issued by the group creator.",
+  "aboutFaqQ6": "What files can I send?",
+  "aboutFaqA6": "Images, videos, documents (PDF, DOC, XLS, etc.), audio and voice messages. Maximum file size is 100 MB. Images are automatically compressed to save traffic.",
+  "aboutFaqQ7": "What is NiosGram and how is it different from regular chats?",
+  "aboutFaqA7": "NiosGram is a social-media-style post feed. You can write posts with Markdown formatting, attach media, like/dislike, comment and follow authors. Unlike chats, content is public and accessible to all users.",
+  "aboutFaqQ8": "How does the AI assistant work in chats?",
+  "aboutFaqA8": "The AI assistant corrects errors, formalizes text and translates to other languages. Select a message → tap AI → choose an action. The text is processed on the server and is not saved after processing.",
+  "aboutFaqQ9": "Where is my data stored?",
+  "aboutFaqA9": "Regular messages are stored on the server encrypted. Secret chats exist only on your devices. The local message cache is encrypted with AES-256-GCM with a key stored in the device's secure storage (Keystore/Keychain).",
+  "aboutFaqQ10": "How to report a bug or suggest an improvement?",
+  "aboutFaqA10": "Settings → About NiosMess → tap the Changelog tab → Report a Problem. Describe the issue — the email will be sent to support@ni-os.ru. Or write directly.",
+  "aboutChangelogDateJune2026": "June 2026",
+  "aboutChangelogDateMarch2026": "March 2026",
+  "aboutChangelogDateJanuary2026": "January 2026",
+  "aboutChangelogV210C1": "Predictive back gesture (Android 13+)",
+  "aboutChangelogV210C2": "Background modes — economy and reliable",
+  "aboutChangelogV210C3": "New themes and color schemes",
+  "aboutChangelogV210C4": "Chat list performance optimizations",
+  "aboutChangelogV210C5": "Screenshot protection in secret chats",
+  "aboutChangelogV205C1": "Fixed chat scroll lags",
+  "aboutChangelogV205C2": "Updated emoji picker",
+  "aboutChangelogV205C3": "Improved transition animations",
+  "aboutChangelogV205C4": "Fixed voice message playback",
+  "aboutChangelogV200C1": "Full app redesign",
+  "aboutChangelogV200C2": "End-to-end encryption (E2EE) for secret chats",
+  "aboutChangelogV200C3": "NiosGram — post feed with reactions and comments",
+  "aboutChangelogV200C4": "AI assistant: error correction, formalization, translation",
+  "aboutChangelogV200C5": "Group chats and channels",
+  "aboutChangelogV200C6": "Voice and video calls",
+  "aboutCurrentVersion": "Current version: {version}",
+  "@aboutCurrentVersion": {
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "registerSubtitle": "Fill in the details to create an account",
+  "chatManageCopied": "{title} copied",
+  "@chatManageCopied": {
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "chatMembersActionFailed": "Action failed: {error}",
+  "@chatMembersActionFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "semanticsToggle": "Toggle",
+  "semanticsSegmentSelector": "Segment selector",
+  "semanticsClose": "Close",
+  "semanticsRemove": "Remove {fileName}",
+  "@semanticsRemove": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "semanticsAvatar": "{name} avatar",
+  "@semanticsAvatar": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "semanticsOn": "on",
+  "semanticsOff": "off",
+  "dialogCancel": "Cancel"
 }

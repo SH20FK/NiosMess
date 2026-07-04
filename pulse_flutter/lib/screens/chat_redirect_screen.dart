@@ -61,7 +61,7 @@ class _ChatRedirectScreenState extends ConsumerState<ChatRedirectScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('NiosMess')),
+      appBar: AppBar(title: Text(context.l10n.appName)),
       body: PulseScaffoldBody(
         maxWidth: 560,
         child: Center(

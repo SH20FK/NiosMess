@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 
 class PulseAvatar extends StatelessWidget {
@@ -86,7 +87,7 @@ class PulseAvatar extends StatelessWidget {
           );
 
     return Semantics(
-      label: '$name avatar',
+      label: context.l10n.semanticsAvatar(name),
       image: true,
       child: avatar,
     );

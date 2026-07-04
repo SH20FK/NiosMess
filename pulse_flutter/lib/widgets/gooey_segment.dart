@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 
 class GooeySegment extends StatefulWidget {
   const GooeySegment({
@@ -60,7 +61,7 @@ class _GooeySegmentState extends State<GooeySegment>
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return Semantics(
-      label: 'Segment selector',
+      label: context.l10n.semanticsSegmentSelector,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final double totalWidth = constraints.maxWidth;

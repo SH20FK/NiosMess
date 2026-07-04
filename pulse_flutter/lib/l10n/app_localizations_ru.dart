@@ -3353,49 +3353,225 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsBackgroundNotAvailableDesc => 'Доступно только на Android';
 
   @override
-  String get deepLinkResolving => 'Resolving link...';
+  String get deepLinkResolving => 'Загрузка ссылки...';
 
   @override
-  String get deepLinkNotFound => 'Content not found';
+  String get deepLinkNotFound => 'Контент не найден';
 
   @override
-  String get notificationsTitle => 'Notifications';
+  String get notificationsTitle => 'Уведомления';
 
   @override
-  String get notificationsEmpty => 'No notifications yet';
+  String get notificationsEmpty => 'Уведомлений пока нет';
 
   @override
   String notificationsMentionBody(Object username) {
-    return '$username mentioned you in a post';
+    return '$username упомянул вас в посте';
   }
 
   @override
   String notificationsNewMessageBody(Object chatName) {
-    return 'New message in $chatName';
+    return 'Новое сообщение в $chatName';
   }
 
   @override
-  String get niosgramFollow => 'Follow';
+  String get niosgramFollow => 'Подписаться';
 
   @override
-  String get niosgramUnfollow => 'Unfollow';
+  String get niosgramUnfollow => 'Отписаться';
 
   @override
   String niosgramFollowers(Object count) {
-    return '$count followers';
+    return '$count подписчиков';
   }
 
   @override
   String niosgramFollowing(Object count) {
-    return '$count following';
+    return '$count подписок';
   }
 
   @override
-  String get niosgramLoadComments => 'Load comments';
+  String get niosgramLoadComments => 'Загрузить комментарии';
 
   @override
-  String get niosgramCommentSent => 'Comment sent';
+  String get niosgramCommentSent => 'Комментарий отправлен';
 
   @override
-  String get niosgramFailedFollow => 'Failed to follow user';
+  String get niosgramFailedFollow => 'Не удалось подписаться';
+
+  @override
+  String get aboutTagline => 'Мессенджер нового поколения';
+
+  @override
+  String get aboutFaqQ1 =>
+      'Что такое секретные чаты и чем они отличаются от обычных?';
+
+  @override
+  String get aboutFaqA1 =>
+      'Секретные чаты используют сквозное шифрование E2EE (RSA-2048 + AES-256-GCM). Сообщения шифруются на вашем устройстве и расшифровываются только на устройстве получателя. Сервер не имеет доступа к содержимому. Обычные чаты шифруются при передаче (AES-256-GCM), но сервер может прочитать сообщения.';
+
+  @override
+  String get aboutFaqQ2 => 'Как создать секретный чат?';
+
+  @override
+  String get aboutFaqA2 =>
+      'Откройте вкладку «Контакты», найдите пользователя и нажмите на иконку замка рядом с его именем. Или зайдите в его профиль и нажмите «Секретный чат». Ключи генерируются автоматически на ваших устройствах.';
+
+  @override
+  String get aboutFaqQ3 => 'Что произойдёт, если я потеряю устройство?';
+
+  @override
+  String get aboutFaqA3 =>
+      'Секретные чаты привязаны к конкретному устройству — ключи хранятся только на нём. Потеря устройства означает потерю доступа к истории секретных чатов. Обычные чаты восстанавливаются при входе с нового устройства.';
+
+  @override
+  String get aboutFaqQ4 =>
+      'Можно ли использовать NiosMess на нескольких устройствах?';
+
+  @override
+  String get aboutFaqA4 =>
+      'Да, обычные чаты синхронизируются между устройствами. Секретные чаты — нет, они привязаны к одному устройству. Чтобы общаться с секретного чата на новом устройстве, нужно создать новый секретный чат с тем же пользователем.';
+
+  @override
+  String get aboutFaqQ5 => 'Как присоединиться к группе или каналу?';
+
+  @override
+  String get aboutFaqA5 =>
+      'Нажмите «+» на вкладке «Чаты» → «Присоединиться к группе». Введите код приглашения (slug) или откройте ссылку-приглашение. Коды выдаёт создатель группы.';
+
+  @override
+  String get aboutFaqQ6 => 'Какие файлы можно отправлять?';
+
+  @override
+  String get aboutFaqA6 =>
+      'Изображения, видео, документы (PDF, DOC, XLS и др.), аудио и голосовые сообщения. Максимальный размер файла — 100 МБ. Изображения автоматически сжимаются для экономии трафика.';
+
+  @override
+  String get aboutFaqQ7 =>
+      'Что такое NiosGram и чем он отличается от обычных чатов?';
+
+  @override
+  String get aboutFaqA7 =>
+      'NiosGram — это лента постов в стиле соцсети. Вы можете писать посты с Markdown-разметкой, прикреплять медиа, ставить лайки/дизлайки, комментировать и подписываться на авторов. В отличие от чатов, контент публичный и доступен всем пользователям.';
+
+  @override
+  String get aboutFaqQ8 => 'Как работает ИИ-помощник в чатах?';
+
+  @override
+  String get aboutFaqA8 =>
+      'ИИ-помощник исправляет ошибки, формализует текст и переводит на другие языки. Выделите сообщение → нажмите «ИИ» → выберите действие. Текст обрабатывается на сервере и не сохраняется после обработки.';
+
+  @override
+  String get aboutFaqQ9 => 'Где хранятся мои данные?';
+
+  @override
+  String get aboutFaqA9 =>
+      'Обычные сообщения хранятся на сервере в зашифрованном виде. Секретные чаты — только на ваших устройствах. Локальный кеш сообщений шифруется AES-256-GCM с ключом, хранящимся в безопасном хранилище устройства (Keystore/Keychain).';
+
+  @override
+  String get aboutFaqQ10 => 'Как сообщить о баге или предложить улучшение?';
+
+  @override
+  String get aboutFaqA10 =>
+      'Настройки → О NiosMess → нажмите на вкладку «Changelog» → «Сообщить о проблеме». Опишите проблему — письмо уйдёт на support@ni-os.ru. Или напишите напрямую.';
+
+  @override
+  String get aboutChangelogDateJune2026 => 'Июнь 2026';
+
+  @override
+  String get aboutChangelogDateMarch2026 => 'Март 2026';
+
+  @override
+  String get aboutChangelogDateJanuary2026 => 'Январь 2026';
+
+  @override
+  String get aboutChangelogV210C1 => 'Предиктивный жест «Назад» (Android 13+)';
+
+  @override
+  String get aboutChangelogV210C2 =>
+      'Работа в фоне — экономный и надёжный режимы';
+
+  @override
+  String get aboutChangelogV210C3 => 'Новые темы оформления и цветовые схемы';
+
+  @override
+  String get aboutChangelogV210C4 =>
+      'Оптимизация производительности списков чатов';
+
+  @override
+  String get aboutChangelogV210C5 => 'Скриншот-защита в секретных чатах';
+
+  @override
+  String get aboutChangelogV205C1 => 'Исправлены лаги при прокрутке в чатах';
+
+  @override
+  String get aboutChangelogV205C2 => 'Обновлён эмодзи-пикер';
+
+  @override
+  String get aboutChangelogV205C3 => 'Улучшены анимации переходов';
+
+  @override
+  String get aboutChangelogV205C4 => 'Исправлена работа голосовых сообщений';
+
+  @override
+  String get aboutChangelogV200C1 => 'Полный редизайн приложения';
+
+  @override
+  String get aboutChangelogV200C2 =>
+      'Сквозное шифрование (E2EE) для секретных чатов';
+
+  @override
+  String get aboutChangelogV200C3 =>
+      'NiosGram — лента постов с реакциями и комментариями';
+
+  @override
+  String get aboutChangelogV200C4 =>
+      'ИИ-помощник: исправление ошибок, формализация, перевод';
+
+  @override
+  String get aboutChangelogV200C5 => 'Групповые чаты и каналы';
+
+  @override
+  String get aboutChangelogV200C6 => 'Голосовые и видео-звонки';
+
+  @override
+  String aboutCurrentVersion(Object version) {
+    return 'Текущая версия: $version';
+  }
+
+  @override
+  String get registerSubtitle => 'Заполните данные для создания аккаунта';
+
+  @override
+  String chatMembersActionFailed(Object error) {
+    return 'Ошибка: $error';
+  }
+
+  @override
+  String get semanticsToggle => 'Переключатель';
+
+  @override
+  String get semanticsSegmentSelector => 'Выбор сегмента';
+
+  @override
+  String get semanticsClose => 'Закрыть';
+
+  @override
+  String semanticsRemove(Object fileName) {
+    return 'Удалить $fileName';
+  }
+
+  @override
+  String semanticsAvatar(Object name) {
+    return 'Аватар $name';
+  }
+
+  @override
+  String get semanticsOn => 'вкл';
+
+  @override
+  String get semanticsOff => 'выкл';
+
+  @override
+  String get dialogCancel => 'Отмена';
 }

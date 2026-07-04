@@ -500,7 +500,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
               if (!context.mounted) return;
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(SnackBar(content: Text('$title copied')));
+              ).showSnackBar(SnackBar(content: Text(context.l10n.chatManageCopied(title))));
             },
             icon: Icon(Icons.copy_rounded, color: scheme.primary),
             tooltip: context.l10n.chatManageCopy,

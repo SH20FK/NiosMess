@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
 class JellySwitch extends StatefulWidget {
@@ -83,7 +84,7 @@ class _JellySwitchState extends State<JellySwitch> with SingleTickerProviderStat
     final scheme = Theme.of(context).colorScheme;
 
     return Semantics(
-      label: 'Toggle',
+      label: context.l10n.semanticsToggle,
       toggled: widget.value,
       child: GestureDetector(
         onTap: _toggle,

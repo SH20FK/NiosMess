@@ -178,7 +178,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : 'Failed: $e')),
+        SnackBar(content: Text(e is ApiException ? e.message : context.l10n.chatMembersActionFailed(e.toString()))),
       );
     } finally {
       if (mounted) setState(() => _actionBusy = false);

@@ -347,7 +347,7 @@ class _PostCardState extends ConsumerState<PostCard>
       PageRouteBuilder<void>(
         opaque: false,
         barrierColor: Colors.black,
-        barrierLabel: 'Close',
+        barrierLabel: context.l10n.semanticsClose,
         pageBuilder: (_, _, _) => _FullScreenImage(url: url),
         transitionsBuilder: (_, a1, _, child) {
           return FadeTransition(

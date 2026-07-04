@@ -426,7 +426,7 @@ class SettingsSwitchTile extends ConsumerWidget {
     final Color resolvedIconColor = iconColor ?? scheme.onSurfaceVariant;
 
     return Semantics(
-      label: '$title, ${value ? 'on' : 'off'}',
+      label: '$title, ${value ? context.l10n.semanticsOn : context.l10n.semanticsOff}',
       toggled: true,
       child: ListTile(
         titleAlignment: ListTileTitleAlignment.threeLine,
@@ -555,7 +555,7 @@ class SettingsConfirmDialog extends StatelessWidget {
     required this.title,
     required this.body,
     required this.confirmLabel,
-    this.cancelLabel = 'Cancel',
+    this.cancelLabel,
     this.destructive = false,
     super.key,
   });
@@ -563,7 +563,7 @@ class SettingsConfirmDialog extends StatelessWidget {
   final String title;
   final String body;
   final String confirmLabel;
-  final String cancelLabel;
+  final String? cancelLabel;
   final bool destructive;
 
   @override
@@ -572,7 +572,7 @@ class SettingsConfirmDialog extends StatelessWidget {
       title: title,
       actions: <AppDialogAction>[
         AppDialogAction(
-          label: cancelLabel,
+          label: cancelLabel ?? context.l10n.dialogCancel,
           onPressed: () => Navigator.of(context).pop(false),
         ),
         AppDialogAction(
