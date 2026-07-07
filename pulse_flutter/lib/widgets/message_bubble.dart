@@ -11,6 +11,7 @@ import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pulse_flutter/widgets/voice_message_player.dart';
 
 class MessageBubble extends ConsumerWidget {
   const MessageBubble({
@@ -39,6 +40,9 @@ class MessageBubble extends ConsumerWidget {
     this.isNextSame = false,
     this.animate = false,
     this.isE2ee = false,
+    this.isVoice = false,
+    this.isCircleVideo = false,
+    this.mediaDuration,
     super.key,
   });
 
@@ -67,6 +71,9 @@ class MessageBubble extends ConsumerWidget {
   final bool isPrevSame;
   final bool isNextSame;
   final bool animate;
+  final bool isVoice;
+  final bool isCircleVideo;
+  final int? mediaDuration;
 
   static const BorderRadius _mineRadiusNoneSame = BorderRadius.all(
     Radius.circular(16),
@@ -426,6 +433,63 @@ class MessageBubble extends ConsumerWidget {
     required TextTheme textTheme,
     required Color textColor,
   }) {
+    if (isVoice && mediaUrl != null && mediaUrl!.trim().isNotEmpty) {
+      return InkWell(
+        onTap: onOpenMedia,
+        onLongPress: onLongPressMedia,
+        borderRadius: BorderRadius.circular(12),
+        child: VoiceMessagePlayer(
+          audioUrl: mediaUrl!,
+          durationSeconds: mediaDuration ?? 0,
+          isMine: isMine,
+          scheme: scheme,
+        ),
+      );
+    }
+
+    if (isCircleVideo && mediaUrl != null && mediaUrl!.trim().isNotEmpty) {
+      return InkWell(
+        onTap: onOpenMedia,
+        onLongPress: onLongPressMedia,
+        borderRadius: BorderRadius.circular(12),
+        child: ClipOval(
+          child: CachedNetworkImage(
+            imageUrl: mediaUrl!,
+            cacheKey: '${mediaUrl}_circle_thumb',
+            width: 180,
+            height: 180,
+            fit: BoxFit.cover,
+            memCacheWidth: 360,
+            memCacheHeight: 360,
+            placeholder: (BuildContext context, String _) => Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                color: isMine
+                    ? scheme.onPrimary.withValues(alpha: 0.12)
+                    : scheme.surfaceContainerHigh,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.videocam_rounded, size: 32),
+            ),
+            errorWidget: (BuildContext context, String _, Object error) {
+              return Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  color: isMine
+                      ? scheme.onPrimary.withValues(alpha: 0.12)
+                      : scheme.surfaceContainerHigh,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.broken_image_rounded, size: 32),
+              );
+            },
+          ),
+        ),
+      );
+    }
+
     if (mediaIsImage) {
       return InkWell(
         onTap: onOpenMedia,

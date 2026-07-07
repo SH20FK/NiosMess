@@ -1125,11 +1125,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     final int fileSize = message.mediaSize ?? 0;
 
-    if (_isImageMedia(message, mediaUrl)) {
+    final MediaType mt = _detectMediaType(message, mediaUrl, typeInfo);
+    if (mt == MediaType.image || mt == MediaType.video) {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) =>
-              MediaViewerScreen(url: mediaUrl, title: title, isImage: true),
+          builder: (_) => MediaViewerScreen(
+            url: mediaUrl,
+            title: title,
+            mediaType: mt,
+          ),
         ),
       );
       return;
@@ -1142,6 +1146,29 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       mediaUrl: mediaUrl,
       onForward: () => _forwardMessage(message),
     );
+  }
+
+  MediaType _detectMediaType(
+    ApiMessage message,
+    String url,
+    FileTypeInfo typeInfo,
+  ) {
+    final String? mt = message.mediaType;
+    if (mt != null) {
+      if (mt.startsWith('image/')) return MediaType.image;
+      if (mt.startsWith('video/')) return MediaType.video;
+      if (mt == 'application/pdf') return MediaType.pdf;
+    }
+
+    final String ext = typeInfo.extension.toLowerCase();
+    if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg']
+        .contains(ext)) return MediaType.image;
+    if (['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v']
+        .contains(ext)) return MediaType.video;
+    if (ext == '.pdf') return MediaType.pdf;
+
+    if (_isImageMedia(message, url)) return MediaType.image;
+    return MediaType.other;
   }
 
   Future<void> _showMediaActions(

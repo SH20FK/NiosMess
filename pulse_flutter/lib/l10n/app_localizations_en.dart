@@ -24,6 +24,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabProfile => 'Profile';
 
   @override
+  String get commonCreate => 'Create';
+
+  @override
   String get commonContinue => 'Continue';
 
   @override
@@ -1259,6 +1262,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatAttachMedia => 'Attach media';
+
+  @override
+  String get chatCircleVideo => 'Circle video';
 
   @override
   String get chatMessageHint => 'Type a message';

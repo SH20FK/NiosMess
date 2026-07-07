@@ -59,9 +59,7 @@ class VaffuruThemeSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _VaffuruThemeSettingsScreenState
-    extends ConsumerState<VaffuruThemeSettingsScreen>
-    with SingleTickerProviderStateMixin {
-  static const Cubic _expressiveCurve = Cubic(0.2, 0.0, 0.0, 1.0);
+    extends ConsumerState<VaffuruThemeSettingsScreen> {
   static const Map<_DensityMode, _DensitySpec> _densitySpecs =
       <_DensityMode, _DensitySpec>{
     _DensityMode.soft: _DensitySpec(
@@ -116,7 +114,6 @@ class _VaffuruThemeSettingsScreenState
     _ThemePaletteId.rose: Color(0xFFB3265F),
   };
 
-  late final AnimationController _ambientController;
   late final PageController _palettePageController;
   late _ThemePaletteId _selectedPalette;
   _DensityMode _densityMode = _DensityMode.rich;
@@ -130,10 +127,6 @@ class _VaffuruThemeSettingsScreenState
   @override
   void initState() {
     super.initState();
-    _ambientController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 8000),
-    )..repeat(reverse: true);
     _selectedPalette = _paletteFromSeed(ref.read(uiSettingsProvider).seedColor);
     _palettePageController = PageController(
       initialPage: _paletteOrder.indexOf(_selectedPalette),
@@ -143,7 +136,6 @@ class _VaffuruThemeSettingsScreenState
 
   @override
   void dispose() {
-    _ambientController.dispose();
     _palettePageController.dispose();
     super.dispose();
   }
@@ -163,29 +155,6 @@ class _VaffuruThemeSettingsScreenState
     if (settings.haptics) {
       HapticService.tap();
     }
-  }
-
-  String _paletteLabel(_ThemePaletteId id) {
-    final l10n = context.l10n;
-    return switch (id) {
-      _ThemePaletteId.amethyst => l10n.appearanceLabelAmethyst,
-      _ThemePaletteId.lagoon => l10n.appearanceLabelLagoon,
-      _ThemePaletteId.meadow => l10n.appearanceLabelMeadow,
-      _ThemePaletteId.ember => l10n.appearanceLabelEmber,
-      _ThemePaletteId.orchid => l10n.appearanceLabelOrchid,
-      _ThemePaletteId.slate => l10n.appearanceLabelSlate,
-      _ThemePaletteId.sky => l10n.appearanceLabelSky,
-      _ThemePaletteId.rose => l10n.appearanceLabelRose,
-    };
-  }
-
-  String _densityLabel(_DensityMode densityMode) {
-    final l10n = context.l10n;
-    return switch (densityMode) {
-      _DensityMode.soft => l10n.appearanceDensitySoft,
-      _DensityMode.rich => l10n.appearanceDensityRich,
-      _DensityMode.expressive => l10n.appearanceDensityExpressive,
-    };
   }
 
   Map<_ThemePaletteId, ColorScheme> _buildPreviewSchemes(
@@ -224,6 +193,7 @@ class _VaffuruThemeSettingsScreenState
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final Brightness brightness = scheme.brightness;
     final previewSchemes = _buildPreviewSchemes(brightness, settings.variant);
+    final previewScheme = previewSchemes[_selectedPalette]!;
 
     return SettingsScaffold(
       title: context.l10n.appearancePersonalizationTitle,
@@ -234,17 +204,36 @@ class _VaffuruThemeSettingsScreenState
           subtitle: context.l10n.appearancePersonalizationSubtitle,
           iconColor: scheme.primary,
         ),
-        RepaintBoundary(
-          child: _ThemePreviewCard(
-            controller: _ambientController,
-            paletteLabel: _paletteLabel(_selectedPalette),
-            densityLabel: _densityLabel(_densityMode),
-            scheme: scheme,
-            settings: settings,
-            density: _density,
+        // 1. Живой предпросмотр чата с 3D tilt и анимированным переходом
+        _TiltCard(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 600),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) {
+              return ScaleTransition(
+                scale: Tween<double>(begin: 0.85, end: 1.0).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutBack,
+                  ),
+                ),
+                child: FadeTransition(opacity: animation, child: child),
+              );
+            },
+            child: _LiveChatPreview(
+              key: ValueKey(_selectedPalette),
+              scheme: previewScheme,
+            ),
           ),
         ),
         SizedBox(height: _density.sectionSpacing),
+        // 2. Интерактивные компоненты
+        RepaintBoundary(
+          child: _InteractiveComponentsPreview(scheme: previewScheme),
+        ),
+        SizedBox(height: _density.sectionSpacing),
+        // 3. Выбор палитры
         SettingsSection(
           title: context.l10n.appearancePaletteTitle,
           subtitle: context.l10n.appearancePaletteSubtitle,
@@ -260,7 +249,7 @@ class _VaffuruThemeSettingsScreenState
                 itemBuilder: (context, index) {
                   final palette = _paletteOrder[index];
                   final selected = palette == _selectedPalette;
-                  final previewScheme = previewSchemes[palette]!;
+                  final paletteScheme = previewSchemes[palette]!;
                   return GestureDetector(
                     onTap: () {
                       _playFeedback(settings);
@@ -287,7 +276,7 @@ class _VaffuruThemeSettingsScreenState
                       ),
                       padding: const EdgeInsets.all(6),
                       child: CustomPaint(
-                        painter: _PaletteOrbPainter(scheme: previewScheme),
+                        painter: _PaletteOrbPainter(scheme: paletteScheme),
                       ),
                     ),
                   );
@@ -295,7 +284,6 @@ class _VaffuruThemeSettingsScreenState
               ),
             ),
             const SizedBox(height: 12),
-            // Индикатор страницы
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(_paletteOrder.length, (index) {
@@ -320,6 +308,7 @@ class _VaffuruThemeSettingsScreenState
           ],
         ),
         SizedBox(height: _density.sectionSpacing * 0.25),
+        // 4. Плотность
         SettingsSection(
           title: context.l10n.appearanceDensityTitle,
           subtitle: context.l10n.appearanceDensitySubtitle,
@@ -388,6 +377,7 @@ class _VaffuruThemeSettingsScreenState
           ],
         ),
         SizedBox(height: _density.sectionSpacing * 0.25),
+        // 5. Дополнительные настройки
         SettingsSection(
           title: context.l10n.appearanceThemeParamsTitle,
           subtitle: context.l10n.appearanceThemeParamsSubtitle,
@@ -425,93 +415,163 @@ class _VaffuruThemeSettingsScreenState
   }
 }
 
-class _ThemePreviewCard extends StatelessWidget {
-  const _ThemePreviewCard({
-    required this.controller,
-    required this.paletteLabel,
-    required this.densityLabel,
-    required this.scheme,
-    required this.settings,
-    required this.density,
-  });
+class _TiltCard extends StatefulWidget {
+  const _TiltCard({super.key, required this.child});
 
-  final AnimationController controller;
-  final String paletteLabel;
-  final String densityLabel;
-  final ColorScheme scheme;
-  final UiSettingsState settings;
-  final _DensitySpec density;
+  final Widget child;
+
+  @override
+  State<_TiltCard> createState() => _TiltCardState();
+}
+
+class _TiltCardState extends State<_TiltCard> {
+  double _tiltX = 0;
+  double _tiltY = 0;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOutCubic,
-      height: density.heroHeight,
+    return MouseRegion(
+      onHover: (event) {
+        final size = context.size;
+        if (size != null) {
+          setState(() {
+            _tiltX = (event.localPosition.dy / size.height - 0.5) * 0.1;
+            _tiltY = (event.localPosition.dx / size.width - 0.5) * -0.1;
+          });
+        }
+      },
+      onExit: (_) => setState(() {
+        _tiltX = 0;
+        _tiltY = 0;
+      }),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.001)
+          ..rotateX(_tiltX)
+          ..rotateY(_tiltY),
+        transformAlignment: Alignment.center,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _LiveChatPreview extends StatelessWidget {
+  const _LiveChatPreview({super.key, required this.scheme});
+
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 280,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(density.heroSurfaceRadius + 4),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color.alphaBlend(
-              scheme.primary.withValues(alpha: 0.06),
-              scheme.surfaceContainerHigh,
-            ),
-            Color.alphaBlend(
-              scheme.tertiary.withValues(alpha: 0.04),
-              scheme.surfaceContainerLow,
-            ),
-          ],
-        ),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.12),
-        ),
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(28),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Stack(
+      child: Column(
         children: [
-          // GPU-фон без MaskFilter.blur
-          Positioned.fill(
-            child: _AmbientMeshBackground(
-              controller: controller,
-              scheme: scheme,
-              optimize: settings.optimizeForWeakDevices,
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(28),
+                topRight: Radius.circular(28),
+              ),
             ),
-          ),
-          // Вуаль для читаемости текста
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    scheme.surface.withValues(alpha: 0.0),
-                    scheme.surface.withValues(alpha: 0.35),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: scheme.primary,
+                  child: Icon(Icons.person, color: scheme.onPrimary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Алексей', style: TextStyle(
+                      color: scheme.onPrimaryContainer,
+                      fontWeight: FontWeight.bold,
+                    )),
+                    Text('был(а) недавно', style: TextStyle(
+                      color: scheme.onPrimaryContainer.withValues(alpha: 0.7),
+                      fontSize: 12,
+                    )),
                   ],
                 ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Text('Привет! Как дела?',
+                        style: TextStyle(color: scheme.onSurface)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: scheme.primary,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Text('Всё супер! 😊',
+                        style: TextStyle(color: scheme.onPrimary)),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          // Пилюли
-          Positioned(
-            left: density.heroTopInset,
-            right: density.heroTopInset,
-            top: density.heroTopInset,
-            child: Wrap(
-              spacing: density.heroPillSpacing,
-              runSpacing: density.heroPillSpacing,
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(28),
+                bottomRight: Radius.circular(28),
+              ),
+            ),
+            child: Row(
               children: [
-                _InfoPill(icon: Icons.auto_awesome, label: paletteLabel),
-                _InfoPill(icon: Icons.tune, label: densityLabel),
-                _InfoPill(
-                  icon: settings.themeMode == ThemeMode.dark
-                      ? Icons.dark_mode_rounded
-                      : Icons.light_mode_rounded,
-                  label: settings.themeMode == ThemeMode.dark
-                      ? context.l10n.appearanceLabelDark
-                      : context.l10n.appearanceLabelLight,
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Text('Сообщение...',
+                      style: TextStyle(color: scheme.onSurfaceVariant)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.send, color: scheme.onPrimary, size: 20),
                 ),
               ],
             ),
@@ -522,205 +582,86 @@ class _ThemePreviewCard extends StatelessWidget {
   }
 }
 
-class _AmbientMeshBackground extends StatelessWidget {
-  const _AmbientMeshBackground({
-    required this.controller,
-    required this.scheme,
-    required this.optimize,
-  });
+class _InteractiveComponentsPreview extends StatefulWidget {
+  const _InteractiveComponentsPreview({super.key, required this.scheme});
 
-  final AnimationController controller;
   final ColorScheme scheme;
-  final bool optimize;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = [
-      scheme.primary.withValues(alpha: 0.18),
-      scheme.secondary.withValues(alpha: 0.14),
-      scheme.tertiary.withValues(alpha: 0.12),
-      scheme.primaryContainer.withValues(alpha: 0.10),
-      scheme.secondaryContainer.withValues(alpha: 0.10),
-    ];
-
-    final count = optimize ? 3 : 5;
-
-    // Для слабых девайсов — статичный фон, без анимации
-    if (optimize) {
-      return Stack(
-        children: List.generate(count, (index) {
-          final seed = index * 1.618033988749895;
-          final size = 80.0 + (index % 3) * 60;
-          final color = colors[index % colors.length];
-          return Positioned(
-            left: -20 + (index * 35) % 200,
-            top: -20 + (index * 47) % 140,
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [color, color.withValues(alpha: 0.0)],
-                  stops: const [0.2, 1.0],
-                ),
-              ),
-            ),
-          );
-        }),
-      );
-    }
-
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, child) {
-        final t = controller.value * 2 * math.pi;
-        return Stack(
-          children: List.generate(count, (index) {
-            final dx = math.sin(t + index * 1.3) * 40;
-            final dy = math.cos(t * 0.7 + index * 0.9) * 30;
-            final seed = index * 1.618033988749895;
-            final size = 80.0 + (index % 3) * 60;
-            final color = colors[index % colors.length];
-            return Positioned(
-              left: -20 + (index * 35) % 200 + dx,
-              top: -20 + (index * 47) % 140 + dy,
-              child: Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [color, color.withValues(alpha: 0.0)],
-                    stops: const [0.2, 1.0],
-                  ),
-                ),
-              ),
-            );
-          }),
-        );
-      },
-    );
-  }
+  State<_InteractiveComponentsPreview> createState() =>
+      _InteractiveComponentsPreviewState();
 }
 
-class _ThemeHeroCard extends StatelessWidget {
-  const _ThemeHeroCard({
-    required this.controller,
-    required this.paletteLabel,
-    required this.densityLabel,
-    required this.scheme,
-    required this.settings,
-    required this.density,
-  });
-
-  final AnimationController controller;
-  final String paletteLabel;
-  final String densityLabel;
-  final ColorScheme scheme;
-  final UiSettingsState settings;
-  final _DensitySpec density;
+class _InteractiveComponentsPreviewState
+    extends State<_InteractiveComponentsPreview> {
+  bool _switchValue = true;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOutCubic,
-      height: density.heroHeight,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(density.heroSurfaceRadius + 4),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: <Color>[
-            Color.alphaBlend(
-              scheme.primary.withValues(alpha: 0.05),
-              scheme.surfaceContainerHigh,
+    return Theme(
+      data: Theme.of(context).copyWith(colorScheme: widget.scheme),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: widget.scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilterChip(
+                  label: const Text('Фото'),
+                  selected: true,
+                  onSelected: (_) {},
+                  selectedColor: widget.scheme.primaryContainer,
+                  checkmarkColor: widget.scheme.onPrimaryContainer,
+                ),
+                FilterChip(
+                  label: const Text('Видео'),
+                  selected: false,
+                  onSelected: (_) {},
+                ),
+                FilterChip(
+                  label: const Text('Файлы'),
+                  selected: false,
+                  onSelected: (_) {},
+                ),
+              ],
             ),
-            Color.alphaBlend(
-              scheme.tertiary.withValues(alpha: 0.035),
-              scheme.surfaceContainerLow,
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {},
+                    child: const Text('Подтвердить'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton(
+                  onPressed: () {},
+                  child: const Text('Отмена'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Уведомления',
+                  style: TextStyle(color: widget.scheme.onSurface)),
+                Switch(
+                  value: _switchValue,
+                  onChanged: (v) => setState(() => _switchValue = v),
+                ),
+              ],
             ),
           ],
         ),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.12)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: <Widget>[
-          Positioned.fill(
-            child: AnimatedBuilder(
-              animation: controller,
-              builder: (BuildContext context, Widget? child) {
-                final double t = _VaffuruThemeSettingsScreenState._expressiveCurve
-                    .transform(controller.value);
-                return CustomPaint(
-                  painter: _LiquidMeshPainter(
-                    progress: t,
-                    scheme: scheme,
-                    density: density,
-                    optimize: settings.optimizeForWeakDevices,
-                  ),
-                );
-              },
-            ),
-          ),
-          Positioned(
-            left: density.heroTopInset,
-            right: density.heroTopInset,
-            top: density.heroTopInset,
-            child: Wrap(
-              spacing: density.heroPillSpacing,
-              runSpacing: density.heroPillSpacing,
-              children: <Widget>[
-                _InfoPill(icon: Icons.auto_awesome, label: paletteLabel),
-                _InfoPill(icon: Icons.tune, label: densityLabel),
-                _InfoPill(
-                  icon: settings.themeMode == ThemeMode.dark
-                      ? Icons.dark_mode_rounded
-                      : Icons.light_mode_rounded,
-                   label: settings.themeMode == ThemeMode.dark ? context.l10n.appearanceLabelDark : context.l10n.appearanceLabelLight,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: scheme.surface.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, size: 16, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: textTheme.labelMedium?.copyWith(
-              color: scheme.onSurface,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -847,166 +788,5 @@ class _SwitchCardTile extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _LiquidMeshPainter extends CustomPainter {
-  const _LiquidMeshPainter({
-    required this.progress,
-    required this.scheme,
-    required this.density,
-    required this.optimize,
-  });
-
-  final double progress;
-  final ColorScheme scheme;
-  final _DensitySpec density;
-  final bool optimize;
-
-  static final List<Color Function(ColorScheme)> _backColors = <Color Function(ColorScheme)>[
-    (ColorScheme s) => s.primary,
-    (ColorScheme s) => s.secondary,
-    (ColorScheme s) => s.tertiary,
-    (ColorScheme s) => s.primaryContainer,
-    (ColorScheme s) => s.secondaryContainer,
-  ];
-
-  static final List<Color Function(ColorScheme)> _frontColors = <Color Function(ColorScheme)>[
-    (ColorScheme s) => s.tertiary,
-    (ColorScheme s) => s.primary,
-    (ColorScheme s) => s.secondaryContainer,
-    (ColorScheme s) => s.primaryContainer,
-  ];
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Rect rect = Offset.zero & size;
-    final Paint basePaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: <Color>[
-          Color.alphaBlend(
-            scheme.primary.withValues(alpha: 0.06),
-            scheme.surfaceContainerHigh,
-          ),
-          Color.alphaBlend(
-            scheme.secondary.withValues(alpha: 0.04),
-            scheme.surfaceContainerLow,
-          ),
-          Color.alphaBlend(
-            scheme.tertiary.withValues(alpha: 0.05),
-            scheme.surfaceContainerHighest,
-          ),
-        ],
-      ).createShader(rect);
-    canvas.drawRect(rect, basePaint);
-
-    final double t = progress * math.pi * 2;
-    final double amp = 30.0;
-    final double blurBoost = 2.0;
-
-    _drawMeshLayer(
-      canvas: canvas,
-      size: size,
-      t: t,
-      amp: amp,
-      blurBoost: blurBoost,
-      cols: optimize ? 2 : 4,
-      rows: optimize ? 2 : 3,
-      colorPickers: _backColors,
-      alpha: 0.14,
-      blurBase: optimize ? 52.0 : 38.0,
-      radiusFactor: 0.34,
-      blendMode: BlendMode.softLight,
-      speedMul: 0.6,
-      phaseOffset: 0.0,
-    );
-
-    _drawMeshLayer(
-      canvas: canvas,
-      size: size,
-      t: t,
-      amp: amp,
-      blurBoost: blurBoost,
-      cols: optimize ? 2 : 3,
-      rows: optimize ? 2 : 2,
-      colorPickers: _frontColors,
-      alpha: 0.16,
-      blurBase: optimize ? 44.0 : 28.0,
-      radiusFactor: 0.26,
-      blendMode: BlendMode.overlay,
-      speedMul: 1.0,
-      phaseOffset: 1.7,
-    );
-  }
-
-  void _drawMeshLayer({
-    required Canvas canvas,
-    required Size size,
-    required double t,
-    required double amp,
-    required double blurBoost,
-    required int cols,
-    required int rows,
-    required List<Color Function(ColorScheme)> colorPickers,
-    required double alpha,
-    required double blurBase,
-    required double radiusFactor,
-    required BlendMode blendMode,
-    required double speedMul,
-    required double phaseOffset,
-  }) {
-    final double cellW = size.width / (cols - 1);
-    final double cellH = size.height / (rows - 1);
-    final double baseRadius = size.shortestSide * radiusFactor;
-
-    for (int row = 0; row < rows; row++) {
-      for (int col = 0; col < cols; col++) {
-        final int idx = row * cols + col;
-        final double seed = idx * 1.618033988749895;
-        final double freqX = 0.3 + (seed % 1.0) * 0.5;
-        final double freqY = 0.25 + ((seed * 1.3) % 1.0) * 0.45;
-        final double phaseX = seed * 2.399963;
-        final double phaseY = seed * 4.188790;
-        final double driftX = math.sin(t * freqX * speedMul + phaseX) * amp * 18;
-        final double driftY = math.cos(t * freqY * speedMul + phaseY) * amp * 14;
-
-        final double px = col * cellW + driftX;
-        final double py = row * cellH + driftY;
-
-        final Color baseColor = colorPickers[idx % colorPickers.length](scheme);
-        final double jitteredAlpha = alpha + ((seed * 7.0) % 1.0 - 0.5) * 0.04;
-        final Color color = baseColor.withValues(alpha: jitteredAlpha.clamp(0.06, 0.22));
-        final double sigma = blurBase * blurBoost + ((seed * 3.0) % 1.0) * 8;
-        final double r = baseRadius * (0.85 + ((seed * 5.0) % 1.0) * 0.3);
-
-        final bool usesBlur = idx < 4;
-        final Paint paint = Paint()
-          ..blendMode = blendMode
-          ..shader = RadialGradient(
-            colors: <Color>[
-              color,
-              color.withValues(alpha: color.a * 0.4),
-              color.withValues(alpha: 0.0),
-            ],
-            stops: const <double>[0.0, 0.45, 1.0],
-          ).createShader(Rect.fromCircle(center: Offset(px, py), radius: r));
-
-        if (usesBlur) {
-          paint.maskFilter = MaskFilter.blur(BlurStyle.normal, sigma * 0.6);
-        }
-
-        canvas.drawCircle(Offset(px, py), r, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _LiquidMeshPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.scheme != scheme ||
-        oldDelegate.density != density ||
-        oldDelegate.optimize != optimize;
   }
 }

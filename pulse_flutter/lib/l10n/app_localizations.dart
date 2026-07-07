@@ -128,6 +128,12 @@ abstract class AppLocalizations {
   /// **'Profile'**
   String get tabProfile;
 
+  /// No description provided for @commonCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get commonCreate;
+
   /// No description provided for @commonContinue.
   ///
   /// In en, this message translates to:
@@ -2407,6 +2413,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Attach media'**
   String get chatAttachMedia;
+
+  /// No description provided for @chatCircleVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Circle video'**
+  String get chatCircleVideo;
 
   /// No description provided for @chatMessageHint.
   ///

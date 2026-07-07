@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/screens/circle_video_recorder_screen.dart';
 
 class M3FilePickerResult {
   M3FilePickerResult({
@@ -75,6 +77,27 @@ class _CompactAttachmentMenu extends StatelessWidget {
     );
   }
 
+  Future<void> _recordCircleVideo(BuildContext context) async {
+    final String? result = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        builder: (_) => const CircleVideoRecorderScreen(),
+      ),
+    );
+    if (result == null || !context.mounted) return;
+
+    final File file = File(result);
+    final int fileSize = await file.length();
+    Navigator.of(context).pop(
+      M3FilePickerResult(
+        readStream: null,
+        filePath: result,
+        fileName: 'circle_video.mp4',
+        fileSize: fileSize,
+        mediaSubtype: 'circle',
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -112,6 +135,13 @@ class _CompactAttachmentMenu extends StatelessWidget {
         containerColor: scheme.surfaceContainerHighest,
         iconColor: scheme.onSurfaceVariant,
         onTap: () => _pickFile(context, type: FileType.any, mediaSubtype: 'media'),
+      ),
+      _AttachItem(
+        icon: Icons.videocam_rounded,
+        label: context.l10n.chatCircleVideo,
+        containerColor: scheme.tertiaryContainer,
+        iconColor: scheme.onTertiaryContainer,
+        onTap: () => _recordCircleVideo(context),
       ),
     ];
 

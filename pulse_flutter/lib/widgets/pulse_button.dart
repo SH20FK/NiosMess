@@ -21,7 +21,7 @@ class PulseButton extends StatelessWidget {
       label: label,
       button: true,
       enabled: !isLoading,
-      child: ElevatedButton(
+      child: FilledButton(
         onPressed: isLoading
             ? null
             : () {

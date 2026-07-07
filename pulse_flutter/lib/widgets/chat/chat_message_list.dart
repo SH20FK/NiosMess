@@ -131,6 +131,7 @@ class ChatMessageList extends StatefulWidget {
 class _ChatMessageListState extends State<ChatMessageList> {
   List<_MessageLayoutData>? _layoutCache;
   List<ApiMessage>? _cachedMessages;
+  Map<int, ApiMessage>? _byIdCache;
 
   @override
   void didUpdateWidget(ChatMessageList oldWidget) {
@@ -138,6 +139,9 @@ class _ChatMessageListState extends State<ChatMessageList> {
     if (!identical(widget.messages, _cachedMessages)) {
       _cachedMessages = widget.messages;
       _layoutCache = _precomputeLayout(widget.messages);
+      _byIdCache = <int, ApiMessage>{
+        for (final ApiMessage m in widget.messages) m.id: m,
+      };
     }
   }
 
@@ -149,11 +153,15 @@ class _ChatMessageListState extends State<ChatMessageList> {
     if (_layoutCache == null) {
       _layoutCache = layout;
       _cachedMessages = messages;
+      _byIdCache = <int, ApiMessage>{
+        for (final ApiMessage m in messages) m.id: m,
+      };
     }
 
-    final Map<int, ApiMessage> byId = <int, ApiMessage>{
-      for (final ApiMessage message in messages) message.id: message,
-    };
+    final Map<int, ApiMessage> byId =
+        _byIdCache ?? <int, ApiMessage>{
+          for (final ApiMessage message in messages) message.id: message,
+        };
 
     final DateTime now = AppTimeSettings.now();
 
@@ -177,6 +185,11 @@ class _ChatMessageListState extends State<ChatMessageList> {
         final String? mediaLabel =
             hasMedia ? widget.mediaLabelBuilder(message, mediaUrl) : null;
 
+        final bool isVoice = message.msgType == 'voice' ||
+            (message.mediaType?.startsWith('audio/') == true);
+        final bool isCircleVideo = message.msgType == 'circle';
+        final int? mediaDuration = message.mediaDuration;
+
         final Widget bubble = RepaintBoundary(
           child: MessageBubble(
             key: ValueKey<String>('msg_${message.id}_${message.isRead}'),
@@ -194,6 +207,9 @@ class _ChatMessageListState extends State<ChatMessageList> {
             mediaUrl: mediaUrl,
             mediaIsImage: isImageMedia,
             mediaLabel: mediaLabel,
+            isVoice: isVoice,
+            isCircleVideo: isCircleVideo,
+            mediaDuration: mediaDuration,
             senderBadges: message.senderBadges,
             senderDisplayName: message.senderDisplayName,
             animate: now.difference(message.resolvedSentAt).inSeconds < 4,

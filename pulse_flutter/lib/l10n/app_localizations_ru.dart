@@ -24,6 +24,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get tabProfile => 'Профиль';
 
   @override
+  String get commonCreate => 'Создать';
+
+  @override
   String get commonContinue => 'Продолжить';
 
   @override
@@ -1263,6 +1266,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chatAttachMedia => 'Прикрепить медиа';
+
+  @override
+  String get chatCircleVideo => 'Кружок';
 
   @override
   String get chatMessageHint => 'Введите сообщение';

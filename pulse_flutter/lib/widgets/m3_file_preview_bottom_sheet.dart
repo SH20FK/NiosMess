@@ -213,7 +213,7 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
             builder: (_) => MediaViewerScreen(
               url: mediaUrl!,
               title: fileName,
-              isImage: true,
+              mediaType: MediaType.image,
             ),
           ),
         );

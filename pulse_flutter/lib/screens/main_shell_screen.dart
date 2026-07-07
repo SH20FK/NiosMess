@@ -100,7 +100,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
   }
 
   Widget _composeFab(BuildContext context) {
-    return FloatingActionButton(
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return FloatingActionButton.extended(
       heroTag: 'compose_chat_fab',
       onPressed: () {
         if (ref.read(uiSettingsProvider).haptics) {
@@ -109,7 +110,10 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
         _showCreateMenu(context);
       },
       elevation: 3,
-      child: const Icon(Icons.edit_rounded),
+      backgroundColor: scheme.primaryContainer,
+      foregroundColor: scheme.onPrimaryContainer,
+      icon: const Icon(Icons.edit_rounded),
+      label: Text(context.l10n.commonCreate),
     );
   }
 

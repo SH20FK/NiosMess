@@ -3,32 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/chat_filter_provider.dart';
 
-class ChatListFilterBar extends ConsumerStatefulWidget {
+class ChatListFilterBar extends ConsumerWidget {
   const ChatListFilterBar({super.key});
-
-  @override
-  ConsumerState<ChatListFilterBar> createState() => _ChatListFilterBarState();
-}
-
-class _ChatListFilterBarState extends ConsumerState<ChatListFilterBar>
-    with SingleTickerProviderStateMixin {
-  late final TabController _filterController;
-
-  @override
-  void initState() {
-    super.initState();
-    _filterController = TabController(
-      length: ChatFilter.values.length,
-      vsync: this,
-    );
-    _filterController.index = ref.read(chatFilterProvider).index;
-  }
-
-  @override
-  void dispose() {
-    _filterController.dispose();
-    super.dispose();
-  }
 
   IconData _filterIcon(ChatFilter value) {
     return switch (value) {
@@ -41,7 +17,7 @@ class _ChatListFilterBarState extends ConsumerState<ChatListFilterBar>
     };
   }
 
-  String _filterShortLabel(BuildContext context, ChatFilter value) {
+  String _filterLabel(BuildContext context, ChatFilter value) {
     return switch (value) {
       ChatFilter.all => context.l10n.chatListFilterAll,
       ChatFilter.unread => context.l10n.chatListFilterUnread,
@@ -53,50 +29,48 @@ class _ChatListFilterBarState extends ConsumerState<ChatListFilterBar>
   }
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ChatFilter currentFilter = ref.watch(chatFilterProvider);
+    final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return SizedBox(
-      height: 48,
-      child: TabBar(
-        controller: _filterController,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        onTap: (int index) {
-          ref.read(chatFilterProvider.notifier).updateFilter(
-              ChatFilter.values[index]);
-        },
-        dividerColor: Colors.transparent,
-        indicatorSize: TabBarIndicatorSize.tab,
-        indicator: BoxDecoration(
-          color: scheme.primaryContainer,
-          borderRadius: BorderRadius.circular(28),
-        ),
-        labelColor: scheme.onPrimaryContainer,
-        unselectedLabelColor: scheme.onSurfaceVariant,
-        labelStyle: textTheme.labelLarge?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
-        unselectedLabelStyle: textTheme.labelLarge?.copyWith(
-          fontWeight: FontWeight.w500,
-        ),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 14),
-        splashBorderRadius: BorderRadius.circular(28),
-        tabs: ChatFilter.values
-            .map(
-              (ChatFilter value) => Tab(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(_filterIcon(value), size: 18),
-                    const SizedBox(width: 7),
-                    Text(_filterShortLabel(context, value)),
-                  ],
-                ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: ChatFilter.values.map((ChatFilter filter) {
+          final bool selected = filter == currentFilter;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              label: Text(_filterLabel(context, filter)),
+              selected: selected,
+              onSelected: (_) {
+                ref.read(chatFilterProvider.notifier).updateFilter(filter);
+              },
+              avatar: Icon(
+                _filterIcon(filter),
+                size: 18,
               ),
-            )
-            .toList(growable: false),
+              showCheckmark: false,
+              selectedColor: scheme.primaryContainer,
+              checkmarkColor: scheme.onPrimaryContainer,
+              labelStyle: TextStyle(
+                color: selected
+                    ? scheme.onPrimaryContainer
+                    : scheme.onSurfaceVariant,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+              side: BorderSide(
+                color: selected
+                    ? scheme.primary.withValues(alpha: 0.28)
+                    : scheme.outlineVariant.withValues(alpha: 0.22),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
