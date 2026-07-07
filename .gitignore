@@ -55,6 +55,7 @@ graphify-out/
 nul
 *.log
 *.ogg
+!pulse_flutter/assets/sounds/
 temp.txt
 audit.py
 audit_results.json
