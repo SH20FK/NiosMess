@@ -273,11 +273,11 @@ class AppTheme {
         builders: <TargetPlatform, PageTransitionsBuilder>{
           TargetPlatform.android: settings.predictiveBackEnabled
               ? const PredictiveBackPageTransitionsBuilder()
-              : const CupertinoPageTransitionsBuilder(),
-          TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
-          TargetPlatform.macOS: const CupertinoPageTransitionsBuilder(),
-          TargetPlatform.windows: const CupertinoPageTransitionsBuilder(),
-          TargetPlatform.linux: const CupertinoPageTransitionsBuilder(),
+              : const FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: const FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: const FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.windows: const FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: const FadeUpwardsPageTransitionsBuilder(),
         },
       ),
     );

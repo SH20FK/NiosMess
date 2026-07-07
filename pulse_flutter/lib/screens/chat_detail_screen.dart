@@ -1160,7 +1160,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (mt == 'application/pdf') return MediaType.pdf;
     }
 
-    final String ext = typeInfo.extension.toLowerCase();
+    final String ext = url.contains('.')
+        ? '.${url.split('.').last.toLowerCase()}'
+        : '';
     if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg']
         .contains(ext)) return MediaType.image;
     if (['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v']

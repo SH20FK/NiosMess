@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show DeviceOrientation;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,7 +59,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
           looping: false,
           placeholder: const AppLoadingIndicator(size: 32),
           allowedScreenSleep: false,
-          deviceOrientationsAfterFullScreen: const [
+          deviceOrientationsAfterFullScreen: [
             DeviceOrientation.portraitUp,
             DeviceOrientation.landscapeLeft,
             DeviceOrientation.landscapeRight,

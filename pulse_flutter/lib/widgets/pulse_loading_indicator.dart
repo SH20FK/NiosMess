@@ -5,7 +5,7 @@ class AppLoadingIndicator extends StatelessWidget {
   const AppLoadingIndicator({
     this.size,
     this.color,
-    this.variant = LoadingIndicatorM3EVariant.default_,
+    this.variant = LoadingIndicatorM3EVariant.defaultStyle,
     super.key,
   });
 
