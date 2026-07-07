@@ -1,12 +1,15 @@
-name: Build Release APK
+name: Build Android & Web
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-  build:
+  build-android:
+    name: Build Android APK
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -17,28 +20,38 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.6'
           channel: stable
+          cache: true
 
-      - uses: actions/setup-java@v4
+      - run: flutter pub get
+
+      - run: flutter build apk --debug
+
+      - uses: actions/upload-artifact@v4
         with:
-          distribution: 'zulu'
-          java-version: '21'
+          name: android-apk-debug
+          path: pulse_flutter/build/app/outputs/flutter-apk/*.apk
 
-      - name: Decode google-services.json
-        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > android/app/google-services.json
+  build-web:
+    name: Build Web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pulse_flutter
 
-      - name: Install dependencies
-        run: flutter pub get
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Analyze
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings || true
-
-      - name: Build release APK
-        run: flutter build apk --release
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - uses: subosito/flutter-action@v2
         with:
-          name: niosmess-release-apk
-          path: pulse_flutter/build/app/outputs/flutter-apk/app-release.apk
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter build web --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: pulse_flutter/build/web
