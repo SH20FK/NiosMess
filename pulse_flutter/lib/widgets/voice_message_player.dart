@@ -22,7 +22,6 @@ class VoiceMessagePlayer extends StatefulWidget {
 
 class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   final AudioPlayer _player = AudioPlayer();
-  PlayerState _state = PlayerState.stopped;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   final List<double> _waveformBars = List<double>.generate(40, (_) => 0.08 + 0.32 * math.Random().nextDouble());
@@ -40,8 +39,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
       _player.positionStream.listen((p) {
         if (mounted) setState(() => _position = p);
       });
-      _player.playerStateStream.listen((ps) {
-        if (mounted) setState(() => _state = ps.state);
+      _player.playerStateStream.listen((_) {
+        if (mounted) setState(() {});
       });
       _player.durationStream.listen((d) {
         if (d != null && mounted) setState(() => _duration = d);
@@ -56,7 +55,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   }
 
   void _togglePlay() {
-    if (_state == PlayerState.playing) {
+    if (_player.playing) {
       _player.pause();
     } else {
       _player.play();
@@ -65,7 +64,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
 
   @override
   Widget build(BuildContext context) {
-    final bool playing = _state == PlayerState.playing;
+    final bool playing = _player.playing;
     final double progress = _duration.inMilliseconds > 0
         ? _position.inMilliseconds / _duration.inMilliseconds
         : 0.0;

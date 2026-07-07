@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -33,7 +32,7 @@ class _CircleVideoRecorderScreenState
       return;
     }
 
-    final CameraDescription? back = cameras.firstWhere(
+    final CameraDescription back = cameras.firstWhere(
       (CameraDescription c) => c.lensDirection == CameraLensDirection.back,
       orElse: () => cameras.first,
     );
@@ -47,7 +46,6 @@ class _CircleVideoRecorderScreenState
 
     try {
       await _controller!.initialize();
-      await _controller!.lockCaptureOrientation(DeviceOrientation.portraitUp);
     } catch (_) {}
 
     if (mounted) setState(() => _initialized = true);
@@ -89,7 +87,7 @@ class _CircleVideoRecorderScreenState
     if (_controller == null) return;
     final CameraDescription current = _controller!.description;
     final List<CameraDescription> cameras = await availableCameras();
-    final CameraDescription? next = cameras.firstWhere(
+    final CameraDescription next = cameras.firstWhere(
       (CameraDescription c) => c.lensDirection != current.lensDirection,
       orElse: () => cameras.first,
     );
@@ -103,7 +101,6 @@ class _CircleVideoRecorderScreenState
     );
     try {
       await _controller!.initialize();
-      await _controller!.lockCaptureOrientation(DeviceOrientation.portraitUp);
     } catch (_) {}
     if (mounted) setState(() {});
   }
@@ -117,7 +114,6 @@ class _CircleVideoRecorderScreenState
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     final String formatted =
         '${(_elapsedSec ~/ 60).toString().padLeft(2, '0')}:${(_elapsedSec % 60).toString().padLeft(2, '0')}';
 
