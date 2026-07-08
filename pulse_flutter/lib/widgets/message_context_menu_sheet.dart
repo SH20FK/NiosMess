@@ -40,8 +40,10 @@ class MessageContextMenuSheet extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return SafeArea(
+      top: false,
+      bottom: true,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

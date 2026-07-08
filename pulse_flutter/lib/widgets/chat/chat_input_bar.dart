@@ -1,9 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:pulse_flutter/screens/circle_video_recorder_screen.dart';
 import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
 
 class ChatInputBar extends StatefulWidget {
@@ -52,6 +53,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
   bool _showEmojiPicker = false;
   bool _isInputEmpty = true;
   bool _isRecording = false;
+  bool _isVideoMode = false;
 
   @override
   void initState() {
@@ -95,6 +97,17 @@ class _ChatInputBarState extends State<ChatInputBar> {
       setState(() {
         _showEmojiPicker = true;
       });
+    }
+  }
+
+  Future<void> _openCircleVideo() async {
+    final String? result = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        builder: (_) => const CircleVideoRecorderScreen(),
+      ),
+    );
+    if (result != null && mounted) {
+      widget.onVoiceSend(result);
     }
   }
 
@@ -222,11 +235,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
           if (!_isRecording) ...<Widget>[
           const SizedBox(height: 4),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               Expanded(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 52),
+                  constraints: const BoxConstraints(maxHeight: 54),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     decoration: BoxDecoration(
@@ -240,7 +253,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       ),
                     ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: <Widget>[
                         // Emoji Toggle Button
                         Tooltip(
@@ -377,46 +390,81 @@ class _ChatInputBarState extends State<ChatInputBar> {
               ),
               const SizedBox(width: 6),
 
-              // Mic Button (when input empty, not editing)
+              // Mic / Circle Video Button (when input empty, not editing)
               if (_isInputEmpty && widget.editingMessageId == null)
                 Tooltip(
-                  message: context.l10n.chatVoiceMessage,
+                  message: _isVideoMode
+                      ? context.l10n.chatCircleVideo
+                      : context.l10n.chatVoiceMessage,
                   child: GestureDetector(
-                    onLongPressStart: (_) async {
-                      if (widget.hapticsEnabled) HapticService.reaction();
-                      setState(() => _isRecording = true);
+                    onTap: () {
+                      if (_isVideoMode) {
+                        HapticService.tap();
+                        _openCircleVideo();
+                      } else {
+                        setState(() => _isRecording = true);
+                      }
+                    },
+                    onLongPress: () {
+                      setState(() => _isVideoMode = !_isVideoMode);
+                      HapticService.confirm();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(_isVideoMode
+                              ? 'Режим кружка'
+                              : 'Режим голосового'),
+                          duration: const Duration(milliseconds: 800),
+                        ),
+                      );
                     },
                     child: AnimatedScale(
                       scale: showSendButton ? 0.0 : 1.0,
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeOutBack,
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: <Color>[
-                              scheme.primary,
-                              scheme.primary.withValues(alpha: 0.82),
-                            ],
-                          ),
-                          shape: BoxShape.circle,
-                          boxShadow: <BoxShadow>[
-                            BoxShadow(
-                              color: scheme.primary.withValues(alpha: 0.24),
-                              blurRadius: 8,
-                              spreadRadius: 0.5,
-                              offset: const Offset(0, 2),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: <Widget>[
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: _isVideoMode ? scheme.tertiary : scheme.primary,
+                              shape: BoxShape.circle,
+                              boxShadow: <BoxShadow>[
+                                BoxShadow(
+                                  color: (_isVideoMode ? scheme.tertiary : scheme.primary)
+                                      .withValues(alpha: 0.24),
+                                  blurRadius: 8,
+                                  spreadRadius: 0.5,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.mic_rounded,
-                          color: scheme.onPrimary,
-                          size: 22,
-                        ),
+                            child: Icon(
+                              _isVideoMode ? Icons.videocam_rounded : Icons.mic_rounded,
+                              color: scheme.onPrimary,
+                              size: 22,
+                            ),
+                          ),
+                          if (_isVideoMode)
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: scheme.error,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: scheme.surface,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(Icons.videocam, size: 8, color: scheme.onError),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),

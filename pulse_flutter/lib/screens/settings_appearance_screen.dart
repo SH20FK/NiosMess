@@ -320,15 +320,15 @@ class _VaffuruThemeSettingsScreenState
                 segments: <ButtonSegment<_DensityMode>>[
                   ButtonSegment<_DensityMode>(
                     value: _DensityMode.soft,
-                    label: Text(context.l10n.appearanceDensitySoft),
+                    label: Text(context.l10n.appearanceDensitySoft, style: const TextStyle(fontSize: 13)),
                   ),
                   ButtonSegment<_DensityMode>(
                     value: _DensityMode.rich,
-                    label: Text(context.l10n.appearanceDensityRich),
+                    label: Text(context.l10n.appearanceDensityRich, style: const TextStyle(fontSize: 13)),
                   ),
                   ButtonSegment<_DensityMode>(
                     value: _DensityMode.expressive,
-                    label: Text(context.l10n.appearanceDensityExpressive),
+                    label: Text(context.l10n.appearanceDensityExpressive, style: const TextStyle(fontSize: 13)),
                   ),
                 ],
                 selected: <_DensityMode>{_densityMode},
@@ -541,41 +541,7 @@ class _LiveChatPreview extends StatelessWidget {
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerLow,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(28),
-                bottomRight: Radius.circular(28),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: scheme.surface,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Text('Сообщение...',
-                      style: TextStyle(color: scheme.onSurfaceVariant)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: scheme.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.send, color: scheme.onPrimary, size: 20),
-                ),
-              ],
-            ),
-          ),
+          Container(height: 4),
         ],
       ),
     );
