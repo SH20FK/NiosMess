@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 
@@ -56,7 +56,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
               title: Text(context.l10n.settingsAboutTitle),
               centerTitle: true,
             ),
-            SliverToBoxAdapter(child: _HeroBlock(animation: _heroController)),
+            SliverToBoxAdapter(child: _HeroBlock(animation: _heroController, packageInfo: _packageInfo)),
             SliverToBoxAdapter(
               child: Container(
                 margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -100,8 +100,9 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
 // ─── Hero Block ────────────────────────────────────────────────────────────
 
 class _HeroBlock extends StatelessWidget {
-  const _HeroBlock({required this.animation});
+  const _HeroBlock({required this.animation, required this.packageInfo});
   final AnimationController animation;
+  final Future<PackageInfo> packageInfo;
 
   @override
   Widget build(BuildContext context) {
@@ -111,196 +112,124 @@ class _HeroBlock extends StatelessWidget {
     return RepaintBoundary(
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          gradient: RadialGradient(
+            center: Alignment.topCenter,
+            radius: 1.4,
             colors: <Color>[
+              scheme.primaryContainer.withValues(alpha: 0.4),
               scheme.surfaceContainerHigh,
               scheme.surfaceContainerLow,
             ],
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
-        child: Column(
-          children: <Widget>[
-            _AnimatedLogo(
-              animation: animation,
-              scheme: scheme,
-              textTheme: textTheme,
-            ),
-            const SizedBox(height: 20),
-            _AnimatedTagline(
-              animation: animation,
-              scheme: scheme,
-              textTheme: textTheme,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AnimatedLogo extends StatelessWidget {
-  const _AnimatedLogo({
-    required this.animation,
-    required this.scheme,
-    required this.textTheme,
-  });
-  final AnimationController animation;
-  final ColorScheme scheme;
-  final TextTheme textTheme;
-
-  @override
-  Widget build(BuildContext context) {
-    const String nios = 'Nios';
-    const String mess = 'Mess';
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: <Widget>[
-            for (int i = 0; i < nios.length; i++)
-              _AnimatedLetter(
-                letter: nios[i],
-                animation: animation,
-                beginDelay: i * 80,
-                totalDuration: 800,
-                beginY: -30,
-                beginX: 0,
-                style: textTheme.displaySmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: scheme.primary,
-                  fontSize: 48,
-                  letterSpacing: -1,
-                ) ?? const TextStyle(),
+        child: Stack(
+          children: [
+            // Decorative dots
+            Positioned(
+              top: -30,
+              left: -20,
+              child: Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: scheme.primary.withValues(alpha: 0.06),
+                ),
               ),
-          ],
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const SizedBox(width: 24),
-            for (int i = 0; i < mess.length; i++)
-              _AnimatedLetter(
-                letter: mess[i],
-                animation: animation,
-                beginDelay: 400 + i * 80,
-                totalDuration: 800,
-                beginY: 20,
-                beginX: 0,
-                style: textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: scheme.secondary,
-                  fontSize: 34,
-                ) ?? const TextStyle(),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _AnimatedLetter extends StatelessWidget {
-  const _AnimatedLetter({
-    required this.letter,
-    required this.animation,
-    required this.beginDelay,
-    required this.totalDuration,
-    required this.beginY,
-    required this.beginX,
-    required this.style,
-  });
-  final String letter;
-  final AnimationController animation;
-  final int beginDelay;
-  final int totalDuration;
-  final double beginY;
-  final double beginX;
-  final TextStyle style;
-
-  @override
-  Widget build(BuildContext context) {
-    final double start = beginDelay / totalDuration;
-    final double end = math.min(1.0, (beginDelay + 400) / totalDuration);
-
-    final Animation<double> opacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: animation,
-        curve: Interval(start, end, curve: Curves.easeOut),
-      ),
-    );
-
-    final Animation<double> translateY = Tween<double>(begin: beginY, end: 0)
-        .animate(
-      CurvedAnimation(
-        parent: animation,
-        curve: Interval(start, end, curve: Curves.easeOutBack),
-      ),
-    );
-
-    final Animation<double> translateX = Tween<double>(begin: beginX, end: 0)
-        .animate(
-      CurvedAnimation(
-        parent: animation,
-        curve: Interval(start, end, curve: Curves.easeOutBack),
-      ),
-    );
-
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (BuildContext context, Widget? child) {
-        return Transform.translate(
-          offset: Offset(translateX.value, translateY.value),
-          child: Opacity(
-            opacity: opacity.value,
-            child: Text(letter, style: style),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _AnimatedTagline extends StatelessWidget {
-  const _AnimatedTagline({
-    required this.animation,
-    required this.scheme,
-    required this.textTheme,
-  });
-  final AnimationController animation;
-  final ColorScheme scheme;
-  final TextTheme textTheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final Animation<double> opacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: animation,
-        curve: const Interval(0.6, 0.85, curve: Curves.easeOut),
-      ),
-    );
-
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (BuildContext context, Widget? child) {
-        return Opacity(
-          opacity: opacity.value,
-          child: Text(
-            context.l10n.aboutTagline,
-            style: textTheme.bodyLarge?.copyWith(
-              color: scheme.onSurfaceVariant,
             ),
-          ),
-        );
-      },
+            Positioned(
+              bottom: -20,
+              right: -30,
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: scheme.secondary.withValues(alpha: 0.04),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 20,
+              right: 40,
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: scheme.tertiary.withValues(alpha: 0.05),
+                ),
+              ),
+            ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+              child: Column(
+                children: <Widget>[
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: scheme.primary.withValues(alpha: 0.35),
+                          blurRadius: 24,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Image.asset(
+                        'assets/NiosMess_icon.png',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ).animate(controller: animation)
+                    .scale(
+                      begin: const Offset(0.6, 0.6),
+                      end: const Offset(1.0, 1.0),
+                      curve: Curves.easeOutBack,
+                      duration: 600.ms,
+                    )
+                    .fade(duration: 400.ms),
+                  const SizedBox(height: 16),
+                  Text(
+                    'NiosMess',
+                    style: textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1.5,
+                      color: scheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    context.l10n.aboutTagline,
+                    style: textTheme.bodyLarge?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FutureBuilder<PackageInfo>(
+                    future: packageInfo,
+                    builder: (context, snapshot) => Chip(
+                      label: Text('v${snapshot.data?.version ?? "..."}'),
+                      avatar: const Icon(Icons.new_releases_rounded, size: 16),
+                      backgroundColor: scheme.primaryContainer.withValues(alpha: 0.5),
+                      side: BorderSide.none,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

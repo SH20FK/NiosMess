@@ -429,7 +429,7 @@ class SettingsSwitchTile extends ConsumerWidget {
       label: '$title, ${value ? context.l10n.semanticsOn : context.l10n.semanticsOff}',
       toggled: true,
       child: ListTile(
-        titleAlignment: ListTileTitleAlignment.threeLine,
+        titleAlignment: ListTileTitleAlignment.center,
         minVerticalPadding: 14,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Container(

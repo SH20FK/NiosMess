@@ -174,6 +174,9 @@ class MessageBubble extends ConsumerWidget {
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: <Widget>[
+            if (isCircleVideo && hasMedia)
+              _buildCircleVideoContent(context, scheme, textTheme)
+            else
             InkWell(
               borderRadius: bubbleRadius,
               onLongPress: onLongPress != null
@@ -427,6 +430,128 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
+  Widget _buildCircleVideoContent(BuildContext context, ColorScheme scheme, TextTheme textTheme) {
+    const double circleSize = 180;
+    return InkWell(
+      onTap: onOpenMedia,
+      onLongPress: onLongPressMedia,
+      borderRadius: BorderRadius.circular(circleSize / 2),
+      child: Semantics(
+        label: context.l10n.chatCircleVideo,
+        child: SizedBox(
+          width: circleSize,
+          height: circleSize,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: circleSize,
+                height: circleSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: scheme.shadow.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ClipOval(
+                  child: CachedNetworkImage(
+                    imageUrl: mediaUrl!,
+                    cacheKey: '${mediaUrl}_circle_thumb',
+                    width: circleSize,
+                    height: circleSize,
+                    fit: BoxFit.cover,
+                    memCacheWidth: 360,
+                    memCacheHeight: 360,
+                    placeholder: (BuildContext context, String _) => Container(
+                      width: circleSize,
+                      height: circleSize,
+                      decoration: BoxDecoration(
+                        color: isMine
+                            ? scheme.onPrimary.withValues(alpha: 0.12)
+                            : scheme.surfaceContainerHigh,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.videocam_rounded, size: 32),
+                    ),
+                    errorWidget: (BuildContext context, String _, Object error) {
+                      return Container(
+                        width: circleSize,
+                        height: circleSize,
+                        decoration: BoxDecoration(
+                          color: isMine
+                              ? scheme.onPrimary.withValues(alpha: 0.12)
+                              : scheme.surfaceContainerHigh,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.broken_image_rounded, size: 32),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+              ),
+              if (mediaDuration != null)
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _formatDuration(mediaDuration!),
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              Positioned(
+                bottom: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: _MessageBubbleFooter(
+                    isMine: isMine,
+                    isE2ee: isE2ee,
+                    isEdited: isEdited,
+                    isDeleted: isDeleted,
+                    isRead: isRead,
+                    formattedTime: formattedTime,
+                    scheme: scheme,
+                    textTheme: textTheme,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDuration(int seconds) {
+    final int m = seconds ~/ 60;
+    final int s = seconds % 60;
+    return '${m}:${s.toString().padLeft(2, '0')}';
+  }
+
   Widget _mediaPreview(
     BuildContext context, {
     required ColorScheme scheme,
@@ -443,49 +568,6 @@ class MessageBubble extends ConsumerWidget {
           durationSeconds: mediaDuration ?? 0,
           isMine: isMine,
           scheme: scheme,
-        ),
-      );
-    }
-
-    if (isCircleVideo && mediaUrl != null && mediaUrl!.trim().isNotEmpty) {
-      return InkWell(
-        onTap: onOpenMedia,
-        onLongPress: onLongPressMedia,
-        borderRadius: BorderRadius.circular(12),
-        child: ClipOval(
-          child: CachedNetworkImage(
-            imageUrl: mediaUrl!,
-            cacheKey: '${mediaUrl}_circle_thumb',
-            width: 180,
-            height: 180,
-            fit: BoxFit.cover,
-            memCacheWidth: 360,
-            memCacheHeight: 360,
-            placeholder: (BuildContext context, String _) => Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                color: isMine
-                    ? scheme.onPrimary.withValues(alpha: 0.12)
-                    : scheme.surfaceContainerHigh,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.videocam_rounded, size: 32),
-            ),
-            errorWidget: (BuildContext context, String _, Object error) {
-              return Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  color: isMine
-                      ? scheme.onPrimary.withValues(alpha: 0.12)
-                      : scheme.surfaceContainerHigh,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.broken_image_rounded, size: 32),
-              );
-            },
-          ),
         ),
       );
     }

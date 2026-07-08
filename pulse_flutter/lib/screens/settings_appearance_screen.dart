@@ -320,15 +320,24 @@ class _VaffuruThemeSettingsScreenState
                 segments: <ButtonSegment<_DensityMode>>[
                   ButtonSegment<_DensityMode>(
                     value: _DensityMode.soft,
-                    label: Text(context.l10n.appearanceDensitySoft, style: const TextStyle(fontSize: 13)),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(context.l10n.appearanceDensitySoft, style: const TextStyle(fontSize: 13), maxLines: 1),
+                    ),
                   ),
                   ButtonSegment<_DensityMode>(
                     value: _DensityMode.rich,
-                    label: Text(context.l10n.appearanceDensityRich, style: const TextStyle(fontSize: 13)),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(context.l10n.appearanceDensityRich, style: const TextStyle(fontSize: 13), maxLines: 1),
+                    ),
                   ),
                   ButtonSegment<_DensityMode>(
                     value: _DensityMode.expressive,
-                    label: Text(context.l10n.appearanceDensityExpressive, style: const TextStyle(fontSize: 13)),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(context.l10n.appearanceDensityExpressive, style: const TextStyle(fontSize: 13), maxLines: 1),
+                    ),
                   ),
                 ],
                 selected: <_DensityMode>{_densityMode},

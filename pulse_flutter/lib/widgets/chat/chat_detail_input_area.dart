@@ -70,13 +70,8 @@ class ChatDetailInputArea extends StatelessWidget {
           color: Colors.transparent,
           child: canPostInChannel
               ? DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerLow.withValues(alpha: 0.95),
-                    border: Border(
-                      top: BorderSide(
-                        color: scheme.outlineVariant.withValues(alpha: 0.5),
-                      ),
-                    ),
+                  decoration: const BoxDecoration(
+                    color: Colors.transparent,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

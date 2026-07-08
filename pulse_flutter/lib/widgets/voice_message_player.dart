@@ -24,11 +24,14 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   final AudioPlayer _player = AudioPlayer();
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
-  final List<double> _waveformBars = List<double>.generate(40, (_) => 0.08 + 0.32 * math.Random().nextDouble());
+  late final List<double> _waveformBars;
 
   @override
   void initState() {
     super.initState();
+    final int seed = widget.audioUrl.hashCode;
+    final math.Random rng = math.Random(seed);
+    _waveformBars = List<double>.generate(40, (_) => 0.15 + 0.55 * rng.nextDouble());
     _setupPlayer();
   }
 
@@ -71,15 +74,16 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     final Duration remaining = _duration - _position;
 
     final Color fg = widget.isMine ? widget.scheme.onPrimary : widget.scheme.primary;
-    final Color bg = widget.isMine
-        ? widget.scheme.onPrimary.withValues(alpha: 0.20)
-        : widget.scheme.surfaceContainerHighest;
 
     return Container(
       width: 220,
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
       decoration: BoxDecoration(
-        color: bg.withValues(alpha: 0.5),
+        gradient: LinearGradient(
+          colors: widget.isMine
+              ? [widget.scheme.primary, widget.scheme.primaryContainer]
+              : [widget.scheme.secondaryContainer, widget.scheme.tertiaryContainer],
+        ),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -87,16 +91,23 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
           GestureDetector(
             onTap: _togglePlay,
             child: Container(
-              width: 36,
-              height: 36,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: fg,
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Icon(
                 playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                 color: widget.isMine ? widget.scheme.primaryContainer : widget.scheme.surface,
-                size: 20,
+                size: 24,
               ),
             ),
           ),
@@ -177,6 +188,12 @@ class _WaveformPainter extends CustomPainter {
         Paint()..color = played ? playedColor : unplayedColor,
       );
     }
+    final double thumbX = progress * size.width;
+    canvas.drawCircle(
+      Offset(thumbX, midY),
+      3.5,
+      Paint()..color = playedColor,
+    );
   }
 
   @override
