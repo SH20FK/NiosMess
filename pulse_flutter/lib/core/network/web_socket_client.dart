@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:cryptography/cryptography.dart';
+import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
@@ -9,6 +11,21 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'ws_stub.dart'
     if (dart.library.io) 'ws_io.dart'
     if (dart.library.html) 'ws_web.dart';
+
+/// Real connection state of the WebSocket session.
+enum WsConnectionState {
+  /// Socket open and key exchange complete — fully operational.
+  connected,
+
+  /// First connection attempt in progress.
+  connecting,
+
+  /// Connection lost, retrying with backoff. Server is reachable (or unknown).
+  reconnecting,
+
+  /// Connection lost AND the server is unreachable (probe failed).
+  offline,
+}
 
 class WebSocketClient {
   WebSocketClient({
@@ -46,6 +63,78 @@ class WebSocketClient {
 
   bool get isConnected => _isSocketOpen && _secretKey != null;
 
+  // Connection state machine
+  WsConnectionState _state = WsConnectionState.connecting;
+  final StreamController<WsConnectionState> _stateController =
+      StreamController<WsConnectionState>.broadcast();
+
+  /// Current connection state.
+  WsConnectionState get state => _state;
+
+  /// Emits on every state change. New listeners should read [state] first.
+  Stream<WsConnectionState> get stateStream => _stateController.stream;
+
+  void _setState(WsConnectionState next) {
+    if (_state == next) return;
+    _state = next;
+    debugPrint('[WebSocketClient] State → $next');
+    if (!_stateController.isClosed) {
+      _stateController.add(next);
+    }
+  }
+
+  // Reconnect backoff
+  int _reconnectAttempt = 0;
+  static const Duration _maxBackoff = Duration(seconds: 30);
+
+  Duration _nextBackoffDelay() {
+    // 1s → 2s → 4s → 8s → 16s → cap 30s
+    final int seconds =
+        math.min(1 << _reconnectAttempt, _maxBackoff.inSeconds);
+    return Duration(seconds: seconds);
+  }
+
+  // Real reachability probe (runs only while not connected)
+  Timer? _probeTimer;
+  bool _probeInFlight = false;
+  static const Duration _probeInterval = Duration(seconds: 15);
+
+  void _startProbing() {
+    if (_probeTimer != null || _closed) return;
+    _runProbe();
+    _probeTimer = Timer.periodic(_probeInterval, (_) => _runProbe());
+  }
+
+  void _stopProbing() {
+    _probeTimer?.cancel();
+    _probeTimer = null;
+  }
+
+  Future<void> _runProbe() async {
+    if (_probeInFlight || _closed || isConnected) return;
+    _probeInFlight = true;
+    try {
+      final http.Response resp = await http
+          .head(Uri.parse(baseUrl))
+          .timeout(const Duration(seconds: 5));
+      // Any HTTP response (even 4xx/5xx) means the server is reachable.
+      debugPrint('[WebSocketClient] Probe ok (${resp.statusCode})');
+      if (!isConnected && _state == WsConnectionState.offline) {
+        _setState(WsConnectionState.reconnecting);
+        // Server is back — retry immediately instead of waiting for backoff.
+        _reconnectAttempt = 0;
+        _scheduleReconnect(immediate: true);
+      }
+    } catch (e) {
+      debugPrint('[WebSocketClient] Probe failed: $e');
+      if (!isConnected) {
+        _setState(WsConnectionState.offline);
+      }
+    } finally {
+      _probeInFlight = false;
+    }
+  }
+
   String _getWsUrl() {
     final Uri uri = Uri.parse(baseUrl);
     final String scheme = uri.scheme == 'https' ? 'wss' : 'ws';
@@ -67,6 +156,9 @@ class WebSocketClient {
 
     _isConnecting = true;
     _connectionReadyCompleter = Completer<void>();
+    _setState(_reconnectAttempt == 0
+        ? WsConnectionState.connecting
+        : WsConnectionState.reconnecting);
 
     final String wsUrl = _getWsUrl();
     debugPrint('[WebSocketClient] Connecting to $wsUrl ...');
@@ -94,7 +186,9 @@ class WebSocketClient {
             .completeError(ApiException(statusCode: 0, message: '$e'));
       }
       _connectionReadyCompleter = null;
+      _setState(WsConnectionState.reconnecting);
       _scheduleReconnect();
+      _startProbing();
       rethrow;
     }
 
@@ -111,7 +205,9 @@ class WebSocketClient {
     _isSocketOpen = false;
     _secretKey = null;
     _isConnecting = false;
+    _setState(WsConnectionState.reconnecting);
     _scheduleReconnect();
+    _startProbing();
   }
 
   void _onDone() {
@@ -124,13 +220,20 @@ class WebSocketClient {
     _isSocketOpen = false;
     _secretKey = null;
     _isConnecting = false;
+    _setState(WsConnectionState.reconnecting);
     _scheduleReconnect();
+    _startProbing();
   }
 
-  void _scheduleReconnect() {
+  void _scheduleReconnect({bool immediate = false}) {
     _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(const Duration(seconds: 3), () {
+    final Duration delay =
+        immediate ? Duration.zero : _nextBackoffDelay();
+    debugPrint(
+        '[WebSocketClient] Reconnect attempt ${_reconnectAttempt + 1} in ${delay.inSeconds}s');
+    _reconnectTimer = Timer(delay, () {
       if (!_closed && !isConnected && !_isConnecting) {
+        _reconnectAttempt++;
         connect().catchError((e) {
           debugPrint('[WebSocketClient] Reconnect error: $e');
         });
@@ -222,6 +325,9 @@ class WebSocketClient {
           }
           _secretKey = SecretKey(keyBytes);
           _isConnecting = false;
+          _reconnectAttempt = 0;
+          _stopProbing();
+          _setState(WsConnectionState.connected);
           debugPrint('[WebSocketClient] Key exchange complete ✓');
           if (_connectionReadyCompleter != null &&
               !_connectionReadyCompleter!.isCompleted) {
@@ -394,6 +500,9 @@ class WebSocketClient {
     _closed = true;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _stopProbing();
+    _setState(WsConnectionState.offline);
+    _stateController.close();
     _channelSubscription?.cancel();
     _channelSubscription = null;
     _failPendingRequests('WebSocket closed');

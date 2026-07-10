@@ -1433,7 +1433,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         bottomSafe: false,
         child: Column(
           children: <Widget>[
-            OfflineBanner(isOffline: !(ref.watch(connectivityProvider).value ?? true)),
+            OfflineBanner(state: ref.watch(appConnectionStateProvider)),
             if (chat?.isSecret == true)
               Container(
                 width: double.infinity,

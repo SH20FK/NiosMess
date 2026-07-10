@@ -2468,6 +2468,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offlineWaiting => 'Waiting for network...';
 
   @override
+  String get connectionReconnecting => 'Reconnecting...';
+
+  @override
   String get filePreviewSave => 'Save';
 
   @override

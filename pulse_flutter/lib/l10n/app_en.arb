@@ -1073,6 +1073,7 @@
   "emptyStateNoItems": "No items found",
   "emptyStateNoItemsDesc": "There's nothing to show here yet.",
   "offlineWaiting": "Waiting for network...",
+  "connectionReconnecting": "Reconnecting...",
   "filePreviewSave": "Save",
   "filePreviewLink": "Link",
   "filePreviewOpen": "Open",
