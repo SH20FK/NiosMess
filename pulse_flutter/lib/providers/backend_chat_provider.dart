@@ -98,6 +98,11 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       try {
         final E2eeService e2ee = E2eeService();
         publicKey = await e2ee.getPublicKeyBase64();
+        if (publicKey != null && publicKey.isNotEmpty) {
+          try {
+            await ref.read(authRepositoryProvider).setPublicKey(publicKey);
+          } catch (_) {}
+        }
       } catch (_) {}
       final List<ApiChatSummary> chats = await ref.read(chatRepositoryProvider).listChats(publicKey: publicKey);
       // Save cache
@@ -421,7 +426,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       senderUsername: myUsername,
       senderDisplayName: myUsername.isEmpty ? 'Я' : myUsername,
       senderBadges: const [],
-      content: isE2ee ? '' : trimmed,
+      content: trimmed,
       msgType: uploadId != null ? 'media' : 'text',
       replyToId: replyToId,
       mediaUrl: null,

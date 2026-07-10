@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
@@ -46,6 +47,11 @@ class _DirectChatResolverScreenState
       String? publicKey;
       if (widget.isSecret) {
         publicKey = await _e2ee.getPublicKeyBase64();
+        if (publicKey != null && publicKey.isNotEmpty) {
+          try {
+            await ref.read(authRepositoryProvider).setPublicKey(publicKey);
+          } catch (_) {}
+        }
       }
 
       final result = await ref
