@@ -7,6 +7,7 @@ class AppTypography {
     return TextTheme(
       displayLarge: TextStyle(
         fontFamily: 'PlusJakartaSans',
+        fontFamilyFallback: const <String>['Inter'],
         fontSize: 40,
         fontWeight: FontWeight.w800,
         letterSpacing: -0.4,
@@ -14,6 +15,7 @@ class AppTypography {
       ),
       headlineLarge: TextStyle(
         fontFamily: 'PlusJakartaSans',
+        fontFamilyFallback: const <String>['Inter'],
         fontSize: 32,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.2,
@@ -21,18 +23,21 @@ class AppTypography {
       ),
       headlineMedium: TextStyle(
         fontFamily: 'PlusJakartaSans',
+        fontFamilyFallback: const <String>['Inter'],
         fontSize: 24,
         fontWeight: FontWeight.w700,
         color: scheme.onSurface,
       ),
       headlineSmall: TextStyle(
         fontFamily: 'PlusJakartaSans',
+        fontFamilyFallback: const <String>['Inter'],
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: scheme.onSurface,
       ),
       titleLarge: TextStyle(
         fontFamily: 'PlusJakartaSans',
+        fontFamilyFallback: const <String>['Inter'],
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: scheme.onSurface,

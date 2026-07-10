@@ -28,6 +28,7 @@ class ChatDetailInputArea extends StatelessWidget {
     required this.onAttachMedia,
     required this.onAiPressed,
     required this.onVoiceSend,
+    required this.onCircleVideoSend,
     required this.hapticsEnabled,
   });
 
@@ -55,6 +56,7 @@ class ChatDetailInputArea extends StatelessWidget {
   final VoidCallback onAttachMedia;
   final VoidCallback onAiPressed;
   final void Function(String) onVoiceSend;
+  final void Function(String) onCircleVideoSend;
   final bool hapticsEnabled;
 
   @override
@@ -139,6 +141,7 @@ class ChatDetailInputArea extends StatelessWidget {
                         onAttachMedia: onAttachMedia,
                         onAiPressed: onAiPressed,
                         onVoiceSend: onVoiceSend,
+                        onCircleVideoSend: onCircleVideoSend,
                         hapticsEnabled: hapticsEnabled,
                       ),
                     ],

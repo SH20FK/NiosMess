@@ -695,6 +695,23 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     );
   }
 
+  Future<void> _sendCircleVideo(String filePath) async {
+    final int? chatId = _chatId;
+    if (chatId == null || _uploadingMedia) return;
+
+    final File file = File(filePath);
+    final int fileSize = await file.length();
+    final String filename = filePath.split('/').last;
+
+    await _uploadAndSend(
+      chatId: chatId,
+      filePath: filePath,
+      filename: filename,
+      mediaSubtype: 'circle',
+      fileSize: fileSize,
+    );
+  }
+
   Future<bool> _loadOlderMessages() async {
     final int? chatId = _chatId;
     if (chatId == null) {
@@ -1580,6 +1597,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               onAttachMedia: _pickAndUploadMedia,
               onAiPressed: () => _showAiBottomSheet(context, scheme),
               onVoiceSend: _sendVoiceMessage,
+              onCircleVideoSend: _sendCircleVideo,
               hapticsEnabled: ref.read(uiSettingsProvider).haptics,
             ),
           ],
