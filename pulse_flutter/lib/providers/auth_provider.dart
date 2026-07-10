@@ -471,7 +471,7 @@ class AuthNotifier extends Notifier<AuthState> {
         ref.read(webSocketClientProvider).request(
               'register_fcm_token',
               payload: {
-                'token': fcmToken,
+                'fcm_token': fcmToken,
                 'platform': Platform.isAndroid ? 'android' : 'ios',
               },
             );
@@ -482,7 +482,7 @@ class AuthNotifier extends Notifier<AuthState> {
       ref.read(webSocketClientProvider).request(
             'register_fcm_token',
             payload: {
-              'token': newToken,
+              'fcm_token': newToken,
               'platform': Platform.isAndroid ? 'android' : 'ios',
             },
           );

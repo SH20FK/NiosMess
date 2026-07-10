@@ -178,7 +178,7 @@ class ChatRepository {
 
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request('get_invite_info', payload: <String, dynamic>{'username': slug});
+        .request('get_invite_info', payload: <String, dynamic>{'slug': slug});
 
     if (response is! Map) {
       return null;
@@ -199,7 +199,7 @@ class ChatRepository {
 
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request('join_chat', payload: <String, dynamic>{'username': slug});
+        .request('join_chat', payload: <String, dynamic>{'slug': slug});
 
     if (response is! Map) {
       return null;

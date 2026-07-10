@@ -253,10 +253,13 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     }).toList(growable: false);
     state = AsyncData<NiosgramState>(current.value.copyWith(posts: updated));
 
+    final int userId = current.value.posts
+        .firstWhere((NgPost p) => p.author.username == username)
+        .author.id;
     try {
       await ref.read(webSocketClientProvider).request(
         'follow_user',
-        payload: <String, dynamic>{'username': username},
+        payload: <String, dynamic>{'user_id': userId},
       );
     } catch (_) {
       state = AsyncData<NiosgramState>(current.value);
