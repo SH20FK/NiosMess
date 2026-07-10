@@ -102,8 +102,13 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   Future<void> _openCircleVideo() async {
     final String? result = await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(
-        builder: (_) => const CircleVideoRecorderScreen(),
+      PageRouteBuilder<String>(
+        opaque: false,
+        barrierDismissible: true,
+        barrierColor: Colors.black38,
+        pageBuilder: (_, __, ___) => const CircleVideoRecorderScreen(),
+        transitionsBuilder: (_, Animation<double> a, __, Widget child) =>
+            FadeTransition(opacity: a, child: child),
       ),
     );
     if (result != null && mounted) {

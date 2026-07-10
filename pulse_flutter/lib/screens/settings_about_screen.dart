@@ -133,8 +133,8 @@ class _HeroBlock extends StatelessWidget {
               top: -30,
               left: -20,
               child: Container(
-                width: 140,
-                height: 140,
+                width: 100,
+                height: 100,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: scheme.primary.withValues(alpha: 0.06),

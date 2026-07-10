@@ -155,7 +155,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/g/:username',
-        redirect: (context, state) => '/profile/${state.pathParameters['username']}',
+        pageBuilder: (context, state) => _page(
+          state,
+          DirectChatResolverScreen(
+            username: state.pathParameters['username']!,
+          ),
+        ),
       ),
       GoRoute(
         path: '/u/:slug',

@@ -131,14 +131,17 @@ class _CircleVideoRecorderScreenState
         '${(_elapsedSec ~/ 60).toString().padLeft(2, '0')}:${(_elapsedSec % 60).toString().padLeft(2, '0')}';
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: <Widget>[
-          // Camera preview area
+          // Camera preview area — proper circle centered
           if (_initialized && _controller != null && _controller!.value.isInitialized)
-            Positioned.fill(
-              child: ClipOval(
-                child: CameraPreview(_controller!),
+            Center(
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: ClipOval(
+                  child: CameraPreview(_controller!),
+                ),
               ),
             )
           else
@@ -146,38 +149,25 @@ class _CircleVideoRecorderScreenState
               child: CircularProgressIndicator(color: Colors.white),
             ),
 
-          // Dark vignette overlay
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    colors: <Color>[
-                      Colors.transparent,
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.55),
-                    ],
-                    stops: const [0.0, 0.55, 1.0],
-                    radius: 0.9,
-                  ),
-                ),
-              ),
-            ),
-          ),
-
           // Top bar
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 0,
             right: 0,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: <Widget>[
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.white),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: context.l10n.commonCancel,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                      tooltip: context.l10n.commonCancel,
+                    ),
                   ),
                   const Spacer(),
                   // Timer badge
@@ -222,10 +212,16 @@ class _CircleVideoRecorderScreenState
                       },
                     ),
                   const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
-                    onPressed: _switchCamera,
-                    tooltip: context.l10n.mediaViewerFlipCamera,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
+                      onPressed: _switchCamera,
+                      tooltip: context.l10n.mediaViewerFlipCamera,
+                    ),
                   ),
                 ],
               ),
@@ -240,18 +236,6 @@ class _CircleVideoRecorderScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                // Hint text
-                Text(
-                  _isRecording
-                      ? context.l10n.mediaViewerRecording
-                      : context.l10n.chatCircleVideoHoldHint,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 16),
                 // Record button
                 GestureDetector(
                   onLongPressStart: (_) => _startRecording(),
@@ -291,6 +275,18 @@ class _CircleVideoRecorderScreenState
                         ),
                       );
                     },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Hint text
+                Text(
+                  _isRecording
+                      ? context.l10n.mediaViewerRecording
+                      : context.l10n.chatCircleVideoHoldHint,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.65),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],

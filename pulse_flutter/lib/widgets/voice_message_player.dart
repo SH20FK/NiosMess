@@ -25,6 +25,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   late final List<double> _waveformBars;
+  bool _seeking = false;
 
   @override
   void initState() {
@@ -40,7 +41,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
       await _player.setAudioSource(AudioSource.uri(Uri.parse(widget.audioUrl)));
       _duration = Duration(seconds: widget.durationSeconds);
       _player.positionStream.listen((p) {
-        if (mounted) setState(() => _position = p);
+        if (mounted && !_seeking) setState(() => _position = p);
       });
       _player.playerStateStream.listen((_) {
         if (mounted) setState(() {});
@@ -68,6 +69,12 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     }
   }
 
+  void _seekTo(double fraction) {
+    final Duration target = _duration * fraction.clamp(0.0, 1.0);
+    _player.seek(target);
+    setState(() => _position = target);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool playing = _player.playing;
@@ -75,71 +82,93 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
         ? _position.inMilliseconds / _duration.inMilliseconds
         : 0.0;
     final Duration remaining = _duration - _position;
-
     final Color fg = widget.isMine ? widget.scheme.onPrimary : widget.scheme.primary;
 
     return Container(
       constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),
-      padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: widget.isMine
-              ? [widget.scheme.primary, widget.scheme.primaryContainer]
-              : [widget.scheme.secondaryContainer, widget.scheme.tertiaryContainer],
-        ),
-        borderRadius: BorderRadius.circular(14),
+        color: widget.isMine
+            ? widget.scheme.primary.withValues(alpha: 0.08)
+            : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: <Widget>[
-          GestureDetector(
-            onTap: _togglePlay,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: fg,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(
-                playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                color: widget.isMine ? widget.scheme.primaryContainer : widget.scheme.surface,
-                size: 24,
+          Padding(
+            padding: const EdgeInsets.all(4),
+            child: GestureDetector(
+              onTap: _togglePlay,
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: fg,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: fg.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  color: widget.isMine ? widget.scheme.surface : widget.scheme.surface,
+                  size: 26,
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 SizedBox(
-                  height: 28,
-                  child: CustomPaint(
-                    size: const Size(double.infinity, 28),
-                    painter: _WaveformPainter(
-                      bars: _waveformBars,
-                      progress: progress,
-                      playedColor: fg,
-                      unplayedColor: fg.withValues(alpha: 0.30),
+                  height: 40,
+                  child: GestureDetector(
+                    onTapDown: (TapDownDetails details) {
+                      final RenderBox box = context.findRenderObject() as RenderBox;
+                      final double localX = details.localPosition.dx;
+                      final double width = box.size.width - 60;
+                      _seekTo(localX / width);
+                    },
+                    onHorizontalDragStart: (_) => _seeking = true,
+                    onHorizontalDragUpdate: (DragUpdateDetails details) {
+                      final RenderBox box = context.findRenderObject() as RenderBox;
+                      final double localX = details.localPosition.dx;
+                      final double width = box.size.width - 60;
+                      _seekTo(localX / width);
+                    },
+                    onHorizontalDragEnd: (_) => _seeking = false,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: CustomPaint(
+                        size: const Size(double.infinity, 34),
+                        painter: _WaveformPainter(
+                          bars: _waveformBars,
+                          progress: progress,
+                          playedColor: fg,
+                          unplayedColor: fg.withValues(alpha: 0.18),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    _formatDuration(remaining),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: fg.withValues(alpha: 0.75),
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                Padding(
+                  padding: const EdgeInsets.only(right: 8, bottom: 4),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      _formatDuration(remaining),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: fg.withValues(alpha: 0.7),
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ),
                 ),
@@ -186,16 +215,27 @@ class _WaveformPainter extends CustomPainter {
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(x, top, barWidth, barHeight),
-          const Radius.circular(1.5),
+          const Radius.circular(2),
         ),
         Paint()..color = played ? playedColor : unplayedColor,
       );
     }
+
     final double thumbX = progress * size.width;
     canvas.drawCircle(
       Offset(thumbX, midY),
-      3.5,
-      Paint()..color = playedColor,
+      4,
+      Paint()
+        ..color = playedColor
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawCircle(
+      Offset(thumbX, midY),
+      4,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
     );
   }
 

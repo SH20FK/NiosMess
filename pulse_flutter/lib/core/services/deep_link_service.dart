@@ -26,8 +26,17 @@ class DeepLinkService {
   static void _handleUri(Uri uri) {
     debugPrint('[DeepLink] Received: $uri');
 
-    final String path = uri.path;
+    String path = uri.path;
     if (path.isEmpty || path == '/') return;
+
+    // Rewrite server URL patterns to app routes
+    // /join/{slug} → /join?slug={slug}
+    if (path.startsWith('/join/')) {
+      final String slug = path.substring(6);
+      if (slug.isNotEmpty) {
+        path = '/join?slug=$slug';
+      }
+    }
 
     final BuildContext? ctx = AppRouter.navigatorKey.currentContext;
     if (ctx == null) return;

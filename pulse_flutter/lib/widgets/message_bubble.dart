@@ -11,6 +11,7 @@ import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
 
 class MessageBubble extends ConsumerWidget {
@@ -22,6 +23,8 @@ class MessageBubble extends ConsumerWidget {
     this.isEdited = false,
     this.isRead = false,
     this.replyPreview,
+    this.replyToId,
+    this.onReplyTap,
     this.reactions = const <String, int>{},
     this.onLongPress,
     this.mediaUrl,
@@ -54,6 +57,8 @@ class MessageBubble extends ConsumerWidget {
   final bool isRead;
   final bool isE2ee;
   final String? replyPreview;
+  final int? replyToId;
+  final VoidCallback? onReplyTap;
   final Map<String, int> reactions;
   final VoidCallback? onLongPress;
   final String? mediaUrl;
@@ -226,29 +231,32 @@ class MessageBubble extends ConsumerWidget {
                             textTheme: textTheme,
                           ),
                           if ((replyPreview ?? '').trim().isNotEmpty)
-                            Container(
-                              width: double.infinity,
-                              margin: const EdgeInsets.only(bottom: 6),
-                              padding: const EdgeInsets.only(left: 8),
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  left: BorderSide(
-                                    color: isMine
-                                        ? scheme.primary
-                                        : scheme.secondary,
-                                    width: 2.5,
+                            GestureDetector(
+                              onTap: onReplyTap,
+                              child: Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 6),
+                                padding: const EdgeInsets.only(left: 8),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    left: BorderSide(
+                                      color: isMine
+                                          ? scheme.primary
+                                          : scheme.secondary,
+                                      width: 2.5,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              child: Text(
-                                replyPreview!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: textTheme.labelSmall?.copyWith(
-                                  color: isMine
-                                      ? scheme.primary
-                                      : scheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
+                                child: Text(
+                                  replyPreview!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.labelSmall?.copyWith(
+                                    color: isMine
+                                        ? scheme.primary
+                                        : scheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
@@ -389,25 +397,9 @@ class MessageBubble extends ConsumerWidget {
     );
 
     if (onSwipeToReply != null) {
-      content = Dismissible(
-        key: ValueKey<String>('msg_dismiss_${text.hashCode}_$formattedTime'),
-        direction: DismissDirection.endToStart,
-        confirmDismiss: (DismissDirection direction) async {
-          onSwipeToReply!();
-          return false;
-        },
-        background: Container(
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 24),
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: scheme.primaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.reply_rounded, color: scheme.primary, size: 20),
-          ),
-        ),
+      content = _SwipeToReply(
+        onReply: onSwipeToReply!,
+        scheme: scheme,
         child: content,
       );
     }
@@ -432,115 +424,23 @@ class MessageBubble extends ConsumerWidget {
 
   Widget _buildCircleVideoContent(BuildContext context, ColorScheme scheme, TextTheme textTheme) {
     const double circleSize = 180;
-    return InkWell(
-      onTap: onOpenMedia,
-      onLongPress: onLongPressMedia,
-      borderRadius: BorderRadius.circular(circleSize / 2),
-      child: Semantics(
-        label: context.l10n.chatCircleVideo,
-        child: SizedBox(
-          width: circleSize,
-          height: circleSize,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: circleSize,
-                height: circleSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: scheme.shadow.withValues(alpha: 0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: ClipOval(
-                  child: CachedNetworkImage(
-                    imageUrl: mediaUrl!,
-                    cacheKey: '${mediaUrl}_circle_thumb',
-                    width: circleSize,
-                    height: circleSize,
-                    fit: BoxFit.cover,
-                    memCacheWidth: 360,
-                    memCacheHeight: 360,
-                    placeholder: (BuildContext context, String _) => Container(
-                      width: circleSize,
-                      height: circleSize,
-                      decoration: BoxDecoration(
-                        color: isMine
-                            ? scheme.onPrimary.withValues(alpha: 0.12)
-                            : scheme.surfaceContainerHigh,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.videocam_rounded, size: 32),
-                    ),
-                    errorWidget: (BuildContext context, String _, Object error) {
-                      return Container(
-                        width: circleSize,
-                        height: circleSize,
-                        decoration: BoxDecoration(
-                          color: isMine
-                              ? scheme.onPrimary.withValues(alpha: 0.12)
-                              : scheme.surfaceContainerHigh,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.broken_image_rounded, size: 32),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.black26,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
-              ),
-              if (mediaDuration != null)
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _formatDuration(mediaDuration!),
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              Positioned(
-                bottom: 8,
-                left: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: _MessageBubbleFooter(
-                    isMine: isMine,
-                    isE2ee: isE2ee,
-                    isEdited: isEdited,
-                    isDeleted: isDeleted,
-                    isRead: isRead,
-                    formattedTime: formattedTime,
-                    scheme: scheme,
-                    textTheme: textTheme,
-                  ),
-                ),
-              ),
-            ],
-          ),
+    return Semantics(
+      label: context.l10n.chatCircleVideo,
+      child: SizedBox(
+        width: circleSize,
+        height: circleSize,
+        child: _CircleVideoInlinePlayer(
+          videoUrl: mediaUrl!,
+          durationSeconds: mediaDuration ?? 0,
+          isMine: isMine,
+          isE2ee: isE2ee,
+          isEdited: isEdited,
+          isDeleted: isDeleted,
+          isRead: isRead,
+          formattedTime: formattedTime,
+          scheme: scheme,
+          textTheme: textTheme,
+          onLongPress: onLongPressMedia,
         ),
       ),
     );
@@ -913,5 +813,322 @@ class _MessageBubbleFooter extends StatelessWidget {
         ],
       ],
     );
+  }
+}
+
+class _SwipeToReply extends StatefulWidget {
+  const _SwipeToReply({
+    required this.onReply,
+    required this.scheme,
+    required this.child,
+  });
+
+  final VoidCallback onReply;
+  final ColorScheme scheme;
+  final Widget child;
+
+  @override
+  State<_SwipeToReply> createState() => _SwipeToReplyState();
+}
+
+class _SwipeToReplyState extends State<_SwipeToReply>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  double _dragX = 0;
+  static const double _maxDrag = 72;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _resetPosition() {
+    _dragX = 0;
+    _controller.reset();
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onHorizontalDragUpdate: (DragUpdateDetails details) {
+        _dragX = (_dragX + details.delta.dx).clamp(-_maxDrag, 0);
+        setState(() {});
+      },
+      onHorizontalDragEnd: (DragEndDetails details) {
+        if (_dragX < -_maxDrag * 0.4 || details.primaryVelocity! < -300) {
+          HapticService.tap();
+          widget.onReply();
+        }
+        _resetPosition();
+      },
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          AnimatedSlide(
+            offset: Offset(_dragX / _maxDrag, 0),
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            child: widget.child,
+          ),
+          if (_dragX < -8)
+            Positioned(
+              right: -_dragX + 8,
+              top: 0,
+              bottom: 0,
+              child: AnimatedOpacity(
+                opacity: (_dragX.abs() / _maxDrag).clamp(0.0, 1.0),
+                duration: const Duration(milliseconds: 100),
+                child: Center(
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: widget.scheme.primaryContainer,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.reply_rounded, color: widget.scheme.primary, size: 20),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CircleVideoInlinePlayer extends StatefulWidget {
+  const _CircleVideoInlinePlayer({
+    required this.videoUrl,
+    required this.durationSeconds,
+    required this.isMine,
+    required this.isE2ee,
+    required this.isEdited,
+    required this.isDeleted,
+    required this.isRead,
+    required this.formattedTime,
+    required this.scheme,
+    required this.textTheme,
+    this.onLongPress,
+  });
+
+  final String videoUrl;
+  final int durationSeconds;
+  final bool isMine;
+  final bool isE2ee;
+  final bool isEdited;
+  final bool isDeleted;
+  final bool isRead;
+  final String formattedTime;
+  final ColorScheme scheme;
+  final TextTheme textTheme;
+  final VoidCallback? onLongPress;
+
+  @override
+  State<_CircleVideoInlinePlayer> createState() => _CircleVideoInlinePlayerState();
+}
+
+class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
+  VideoPlayerController? _videoController;
+  bool _initialized = false;
+  bool _playing = false;
+  bool _showThumbnail = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initVideo();
+  }
+
+  Future<void> _initVideo() async {
+    try {
+      _videoController = VideoPlayerController.networkUrl(
+        Uri.parse(widget.videoUrl),
+      );
+      await _videoController!.initialize();
+      _videoController!.addListener(_onVideoStateChange);
+      if (mounted) setState(() => _initialized = true);
+    } catch (_) {
+      if (mounted) setState(() => _initialized = false);
+    }
+  }
+
+  void _onVideoStateChange() {
+    if (!mounted) return;
+    final bool wasPlaying = _playing;
+    final bool nowPlaying = _videoController?.value.isPlaying ?? false;
+    if (wasPlaying != nowPlaying) setState(() => _playing = nowPlaying);
+  }
+
+  void _togglePlay() {
+    if (!_initialized || _videoController == null) return;
+    if (_showThumbnail) {
+      setState(() => _showThumbnail = false);
+      _videoController!.play();
+    } else if (_playing) {
+      _videoController!.pause();
+    } else {
+      _videoController!.play();
+    }
+  }
+
+  @override
+  void dispose() {
+    _videoController?.removeListener(_onVideoStateChange);
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const double circleSize = 180;
+
+    return GestureDetector(
+      onTap: _togglePlay,
+      onLongPress: widget.onLongPress,
+      child: SizedBox(
+        width: circleSize,
+        height: circleSize,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Thumbnail or video
+            if (_showThumbnail || !_initialized)
+              _circleThumbnail(circleSize)
+            else
+              ClipOval(
+                child: SizedBox(
+                  width: circleSize,
+                  height: circleSize,
+                  child: VideoPlayer(_videoController!),
+                ),
+              ),
+            // Play/pause overlay
+            if (_showThumbnail || !_playing)
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _showThumbnail ? Colors.black26 : Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _showThumbnail ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+            // Duration badge
+            if (_showThumbnail && widget.durationSeconds > 0)
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: widget.scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _formatDuration(widget.durationSeconds),
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            // Footer overlay
+            Positioned(
+              bottom: 8,
+              left: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: _MessageBubbleFooter(
+                  isMine: widget.isMine,
+                  isE2ee: widget.isE2ee,
+                  isEdited: widget.isEdited,
+                  isDeleted: widget.isDeleted,
+                  isRead: widget.isRead,
+                  formattedTime: widget.formattedTime,
+                  scheme: widget.scheme,
+                  textTheme: widget.textTheme,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _circleThumbnail(double circleSize) {
+    return Container(
+      width: circleSize,
+      height: circleSize,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: widget.scheme.shadow.withValues(alpha: 0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: widget.videoUrl,
+          cacheKey: '${widget.videoUrl}_circle_thumb',
+          width: circleSize,
+          height: circleSize,
+          fit: BoxFit.cover,
+          memCacheWidth: 360,
+          memCacheHeight: 360,
+          placeholder: (BuildContext context, String _) => Container(
+            width: circleSize,
+            height: circleSize,
+            decoration: BoxDecoration(
+              color: widget.isMine
+                  ? widget.scheme.onPrimary.withValues(alpha: 0.12)
+                  : widget.scheme.surfaceContainerHigh,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.videocam_rounded, size: 32),
+          ),
+          errorWidget: (BuildContext context, String _, Object error) {
+            return Container(
+              width: circleSize,
+              height: circleSize,
+              decoration: BoxDecoration(
+                color: widget.isMine
+                    ? widget.scheme.onPrimary.withValues(alpha: 0.12)
+                    : widget.scheme.surfaceContainerHigh,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.broken_image_rounded, size: 32),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  String _formatDuration(int seconds) {
+    final int m = seconds ~/ 60;
+    final int s = seconds % 60;
+    return '${m}:${s.toString().padLeft(2, '0')}';
   }
 }

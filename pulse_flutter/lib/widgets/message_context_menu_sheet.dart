@@ -53,20 +53,20 @@ class MessageContextMenuSheet extends StatelessWidget {
       top: false,
       bottom: true,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             _MessagePreviewCard(message: message, isMine: isMine),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _ReactionsRow(
               scheme: scheme,
               onReact: onReact,
               onShowAllReactions: onShowAllReactions,
             ),
             const SizedBox(height: 12),
-            _ActionsList(
+            _ActionsCompact(
               message: message,
               isMine: isMine,
               isChannel: isChannel,
@@ -106,26 +106,23 @@ class _MessagePreviewCard extends StatelessWidget {
     final bool hasText = message.content.trim().isNotEmpty;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.15),
-        ),
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Container(
-            width: 4,
-            height: 48,
+            width: 3,
+            height: 42,
             decoration: BoxDecoration(
               color: isMine ? scheme.primary : scheme.secondary,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,14 +130,12 @@ class _MessagePreviewCard extends StatelessWidget {
               children: <Widget>[
                 if (hasText)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.only(bottom: 4),
                     child: Text(
                       message.content,
-                      maxLines: 3,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodyMedium?.copyWith(
-                        height: 1.3,
-                      ),
+                      style: textTheme.bodySmall?.copyWith(height: 1.3),
                     ),
                   ),
                 Row(
@@ -148,14 +143,15 @@ class _MessagePreviewCard extends StatelessWidget {
                   children: <Widget>[
                     Icon(
                       isMine ? Icons.check_rounded : Icons.person_rounded,
-                      size: 12,
-                      color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      size: 11,
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 3),
                     Text(
                       formatMessageTime(message.resolvedSentAt),
                       style: textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        fontSize: 11,
+                        color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
                       ),
                     ),
                   ],
@@ -165,8 +161,8 @@ class _MessagePreviewCard extends StatelessWidget {
           ),
           if (message.mediaType != null && message.mediaType!.isNotEmpty)
             Container(
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(10),
@@ -180,7 +176,7 @@ class _MessagePreviewCard extends StatelessWidget {
                         : message.msgType == 'image'
                             ? Icons.image_rounded
                             : Icons.insert_drive_file_rounded,
-                size: 20,
+                size: 18,
                 color: scheme.primary,
               ),
             ),
@@ -204,13 +200,10 @@ class _ReactionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.15),
-        ),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -218,7 +211,6 @@ class _ReactionsRow extends StatelessWidget {
           for (final reaction in MessageContextMenuSheet._quickReactions) ...<Widget>[
             _ReactionButton(
               emoji: reaction.emoji,
-              icon: reaction.icon,
               scheme: scheme,
               onTap: () {
                 HapticService.tap();
@@ -241,13 +233,11 @@ class _ReactionsRow extends StatelessWidget {
 class _ReactionButton extends StatelessWidget {
   const _ReactionButton({
     required this.emoji,
-    required this.icon,
     required this.scheme,
     required this.onTap,
   });
 
   final String emoji;
-  final IconData icon;
   final ColorScheme scheme;
   final VoidCallback onTap;
 
@@ -257,21 +247,14 @@ class _ReactionButton extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 38,
+        height: 38,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: scheme.surfaceContainerHighest,
-          boxShadow: [
-            BoxShadow(
-              color: scheme.shadow.withValues(alpha: 0.04),
-              blurRadius: 2,
-              offset: const Offset(0, 1),
-            ),
-          ],
         ),
         child: Center(
-          child: Text(emoji, style: const TextStyle(fontSize: 20)),
+          child: Text(emoji, style: const TextStyle(fontSize: 18)),
         ),
       ),
     );
@@ -290,20 +273,20 @@ class _ReactionAddButton extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 38,
+        height: 38,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: scheme.primaryContainer.withValues(alpha: 0.5),
+          color: scheme.primaryContainer.withValues(alpha: 0.4),
         ),
-        child: Icon(Icons.add_rounded, size: 22, color: scheme.primary),
+        child: Icon(Icons.add_rounded, size: 20, color: scheme.primary),
       ),
     );
   }
 }
 
-class _ActionsList extends StatelessWidget {
-  const _ActionsList({
+class _ActionsCompact extends StatelessWidget {
+  const _ActionsCompact({
     required this.message,
     required this.isMine,
     required this.isChannel,
@@ -333,186 +316,163 @@ class _ActionsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<_ActionItem> actions = <_ActionItem>[
-      _ActionItem(
-        icon: Icons.reply_rounded,
-        title: context.l10n.chatReply,
-        onTap: () {
-          Navigator.of(context).pop();
-          onReply();
-        },
-      ),
-      if (message.msgType == 'text' && !message.isDeleted)
-        _ActionItem(
-          icon: Icons.copy_rounded,
-          title: context.l10n.chatCopyText,
-          onTap: () {
-            Navigator.of(context).pop();
-            onCopy();
-          },
-        ),
-      if (!isSecret)
-        _ActionItem(
-          icon: Icons.forward_rounded,
-          title: context.l10n.chatResendTo,
-          onTap: () {
-            Navigator.of(context).pop();
-            onForward();
-          },
-        ),
-      if (isChannel)
-        _ActionItem(
-          icon: Icons.forum_outlined,
-          title: context.l10n.chatComments,
-          subtitle: message.commentsCount > 0
-              ? context.l10n.chatCommentsCount(message.commentsCount)
-              : null,
-          onTap: () {
-            Navigator.of(context).pop();
-            onComments();
-          },
-        ),
-      if (isMine && message.msgType == 'text' && !message.isDeleted)
-        _ActionItem(
-          icon: Icons.edit_rounded,
-          title: context.l10n.chatEdit,
-          onTap: () {
-            Navigator.of(context).pop();
-            onEdit();
-          },
-        ),
-      if (isMine || (amAdminOrOwner && !message.isDeleted))
-        _ActionItem(
-          icon: Icons.delete_outline_rounded,
-          title: context.l10n.chatDelete,
-          color: scheme.error,
-          onTap: () {
-            Navigator.of(context).pop();
-            onDelete();
-          },
-        ),
-    ];
+    final List<_CompactAction> actions = _buildActions(context);
 
     return Container(
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.15),
-        ),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            for (int i = 0; i < actions.length; i++) ...<Widget>[
-              _ActionTile(
-                icon: actions[i].icon,
-                title: actions[i].title,
-                subtitle: actions[i].subtitle,
-                color: actions[i].color,
-                onTap: actions[i].onTap,
-                scheme: scheme,
-              ),
-              if (i < actions.length - 1)
-                Divider(
-                  height: 1,
-                  indent: 56,
-                  endIndent: 16,
-                  color: scheme.outlineVariant.withValues(alpha: 0.12),
-                ),
-            ],
-          ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: actions.map((a) => _CompactActionTile(action: a, scheme: scheme)).toList(),
         ),
       ),
     );
   }
+
+  List<_CompactAction> _buildActions(BuildContext context) {
+    final List<_CompactAction> list = <_CompactAction>[];
+
+    list.add(_CompactAction(
+      icon: Icons.reply_rounded,
+      label: context.l10n.chatReply,
+      onTap: () {
+        Navigator.of(context).pop();
+        onReply();
+      },
+    ));
+
+    if (message.msgType == 'text' && !message.isDeleted) {
+      list.add(_CompactAction(
+        icon: Icons.copy_rounded,
+        label: null,
+        onTap: () {
+          Navigator.of(context).pop();
+          onCopy();
+        },
+      ));
+    }
+
+    if (!isSecret) {
+      list.add(_CompactAction(
+        icon: Icons.forward_rounded,
+        label: context.l10n.chatResendTo,
+        onTap: () {
+          Navigator.of(context).pop();
+          onForward();
+        },
+      ));
+    }
+
+    if (isChannel) {
+      list.add(_CompactAction(
+        icon: Icons.forum_outlined,
+        label: context.l10n.chatComments,
+        subtitle: message.commentsCount > 0
+            ? context.l10n.chatCommentsCount(message.commentsCount)
+            : null,
+        onTap: () {
+          Navigator.of(context).pop();
+          onComments();
+        },
+      ));
+    }
+
+    if (isMine && message.msgType == 'text' && !message.isDeleted) {
+      list.add(_CompactAction(
+        icon: Icons.edit_rounded,
+        label: context.l10n.chatEdit,
+        onTap: () {
+          Navigator.of(context).pop();
+          onEdit();
+        },
+      ));
+    }
+
+    if (isMine || (amAdminOrOwner && !message.isDeleted)) {
+      list.add(_CompactAction(
+        icon: Icons.delete_outline_rounded,
+        label: null,
+        color: scheme.error,
+        onTap: () {
+          Navigator.of(context).pop();
+          onDelete();
+        },
+      ));
+    }
+
+    return list;
+  }
 }
 
-class _ActionItem {
-  const _ActionItem({
+class _CompactAction {
+  const _CompactAction({
     required this.icon,
-    required this.title,
+    this.label,
     this.subtitle,
     this.color,
     required this.onTap,
   });
 
   final IconData icon;
-  final String title;
+  final String? label;
   final String? subtitle;
   final Color? color;
   final VoidCallback onTap;
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.color,
-    required this.onTap,
-    required this.scheme,
-  });
+class _CompactActionTile extends StatelessWidget {
+  const _CompactActionTile({required this.action, required this.scheme});
 
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final Color? color;
-  final VoidCallback onTap;
+  final _CompactAction action;
   final ColorScheme scheme;
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final Color effectiveColor = color ?? scheme.onSurface;
+    final Color effectiveColor = action.color ?? scheme.onSurface;
+    final bool hasLabel = action.label != null;
 
     return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      onTap: action.onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: hasLabel ? 12 : 10,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: effectiveColor.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: effectiveColor.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
+            Icon(action.icon, size: 20, color: effectiveColor),
+            if (hasLabel) ...[
+              const SizedBox(width: 6),
+              Text(
+                action.label!,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: effectiveColor,
+                ),
               ),
-              alignment: Alignment.center,
-              child: Icon(icon, color: effectiveColor, size: 20),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    title,
-                    style: textTheme.bodyLarge?.copyWith(
-                      color: effectiveColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (subtitle != null) ...<Widget>[
-                    const SizedBox(height: 1),
-                    Text(
-                      subtitle!,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ],
+            ],
+            if (action.subtitle != null && hasLabel) ...[
+              const SizedBox(width: 4),
+              Text(
+                action.subtitle!,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
-              size: 18,
-            ),
+            ],
           ],
         ),
       ),

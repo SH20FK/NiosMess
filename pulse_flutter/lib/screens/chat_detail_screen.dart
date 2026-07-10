@@ -967,9 +967,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black38,
       builder: (BuildContext ctx) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        decoration: const BoxDecoration(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Padding(
           padding: EdgeInsets.only(
@@ -1426,10 +1425,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 color: scheme.primaryContainer.withValues(alpha: 0.35),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
                     Icon(Icons.lock_rounded, size: 14, color: scheme.primary),
                     const SizedBox(width: 8),
-                    Expanded(
+                    Flexible(
                       child: Text(
                         context.l10n.chatE2eeBanner,
                         style: textTheme.bodySmall?.copyWith(
