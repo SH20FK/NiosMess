@@ -1097,6 +1097,7 @@
   "emptyStateNoItems": "Ничего не найдено",
   "emptyStateNoItemsDesc": "Здесь пока ничего нет.",
   "offlineWaiting": "Ожидание сети...",
+  "connectionReconnecting": "Переподключение...",
   "filePreviewSave": "Сохранить",
   "filePreviewLink": "Ссылка",
   "filePreviewOpen": "Открыть",

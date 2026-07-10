@@ -2482,6 +2482,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get offlineWaiting => 'Ожидание сети...';
 
   @override
+  String get connectionReconnecting => 'Переподключение...';
+
+  @override
   String get filePreviewSave => 'Сохранить';
 
   @override

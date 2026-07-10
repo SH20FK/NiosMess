@@ -4484,6 +4484,12 @@ abstract class AppLocalizations {
   /// **'Waiting for network...'**
   String get offlineWaiting;
 
+  /// No description provided for @connectionReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting...'**
+  String get connectionReconnecting;
+
   /// No description provided for @filePreviewSave.
   ///
   /// In en, this message translates to:

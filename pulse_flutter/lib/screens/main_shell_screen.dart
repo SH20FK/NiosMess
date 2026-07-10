@@ -122,7 +122,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final int? desktopChatId = ref.watch(desktopSelectedChatProvider);
     final int currentIndex = _tabIndex(widget.tab);
-    final bool isOffline = !(ref.watch(connectivityProvider).value ?? true);
+    final AppConnectionState connectionState =
+        ref.watch(appConnectionStateProvider);
 
     return PopScope(
       canPop: false,
@@ -194,7 +195,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
           return Scaffold(
             body: Column(
               children: [
-                OfflineBanner(isOffline: isOffline),
+                OfflineBanner(state: connectionState),
                 Expanded(
                   child: Row(
                     children: <Widget>[
@@ -261,7 +262,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
         return Scaffold(
           body: Column(
             children: [
-              OfflineBanner(isOffline: isOffline),
+              OfflineBanner(state: connectionState),
               Expanded(
                 child: PulseScaffoldBody(
                   maxWidth: 1440,
