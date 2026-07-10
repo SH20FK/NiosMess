@@ -964,16 +964,18 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (BuildContext ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black38,
+      builder: (BuildContext ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: MessageContextMenuSheet(
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: MessageContextMenuSheet(
         message: message,
         isMine: isMine,
         isChannel: isChannel,
@@ -998,6 +1000,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         onDelete: () => _deleteMessage(message),
       ),
       ),
+    ),
     );
   }
 

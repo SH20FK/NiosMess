@@ -398,24 +398,24 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       : context.l10n.chatVoiceMessage,
                   child: GestureDetector(
                     onTap: () {
+                      setState(() => _isVideoMode = !_isVideoMode);
+                      HapticService.confirm();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(_isVideoMode
+                              ? context.l10n.chatCircleVideo
+                              : context.l10n.chatVoiceMessage),
+                          duration: const Duration(milliseconds: 800),
+                        ),
+                      );
+                    },
+                    onLongPress: () {
                       if (_isVideoMode) {
                         HapticService.tap();
                         _openCircleVideo();
                       } else {
                         setState(() => _isRecording = true);
                       }
-                    },
-                    onLongPress: () {
-                      setState(() => _isVideoMode = !_isVideoMode);
-                      HapticService.confirm();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_isVideoMode
-                              ? 'Режим кружка'
-                              : 'Режим голосового'),
-                          duration: const Duration(milliseconds: 800),
-                        ),
-                      );
                     },
                     child: AnimatedScale(
                       scale: showSendButton ? 0.0 : 1.0,

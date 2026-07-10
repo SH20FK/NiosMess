@@ -12,16 +12,25 @@ class CircleVideoRecorderScreen extends StatefulWidget {
 }
 
 class _CircleVideoRecorderScreenState
-    extends State<CircleVideoRecorderScreen> {
+    extends State<CircleVideoRecorderScreen> with SingleTickerProviderStateMixin {
   CameraController? _controller;
   bool _isRecording = false;
   bool _initialized = false;
   Timer? _recordingTimer;
   int _elapsedSec = 0;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnim;
 
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _pulseAnim = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
     _initCamera();
   }
 
@@ -59,6 +68,7 @@ class _CircleVideoRecorderScreenState
       if (mounted) {
         setState(() => _isRecording = true);
         _elapsedSec = 0;
+        _pulseController.repeat(reverse: true);
         _recordingTimer = Timer.periodic(
           const Duration(seconds: 1),
           (_) {
@@ -72,6 +82,8 @@ class _CircleVideoRecorderScreenState
   Future<void> _stopRecording() async {
     if (!_isRecording || _controller == null) return;
     _recordingTimer?.cancel();
+    _pulseController.stop();
+    _pulseController.reset();
 
     try {
       final XFile video = await _controller!.stopVideoRecording();
@@ -108,6 +120,7 @@ class _CircleVideoRecorderScreenState
   @override
   void dispose() {
     _recordingTimer?.cancel();
+    _pulseController.dispose();
     _controller?.dispose();
     super.dispose();
   }
@@ -119,107 +132,172 @@ class _CircleVideoRecorderScreenState
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        title: Text(context.l10n.mediaViewerTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.flip_camera_ios_rounded),
-            onPressed: _switchCamera,
-          ),
-        ],
-      ),
-      body: _initialized && _controller != null
-          ? Stack(
-              alignment: Alignment.center,
-              children: <Widget>[
-                // Camera preview in 1:1 square
-                AspectRatio(
-                  aspectRatio: 1.0,
-                  child: _controller!.value.isInitialized
-                      ? ClipOval(
-                          child: CameraPreview(_controller!),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                // Timer overlay
-                if (_isRecording)
-                  Positioned(
-                    top: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            formatted,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+      body: Stack(
+        children: <Widget>[
+          // Camera preview area
+          if (_initialized && _controller != null && _controller!.value.isInitialized)
+            Positioned.fill(
+              child: ClipOval(
+                child: CameraPreview(_controller!),
+              ),
+            )
+          else
+            const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+
+          // Dark vignette overlay
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: <Color>[
+                      Colors.transparent,
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.55),
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                    radius: 0.9,
                   ),
-                // Bottom record button
-                Positioned(
-                  bottom: 40,
-                  child: GestureDetector(
-                    onLongPressStart: (_) => _startRecording(),
-                    onLongPressEnd: (_) => _stopRecording(),
-                    onTapUp: (_) {
-                      if (_isRecording) _stopRecording();
-                    },
-                    child: Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _isRecording ? Colors.red : Colors.white,
-                          width: 4,
-                        ),
-                      ),
-                      child: _isRecording
-                          ? Center(
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                              ),
-                            )
-                          : const Icon(
-                              Icons.videocam_rounded,
-                              color: Colors.white,
-                              size: 32,
+                ),
+              ),
+            ),
+          ),
+
+          // Top bar
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 0,
+            right: 0,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: <Widget>[
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: context.l10n.commonCancel,
+                  ),
+                  const Spacer(),
+                  // Timer badge
+                  if (_isRecording)
+                    AnimatedBuilder(
+                      animation: _pulseAnim,
+                      builder: (BuildContext context, Widget? child) {
+                        return Transform.scale(
+                          scale: _pulseAnim.value,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6,
                             ),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  formatted,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontFeatures: [FontFeature.tabularFigures()],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
+                    onPressed: _switchCamera,
+                    tooltip: context.l10n.mediaViewerFlipCamera,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Bottom controls
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 32,
+            left: 0,
+            right: 0,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                // Hint text
+                Text(
+                  _isRecording
+                      ? context.l10n.mediaViewerRecording
+                      : context.l10n.chatCircleVideoHoldHint,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Record button
+                GestureDetector(
+                  onLongPressStart: (_) => _startRecording(),
+                  onLongPressEnd: (_) => _stopRecording(),
+                  onTapUp: (_) {
+                    if (_isRecording) _stopRecording();
+                  },
+                  child: AnimatedBuilder(
+                    animation: _pulseAnim,
+                    builder: (BuildContext context, Widget? child) {
+                      final double outerSize = _isRecording
+                          ? 72 * _pulseAnim.value
+                          : 80;
+                      return Container(
+                        width: outerSize,
+                        height: outerSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _isRecording ? Colors.red : Colors.white70,
+                            width: 4,
+                          ),
+                        ),
+                        child: Center(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeInOutCubic,
+                            width: _isRecording ? 24 : 36,
+                            height: _isRecording ? 24 : 36,
+                            decoration: BoxDecoration(
+                              color: _isRecording ? Colors.red : Colors.white,
+                              borderRadius: BorderRadius.circular(
+                                _isRecording ? 6 : 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
-            )
-          : const Center(child: CircularProgressIndicator(color: Colors.white)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

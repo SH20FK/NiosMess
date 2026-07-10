@@ -1271,6 +1271,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatCircleVideo => 'Кружок';
 
   @override
+  String get chatCircleVideoHoldHint =>
+      'Зажмите для записи, отпустите для отправки';
+
+  @override
   String get chatMessageHint => 'Введите сообщение';
 
   @override
@@ -2209,6 +2213,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get mediaViewerCannotPreview => 'Предпросмотр этого файла недоступен';
+
+  @override
+  String get mediaViewerFlipCamera => 'Перевернуть камеру';
+
+  @override
+  String get mediaViewerRecording => 'Запись...';
 
   @override
   String get mediaViewerOpenExternal => 'Открыть во внешнем приложении';

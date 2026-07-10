@@ -54,6 +54,8 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
         onTap: () {
           if (directUsername != null) {
             context.push('/profile/$directUsername');
+          } else if (showManage) {
+            context.push('/chat/$chatId/manage');
           }
         },
         borderRadius: BorderRadius.circular(16),

@@ -2420,6 +2420,12 @@ abstract class AppLocalizations {
   /// **'Circle video'**
   String get chatCircleVideo;
 
+  /// No description provided for @chatCircleVideoHoldHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold to record, release to send'**
+  String get chatCircleVideoHoldHint;
+
   /// No description provided for @chatMessageHint.
   ///
   /// In en, this message translates to:
@@ -4033,6 +4039,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cannot preview this file'**
   String get mediaViewerCannotPreview;
+
+  /// No description provided for @mediaViewerFlipCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Flip camera'**
+  String get mediaViewerFlipCamera;
+
+  /// No description provided for @mediaViewerRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording...'**
+  String get mediaViewerRecording;
 
   /// No description provided for @mediaViewerOpenExternal.
   ///

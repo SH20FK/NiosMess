@@ -1267,6 +1267,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatCircleVideo => 'Circle video';
 
   @override
+  String get chatCircleVideoHoldHint => 'Hold to record, release to send';
+
+  @override
   String get chatMessageHint => 'Type a message';
 
   @override
@@ -2197,6 +2200,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mediaViewerCannotPreview => 'Cannot preview this file';
+
+  @override
+  String get mediaViewerFlipCamera => 'Flip camera';
+
+  @override
+  String get mediaViewerRecording => 'Recording...';
 
   @override
   String get mediaViewerOpenExternal => 'Open Externally';

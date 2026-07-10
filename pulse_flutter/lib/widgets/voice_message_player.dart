@@ -60,6 +60,9 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   void _togglePlay() {
     if (_player.playing) {
       _player.pause();
+    } else if (_position >= _duration && _duration > Duration.zero) {
+      _player.seek(Duration.zero);
+      _player.play();
     } else {
       _player.play();
     }
@@ -76,7 +79,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     final Color fg = widget.isMine ? widget.scheme.onPrimary : widget.scheme.primary;
 
     return Container(
-      width: 220,
+      constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
       decoration: BoxDecoration(
         gradient: LinearGradient(
