@@ -37,7 +37,7 @@ class PushNotificationService {
     if (settings.authorizationStatus != AuthorizationStatus.authorized) return;
 
     const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_notification');
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     const DarwinInitializationSettings iosSettings =
         DarwinInitializationSettings();
     await _local.initialize(
@@ -107,7 +107,7 @@ class PushNotificationService {
           'NiosMess Messages',
           importance: Importance.high,
           priority: Priority.high,
-          icon: '@mipmap/ic_notification',
+          icon: '@mipmap/ic_launcher',
         ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
