@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NiosMess FlowBuilder Ultimate</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Pyodide для запуска Python -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    <style>
+        .grid-bg {
+            background-color: #0f172a;
+            background-image: radial-gradient(#1e293b 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: 0px 0px;
+        }
+        .node-active {
+            box-shadow: 0 0 15px #6366f1;
+            border-color: #6366f1 !important;
+        }
+        .node-executing {
+            box-shadow: 0 0 25px #10b981;
+            border-color: #10b981 !important;
+            transform: scale(1.02);
+            transition: all 0.2s ease;
+        }
+        .port {
+            width: 12px;
+            height: 12px;
+            background-color: #475569;
+            border: 2px solid #94a3b8;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        .port:hover {
+            background-color: #38bdf8;
+            transform: scale(1.3);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans h-screen flex flex-col overflow-hidden select-none">
+
+    <!-- Стартовое окно авторизации -->
+    <div id="token-auth-overlay" class="fixed inset-0 bg-slate-950/90 flex items-center justify-center z-50 hidden">
+        <div class="bg-slate-900 border border-slate-800 p-8 rounded-xl w-[450px] shadow-2xl text-center space-y-6">
+            <div class="bg-indigo-600/20 text-indigo-400 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto">
+                <i class="fa-solid fa-key text-2xl"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold">Введите токен бота NiosMess</h2>
+                <p class="text-xs text-slate-400 mt-2">Схемы ваших ботов сохраняются в памяти браузера изолированно по каждому токену.</p>
+            </div>
+            <div class="space-y-3">
+                <input type="text" id="initial-token-input" placeholder="Ваш API Token..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition text-center">
+                <button onclick="submitInitialToken()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-lg text-sm transition">
+                    Загрузить конфигурацию
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Верхняя панель -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between z-10">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 text-white p-2 rounded-lg">
+                <i class="fa-solid fa-diagram-project text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-base font-bold tracking-wide">NiosMess FlowBuilder Ultimate</h1>
+                <p class="text-[10px] text-slate-400">Свободное перемещение зажатием на пустом месте</p>
+            </div>
+        </div>
+
+        <!-- Поле Активного Токена -->
+        <div class="flex items-center space-x-2">
+            <span class="text-xs text-slate-400"><i class="fa-solid fa-key mr-1"></i>Токен:</span>
+            <input type="password" id="bot-token-input" onchange="onTokenChanged(this.value)" placeholder="Токен не указан" class="bg-slate-950 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded px-3 py-1 text-xs text-indigo-300 focus:outline-none transition w-48 text-center">
+            <button onclick="toggleTokenVisibility()" class="text-slate-450 hover:text-slate-200 text-xs px-1"><i id="token-eye-icon" class="fa-solid fa-eye-slash"></i></button>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <div class="bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center space-x-3">
+                <span class="flex h-2 w-2 relative">
+                    <span id="hosting-pulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span id="hosting-dot" class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span class="text-[11px] font-medium text-slate-300">Хостинг: <span id="hosting-status" class="text-emerald-400">Активен</span></span>
+                <span class="text-slate-500">|</span>
+                <span class="text-[11px] text-slate-400">Лимит: <span id="msg-counter" class="text-indigo-400 font-bold">0</span> / 100</span>
+            </div>
+
+            <button onclick="openImportModal()" class="bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
+                <i class="fa-solid fa-file-import"></i>
+                <span>Импорт</span>
+            </button>
+
+            <button onclick="exportPythonCode()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
+                <i class="fa-brands fa-python text-amber-400"></i>
+                <span>Экспорт</span>
+            </button>
+
+            <button onclick="toggleHosting()" id="btn-hosting" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
+                <i class="fa-solid fa-server"></i>
+                <span>Хост</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Основной интерфейс -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Левая панель инструментов -->
+        <aside class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col z-10 select-none">
+            <div class="p-4 border-b border-slate-800">
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Блоки для создания</h2>
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="addNode('trigger')" class="flex items-center space-x-3 bg-slate-800 hover:bg-slate-750 p-2.5 rounded-lg border border-slate-700 text-left transition group">
+                        <div class="bg-emerald-500/10 text-emerald-400 p-2 rounded-md group-hover:bg-emerald-500 group-hover:text-white transition">
+                            <i class="fa-solid fa-bolt w-5 text-center"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold">Триггер (Событие)</div>
+                            <div class="text-[10px] text-slate-400">Входная точка сценария</div>
+                        </div>
+                    </button>
+
+                    <button onclick="addNode('message')" class="flex items-center space-x-3 bg-slate-800 hover:bg-slate-750 p-2.5 rounded-lg border border-slate-700 text-left transition group">
+                        <div class="bg-blue-500/10 text-blue-400 p-2 rounded-md group-hover:bg-blue-500 group-hover:text-white transition">
+                            <i class="fa-solid fa-comment-dots w-5 text-center"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold">Отправить сообщение</div>
+                            <div class="text-[10px] text-slate-400">Текст, изображение, кнопки</div>
+                        </div>
+                    </button>
+
+                    <button onclick="addNode('delay')" class="flex items-center space-x-3 bg-slate-800 hover:bg-slate-750 p-2.5 rounded-lg border border-slate-700 text-left transition group">
+                        <div class="bg-teal-500/10 text-teal-400 p-2 rounded-md group-hover:bg-teal-500 group-hover:text-white transition">
+                            <i class="fa-solid fa-hourglass-half w-5 text-center"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold">Задержка (Таймер)</div>
+                            <div class="text-[10px] text-slate-400">Пауза перед следующим шагом</div>
+                        </div>
+                    </button>
+
+                    <button onclick="addNode('condition')" class="flex items-center space-x-3 bg-slate-800 hover:bg-slate-750 p-2.5 rounded-lg border border-slate-700 text-left transition group">
+                        <div class="bg-rose-500/10 text-rose-400 p-2 rounded-md group-hover:bg-rose-500 group-hover:text-white transition">
+                            <i class="fa-solid fa-code-branch w-5 text-center"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold">Условие (Если/Иначе)</div>
+                            <div class="text-[10px] text-slate-400">Ветвление на основе переменных</div>
+                        </div>
+                    </button>
+
+                    <button onclick="addNode('action')" class="flex items-center space-x-3 bg-slate-800 hover:bg-slate-750 p-2.5 rounded-lg border border-slate-700 text-left transition group">
+                        <div class="bg-violet-500/10 text-violet-400 p-2 rounded-md group-hover:bg-violet-500 group-hover:text-white transition">
+                            <i class="fa-solid fa-gears w-5 text-center"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold">Действие (Переменные, HTTP)</div>
+                            <div class="text-[10px] text-slate-400">Запросы API, сохранение данных</div>
+                        </div>
+                    </button>
+
+                    <button onclick="addNode('python')" class="flex items-center space-x-3 bg-slate-800 hover:bg-slate-750 p-2.5 rounded-lg border border-slate-700 text-left transition group">
+                        <div class="bg-amber-500/10 text-amber-400 p-2 rounded-md group-hover:bg-amber-500 group-hover:text-white transition">
+                            <i class="fa-brands fa-python w-5 text-center"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold">Python скрипт</div>
+                            <div class="text-[10px] text-slate-400">Интерпретатор вычислений</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Инспектор блоков -->
+            <div class="flex-1 p-4 overflow-y-auto" id="node-inspector">
+                <div class="text-center text-slate-500 mt-10">
+                    <i class="fa-solid fa-sliders text-2xl mb-3"></i>
+                    <p class="text-xs">Выберите узел на поле для настройки его параметров</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Центральный холст (Бесконечное интерактивное поле) -->
+        <main class="flex-1 relative overflow-hidden grid-bg cursor-grab active:cursor-grabbing" id="canvas-container">
+            
+            <!-- Статический SVG-слой соединений на уровне контейнера -->
+            <svg class="absolute inset-0 w-full h-full pointer-events-none z-10" id="connections-svg">
+                <defs>
+                    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
+                    </marker>
+                </defs>
+            </svg>
+
+            <!-- Сдвигаемый контейнер рабочей области -->
+            <div id="canvas-workspace" class="absolute inset-0 pointer-events-none" style="transform: translate(0px, 0px);">
+                <!-- Контейнер блоков -->
+                <div id="canvas-nodes" class="absolute inset-0 pointer-events-none z-10"></div>
+            </div>
+        </main>
+
+        <!-- Правая панель (Симулятор / Логи) -->
+        <aside class="w-96 bg-slate-900 border-l border-slate-800 flex flex-col z-10">
+            <div class="flex border-b border-slate-800 bg-slate-950">
+                <button onclick="setActiveTab('chat')" id="tab-chat-btn" class="flex-1 py-3 text-center text-xs font-bold border-b-2 border-indigo-500 text-indigo-400 transition">
+                    <i class="fa-solid fa-comments mr-1.5"></i>Тест-чат
+                </button>
+                <button onclick="setActiveTab('logs')" id="tab-logs-btn" class="flex-1 py-3 text-center text-xs font-bold text-slate-400 hover:text-slate-200 transition">
+                    <i class="fa-solid fa-terminal mr-1.5"></i>Логи отладки
+                </button>
+            </div>
+
+            <!-- Чат -->
+            <div id="panel-chat" class="flex-1 flex flex-col overflow-hidden">
+                <!-- Панель настройки данных тестового пользователя -->
+                <div class="p-3 bg-slate-950 border-b border-slate-800 grid grid-cols-2 gap-2 text-[10px]">
+                    <div>
+                        <span class="text-slate-400 block mb-0.5">Имя пользователя (%name%)</span>
+                        <input type="text" id="sim-user-name" value="Тестировщик" class="w-full bg-slate-900 border border-slate-850 rounded px-2 py-0.5 text-slate-200 focus:outline-none focus:border-indigo-500 text-[11px]">
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block mb-0.5">Юзернейм (%username%)</span>
+                        <input type="text" id="sim-user-uname" value="tester_user" class="w-full bg-slate-900 border border-slate-850 rounded px-2 py-0.5 text-slate-200 focus:outline-none focus:border-indigo-500 text-[11px]">
+                    </div>
+                </div>
+                <div class="p-2.5 bg-slate-800/30 border-b border-slate-800 flex items-center justify-between">
+                    <span class="text-[10px] text-slate-400">Симуляция API NiosMess (ni-os.ru)</span>
+                    <button onclick="clearChat()" class="text-[10px] text-red-400 hover:text-red-300 transition">Очистить</button>
+                </div>
+                <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-4">
+                    <div class="flex items-start space-x-3">
+                        <div class="bg-indigo-600 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white">S</div>
+                        <div class="bg-slate-800 p-3 rounded-lg max-w-[80%]">
+                            <p class="text-[10px] text-slate-400 mb-1">Система</p>
+                            <p class="text-xs">Введите <span class="text-indigo-400">/start</span>, чтобы активировать предустановленный сценарий.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-3 border-t border-slate-800 bg-slate-950">
+                    <form id="chat-form" class="flex space-x-2" onsubmit="sendSimulatedMessage(event)">
+                        <input type="text" id="chat-input" placeholder="Напишите боту..." class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition">
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-xs text-white transition">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Логи -->
+            <div id="panel-logs" class="flex-1 flex flex-col overflow-hidden hidden">
+                <div class="p-3 bg-slate-800/50 border-b border-slate-800 flex items-center justify-between">
+                    <span class="text-[10px] text-slate-400">Консоль</span>
+                    <button onclick="clearLogs()" class="text-[10px] text-red-400 hover:text-red-300 transition">Очистить</button>
+                </div>
+                <div id="logs-container" class="flex-1 p-4 font-mono text-[10px] overflow-y-auto space-y-1.5 bg-slate-950 text-emerald-400">
+                    <div class="text-slate-500">[System] Инициализация рабочей среды...</div>
+                    <div class="text-slate-500">[System] Загрузка Pyodide для Python-компилятора...</div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Модальное окно экспорта -->
+    <div id="export-modal" class="fixed inset-0 bg-black/75 flex items-center justify-center hidden z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-[750px] max-w-full h-[550px] flex flex-col overflow-hidden shadow-2xl m-4">
+            <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-brands fa-python text-lg text-amber-400"></i>
+                    <h3 class="text-sm font-bold">Сгенерированный Python код</h3>
+                </div>
+                <button onclick="closeExportModal()" class="text-slate-400 hover:text-slate-200 text-xl transition">&times;</button>
+            </div>
+            <div class="flex-1 p-6 overflow-hidden flex flex-col">
+                <p class="text-xs text-slate-400 mb-3">Код автономен и сохраняет визуальную структуру в виде закомментированных метаданных для обратного импорта.</p>
+                <textarea id="python-code-area" readonly class="flex-1 w-full bg-slate-950 border border-slate-800 rounded-lg p-3 font-mono text-[10px] text-emerald-400 focus:outline-none resize-none overflow-y-auto"></textarea>
+            </div>
+            <div class="px-6 py-4 border-t border-slate-800 flex justify-end space-x-3">
+                <button onclick="copyPythonCode()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-semibold transition">Копировать</button>
+                <button onclick="closeExportModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-4 py-2 rounded-lg text-xs font-semibold transition">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно импорта -->
+    <div id="import-modal" class="fixed inset-0 bg-black/75 flex items-center justify-center hidden z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-[600px] max-w-full h-[450px] flex flex-col overflow-hidden shadow-2xl m-4">
+            <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-file-import text-lg text-indigo-400"></i>
+                    <h3 class="text-sm font-bold">Импорт структуры Python-кода</h3>
+                </div>
+                <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-200 text-xl transition">&times;</button>
+            </div>
+            <div class="flex-1 p-6 overflow-hidden flex flex-col">
+                <p class="text-xs text-slate-400 mb-3">Вставьте ранее сгенерированный скрипт бота. Система считает метаданные и восстановит блоки на бесконечном поле.</p>
+                <textarea id="import-code-area" class="flex-1 w-full bg-slate-950 border border-slate-800 rounded-lg p-3 font-mono text-[10px] text-indigo-300 focus:outline-none resize-none overflow-y-auto" placeholder="Вставьте сюда весь код бота..."></textarea>
+            </div>
+            <div class="px-6 py-4 border-t border-slate-800 flex justify-end space-x-3">
+                <button onclick="submitImportCode()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-semibold transition">Импортировать</button>
+                <button onclick="closeImportModal()" class="bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 px-4 py-2 rounded-lg text-xs font-semibold transition">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Интерактивный код приложения -->
+    <script>
+        let pyodide = null;
+        async function loadPyodideEngine() {
+            try {
+                pyodide = await loadPyodide();
+                logToConsole("System", "Компилятор Python (Pyodide) успешно запущен в браузере!", "emerald-400");
+            } catch (e) {
+                logToConsole("System Error", "Используется базовая симуляция Python-узлов.", "red-400");
+            }
+        }
+        loadPyodideEngine();
+
+        let currentToken = "";
+        let nodes = [];
+        let connections = [];
+        let panOffset = { x: 0, y: 0 };
+
+        let selectedNodeId = null;
+        let activeDragNode = null;
+        let dragOffset = { x: 0, y: 0 };
+        let activeHosting = true;
+        let msgCount = 0;
+
+        let isPanning = false;
+        let panStart = { x: 0, y: 0 };
+        let drawingConnection = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedLastToken = localStorage.getItem('nios_last_active_token');
+            if (savedLastToken) {
+                initializeBotWithToken(savedLastToken);
+            } else {
+                document.getElementById('token-auth-overlay').classList.remove('hidden');
+            }
+        });
+
+        // Единый диспетчер событий мыши на холсте (Фиксирует прыжки блоков, решает конфликты событий портов/драггинга)
+        function registerCanvasEvents() {
+            const canvasContainer = document.getElementById('canvas-container');
+            
+            canvasContainer.addEventListener('mousedown', (e) => {
+                const portEl = e.target.closest('.port');
+                const nodeEl = e.target.closest('#canvas-nodes > div');
+                const rectCanvas = canvasContainer.getBoundingClientRect();
+
+                // 1. Клик по порту (инициализирует протягивание связи)
+                if (portEl && portEl.getAttribute('data-port-type') === 'out') {
+                    const portRect = portEl.getBoundingClientRect();
+                    drawingConnection = {
+                        fromNodeId: portEl.getAttribute('data-node-id'),
+                        fromPortId: portEl.getAttribute('data-port-id'),
+                        startX: Math.round(portRect.left + portRect.width / 2 - rectCanvas.left),
+                        startY: Math.round(portRect.top + portRect.height / 2 - rectCanvas.top)
+                    };
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
+
+                // 2. Клик по блоку (инициализирует перемещение блока без прыжков)
+                if (nodeEl && !e.target.closest('button') && !e.target.closest('input') && !e.target.closest('textarea') && !e.target.closest('select')) {
+                    const nodeId = nodeEl.id.replace('node-', '');
+                    const node = nodes.find(n => n.id === nodeId);
+                    if (node) {
+                        activeDragNode = node;
+                        const rectNode = nodeEl.getBoundingClientRect();
+                        dragOffset.x = e.clientX - rectNode.left;
+                        dragOffset.y = e.clientY - rectNode.top;
+                        selectNode(node.id);
+                    }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
+
+                // 3. Клик по фону (инициализирует паннинг холста)
+                if (!portEl && !nodeEl && !e.target.closest('button') && !e.target.closest('input') && !e.target.closest('textarea') && !e.target.closest('select')) {
+                    isPanning = true;
+                    panStart.x = e.clientX - panOffset.x;
+                    panStart.y = e.clientY - panOffset.y;
+                    e.preventDefault();
+                }
+            });
+
+            canvasContainer.addEventListener('mousemove', (e) => {
+                const rectCanvas = canvasContainer.getBoundingClientRect();
+
+                // Обработка перемещения бесконечного поля
+                if (isPanning) {
+                    panOffset.x = e.clientX - panStart.x;
+                    panOffset.y = e.clientY - panStart.y;
+                    updateWorkspaceTransform();
+                    redrawConnections();
+                    return;
+                }
+
+                // Обработка перемещения блока
+                if (activeDragNode) {
+                    let mouseXInCanvas = e.clientX - rectCanvas.left;
+                    let mouseYInCanvas = e.clientY - rectCanvas.top;
+                    
+                    let targetX = mouseXInCanvas - dragOffset.x - panOffset.x;
+                    let targetY = mouseYInCanvas - dragOffset.y - panOffset.y;
+
+                    activeDragNode.x = Math.round(targetX);
+                    activeDragNode.y = Math.round(targetY);
+                    
+                    const nodeEl = document.getElementById(`node-${activeDragNode.id}`);
+                    if (nodeEl) {
+                        nodeEl.style.left = `${activeDragNode.x}px`;
+                        nodeEl.style.top = `${activeDragNode.y}px`;
+                    }
+                    redrawConnections();
+                    return;
+                }
+
+                // Рисование временной линии связи при перетаскивании
+                if (drawingConnection) {
+                    const currentX = e.clientX - rectCanvas.left;
+                    const currentY = e.clientY - rectCanvas.top;
+                    drawTempLine(drawingConnection.startX, drawingConnection.startY, currentX, currentY);
+                }
+            });
+
+            canvasContainer.addEventListener('mouseup', (e) => {
+                if (isPanning) {
+                    isPanning = false;
+                    saveCurrentBot();
+                    return;
+                }
+
+                if (activeDragNode) {
+                    activeDragNode = null;
+                    saveCurrentBot();
+                    return;
+                }
+
+                // Завершение создания связи при отпускании мыши над портом "in"
+                if (drawingConnection) {
+                    const portEl = e.target.closest('.port');
+                    if (portEl) {
+                        const toNodeId = portEl.getAttribute('data-node-id');
+                        const toPortId = portEl.getAttribute('data-port-id');
+                        const toPortType = portEl.getAttribute('data-port-type');
+
+                        if (toPortType === 'in' && toNodeId !== drawingConnection.fromNodeId) {
+                            connections = connections.filter(c => !(c.from === drawingConnection.fromNodeId && c.fromPort === drawingConnection.fromPortId));
+                            connections.push({
+                                from: drawingConnection.fromNodeId,
+                                fromPort: drawingConnection.fromPortId,
+                                to: toNodeId,
+                                toPort: toPortId
+                            });
+                            saveCurrentBot();
+                            logToConsole("Builder", `Создана связь: Блок #${drawingConnection.fromNodeId} (${drawingConnection.fromPortId}) &rarr; Блок #${toNodeId}`, "indigo-400");
+                        }
+                    }
+                    drawingConnection = null;
+                    removeTempLine();
+                    redrawConnections();
+                }
+            });
+
+            canvasContainer.addEventListener('mouseleave', () => {
+                isPanning = false;
+                activeDragNode = null;
+                if (drawingConnection) {
+                    drawingConnection = null;
+                    removeTempLine();
+                    redrawConnections();
+                }
+            });
+        }
+
+        // Запуск бота с токеном
+        function initializeBotWithToken(token) {
+            currentToken = token.trim();
+            document.getElementById('initial-token-input').value = currentToken;
+            document.getElementById('bot-token-input').value = currentToken;
+            document.getElementById('token-auth-overlay').classList.add('hidden');
+
+            const storedState = localStorage.getItem(`nios_bot_${currentToken}`);
+            if (storedState) {
+                try {
+                    const parsed = JSON.parse(storedState);
+                    nodes = parsed.nodes || [];
+                    connections = parsed.connections || [];
+                    panOffset = parsed.panOffset || { x: 0, y: 0 };
+                    logToConsole("System", `Бот загружен. Узлов: ${nodes.length}`, "indigo-400");
+                } catch(e) {
+                    initDefaultFlow();
+                }
+            } else {
+                initDefaultFlow();
+            }
+
+            updateWorkspaceTransform();
+            renderNodes();
+            registerCanvasEvents();
+            redrawConnections();
+            if (nodes.length > 0) selectNode(nodes[0].id);
+            localStorage.setItem('nios_last_active_token', currentToken);
+        }
+
+        // Демонстрационная схема со всеми типами блоков (условия, математика, задержки, последовательные вызовы)
+        function initDefaultFlow() {
+            panOffset = { x: 40, y: 60 };
+            nodes = [
+                { id: '1', type: 'trigger', x: 40, y: 160, data: { trigger_type: 'start', value: '/start' } },
+                { id: '2', type: 'message', x: 300, y: 160, data: { text: 'Привет, %name%! Вы ввели текст: %messagetext%. Сейчас запишем статус "active", подождем 3 секунды и проверим условие!', buttons: [] } },
+                { id: '3', type: 'delay', x: 570, y: 160, data: { seconds: 3 } },
+                { id: '4', type: 'action', x: 840, y: 160, data: { action_type: 'set_var', key: 'status', value: 'active', url: '', save_key: '' } },
+                { id: '5', type: 'action', x: 1110, y: 160, data: { action_type: 'web_request', key: 'ip_response', value: '', url: 'https://api.ipify.org?format=json', save_key: 'net_ip' } },
+                { id: '6', type: 'message', x: 1380, y: 160, data: { text: 'Локальные переменные сохранены, %username%! Ваш внешний IP: %net_ip%. Также мы создали кастомное значение: s%status%. Проверяем статус...', buttons: [] } },
+                { id: '7', type: 'condition', x: 1650, y: 160, data: { var_name: 'status', operator: '==', value: 'active' } },
+                { id: '8', type: 'message', x: 1950, y: 80, data: { text: 'Условие выполнено (status == active)! Всё работает отлично!', buttons: [] } },
+                { id: '9', type: 'message', x: 1950, y: 280, data: { text: 'Условие провалилось. Что-то пошло не так.', buttons: [] } }
+            ];
+            connections = [
+                { from: '1', to: '2', fromPort: 'out', toPort: 'in' },
+                { from: '2', to: '3', fromPort: 'out', toPort: 'in' },
+                { from: '3', to: '4', fromPort: 'out', toPort: 'in' },
+                { from: '4', to: '5', fromPort: 'out', toPort: 'in' },
+                { from: '5', to: '6', fromPort: 'out', toPort: 'in' },
+                { from: '6', to: '7', fromPort: 'out', toPort: 'in' },
+                { from: '7', to: '8', fromPort: 'true_out', toPort: 'in' },
+                { from: '7', to: '9', fromPort: 'false_out', toPort: 'in' }
+            ];
+            saveCurrentBot();
+        }
+
+        function submitInitialToken() {
+            const val = document.getElementById('initial-token-input').value.trim();
+            if (val) {
+                initializeBotWithToken(val);
+            } else {
+                alert("Укажите API токен!");
+            }
+        }
+
+        function onTokenChanged(newVal) {
+            if (newVal.trim()) {
+                initializeBotWithToken(newVal);
+            }
+        }
+
+        function toggleTokenVisibility() {
+            const input = document.getElementById('bot-token-input');
+            const icon = document.getElementById('token-eye-icon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = "fa-solid fa-eye";
+            } else {
+                input.type = 'password';
+                icon.className = "fa-solid fa-eye-slash";
+            }
+        }
+
+        function saveCurrentBot() {
+            if (!currentToken) return;
+            const state = { nodes, connections, panOffset };
+            localStorage.setItem(`nios_bot_${currentToken}`, JSON.stringify(state));
+        }
+
+        function updateWorkspaceTransform() {
+            const workspace = document.getElementById('canvas-workspace');
+            const container = document.getElementById('canvas-container');
+            workspace.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px)`;
+            container.style.backgroundPosition = `${panOffset.x}px ${panOffset.y}px`;
+        }
+
+        // Отрисовка блоков и портов
+        function renderNodes() {
+            const nodesContainer = document.getElementById('canvas-nodes');
+            nodesContainer.innerHTML = '';
+
+            nodes.forEach(node => {
+                const nodeEl = document.createElement('div');
+                nodeEl.id = `node-${node.id}`;
+                nodeEl.className = `absolute bg-slate-900 border-2 border-slate-800 rounded-xl w-64 shadow-xl pointer-events-auto cursor-grab active:cursor-grabbing transition-shadow duration-150 ${selectedNodeId === node.id ? 'node-active' : ''}`;
+                nodeEl.style.left = `${node.x}px`;
+                nodeEl.style.top = `${node.y}px`;
+
+                let headerColor = "bg-indigo-600/20 text-indigo-400 border-indigo-500/30";
+                let icon = "fa-comment-dots";
+                let typeName = "Сообщение";
+
+                if (node.type === 'trigger') {
+                    headerColor = "bg-emerald-600/20 text-emerald-400 border-emerald-500/30";
+                    icon = "fa-bolt";
+                    typeName = "Триггер";
+                } else if (node.type === 'delay') {
+                    headerColor = "bg-teal-600/20 text-teal-400 border-teal-500/30";
+                    icon = "fa-hourglass-half";
+                    typeName = "Задержка";
+                } else if (node.type === 'condition') {
+                    headerColor = "bg-rose-600/20 text-rose-400 border-rose-500/30";
+                    icon = "fa-code-branch";
+                    typeName = "Условие";
+                } else if (node.type === 'action') {
+                    headerColor = "bg-violet-600/20 text-violet-400 border-violet-500/30";
+                    icon = "fa-gears";
+                    typeName = "Действие";
+                } else if (node.type === 'python') {
+                    headerColor = "bg-amber-600/20 text-amber-400 border-amber-500/30";
+                    icon = "fa-brands fa-python";
+                    typeName = "Python Скрипт";
+                }
+
+                let contentHtml = '';
+                if (node.type === 'trigger') {
+                    let triggerLabel = node.data.trigger_type === 'start' ? '/start' : 
+                                       node.data.trigger_type === 'all_except' ? 'Все кроме...' : `Равно "${node.data.value}"`;
+                    contentHtml = `<div class="p-3 text-xs text-slate-300">
+                        <span class="font-bold text-emerald-400">Тип:</span> ${triggerLabel}
+                    </div>`;
+                } else if (node.type === 'message') {
+                    contentHtml = `<div class="p-3 text-xs text-slate-300 space-y-1">
+                        <div class="line-clamp-2 italic">"${node.data.text || 'Текст сообщения отсутствует'}"</div>
+                        ${node.data.image_url ? '<div class="text-[10px] text-blue-400 mt-1"><i class="fa-regular fa-image mr-1"></i> С изображением</div>' : ''}
+                    </div>`;
+                } else if (node.type === 'delay') {
+                    contentHtml = `<div class="p-3 text-center text-xs text-slate-300">
+                        <div class="text-xl font-bold text-teal-400 countdown-display">${node.data.seconds || 3} сек</div>
+                        <span class="text-[9px] text-slate-500">Пауза выполнения сценария</span>
+                    </div>`;
+                } else if (node.type === 'condition') {
+                    let opSymbol = node.data.operator === 'contains' ? 'содержит' : node.data.operator || '==';
+                    contentHtml = `<div class="p-3 text-xs text-slate-300 space-y-2">
+                        <div class="bg-slate-950 px-2 py-1.5 rounded text-[10px] text-center font-mono">
+                            if <span class="text-rose-400">${node.data.var_name || 'I'}</span> ${opSymbol} <span class="text-indigo-400">"${node.data.value || '1'}"</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] text-emerald-400 px-1">
+                            <span>Если Да (Истина)</span>
+                            <div class="port" id="port-${node.id}-true_out" data-node-id="${node.id}" data-port-id="true_out" data-port-type="out" title="Истина"></div>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] text-rose-400 px-1">
+                            <span>Если Нет (Ложь)</span>
+                            <div class="port" id="port-${node.id}-false_out" data-node-id="${node.id}" data-port-id="false_out" data-port-type="out" title="Ложь"></div>
+                        </div>
+                    </div>`;
+                } else if (node.type === 'action') {
+                    let typeLabel = "Сохранить";
+                    if (node.data.action_type === 'del_var') typeLabel = "Удалить";
+                    else if (node.data.action_type === 'math_var') typeLabel = "Математика";
+                    else if (node.data.action_type === 'web_request') typeLabel = "Запрос в интернет (API)";
+
+                    contentHtml = `<div class="p-3 text-xs text-slate-300 space-y-1">
+                        <span class="text-[10px] font-bold text-violet-400">${typeLabel}:</span>
+                        <div class="bg-slate-950 p-1 rounded font-mono text-[9px] truncate">
+                            ${node.data.action_type === 'web_request' ? `GET ${node.data.url}` : `${node.data.key} = ${node.data.value}`}
+                        </div>
+                    </div>`;
+                } else if (node.type === 'python') {
+                    contentHtml = `<div class="p-3 text-xs text-slate-400">
+                        <div class="bg-slate-950 p-1.5 rounded font-mono text-[9px] truncate">${node.data.code ? node.data.code.split('\n')[0] : 'print("Hello")'}...</div>
+                    </div>`;
+                }
+
+                // Кнопки для сообщений
+                let buttonsHtml = '';
+                if (node.type === 'message' && node.data.buttons && node.data.buttons.length > 0) {
+                    buttonsHtml = `<div class="px-3 pb-3 flex flex-col space-y-1">`;
+                    node.data.buttons.forEach(btn => {
+                        buttonsHtml += `
+                            <div class="flex items-center justify-between bg-slate-800 hover:bg-slate-750 px-2.5 py-1 rounded text-[11px] text-slate-200 border border-slate-700">
+                                <span class="truncate pr-2">${btn.text}</span>
+                                <div class="port" id="port-${node.id}-btn-${btn.id}" data-node-id="${node.id}" data-port-id="btn-${btn.id}" data-port-type="out" title="Связать кнопку"></div>
+                            </div>
+                        `;
+                    });
+                    buttonsHtml += `</div>`;
+                }
+
+                let leftPort = node.type !== 'trigger' ? `<div class="absolute -left-1.5 top-1/2 -translate-y-1/2 port" id="port-${node.id}-in" data-node-id="${node.id}" data-port-id="in" data-port-type="in"></div>` : '';
+                let rightPort = (node.type !== 'condition') ? 
+                    `<div class="absolute -right-1.5 top-1/2 -translate-y-1/2 port" id="port-${node.id}-out" data-node-id="${node.id}" data-port-id="out" data-port-type="out"></div>` : '';
+
+                nodeEl.innerHTML = `
+                    <div class="px-3 py-1.5 border-b border-slate-800 rounded-t-xl flex items-center justify-between ${headerColor}">
+                        <div class="flex items-center space-x-1.5">
+                            <i class="fa-solid ${icon} text-xs"></i>
+                            <span class="text-[10px] font-bold tracking-wider">${typeName}</span>
+                        </div>
+                        <button onclick="deleteNode('${node.id}')" class="text-slate-450 hover:text-red-400 text-[10px] transition p-1"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                    ${contentHtml}
+                    ${buttonsHtml}
+                    ${leftPort}
+                    ${rightPort}
+                `;
+
+                nodesContainer.appendChild(nodeEl);
+            });
+        }
+
+        // Селектор узла
+        function selectNode(id) {
+            selectedNodeId = id;
+            document.querySelectorAll('#canvas-nodes > div').forEach(el => {
+                el.classList.remove('node-active');
+            });
+            const selectedEl = document.getElementById(`node-${id}`);
+            if (selectedEl) selectedEl.classList.add('node-active');
+
+            const node = nodes.find(n => n.id === id);
+            const inspector = document.getElementById('node-inspector');
+            if (!node) {
+                inspector.innerHTML = `<div class="text-center text-slate-500 mt-10"><p class="text-xs">Выберите блок для настроек</p></div>`;
+                return;
+            }
+
+            let inspectorHtml = `
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h3 class="font-bold text-xs text-slate-300">Настройки блока</h3>
+                        <span class="text-[9px] bg-slate-800 text-slate-450 px-2 py-0.5 rounded">ID: ${node.id}</span>
+                    </div>
+            `;
+
+            if (node.type === 'trigger') {
+                inspectorHtml += `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Тип триггера</label>
+                            <select onchange="updateTriggerData('${node.id}', 'trigger_type', this.value)" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                                <option value="start" ${node.data.trigger_type === 'start' ? 'selected' : ''}>Команда /start</option>
+                                <option value="equals" ${node.data.trigger_type === 'equals' ? 'selected' : ''}>Совпадение текста</option>
+                                <option value="all_except" ${node.data.trigger_type === 'all_except' ? 'selected' : ''}>Все сообщения кроме...</option>
+                            </select>
+                        </div>
+                `;
+
+                if (node.data.trigger_type === 'equals') {
+                    inspectorHtml += `
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Ключевая фраза</label>
+                            <input type="text" value="${node.data.value || ''}" oninput="updateTriggerData('${node.id}', 'value', this.value)" placeholder="привет" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                        </div>
+                    `;
+                } else if (node.data.trigger_type === 'all_except') {
+                    inspectorHtml += `
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Исключения (через запятую)</label>
+                            <input type="text" value="${node.data.value || ''}" oninput="updateTriggerData('${node.id}', 'value', this.value)" placeholder="/start, помощь" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                        </div>
+                    `;
+                }
+                inspectorHtml += `</div>`;
+            } else if (node.type === 'message') {
+                inspectorHtml += `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Текст</label>
+                            <textarea oninput="updateMessageData('${node.id}', 'text', this.value)" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none" placeholder="Вы можете использовать %name%, %username%, %messagetext% или кастомную %переменную%...">${node.data.text || ''}</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Изображение (URL)</label>
+                            <input type="text" value="${node.data.image_url || ''}" oninput="updateMessageData('${node.id}', 'image_url', this.value)" placeholder="Ссылка на фото..." class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Кнопки (Inline)</label>
+                                <button onclick="addButtonToMessage('${node.id}')" class="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold"><i class="fa-solid fa-plus mr-1"></i>Добавить</button>
+                            </div>
+                            <div class="space-y-2">
+                `;
+
+                if (node.data.buttons && node.data.buttons.length > 0) {
+                    node.data.buttons.forEach(btn => {
+                        inspectorHtml += `
+                            <div class="flex items-center space-x-2 bg-slate-800 p-1.5 rounded border border-slate-700">
+                                <input type="text" value="${btn.text}" oninput="updateButtonText('${node.id}', '${btn.id}', this.value)" class="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-xs text-slate-200 focus:outline-none flex-1">
+                                <button onclick="deleteButton('${node.id}', '${btn.id}')" class="text-slate-450 hover:text-red-400 text-xs transition p-1"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                        `;
+                    });
+                }
+                inspectorHtml += `</div></div></div>`;
+            } else if (node.type === 'delay') {
+                inspectorHtml += `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Задержка выполнения (в секундах)</label>
+                            <input type="number" min="1" value="${node.data.seconds || 3}" oninput="updateDelayData('${node.id}', 'seconds', this.value)" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                        </div>
+                    </div>
+                `;
+            } else if (node.type === 'condition') {
+                inspectorHtml += `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Имя переменной чата</label>
+                            <input type="text" value="${node.data.var_name || 'I'}" oninput="updateConditionData('${node.id}', 'var_name', this.value)" placeholder="Например: status" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Оператор сравнения</label>
+                            <select onchange="updateConditionData('${node.id}', 'operator', this.value)" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                                <option value="==" ${node.data.operator === '==' ? 'selected' : ''}>Равно (==)</option>
+                                option value="!=" ${node.data.operator === '!=' ? 'selected' : ''}>Не равно (!=)</option>
+                                <option value=">" ${node.data.operator === '>' ? 'selected' : ''}>Больше (&gt;)</option>
+                                <option value="<" ${node.data.operator === '<' ? 'selected' : ''}>Меньше (&lt;)</option>
+                                <option value="contains" ${node.data.operator === 'contains' ? 'selected' : ''}>Содержит (текст)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Значение для сравнения</label>
+                            <input type="text" value="${node.data.value || '1'}" oninput="updateConditionData('${node.id}', 'value', this.value)" placeholder="Значение..." class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                        </div>
+                    </div>
+                `;
+            } else if (node.type === 'action') {
+                inspectorHtml += `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Тип действия</label>
+                            <select id="action-type-select" onchange="updateActionData('${node.id}', 'action_type', this.value)" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                                <option value="set_var" ${node.data.action_type === 'set_var' ? 'selected' : ''}>Записать переменную</option>
+                                <option value="del_var" ${node.data.action_type === 'del_var' ? 'selected' : ''}>Удалить переменную</option>
+                                <option value="math_var" ${node.data.action_type === 'math_var' ? 'selected' : ''}>Математика (+ / -)</option>
+                                <option value="web_request" ${node.data.action_type === 'web_request' ? 'selected' : ''}>Запрос в интернет (API / Web Request)</option>
+                            </select>
+                        </div>
+                `;
+
+                if (node.data.action_type === 'web_request') {
+                    inspectorHtml += `
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">URL (GET-запрос)</label>
+                            <input type="text" value="${node.data.url || 'https://api.ipify.org?format=json'}" oninput="updateActionData('${node.id}', 'url', this.value)" placeholder="https://api.com/?ip=%net_ip%" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Сохранить результат в переменную</label>
+                            <input type="text" value="${node.data.save_key || 'response'}" oninput="updateActionData('${node.id}', 'save_key', this.value)" placeholder="Имя переменной..." class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                        </div>
+                    `;
+                } else if (node.data.action_type === 'math_var') {
+                    inspectorHtml += `
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Имя переменной</label>
+                            <input type="text" value="${node.data.key || 'status'}" oninput="updateActionData('${node.id}', 'key', this.value)" placeholder="Имя..." class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Математический оператор</label>
+                            <select onchange="updateActionData('${node.id}', 'math_op', this.value)" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                                <option value="+" ${node.data.math_op === '+' ? 'selected' : ''}>Прибавить (+)</option>
+                                <option value="-" ${node.data.math_op === '-' ? 'selected' : ''}>Вычесть (-)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Числовое значение</label>
+                            <input type="text" value="${node.data.value || '1'}" oninput="updateActionData('${node.id}', 'value', this.value)" placeholder="На сколько изменить..." class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                        </div>
+                    `;
+                } else {
+                    inspectorHtml += `
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Имя переменной</label>
+                            <input type="text" value="${node.data.key || 'status'}" oninput="updateActionData('${node.id}', 'key', this.value)" placeholder="Ключ..." class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                        </div>
+                    `;
+                    if (node.data.action_type !== 'del_var') {
+                        inspectorHtml += `
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Значение (поддерживает %переменные%)</label>
+                                <input type="text" value="${node.data.value || 'active'}" oninput="updateActionData('${node.id}', 'value', this.value)" placeholder="Например: s%status% или %messagetext%" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none">
+                            </div>
+                        `;
+                    }
+                }
+                inspectorHtml += `</div>`;
+            } else if (node.type === 'python') {
+                if (!node.data.code) {
+                    node.data.code = `# message_text - входящий текст\n# variables - словарь\nlog("Скрипт")\noutput_message = "Результат"`;
+                }
+                inspectorHtml += `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Код Python</label>
+                            <textarea oninput="updatePythonData('${node.id}', 'code', this.value)" rows="10" class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 font-mono text-[9px] text-emerald-400 focus:outline-none resize-none">${node.data.code}</textarea>
+                        </div>
+                    </div>
+                `;
+            }
+
+            inspectorHtml += `</div>`;
+            inspector.innerHTML = inspectorHtml;
+        }
+
+        function updateTriggerData(id, key, val) {
+            const node = nodes.find(n => n.id === id);
+            if (node) {
+                node.data[key] = val;
+                renderNodes();
+                redrawConnections();
+                saveCurrentBot();
+            }
+        }
+
+        function updateMessageData(id, key, val) {
+            const node = nodes.find(n => n.id === id);
+            if (node) {
+                node.data[key] = val;
+                renderNodes();
+                redrawConnections();
+                saveCurrentBot();
+            }
+        }
+
+        function updateDelayData(id, key, val) {
+            const node = nodes.find(n => n.id === id);
+            if (node) {
+                node.data[key] = parseInt(val) || 1;
+                renderNodes();
+                redrawConnections();
+                saveCurrentBot();
+            }
+        }
+
+        function updateConditionData(id, key, val) {
+            const node = nodes.find(n => n.id === id);
+            if (node) {
+                node.data[key] = val;
+                renderNodes();
+                redrawConnections();
+                saveCurrentBot();
+            }
+        }
+
+        function updateActionData(id, key, val) {
+            const node = nodes.find(n => n.id === id);
+            if (node) {
+                node.data[key] = val;
+                renderNodes();
+                redrawConnections();
+                saveCurrentBot();
+                if (key === 'action_type') selectNode(id);
+            }
+        }
+
+        function updatePythonData(id, key, val) {
+            const node = nodes.find(n => n.id === id);
+            if (node) {
+                node.data[key] = val;
+                saveCurrentBot();
+            }
+        }
+
+        function addButtonToMessage(nodeId) {
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+                if (!node.data.buttons) node.data.buttons = [];
+                const btnId = 'btn_' + Math.random().toString(36).substr(2, 9);
+                node.data.buttons.push({ id: btnId, text: 'Кнопка' });
+                renderNodes();
+                redrawConnections();
+                selectNode(nodeId);
+                saveCurrentBot();
+            }
+        }
+
+        function updateButtonText(nodeId, btnId, val) {
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+                const btn = node.data.buttons.find(b => b.id === btnId);
+                if (btn) btn.text = val;
+                renderNodes();
+                redrawConnections();
+                saveCurrentBot();
+            }
+        }
+
+        function deleteButton(nodeId, btnId) {
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+                node.data.buttons = node.data.buttons.filter(b => b.id !== btnId);
+                connections = connections.filter(c => !(c.from === nodeId && c.fromPort === `btn-${btnId}`));
+                renderNodes();
+                redrawConnections();
+                selectNode(nodeId);
+                saveCurrentBot();
+            }
+        }
+
+        function deleteNode(id) {
+            nodes = nodes.filter(n => n.id !== id);
+            connections = connections.filter(c => c.from !== id && c.to !== id);
+            selectedNodeId = null;
+            renderNodes();
+            redrawConnections();
+            selectNode(null);
+            saveCurrentBot();
+        }
+
+        function addNode(type) {
+            const canvasContainer = document.getElementById('canvas-container');
+            const rect = canvasContainer.getBoundingClientRect();
+            
+            const spawnX = Math.round((rect.width / 2 - 128) - panOffset.x);
+            const spawnY = Math.round((rect.height / 2 - 80) - panOffset.y);
+
+            const id = (nodes.reduce((max, n) => Math.max(max, parseInt(n.id) || 0), 0) + 1).toString();
+            let data = {};
+            if (type === 'trigger') data = { trigger_type: 'equals', value: 'Ключевое слово' };
+            else if (type === 'message') data = { text: 'Текст', buttons: [], image_url: '' };
+            else if (type === 'delay') data = { seconds: 3 };
+            else if (type === 'condition') data = { var_name: 'I', operator: '==', value: '1' };
+            else if (type === 'action') data = { action_type: 'set_var', key: 'status', value: 'active', url: '', save_key: '', math_op: '+' };
+            else if (type === 'python') data = { code: '' };
+
+            nodes.push({ id, type, x: spawnX, y: spawnY, data });
+            renderNodes();
+            selectNode(id);
+            saveCurrentBot();
+        }
+
+        function drawTempLine(x1, y1, x2, y2) {
+            let svg = document.getElementById('connections-svg');
+            let tempLine = document.getElementById('temp-line');
+            if (!tempLine) {
+                tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                tempLine.setAttribute('id', 'temp-line');
+                tempLine.setAttribute('stroke', '#6366f1');
+                tempLine.setAttribute('stroke-width', '3');
+                tempLine.setAttribute('stroke-dasharray', '5,5');
+                tempLine.setAttribute('fill', 'none');
+                svg.appendChild(tempLine);
+            }
+            const cp1 = x1 + (x2 - x1) * 0.5;
+            const cp2 = x1 + (x2 - x1) * 0.5;
+            tempLine.setAttribute('d', `M ${x1} ${y1} C ${cp1} ${y1}, ${cp2} ${y2}, ${x2} ${y2}`);
+        }
+
+        function removeTempLine() {
+            const tempLine = document.getElementById('temp-line');
+            if (tempLine) tempLine.remove();
+        }
+
+        // Отрисовка всех соединений (Прямой расчет на базе экранных координат — решает проблему обрезания линий)
+        function redrawConnections() {
+            document.querySelectorAll('.static-connection-line').forEach(el => el.remove());
+            const svg = document.getElementById('connections-svg');
+            const canvasContainer = document.getElementById('canvas-container');
+            const rectCanvas = canvasContainer.getBoundingClientRect();
+
+            connections.forEach(conn => {
+                let fromPortEl = null;
+                if (conn.fromPort === 'out') {
+                    fromPortEl = document.getElementById(`port-${conn.from}-out`);
+                } else {
+                    fromPortEl = document.getElementById(`port-${conn.from}-${conn.fromPort}`);
+                }
+                const toPortEl = document.getElementById(`port-${conn.to}-in`);
+
+                if (fromPortEl && toPortEl) {
+                    const fromRect = fromPortEl.getBoundingClientRect();
+                    const toRect = toPortEl.getBoundingClientRect();
+
+                    // Экранные координаты портов проецируются на холст-контейнер. Это устраняет любые клиппинги и баги масштабирования
+                    const x1 = Math.round(fromRect.left + fromRect.width / 2 - rectCanvas.left);
+                    const y1 = Math.round(fromRect.top + fromRect.height / 2 - rectCanvas.top);
+                    const x2 = Math.round(toRect.left + toRect.width / 2 - rectCanvas.left);
+                    const y2 = Math.round(toRect.top + toRect.height / 2 - rectCanvas.top);
+
+                    const cp1 = x1 + (x2 - x1) * 0.5;
+                    const cp2 = x1 + (x2 - x1) * 0.5;
+
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('class', 'static-connection-line cursor-pointer pointer-events-auto hover:stroke-red-500 transition-colors');
+                    path.setAttribute('d', `M ${x1} ${y1} C ${cp1} ${y1}, ${cp2} ${y2}, ${x2} ${y2}`);
+                    path.setAttribute('stroke', '#64748b');
+                    path.setAttribute('stroke-width', '3');
+                    path.setAttribute('fill', 'none');
+                    path.setAttribute('marker-end', 'url(#arrow)');
+
+                    path.addEventListener('click', () => {
+                        connections = connections.filter(c => c !== conn);
+                        redrawConnections();
+                        saveCurrentBot();
+                        logToConsole("Builder", `Связь удалена`, "slate-400");
+                    });
+
+                    svg.appendChild(path);
+                }
+            });
+        }
+
+        // --- СИМУЛЯТОР ЧАТА ---
+        let botVariables = {};
+
+        // Функция шаблонизатора (парсит переменные %name%, %username%, %messagetext%, %кастомные_переменные%)
+        function replaceTemplates(text, currentInputText = '') {
+            if (typeof text !== 'string') return text;
+            let result = text;
+
+            const simName = document.getElementById('sim-user-name').value || 'Тестировщик';
+            const simUname = document.getElementById('sim-user-uname').value || 'tester_user';
+
+            const systemVars = {
+                'username': simUname,
+                'name': simName,
+                'messagetext': currentInputText,
+                'message_text': currentInputText
+            };
+
+            // Замена системных шаблонов
+            for (const [key, value] of Object.entries(systemVars)) {
+                const regex = new RegExp(`%${key}%`, 'gi');
+                result = result.replace(regex, value);
+            }
+
+            // Замена кастомных переменных из памяти симулятора (включая сложные префиксы типа s%переменная%)
+            for (const [key, value] of Object.entries(botVariables)) {
+                const regex = new RegExp(`%${key}%`, 'gi');
+                result = result.replace(regex, value);
+            }
+
+            return result;
+        }
+
+        function logToConsole(tag, message, color = "slate-400") {
+            const logsContainer = document.getElementById('logs-container');
+            const logEntry = document.createElement('div');
+            logEntry.className = `text-${color}`;
+            logEntry.innerHTML = `<span class="text-slate-500">[${new Date().toLocaleTimeString()}]</span> <strong class="uppercase">[${tag}]</strong> ${message}`;
+            logsContainer.appendChild(logEntry);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+
+        function setActiveTab(tab) {
+            const chatBtn = document.getElementById('tab-chat-btn');
+            const logsBtn = document.getElementById('tab-logs-btn');
+            const chatPanel = document.getElementById('panel-chat');
+            const logsPanel = document.getElementById('panel-logs');
+
+            if (tab === 'chat') {
+                chatBtn.className = "flex-1 py-3 text-center text-xs font-bold border-b-2 border-indigo-500 text-indigo-400 transition";
+                logsBtn.className = "flex-1 py-3 text-center text-xs font-bold text-slate-400 hover:text-slate-200 transition";
+                chatPanel.classList.remove('hidden');
+                logsPanel.classList.add('hidden');
+            } else {
+                logsBtn.className = "flex-1 py-3 text-center text-xs font-bold border-b-2 border-indigo-500 text-indigo-400 transition";
+                chatBtn.className = "flex-1 py-3 text-center text-xs font-bold text-slate-400 hover:text-slate-200 transition";
+                logsPanel.classList.remove('hidden');
+                chatPanel.classList.add('hidden');
+            }
+        }
+
+        async function sendSimulatedMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.value = '';
+            appendMessage('user', text, document.getElementById('sim-user-name').value || 'Вы');
+
+            if (!activeHosting) {
+                appendMessage('system', 'Ошибка: Хостинг выключен.', 'Система');
+                return;
+            }
+
+            if (msgCount >= 100) {
+                appendMessage('system', 'Ошибка: Превышен дневной лимит сообщений.', 'Система');
+                return;
+            }
+
+            msgCount++;
+            document.getElementById('msg-counter').innerText = msgCount;
+
+            logToConsole("API", `Получен вебхук: "${text}"`, "blue-400");
+            
+            let activeTriggerNode = null;
+
+            activeTriggerNode = nodes.find(n => n.type === 'trigger' && n.data.trigger_type === 'equals' && n.data.value.toLowerCase() === text.toLowerCase());
+            
+            if (!activeTriggerNode && text.startsWith('/start')) {
+                activeTriggerNode = nodes.find(n => n.type === 'trigger' && n.data.trigger_type === 'start');
+            }
+
+            if (!activeTriggerNode) {
+                activeTriggerNode = nodes.find(n => {
+                    if (n.type === 'trigger' && n.data.trigger_type === 'all_except') {
+                        const exceptions = (n.data.value || '').split(',').map(s => s.trim().toLowerCase());
+                        return !exceptions.includes(text.toLowerCase());
+                    }
+                    return false;
+                });
+            }
+
+            if (activeTriggerNode) {
+                await animateNodeExecution(activeTriggerNode.id);
+                await runFlow(activeTriggerNode.id, text, 'out');
+            } else {
+                logToConsole("Bot", "Сообщение не совпало с триггерами.", "slate-550");
+                appendMessage('bot', "Извините, я вас не понял.", "Бот");
+            }
+        }
+
+        async function runFlow(nodeId, messageText, outputPortId) {
+            const targetConn = connections.find(c => c.from === nodeId && c.fromPort === outputPortId);
+            if (!targetConn) return;
+
+            const targetNode = nodes.find(n => n.id === targetConn.to);
+            if (!targetNode) return;
+
+            await animateNodeExecution(targetNode.id);
+
+            if (targetNode.type === 'message') {
+                logToConsole("Action", `Блок #${targetNode.id} [Сообщение] - Отправка`, "blue-400");
+                
+                // Шаблонизируем текст, картинку и кнопки перед показом
+                let responseText = replaceTemplates(targetNode.data.text || '', messageText);
+                let imageUrl = replaceTemplates(targetNode.data.image_url || '', messageText);
+
+                let templatedButtons = [];
+                if (targetNode.data.buttons && targetNode.data.buttons.length > 0) {
+                    templatedButtons = targetNode.data.buttons.map(btn => ({
+                        id: btn.id,
+                        text: replaceTemplates(btn.text, messageText)
+                    }));
+                }
+
+                appendMessage('bot', responseText, 'Бот', imageUrl, templatedButtons, targetNode.id);
+                
+                if (!templatedButtons || templatedButtons.length === 0) {
+                    await runFlow(targetNode.id, messageText, 'out');
+                }
+            } else if (targetNode.type === 'delay') {
+                logToConsole("Action", `Блок #${targetNode.id} [Задержка] - Запуск таймера...`, "teal-400");
+                // Поддерживаем переменную в качестве времени задержки
+                let secondsRaw = replaceTemplates(String(targetNode.data.seconds || 3), messageText);
+                let seconds = parseInt(secondsRaw) || 3;
+                let count = seconds;
+                
+                const timerDisplay = document.querySelector(`#node-${targetNode.id} .countdown-display`);
+                while (count > 0) {
+                    if (timerDisplay) timerDisplay.innerText = `${count} сек`;
+                    await new Promise(r => setTimeout(r, 1000));
+                    count--;
+                }
+                if (timerDisplay) timerDisplay.innerText = `${seconds} сек`;
+
+                await runFlow(targetNode.id, messageText, 'out');
+            } else if (targetNode.type === 'condition') {
+                logToConsole("Action", `Блок #${targetNode.id} [Условие] - Вычисление`, "rose-400");
+                // Поддерживаем переменные в имени проверяемого поля и значении
+                const varName = replaceTemplates(targetNode.data.var_name || 'I', messageText);
+                const operator = targetNode.data.operator || '==';
+                const targetVal = replaceTemplates(String(targetNode.data.value || '1').toLowerCase(), messageText);
+                const actualVal = String(botVariables[varName] !== undefined ? botVariables[varName] : '').toLowerCase();
+
+                let isTrue = false;
+                if (operator === '==') isTrue = (actualVal === targetVal);
+                else if (operator === '!=') isTrue = (actualVal !== targetVal);
+                else if (operator === '>') isTrue = (parseFloat(actualVal) > parseFloat(targetVal));
+                else if (operator === '<') isTrue = (parseFloat(actualVal) < parseFloat(targetVal));
+                else if (operator === 'contains') isTrue = (actualVal.includes(targetVal));
+
+                logToConsole("Action", `Проверка %${varName}% ("${actualVal}") ${operator} "${targetVal}": ${isTrue ? 'Истина' : 'Ложь'}`, "rose-300");
+                const nextPort = isTrue ? 'true_out' : 'false_out';
+                await runFlow(targetNode.id, messageText, nextPort);
+            } else if (targetNode.type === 'action') {
+                logToConsole("Action", `Блок #${targetNode.id} [Действие] - Выполнение`, "violet-400");
+                const actionType = targetNode.data.action_type || 'set_var';
+
+                if (actionType === 'set_var') {
+                    const key = replaceTemplates(targetNode.data.key, messageText);
+                    const val = replaceTemplates(targetNode.data.value, messageText);
+                    botVariables[key] = val;
+                    logToConsole("Action", `Записана переменная ${key} = "${val}"`, "violet-300");
+                } else if (actionType === 'del_var') {
+                    const key = replaceTemplates(targetNode.data.key, messageText);
+                    delete botVariables[key];
+                    logToConsole("Action", `Удалена переменная ${key}`, "violet-300");
+                } else if (actionType === 'math_var') {
+                    const key = replaceTemplates(targetNode.data.key, messageText);
+                    const op = targetNode.data.math_op || '+';
+                    const amountRaw = replaceTemplates(targetNode.data.value, messageText);
+                    const amount = parseFloat(amountRaw) || 0;
+                    const cur = parseFloat(botVariables[key]) || 0;
+                    botVariables[key] = op === '+' ? (cur + amount) : (cur - amount);
+                    logToConsole("Action", `Математическое действие ${key} (${cur}) ${op} ${amount} = ${botVariables[key]}`, "violet-300");
+                } else if (actionType === 'web_request') {
+                    const url = replaceTemplates(targetNode.data.url || 'https://api.ipify.org?format=json', messageText);
+                    const saveKey = replaceTemplates(targetNode.data.save_key || 'response', messageText);
+                    logToConsole("Action", `Отправка запроса на ${url}...`, "amber-400");
+                    try {
+                        let res = await fetch(url);
+                        let text = await res.text();
+                        try {
+                            let json = JSON.parse(text);
+                            botVariables[saveKey] = json.ip || text; 
+                        } catch(e) {
+                            botVariables[saveKey] = text;
+                        }
+                        logToConsole("Action Success", `Ответ записан в переменную: ${saveKey}`, "emerald-400");
+                    } catch(err) {
+                        logToConsole("Action Error", `Сетевая ошибка: ${err.message}`, "red-500");
+                    }
+                }
+                await runFlow(targetNode.id, messageText, 'out');
+            } else if (targetNode.type === 'python') {
+                logToConsole("Action", `Блок #${targetNode.id} [Python] - запуск кода...`, "amber-400");
+                let runResultText = "Выполнено.";
+                
+                if (pyodide) {
+                    try {
+                        const userCode = targetNode.data.code || '';
+                        
+                        // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: заменяем шаблоны в коде ПЕРЕД отправкой в Pyodide
+                        let templatedUserCode = replaceTemplates(userCode, messageText);
+
+                        // Определяем, возвращает ли скрипт переменную в конце
+                        const returnMatch = templatedUserCode.match(/return\s+([a-zA-Z_]\w*)\s*(?:#.*)?$/m);
+                        const returnVarName = returnMatch ? returnMatch[1] : null;
+
+                        // Переписываем return в переменную окружения, чтобы избежать SyntaxError вне функций
+                        let rewrittenCode = templatedUserCode;
+                        if (returnVarName) {
+                            rewrittenCode = templatedUserCode.replace(/return\s+([a-zA-Z_]\w*)/g, '__returned_val__ = $1');
+                        }
+
+                        pyodide.globals.set('__user_code__', rewrittenCode);
+                        pyodide.globals.set('message_text', messageText);
+                        pyodide.globals.set('log', (msg) => {
+                            logToConsole(`Python Node #${targetNode.id}`, msg, "emerald-400");
+                        });
+
+                        // Синхронизируем текущие переменные
+                        const dict = pyodide.runPython("dict()");
+                        for (const [key, val] of Object.entries(botVariables)) {
+                            dict.set(key, val);
+                        }
+                        pyodide.globals.set('variables', dict);
+
+                        // Безопасно выполняем в изолированном контексте через exec()
+                        await pyodide.runPythonAsync(`
+locals_dict = {
+    "message_text": message_text,
+    "variables": variables,
+    "output_message": "Выполнено.",
+    "log": log
+}
+exec(__user_code__, globals(), locals_dict)
+`);
+
+                        // Получаем результат работы
+                        let outputMessage = pyodide.runPython('locals_dict.get("output_message")');
+                        if (outputMessage !== undefined && outputMessage !== null) {
+                            runResultText = String(outputMessage);
+                        }
+
+                        // Синхронизируем измененные переменные обратно
+                        const updated = pyodide.runPython('locals_dict.get("variables")').toJs();
+                        botVariables = Object.fromEntries(updated);
+
+                        // Если был выполнен return, автоматически объявляем или обновляем переменную
+                        if (returnVarName) {
+                            let pyResult = pyodide.runPython('locals_dict.get("__returned_val__")');
+                            let pyResultJs = (pyResult && typeof pyResult.toJs === 'function') ? pyResult.toJs() : pyResult;
+                            botVariables[returnVarName] = pyResultJs;
+                            
+                            // Если вернулся словарь, распаковываем его ключи во внутренние переменные
+                            if (pyResultJs instanceof Map) {
+                                for (let [k, v] of pyResultJs.entries()) {
+                                    botVariables[k] = v;
+                                }
+                            } else if (typeof pyResultJs === 'object' && pyResultJs !== null) {
+                                for (let [k, v] of Object.entries(pyResultJs)) {
+                                    botVariables[k] = v;
+                                }
+                            }
+                            logToConsole("Python", `Создана переменная "${returnVarName}": ${JSON.stringify(pyResultJs)}`, "emerald-400");
+                        }
+                    } catch (err) {
+                        logToConsole(`Python Error`, err.message, "red-500");
+                        runResultText = `⚠️ Ошибка Python:\n${err.message}`;
+                    }
+                }
+                await runFlow(targetNode.id, runResultText, 'out');
+            }
+        }
+
+        async function onSimulatedCallback(nodeId, btnId, btnText) {
+            logToConsole("API", `Клик на кнопку callback_data: "${btnId}"`, "blue-400");
+            appendMessage('user', `Кнопка: ${btnText}`, document.getElementById('sim-user-name').value || 'Вы');
+            await runFlow(nodeId, btnText, `btn-${btnId}`);
+        }
+
+        function appendMessage(sender, text, name, imageUrl = '', buttons = [], nodeId = null) {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = "flex items-start space-x-3";
+
+            let avatarBg = sender === 'user' ? "bg-emerald-600" : (sender === 'system' ? "bg-red-900" : "bg-indigo-600");
+            let msgBg = sender === 'user' ? "bg-slate-850" : "bg-slate-800";
+
+            let textWithFormatting = text.replace(/\n/g, '<br>');
+            let imageHtml = imageUrl ? `<img src="${imageUrl}" class="rounded-lg max-w-full max-h-48 object-cover mb-2"/>` : '';
+
+            let buttonsHtml = '';
+            if (buttons && buttons.length > 0) {
+                buttonsHtml = `<div class="grid grid-cols-2 gap-2 mt-3">`;
+                buttons.forEach(btn => {
+                    buttonsHtml += `
+                        <button onclick="onSimulatedCallback('${nodeId}', '${btn.id}', '${btn.text}')" class="bg-indigo-650 hover:bg-indigo-600 text-white text-[11px] py-1.5 px-2 rounded font-semibold transition active:scale-95">
+                            ${btn.text}
+                        </button>
+                    `;
+                });
+                buttonsHtml += `</div>`;
+            }
+
+            messageEl.innerHTML = `
+                <div class="${avatarBg} h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white uppercase">${name[0]}</div>
+                <div class="${msgBg} p-3 rounded-lg max-w-[80%]">
+                    <p class="text-[10px] text-slate-400 mb-0.5">${name}</p>
+                    ${imageHtml}
+                    <p class="text-xs">${textWithFormatting}</p>
+                    ${buttonsHtml}
+                </div>
+            `;
+            chatMessages.appendChild(messageEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function animateNodeExecution(id) {
+            return new Promise((resolve) => {
+                const nodeEl = document.getElementById(`node-${id}`);
+                if (nodeEl) {
+                    nodeEl.classList.add('node-executing');
+                    setTimeout(() => {
+                        nodeEl.classList.remove('node-executing');
+                        resolve();
+                    }, 400);
+                } else {
+                    resolve();
+                }
+            });
+        }
+
+        function clearChat() {
+            document.getElementById('chat-messages').innerHTML = '';
+            botVariables = {};
+            logToConsole("System", "Чат и переменные сброшены.", "slate-500");
+        }
+
+        function clearLogs() {
+            document.getElementById('logs-container').innerHTML = '<div class="text-slate-500">[System] Консоль очищена.</div>';
+        }
+
+        function toggleHosting() {
+            activeHosting = !activeHosting;
+            const statusEl = document.getElementById('hosting-status');
+            const dotEl = document.getElementById('hosting-dot');
+            const pulseEl = document.getElementById('hosting-pulse');
+            const btnEl = document.getElementById('btn-hosting');
+
+            if (activeHosting) {
+                statusEl.innerText = "Активен";
+                statusEl.className = "text-emerald-400";
+                dotEl.className = "relative inline-flex rounded-full h-2 w-2 bg-emerald-500";
+                pulseEl.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+                btnEl.className = "bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition";
+                logToConsole("Hosting", "Бот развернут на серверах NiosMess.", "emerald-400");
+            } else {
+                statusEl.innerText = "Отключен";
+                statusEl.className = "text-red-400";
+                dotEl.className = "relative inline-flex rounded-full h-2 w-2 bg-red-500";
+                pulseEl.className = "hidden";
+                btnEl.className = "bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition";
+                logToConsole("Hosting", "Хостинг приостановлен.", "red-400");
+            }
+        }
+
+        // --- ГЕНЕРАТОР КОДА И ЭКСПОРТ ---
+        function exportPythonCode() {
+            const modal = document.getElementById('export-modal');
+            const textarea = document.getElementById('python-code-area');
+
+            let pyCode = `import asyncio
+import logging
+import json
+import httpx
+import re
+from nios_bot import NiosBot
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("NiosMessFlow")
+
+TOKEN = "${currentToken}"
+BASE_URL = "https://ni-os.ru/bot-api"
+
+bot = NiosBot(token=TOKEN, base_url=BASE_URL)
+USER_STATES = {}
+
+def get_user_variables(chat_id) -> dict:
+    if chat_id is None:
+        return {}
+    key = int(chat_id)
+    if key not in USER_STATES:
+        USER_STATES[key] = {}
+    return USER_STATES[key]
+
+# Функция безопасного приведения типов во избежание крашей и дробных ".0" в Python
+def safe_num(val, default=0):
+    try:
+        if val is None:
+            return default
+        val_str = str(val).strip()
+        if not val_str or "%" in val_str:
+            return default
+        f_val = float(val_str)
+        if f_val.is_integer():
+            return int(f_val)
+        return f_val
+    except ValueError:
+        return default
+
+# Функция шаблонизатора (эквивалентна JS-версии) для подстановки переменных в Python на сервере
+def replace_templates(text: str, message_text: str, message_data: dict, variables: dict) -> str:
+    if not isinstance(text, str):
+        return text
+    result = text
+    
+    from_user = {}
+    if isinstance(message_data, dict):
+        from_user = message_data.get("from", {})
+        if not from_user and "message" in message_data:
+            from_user = message_data.get("message", {}).get("from", {})
+    
+    system_vars = {
+        "username": from_user.get("username", "user") if from_user else "user",
+        "name": from_user.get("first_name", "Пользователь") if from_user else "Пользователь",
+        "messagetext": message_text,
+        "message_text": message_text
+    }
+    
+    for k, v in system_vars.items():
+        pattern = re.compile(f"%" + re.escape(k) + "%", re.IGNORECASE)
+        result = pattern.sub(str(v), result)
+    for k, v in variables.items():
+        pattern = re.compile(f"%" + re.escape(k) + "%", re.IGNORECASE)
+        result = pattern.sub(str(v), result)
+    return result
+
+`;
+
+            const startTrigger = nodes.find(n => n.type === 'trigger' && n.data.trigger_type === 'start');
+            const equalTriggers = nodes.filter(n => n.type === 'trigger' && n.data.trigger_type === 'equals');
+            const allExceptTriggers = nodes.filter(n => n.type === 'trigger' && n.data.trigger_type === 'all_except');
+
+            function generateChainLogic(fromNodeId, fromPortId = 'out', indent = "    ") {
+                let code = "";
+                const outbound = connections.filter(c => c.from === fromNodeId && c.fromPort === fromPortId);
+                if (outbound.length === 0) return indent + "pass\n";
+
+                outbound.forEach(conn => {
+                    const toNode = nodes.find(n => n.id === conn.to);
+                    if (!toNode) return;
+
+                    code += `\n${indent}# Переход на блок #${toNode.id} (${toNode.type})\n`;
+
+                    if (toNode.type === 'message') {
+                        let replyMarkup = "None";
+                        if (toNode.data.buttons && toNode.data.buttons.length > 0) {
+                            const inlineKeyboard = toNode.data.buttons.map(btn => {
+                                return `{"text": replace_templates("""${btn.text}""", text, message, variables), "callback_data": "${toNode.id}_${btn.id}"}`;
+                            });
+                            replyMarkup = `{\n${indent}    "inline_keyboard": [[\n${indent}        ${inlineKeyboard.join(',\n' + indent + '        ')}\n${indent}    ]]\n${indent}}`;
+                        }
+
+                        let rawText = toNode.data.text || '';
+                        let rawImg = toNode.data.image_url || '';
+                        code += `${indent}text_to_send = replace_templates("""${rawText}""", text, message, variables)\n`;
+                        code += `${indent}img_to_send = replace_templates("""${rawImg}""", text, message, variables) if """${rawImg}""" else None\n`;
+                        code += `${indent}await bot.send_message(\n${indent}    chat_id=chat_id,\n${indent}    text=text_to_send,\n${indent}    reply_markup=${replyMarkup}\n${indent})\n`;
+                        
+                        if (!toNode.data.buttons || toNode.data.buttons.length === 0) {
+                            code += generateChainLogic(toNode.id, 'out', indent);
+                        }
+                    } else if (toNode.type === 'delay') {
+                        const sec = toNode.data.seconds || 3;
+                        code += `${indent}delay_sec = int(safe_num(replace_templates("""${sec}""", text, message, variables), 3))\n`;
+                        code += `${indent}await asyncio.sleep(delay_sec)\n`;
+                        code += generateChainLogic(toNode.id, 'out', indent);
+                    } else if (toNode.type === 'action') {
+                        const actionType = toNode.data.action_type || 'set_var';
+                        if (actionType === 'set_var') {
+                            let rawKey = toNode.data.key || '';
+                            let rawVal = toNode.data.value || '';
+                            code += `${indent}var_key = replace_templates("""${rawKey}""", text, message, variables)\n`;
+                            code += `${indent}var_val = replace_templates("""${rawVal}""", text, message, variables)\n`;
+                            code += `${indent}variables[var_key] = var_val\n`;
+                        } else if (actionType === 'del_var') {
+                            let rawKey = toNode.data.key || '';
+                            code += `${indent}var_key = replace_templates("""${rawKey}""", text, message, variables)\n`;
+                            code += `${indent}variables.pop(var_key, None)\n`;
+                        } else if (actionType === 'math_var') {
+                            const op = toNode.data.math_op || '+';
+                            let rawKey = toNode.data.key || '';
+                            let rawVal = toNode.data.value || '1';
+                            code += `${indent}var_key = replace_templates("""${rawKey}""", text, message, variables)\n`;
+                            code += `${indent}amount_val = replace_templates("""${rawVal}""", text, message, variables)\n`;
+                            code += `${indent}variables[var_key] = safe_num(variables.get(var_key, 0)) ${op} safe_num(amount_val, 0)\n`;
+                        } else if (actionType === 'web_request') {
+                            let rawUrl = toNode.data.url || 'https://api.ipify.org?format=json';
+                            let rawSaveKey = toNode.data.save_key || 'response';
+                            code += `${indent}req_url = replace_templates("""${rawUrl}""", text, message, variables)\n`;
+                            code += `${indent}save_key = replace_templates("""${rawSaveKey}""", text, message, variables)\n`;
+                            code += `${indent}async with httpx.AsyncClient() as client:\n`;
+                            code += `${indent}    try:\n`;
+                            code += `${indent}        res = await client.get(req_url)\n`;
+                            code += `${indent}        variables[save_key] = res.json().get("ip", res.text) if res.headers.get("content-type", "").startswith("application/json") else res.text\n`;
+                            code += `${indent}    except Exception as e:\n`;
+                            code += `${indent}        logger.error(f"HTTP Error: {e}")\n`;
+                        }
+                        code += generateChainLogic(toNode.id, 'out', indent);
+                    } else if (toNode.type === 'condition') {
+                        const varName = toNode.data.var_name || 'I';
+                        const op = toNode.data.operator || '==';
+                        const target = toNode.data.value || '1';
+                        
+                        code += `${indent}cond_var_name = replace_templates("""${varName}""", text, message, variables)\n`;
+                        code += `${indent}target_val = replace_templates("""${target}""", text, message, variables).lower()\n`;
+                        code += `${indent}val_${toNode.id} = str(variables.get(cond_var_name, '')).lower()\n`;
+                        
+                        let pyCond = `val_${toNode.id} == target_val`;
+                        if (op === '!=') pyCond = `val_${toNode.id} != target_val`;
+                        else if (op === '>') pyCond = `safe_num(val_${toNode.id}) > safe_num(target_val)`;
+                        else if (op === '<') pyCond = `safe_num(val_${toNode.id}) < safe_num(target_val)`;
+                        else if (op === 'contains') pyCond = `target_val in val_${toNode.id}`;
+
+                        code += `${indent}if ${pyCond}:\n`;
+                        code += generateChainLogic(toNode.id, 'true_out', indent + "    ");
+                        code += `${indent}else:\n`;
+                        code += generateChainLogic(toNode.id, 'false_out', indent + "    ");
+                    } else if (toNode.type === 'python') {
+                        const rawPython = toNode.data.code || "output_message = 'OK'";
+                        const returnMatchPy = rawPython.match(/return\s+([a-zA-Z_]\w*)\s*(?:#.*)?$/m);
+                        const returnVarNamePy = returnMatchPy ? returnMatchPy[1] : null;
+                        
+                        // Заменяем 'return var' на '__returned_val__ = var'
+                        let rewrittenPython = rawPython;
+                        if (returnVarNamePy) {
+                            rewrittenPython = rawPython.replace(/return\s+([a-zA-Z_]\w*)/g, '__returned_val__ = $1');
+                        }
+                        
+                        const escapedPython = rewrittenPython.replace(/"""/g, '\\"\\"\\"');
+                        
+                        code += `${indent}# Выполнение скрипта Python (Блок #${toNode.id})\n`;
+                        code += `${indent}locals_${toNode.id} = {\n`;
+                        code += `${indent}    "message_text": text,\n`;
+                        code += `${indent}    "variables": variables,\n`;
+                        code += `${indent}    "output_message": "Выполнено.",\n`;
+                        code += `${indent}    "log": lambda msg: logger.info(f"Node ${toNode.id}: {msg}")\n`;
+                        code += `${indent}}\n`;
+                        code += `${indent}try:\n`;
+                        // Сначала заменяем %шаблоны% в коде скрипта
+                        code += `${indent}    templated_code_${toNode.id} = replace_templates("""${escapedPython}""", text, message, variables)\n`;
+                        code += `${indent}    exec(templated_code_${toNode.id}, globals(), locals_${toNode.id})\n`;
+                        code += `${indent}except Exception as e:\n`;
+                        code += `${indent}    logger.error(f"Error in Node ${toNode.id}: {e}")\n`;
+                        code += `${indent}    locals_${toNode.id}["output_message"] = f"⚠️ Ошибка Python:\\n{e}"\n\n`;
+                        
+                        code += `${indent}python_output_${toNode.id} = locals_${toNode.id}.get("output_message")\n`;
+                        if (returnVarNamePy) {
+                            code += `${indent}ret_val_${toNode.id} = locals_${toNode.id}.get("__returned_val__")\n`;
+                            code += `${indent}variables['${returnVarNamePy}'] = ret_val_${toNode.id}\n`;
+                            code += `${indent}if isinstance(ret_val_${toNode.id}, dict):\n`;
+                            code += `${indent}    variables.update(ret_val_${toNode.id})\n`;
+                        }
+                        code += `${indent}if python_output_${toNode.id}:\n`;
+                        code += `${indent}    await bot.send_message(chat_id=chat_id, text=str(python_output_${toNode.id}))\n`;
+                        
+                        code += generateChainLogic(toNode.id, 'out', indent);
+                    }
+                });
+                return code;
+            }
+
+            pyCode += `@bot.message_handler()\nasync def handle_all_messages(message: dict):\n`;
+            pyCode += `    chat_id = message.get("chat", {}).get("id")\n`;
+            pyCode += `    if chat_id is not None:\n`;
+            pyCode += `        chat_id = int(chat_id)\n`;
+            pyCode += `    text = message.get("text", "")\n`;
+            pyCode += `    variables = get_user_variables(chat_id)\n\n`;
+
+            let isFirstIf = true;
+
+            if (startTrigger) {
+                pyCode += `    if text.startswith("/start"):\n`;
+                pyCode += generateChainLogic(startTrigger.id, 'out', "        ");
+                isFirstIf = false;
+            }
+
+            equalTriggers.forEach(trigger => {
+                const keyword = trigger.data.value || '';
+                const condition = isFirstIf ? 'if' : 'elif';
+                pyCode += `    ${condition} text.lower() == "${keyword.toLowerCase()}":\n`;
+                pyCode += generateChainLogic(trigger.id, 'out', "        ");
+                isFirstIf = false;
+            });
+
+            allExceptTriggers.forEach(trigger => {
+                const exceptionsList = (trigger.data.value || '').split(',').map(s => s.trim().toLowerCase());
+                const condition = isFirstIf ? 'if' : 'elif';
+                pyCode += `    ${condition} text.lower() not in ${JSON.stringify(exceptionsList)}:\n`;
+                pyCode += generateChainLogic(trigger.id, 'out', "        ");
+                isFirstIf = false;
+            });
+
+            if (!isFirstIf) {
+                pyCode += `    else:\n        await bot.send_message(chat_id=chat_id, text="Неизвестная команда.")\n\n`;
+            } else {
+                pyCode += `    pass\n\n`;
+            }
+
+            pyCode += `
+@bot.callback_query_handler()
+async def handle_button_clicks(callback_query: dict):
+    query_id = callback_query.get("id") or callback_query.get("callback_query_id")
+    data = callback_query.get("data", "")
+    message = callback_query.get("message", {})
+    
+    chat_id = message.get("chat", {}).get("id") or callback_query.get("from", {}).get("id")
+    if chat_id is not None:
+        chat_id = int(chat_id)
+        
+    variables = get_user_variables(chat_id)
+    text = "" # Для логов кнопок
+
+    if query_id:
+        await bot.answer_callback_query(callback_query_id=query_id)
+
+    message = callback_query # Алиас для корректного чтения пользователя внутри replace_templates
+
+`;
+
+            let hasButtons = false;
+            nodes.forEach(node => {
+                if (node.type === 'message' && node.data.buttons) {
+                    node.data.buttons.forEach(btn => {
+                        const conn = connections.find(c => c.from === node.id && c.fromPort === `btn-${btn.id}`);
+                        if (conn) {
+                            hasButtons = true;
+                            pyCode += `    if data == "${node.id}_${btn.id}":\n`;
+                            pyCode += `        text = "${btn.text}"\n`;
+                            pyCode += generateChainLogic(node.id, `btn-${btn.id}`, "        ");
+                        }
+                    });
+                }
+            });
+
+            if (!hasButtons) pyCode += `    pass\n`;
+
+            pyCode += `
+async def main():
+    try:
+        me = await bot.get_me()
+        logger.info(f"Запуск бота...")
+        await bot.start_polling(poll_interval=1.0)
+    except KeyboardInterrupt:
+        logger.info("Бот остановлен.")
+    finally:
+        await bot.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+`;
+
+            const metadata = { nodes, connections, panOffset };
+            pyCode += `\n# VISUAL_FLOW_METADATA = ${JSON.stringify(metadata)}\n`;
+
+            textarea.value = pyCode;
+            modal.classList.remove('hidden');
+        }
+
+        function closeExportModal() {
+            document.getElementById('export-modal').classList.add('hidden');
+        }
+
+        function copyPythonCode() {
+            const textarea = document.getElementById('python-code-area');
+            textarea.select();
+            document.execCommand('copy');
+            alert('Код успешно скопирован!');
+        }
+
+        // --- ЛОГИКА ИМПОРТА КОДА ---
+        function openImportModal() {
+            document.getElementById('import-code-area').value = '';
+            document.getElementById('import-modal').classList.remove('hidden');
+        }
+
+        function closeImportModal() {
+            document.getElementById('import-modal').classList.add('hidden');
+        }
+
+        function submitImportCode() {
+            const code = document.getElementById('import-code-area').value;
+            if (!code) return;
+
+            const match = code.match(/# VISUAL_FLOW_METADATA\s*=\s*(.*)/);
+            if (match && match[1]) {
+                try {
+                    const parsed = JSON.parse(match[1]);
+                    nodes = parsed.nodes || [];
+                    connections = parsed.connections || [];
+                    panOffset = parsed.panOffset || { x: 0, y: 0 };
+                    
+                    const tokenMatch = code.match(/TOKEN\s*=\s*["']([^"']+)["']/);
+                    if (tokenMatch && tokenMatch[1]) {
+                        currentToken = tokenMatch[1];
+                        document.getElementById('bot-token-input').value = currentToken;
+                    }
+
+                    saveCurrentBot();
+                    updateWorkspaceTransform();
+                    renderNodes();
+                    redrawConnections();
+                    closeImportModal();
+                    
+                    if (nodes.length > 0) selectNode(nodes[0].id);
+                    logToConsole("System", "Схема успешно восстановлена из метаданных!", "emerald-400");
+                } catch(e) {
+                    alert("Ошибка при чтении метаданных файла.");
+                }
+            } else {
+                alert("Не найден маркер метаданных # VISUAL_FLOW_METADATA. Импортировать можно только файлы, экспортированные из этого конструктора.");
+            }
+        }
+    </script>
+</body>
+</html>

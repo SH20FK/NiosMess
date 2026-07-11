@@ -1,0 +1,202 @@
+{
+    "chats": {
+        "7680237984": {
+            "username": "max_lovit_daje_na_parkovkie",
+            "locked": false,
+            "messages": [
+                {
+                    "sender": "user",
+                    "text": "привет"
+                },
+                {
+                    "sender": "admin",
+                    "text": "привет"
+                },
+                {
+                    "sender": "user",
+                    "text": "пока"
+                },
+                {
+                    "sender": "admin",
+                    "text": "привет"
+                },
+                {
+                    "sender": "user",
+                    "text": "иди нахуй"
+                },
+                {
+                    "sender": "admin",
+                    "text": "сам иди"
+                },
+                {
+                    "sender": "user",
+                    "text": "нет ты иди нахуй"
+                },
+                {
+                    "sender": "admin",
+                    "text": "соси хуй"
+                },
+                {
+                    "sender": "user",
+                    "text": "сам соси хуй"
+                },
+                {
+                    "sender": "admin",
+                    "text": "маринад"
+                },
+                {
+                    "sender": "user",
+                    "text": "абдолбш"
+                },
+                {
+                    "sender": "admin",
+                    "text": "сам такой"
+                },
+                {
+                    "sender": "user",
+                    "text": "хуесос т"
+                },
+                {
+                    "sender": "admin",
+                    "text": "нет ты"
+                },
+                {
+                    "sender": "user",
+                    "text": "пошел нахуй"
+                },
+                {
+                    "sender": "admin",
+                    "text": "сам"
+                },
+                {
+                    "sender": "user",
+                    "text": "кулебяка"
+                },
+                {
+                    "sender": "admin",
+                    "text": "/"
+                },
+                {
+                    "sender": "user",
+                    "text": "рпакцыфпрокпафцыролдлоыдпрафклопрфыакпдафылпдпыакфдппролыкфадпоркапраыфрдфыакппдофрыкаепдорфкаыодр"
+                },
+                {
+                    "sender": "admin",
+                    "text": "."
+                },
+                {
+                    "sender": "user",
+                    "text": "чзх"
+                },
+                {
+                    "sender": "admin",
+                    "text": "сам такой"
+                },
+                {
+                    "sender": "user",
+                    "text": "кнш"
+                },
+                {
+                    "sender": "admin",
+                    "text": "сам такой"
+                },
+                {
+                    "sender": "user",
+                    "text": "дада"
+                },
+                {
+                    "sender": "admin",
+                    "text": "пон"
+                },
+                {
+                    "sender": "user",
+                    "text": "ддаада"
+                },
+                {
+                    "sender": "admin",
+                    "text": "максик"
+                },
+                {
+                    "sender": "user",
+                    "text": "пон"
+                },
+                {
+                    "sender": "admin",
+                    "text": "-"
+                },
+                {
+                    "sender": "user",
+                    "text": "соси"
+                },
+                {
+                    "sender": "admin",
+                    "text": "ну и чо"
+                },
+                {
+                    "sender": "user",
+                    "text": "привет"
+                },
+                {
+                    "sender": "admin",
+                    "text": "пока"
+                }
+            ]
+        },
+        "6109562415": {
+            "username": "Niokerter",
+            "locked": false,
+            "messages": [
+                {
+                    "sender": "user",
+                    "text": "привет пидр"
+                },
+                {
+                    "sender": "admin",
+                    "text": "пизда"
+                }
+            ]
+        },
+        "6197150530": {
+            "username": "nadoev",
+            "locked": false,
+            "messages": [
+                {
+                    "sender": "user",
+                    "text": "Ты гей"
+                },
+                {
+                    "sender": "admin",
+                    "text": "чтоб не портить статистику иди нахуй"
+                }
+            ]
+        },
+        "6841069738": {
+            "username": "deco9er",
+            "locked": false,
+            "messages": [
+                {
+                    "sender": "user",
+                    "text": "да"
+                },
+                {
+                    "sender": "admin",
+                    "text": "советую тебе все же теперь вернуть акк а то его не станет"
+                }
+            ]
+        },
+        "8290960077": {
+            "username": "Popcals",
+            "locked": true,
+            "messages": [
+                {
+                    "sender": "user",
+                    "text": "Отвечай мне сука"
+                }
+            ]
+        }
+    },
+    "stats": {
+        "total_cases": 121,
+        "success_cases": 98
+    }
+}

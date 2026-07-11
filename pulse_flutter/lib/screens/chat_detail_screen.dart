@@ -37,6 +37,7 @@ import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/core/utils/screen_security_service.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
+import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 
@@ -240,6 +241,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _inputFocusNode = FocusNode()..addListener(() {
       if (mounted) setState(() {});
     });
+    final int? cid = _chatId;
+    if (cid != null) PushNotificationService.setCurrentChat(cid);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _restoreDraft();
       _refreshNow();
@@ -312,6 +315,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   @override
   void dispose() {
+    PushNotificationService.setCurrentChat(null);
     WidgetsBinding.instance.removeObserver(this);
     _secretPollTimer?.cancel();
     _removeScreenshotOverlay();

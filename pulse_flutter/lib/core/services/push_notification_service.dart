@@ -20,6 +20,11 @@ class PushNotificationService {
   static StreamSubscription<RemoteMessage>? _foregroundSubscription;
   static StreamSubscription<RemoteMessage>? _openedAppSubscription;
   static int _notificationIdCounter = 0;
+  static int? _currentChatId;
+
+  static void setCurrentChat(int? chatId) {
+    _currentChatId = chatId;
+  }
 
   static Future<void> init() async {
     FirebaseMessaging.onBackgroundMessage(_onBackgroundMessage);
@@ -32,7 +37,7 @@ class PushNotificationService {
     if (settings.authorizationStatus != AuthorizationStatus.authorized) return;
 
     const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@mipmap/ic_notification');
     const DarwinInitializationSettings iosSettings =
         DarwinInitializationSettings();
     await _local.initialize(
@@ -86,6 +91,12 @@ class PushNotificationService {
     final String title = message.notification?.title ?? 'NiosMess';
     final String body = message.notification?.body ?? '';
 
+    final Object? chatIdRaw = data['chat_id'];
+    final int? chatId = chatIdRaw is int
+        ? chatIdRaw
+        : int.tryParse(chatIdRaw?.toString() ?? '');
+    if (chatId != null && chatId == _currentChatId) return;
+
     await _local.show(
       id: ++_notificationIdCounter,
       title: title,
@@ -96,7 +107,7 @@ class PushNotificationService {
           'NiosMess Messages',
           importance: Importance.high,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
+          icon: '@mipmap/ic_notification',
         ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
