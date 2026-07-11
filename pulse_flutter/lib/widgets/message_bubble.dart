@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -13,6 +14,7 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
+import 'package:go_router/go_router.dart';
 
 class MessageBubble extends ConsumerWidget {
   const MessageBubble({
@@ -46,6 +48,7 @@ class MessageBubble extends ConsumerWidget {
     this.isVoice = false,
     this.isCircleVideo = false,
     this.mediaDuration,
+    this.animateHighlight = false,
     super.key,
   });
 
@@ -79,6 +82,7 @@ class MessageBubble extends ConsumerWidget {
   final bool isVoice;
   final bool isCircleVideo;
   final int? mediaDuration;
+  final bool animateHighlight;
 
   static const BorderRadius _mineRadiusNoneSame = BorderRadius.all(
     Radius.circular(16),
@@ -143,6 +147,46 @@ class MessageBubble extends ConsumerWidget {
   }
 
   static final RegExp _fwdRegExp = RegExp(r'^_fwd from\s+(.+?):\s*(.*)$');
+  static final RegExp _mentionRegExp = RegExp(r'@(\w+)');
+
+  static TextSpan _parseTextWithMentions(
+    BuildContext context,
+    String text,
+    TextStyle baseStyle,
+    bool isMine,
+    ColorScheme scheme,
+  ) {
+    final int lastMatch = text.length;
+    final List<TextSpan> spans = <TextSpan>[];
+    int lastEnd = 0;
+
+    for (final RegExpMatch match in _mentionRegExp.allMatches(text)) {
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
+      }
+      final String username = match.group(1)!;
+      final Color linkColor = isMine
+          ? scheme.onPrimaryContainer
+          : scheme.primary;
+      final String mention = match.group(0)!;
+      spans.add(TextSpan(
+        text: mention,
+        style: baseStyle.copyWith(
+          color: linkColor,
+          fontWeight: FontWeight.w600,
+        ),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () => context.go('/g/$username'),
+      ));
+      lastEnd = match.end;
+    }
+
+    if (lastEnd < lastMatch) {
+      spans.add(TextSpan(text: text.substring(lastEnd)));
+    }
+
+    return TextSpan(style: baseStyle, children: spans);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -181,6 +225,8 @@ class MessageBubble extends ConsumerWidget {
           children: <Widget>[
             if (isCircleVideo && hasMedia)
               _buildCircleVideoContent(context, scheme, textTheme)
+            else if (isVoice && hasMedia)
+              _buildVoiceOnly(context, scheme, textTheme)
             else
             InkWell(
               borderRadius: bubbleRadius,
@@ -323,13 +369,18 @@ class MessageBubble extends ConsumerWidget {
                                 bottom: 12,
                                 right: hasMedia ? 0 : 36,
                               ),
-                              child: Text(
-                                displayText,
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: textColor,
-                                  fontStyle: isDeleted
-                                      ? FontStyle.italic
-                                      : null,
+                              child: Text.rich(
+                                _parseTextWithMentions(
+                                  context,
+                                  displayText,
+                                  textTheme.bodyMedium?.copyWith(
+                                    color: textColor,
+                                    fontStyle: isDeleted
+                                        ? FontStyle.italic
+                                        : null,
+                                  ) ?? const TextStyle(),
+                                  isMine,
+                                  scheme,
                                 ),
                               ),
                             ),
@@ -396,6 +447,27 @@ class MessageBubble extends ConsumerWidget {
       ),
     );
 
+    if (animateHighlight) {
+      content = TweenAnimationBuilder<Color?>(
+        tween: ColorTween(
+          begin: scheme.secondaryContainer.withValues(alpha: 0.4),
+          end: Colors.transparent,
+        ),
+        duration: const Duration(milliseconds: 1500),
+        curve: Curves.easeOut,
+        builder: (BuildContext context, Color? color, Widget? child) {
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: bubbleRadius,
+              color: color,
+            ),
+            child: child,
+          );
+        },
+        child: content,
+      );
+    }
+
     if (onSwipeToReply != null) {
       content = _SwipeToReply(
         onReply: onSwipeToReply!,
@@ -409,16 +481,20 @@ class MessageBubble extends ConsumerWidget {
       return content;
     }
 
-    return RepaintBoundary(
-      child: content
-          .animate()
-          .fade(duration: 180.ms, curve: Curves.easeOutCubic)
-          .slideY(
-            begin: 0.04,
-            end: 0,
-            duration: 180.ms,
-            curve: Curves.easeOutCubic,
-          ),
+    return _OnceAnimated(
+      key: ValueKey<int>(text.hashCode),
+      messageId: text.hashCode,
+      child: RepaintBoundary(
+        child: content
+            .animate()
+            .fade(duration: 180.ms, curve: Curves.easeOutCubic)
+            .slideY(
+              begin: 0.04,
+              end: 0,
+              duration: 180.ms,
+              curve: Curves.easeOutCubic,
+            ),
+      ),
     );
   }
 
@@ -443,6 +519,69 @@ class MessageBubble extends ConsumerWidget {
           onLongPress: onLongPressMedia,
         ),
       ),
+    );
+  }
+
+  Widget _buildVoiceOnly(BuildContext context, ColorScheme scheme, TextTheme textTheme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        if ((replyPreview ?? '').trim().isNotEmpty)
+          GestureDetector(
+            onTap: onReplyTap,
+            child: Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.only(left: 8),
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color: isMine ? scheme.primary : scheme.secondary,
+                    width: 2.5,
+                  ),
+                ),
+              ),
+              child: Text(
+                replyPreview!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.labelSmall?.copyWith(
+                  color: isMine ? scheme.primary : scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        InkWell(
+          onLongPress: onLongPressMedia,
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              VoiceMessagePlayer(
+                audioUrl: mediaUrl!,
+                durationSeconds: mediaDuration ?? 0,
+                isMine: isMine,
+                scheme: scheme,
+              ),
+              Positioned(
+                bottom: 4,
+                right: 4,
+                child: _MessageBubbleFooter(
+                  isMine: isMine,
+                  isE2ee: isE2ee,
+                  isEdited: isEdited,
+                  isDeleted: isDeleted,
+                  isRead: isRead,
+                  formattedTime: formattedTime,
+                  scheme: scheme,
+                  textTheme: textTheme,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -835,7 +974,7 @@ class _SwipeToReplyState extends State<_SwipeToReply>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   double _dragX = 0;
-  static const double _maxDrag = 72;
+  static const double _maxDrag = 52;
 
   @override
   void initState() {
@@ -861,12 +1000,15 @@ class _SwipeToReplyState extends State<_SwipeToReply>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.translucent,
       onHorizontalDragUpdate: (DragUpdateDetails details) {
-        _dragX = (_dragX + details.delta.dx).clamp(-_maxDrag, 0);
-        setState(() {});
+        if (details.delta.dx < 0) {
+          _dragX = (_dragX + details.delta.dx).clamp(-_maxDrag, 0);
+          setState(() {});
+        }
       },
       onHorizontalDragEnd: (DragEndDetails details) {
-        if (_dragX < -_maxDrag * 0.4 || details.primaryVelocity! < -300) {
+        if (_dragX <= -_maxDrag * 0.4) {
           HapticService.tap();
           widget.onReply();
         }
@@ -877,27 +1019,27 @@ class _SwipeToReplyState extends State<_SwipeToReply>
         children: [
           AnimatedSlide(
             offset: Offset(_dragX / _maxDrag, 0),
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOut,
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
             child: widget.child,
           ),
-          if (_dragX < -8)
+          if (_dragX < -16)
             Positioned(
-              right: -_dragX + 8,
+              right: -_dragX + 4,
               top: 0,
               bottom: 0,
               child: AnimatedOpacity(
                 opacity: (_dragX.abs() / _maxDrag).clamp(0.0, 1.0),
-                duration: const Duration(milliseconds: 100),
+                duration: const Duration(milliseconds: 120),
                 child: Center(
                   child: Container(
-                    width: 40,
-                    height: 40,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: widget.scheme.primaryContainer,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.reply_rounded, color: widget.scheme.primary, size: 20),
+                    child: Icon(Icons.reply_rounded, color: widget.scheme.primary, size: 18),
                   ),
                 ),
               ),
@@ -1130,5 +1272,30 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
     final int m = seconds ~/ 60;
     final int s = seconds % 60;
     return '${m}:${s.toString().padLeft(2, '0')}';
+  }
+}
+
+class _OnceAnimated extends StatefulWidget {
+  const _OnceAnimated({
+    super.key,
+    required this.messageId,
+    required this.child,
+  });
+
+  final int messageId;
+  final Widget child;
+
+  @override
+  State<_OnceAnimated> createState() => _OnceAnimatedState();
+}
+
+class _OnceAnimatedState extends State<_OnceAnimated> {
+  bool _played = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_played) return widget.child;
+    _played = true;
+    return widget.child;
   }
 }

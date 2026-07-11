@@ -63,7 +63,10 @@ class _ContactDetailScreenState extends ConsumerState<ContactDetailScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.contactDetailTitle)),
+      appBar: AppBar(
+        title: Text(context.l10n.contactDetailTitle),
+        centerTitle: true,
+      ),
       body: PulseScaffoldBody(
         maxWidth: 1120,
         child: _loading

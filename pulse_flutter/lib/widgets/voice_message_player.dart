@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -21,7 +22,7 @@ class VoiceMessagePlayer extends StatefulWidget {
 }
 
 class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
-  final AudioPlayer _player = AudioPlayer();
+  late final AudioPlayer _player;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   late final List<double> _waveformBars;
@@ -30,10 +31,27 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   @override
   void initState() {
     super.initState();
+    _player = AudioPlayer(handleInterruptions: false);
+    _initAudioSession();
     final int seed = widget.audioUrl.hashCode;
     final math.Random rng = math.Random(seed);
     _waveformBars = List<double>.generate(40, (_) => 0.15 + 0.55 * rng.nextDouble());
     _setupPlayer();
+  }
+
+  Future<void> _initAudioSession() async {
+    try {
+      final AudioSession session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration(
+        androidAudioFocusGainType: AndroidAudioFocusGainType.gainTransient,
+        androidAudioAttributes: AndroidAudioAttributes(
+          contentType: AndroidAudioContentType.music,
+          usage: AndroidAudioUsage.media,
+        ),
+        avAudioSessionCategory: AVAudioSessionCategory.playback,
+        avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.mixWithOthers,
+      ));
+    } catch (_) {}
   }
 
   Future<void> _setupPlayer() async {

@@ -597,11 +597,21 @@ class ChatRepository {
     final List<ApiMessage> comments = commentsRaw
         .whereType<Map>()
         .map(
-          (Map item) => ApiMessage.fromJson(
-            item.map(
-              (dynamic key, dynamic value) => MapEntry(key.toString(), value),
-            ),
-          ),
+          (Map item) {
+            final Map<String, dynamic> flat = <String, dynamic>{};
+            item.forEach((dynamic k, dynamic v) {
+              flat[k.toString()] = v;
+            });
+            if (flat['author'] is Map) {
+              final Map author = flat['author'] as Map;
+              flat['sender_username'] = author['username'] ?? '';
+              flat['sender_display_name'] = author['display_name'] ??
+                  author['username'] ??
+                  'Unknown';
+              flat['sender_avatar_url'] = author['avatar_url'];
+            }
+            return ApiMessage.fromJson(flat);
+          },
         )
         .toList(growable: false);
 

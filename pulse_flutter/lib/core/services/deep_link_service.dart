@@ -36,6 +36,11 @@ class DeepLinkService {
       if (slug.isNotEmpty) {
         path = '/join?slug=$slug';
       }
+    } else if (path.startsWith('/u/')) {
+      final String slug = path.substring(3);
+      if (slug.isNotEmpty) {
+        path = '/u/$slug';
+      }
     }
 
     final BuildContext? ctx = AppRouter.navigatorKey.currentContext;

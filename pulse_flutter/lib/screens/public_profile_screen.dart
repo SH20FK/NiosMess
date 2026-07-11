@@ -76,6 +76,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       return Scaffold(
         appBar: AppBar(
         title: Text(context.l10n.profileTitle),
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () {
@@ -98,6 +99,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       return Scaffold(
         appBar: AppBar(
         title: Text(context.l10n.profileTitle),
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () {
@@ -146,6 +148,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(context.l10n.profileTitle),
+        centerTitle: true,
         scrolledUnderElevation: 0,
         backgroundColor: Colors.transparent,
         elevation: 0,

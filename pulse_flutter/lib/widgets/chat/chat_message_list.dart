@@ -134,6 +134,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
   Map<int, ApiMessage>? _byIdCache;
   final Map<int, GlobalKey> _messageKeys = <int, GlobalKey>{};
   final Set<int> _requestedReplies = <int>{};
+  int? _highlightedMessageId;
 
   void _scrollToMessage(int targetId) {
     final GlobalKey? key = _messageKeys[targetId];
@@ -143,6 +144,10 @@ class _ChatMessageListState extends State<ChatMessageList> {
         alignment: 0.3,
         duration: const Duration(milliseconds: 300),
       );
+      setState(() => _highlightedMessageId = targetId);
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _highlightedMessageId = null);
+      });
     }
   }
 
@@ -250,6 +255,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
             replyMarkup: message.replyMarkup,
             onCallbackQuery: (String data) =>
                 widget.onCallbackQuery(message, data),
+            animateHighlight: message.id == _highlightedMessageId,
           ),
         );
 

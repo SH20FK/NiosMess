@@ -967,8 +967,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black38,
       builder: (BuildContext ctx) => Container(
-        decoration: const BoxDecoration(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Padding(
           padding: EdgeInsets.only(

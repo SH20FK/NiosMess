@@ -65,6 +65,8 @@ class MessageContextMenuSheet extends StatelessWidget {
               onReact: onReact,
               onShowAllReactions: onShowAllReactions,
             ),
+            const SizedBox(height: 16),
+            Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.3)),
             const SizedBox(height: 12),
             _ActionsCompact(
               message: message,
@@ -108,8 +110,8 @@ class _MessagePreviewCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(14),
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,7 +202,7 @@ class _ReactionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
@@ -247,14 +249,14 @@ class _ReactionButton extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        width: 38,
-        height: 38,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: scheme.surfaceContainerHighest,
         ),
         child: Center(
-          child: Text(emoji, style: const TextStyle(fontSize: 18)),
+          child: Text(emoji, style: const TextStyle(fontSize: 22)),
         ),
       ),
     );
@@ -273,13 +275,13 @@ class _ReactionAddButton extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        width: 38,
-        height: 38,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: scheme.primaryContainer.withValues(alpha: 0.4),
+          color: scheme.primaryContainer,
         ),
-        child: Icon(Icons.add_rounded, size: 20, color: scheme.primary),
+        child: Icon(Icons.add_rounded, size: 22, color: scheme.primary),
       ),
     );
   }
@@ -349,7 +351,7 @@ class _ActionsCompact extends StatelessWidget {
     if (message.msgType == 'text' && !message.isDeleted) {
       list.add(_CompactAction(
         icon: Icons.copy_rounded,
-        label: null,
+        label: context.l10n.chatCopyText,
         onTap: () {
           Navigator.of(context).pop();
           onCopy();
@@ -396,7 +398,7 @@ class _ActionsCompact extends StatelessWidget {
     if (isMine || (amAdminOrOwner && !message.isDeleted)) {
       list.add(_CompactAction(
         icon: Icons.delete_outline_rounded,
-        label: null,
+        label: context.l10n.chatDelete,
         color: scheme.error,
         onTap: () {
           Navigator.of(context).pop();
@@ -445,7 +447,7 @@ class _CompactActionTile extends StatelessWidget {
           vertical: 8,
         ),
         decoration: BoxDecoration(
-          color: effectiveColor.withValues(alpha: 0.06),
+          color: scheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(

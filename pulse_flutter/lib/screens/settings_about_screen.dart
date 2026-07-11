@@ -53,8 +53,10 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                       onPressed: () => Navigator.of(context).pop(),
                     )
                   : null,
+              leadingWidth: 48,
               title: Text(context.l10n.settingsAboutTitle),
               centerTitle: true,
+              titleSpacing: 0,
             ),
             SliverToBoxAdapter(child: _HeroBlock(animation: _heroController, packageInfo: _packageInfo)),
             SliverToBoxAdapter(
@@ -169,6 +171,7 @@ class _HeroBlock extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
                   Container(
                     width: 88,
@@ -201,6 +204,7 @@ class _HeroBlock extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     'NiosMess',
+                    textAlign: TextAlign.center,
                     style: textTheme.displaySmall?.copyWith(
                       fontWeight: FontWeight.w900,
                       letterSpacing: -1.5,
@@ -210,6 +214,7 @@ class _HeroBlock extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     context.l10n.aboutTagline,
+                    textAlign: TextAlign.center,
                     style: textTheme.bodyLarge?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
