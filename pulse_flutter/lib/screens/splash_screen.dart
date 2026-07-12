@@ -93,24 +93,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 SizedBox(
-                  width: 120,
-                  height: 120,
+                  width: 140,
+                  height: 140,
                   child: Stack(
                     alignment: Alignment.center,
                     children: <Widget>[
                       RotationTransition(
                         turns: _rotationController,
                         child: M3Container.c9SidedCookie(
-                          width: 120,
-                          height: 120,
+                          width: 140,
+                          height: 140,
                           color: scheme.primary,
                           child: const SizedBox(),
                         ),
                       ),
                       SvgPicture.asset(
                         'assets/svg/niosmess_logo_tintable.svg',
-                        width: 72,
-                        height: 72,
+                        width: 96,
+                        height: 96,
                         colorFilter: ColorFilter.mode(
                           scheme.onPrimary,
                           BlendMode.srcIn,

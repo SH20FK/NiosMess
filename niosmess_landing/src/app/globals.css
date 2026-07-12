@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #6750a4;
+  --color-on-primary: #ffffff;
+  --color-surface: #fef7ff;
+  --color-on-surface: #1d1b20;
+  --color-surface-container: #f3edf7;
+  --font-sans: "Inter", "system-ui", sans-serif;
+
+  --animate-float: float 6s ease-in-out infinite;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
