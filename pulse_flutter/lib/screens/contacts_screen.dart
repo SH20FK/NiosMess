@@ -14,6 +14,14 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/widgets/badge_chip.dart';
+import 'package:pulse_flutter/widgets/centered_note.dart';
+import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
+
+enum _ContactsTab { recent, search }
 
 class ContactsScreen extends ConsumerStatefulWidget {
   const ContactsScreen({super.key});

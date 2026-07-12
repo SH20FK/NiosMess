@@ -14,6 +14,7 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/glass_card.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PostCard extends ConsumerStatefulWidget {
   const PostCard({required this.post, super.key});
