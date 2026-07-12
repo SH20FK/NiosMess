@@ -23,7 +23,7 @@ class AppLogoMark extends StatelessWidget {
       color: backgroundColor ?? scheme.primary,
       child: Center(
         child: SvgPicture.asset(
-          'assets/svg/niosmess_n_mark.svg',
+          'assets/svg/niosmess_logo_tintable.svg',
           width: size * 0.5,
           height: size * 0.5,
           colorFilter: ColorFilter.mode(

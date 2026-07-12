@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -324,7 +325,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                   child: message.senderAvatarUrl != null
                       ? ClipOval(
                           child: CachedNetworkImage(
-                            imageUrl: message.senderAvatarUrl!,
+                            imageUrl: ApiConstants.resolve(message.senderAvatarUrl),
                             memCacheWidth: 56,
                             width: 28,
                             height: 28,

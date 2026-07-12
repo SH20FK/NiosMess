@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
@@ -880,7 +881,7 @@ class _MessageBubbleHeader extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: CachedNetworkImage(
-                imageUrl: senderAvatarUrl!,
+                imageUrl: ApiConstants.resolve(senderAvatarUrl),
                 width: 16,
                 height: 16,
                 memCacheWidth: 32,

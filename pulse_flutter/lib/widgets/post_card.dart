@@ -5,6 +5,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/post_model.dart';
@@ -214,7 +215,7 @@ class _PostCardState extends ConsumerState<PostCard>
                           child: Hero(
                             tag: 'post_media_${post.id}',
                             child: CachedNetworkImage(
-                              imageUrl: post.mediaUrl!,
+                              imageUrl: ApiConstants.resolve(post.mediaUrl),
                               fit: BoxFit.contain,
                               memCacheWidth: 800,
                               placeholder: (_, _) => Center(

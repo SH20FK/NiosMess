@@ -48,12 +48,7 @@ class PulseAvatar extends StatelessWidget {
     final Color background = fallbackColor ?? _colorFromName(name);
     final Color foreground = textColor ?? scheme.onPrimaryContainer;
     final String initials = _initials(name);
-    final String rawUrl = (avatarUrl ?? '').trim();
-    final String url = rawUrl.isEmpty
-        ? ''
-        : (rawUrl.startsWith('http')
-            ? rawUrl
-            : '${ApiConstants.origin}${rawUrl.startsWith('/') ? '' : '/'}$rawUrl');
+    final String url = ApiConstants.resolve(avatarUrl);
 
     final Widget fallback = _fallbackAvatar(
       context,
