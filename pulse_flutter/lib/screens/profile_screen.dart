@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/utils/image_compressor.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
+import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/profile_header_delegate.dart';
@@ -132,8 +133,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
               child: Column(
                 children: [
+                  // Appearance
                   SettingsSection(
-                    title: context.l10n.profileSectionQuickSettings,
+                    title: context.l10n.profileAppearance,
                     children: <Widget>[
                       SettingsTile(
                         icon: Icons.color_lens_rounded,
@@ -149,8 +151,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ],
                   ),
+                  // Privacy & Security
                   SettingsSection(
-                    title: context.l10n.profileSectionPrivacy,
+                    title: 'Privacy & Security',
                     children: <Widget>[
                       SettingsTile(
                         icon: Icons.lock_outline_rounded,
@@ -158,8 +161,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         subtitle: context.l10n.settingsPrivacySubtitle,
                         onTap: () => context.push('/settings/privacy'),
                       ),
+                      SettingsTile(
+                        icon: Icons.enhanced_encryption_rounded,
+                        title: context.l10n.settingsSecretChatsTitle,
+                        subtitle: context.l10n.settingsSecretChatsSubtitle,
+                        iconColor: scheme.tertiary,
+                        onTap: () => context.push('/settings/e2ee'),
+                      ),
+                      SettingsTile(
+                        icon: Icons.devices_rounded,
+                        title: context.l10n.settingsActiveSessions,
+                        subtitle: context.l10n.settingsActiveSessionsSubtitle,
+                        onTap: () => context.push('/settings/sessions'),
+                      ),
                     ],
                   ),
+                  // Account
                   SettingsSection(
                     title: context.l10n.profileSectionAccount,
                     children: <Widget>[
@@ -169,11 +186,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         subtitle: context.l10n.settingsAccountSubtitle,
                         onTap: () => context.push('/settings/account'),
                       ),
-                    ],
-                  ),
-                  SettingsSection(
-                    title: context.l10n.profileSectionData,
-                    children: <Widget>[
                       SettingsTile(
                         icon: Icons.sd_storage_rounded,
                         title: context.l10n.settingsStorageTitle,
@@ -184,6 +196,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ],
                   ),
+                  // System
+                  SettingsSection(
+                    title: 'System',
+                    children: <Widget>[
+                      SettingsTile(
+                        icon: Icons.tune_rounded,
+                        title: 'Preferences',
+                        subtitle: 'Sound, haptics, performance',
+                        onTap: () => context.push('/settings/preferences'),
+                      ),
+                    ],
+                  ),
+                  // About
                   SettingsSection(
                     title: context.l10n.profileSectionAbout,
                     children: <Widget>[
@@ -192,19 +217,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         title: context.l10n.settingsAboutTitle,
                         subtitle: context.l10n.settingsSupportAboutSubtitle,
                         onTap: () => context.push('/settings/about'),
-                      ),
-                    ],
-                  ),
-                  SettingsSection(
-                    title: context.l10n.profileTeamTools,
-                    subtitle: context.l10n.profileTeamToolsDesc,
-                    children: <Widget>[
-                      SettingsTile(
-                        icon: Icons.enhanced_encryption_rounded,
-                        title: context.l10n.settingsSecretChatsTitle,
-                        subtitle: context.l10n.settingsSecretChatsSubtitle,
-                        iconColor: scheme.tertiary,
-                        onTap: () => context.push('/settings/e2ee'),
                       ),
                     ],
                   ),
@@ -238,22 +250,42 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
   late final TextEditingController nameController;
   late final TextEditingController bioController;
   bool _saving = false;
+  String? _nameError;
 
   @override
   void initState() {
     super.initState();
     nameController = TextEditingController(text: widget.initialName);
     bioController = TextEditingController(text: widget.initialBio);
+    nameController.addListener(_validateName);
+    _validateName();
   }
 
   @override
   void dispose() {
+    nameController.removeListener(_validateName);
     nameController.dispose();
     bioController.dispose();
     super.dispose();
   }
 
+  void _validateName() {
+    final String text = nameController.text.trim();
+    final String? error;
+    if (text.isEmpty) {
+      error = 'Name is required';
+    } else if (text.length > 64) {
+      error = 'Max 64 characters';
+    } else {
+      error = null;
+    }
+    if (error != _nameError) {
+      setState(() => _nameError = error);
+    }
+  }
+
   Future<void> _save() async {
+    if (_nameError != null) return;
     setState(() => _saving = true);
     try {
       await ref.read(authRepositoryProvider).updateProfile(
@@ -274,6 +306,9 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final AuthState auth = ref.watch(authProvider);
+
     return AppDialog(
       title: context.l10n.profileEdit,
       subtitle: context.l10n.settingsEditProfileSubtitle,
@@ -288,23 +323,80 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
           icon: Icons.check_rounded,
           isPrimary: true,
           isLoading: _saving,
-          onPressed: _saving ? null : _save,
+          onPressed: _saving || _nameError != null ? null : _save,
         ),
       ],
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          AppTextFieldDialogContent(
+          Center(
+            child: Stack(
+              children: <Widget>[
+                PulseAvatar(
+                  name: widget.initialName,
+                  avatarUrl: auth.profile?.avatarUrl,
+                  radius: 36,
+                  fallbackColor: scheme.primaryContainer,
+                  textColor: scheme.onPrimaryContainer,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          TextField(
             controller: nameController,
-            label: context.l10n.profileDisplayName,
-            prefixIcon: Icons.person_rounded,
+            maxLength: 64,
+            decoration: InputDecoration(
+              labelText: context.l10n.profileDisplayName,
+              prefixIcon: const Icon(Icons.person_rounded),
+              errorText: _nameError,
+              filled: true,
+              fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.18)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.18)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: scheme.primary, width: 1.4),
+              ),
+              counterStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 12),
-          AppTextFieldDialogContent(
+          TextField(
             controller: bioController,
-            label: context.l10n.profileDescription,
-            prefixIcon: Icons.notes_rounded,
             maxLines: 3,
+            maxLength: 500,
+            decoration: InputDecoration(
+              labelText: context.l10n.profileDescription,
+              prefixIcon: const Icon(Icons.notes_rounded),
+              filled: true,
+              fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.18)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.18)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: scheme.primary, width: 1.4),
+              ),
+              counterStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            style: Theme.of(context).textTheme.bodyLarge,
           ),
         ],
       ),

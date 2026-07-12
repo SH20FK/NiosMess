@@ -14,6 +14,7 @@ import 'package:pulse_flutter/screens/login_screen.dart';
 import 'package:pulse_flutter/screens/main_shell_screen.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/screens/create_post_screen.dart';
+import 'package:pulse_flutter/screens/group_profile_screen.dart';
 import 'package:pulse_flutter/screens/onboarding_screen.dart';
 import 'package:pulse_flutter/screens/post_comments_screen.dart';
 import 'package:pulse_flutter/screens/public_profile_screen.dart';
@@ -26,6 +27,7 @@ import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
+import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/settings_storage_screen.dart';
 import 'package:pulse_flutter/screens/splash_screen.dart';
@@ -150,6 +152,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         pageBuilder: (context, state) => _page(state, ChatManageScreen(chatId: int.tryParse(state.pathParameters['chatId'] ?? '') ?? 0)),
       ),
       GoRoute(
+        path: '/chat/:chatId/profile',
+        pageBuilder: (context, state) => _page(state, GroupProfileScreen(chatId: int.tryParse(state.pathParameters['chatId'] ?? '') ?? 0)),
+      ),
+      GoRoute(
         path: '/profile/:username',
         pageBuilder: (context, state) => _page(state, PublicProfileScreen(username: state.pathParameters['username']!)),
       ),
@@ -201,6 +207,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/settings/e2ee',
         pageBuilder: (context, state) => _page(state, const E2eeSettingsScreen(), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/settings/preferences',
+        pageBuilder: (context, state) => _page(state, const SettingsPreferencesScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/sessions',

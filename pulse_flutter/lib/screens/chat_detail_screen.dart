@@ -1334,7 +1334,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final chat = ref.watch(chatByIdProvider(chatId));
     final bool isChannel = chat?.chatType == 'channel';
     final bool isGroup = chat?.chatType == 'group';
-    final bool showManage = isChannel || isGroup;
+
     final String myRole = ref.watch(myChatRoleProvider(chatId));
     final bool amAdminOrOwner = myRole == 'admin' || myRole == 'owner';
     final bool canPostInChannel = !isChannel || amAdminOrOwner;
@@ -1390,7 +1390,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           title: title,
           avatarUrl: chat?.avatarUrl,
           headerIcon: _chatHeaderIcon(isChannel, isGroup),
-          showManage: showManage,
+          isGroup: isGroup,
+          isChannel: isChannel,
           directUsername: directUsername,
           onBack: () {
             if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();

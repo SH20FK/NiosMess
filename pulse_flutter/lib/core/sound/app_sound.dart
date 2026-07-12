@@ -4,22 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 enum AppSound {
-  connectionReady('sounds/connectionyes.ogg'),
-  connect('sounds/connect.ogg'),
-  reconnect('sounds/reconnect.ogg'),
-  busy('sounds/busy.ogg'),
-  callEnd('sounds/end.ogg'),
-  dialTone('sounds/goodock.ogg'),
   message('sounds/message.ogg'),
-  navigation('sounds/nav1.ogg'),
-  micOn('sounds/micro on.ogg'),
-  micOff('sounds/micro off.ogg'),
-  videoOn('sounds/video on.ogg'),
-  videoOff('sounds/video off.ogg'),
-  voiceMessageStart('sounds/startvoicesms.ogg'),
-  voiceMessageSend('sounds/endvoicesms.ogg'),
-  ringtone('sounds/ringtone kalodecc.ogg'),
-  videoRingtone('sounds/zvonit video.ogg');
+  navigation('sounds/nav1.ogg');
 
   const AppSound(this.assetPath);
 
@@ -48,6 +34,19 @@ class SoundService {
 
   Future<void> _initialize() async {
     try {
+      AudioPlayer.global.setAudioContext(
+        AudioContext(
+          android: AudioContextAndroid(
+            contentType: AndroidContentType.sonification,
+            usageType: AndroidUsageType.notification,
+            audioFocus: AndroidAudioFocus.none,
+          ),
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.ambient,
+            options: <AVAudioSessionOptions>{AVAudioSessionOptions.mixWithOthers},
+          ),
+        ),
+      );
       for (final AudioPlayer player in _uiPlayers) {
         await player.setPlayerMode(PlayerMode.lowLatency);
         await player.setReleaseMode(ReleaseMode.stop);

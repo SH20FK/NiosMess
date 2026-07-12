@@ -13,7 +13,8 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.headerIcon,
     required this.typingSubtitle,
     this.directUsername,
-    required this.showManage,
+    this.isGroup = false,
+    this.isChannel = false,
     required this.onBack,
   });
 
@@ -24,8 +25,11 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final IconData headerIcon;
   final Widget typingSubtitle;
   final String? directUsername;
-  final bool showManage;
+  final bool isGroup;
+  final bool isChannel;
   final VoidCallback onBack;
+
+  bool get _showOverflowMenu => isGroup || isChannel;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -54,8 +58,8 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
         onTap: () {
           if (directUsername != null) {
             context.push('/profile/$directUsername');
-          } else if (showManage) {
-            context.push('/chat/$chatId/manage');
+          } else if (isGroup || isChannel) {
+            context.push('/chat/$chatId/profile');
           }
         },
         borderRadius: BorderRadius.circular(16),
@@ -117,7 +121,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: <Widget>[
-        if (showManage)
+        if (_showOverflowMenu)
           PopupMenuButton<String>(
             onSelected: (String action) {
               switch (action) {

@@ -14,6 +14,7 @@ import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/glass_card.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -579,22 +580,14 @@ class _PostMenu extends ConsumerWidget {
       ),
       onSelected: (String value) async {
         if (value == 'delete') {
-          final bool? confirm = await showDialog<bool>(
+          final bool? confirm = await showAppConfirmDialog(
             context: context,
-            builder: (_) => AlertDialog(
-              title: Text(context.l10n.niosgramDeletePost),
-              content: Text(context.l10n.niosgramDeletePostConfirm),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text(context.l10n.commonCancel),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text(context.l10n.commonDelete),
-                ),
-              ],
-            ),
+            title: context.l10n.niosgramDeletePost,
+            subtitle: context.l10n.niosgramDeletePostConfirm,
+            confirmLabel: context.l10n.commonDelete,
+            cancelLabel: context.l10n.commonCancel,
+            icon: Icons.delete_rounded,
+            destructive: true,
           );
           if (confirm == true) {
             ref.read(niosgramProvider.notifier).deletePost(post.id);

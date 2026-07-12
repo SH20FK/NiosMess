@@ -515,6 +515,19 @@ class _AudioPreviewContentState extends State<_AudioPreviewContent> {
   void initState() {
     super.initState();
     _player = AudioPlayer();
+    _player.setAudioContext(
+      AudioContext(
+        android: AudioContextAndroid(
+          contentType: AndroidContentType.music,
+          usageType: AndroidUsageType.media,
+          audioFocus: AndroidAudioFocus.none,
+        ),
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playback,
+          options: <AVAudioSessionOptions>{AVAudioSessionOptions.mixWithOthers},
+        ),
+      ),
+    );
     _player.onPlayerComplete.listen((_) {
       if (mounted) setState(() => _playing = false);
     });

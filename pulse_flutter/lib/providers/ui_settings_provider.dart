@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -33,6 +36,7 @@ class UiSettingsState {
     required this.optimizeForWeakDevices,
     required this.predictiveBackEnabled,
     required this.backgroundMode,
+    required this.useSystemDynamic,
   });
 
   const UiSettingsState.defaults()
@@ -51,7 +55,8 @@ class UiSettingsState {
       timeZoneId = null,
       optimizeForWeakDevices = false,
       predictiveBackEnabled = true,
-      backgroundMode = BackgroundMode.off;
+      backgroundMode = BackgroundMode.off,
+      useSystemDynamic = false;
 
   final ThemeMode themeMode;
   final Md3Variant variant;
@@ -69,6 +74,7 @@ class UiSettingsState {
   final bool optimizeForWeakDevices;
   final bool predictiveBackEnabled;
   final BackgroundMode backgroundMode;
+  final bool useSystemDynamic;
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
@@ -89,6 +95,7 @@ class UiSettingsState {
     bool? optimizeForWeakDevices,
     bool? predictiveBackEnabled,
     BackgroundMode? backgroundMode,
+    bool? useSystemDynamic,
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -109,6 +116,7 @@ class UiSettingsState {
       predictiveBackEnabled:
           predictiveBackEnabled ?? this.predictiveBackEnabled,
       backgroundMode: backgroundMode ?? this.backgroundMode,
+      useSystemDynamic: useSystemDynamic ?? this.useSystemDynamic,
     );
   }
 
@@ -136,6 +144,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _optimizeWeakKey = 'ui.optimizeWeak';
   static const String _predictiveBackKey = 'ui.predictiveBack';
   static const String _backgroundModeKey = 'ui.backgroundMode';
+  static const String _useSystemDynamicKey = 'ui.useSystemDynamic';
 
   bool _loaded = false;
 
@@ -191,6 +200,8 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
             mode.name == prefs.getString(_backgroundModeKey),
         orElse: () => BackgroundMode.off,
       ),
+      useSystemDynamic:
+          prefs.getBool(_useSystemDynamicKey) ?? state.useSystemDynamic,
     );
     } catch (e) {
       debugPrint('[UiSettingsNotifier] Failed to load settings: $e');
@@ -222,6 +233,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.setBool(_optimizeWeakKey, nextState.optimizeForWeakDevices),
       prefs.setBool(_predictiveBackKey, nextState.predictiveBackEnabled),
       prefs.setString(_backgroundModeKey, nextState.backgroundMode.name),
+      prefs.setBool(_useSystemDynamicKey, nextState.useSystemDynamic),
     ]);
   }
 
@@ -291,9 +303,22 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
 
   void setBackgroundMode(BackgroundMode value) =>
       _set(state.copyWith(backgroundMode: value));
+
+  void setUseSystemDynamic(bool value) =>
+      _set(state.copyWith(useSystemDynamic: value));
 }
 
 final NotifierProvider<UiSettingsNotifier, UiSettingsState> uiSettingsProvider =
     NotifierProvider<UiSettingsNotifier, UiSettingsState>(
       UiSettingsNotifier.new,
     );
+
+final FutureProvider<Color?> systemAccentColorProvider =
+    FutureProvider<Color?>((Ref ref) async {
+  if (!Platform.isAndroid && !Platform.isIOS) return null;
+  try {
+    return await DynamicColorPlugin.getAccentColor();
+  } catch (_) {
+    return null;
+  }
+});

@@ -79,6 +79,15 @@ class PulseApp extends ConsumerWidget {
         ref.watch(uiSettingsProvider.select((s) => s.variant));
     final bool predictiveBackEnabled =
         ref.watch(uiSettingsProvider.select((s) => s.predictiveBackEnabled));
+    final bool useSystemDynamic =
+        ref.watch(uiSettingsProvider.select((s) => s.useSystemDynamic));
+    final AsyncValue<Color?> systemAccent =
+        ref.watch(systemAccentColorProvider);
+    final Color effectiveSeed = (useSystemDynamic &&
+            systemAccent.hasValue &&
+            systemAccent.value != null)
+        ? systemAccent.value!
+        : seedColor;
     final GoRouter router = ref.watch(appRouterProvider);
     final String systemLanguageCode =
         WidgetsBinding.instance.platformDispatcher.locale.languageCode;
@@ -101,7 +110,7 @@ class PulseApp extends ConsumerWidget {
     final UiSettingsState settingsForTheme = UiSettingsState(
       themeMode: themeMode,
       variant: variant,
-      seedColor: seedColor,
+      seedColor: effectiveSeed,
       notifications: false,
       darkCallBackdrop: false,
       compactMode: false,
@@ -115,6 +124,7 @@ class PulseApp extends ConsumerWidget {
       optimizeForWeakDevices: false,
       predictiveBackEnabled: predictiveBackEnabled,
       backgroundMode: BackgroundMode.off,
+      useSystemDynamic: useSystemDynamic,
     );
 
     return MaterialApp.router(

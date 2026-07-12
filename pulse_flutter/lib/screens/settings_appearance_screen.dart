@@ -157,6 +157,159 @@ class _VaffuruThemeSettingsScreenState
     }
   }
 
+  Widget _md3VariantSelector(BuildContext context, UiSettingsState settings) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final List<Md3Variant> variants = Md3Variant.values;
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      color: scheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: scheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(Icons.palette_outlined, color: scheme.onSecondaryContainer, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('Color scheme', style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: scheme.onSurface)),
+                      const SizedBox(height: 2),
+                      Text('Choose tonal variant', style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.35)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: variants.map((Md3Variant v) {
+                final bool selected = settings.variant == v;
+                return ChoiceChip(
+                  label: Text(_variantLabel(v), style: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
+                  selected: selected,
+                  onSelected: (_) {
+                    _playFeedback(settings);
+                    ref.read(uiSettingsProvider.notifier).setVariant(v);
+                  },
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                  selectedColor: scheme.primaryContainer,
+                  backgroundColor: scheme.surfaceContainerLow,
+                  labelStyle: TextStyle(color: selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant),
+                  side: BorderSide.none,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _variantLabel(Md3Variant v) {
+    return switch (v) {
+      Md3Variant.tonalSpot => 'Tonal',
+      Md3Variant.vibrant => 'Vibrant',
+      Md3Variant.expressive => 'Expressive',
+      Md3Variant.neutral => 'Neutral',
+      Md3Variant.monochrome => 'Mono',
+      Md3Variant.fidelity => 'Fidelity',
+    };
+  }
+
+  Widget _themeModeSelector(BuildContext context, UiSettingsState settings) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      color: scheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: scheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(Icons.dark_mode_outlined, color: scheme.onSecondaryContainer, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('Theme mode', style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: scheme.onSurface)),
+                      const SizedBox(height: 2),
+                      Text('Switch between light, dark, or system', style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.35)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SegmentedButton<ThemeMode>(
+              showSelectedIcon: false,
+              segments: const <ButtonSegment<ThemeMode>>[
+                ButtonSegment<ThemeMode>(value: ThemeMode.system, label: Text('System', style: TextStyle(fontSize: 13))),
+                ButtonSegment<ThemeMode>(value: ThemeMode.light, label: Text('Light', style: TextStyle(fontSize: 13))),
+                ButtonSegment<ThemeMode>(value: ThemeMode.dark, label: Text('Dark', style: TextStyle(fontSize: 13))),
+              ],
+              selected: <ThemeMode>{settings.themeMode},
+              onSelectionChanged: (Set<ThemeMode> values) {
+                _playFeedback(settings);
+                ref.read(uiSettingsProvider.notifier).setThemeMode(values.first);
+              },
+              style: ButtonStyle(
+                shape: const WidgetStatePropertyAll(StadiumBorder()),
+                backgroundColor: WidgetStateProperty.resolveWith((Set<WidgetState> states) {
+                  if (states.contains(WidgetState.selected)) return scheme.primaryContainer;
+                  return scheme.surfaceContainerLow;
+                }),
+                foregroundColor: WidgetStateProperty.resolveWith((Set<WidgetState> states) {
+                  if (states.contains(WidgetState.selected)) return scheme.onPrimaryContainer;
+                  return scheme.onSurfaceVariant;
+                }),
+                side: WidgetStateProperty.resolveWith((Set<WidgetState> states) {
+                  if (states.contains(WidgetState.selected)) return BorderSide(color: scheme.primary.withValues(alpha: 0.18));
+                  return BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.28));
+                }),
+                padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12, vertical: 12)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Map<_ThemePaletteId, ColorScheme> _buildPreviewSchemes(
     Brightness brightness,
     Md3Variant variant,
@@ -171,9 +324,14 @@ class _VaffuruThemeSettingsScreenState
         id: ColorScheme.fromSeed(
           seedColor: _paletteSeeds[id]!,
           brightness: brightness,
-          dynamicSchemeVariant: variant == Md3Variant.expressive
-              ? DynamicSchemeVariant.expressive
-              : DynamicSchemeVariant.tonalSpot,
+          dynamicSchemeVariant: switch (variant) {
+            Md3Variant.tonalSpot => DynamicSchemeVariant.tonalSpot,
+            Md3Variant.vibrant => DynamicSchemeVariant.vibrant,
+            Md3Variant.expressive => DynamicSchemeVariant.expressive,
+            Md3Variant.neutral => DynamicSchemeVariant.neutral,
+            Md3Variant.monochrome => DynamicSchemeVariant.monochrome,
+            Md3Variant.fidelity => DynamicSchemeVariant.fidelity,
+          },
         ),
     };
     return _previewSchemes;
@@ -386,37 +544,26 @@ class _VaffuruThemeSettingsScreenState
           ],
         ),
         SizedBox(height: _density.sectionSpacing * 0.25),
-        // 5. Дополнительные настройки
+        // 5. Theme & Colors
         SettingsSection(
           title: context.l10n.appearanceThemeParamsTitle,
           subtitle: context.l10n.appearanceThemeParamsSubtitle,
           children: [
             _SwitchCardTile(
-              title: context.l10n.appearanceDynamicColors,
-              subtitle: context.l10n.appearanceDynamicColorsSubtitle,
-              icon: Icons.color_lens_outlined,
-              value: settings.variant == Md3Variant.expressive,
+              title: 'System colors',
+              subtitle: 'Use colors from your device wallpaper',
+              icon: Icons.wallpaper_outlined,
+              value: settings.useSystemDynamic,
               verticalPadding: _density.tileVerticalPadding,
               onChanged: (bool value) {
                 _playFeedback(settings);
-                ref.read(uiSettingsProvider.notifier).setVariant(
-                      value ? Md3Variant.expressive : Md3Variant.tonalSpot,
-                    );
+                ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(value);
               },
             ),
-            _SwitchCardTile(
-              title: context.l10n.appearanceDarkTheme,
-              subtitle: context.l10n.appearanceDarkThemeSubtitle,
-              icon: Icons.dark_mode_outlined,
-              value: settings.themeMode == ThemeMode.dark,
-              verticalPadding: _density.tileVerticalPadding,
-              onChanged: (bool value) {
-                _playFeedback(settings);
-                ref.read(uiSettingsProvider.notifier).setThemeMode(
-                      value ? ThemeMode.dark : ThemeMode.light,
-                    );
-              },
-            ),
+            if (!settings.useSystemDynamic) ...[
+              _md3VariantSelector(context, settings),
+            ],
+            _themeModeSelector(context, settings),
           ],
         ),
       ],

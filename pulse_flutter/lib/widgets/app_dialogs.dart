@@ -54,10 +54,7 @@ class AppDialog extends StatelessWidget {
           child: DecoratedBox(
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHigh.withValues(alpha: 0.90),
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.22),
-                ),
+                borderRadius: BorderRadius.circular(28),
                 boxShadow: <BoxShadow>[
                   BoxShadow(
                     color: scheme.shadow.withValues(alpha: 0.16),
@@ -159,23 +156,23 @@ class AppDialog extends StatelessWidget {
               ],
             );
 
-      final ButtonStyle? destructiveStyle = action.destructive
-          ? FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            )
-          : null;
+      final ColorScheme scheme = Theme.of(context).colorScheme;
 
-      final Widget button = action.isPrimary || action.destructive
-          ? FilledButton(
-              style: destructiveStyle,
+      final Widget button = action.destructive
+          ? TextButton(
+              style: TextButton.styleFrom(foregroundColor: scheme.error),
               onPressed: action.isLoading ? null : action.onPressed,
               child: label,
             )
-          : OutlinedButton(
-              onPressed: action.isLoading ? null : action.onPressed,
-              child: label,
-            );
+          : action.isPrimary
+              ? FilledButton(
+                  onPressed: action.isLoading ? null : action.onPressed,
+                  child: label,
+                )
+              : TextButton(
+                  onPressed: action.isLoading ? null : action.onPressed,
+                  child: label,
+                );
 
       if (dense) {
         buttons.add(button);

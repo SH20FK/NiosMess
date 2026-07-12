@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/rendering.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
@@ -643,7 +644,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   void _showStartDirectChatDialog(BuildContext context) {
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       builder: (BuildContext ctx) {
         final TextEditingController usernameController = TextEditingController();
@@ -663,37 +664,33 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 return;
               }
               Navigator.of(ctx).pop();
-              context.push('/chat/dm/$username');
+              this.context.push('/chat/dm/$username');
             }
 
-            return AlertDialog(
-              title: Text(context.l10n.chatCreatePersonalPrompt),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  TextField(
-                    controller: usernameController,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.chatCreatePersonalUsernameLabel,
-                      hintText: context.l10n.chatCreatePersonalUsernameHint,
-                      errorText: errorText,
-                      prefixText: '@',
-                    ),
-                    onSubmitted: (_) => submit(),
-                  ),
-                ],
-              ),
-              actions: <Widget>[
-                TextButton(
+            return AppDialog(
+              title: context.l10n.chatCreatePersonalPrompt,
+              actions: <AppDialogAction>[
+                AppDialogAction(
+                  label: context.l10n.commonCancel,
                   onPressed: () => Navigator.of(ctx).pop(),
-                  child: Text(context.l10n.commonCancel),
                 ),
-                TextButton(
+                AppDialogAction(
+                  label: context.l10n.chatCreatePersonalStart,
+                  isPrimary: true,
                   onPressed: submit,
-                  child: Text(context.l10n.chatCreatePersonalStart),
                 ),
               ],
+              child: TextField(
+                controller: usernameController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: context.l10n.chatCreatePersonalUsernameLabel,
+                  hintText: context.l10n.chatCreatePersonalUsernameHint,
+                  errorText: errorText,
+                  prefixText: '@',
+                ),
+                onSubmitted: (_) => submit(),
+              ),
             );
           },
         );

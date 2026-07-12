@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class E2eeSettingsScreen extends ConsumerStatefulWidget {
@@ -50,23 +51,13 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
   }
 
   Future<void> _rotateKey() async {
-    final bool? confirmed = await showDialog<bool>(
+    final bool? confirmed = await showAppConfirmDialog(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        title: Text(context.l10n.e2eeRotateConfirmTitle),
-        content: Text(context.l10n.e2eeRotateConfirmBody),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(context.l10n.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(context.l10n.e2eeRotateConfirm,
-                style: TextStyle(color: Colors.orange)),
-          ),
-        ],
-      ),
+      title: context.l10n.e2eeRotateConfirmTitle,
+      subtitle: context.l10n.e2eeRotateConfirmBody,
+      confirmLabel: context.l10n.e2eeRotateConfirm,
+      cancelLabel: context.l10n.commonCancel,
+      icon: Icons.refresh_rounded,
     );
     if (confirmed != true) return;
 
@@ -90,23 +81,14 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
   }
 
   Future<void> _eraseSecretChats() async {
-    final bool? confirmed = await showDialog<bool>(
+    final bool? confirmed = await showAppConfirmDialog(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        title: Text(context.l10n.e2eeEraseConfirmTitle),
-        content: Text(context.l10n.e2eeEraseConfirmBody),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(context.l10n.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(context.l10n.e2eeEraseConfirm,
-                style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+      title: context.l10n.e2eeEraseConfirmTitle,
+      subtitle: context.l10n.e2eeEraseConfirmBody,
+      confirmLabel: context.l10n.e2eeEraseConfirm,
+      cancelLabel: context.l10n.commonCancel,
+      icon: Icons.delete_sweep_rounded,
+      destructive: true,
     );
     if (confirmed != true) return;
 
