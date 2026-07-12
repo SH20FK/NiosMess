@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/app_logo_mark.dart';
 
 class SettingsAboutScreen extends StatefulWidget {
   const SettingsAboutScreen({super.key});
@@ -173,27 +174,7 @@ class _HeroBlock extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
-                  Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: scheme.primary.withValues(alpha: 0.35),
-                          blurRadius: 24,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: Image.asset(
-                        'assets/NiosMess_icon.png',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ).animate(controller: animation)
+                  const AppLogoMark(size: 88).animate(controller: animation)
                     .scale(
                       begin: const Offset(0.6, 0.6),
                       end: const Offset(1.0, 1.0),

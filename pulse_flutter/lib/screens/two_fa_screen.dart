@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/utils/app_curves.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/code_preview.dart';
 import 'package:pulse_flutter/widgets/animated_mesh_background.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class TwoFaScreen extends ConsumerStatefulWidget {
   const TwoFaScreen({this.initialIdentifier, super.key});
@@ -235,10 +236,7 @@ class _TwoFaScreenState extends ConsumerState<TwoFaScreen> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                           ),
                           child: auth.busy
-                              ? SizedBox.square(
-                                  dimension: 22,
-                                    child: CircularProgressIndicator( strokeWidth: 3, color: Theme.of(context).colorScheme.onPrimary),
-                                )
+                              ? AppLoadingIndicator(size: 22, color: Theme.of(context).colorScheme.onPrimary)
                               : Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: <Widget>[

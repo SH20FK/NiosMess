@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class _ProfileHeaderFadeTransition extends StatelessWidget {
   const _ProfileHeaderFadeTransition({
@@ -182,15 +183,8 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
                                       shape: BoxShape.circle,
                                     ),
                                     alignment: Alignment.center,
-                                      child: isUploadingAvatar
-                                        ? SizedBox(
-                                            width: 12,
-                                            height: 12,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 1.8,
-                                              color: scheme.onPrimary,
-                                            ),
-                                          )
+                                        child: isUploadingAvatar
+                                          ? AppLoadingIndicator(size: 12, color: scheme.onPrimary)
                                         : Icon(
                                             Icons.camera_alt_rounded,
                                             size: 12,

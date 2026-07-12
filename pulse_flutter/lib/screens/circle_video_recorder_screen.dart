@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class CircleVideoRecorderScreen extends StatefulWidget {
   const CircleVideoRecorderScreen({super.key});
@@ -146,7 +147,7 @@ class _CircleVideoRecorderScreenState
             )
           else
             const Center(
-              child: CircularProgressIndicator(color: Colors.white),
+              child: AppLoadingIndicator(color: Colors.white),
             ),
 
           // Top bar

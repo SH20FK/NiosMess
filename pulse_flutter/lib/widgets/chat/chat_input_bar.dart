@@ -6,6 +6,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:pulse_flutter/screens/circle_video_recorder_screen.dart';
 import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class ChatInputBar extends StatefulWidget {
   const ChatInputBar({
@@ -329,16 +330,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                         SizedBox(
                           width: 44,
                           height: 44,
-                          child: Center(
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: scheme.primary,
-                              ),
-                            ),
-                          ),
+                          child: AppLoadingIndicator(size: 18, color: scheme.primary),
                         )
                       else
                         Tooltip(
@@ -363,14 +355,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       if (widget.uploadingMedia)
                         Padding(
                           padding: const EdgeInsets.only(right: 14, bottom: 14),
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: scheme.primary,
-                            ),
-                          ),
+                          child: AppLoadingIndicator(size: 20, color: scheme.primary),
                         )
                       else
                         Tooltip(

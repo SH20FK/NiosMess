@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_curves.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/code_preview.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class VerifyEmailScreen extends ConsumerStatefulWidget {
   const VerifyEmailScreen({this.initialEmail, super.key});
@@ -210,10 +211,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         ),
                         child: auth.busy
-                            ? SizedBox.square(
-                                dimension: 22,
-                                child: CircularProgressIndicator( strokeWidth: 3, color: Theme.of(context).colorScheme.onPrimary),
-                              )
+                            ? AppLoadingIndicator(size: 22, color: Theme.of(context).colorScheme.onPrimary)
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: <Widget>[

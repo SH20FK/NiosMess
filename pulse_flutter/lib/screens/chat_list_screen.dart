@@ -108,7 +108,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: ChatListHeader(
-        onCreatePressed: () => _showCreateMenu(context),
+        onJoinTap: () => context.push('/join'),
+        onDirectTap: () => _showStartDirectChatDialog(context),
+      ),
+      floatingActionButton: _CreateFab(
+        onGroupTap: () => context.push('/chat/create?type=group'),
+        onChannelTap: () => context.push('/chat/create?type=channel'),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -637,139 +642,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     }
   }
 
-  Future<void> _showCreateMenu(BuildContext context) async {
-    final String? action = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (BuildContext ctx) {
-        final ColorScheme scheme = Theme.of(ctx).colorScheme;
-        final TextTheme textTheme = Theme.of(ctx).textTheme;
-
-        Widget actionTile({
-          required String value,
-          required IconData icon,
-          required String title,
-          required String subtitle,
-        }) {
-          return InkWell(
-            onTap: () => Navigator.of(ctx).pop(value),
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: <Widget>[
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: scheme.primaryContainer.withValues(alpha: 0.62),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    alignment: Alignment.center,
-                    child: Icon(icon, color: scheme.onPrimaryContainer),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(title, style: textTheme.titleMedium),
-                        Text(
-                          subtitle,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: Container(
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.16),
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  actionTile(
-                    value: 'group',
-                    icon: Icons.groups_rounded,
-                    title: context.l10n.groupNewGroup,
-                    subtitle: context.l10n.groupCreateSharedSubtitle,
-                  ),
-                  Divider(
-                    height: 1,
-                    indent: 68,
-                    endIndent: 16,
-                    color: scheme.outlineVariant.withValues(alpha: 0.16),
-                  ),
-                  actionTile(
-                    value: 'channel',
-                    icon: Icons.campaign_rounded,
-                    title: context.l10n.groupNewChannel,
-                    subtitle: context.l10n.groupCreateBroadcastSubtitle,
-                  ),
-                  Divider(
-                    height: 1,
-                    indent: 68,
-                    endIndent: 16,
-                    color: scheme.outlineVariant.withValues(alpha: 0.16),
-                  ),
-                  actionTile(
-                    value: 'join',
-                    icon: Icons.link_rounded,
-                    title: context.l10n.groupJoinByInvite,
-                    subtitle: context.l10n.groupJoinByInviteSubtitle,
-                  ),
-                  Divider(
-                    height: 1,
-                    indent: 68,
-                    endIndent: 16,
-                    color: scheme.outlineVariant.withValues(alpha: 0.16),
-                  ),
-                  actionTile(
-                    value: 'direct',
-                    icon: Icons.person_add_alt_1_rounded,
-                    title: context.l10n.chatCreatePersonal,
-                    subtitle: context.l10n.chatCreatePersonalSubtitle,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
-    if (action == null || !context.mounted) return;
-    switch (action) {
-      case 'group':
-        context.push('/chat/create?type=group');
-        return;
-      case 'channel':
-        context.push('/chat/create?type=channel');
-        return;
-      case 'join':
-        context.push('/join');
-        return;
-      case 'direct':
-        _showStartDirectChatDialog(context);
-        return;
-    }
-  }
-
   void _showStartDirectChatDialog(BuildContext context) {
     showDialog<void>(
       context: context,
@@ -1016,5 +888,134 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     };
     if (chat.unreadCount <= 0) return type;
     return '${context.l10n.chatListUnreadCount(chat.unreadCount)} • $type';
+  }
+}
+
+class _CreateFab extends StatefulWidget {
+  const _CreateFab({
+    required this.onGroupTap,
+    required this.onChannelTap,
+  });
+
+  final VoidCallback onGroupTap;
+  final VoidCallback onChannelTap;
+
+  @override
+  State<_CreateFab> createState() => _CreateFabState();
+}
+
+class _CreateFabState extends State<_CreateFab>
+    with SingleTickerProviderStateMixin {
+  bool _open = false;
+
+  void _toggle() {
+    HapticService.confirm();
+    setState(() => _open = !_open);
+  }
+
+  void _close() {
+    if (!_open) return;
+    setState(() => _open = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final l10n = context.l10n;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        if (_open) ...[
+          _FabAction(
+            icon: Icons.groups_rounded,
+            label: l10n.groupNewGroup,
+            scheme: scheme,
+            textTheme: textTheme,
+            onTap: () {
+              _close();
+              widget.onGroupTap();
+            },
+          ),
+          const SizedBox(height: 12),
+          _FabAction(
+            icon: Icons.campaign_rounded,
+            label: l10n.groupNewChannel,
+            scheme: scheme,
+            textTheme: textTheme,
+            onTap: () {
+              _close();
+              widget.onChannelTap();
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
+        FloatingActionButton(
+          onPressed: _toggle,
+          heroTag: 'chat_create_fab',
+          child: AnimatedRotation(
+            turns: _open ? 0.125 : 0,
+            duration: const Duration(milliseconds: 250),
+            child: const Icon(Icons.add_rounded),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FabAction extends StatelessWidget {
+  const _FabAction({
+    required this.icon,
+    required this.label,
+    required this.scheme,
+    required this.textTheme,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final ColorScheme scheme;
+  final TextTheme textTheme;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(28),
+          child: AnimatedScale(
+            scale: 1,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.elasticOut,
+            child: Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.16),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(icon, size: 20, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  Text(label, style: textTheme.labelLarge),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

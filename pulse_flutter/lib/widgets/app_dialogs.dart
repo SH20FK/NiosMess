@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class AppDialogAction {
   const AppDialogAction({
@@ -146,11 +147,7 @@ class AppDialog extends StatelessWidget {
     final List<Widget> buttons = <Widget>[];
     for (final AppDialogAction action in actions) {
       final Widget label = action.isLoading
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+          ? const AppLoadingIndicator(size: 18)
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[

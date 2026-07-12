@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class PulseButton extends StatelessWidget {
   const PulseButton({
@@ -35,7 +36,7 @@ class PulseButton extends StatelessWidget {
             const SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: AppLoadingIndicator(size: 16),
             )
           else if (icon != null)
             Icon(icon, size: 18),

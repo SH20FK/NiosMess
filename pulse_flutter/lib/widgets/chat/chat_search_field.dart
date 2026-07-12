@@ -6,6 +6,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class ChatSearchField extends ConsumerStatefulWidget {
   const ChatSearchField({super.key});
@@ -163,10 +164,7 @@ class _ChatSearchFieldState extends ConsumerState<ChatSearchField> {
         loading: () => Padding(
           key: const ValueKey<String>('loading'),
           padding: const EdgeInsets.only(top: 10),
-          child: LinearProgressIndicator(
-            minHeight: 2,
-            borderRadius: BorderRadius.circular(999),
-          ),
+          child: const AppLoadingIndicator(size: 24),
         ),
         error: (_, _) => const SizedBox.shrink(key: ValueKey<String>('error')),
       ),

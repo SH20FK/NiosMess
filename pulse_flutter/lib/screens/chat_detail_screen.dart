@@ -18,8 +18,8 @@ import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/utils/image_compressor.dart';
-import 'package:pulse_flutter/models/api/chat_member_model.dart';
-import 'package:pulse_flutter/models/api/chat_summary_model.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -1453,7 +1453,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,
                 child: isLoading
-                    ? const LinearProgressIndicator( minHeight: 2)
+                    ? const AppLoadingIndicator(size: 24)
                     : const SizedBox.shrink(),
               ),
             ),

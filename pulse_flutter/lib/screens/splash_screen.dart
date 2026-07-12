@@ -7,6 +7,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/session_provider.dart';
 import 'package:pulse_flutter/widgets/animated_mesh_background.dart';
+import 'package:pulse_flutter/widgets/app_logo_mark.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -15,11 +16,24 @@ class SplashScreen extends ConsumerStatefulWidget {
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _rotationController;
+
   @override
   void initState() {
     super.initState();
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 24),
+    )..repeat();
     WidgetsBinding.instance.addPostFrameCallback((_) => _startFlow());
+  }
+
+  @override
+  void dispose() {
+    _rotationController.dispose();
+    super.dispose();
   }
 
   Future<void> _startFlow() async {
@@ -77,29 +91,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(36),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: scheme.primary.withValues(alpha: 0.20),
-                        blurRadius: 24,
-                        spreadRadius: 2,
-                        offset: const Offset(0, 14),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(36),
-                    child: Image.asset(
-                      'assets/NiosMess_icon.png',
-                      width: 120,
-                      height: 120,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                RotationTransition(
+                  turns: _rotationController,
+                  child: const AppLogoMark(size: 120),
                 )
                 .animate(
                   onPlay: (AnimationController controller) => controller.repeat(reverse: true),

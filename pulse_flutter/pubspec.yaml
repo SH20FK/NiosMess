@@ -81,6 +81,7 @@ dependencies:
   flutter_foreground_task: ^8.0.0
   android_intent_plus: ^5.2.1
   shimmer: ^3.0.0
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -94,6 +95,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_native_splash: ^2.4.7
   msix: ^3.16.13
+  flutter_launcher_icons: ^0.14.3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -108,6 +110,8 @@ flutter:
     - assets/sounds/
     - assets/developers/
     - assets/lottie/
+    - assets/icons/
+    - assets/svg/
     - assets/NiosMess_icon.png
 
   fonts:
@@ -149,3 +153,13 @@ msix_config:
   certificate_path: "NiosMessCert.pfx"
   certificate_password: "123456"
   capabilities: "internetClient, internetClientServer, privateNetworkClientServer"
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/niosmess_logo_tintable.png"
+  remove_alpha_ios: true
+
+  adaptive_icon_foreground: "assets/icons/niosmess_logo_tintable.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_monochrome: "assets/icons/niosmess_logo_tintable.png"

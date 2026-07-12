@@ -4,6 +4,7 @@ import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class _MessageLayoutData {
   const _MessageLayoutData({
@@ -261,7 +262,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
 
         final bool isNewest = index == 0;
 
-        _messageKeys[message.id] = GlobalKey();
+        _messageKeys.putIfAbsent(message.id, () => GlobalKey());
 
         final Widget animatedBubble = Container(
           key: _messageKeys[message.id],
@@ -289,7 +290,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                       child: SizedBox(
                         width: 14,
                         height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: AppLoadingIndicator(size: 14),
                       ),
                     ),
                   if (message.isFailed)

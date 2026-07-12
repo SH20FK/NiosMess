@@ -13,14 +13,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/repositories/chat_repository.dart';
-import 'package:pulse_flutter/widgets/badge_chip.dart';
-import 'package:pulse_flutter/widgets/centered_note.dart';
-import 'package:pulse_flutter/widgets/pulse_avatar.dart';
-import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
-import 'package:pulse_flutter/core/localization/l10n.dart';
-
-enum _ContactsTab { recent, search }
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class ContactsScreen extends ConsumerStatefulWidget {
   const ContactsScreen({super.key});
@@ -343,11 +336,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                           ),
                         ),
                         if (busy)
-                          const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator( strokeWidth: 2),
-                          )
+                          AppLoadingIndicator(size: 20)
                         else ...<Widget>[
                           IconButton(
                             onPressed: () {
@@ -639,11 +628,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
             ),
             const SizedBox(width: 8),
             opening
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator( strokeWidth: 2),
-                  )
+                ? const AppLoadingIndicator(size: 22)
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[

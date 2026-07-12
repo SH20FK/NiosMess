@@ -6,6 +6,7 @@ import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/animated_mesh_background.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -228,10 +229,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                             ),
                             child: auth.busy
-                                ? SizedBox.square(
-                                    dimension: 22,
-                                    child: CircularProgressIndicator( strokeWidth: 3, color: Theme.of(context).colorScheme.onPrimary),
-                                  )
+                                ? AppLoadingIndicator(size: 22, color: Theme.of(context).colorScheme.onPrimary)
                                 : Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: <Widget>[

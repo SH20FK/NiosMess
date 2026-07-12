@@ -13,7 +13,7 @@ import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/glass_card.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class PostCard extends ConsumerStatefulWidget {
   const PostCard({required this.post, super.key});
@@ -217,14 +217,7 @@ class _PostCardState extends ConsumerState<PostCard>
                               fit: BoxFit.contain,
                               memCacheWidth: 800,
                               placeholder: (_, _) => Center(
-                                child: SizedBox(
-                                  width: 28,
-                                  height: 28,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                ),
+                                child: AppLoadingIndicator(size: 28, color: scheme.onSurfaceVariant),
                               ),
                               errorWidget: (_, _, _) => Center(
                                 child: Icon(
@@ -400,14 +393,7 @@ class _FullScreenImageState extends State<_FullScreenImage> {
                       imageUrl: widget.url,
                       fit: BoxFit.contain,
                       placeholder: (_, _) => const Center(
-                        child: SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white70,
-                          ),
-                        ),
+                        child: AppLoadingIndicator(size: 32, color: Colors.white70),
                       ),
                       errorWidget: (_, _, _) => const Center(
                         child: Icon(

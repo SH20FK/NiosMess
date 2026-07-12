@@ -15,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class MessageBubble extends ConsumerWidget {
   const MessageBubble({
@@ -83,6 +84,15 @@ class MessageBubble extends ConsumerWidget {
   final bool isCircleVideo;
   final int? mediaDuration;
   final bool animateHighlight;
+
+  List<String> get mediaUrls {
+    if (mediaUrl == null || mediaUrl!.trim().isEmpty) return [];
+    return mediaUrl!
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
 
   static const BorderRadius _mineRadiusNoneSame = BorderRadius.all(
     Radius.circular(16),
@@ -612,6 +622,17 @@ class MessageBubble extends ConsumerWidget {
     }
 
     if (mediaIsImage) {
+      final urls = mediaUrls;
+      if (urls.length > 1) {
+        return _MediaCarousel(
+          urls: urls,
+          scheme: scheme,
+          textStyle: textTheme.bodySmall?.copyWith(color: textColor) ?? const TextStyle(),
+          isMine: isMine,
+          onOpenMedia: onOpenMedia,
+          onLongPressMedia: onLongPressMedia,
+        );
+      }
       return InkWell(
         onTap: onOpenMedia,
         onLongPress: onLongPressMedia,
@@ -619,8 +640,8 @@ class MessageBubble extends ConsumerWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: CachedNetworkImage(
-            imageUrl: mediaUrl!,
-            cacheKey: '${mediaUrl}_preview',
+            imageUrl: urls.first,
+            cacheKey: '${urls.first}_preview',
             width: 220,
             height: 180,
             fit: BoxFit.cover,
@@ -631,8 +652,7 @@ class MessageBubble extends ConsumerWidget {
               width: 220,
               height: 180,
               child: Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
+                child: AppLoadingIndicator(
                   color: isMine ? scheme.onPrimary : scheme.primary,
                 ),
               ),
@@ -1297,5 +1317,129 @@ class _OnceAnimatedState extends State<_OnceAnimated> {
     if (_played) return widget.child;
     _played = true;
     return widget.child;
+  }
+}
+
+class _MediaCarousel extends StatefulWidget {
+  const _MediaCarousel({
+    required this.urls,
+    required this.scheme,
+    required this.textStyle,
+    required this.isMine,
+    required this.onOpenMedia,
+    required this.onLongPressMedia,
+  });
+
+  final List<String> urls;
+  final ColorScheme scheme;
+  final TextStyle textStyle;
+  final bool isMine;
+  final VoidCallback? onOpenMedia;
+  final VoidCallback? onLongPressMedia;
+
+  @override
+  State<_MediaCarousel> createState() => _MediaCarouselState();
+}
+
+class _MediaCarouselState extends State<_MediaCarousel> {
+  final PageController _controller = PageController(viewportFraction: 0.85);
+  int _currentPage = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: widget.onOpenMedia,
+      onLongPress: widget.onLongPressMedia,
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 220,
+        height: 180,
+        child: Stack(
+          children: <Widget>[
+            PageView.builder(
+              controller: _controller,
+              itemCount: widget.urls.length,
+              onPageChanged: (int index) =>
+                  setState(() => _currentPage = index),
+              itemBuilder: (BuildContext context, int index) {
+                final double scale =
+                    index == _currentPage ? 1.0 : 0.9;
+                return Padding(
+                  padding: EdgeInsets.only(
+                    right: index < widget.urls.length - 1 ? 8 : 0,
+                  ),
+                  child: AnimatedScale(
+                    scale: scale,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: widget.urls[index],
+                        cacheKey: '${widget.urls[index]}_preview',
+                        width: 220,
+                        height: 180,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 440,
+                        memCacheHeight: 360,
+                        fadeInDuration: const Duration(milliseconds: 140),
+                        placeholder: (_, _) => SizedBox(
+                          width: 220,
+                          height: 180,
+                          child: Center(
+                            child: AppLoadingIndicator(
+                              color: widget.isMine
+                                  ? widget.scheme.onPrimary
+                                  : widget.scheme.primary,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, _, _) => Container(
+                          width: 220,
+                          height: 180,
+                          alignment: Alignment.center,
+                          color: widget.isMine
+                              ? widget.scheme.onPrimary.withValues(alpha: 0.12)
+                              : widget.scheme.surfaceContainerHigh,
+                          child: Semantics(
+                            label: context.l10n.chatImageUnavailable,
+                            child: Text(
+                              context.l10n.chatImageUnavailable,
+                              style: widget.textStyle,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            if (widget.urls.length > 1)
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${_currentPage + 1}/${widget.urls.length}',
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

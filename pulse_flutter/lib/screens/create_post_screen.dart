@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/utils/image_compressor.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key});
@@ -146,11 +147,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             child: FilledButton(
               onPressed: _isLoading ? null : _submit,
               child: _isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const AppLoadingIndicator(size: 18)
                   : Text(context.l10n.postPublish),
             ),
           ),

@@ -6,6 +6,7 @@ import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class CommentsBottomSheet extends ConsumerStatefulWidget {
   const CommentsBottomSheet({required this.postId, super.key});
@@ -152,7 +153,7 @@ class _CommentsBottomSheetState extends ConsumerState<CommentsBottomSheet> {
                   loading: () => const Center(
                     child: Padding(
                       padding: EdgeInsets.all(24),
-                      child: CircularProgressIndicator(),
+                      child: AppLoadingIndicator(),
                     ),
                   ),
                   error: (Object e, _) => Center(
