@@ -1567,5 +1567,8 @@
   },
   "semanticsOn": "on",
   "semanticsOff": "off",
+  "sessionsTerminateAll": "Terminate all other sessions",
+  "sessionsTerminateAllConfirmTitle": "Terminate all other sessions?",
+  "sessionsTerminateAllConfirmBody": "All other devices will be signed out.",
   "dialogCancel": "Cancel"
 }

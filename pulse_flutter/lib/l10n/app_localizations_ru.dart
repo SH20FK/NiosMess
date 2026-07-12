@@ -3610,5 +3610,52 @@ class AppLocalizationsRu extends AppLocalizations {
   String get semanticsOff => 'выкл';
 
   @override
+
+  @override
+  String get appearanceSystemColors => 'Системные цвета';
+
+  @override
+  String get appearanceSystemColorsSubtitle => 'Цвета из обоев устройства';
+
+  @override
+  String get appearanceVariantTitle => 'Цветовая схема';
+
+  @override
+  String get appearanceVariantSubtitle => 'Выберите тональный вариант';
+
+  @override
+  String get appearanceVariantTonal => 'Тональная';
+
+  @override
+  String get appearanceVariantVibrant => 'Яркая';
+
+  @override
+  String get appearanceVariantExpressive => 'Экспрессивная';
+
+  @override
+  String get appearanceVariantNeutral => 'Нейтральная';
+
+  @override
+  String get appearanceVariantMonochrome => 'Монохром';
+
+  @override
+  String get appearanceVariantFidelity => 'Точная';
+
+  @override
+  String get appearanceThemeMode => 'Тема оформления';
+
+  @override
+  String get appearanceThemeModeSubtitle => 'Светлая, тёмная или системная';
+
+
+  @override
+  String get sessionsTerminateAll => 'Завершить все остальные сессии';
+
+  @override
+  String get sessionsTerminateAllConfirmTitle => 'Завершить все остальные сессии?';
+
+  @override
+  String get sessionsTerminateAllConfirmBody => 'Все остальные устройства будут отключены.';
+
   String get dialogCancel => 'Отмена';
 }

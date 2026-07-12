@@ -188,9 +188,9 @@ class _VaffuruThemeSettingsScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text('Color scheme', style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: scheme.onSurface)),
+                      Text(context.l10n.appearanceVariantTitle, style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: scheme.onSurface)),
                       const SizedBox(height: 2),
-                      Text('Choose tonal variant', style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.35)),
+                      Text(context.l10n.appearanceVariantSubtitle, style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.35)),
                     ],
                   ),
                 ),
@@ -203,7 +203,7 @@ class _VaffuruThemeSettingsScreenState
               children: variants.map((Md3Variant v) {
                 final bool selected = settings.variant == v;
                 return ChoiceChip(
-                  label: Text(_variantLabel(v), style: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
+                  label: Text(_variantLabel(context, v), style: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
                   selected: selected,
                   onSelected: (_) {
                     _playFeedback(settings);
@@ -225,14 +225,14 @@ class _VaffuruThemeSettingsScreenState
     );
   }
 
-  String _variantLabel(Md3Variant v) {
+  String _variantLabel(BuildContext context, Md3Variant v) {
     return switch (v) {
-      Md3Variant.tonalSpot => 'Tonal',
-      Md3Variant.vibrant => 'Vibrant',
-      Md3Variant.expressive => 'Expressive',
-      Md3Variant.neutral => 'Neutral',
-      Md3Variant.monochrome => 'Mono',
-      Md3Variant.fidelity => 'Fidelity',
+      Md3Variant.tonalSpot => context.l10n.appearanceVariantTonal,
+      Md3Variant.vibrant => context.l10n.appearanceVariantVibrant,
+      Md3Variant.expressive => context.l10n.appearanceVariantExpressive,
+      Md3Variant.neutral => context.l10n.appearanceVariantNeutral,
+      Md3Variant.monochrome => context.l10n.appearanceVariantMonochrome,
+      Md3Variant.fidelity => context.l10n.appearanceVariantFidelity,
     };
   }
 
@@ -266,9 +266,9 @@ class _VaffuruThemeSettingsScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text('Theme mode', style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: scheme.onSurface)),
+                      Text(context.l10n.appearanceThemeMode, style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: scheme.onSurface)),
                       const SizedBox(height: 2),
-                      Text('Switch between light, dark, or system', style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.35)),
+                      Text(context.l10n.appearanceThemeModeSubtitle, style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.35)),
                     ],
                   ),
                 ),
@@ -278,9 +278,9 @@ class _VaffuruThemeSettingsScreenState
             SegmentedButton<ThemeMode>(
               showSelectedIcon: false,
               segments: const <ButtonSegment<ThemeMode>>[
-                ButtonSegment<ThemeMode>(value: ThemeMode.system, label: Text('System', style: TextStyle(fontSize: 13))),
-                ButtonSegment<ThemeMode>(value: ThemeMode.light, label: Text('Light', style: TextStyle(fontSize: 13))),
-                ButtonSegment<ThemeMode>(value: ThemeMode.dark, label: Text('Dark', style: TextStyle(fontSize: 13))),
+                ButtonSegment<ThemeMode>(value: ThemeMode.system, label: Text(context.l10n.commonSystem, style: TextStyle(fontSize: 13))),
+                ButtonSegment<ThemeMode>(value: ThemeMode.light, label: Text(context.l10n.appearanceLabelLight, style: TextStyle(fontSize: 13))),
+                ButtonSegment<ThemeMode>(value: ThemeMode.dark, label: Text(context.l10n.appearanceLabelDark, style: TextStyle(fontSize: 13))),
               ],
               selected: <ThemeMode>{settings.themeMode},
               onSelectionChanged: (Set<ThemeMode> values) {
@@ -550,8 +550,8 @@ class _VaffuruThemeSettingsScreenState
           subtitle: context.l10n.appearanceThemeParamsSubtitle,
           children: [
             _SwitchCardTile(
-              title: 'System colors',
-              subtitle: 'Use colors from your device wallpaper',
+              title: context.l10n.appearanceSystemColors,
+              subtitle: context.l10n.appearanceSystemColorsSubtitle,
               icon: Icons.wallpaper_outlined,
               value: settings.useSystemDynamic,
               verticalPadding: _density.tileVerticalPadding,

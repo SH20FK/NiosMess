@@ -3592,5 +3592,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String get semanticsOff => 'off';
 
   @override
+
+  @override
+  String get appearanceSystemColors => 'System colors';
+
+  @override
+  String get appearanceSystemColorsSubtitle => 'Use colors from your device wallpaper';
+
+  @override
+  String get appearanceVariantTitle => 'Color scheme';
+
+  @override
+  String get appearanceVariantSubtitle => 'Choose tonal variant';
+
+  @override
+  String get appearanceVariantTonal => 'Tonal';
+
+  @override
+  String get appearanceVariantVibrant => 'Vibrant';
+
+  @override
+  String get appearanceVariantExpressive => 'Expressive';
+
+  @override
+  String get appearanceVariantNeutral => 'Neutral';
+
+  @override
+  String get appearanceVariantMonochrome => 'Monochrome';
+
+  @override
+  String get appearanceVariantFidelity => 'Fidelity';
+
+  @override
+  String get appearanceThemeMode => 'Theme mode';
+
+  @override
+  String get appearanceThemeModeSubtitle => 'Switch between light, dark, or system';
+
+
+  @override
+  String get sessionsTerminateAll => 'Terminate all other sessions';
+
+  @override
+  String get sessionsTerminateAllConfirmTitle => 'Terminate all other sessions?';
+
+  @override
+  String get sessionsTerminateAllConfirmBody => 'All other devices will be signed out.';
+
   String get dialogCancel => 'Cancel';
 }

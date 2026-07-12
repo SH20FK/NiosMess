@@ -88,6 +88,9 @@ class PulseApp extends ConsumerWidget {
             systemAccent.value != null)
         ? systemAccent.value!
         : seedColor;
+    final UiSettingsState themeSettings = effectiveSeed == seedColor
+        ? ref.read(uiSettingsProvider)
+        : ref.read(uiSettingsProvider).copyWith(seedColor: effectiveSeed);
     final GoRouter router = ref.watch(appRouterProvider);
     final String systemLanguageCode =
         WidgetsBinding.instance.platformDispatcher.locale.languageCode;
@@ -107,26 +110,6 @@ class PulseApp extends ConsumerWidget {
       timeZoneId: timeZoneId,
     );
 
-    final UiSettingsState settingsForTheme = UiSettingsState(
-      themeMode: themeMode,
-      variant: variant,
-      seedColor: effectiveSeed,
-      notifications: false,
-      darkCallBackdrop: false,
-      compactMode: false,
-      haptics: false,
-      hideOnline: false,
-      soundEffects: false,
-      soundVolume: 0,
-      localeCode: localeCode,
-      timeZoneMode: timeZoneMode,
-      timeZoneId: timeZoneId,
-      optimizeForWeakDevices: false,
-      predictiveBackEnabled: predictiveBackEnabled,
-      backgroundMode: BackgroundMode.off,
-      useSystemDynamic: useSystemDynamic,
-    );
-
     return MaterialApp.router(
       onGenerateTitle: (BuildContext context) => context.l10n.appName,
       debugShowCheckedModeBanner: false,
@@ -139,8 +122,8 @@ class PulseApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: AppTheme.themed(settingsForTheme, Brightness.light),
-      darkTheme: AppTheme.themed(settingsForTheme, Brightness.dark),
+      theme: AppTheme.themed(themeSettings, Brightness.light),
+      darkTheme: AppTheme.themed(themeSettings, Brightness.dark),
       themeMode: themeMode,
       routerConfig: router,
       builder: (BuildContext context, Widget? child) {

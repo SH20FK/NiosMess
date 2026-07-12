@@ -53,12 +53,14 @@ class ApiChatSummary {
   DateTime get lastActivity =>
       lastMessage?.sentAt ?? DateTime.fromMillisecondsSinceEpoch(0);
 
-  bool get isBotChat => partnerBadges.any(
-    (ApiBadge b) =>
-        b.name.toLowerCase().contains('bot') ||
-        b.name.toLowerCase().contains('ai') ||
-        b.icon.toLowerCase().contains('bot'),
-  );
+  bool get isBotChat =>
+      partnerBadges.any(
+        (ApiBadge b) =>
+            b.name.toLowerCase().contains('bot') ||
+            b.name.toLowerCase().contains('ai') ||
+            b.icon.toLowerCase().contains('bot'),
+      ) ||
+      username?.endsWith('_bot') == true;
 
   factory ApiChatSummary.fromJson(Map<String, dynamic> json) {
     final dynamic last = json['last_message'];
