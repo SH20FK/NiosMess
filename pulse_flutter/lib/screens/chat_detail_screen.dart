@@ -1082,9 +1082,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return '';
     }
     if (message.isE2ee && message.content.isEmpty) {
-      return '🔒 ${context.l10n.chatEncryptedMessage}';
+      return '';
     }
-    return '[${message.msgType}]';
+    return '';
   }
 
 
