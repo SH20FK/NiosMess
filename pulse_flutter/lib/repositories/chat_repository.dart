@@ -110,7 +110,7 @@ class ChatRepository {
       'is_secret': isSecret,
     };
     if (publicKey != null && publicKey.isNotEmpty) {
-      payload['public_key'] = publicKey;
+      payload['target_public_key'] = publicKey;
     }
 
     final dynamic response = await _ref

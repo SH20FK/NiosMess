@@ -5579,7 +5579,7 @@ abstract class AppLocalizations {
   /// No description provided for @e2eeGenerateKeyPair.
   ///
   /// In en, this message translates to:
-  /// **'Generate RSA-2048 key pair for E2EE'**
+  /// **'Generate Curve25519 key pair for E2EE'**
   String get e2eeGenerateKeyPair;
 
   /// No description provided for @e2eeRotateKey.
@@ -5603,7 +5603,7 @@ abstract class AppLocalizations {
   /// No description provided for @e2eeHowItWorksDesc.
   ///
   /// In en, this message translates to:
-  /// **'• Each device generates its own RSA-2048 key pair\n• Public key is shared with the server\n• Private key stays on this device only\n• Secret chats are visible only on this device\n• Messages are encrypted with AES-256-GCM\n• The AES key is encrypted with the recipient\'s RSA public key'**
+  /// **'• Each device generates its own Curve25519 (X25519) key pair\n• Public key is shared with the server\n• Private key stays on this device only\n• Secret chats are visible only on this device\n• Messages are encrypted with AES-256-GCM\n• Shared secret is computed via ECDH (X25519)'**
   String get e2eeHowItWorksDesc;
 
   /// No description provided for @e2eeCreateSecretChat.
@@ -5645,7 +5645,7 @@ abstract class AppLocalizations {
   /// No description provided for @e2eeGeneratingKeysDesc.
   ///
   /// In en, this message translates to:
-  /// **'RSA-2048 key pair is being created.\nThis may take a few seconds...'**
+  /// **'Curve25519 key pair is being created...'**
   String get e2eeGeneratingKeysDesc;
 
   /// No description provided for @e2eeKeyRotated.
@@ -5653,6 +5653,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Key rotated and uploaded'**
   String get e2eeKeyRotated;
+
+  /// No description provided for @e2eeEraseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase Secret Chats'**
+  String get e2eeEraseTitle;
+
+  /// No description provided for @e2eeEraseSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all secret chat history physically from the server'**
+  String get e2eeEraseSubtitle;
+
+  /// No description provided for @e2eeEraseConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase all secret chats?'**
+  String get e2eeEraseConfirmTitle;
+
+  /// No description provided for @e2eeEraseConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'All secret chat history and associated files will be permanently deleted from the server. This action cannot be undone.'**
+  String get e2eeEraseConfirmBody;
+
+  /// No description provided for @e2eeEraseConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase'**
+  String get e2eeEraseConfirm;
+
+  /// No description provided for @e2eeEraseDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {chats} chats and {files} files'**
+  String e2eeEraseDone(int chats, int files);
 
   /// No description provided for @chatMembersBanConfirmTitle.
   ///

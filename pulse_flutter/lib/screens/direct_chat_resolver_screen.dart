@@ -29,8 +29,6 @@ class _DirectChatResolverScreenState
     extends ConsumerState<DirectChatResolverScreen> {
   bool _loading = true;
   String? _error;
-  final E2eeService _e2ee = E2eeService();
-
   @override
   void initState() {
     super.initState();
@@ -46,8 +44,9 @@ class _DirectChatResolverScreenState
     try {
       String? publicKey;
       if (widget.isSecret) {
-        publicKey = await _e2ee.getPublicKeyBase64();
-        if (publicKey != null && publicKey.isNotEmpty) {
+        final e2ee = ref.read(e2eeServiceProvider);
+        publicKey = await e2ee.getPublicKeyBase64();
+        if (publicKey.isNotEmpty) {
           try {
             await ref.read(authRepositoryProvider).setPublicKey(publicKey);
           } catch (_) {}

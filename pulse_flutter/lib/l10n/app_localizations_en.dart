@@ -3050,7 +3050,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get e2eeTapToRegenerate => 'Tap to regenerate';
 
   @override
-  String get e2eeGenerateKeyPair => 'Generate RSA-2048 key pair for E2EE';
+  String get e2eeGenerateKeyPair => 'Generate Curve25519 key pair for E2EE';
 
   @override
   String get e2eeRotateKey => 'Rotate Key';
@@ -3064,7 +3064,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get e2eeHowItWorksDesc =>
-      '• Each device generates its own RSA-2048 key pair\n• Public key is shared with the server\n• Private key stays on this device only\n• Secret chats are visible only on this device\n• Messages are encrypted with AES-256-GCM\n• The AES key is encrypted with the recipient\'s RSA public key';
+      '• Each device generates its own Curve25519 (X25519) key pair\n• Public key is shared with the server\n• Private key stays on this device only\n• Secret chats are visible only on this device\n• Messages are encrypted with AES-256-GCM\n• Shared secret is computed via ECDH (X25519)';
 
   @override
   String get e2eeCreateSecretChat => 'Create Secret Chat';
@@ -3088,10 +3088,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get e2eeGeneratingKeysDesc =>
-      'RSA-2048 key pair is being created.\nThis may take a few seconds...';
+      'Curve25519 key pair is being created...';
 
   @override
   String get e2eeKeyRotated => 'Key rotated and uploaded';
+
+  @override
+  String get e2eeEraseTitle => 'Erase Secret Chats';
+
+  @override
+  String get e2eeEraseSubtitle =>
+      'Delete all secret chat history physically from the server';
+
+  @override
+  String get e2eeEraseConfirmTitle => 'Erase all secret chats?';
+
+  @override
+  String get e2eeEraseConfirmBody =>
+      'All secret chat history and associated files will be permanently deleted from the server. This action cannot be undone.';
+
+  @override
+  String get e2eeEraseConfirm => 'Erase';
+
+  @override
+  String e2eeEraseDone(int chats, int files) {
+    return 'Deleted $chats chats and $files files';
+  }
 
   @override
   String get chatMembersBanConfirmTitle => 'Ban member?';

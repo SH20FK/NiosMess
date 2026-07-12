@@ -96,9 +96,9 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     try {
       String? publicKey;
       try {
-        final E2eeService e2ee = E2eeService();
+        final e2ee = ref.read(e2eeServiceProvider);
         publicKey = await e2ee.getPublicKeyBase64();
-        if (publicKey != null && publicKey.isNotEmpty) {
+        if (publicKey.isNotEmpty) {
           try {
             await ref.read(authRepositoryProvider).setPublicKey(publicKey);
           } catch (_) {}
@@ -243,57 +243,38 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     return decrypted;
   }
 
-  static final Map<int, String> _decryptionCache = {};
+  Future<String?> _getPartnerPublicKey() {
+    final chat = ref.read(chatByIdProvider(_chatId));
+    if (chat?.partnerPublicKey != null && chat!.partnerPublicKey!.isNotEmpty) {
+      return Future.value(chat.partnerPublicKey);
+    }
+    return Future.value(null);
+  }
 
   Future<List<ApiMessage>> _decryptE2eeMessages(List<ApiMessage> messages) async {
+    final partnerPublicKey = await _getPartnerPublicKey();
+    if (partnerPublicKey == null) return messages;
+
+    final e2eeService = ref.read(e2eeServiceProvider);
     final List<ApiMessage> result = <ApiMessage>[];
-    dynamic privateKey;
-    bool privateKeyLoaded = false;
-    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
 
     for (final ApiMessage msg in messages) {
-      if (!msg.isE2ee || msg.e2eeContent == null || msg.e2eeContent!.isEmpty || msg.content.isNotEmpty) {
+      if (!msg.isE2ee || msg.e2eeContent == null || msg.e2eeContent!.isEmpty) {
         result.add(msg);
         continue;
       }
 
-      if (_decryptionCache.containsKey(msg.id)) {
-        result.add(msg.copyWith(content: _decryptionCache[msg.id]!));
-        continue;
-      }
-
       try {
-        if (!privateKeyLoaded) {
-          privateKey = await E2eeService().loadPrivateKey();
-          privateKeyLoaded = true;
-        }
-        if (privateKey != null) {
-          final E2eeService e2eeService = E2eeService();
-          String e2eeContent = msg.e2eeContent!;
-
-          if (msg.senderId == myUserId) {
-            final String decrypted = await e2eeService.decryptE2EEMessage(
-              e2eeContentBase64: e2eeContent,
-              privateKey: privateKey,
-              useSenderKey: true,
-            );
-            _decryptionCache[msg.id] = decrypted;
-            result.add(msg.copyWith(content: decrypted));
-            continue;
-          }
-
-          final String decrypted = await e2eeService.decryptE2EEMessage(
-            e2eeContentBase64: e2eeContent,
-            privateKey: privateKey,
-          );
-          _decryptionCache[msg.id] = decrypted;
-          result.add(msg.copyWith(content: decrypted));
-          continue;
-        }
+        final String decrypted = await e2eeService.decryptE2EEMessage(
+          e2eeContentBase64: msg.e2eeContent!,
+          chatId: _chatId,
+          theirPublicKeyBase64: partnerPublicKey,
+        );
+        result.add(msg.copyWith(content: decrypted));
       } catch (e) {
         debugPrint('[backend_chat_provider.dart] E2EE decrypt failed for msg ${msg.id}: $e');
+        result.add(msg);
       }
-      result.add(msg);
     }
     return result;
   }
@@ -391,29 +372,15 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     bool isE2ee = false;
 
     final ApiChatSummary? chat = ref.read(chatByIdProvider(_chatId));
-    if (chat?.isSecret == true && trimmed.isNotEmpty) {
+    if (chat?.isSecret == true && chat?.partnerPublicKey != null && trimmed.isNotEmpty) {
       try {
-        final List<ApiChatMember> members =
-            ref.read(chatMembersProvider(_chatId)).value ?? const <ApiChatMember>[];
-        final int recipientUserId = members
-            .where((ApiChatMember m) => m.userId != myUserId)
-            .map((ApiChatMember m) => m.userId)
-            .firstOrNull ?? 0;
-        if (recipientUserId > 0) {
-          final E2eeService e2eeService = E2eeService();
-          final String senderPubKey = await e2eeService.getPublicKeyBase64();
-          final Map<String, dynamic> keyData =
-              await ref.read(authRepositoryProvider).getPublicKey(recipientUserId);
-          final String? recipientPubKey = keyData['public_key'] as String?;
-          if (recipientPubKey != null && recipientPubKey.isNotEmpty) {
-            e2eeContent = await e2eeService.encryptE2EEMessageForBoth(
-              plaintext: trimmed,
-              recipientPublicKeyBase64: recipientPubKey,
-              senderPublicKeyBase64: senderPubKey,
-            );
-            isE2ee = true;
-          }
-        }
+        final e2eeService = ref.read(e2eeServiceProvider);
+        e2eeContent = await e2eeService.encryptE2EEMessage(
+          plaintext: trimmed,
+          chatId: _chatId,
+          theirPublicKeyBase64: chat!.partnerPublicKey!,
+        );
+        isE2ee = true;
       } catch (e) {
         debugPrint('[backend_chat_provider.dart] E2EE encrypt failed: $e');
       }

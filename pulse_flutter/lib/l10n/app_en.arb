@@ -1298,19 +1298,35 @@
   "e2eeKeyPairReady": "Key pair ready",
   "e2eeNoKeyPair": "No key pair",
   "e2eeTapToRegenerate": "Tap to regenerate",
-  "e2eeGenerateKeyPair": "Generate RSA-2048 key pair for E2EE",
+  "e2eeGenerateKeyPair": "Generate Curve25519 key pair for E2EE",
   "e2eeRotateKey": "Rotate Key",
   "e2eeRotateKeySubtitle": "Generate new key pair (old secret chats will break)",
   "e2eeHowItWorks": "How it works",
-  "e2eeHowItWorksDesc": "• Each device generates its own RSA-2048 key pair\n• Public key is shared with the server\n• Private key stays on this device only\n• Secret chats are visible only on this device\n• Messages are encrypted with AES-256-GCM\n• The AES key is encrypted with the recipient's RSA public key",
+  "e2eeHowItWorksDesc": "• Each device generates its own Curve25519 (X25519) key pair\n• Public key is shared with the server\n• Private key stays on this device only\n• Secret chats are visible only on this device\n• Messages are encrypted with AES-256-GCM\n• Shared secret is computed via ECDH (X25519)",
   "e2eeCreateSecretChat": "Create Secret Chat",
   "e2eeCreateSecretChatDesc": "To start a secret chat, open a direct chat from contacts.\nSecret chat option will be available after generating your key pair.",
   "e2eeRotateConfirmTitle": "Rotate Key?",
   "e2eeRotateConfirmBody": "Your old secret chats will become undecryptable after key rotation. New messages will use the fresh key.",
   "e2eeRotateConfirm": "Rotate",
   "e2eeGeneratingKeys": "Generating encryption keys",
-  "e2eeGeneratingKeysDesc": "RSA-2048 key pair is being created.\nThis may take a few seconds...",
+  "e2eeGeneratingKeysDesc": "Curve25519 key pair is being created...",
   "e2eeKeyRotated": "Key rotated and uploaded",
+  "e2eeEraseTitle": "Erase Secret Chats",
+  "e2eeEraseSubtitle": "Delete all secret chat history physically from the server",
+  "e2eeEraseConfirmTitle": "Erase all secret chats?",
+  "e2eeEraseConfirmBody": "All secret chat history and associated files will be permanently deleted from the server. This action cannot be undone.",
+  "e2eeEraseConfirm": "Erase",
+  "e2eeEraseDone": "Deleted {chats} chats and {files} files",
+  "@e2eeEraseDone": {
+    "placeholders": {
+      "chats": {
+        "type": "int"
+      },
+      "files": {
+        "type": "int"
+      }
+    }
+  },
   "chatMembersBanConfirmTitle": "Ban member?",
   "chatMembersUnbanConfirmTitle": "Unban member?",
   "chatMembersBanConfirmBody": "This member will lose access until you restore them.",

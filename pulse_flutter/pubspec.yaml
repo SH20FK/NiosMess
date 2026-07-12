@@ -65,8 +65,6 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   cryptography: ^2.9.0
-  pointycastle: ^3.9.1
-  asn1lib: ^1.5.8
   loading_indicator_m3e: ^0.1.1
   uuid: ^4.5.1
   flutter_m3shapes: ^1.0.0+2

@@ -52,6 +52,83 @@ class DirectChatOpenResult {
   }
 }
 
+class ApiKeyDevice {
+  const ApiKeyDevice({
+    required this.sessionId,
+    required this.deviceInfo,
+    required this.publicKey,
+  });
+
+  final int sessionId;
+  final String deviceInfo;
+  final String publicKey;
+
+  factory ApiKeyDevice.fromJson(Map<String, dynamic> json) {
+    return ApiKeyDevice(
+      sessionId: json['session_id'] as int? ?? 0,
+      deviceInfo: json['device_info'] as String? ?? '',
+      publicKey: json['public_key'] as String? ?? '',
+    );
+  }
+}
+
+class ApiPublicKeyResult {
+  const ApiPublicKeyResult({
+    required this.userId,
+    required this.username,
+    this.devices = const [],
+  });
+
+  final int userId;
+  final String username;
+  final List<ApiKeyDevice> devices;
+
+  factory ApiPublicKeyResult.fromJson(Map<String, dynamic> json) {
+    final devicesRaw = json['devices'];
+    final List<ApiKeyDevice> devices;
+    if (devicesRaw is List) {
+      devices = devicesRaw
+          .whereType<Map>()
+          .map((Map item) => ApiKeyDevice.fromJson(
+                item.map((k, v) => MapEntry(k.toString(), v)),
+              ))
+          .toList(growable: false);
+    } else {
+      devices = const [];
+    }
+    return ApiPublicKeyResult(
+      userId: json['user_id'] as int? ?? 0,
+      username: json['username'] as String? ?? '',
+      devices: devices,
+    );
+  }
+}
+
+class ApiEraseSecretResult {
+  const ApiEraseSecretResult({
+    required this.status,
+    required this.deletedChatsCount,
+    required this.deletedFilesCount,
+    required this.message,
+  });
+
+  final String status;
+  final int deletedChatsCount;
+  final int deletedFilesCount;
+  final String message;
+
+  bool get isSuccess => status == 'success';
+
+  factory ApiEraseSecretResult.fromJson(Map<String, dynamic> json) {
+    return ApiEraseSecretResult(
+      status: json['status'] as String? ?? '',
+      deletedChatsCount: json['deleted_chats_count'] as int? ?? 0,
+      deletedFilesCount: json['deleted_files_count'] as int? ?? 0,
+      message: json['message'] as String? ?? '',
+    );
+  }
+}
+
 class ChatCreateResult {
   const ChatCreateResult({
     required this.chatId,

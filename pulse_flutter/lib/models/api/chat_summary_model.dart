@@ -5,6 +5,14 @@ bool _parseBool(dynamic value) {
   return value == true || value == 1 || value == '1' || value == 'true';
 }
 
+String? _parsePartnerPublicKey(Map<String, dynamic> json) {
+  final withUser = json['with_user'];
+  if (withUser is Map) {
+    return withUser['public_key'] as String?;
+  }
+  return json['partner_public_key'] as String?;
+}
+
 class ApiChatSummary {
   const ApiChatSummary({
     required this.id,
@@ -22,6 +30,7 @@ class ApiChatSummary {
     this.inviteLink,
     this.shareLink,
     this.isSecret = false,
+    this.partnerPublicKey,
   });
 
   final int id;
@@ -39,6 +48,7 @@ class ApiChatSummary {
   final String? inviteLink;
   final String? shareLink;
   final bool isSecret;
+  final String? partnerPublicKey;
 
   DateTime get lastActivity =>
       lastMessage?.sentAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -77,6 +87,7 @@ class ApiChatSummary {
       inviteLink: json['invite_link'] as String?,
       shareLink: json['share_link'] as String?,
       isSecret: _parseBool(json['is_secret']),
+      partnerPublicKey: _parsePartnerPublicKey(json),
       lastMessage: last is Map<String, dynamic>
           ? ApiMessage.fromJson(last)
           : null,
@@ -99,6 +110,7 @@ class ApiChatSummary {
     String? inviteLink,
     String? shareLink,
     bool? isSecret,
+    String? partnerPublicKey,
   }) {
     return ApiChatSummary(
       id: id ?? this.id,
@@ -116,6 +128,7 @@ class ApiChatSummary {
       inviteLink: inviteLink ?? this.inviteLink,
       shareLink: shareLink ?? this.shareLink,
       isSecret: isSecret ?? this.isSecret,
+      partnerPublicKey: partnerPublicKey ?? this.partnerPublicKey,
     );
   }
 
@@ -135,6 +148,7 @@ class ApiChatSummary {
       'invite_link': inviteLink,
       'share_link': shareLink,
       'is_secret': isSecret,
+      if (partnerPublicKey != null) 'partner_public_key': partnerPublicKey,
       'last_message': lastMessage?.toJson(),
     };
   }

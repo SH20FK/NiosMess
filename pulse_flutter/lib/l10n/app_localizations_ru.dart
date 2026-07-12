@@ -3067,7 +3067,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get e2eeTapToRegenerate => 'Нажмите для регенерации';
 
   @override
-  String get e2eeGenerateKeyPair => 'Сгенерировать RSA-2048 ключ для E2EE';
+  String get e2eeGenerateKeyPair => 'Сгенерировать Curve25519 ключ для E2EE';
 
   @override
   String get e2eeRotateKey => 'Ротация ключа';
@@ -3081,7 +3081,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get e2eeHowItWorksDesc =>
-      '• Каждое устройство генерирует свою RSA-2048 пару ключей\n• Публичный ключ передаётся на сервер\n• Приватный ключ остаётся только на этом устройстве\n• Секретные чаты видны только на этом устройстве\n• Сообщения шифруются AES-256-GCM\n• AES-ключ шифруется публичным RSA-ключом получателя';
+      '• Каждое устройство генерирует свою Curve25519 (X25519) пару ключей\n• Публичный ключ передаётся на сервер\n• Приватный ключ остаётся только на этом устройстве\n• Секретные чаты видны только на этом устройстве\n• Сообщения шифруются AES-256-GCM\n• Общий секрет вычисляется через ECDH (X25519)';
 
   @override
   String get e2eeCreateSecretChat => 'Создать секретный чат';
@@ -3104,11 +3104,32 @@ class AppLocalizationsRu extends AppLocalizations {
   String get e2eeGeneratingKeys => 'Генерация ключей шифрования';
 
   @override
-  String get e2eeGeneratingKeysDesc =>
-      'Создаётся RSA-2048 пара ключей.\nЭто может занять несколько секунд...';
+  String get e2eeGeneratingKeysDesc => 'Создаётся Curve25519 пара ключей...';
 
   @override
   String get e2eeKeyRotated => 'Ключ ротирован и загружен';
+
+  @override
+  String get e2eeEraseTitle => 'Удалить секретные чаты';
+
+  @override
+  String get e2eeEraseSubtitle =>
+      'Физически удалить историю секретных чатов с сервера';
+
+  @override
+  String get e2eeEraseConfirmTitle => 'Удалить все секретные чаты?';
+
+  @override
+  String get e2eeEraseConfirmBody =>
+      'Вся история секретных чатов и связанные файлы будут безвозвратно удалены с сервера. Это действие нельзя отменить.';
+
+  @override
+  String get e2eeEraseConfirm => 'Удалить';
+
+  @override
+  String e2eeEraseDone(int chats, int files) {
+    return 'Удалено $chats чатов и $files файлов';
+  }
 
   @override
   String get chatMembersBanConfirmTitle => 'Забанить участника?';

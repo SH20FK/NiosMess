@@ -13,10 +13,8 @@ class E2eeSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
-  final E2eeService _e2ee = E2eeService();
   bool _loading = false;
   bool _hasKey = false;
-  String? _publicKeyPreview;
   String? _error;
 
   @override
@@ -26,42 +24,26 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
   }
 
   Future<void> _checkKey() async {
-    final privateKey = await _e2ee.loadPrivateKey();
+    final e2ee = ref.read(e2eeServiceProvider);
+    final hasKey = await e2ee.hasKeyPair();
     if (!mounted) return;
-    setState(() => _hasKey = privateKey != null);
+    setState(() => _hasKey = hasKey);
   }
 
-  Future<void> _generateAndUploadKey() async {
+  Future<void> _generateKey() async {
     setState(() { _loading = true; _error = null; });
     if (!mounted) return;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierLabel: context.l10n.e2eeGeneratingKeys,
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (_, _, _) => const SizedBox.shrink(),
-      transitionBuilder: (ctx, a1, a2, child) {
-        return FadeTransition(
-          opacity: a1,
-          child: const _KeyGenerationOverlay(),
-        );
-      },
-    );
 
     try {
-      final publicKeyB64 = await _e2ee.getPublicKeyBase64();
+      final e2ee = ref.read(e2eeServiceProvider);
+      final publicKeyB64 = await e2ee.getPublicKeyBase64();
       await ref.read(authRepositoryProvider).setPublicKey(publicKeyB64);
-      if (mounted) Navigator.of(context).pop();
       if (!mounted) return;
-      setState(() {
-        _hasKey = true;
-        _publicKeyPreview = '${publicKeyB64.substring(0, 40)}...';
-        _loading = false;
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.e2eeKeyGenerated)));
+      setState(() { _hasKey = true; _loading = false; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.e2eeKeyGenerated)),
+      );
     } catch (e) {
-      if (mounted) Navigator.of(context).pop();
       if (!mounted) return;
       setState(() { _loading = false; _error = '$e'; });
     }
@@ -72,14 +54,16 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
         title: Text(context.l10n.e2eeRotateConfirmTitle),
-        content: Text(
-          context.l10n.e2eeRotateConfirmBody,
-        ),
+        content: Text(context.l10n.e2eeRotateConfirmBody),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(context.l10n.commonCancel)),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(context.l10n.commonCancel),
+          ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(context.l10n.e2eeRotateConfirm, style: TextStyle(color: Colors.orange)),
+            child: Text(context.l10n.e2eeRotateConfirm,
+                style: TextStyle(color: Colors.orange)),
           ),
         ],
       ),
@@ -88,36 +72,62 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
 
     setState(() { _loading = true; _error = null; });
     if (!mounted) return;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierLabel: context.l10n.e2eeGeneratingKeys,
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (_, _, _) => const SizedBox.shrink(),
-      transitionBuilder: (ctx, a1, a2, child) {
-        return FadeTransition(
-          opacity: a1,
-          child: const _KeyGenerationOverlay(),
-        );
-      },
-    );
 
     try {
-      await _e2ee.rotateKeyPair();
-      final publicKeyB64 = await _e2ee.getPublicKeyBase64();
+      final e2ee = ref.read(e2eeServiceProvider);
+      await e2ee.deleteKeyPair();
+      final publicKeyB64 = await e2ee.getPublicKeyBase64();
       await ref.read(authRepositoryProvider).setPublicKey(publicKeyB64);
-      if (mounted) Navigator.of(context).pop();
       if (!mounted) return;
-      setState(() {
-        _publicKeyPreview = '${publicKeyB64.substring(0, 40)}...';
-        _loading = false;
-      });
-      if (!mounted) return;
+      setState(() { _loading = false; });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.e2eeKeyRotated)),
       );
     } catch (e) {
-      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      setState(() { _loading = false; _error = '$e'; });
+    }
+  }
+
+  Future<void> _eraseSecretChats() async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(context.l10n.e2eeEraseConfirmTitle),
+        content: Text(context.l10n.e2eeEraseConfirmBody),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(context.l10n.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(context.l10n.e2eeEraseConfirm,
+                style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() { _loading = true; _error = null; });
+    if (!mounted) return;
+
+    try {
+      final e2ee = ref.read(e2eeServiceProvider);
+      final publicKeyB64 = await e2ee.getPublicKeyBase64();
+      final result = await ref.read(authRepositoryProvider).eraseSecret(publicKeyB64);
+      await e2ee.deleteKeyPair();
+      if (!mounted) return;
+      setState(() { _hasKey = false; _loading = false; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n.e2eeEraseDone(result.deletedChatsCount, result.deletedFilesCount),
+          ),
+        ),
+      );
+    } catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; _error = '$e'; });
     }
@@ -143,11 +153,9 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
             SettingsTile(
               icon: _hasKey ? Icons.vpn_key_rounded : Icons.vpn_key_outlined,
               title: _hasKey ? context.l10n.e2eeKeyPairReady : context.l10n.e2eeNoKeyPair,
-              subtitle: _hasKey
-                  ? (_publicKeyPreview ?? context.l10n.e2eeTapToRegenerate)
-                  : context.l10n.e2eeGenerateKeyPair,
+              subtitle: _hasKey ? context.l10n.e2eeTapToRegenerate : context.l10n.e2eeGenerateKeyPair,
               iconColor: _hasKey ? Colors.green : scheme.onSurfaceVariant,
-              onTap: _loading ? () {} : _generateAndUploadKey,
+              onTap: _loading || _hasKey ? () {} : () { _generateKey(); },
             ),
             if (_hasKey)
               SettingsTile(
@@ -155,7 +163,15 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
                 title: context.l10n.e2eeRotateKey,
                 subtitle: context.l10n.e2eeRotateKeySubtitle,
                 iconColor: Colors.orange,
-                onTap: _loading ? () {} : _rotateKey,
+                onTap: _loading ? () {} : () { _rotateKey(); },
+              ),
+            if (_hasKey)
+              SettingsTile(
+                icon: Icons.delete_sweep_rounded,
+                title: context.l10n.e2eeEraseTitle,
+                subtitle: context.l10n.e2eeEraseSubtitle,
+                iconColor: Colors.red,
+                onTap: _loading ? () {} : () { _eraseSecretChats(); },
               ),
             if (_error != null)
               Padding(
@@ -176,133 +192,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
             ),
           ],
         ),
-        SettingsSection(
-          title: context.l10n.e2eeCreateSecretChat,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              child: Text(
-                context.l10n.e2eeCreateSecretChatDesc,
-                style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.4),
-              ),
-            ),
-          ],
-        ),
       ],
-    );
-  }
-}
-
-class _KeyGenerationOverlay extends StatefulWidget {
-  const _KeyGenerationOverlay();
-
-  @override
-  State<_KeyGenerationOverlay> createState() => _KeyGenerationOverlayState();
-}
-
-class _KeyGenerationOverlayState extends State<_KeyGenerationOverlay>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _rotation;
-  late final Animation<double> _pulse;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
-    _rotation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.linear),
-    );
-    _pulse = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return PopScope(
-      canPop: false,
-      child: Material(
-        color: Colors.black54,
-        child: Center(
-          child: Container(
-            padding: const EdgeInsets.all(32),
-            margin: const EdgeInsets.symmetric(horizontal: 40),
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedBuilder(
-                  animation: _controller,
-                  builder: (_, _) {
-                    return Transform.scale(
-                      scale: _pulse.value,
-                      child: Transform.rotate(
-                        angle: _rotation.value * 6.28,
-                        child: Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: scheme.primary.withValues(alpha: 0.2),
-                              width: 4,
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Icon(
-                              Icons.vpn_key_rounded,
-                              color: scheme.primary,
-                              size: 32,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  context.l10n.e2eeGeneratingKeys,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  context.l10n.e2eeGeneratingKeysDesc,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: 200,
-                  child: LinearProgressIndicator(
-                    borderRadius: BorderRadius.circular(4),
-                    backgroundColor: scheme.surfaceContainerHighest,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

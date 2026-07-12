@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
+import 'package:pulse_flutter/models/api/chat_actions_models.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/models/api/session_model.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
@@ -219,14 +220,24 @@ class AuthRepository {
         );
   }
 
-  Future<Map<String, dynamic>> getPublicKey(int userId) async {
+  Future<ApiPublicKeyResult> getPublicKey(int userId) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request(
           'get_public_key',
           payload: <String, dynamic>{'user_id': userId},
         );
-    return asStringMap(response);
+    return ApiPublicKeyResult.fromJson(asStringMap(response));
+  }
+
+  Future<ApiEraseSecretResult> eraseSecret(String publicKeyBase64) async {
+    final dynamic response = await _ref
+        .read(webSocketClientProvider)
+        .request(
+          'erase_secret',
+          payload: <String, dynamic>{'public_key': publicKeyBase64},
+        );
+    return ApiEraseSecretResult.fromJson(asStringMap(response));
   }
 }
 
