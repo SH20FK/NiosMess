@@ -68,7 +68,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   late DraftStorage _draftStorage;
 
   Timer? _draftSaveTimer;
-  String? _lastAiOriginalText;
   bool _showDraftRestoredBanner = false;
 
   bool _uploadingMedia = false;
@@ -142,6 +141,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     List<ApiChatMember> members,
     int myUserId,
   ) {
+    if (chat?.chatType == 'group' || chat?.chatType == 'channel') return null;
     final String chatUsername = (chat?.username ?? '').trim();
     if (chatUsername.isNotEmpty) return chatUsername;
 
@@ -387,8 +387,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final String currentText = _inputController.text.trim();
     if (currentText.isEmpty) return;
 
-    _lastAiOriginalText = _inputController.text;
-
     setState(() {
       _isAiProcessing = true;
     });
@@ -404,16 +402,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         _inputController.text = resultText;
         _inputController.selection = TextSelection.fromPosition(
           TextPosition(offset: resultText.length),
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.chatAiProcessed),
-            duration: const Duration(seconds: 2),
-            action: SnackBarAction(
-              label: context.l10n.chatAiUndo,
-              onPressed: _undoLastAiTransform,
-            ),
-          ),
         );
       }
     } catch (e) {
@@ -432,16 +420,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         });
       }
     }
-  }
-
-  void _undoLastAiTransform() {
-    final String? previous = _lastAiOriginalText;
-    if (previous == null) return;
-    _inputController.text = previous;
-    _inputController.selection = TextSelection.fromPosition(
-      TextPosition(offset: previous.length),
-    );
-    _lastAiOriginalText = null;
   }
 
   void _showAiBottomSheet(BuildContext context, ColorScheme scheme) {
@@ -662,7 +640,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
       if (showSentSnackBar && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.chatMediaSent)),
+          SnackBar(
+            content: Text(context.l10n.chatMediaSent),
+            duration: const Duration(seconds: 2),
+          ),
         );
       }
     } catch (error) {
@@ -950,7 +931,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       await ref.read(chatsProvider.notifier).refresh();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.chatMessageForwarded)),
+        SnackBar(
+          content: Text(context.l10n.chatMessageForwarded),
+          duration: const Duration(seconds: 2),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -992,7 +976,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         onCopy: () {
           Clipboard.setData(ClipboardData(text: message.content));
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.chatMessageTextCopied)),
+            SnackBar(
+              content: Text(context.l10n.chatMessageTextCopied),
+              duration: const Duration(seconds: 2),
+            ),
           );
         },
         onForward: () => _forwardMessage(message),

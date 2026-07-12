@@ -24,8 +24,8 @@ class AppLogoMark extends StatelessWidget {
       child: Center(
         child: SvgPicture.asset(
           'assets/svg/niosmess_logo_tintable.svg',
-          width: size * 0.5,
-          height: size * 0.5,
+          width: size * 0.6,
+          height: size * 0.6,
           colorFilter: ColorFilter.mode(
             markColor ?? scheme.onPrimary,
             BlendMode.srcIn,

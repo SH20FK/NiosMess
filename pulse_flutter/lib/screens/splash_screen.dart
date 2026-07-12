@@ -1,14 +1,14 @@
-import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/session_provider.dart';
 import 'package:pulse_flutter/widgets/animated_mesh_background.dart';
-import 'package:pulse_flutter/widgets/app_logo_mark.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -18,9 +18,8 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late final AnimationController _rotationController;
-  late final AnimationController _pulseController;
 
   @override
   void initState() {
@@ -29,17 +28,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       vsync: this,
       duration: const Duration(seconds: 24),
     )..repeat();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1100),
-    )..repeat(reverse: true);
     WidgetsBinding.instance.addPostFrameCallback((_) => _startFlow());
   }
 
   @override
   void dispose() {
     _rotationController.dispose();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -98,18 +92,41 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                AnimatedBuilder(
-                  animation: Listenable.merge([_rotationController, _pulseController]),
-                  builder: (context, child) {
-                    return Transform.rotate(
-                      angle: _rotationController.value * 2 * pi,
-                      child: Transform.scale(
-                        scale: 1.0 + 0.06 * _pulseController.value,
-                        child: child,
+                SizedBox(
+                  width: 120,
+                  height: 120,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: <Widget>[
+                      RotationTransition(
+                        turns: _rotationController,
+                        child: M3Container.c9SidedCookie(
+                          width: 120,
+                          height: 120,
+                          color: scheme.primary,
+                          child: const SizedBox(),
+                        ),
                       ),
-                    );
-                  },
-                  child: const AppLogoMark(size: 120),
+                      SvgPicture.asset(
+                        'assets/svg/niosmess_logo_tintable.svg',
+                        width: 72,
+                        height: 72,
+                        colorFilter: ColorFilter.mode(
+                          scheme.onPrimary,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                .animate(
+                  onPlay: (controller) => controller.repeat(reverse: true),
+                )
+                .scale(
+                  begin: const Offset(1, 1),
+                  end: const Offset(1.06, 1.06),
+                  duration: 1100.ms,
+                  curve: Curves.easeInOut,
                 ),
                 const SizedBox(height: 20),
                 Text(context.l10n.appName, style: textTheme.displayLarge),

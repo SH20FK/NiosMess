@@ -86,7 +86,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             .toList(growable: false);
       case ChatFilter.bots:
         return chats
-            .where((ApiChatSummary c) => c.chatType == 'bot')
+            .where((ApiChatSummary c) => c.chatType == 'bot' || c.isBotChat)
             .toList(growable: false);
     }
   }
