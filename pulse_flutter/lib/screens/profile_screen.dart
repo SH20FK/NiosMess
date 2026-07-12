@@ -125,9 +125,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               isUploadingAvatar: _uploadingAvatar,
             ),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          SliverSafeArea(
+            top: false,
+            sliver: SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
               child: Column(
                 children: [
                   SettingsSection(
@@ -216,6 +218,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
           ),
+        ),
         ],
       ),
     );
