@@ -67,6 +67,65 @@ jobs:
           name: android-apk-release
           path: pulse_flutter/build/app/outputs/flutter-apk/*.apk
 
+  build-android-debug:
+    name: Build Android APK (debug)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pulse_flutter
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Create google-services.json
+        run: |
+          mkdir -p android/app
+          cat > android/app/google-services.json << 'EOF'
+          {
+            "project_info": {
+              "project_number": "31725064203",
+              "project_id": "niosmess",
+              "storage_bucket": "niosmess.firebasestorage.app"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:31725064203:android:326bc0c2a61a2aa482370e",
+                  "android_client_info": {
+                    "package_name": "com.niosmess.pulse"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyAgIlq9dix4DYlLBNUF4eqsofZqh_uItUI"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+
+      - run: flutter build apk --debug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-debug
+          path: pulse_flutter/build/app/outputs/flutter-apk/*.apk
+
   build-web:
     name: Build Web
     runs-on: ubuntu-latest
