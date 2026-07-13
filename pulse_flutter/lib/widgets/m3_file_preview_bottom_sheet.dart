@@ -9,8 +9,8 @@ import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
-import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
@@ -203,12 +203,11 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
   }
 
   Future<void> _previewFile(BuildContext context) async {
-    final NavigatorState nav = Navigator.of(context);
-    nav.pop();
+    Navigator.of(context).pop();
 
     if (typeInfo.isImage) {
       if (hasRemoteUrl) {
-        await nav.push('/media-viewer?url=${Uri.encodeComponent(mediaUrl!)}&title=${Uri.encodeComponent(fileName)}&type=image');
+        await context.push('/media-viewer?url=${Uri.encodeComponent(mediaUrl!)}&title=${Uri.encodeComponent(fileName)}&type=image');
         return;
       }
       if (hasBytes) {
