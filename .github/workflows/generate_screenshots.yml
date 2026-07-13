@@ -28,28 +28,15 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      - name: Generate raw screenshots
-        run: flutter test test/screenshots_test.dart
+      - name: Generate screenshots
+        run: flutter test test/screenshots_test.dart --update-goldens
 
-      - name: Convert raw to PNG
+      - name: Copy screenshots to target directory
         run: |
-          python3 -c "
-          import os
-          from PIL import Image
-          raw_dir = '../niosmess_landing/public/screens'
-          for f in os.listdir(raw_dir):
-              if f.endswith('.raw'):
-                  path = os.path.join(raw_dir, f)
-                  with open(path) as fp:
-                      header = fp.readline().strip()
-                      w, h = map(int, header.split(','))
-                      data = fp.read()
-                  img = Image.frombytes('RGBA', (w, h), data)
-                  png_name = f.replace('.raw', '.png')
-                  img.save(os.path.join(raw_dir, png_name))
-                  os.remove(path)
-                  print(f'Converted {png_name} ({w}x{h})')
-          "
+          mkdir -p ../niosmess_landing/public/screens
+          cp test/*.png ../niosmess_landing/public/screens/
+          echo "=== Generated screenshots ==="
+          ls -la ../niosmess_landing/public/screens/*.png
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
