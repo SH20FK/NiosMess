@@ -21,10 +21,8 @@ enum BackgroundMode { off, economy, reliable }
 class UiSettingsState {
   const UiSettingsState({
     required this.themeMode,
-    required this.variant,
     required this.seedColor,
     required this.notifications,
-    required this.darkCallBackdrop,
     required this.compactMode,
     required this.haptics,
     required this.hideOnline,
@@ -41,10 +39,8 @@ class UiSettingsState {
 
   const UiSettingsState.defaults()
     : themeMode = ThemeMode.system,
-      variant = Md3Variant.tonalSpot,
       seedColor = const Color(0xFF6750A4),
       notifications = true,
-      darkCallBackdrop = false,
       compactMode = false,
       haptics = true,
       hideOnline = false,
@@ -59,10 +55,8 @@ class UiSettingsState {
       useSystemDynamic = false;
 
   final ThemeMode themeMode;
-  final Md3Variant variant;
   final Color seedColor;
   final bool notifications;
-  final bool darkCallBackdrop;
   final bool compactMode;
   final bool haptics;
   final bool hideOnline;
@@ -78,10 +72,8 @@ class UiSettingsState {
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
-    Md3Variant? variant,
     Color? seedColor,
     bool? notifications,
-    bool? darkCallBackdrop,
     bool? compactMode,
     bool? haptics,
     bool? hideOnline,
@@ -99,10 +91,8 @@ class UiSettingsState {
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
-      variant: variant ?? this.variant,
       seedColor: seedColor ?? this.seedColor,
       notifications: notifications ?? this.notifications,
-      darkCallBackdrop: darkCallBackdrop ?? this.darkCallBackdrop,
       compactMode: compactMode ?? this.compactMode,
       haptics: haptics ?? this.haptics,
       hideOnline: hideOnline ?? this.hideOnline,
@@ -129,10 +119,8 @@ class UiSettingsState {
 
 class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _themeModeKey = 'ui.themeMode';
-  static const String _variantKey = 'ui.variant';
   static const String _seedColorKey = 'ui.seedColor';
   static const String _notificationsKey = 'ui.notifications';
-  static const String _darkBackdropKey = 'ui.darkBackdrop';
   static const String _compactKey = 'ui.compact';
   static const String _hapticsKey = 'ui.haptics';
   static const String _hideOnlineKey = 'ui.hideOnline';
@@ -160,7 +148,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     if (_loaded) return;
     _loaded = true;
     final String? modeRaw = prefs.getString(_themeModeKey);
-    final String? variantRaw = prefs.getString(_variantKey);
     final int? seedRaw = prefs.getInt(_seedColorKey);
     final String? localeCodeRaw = prefs.getString(_localeCodeKey);
     final String? timeZoneModeRaw = prefs.getString(_timeZoneModeKey);
@@ -171,14 +158,8 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
         (ThemeMode mode) => mode.name == modeRaw,
         orElse: () => ThemeMode.system,
       ),
-      variant: Md3Variant.values.firstWhere(
-        (Md3Variant variant) => variant.name == variantRaw,
-        orElse: () => Md3Variant.tonalSpot,
-      ),
       seedColor: seedRaw == null ? state.seedColor : Color(seedRaw),
       notifications: prefs.getBool(_notificationsKey) ?? state.notifications,
-      darkCallBackdrop:
-          prefs.getBool(_darkBackdropKey) ?? state.darkCallBackdrop,
       compactMode: prefs.getBool(_compactKey) ?? state.compactMode,
       haptics: prefs.getBool(_hapticsKey) ?? state.haptics,
       hideOnline: prefs.getBool(_hideOnlineKey) ?? state.hideOnline,
@@ -212,10 +193,8 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await Future.wait(<Future<bool>>[
       prefs.setString(_themeModeKey, nextState.themeMode.name),
-      prefs.setString(_variantKey, nextState.variant.name),
       prefs.setInt(_seedColorKey, nextState.seedColor.toARGB32()),
       prefs.setBool(_notificationsKey, nextState.notifications),
-      prefs.setBool(_darkBackdropKey, nextState.darkCallBackdrop),
       prefs.setBool(_compactKey, nextState.compactMode),
       prefs.setBool(_hapticsKey, nextState.haptics),
       prefs.setBool(_hideOnlineKey, nextState.hideOnline),
@@ -247,15 +226,10 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     _set(state.copyWith(themeMode: value));
   }
 
-  void setVariant(Md3Variant value) => _set(state.copyWith(variant: value));
-
   void setSeedColor(Color value) => _set(state.copyWith(seedColor: value));
 
   void setNotifications(bool value) =>
       _set(state.copyWith(notifications: value));
-
-  void setDarkCallBackdrop(bool value) =>
-      _set(state.copyWith(darkCallBackdrop: value));
 
   void setCompactMode(bool value) => _set(state.copyWith(compactMode: value));
 

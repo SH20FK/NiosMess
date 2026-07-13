@@ -153,7 +153,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                   // Privacy & Security
                   SettingsSection(
-                    title: 'Privacy & Security',
+                    title: context.l10n.profileSectionPrivacySecurity,
                     children: <Widget>[
                       SettingsTile(
                         icon: Icons.lock_outline_rounded,
@@ -198,12 +198,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                   // System
                   SettingsSection(
-                    title: 'System',
+                    title: context.l10n.commonSystem,
                     children: <Widget>[
                       SettingsTile(
                         icon: Icons.tune_rounded,
-                        title: 'Preferences',
-                        subtitle: 'Sound, haptics, performance',
+                        title: context.l10n.profilePreferences,
+                        subtitle: context.l10n.settingsPreferencesBannerSubtitle,
                         onTap: () => context.push('/settings/preferences'),
                       ),
                     ],

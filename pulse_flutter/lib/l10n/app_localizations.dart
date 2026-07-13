@@ -6542,66 +6542,6 @@ abstract class AppLocalizations {
   /// **'Use colors from your device wallpaper'**
   String get appearanceSystemColorsSubtitle;
 
-  /// No description provided for @settingsPreferencesTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Preferences'**
-  String get settingsPreferencesTitle;
-
-  /// No description provided for @settingsPreferencesBannerSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Sound, haptics, and performance tuning'**
-  String get settingsPreferencesBannerSubtitle;
-
-  /// No description provided for @settingsPreferencesSoundHaptics.
-  ///
-  /// In en, this message translates to:
-  /// **'Sound & Haptics'**
-  String get settingsPreferencesSoundHaptics;
-
-  /// No description provided for @settingsPreferencesPerformance.
-  ///
-  /// In en, this message translates to:
-  /// **'Performance'**
-  String get settingsPreferencesPerformance;
-
-  /// No description provided for @settingsSoundEffectsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Play sounds on navigation and interactions'**
-  String get settingsSoundEffectsSubtitle;
-
-  /// No description provided for @settingsHapticFeedback.
-  ///
-  /// In en, this message translates to:
-  /// **'Haptic feedback'**
-  String get settingsHapticFeedback;
-
-  /// No description provided for @settingsHapticFeedbackSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Vibrate on taps and interactions'**
-  String get settingsHapticFeedbackSubtitle;
-
-  /// No description provided for @settingsVolume.
-  ///
-  /// In en, this message translates to:
-  /// **'Volume'**
-  String get settingsVolume;
-
-  /// No description provided for @settingsCompactModeSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Reduce spacing for denser layouts'**
-  String get settingsCompactModeSubtitle;
-
-  /// No description provided for @settingsPredictiveBackDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Preview the previous page before going back'**
-  String get settingsPredictiveBackDescription;
-
   /// No description provided for @sessionsTerminateAll.
   ///
   /// In en, this message translates to:
@@ -6619,6 +6559,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All other devices will be signed out.'**
   String get sessionsTerminateAllConfirmBody;
+
+  /// No description provided for @profileSectionPrivacySecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy & Security'**
+  String get profileSectionPrivacySecurity;
+
+  /// No description provided for @groupProfileShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get groupProfileShare;
+
+  /// No description provided for @groupProfileLinkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Link copied'**
+  String get groupProfileLinkCopied;
+
+  /// No description provided for @groupProfilePublicLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Public link'**
+  String get groupProfilePublicLink;
+
+  /// No description provided for @commonChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get commonChat;
+
+  /// No description provided for @chatNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat not found'**
+  String get chatNotFound;
+
+  /// No description provided for @aboutDeveloper.
+  ///
+  /// In en, this message translates to:
+  /// **'About Developer'**
+  String get aboutDeveloper;
+
+  /// No description provided for @aboutLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest'**
+  String get aboutLatest;
+
+  /// No description provided for @settingsLanguageAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get settingsLanguageAuto;
+
+  /// No description provided for @contactDetailNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact not found'**
+  String get contactDetailNotFound;
 
   /// No description provided for @dialogCancel.
   ///

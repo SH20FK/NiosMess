@@ -596,12 +596,6 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
-  String _formatDuration(int seconds) {
-    final int m = seconds ~/ 60;
-    final int s = seconds % 60;
-    return '${m}:${s.toString().padLeft(2, '0')}';
-  }
-
   Widget _mediaPreview(
     BuildContext context, {
     required ColorScheme scheme,

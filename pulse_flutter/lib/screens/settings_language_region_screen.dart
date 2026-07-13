@@ -66,7 +66,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                   : (selectedLocale == 'ru'
                         ? context.l10n.languageRussian
                         : context.l10n.languageEnglish),
-              value: selectedLocale == null ? 'Auto' : selectedLocale.toUpperCase(),
+              value: selectedLocale == null ? context.l10n.settingsLanguageAuto : selectedLocale.toUpperCase(),
               iconColor: scheme.primary,
             ),
           ],

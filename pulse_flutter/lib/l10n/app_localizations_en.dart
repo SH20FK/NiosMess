@@ -3609,41 +3609,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Use colors from your device wallpaper';
 
   @override
-  String get settingsPreferencesTitle => 'Preferences';
-
-  @override
-  String get settingsPreferencesBannerSubtitle =>
-      'Sound, haptics, and performance tuning';
-
-  @override
-  String get settingsPreferencesSoundHaptics => 'Sound & Haptics';
-
-  @override
-  String get settingsPreferencesPerformance => 'Performance';
-
-  @override
-  String get settingsSoundEffectsSubtitle =>
-      'Play sounds on navigation and interactions';
-
-  @override
-  String get settingsHapticFeedback => 'Haptic feedback';
-
-  @override
-  String get settingsHapticFeedbackSubtitle =>
-      'Vibrate on taps and interactions';
-
-  @override
-  String get settingsVolume => 'Volume';
-
-  @override
-  String get settingsCompactModeSubtitle =>
-      'Reduce spacing for denser layouts';
-
-  @override
-  String get settingsPredictiveBackDescription =>
-      'Preview the previous page before going back';
-
-  @override
   String get sessionsTerminateAll => 'Terminate all other sessions';
 
   @override
@@ -3653,6 +3618,36 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get sessionsTerminateAllConfirmBody =>
       'All other devices will be signed out.';
+
+  @override
+  String get profileSectionPrivacySecurity => 'Privacy & Security';
+
+  @override
+  String get groupProfileShare => 'Share';
+
+  @override
+  String get groupProfileLinkCopied => 'Link copied';
+
+  @override
+  String get groupProfilePublicLink => 'Public link';
+
+  @override
+  String get commonChat => 'Chat';
+
+  @override
+  String get chatNotFound => 'Chat not found';
+
+  @override
+  String get aboutDeveloper => 'About Developer';
+
+  @override
+  String get aboutLatest => 'Latest';
+
+  @override
+  String get settingsLanguageAuto => 'Auto';
+
+  @override
+  String get contactDetailNotFound => 'Contact not found';
 
   @override
   String get dialogCancel => 'Cancel';

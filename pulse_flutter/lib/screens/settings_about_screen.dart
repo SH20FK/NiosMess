@@ -184,7 +184,7 @@ class _HeroBlock extends StatelessWidget {
                     .fade(duration: 400.ms),
                   const SizedBox(height: 16),
                   Text(
-                    'NiosMess',
+                    context.l10n.appName,
                     textAlign: TextAlign.center,
                     style: textTheme.displaySmall?.copyWith(
                       fontWeight: FontWeight.w900,
@@ -608,7 +608,7 @@ class _ReleaseCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'Latest',
+                    context.l10n.aboutLatest,
                     style: textTheme.labelSmall?.copyWith(
                       color: scheme.onPrimary,
                       fontWeight: FontWeight.w700,

@@ -8,9 +8,9 @@ import 'package:pulse_flutter/router/app_router.dart';
 
 @pragma('vm:entry-point')
 Future<void> _onBackgroundMessage(RemoteMessage message) async {
-  // Background messages are handled by the system tray notification
-  // delivered via the `notification` payload in the FCM message.
-  // No custom Dart logic needed here — Firebase handles display.
+  // Data-only messages need manual local notification display
+  if (message.notification != null) return;
+  await PushNotificationService.showLocalNotification(message.data);
 }
 
 class PushNotificationService {
@@ -24,6 +24,27 @@ class PushNotificationService {
 
   static void setCurrentChat(int? chatId) {
     _currentChatId = chatId;
+  }
+
+  static Future<void> showLocalNotification(Map<String, dynamic> data) async {
+    final String title = data['title']?.toString() ?? data['route']?.toString() ?? 'NiosMess';
+    final String body = data['body']?.toString() ?? '';
+    if (title.isEmpty && body.isEmpty) return;
+    await _local.show(
+      id: ++_notificationIdCounter,
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'niosmess_messages',
+          'NiosMess Messages',
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
+      ),
+      payload: jsonEncode(data),
+    );
   }
 
   static Future<void> init() async {
@@ -88,8 +109,12 @@ class PushNotificationService {
 
   static Future<void> _onForegroundMessage(RemoteMessage message) async {
     final Map<String, dynamic> data = message.data;
-    final String title = message.notification?.title ?? 'NiosMess';
-    final String body = message.notification?.body ?? '';
+    final String title = message.notification?.title
+        ?? data['title']?.toString()
+        ?? 'NiosMess';
+    final String body = message.notification?.body
+        ?? data['body']?.toString()
+        ?? '';
 
     final Object? chatIdRaw = data['chat_id'];
     final int? chatId = chatIdRaw is int

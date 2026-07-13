@@ -11,22 +11,11 @@ class AppTheme {
   static final LinkedHashMap<int, ThemeData> _themeCache =
       LinkedHashMap<int, ThemeData>();
 
-  static DynamicSchemeVariant _variant(Md3Variant variant) {
-    return switch (variant) {
-      Md3Variant.tonalSpot => DynamicSchemeVariant.tonalSpot,
-      Md3Variant.vibrant => DynamicSchemeVariant.vibrant,
-      Md3Variant.expressive => DynamicSchemeVariant.expressive,
-      Md3Variant.neutral => DynamicSchemeVariant.neutral,
-      Md3Variant.monochrome => DynamicSchemeVariant.monochrome,
-      Md3Variant.fidelity => DynamicSchemeVariant.fidelity,
-    };
-  }
-
   static ColorScheme _scheme(UiSettingsState settings, Brightness brightness) {
     return ColorScheme.fromSeed(
       seedColor: settings.seedColor,
       brightness: brightness,
-      dynamicSchemeVariant: _variant(settings.variant),
+      dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
     );
   }
 
@@ -51,7 +40,7 @@ class AppTheme {
   }
 
   static ThemeData themed(UiSettingsState settings, Brightness brightness) {
-    final int cacheKey = settings.seedColor.toARGB32() ^ brightness.index ^ settings.variant.index;
+    final int cacheKey = settings.seedColor.toARGB32() ^ brightness.index;
     final ThemeData? cached = _themeCache[cacheKey];
     if (cached != null) return cached;
 

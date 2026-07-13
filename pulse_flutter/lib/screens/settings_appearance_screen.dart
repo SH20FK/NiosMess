@@ -677,13 +677,13 @@ class _InteractiveComponentsPreviewState
               children: [
                 Expanded(
                   child: FilledButton(
-                    onPressed: () {},
+                    onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Подтвердить'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton(
-                  onPressed: () {},
+                  onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Отмена'),
                 ),
               ],

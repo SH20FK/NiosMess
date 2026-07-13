@@ -466,7 +466,8 @@ class AuthNotifier extends Notifier<AuthState> {
     if (kIsWeb) return;
     await _fcmTokenRefreshSubscription?.cancel();
     _fcmTokenRefreshSubscription = null;
-    PushNotificationService.getToken().then((fcmToken) {
+    try {
+      final String? fcmToken = await PushNotificationService.getToken();
       if (fcmToken != null) {
         ref.read(webSocketClientProvider).request(
               'register_fcm_token',
@@ -476,7 +477,9 @@ class AuthNotifier extends Notifier<AuthState> {
               },
             );
       }
-    });
+    } catch (e) {
+      debugPrint('[AuthNotifier] Failed to register FCM token: $e');
+    }
 
     _fcmTokenRefreshSubscription = PushNotificationService.onTokenRefresh.listen((newToken) {
       ref.read(webSocketClientProvider).request(

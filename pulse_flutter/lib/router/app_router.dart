@@ -63,13 +63,14 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
     refreshListenable: refreshListenable,
     redirect: (BuildContext context, GoRouterState state) {
       final AuthState authState = ref.read(authProvider);
+      if (!authState.hydrated) return null;
       final bool isAuth = authState.isAuthenticated;
       final String path = state.uri.path;
 
       final bool isPublic = path == '/' || path == '/login' || path == '/register' || path == '/onboarding' || path.startsWith('/reset-password') || path.startsWith('/verify-email') || path.startsWith('/2fa') || path.startsWith('/setup');
 
       if (!isAuth && !isPublic) return '/login';
-      if (isAuth && (path == '/login' || path == '/onboarding' || path == '/register' || path.startsWith('/2fa'))) return '/main/chats';
+      if (isAuth && (path == '/login' || path == '/onboarding' || path == '/register' || path.startsWith('/setup') || path.startsWith('/2fa'))) return '/main/chats';
       return null;
     },
     routes: <RouteBase>[
@@ -215,10 +216,6 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/settings/sessions',
         pageBuilder: (context, state) => _page(state, const SessionsScreen(), pageKey: state.pageKey),
-      ),
-      GoRoute(
-        path: '/two-fa',
-        pageBuilder: (context, state) => _page(state, const TwoFaScreen()),
       ),
       GoRoute(
         path: '/niosgram/create',

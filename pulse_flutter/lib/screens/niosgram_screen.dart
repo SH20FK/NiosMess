@@ -227,7 +227,7 @@ class _NotificationsBell extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             tooltip: context.l10n.settingsPushNotifications,
-            onPressed: null,
+            onPressed: () => context.push('/settings/privacy'),
           ),
           if (count > 0)
             Positioned(

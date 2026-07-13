@@ -188,11 +188,9 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
   Future<void> _toggleBan(ApiChatMember member, bool ban) async {
     final bool? confirmed = await showAppConfirmDialog(
       context: context,
-      title: ban ? 'Ban member?' : 'Unban member?',
-      subtitle: ban
-          ? 'This member will lose access until you restore them.'
-          : 'Restore this member and let them rejoin the conversation.',
-      confirmLabel: ban ? 'Ban' : 'Unban',
+      title: ban ? context.l10n.chatMembersBanConfirmTitle : context.l10n.chatMembersUnbanConfirmTitle,
+      subtitle: ban ? context.l10n.chatMembersBanConfirmBody : context.l10n.chatMembersUnbanConfirmBody,
+      confirmLabel: ban ? context.l10n.chatMembersBan : context.l10n.chatMembersUnban,
       cancelLabel: context.l10n.commonCancel,
       destructive: ban,
       icon: ban ? Icons.gpp_bad_rounded : Icons.verified_user_rounded,
@@ -217,11 +215,9 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
   Future<void> _toggleMute(ApiChatMember member, bool mute) async {
     final bool? confirmed = await showAppConfirmDialog(
       context: context,
-      title: mute ? 'Mute member?' : 'Unmute member?',
-      subtitle: mute
-          ? 'Muted members can stay in the chat but cannot participate normally.'
-          : 'Allow this member to participate again.',
-      confirmLabel: mute ? 'Mute' : 'Unmute',
+      title: mute ? context.l10n.chatMembersMuteConfirmTitle : context.l10n.chatMembersUnmuteConfirmTitle,
+      subtitle: mute ? context.l10n.chatMembersMuteConfirmBody : context.l10n.chatMembersUnmuteConfirmBody,
+      confirmLabel: mute ? context.l10n.chatMembersMute : context.l10n.chatMembersUnmute,
       cancelLabel: context.l10n.commonCancel,
       icon: mute ? Icons.volume_off_rounded : Icons.volume_up_rounded,
       destructive: false,

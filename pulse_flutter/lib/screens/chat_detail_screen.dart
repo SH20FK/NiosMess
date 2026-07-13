@@ -692,16 +692,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           .loadOlder(pageSize: 50);
       return added > 0;
     } catch (error) {
-      if (!mounted) {
-        return false;
-      }
+      if (!mounted) return false;
       final String text = error is ApiException
           ? error.message
           : context.l10n.commonFailed('$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-    } finally {
+      return false;
     }
-    return true;
   }
 
   Future<void> _pickAndUploadMedia() async {

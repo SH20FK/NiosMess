@@ -193,7 +193,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                     children: <Widget>[
                       PulseAvatar(
                         radius: 34,
-                        name: chat?.name ?? 'Chat',
+                        name: chat?.name ?? context.l10n.commonChat,
                         avatarUrl: chat?.avatarUrl,
                         fallbackColor: scheme.primaryContainer,
                         textColor: scheme.onPrimaryContainer,
@@ -204,7 +204,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(
-                              chat?.name ?? 'Chat',
+                              chat?.name ?? context.l10n.commonChat,
                               style: textTheme.headlineSmall,
                             ),
                             const SizedBox(height: 4),

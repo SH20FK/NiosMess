@@ -137,7 +137,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
               title: _hasKey ? context.l10n.e2eeKeyPairReady : context.l10n.e2eeNoKeyPair,
               subtitle: _hasKey ? context.l10n.e2eeTapToRegenerate : context.l10n.e2eeGenerateKeyPair,
               iconColor: _hasKey ? Colors.green : scheme.onSurfaceVariant,
-              onTap: _loading || _hasKey ? () {} : () { _generateKey(); },
+              onTap: _loading ? () {} : _hasKey ? _rotateKey : _generateKey,
             ),
             if (_hasKey)
               SettingsTile(

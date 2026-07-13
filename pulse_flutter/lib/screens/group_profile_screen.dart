@@ -43,7 +43,7 @@ class GroupProfileScreen extends ConsumerWidget {
       body: chat == null
           ? const PulseScaffoldBody(
               maxWidth: 980,
-              child: Center(child: Text('Chat not found')),
+              child: Center(child: Text(context.l10n.chatNotFound)),
             )
           : Align(
               alignment: Alignment.topCenter,
@@ -59,7 +59,7 @@ class GroupProfileScreen extends ConsumerWidget {
                     if (chat.description.trim().isNotEmpty)
                       _buildInfoCard(
                         context, scheme, textTheme,
-                        title: 'Description',
+                        title: context.l10n.profileDescription,
                         child: Text(
                           chat.description,
                           style: textTheme.bodyMedium?.copyWith(
@@ -77,7 +77,7 @@ class GroupProfileScreen extends ConsumerWidget {
                         children: <Widget>[
                           Expanded(
                             child: PulseButton(
-                              label: 'Members',
+                              label: context.l10n.chatMembers,
                               icon: Icons.people_rounded,
                               onPressed: () => context.push('/chat/$chatId/members'),
                             ),
@@ -85,14 +85,14 @@ class GroupProfileScreen extends ConsumerWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: PulseButton(
-                              label: 'Share',
+                              label: context.l10n.groupProfileShare,
                               icon: Icons.share_rounded,
                               onPressed: () {
                                 Clipboard.setData(ClipboardData(
                                   text: chat.inviteLink ?? chat.shareLink ?? 'https://niosmess.com/chat/$chatId',
                                 ));
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Link copied')),
+                                  SnackBar(content: Text(context.l10n.groupProfileLinkCopied)),
                                 );
                               },
                             ),
@@ -110,7 +110,7 @@ class GroupProfileScreen extends ConsumerWidget {
   Widget _buildHeader(BuildContext context, ColorScheme scheme, TextTheme textTheme, ApiChatSummary chat) {
     final bool isChannel = chat.chatType == 'channel';
     final IconData typeIcon = isChannel ? Icons.campaign_rounded : Icons.groups_rounded;
-    final String typeLabel = isChannel ? 'Channel' : 'Group';
+    final String typeLabel = isChannel ? context.l10n.groupTypeChannel : context.l10n.groupTypeGroup;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -272,7 +272,7 @@ class GroupProfileScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'Public link',
+                    context.l10n.groupProfilePublicLink,
                     style: textTheme.labelLarge?.copyWith(
                       color: scheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,

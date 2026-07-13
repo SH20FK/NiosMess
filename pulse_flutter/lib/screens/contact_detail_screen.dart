@@ -85,7 +85,7 @@ class _ContactDetailScreenState extends ConsumerState<ContactDetailScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        _error ?? 'Contact not found',
+                        _error ?? context.l10n.contactDetailNotFound,
                         style: textTheme.titleLarge,
                       ),
                       const SizedBox(height: 12),

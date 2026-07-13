@@ -484,15 +484,18 @@ class _GroupScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Column(children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (final user in _users.take(5))
-                  Padding(
-                    padding: const EdgeInsets.only(right: -6),
-                    child: _Avatar(user.name, user.color, size: 22),
-                  ),
-              ],
+            SizedBox(
+              height: 22,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  for (var i = 0; i < _users.take(5).length; i++)
+                    Positioned(
+                      left: i * 16.0,
+                      child: _Avatar(_users[i].name, _users[i].color, size: 22),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             Text('Dev Chat', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),

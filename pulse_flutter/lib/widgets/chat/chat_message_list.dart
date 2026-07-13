@@ -135,32 +135,6 @@ class _ChatMessageListState extends State<ChatMessageList> {
   List<ApiMessage>? _cachedMessages;
   Map<int, ApiMessage>? _byIdCache;
   final Map<int, GlobalKey> _messageKeys = <int, GlobalKey>{};
-  final Set<int> _requestedReplies = <int>{};
-  int? _highlightedMessageId;
-
-  void _scrollToMessage(int targetId) {
-    final GlobalKey? key = _messageKeys[targetId];
-    if (key?.currentContext != null) {
-      Scrollable.ensureVisible(
-        key!.currentContext!,
-        alignment: 0.3,
-        duration: const Duration(milliseconds: 300),
-      );
-      setState(() => _highlightedMessageId = targetId);
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) setState(() => _highlightedMessageId = null);
-      });
-    }
-  }
-
-  void _loadMessageIfNeeded(int targetId, Map<int, ApiMessage> byId) {
-    if (!byId.containsKey(targetId) && !_requestedReplies.contains(targetId)) {
-      _requestedReplies.add(targetId);
-      // TODO: load single message via WS
-      // This will be implemented when the server supports it
-    }
-  }
-
   @override
   void didUpdateWidget(ChatMessageList oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -233,7 +207,6 @@ class _ChatMessageListState extends State<ChatMessageList> {
             replyPreview: widget.replyPreviewBuilder(message, byId),
             replyToId: message.replyToId,
             onReplyTap: message.replyToId != null ? () {
-              _loadMessageIfNeeded(message.replyToId!, byId);
               _scrollToMessage(message.replyToId!);
             } : null,
             reactions: message.reactions,

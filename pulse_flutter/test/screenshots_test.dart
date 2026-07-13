@@ -1,16 +1,10 @@
-import 'dart:io';
+import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/screenshots/mock_app.dart';
 
-/// Generates screenshots for the landing page using mock app screens.
-///
-/// Usage:
-///   flutter test test/screenshots_test.dart
-///
-/// Output: ../niosmess_landing/public/screens/*.png
 void main() {
   const screens = [
     ('chats', 0),
@@ -32,17 +26,16 @@ void main() {
           child: MockScreenshotsApp(page: page),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
 
       final boundary = boundaryKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
       final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
 
-      final dir = Directory('../niosmess_landing/public/screens');
-      if (!dir.existsSync()) dir.createSync(recursive: true);
-      await File('${dir.path}/$name.png').writeAsBytes(pngBytes);
-      debugPrint('Screenshot saved: $name.png');
+      // Output base64 to stdout for capture by external script
+      print('SCREENSHOT:$name:${base64Encode(pngBytes)}');
+      debugPrint('Screenshot captured: $name.png (${pngBytes.length} bytes)');
     });
   }
 }
