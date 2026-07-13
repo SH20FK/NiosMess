@@ -7,6 +7,7 @@ import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 
 class GroupProfileScreen extends ConsumerWidget {
@@ -41,7 +42,7 @@ class GroupProfileScreen extends ConsumerWidget {
         ),
       ),
       body: chat == null
-          ? const PulseScaffoldBody(
+          ? PulseScaffoldBody(
               maxWidth: 980,
               child: Center(child: Text(context.l10n.chatNotFound)),
             )
@@ -69,7 +70,7 @@ class GroupProfileScreen extends ConsumerWidget {
                         ),
                       ),
                     if (chat.username != null && chat.username!.trim().isNotEmpty)
-                      _buildPublicLink(scheme, textTheme, chat),
+                      _buildPublicLink(context, scheme, textTheme, chat),
                     const SizedBox(height: 28),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: AppConstants.screenHorizontalPadding),
@@ -249,7 +250,7 @@ class GroupProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPublicLink(ColorScheme scheme, TextTheme textTheme, ApiChatSummary chat) {
+  Widget _buildPublicLink(BuildContext context, ColorScheme scheme, TextTheme textTheme, ApiChatSummary chat) {
     return Padding(
       padding: EdgeInsets.only(
         top: 12,

@@ -3685,4 +3685,34 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get appearanceFontSizeExtraLarge => 'Огромный';
+
+  @override
+  String get settingsPreferencesTitle => 'Настройки';
+
+  @override
+  String get settingsPreferencesBannerSubtitle => 'Звук, тактильный отклик и производительность';
+
+  @override
+  String get settingsPreferencesSoundHaptics => 'Звук и тактильный отклик';
+
+  @override
+  String get settingsSoundEffectsSubtitle => 'Воспроизводить звуки для сообщений и звонков';
+
+  @override
+  String get settingsVolume => 'Громкость';
+
+  @override
+  String get settingsHapticFeedback => 'Тактильный отклик';
+
+  @override
+  String get settingsHapticFeedbackSubtitle => 'Вибрировать при взаимодействиях';
+
+  @override
+  String get settingsPreferencesPerformance => 'Производительность';
+
+  @override
+  String get settingsCompactModeSubtitle => 'Уменьшить отступы и размеры элементов для более плотной компоновки';
+
+  @override
+  String get settingsPredictiveBackDescription => 'Показывать предпросмотр предыдущего экрана перед возвратом';
 }

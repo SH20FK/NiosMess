@@ -3669,4 +3669,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appearanceFontSizeExtraLarge => 'Extra large';
+
+  @override
+  String get settingsPreferencesTitle => 'Preferences';
+
+  @override
+  String get settingsPreferencesBannerSubtitle => 'Sound, haptics and performance';
+
+  @override
+  String get settingsPreferencesSoundHaptics => 'Sound & Haptics';
+
+  @override
+  String get settingsSoundEffectsSubtitle => 'Play sounds for incoming messages and calls';
+
+  @override
+  String get settingsVolume => 'Volume';
+
+  @override
+  String get settingsHapticFeedback => 'Haptic feedback';
+
+  @override
+  String get settingsHapticFeedbackSubtitle => 'Vibrate on interactions';
+
+  @override
+  String get settingsPreferencesPerformance => 'Performance';
+
+  @override
+  String get settingsCompactModeSubtitle => 'Reduce spacing and element sizes for a denser layout';
+
+  @override
+  String get settingsPredictiveBackDescription => 'Preview the previous screen before returning';
 }

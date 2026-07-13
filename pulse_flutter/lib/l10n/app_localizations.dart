@@ -6661,6 +6661,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Extra large'**
   String get appearanceFontSizeExtraLarge;
+
+  /// No description provided for @settingsPreferencesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferences'**
+  String get settingsPreferencesTitle;
+
+  /// No description provided for @settingsPreferencesBannerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound, haptics and performance'**
+  String get settingsPreferencesBannerSubtitle;
+
+  /// No description provided for @settingsPreferencesSoundHaptics.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound & Haptics'**
+  String get settingsPreferencesSoundHaptics;
+
+  /// No description provided for @settingsSoundEffectsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Play sounds for incoming messages and calls'**
+  String get settingsSoundEffectsSubtitle;
+
+  /// No description provided for @settingsVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume'**
+  String get settingsVolume;
+
+  /// No description provided for @settingsHapticFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Haptic feedback'**
+  String get settingsHapticFeedback;
+
+  /// No description provided for @settingsHapticFeedbackSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibrate on interactions'**
+  String get settingsHapticFeedbackSubtitle;
+
+  /// No description provided for @settingsPreferencesPerformance.
+  ///
+  /// In en, this message translates to:
+  /// **'Performance'**
+  String get settingsPreferencesPerformance;
+
+  /// No description provided for @settingsCompactModeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reduce spacing and element sizes for a denser layout'**
+  String get settingsCompactModeSubtitle;
+
+  /// No description provided for @settingsPredictiveBackDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview the previous screen before returning'**
+  String get settingsPredictiveBackDescription;
 }
 
 class _AppLocalizationsDelegate

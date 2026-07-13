@@ -135,6 +135,21 @@ class _ChatMessageListState extends State<ChatMessageList> {
   List<ApiMessage>? _cachedMessages;
   Map<int, ApiMessage>? _byIdCache;
   final Map<int, GlobalKey> _messageKeys = <int, GlobalKey>{};
+  int? _highlightedMessageId;
+
+  void _scrollToMessage(int messageId) {
+    final GlobalKey? key = _messageKeys[messageId];
+    if (key != null && key.currentContext != null) {
+      setState(() => _highlightedMessageId = messageId);
+      Scrollable.ensureVisible(
+        key.currentContext!,
+        alignment: 0.3,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOutCubic,
+      );
+    }
+  }
+
   @override
   void didUpdateWidget(ChatMessageList oldWidget) {
     super.didUpdateWidget(oldWidget);
