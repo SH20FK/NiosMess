@@ -2,17 +2,16 @@
 
 import { useRef } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
-import { MockChats, MockMessages, MockGroup, MockChannel, MockNiosgram, MockVoice, MockThemes, MockProfile } from "@/components/mock-screens"
 
 const SLIDES = [
-  { id: "chats",    label: "Chats",     desc: "Чат-лист с последними сообщениями, поиском и фильтром.",          component: MockChats },
-  { id: "messages", label: "Messages",  desc: "Живой диалог с текстом, E2EE и реакциями на сообщения.",           component: MockMessages },
-  { id: "group",    label: "Groups",    desc: "Групповой чат с участниками, ролями и управлением.",               component: MockGroup },
-  { id: "channel",  label: "Channels",  desc: "Канал с постами, комментариями и просмотрами.",                    component: MockChannel },
-  { id: "niosgram", label: "NiosGram",  desc: "Лента постов с медиа, лайками и комментариями.",                    component: MockNiosgram },
-  { id: "voice",    label: "Voice",     desc: "Голосовые сообщения и видеоплеер встроенные в чат.",                component: MockVoice },
-  { id: "themes",   label: "Themes",    desc: "Светлая, тёмная, AMOLED — Material You на выбор.",                 component: MockThemes },
-  { id: "profile",  label: "Profile",   desc: "Профиль с аватаром, бейджами и настройками.",                      component: MockProfile },
+  { id: "chats",    label: "Chats",     desc: "Чат-лист с последними сообщениями, поиском и фильтром." },
+  { id: "messages", label: "Messages",  desc: "Живой диалог с текстом, E2EE и реакциями на сообщения." },
+  { id: "group",    label: "Groups",    desc: "Групповой чат с участниками, ролями и управлением." },
+  { id: "channel",  label: "Channels",  desc: "Канал с постами, комментариями и просмотрами." },
+  { id: "niosgram", label: "NiosGram",  desc: "Лента постов с медиа, лайками и комментариями." },
+  { id: "voice",    label: "Voice",     desc: "Голосовые сообщения и видеоплеер встроенные в чат." },
+  { id: "themes",   label: "Themes",    desc: "Светлая, тёмная, AMOLED — Material You на выбор." },
+  { id: "profile",  label: "Profile",   desc: "Профиль с аватаром, бейджами и настройками." },
 ]
 
 const TOTAL = SLIDES.length
@@ -35,26 +34,23 @@ export default function ScrollGallery() {
 
         {/* phone */}
         <div className="hidden shrink-0 md:block">
-          <div className="relative h-[580px] w-[280px]">
+          <div className="relative h-[600px] w-[280px]">
             {/* glow */}
             <div className="absolute -inset-4 rounded-[48px] bg-[#6750a4]/10 blur-2xl" />
             {/* body */}
             <div className="relative z-10 h-full overflow-hidden rounded-[40px] border-4 border-zinc-800 bg-zinc-900 shadow-2xl shadow-[#6750a4]/20">
               <div className="absolute left-1/2 top-0 z-20 h-6 w-32 -translate-x-1/2 rounded-b-2xl bg-zinc-900" />
               <div className="absolute left-1/2 top-1.5 z-20 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-zinc-800" />
-              <div className="h-full pt-0 overflow-hidden rounded-[36px]">
-                {SLIDES.map((slide, i) => {
-                  const Comp = slide.component
-                  return (
-                    <motion.div
-                      key={slide.id}
-                      className="absolute inset-0 rounded-[36px]"
-                      style={{ opacity: useTransform(currentIndex, [i - 0.5, i, i + 0.5], [0, 1, 0]) }}
-                    >
-                      <Comp />
-                    </motion.div>
-                  )
-                })}
+              <div className="h-full overflow-hidden rounded-[36px]">
+                {SLIDES.map((slide, i) => (
+                  <motion.img
+                    key={slide.id}
+                    src={`/screens/${slide.id}.png`}
+                    alt={slide.label}
+                    className="absolute inset-0 h-full w-full object-cover rounded-[36px]"
+                    style={{ opacity: useTransform(currentIndex, [i - 0.5, i, i + 0.5], [0, 1, 0]) }}
+                  />
+                ))}
               </div>
               <div className="absolute bottom-2 left-1/2 z-20 h-1 w-28 -translate-x-1/2 rounded-full bg-zinc-700" />
             </div>

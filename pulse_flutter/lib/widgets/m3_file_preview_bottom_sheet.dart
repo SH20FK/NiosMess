@@ -208,15 +208,7 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
 
     if (typeInfo.isImage) {
       if (hasRemoteUrl) {
-        await nav.push(
-          MaterialPageRoute<void>(
-            builder: (_) => MediaViewerScreen(
-              url: mediaUrl!,
-              title: fileName,
-              mediaType: MediaType.image,
-            ),
-          ),
-        );
+        await nav.push('/media-viewer?url=${Uri.encodeComponent(mediaUrl!)}&title=${Uri.encodeComponent(fileName)}&type=image');
         return;
       }
       if (hasBytes) {

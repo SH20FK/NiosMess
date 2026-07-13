@@ -18,6 +18,16 @@ enum AppTimeZoneMode { auto, manual }
 
 enum BackgroundMode { off, economy, reliable }
 
+enum AppFontScale {
+  small(0.85),
+  normal(1.0),
+  large(1.15),
+  extraLarge(1.3);
+
+  const AppFontScale(this.scale);
+  final double scale;
+}
+
 class UiSettingsState {
   const UiSettingsState({
     required this.themeMode,
@@ -35,6 +45,7 @@ class UiSettingsState {
     required this.predictiveBackEnabled,
     required this.backgroundMode,
     required this.useSystemDynamic,
+    required this.fontScale,
   });
 
   const UiSettingsState.defaults()
@@ -52,7 +63,8 @@ class UiSettingsState {
       optimizeForWeakDevices = false,
       predictiveBackEnabled = true,
       backgroundMode = BackgroundMode.off,
-      useSystemDynamic = false;
+      useSystemDynamic = false,
+      fontScale = AppFontScale.normal;
 
   final ThemeMode themeMode;
   final Color seedColor;
@@ -69,6 +81,7 @@ class UiSettingsState {
   final bool predictiveBackEnabled;
   final BackgroundMode backgroundMode;
   final bool useSystemDynamic;
+  final AppFontScale fontScale;
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
@@ -88,6 +101,7 @@ class UiSettingsState {
     bool? predictiveBackEnabled,
     BackgroundMode? backgroundMode,
     bool? useSystemDynamic,
+    AppFontScale? fontScale,
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -107,6 +121,7 @@ class UiSettingsState {
           predictiveBackEnabled ?? this.predictiveBackEnabled,
       backgroundMode: backgroundMode ?? this.backgroundMode,
       useSystemDynamic: useSystemDynamic ?? this.useSystemDynamic,
+      fontScale: fontScale ?? this.fontScale,
     );
   }
 
@@ -133,6 +148,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _predictiveBackKey = 'ui.predictiveBack';
   static const String _backgroundModeKey = 'ui.backgroundMode';
   static const String _useSystemDynamicKey = 'ui.useSystemDynamic';
+  static const String _fontScaleKey = 'ui.fontScale';
 
   bool _loaded = false;
 
@@ -183,6 +199,10 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       ),
       useSystemDynamic:
           prefs.getBool(_useSystemDynamicKey) ?? state.useSystemDynamic,
+      fontScale: AppFontScale.values.firstWhere(
+        (AppFontScale fs) => fs.name == prefs.getString(_fontScaleKey),
+        orElse: () => AppFontScale.normal,
+      ),
     );
     } catch (e) {
       debugPrint('[UiSettingsNotifier] Failed to load settings: $e');
@@ -213,6 +233,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.setBool(_predictiveBackKey, nextState.predictiveBackEnabled),
       prefs.setString(_backgroundModeKey, nextState.backgroundMode.name),
       prefs.setBool(_useSystemDynamicKey, nextState.useSystemDynamic),
+      prefs.setString(_fontScaleKey, nextState.fontScale.name),
     ]);
   }
 
@@ -280,6 +301,9 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
 
   void setUseSystemDynamic(bool value) =>
       _set(state.copyWith(useSystemDynamic: value));
+
+  void setFontScale(AppFontScale value) =>
+      _set(state.copyWith(fontScale: value));
 }
 
 final NotifierProvider<UiSettingsNotifier, UiSettingsState> uiSettingsProvider =

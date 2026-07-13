@@ -137,7 +137,17 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: '/media-viewer',
         pageBuilder: (context, state) {
           final String url = Uri.decodeComponent(state.uri.queryParameters['url'] ?? '');
-          return _page(state, MediaViewerScreen(url: url, title: Uri.decodeComponent(state.uri.queryParameters['title'] ?? 'Attachment'), mediaType: state.uri.queryParameters['image'] == '1' ? MediaType.image : MediaType.other));
+          final String typeRaw = state.uri.queryParameters['type'] ?? '';
+          final MediaType mediaType = typeRaw == 'image'
+              ? MediaType.image
+              : typeRaw == 'video'
+                  ? MediaType.video
+                  : MediaType.other;
+          return _page(state, MediaViewerScreen(
+            url: url,
+            title: Uri.decodeComponent(state.uri.queryParameters['title'] ?? 'Attachment'),
+            mediaType: mediaType,
+          ));
         },
       ),
       GoRoute(

@@ -1125,15 +1125,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     final MediaType mt = _detectMediaType(message, mediaUrl, typeInfo);
     if (mt == MediaType.image || mt == MediaType.video) {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => MediaViewerScreen(
-            url: mediaUrl,
-            title: title,
-            mediaType: mt,
-          ),
-        ),
-      );
+      final String typeStr = mt == MediaType.image ? 'image' : 'video';
+      context.push('/media-viewer?url=${Uri.encodeComponent(mediaUrl)}&title=${Uri.encodeComponent(title)}&type=$typeStr');
       return;
     }
 

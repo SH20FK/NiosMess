@@ -3651,4 +3651,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dialogCancel => 'Cancel';
+
+  @override
+  String get appearanceFontSize => 'Font size';
+
+  @override
+  String get appearanceFontSizeSubtitle => 'Adjust the text size throughout the app';
+
+  @override
+  String get appearanceFontSizeSmall => 'Small';
+
+  @override
+  String get appearanceFontSizeNormal => 'Normal';
+
+  @override
+  String get appearanceFontSizeLarge => 'Large';
+
+  @override
+  String get appearanceFontSizeExtraLarge => 'Extra large';
 }

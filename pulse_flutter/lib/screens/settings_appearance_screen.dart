@@ -271,7 +271,7 @@ class _VaffuruThemeSettingsScreenState
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final Brightness brightness = scheme.brightness;
-    final previewSchemes = _buildPreviewSchemes(brightness, settings.variant);
+    final previewSchemes = _buildPreviewSchemes(brightness, Md3Variant.tonalSpot);
     final previewScheme = previewSchemes[_selectedPalette]!;
 
     return SettingsScaffold(
@@ -465,7 +465,90 @@ class _VaffuruThemeSettingsScreenState
           ],
         ),
         SizedBox(height: _density.sectionSpacing * 0.25),
-        // 5. Theme & Colors
+        // 5. Font size
+        SettingsSection(
+          title: context.l10n.appearanceFontSize,
+          subtitle: context.l10n.appearanceFontSizeSubtitle,
+          children: [
+            Padding(
+              padding: EdgeInsets.all(_density.heroPillSpacing + 2),
+              child: SegmentedButton<AppFontScale>(
+                showSelectedIcon: false,
+                segments: <ButtonSegment<AppFontScale>>[
+                  ButtonSegment<AppFontScale>(
+                    value: AppFontScale.small,
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(context.l10n.appearanceFontSizeSmall, style: const TextStyle(fontSize: 13), maxLines: 1),
+                    ),
+                  ),
+                  ButtonSegment<AppFontScale>(
+                    value: AppFontScale.normal,
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(context.l10n.appearanceFontSizeNormal, style: const TextStyle(fontSize: 13), maxLines: 1),
+                    ),
+                  ),
+                  ButtonSegment<AppFontScale>(
+                    value: AppFontScale.large,
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(context.l10n.appearanceFontSizeLarge, style: const TextStyle(fontSize: 13), maxLines: 1),
+                    ),
+                  ),
+                  ButtonSegment<AppFontScale>(
+                    value: AppFontScale.extraLarge,
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(context.l10n.appearanceFontSizeExtraLarge, style: const TextStyle(fontSize: 13), maxLines: 1),
+                    ),
+                  ),
+                ],
+                selected: <AppFontScale>{settings.fontScale},
+                onSelectionChanged: (Set<AppFontScale> values) {
+                  _playFeedback(settings);
+                  ref.read(uiSettingsProvider.notifier).setFontScale(values.first);
+                },
+                style: ButtonStyle(
+                  shape: const WidgetStatePropertyAll(StadiumBorder()),
+                  backgroundColor: WidgetStateProperty.resolveWith(
+                    (Set<WidgetState> states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return scheme.primaryContainer;
+                      }
+                      return scheme.surfaceContainerLow;
+                    },
+                  ),
+                  foregroundColor: WidgetStateProperty.resolveWith(
+                    (Set<WidgetState> states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return scheme.onPrimaryContainer;
+                      }
+                      return scheme.onSurfaceVariant;
+                    },
+                  ),
+                  side: WidgetStateProperty.resolveWith(
+                    (Set<WidgetState> states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return BorderSide(
+                          color: scheme.primary.withValues(alpha: 0.18),
+                        );
+                      }
+                      return BorderSide(
+                        color: scheme.outlineVariant.withValues(alpha: 0.28),
+                      );
+                    },
+                  ),
+                  padding: const WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: _density.sectionSpacing * 0.25),
+        // 6. Theme & Colors
         SettingsSection(
           title: context.l10n.appearanceThemeParamsTitle,
           subtitle: context.l10n.appearanceThemeParamsSubtitle,

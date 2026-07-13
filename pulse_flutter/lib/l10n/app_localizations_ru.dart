@@ -3667,4 +3667,22 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dialogCancel => 'Отмена';
+
+  @override
+  String get appearanceFontSize => 'Размер шрифта';
+
+  @override
+  String get appearanceFontSizeSubtitle => 'Настройте размер текста в приложении';
+
+  @override
+  String get appearanceFontSizeSmall => 'Маленький';
+
+  @override
+  String get appearanceFontSizeNormal => 'Обычный';
+
+  @override
+  String get appearanceFontSizeLarge => 'Большой';
+
+  @override
+  String get appearanceFontSizeExtraLarge => 'Огромный';
 }

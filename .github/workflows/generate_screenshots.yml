@@ -1,0 +1,39 @@
+name: Generate Screenshots
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'pulse_flutter/lib/screenshots/**'
+      - 'pulse_flutter/test/screenshots_test.dart'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pulse_flutter
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create output directory
+        run: mkdir -p ../niosmess_landing/public/screens
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Generate screenshots
+        run: flutter test test/screenshots_test.dart
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: niosmess_landing/public/screens/
+          if-no-files-found: error

@@ -77,6 +77,8 @@ class PulseApp extends ConsumerWidget {
         ref.watch(uiSettingsProvider.select((s) => s.timeZoneId));
     final bool useSystemDynamic =
         ref.watch(uiSettingsProvider.select((s) => s.useSystemDynamic));
+    final AppFontScale fontScale =
+        ref.watch(uiSettingsProvider.select((s) => s.fontScale));
     final AsyncValue<Color?> systemAccent =
         ref.watch(systemAccentColorProvider);
     final Color effectiveSeed = (useSystemDynamic &&
@@ -123,7 +125,10 @@ class PulseApp extends ConsumerWidget {
       themeMode: themeMode,
       routerConfig: router,
       builder: (BuildContext context, Widget? child) {
-        return child ?? const SizedBox.shrink();
+        final mediaQuery = MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(fontScale.scale),
+        );
+        return MediaQuery(data: mediaQuery, child: child ?? const SizedBox.shrink());
       },
     );
   }

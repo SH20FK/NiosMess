@@ -6625,6 +6625,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get dialogCancel;
+
+  /// No description provided for @appearanceFontSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Font size'**
+  String get appearanceFontSize;
+
+  /// No description provided for @appearanceFontSizeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust the text size throughout the app'**
+  String get appearanceFontSizeSubtitle;
+
+  /// No description provided for @appearanceFontSizeSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'Small'**
+  String get appearanceFontSizeSmall;
+
+  /// No description provided for @appearanceFontSizeNormal.
+  ///
+  /// In en, this message translates to:
+  /// **'Normal'**
+  String get appearanceFontSizeNormal;
+
+  /// No description provided for @appearanceFontSizeLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Large'**
+  String get appearanceFontSizeLarge;
+
+  /// No description provided for @appearanceFontSizeExtraLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra large'**
+  String get appearanceFontSizeExtraLarge;
 }
 
 class _AppLocalizationsDelegate
