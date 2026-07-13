@@ -199,13 +199,9 @@ class _ContactDetailScreenState extends ConsumerState<ContactDetailScreen> {
                           ),
                         ],
                         const SizedBox(height: 18),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          alignment: WrapAlignment.center,
+                        Row(
                           children: <Widget>[
-                            SizedBox(
-                              width: 170,
+                            Expanded(
                               child: PulseButton(
                                 label: context.l10n.contactsMessage,
                                 icon: Icons.chat_rounded,
@@ -214,8 +210,8 @@ class _ContactDetailScreenState extends ConsumerState<ContactDetailScreen> {
                                 ),
                               ),
                             ),
-                            SizedBox(
-                              width: 170,
+                            const SizedBox(width: 12),
+                            Expanded(
                               child: PulseButton(
                                 label: context.l10n.settingsSecretChatsButton,
                                 icon: Icons.lock_rounded,

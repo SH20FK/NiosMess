@@ -3592,31 +3592,68 @@ class AppLocalizationsEn extends AppLocalizations {
   String get semanticsOff => 'off';
 
   @override
-
-
-  @override
   String get appearanceVariantTitle => 'Color scheme';
 
   @override
   String get appearanceVariantSubtitle => 'Choose tonal variant';
 
   @override
-  String get appearanceThemeModeSubtitle => 'Switch between light, dark, or system';
+  String get appearanceThemeModeSubtitle =>
+      'Switch between light, dark, or system';
 
   @override
   String get appearanceSystemColors => 'System colors';
 
   @override
-  String get appearanceSystemColorsSubtitle => 'Use colors from your device wallpaper';
+  String get appearanceSystemColorsSubtitle =>
+      'Use colors from your device wallpaper';
+
+  @override
+  String get settingsPreferencesTitle => 'Preferences';
+
+  @override
+  String get settingsPreferencesBannerSubtitle =>
+      'Sound, haptics, and performance tuning';
+
+  @override
+  String get settingsPreferencesSoundHaptics => 'Sound & Haptics';
+
+  @override
+  String get settingsPreferencesPerformance => 'Performance';
+
+  @override
+  String get settingsSoundEffectsSubtitle =>
+      'Play sounds on navigation and interactions';
+
+  @override
+  String get settingsHapticFeedback => 'Haptic feedback';
+
+  @override
+  String get settingsHapticFeedbackSubtitle =>
+      'Vibrate on taps and interactions';
+
+  @override
+  String get settingsVolume => 'Volume';
+
+  @override
+  String get settingsCompactModeSubtitle =>
+      'Reduce spacing for denser layouts';
+
+  @override
+  String get settingsPredictiveBackDescription =>
+      'Preview the previous page before going back';
 
   @override
   String get sessionsTerminateAll => 'Terminate all other sessions';
 
   @override
-  String get sessionsTerminateAllConfirmTitle => 'Terminate all other sessions?';
+  String get sessionsTerminateAllConfirmTitle =>
+      'Terminate all other sessions?';
 
   @override
-  String get sessionsTerminateAllConfirmBody => 'All other devices will be signed out.';
+  String get sessionsTerminateAllConfirmBody =>
+      'All other devices will be signed out.';
 
+  @override
   String get dialogCancel => 'Cancel';
 }

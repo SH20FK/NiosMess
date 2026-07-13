@@ -157,85 +157,6 @@ class _VaffuruThemeSettingsScreenState
     }
   }
 
-  Widget _md3VariantSelector(BuildContext context, UiSettingsState settings) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final List<Md3Variant> variants = Md3Variant.values;
-
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      color: scheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: scheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(Icons.palette_outlined, color: scheme.onSecondaryContainer, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(context.l10n.appearanceVariantTitle, style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: scheme.onSurface)),
-                      const SizedBox(height: 2),
-                      Text(context.l10n.appearanceVariantSubtitle, style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.35)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: variants.map((Md3Variant v) {
-                final bool selected = settings.variant == v;
-                return ChoiceChip(
-                  label: Text(_variantLabel(context, v), style: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
-                  selected: selected,
-                  onSelected: (_) {
-                    _playFeedback(settings);
-                    ref.read(uiSettingsProvider.notifier).setVariant(v);
-                  },
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                  selectedColor: scheme.primaryContainer,
-                  backgroundColor: scheme.surfaceContainerLow,
-                  labelStyle: TextStyle(color: selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant),
-                  side: BorderSide.none,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _variantLabel(BuildContext context, Md3Variant v) {
-    return switch (v) {
-      Md3Variant.tonalSpot => context.l10n.appearanceVariantTonalSpot,
-      Md3Variant.vibrant => context.l10n.appearanceVariantVibrant,
-      Md3Variant.expressive => context.l10n.appearanceVariantExpressive,
-      Md3Variant.neutral => context.l10n.appearanceVariantNeutral,
-      Md3Variant.monochrome => context.l10n.appearanceVariantMonochrome,
-      Md3Variant.fidelity => context.l10n.appearanceVariantFidelity,
-    };
-  }
-
   Widget _themeModeSelector(BuildContext context, UiSettingsState settings) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
@@ -560,9 +481,6 @@ class _VaffuruThemeSettingsScreenState
                 ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(value);
               },
             ),
-            if (!settings.useSystemDynamic) ...[
-              _md3VariantSelector(context, settings),
-            ],
             _themeModeSelector(context, settings),
           ],
         ),

@@ -75,10 +75,6 @@ class PulseApp extends ConsumerWidget {
         ref.watch(uiSettingsProvider.select((s) => s.timeZoneMode));
     final String? timeZoneId =
         ref.watch(uiSettingsProvider.select((s) => s.timeZoneId));
-    final Md3Variant variant =
-        ref.watch(uiSettingsProvider.select((s) => s.variant));
-    final bool predictiveBackEnabled =
-        ref.watch(uiSettingsProvider.select((s) => s.predictiveBackEnabled));
     final bool useSystemDynamic =
         ref.watch(uiSettingsProvider.select((s) => s.useSystemDynamic));
     final AsyncValue<Color?> systemAccent =

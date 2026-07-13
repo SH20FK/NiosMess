@@ -51,7 +51,7 @@ class AppTheme {
   }
 
   static ThemeData themed(UiSettingsState settings, Brightness brightness) {
-    final int cacheKey = settings.seedColor.toARGB32() ^ brightness.index ^ settings.variant.index ^ (settings.predictiveBackEnabled ? 1 : 0);
+    final int cacheKey = settings.seedColor.toARGB32() ^ brightness.index ^ settings.variant.index;
     final ThemeData? cached = _themeCache[cacheKey];
     if (cached != null) return cached;
 

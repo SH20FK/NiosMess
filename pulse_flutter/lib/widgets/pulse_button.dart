@@ -41,7 +41,7 @@ class PulseButton extends StatelessWidget {
           else if (icon != null)
             Icon(icon, size: 18),
           if (isLoading || icon != null) const SizedBox(width: 8),
-          Text(label),
+          Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
           ],
         ),
       ),

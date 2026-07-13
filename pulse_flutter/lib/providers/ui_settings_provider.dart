@@ -316,9 +316,12 @@ final NotifierProvider<UiSettingsNotifier, UiSettingsState> uiSettingsProvider =
 final FutureProvider<Color?> systemAccentColorProvider =
     FutureProvider<Color?>((Ref ref) async {
   if (!Platform.isAndroid && !Platform.isIOS) return null;
-  try {
-    return await DynamicColorPlugin.getAccentColor();
-  } catch (_) {
-    return null;
+  for (int i = 0; i < 3; i++) {
+    try {
+      final Color? color = await DynamicColorPlugin.getAccentColor();
+      if (color != null) return color;
+    } catch (_) {}
+    if (i < 2) await Future.delayed(Duration(milliseconds: 300 * (i + 1)));
   }
+  return null;
 });

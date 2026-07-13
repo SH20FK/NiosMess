@@ -3610,9 +3610,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get semanticsOff => 'выкл';
 
   @override
-
-
-  @override
   String get appearanceVariantTitle => 'Цветовая схема';
 
   @override
@@ -3628,13 +3625,51 @@ class AppLocalizationsRu extends AppLocalizations {
   String get appearanceSystemColorsSubtitle => 'Цвета из обоев устройства';
 
   @override
+  String get settingsPreferencesTitle => 'Настройки';
+
+  @override
+  String get settingsPreferencesBannerSubtitle =>
+      'Звук, вибрация и производительность';
+
+  @override
+  String get settingsPreferencesSoundHaptics => 'Звук и вибрация';
+
+  @override
+  String get settingsPreferencesPerformance => 'Производительность';
+
+  @override
+  String get settingsSoundEffectsSubtitle =>
+      'Воспроизводить звуки навигации и взаимодействий';
+
+  @override
+  String get settingsHapticFeedback => 'Тактильный отклик';
+
+  @override
+  String get settingsHapticFeedbackSubtitle =>
+      'Вибрация при нажатиях и взаимодействиях';
+
+  @override
+  String get settingsVolume => 'Громкость';
+
+  @override
+  String get settingsCompactModeSubtitle =>
+      'Уменьшить отступы для более плотной компоновки';
+
+  @override
+  String get settingsPredictiveBackDescription =>
+      'Предпросмотр предыдущей страницы перед возвратом';
+
+  @override
   String get sessionsTerminateAll => 'Завершить все остальные сессии';
 
   @override
-  String get sessionsTerminateAllConfirmTitle => 'Завершить все остальные сессии?';
+  String get sessionsTerminateAllConfirmTitle =>
+      'Завершить все остальные сессии?';
 
   @override
-  String get sessionsTerminateAllConfirmBody => 'Все остальные устройства будут отключены.';
+  String get sessionsTerminateAllConfirmBody =>
+      'Все остальные устройства будут отключены.';
 
+  @override
   String get dialogCancel => 'Отмена';
 }

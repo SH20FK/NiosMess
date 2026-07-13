@@ -6512,12 +6512,6 @@ abstract class AppLocalizations {
   /// **'off'**
   String get semanticsOff;
 
-  /// No description provided for @dialogCancel.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel'**
-
-
   /// No description provided for @appearanceVariantTitle.
   ///
   /// In en, this message translates to:
@@ -6548,6 +6542,66 @@ abstract class AppLocalizations {
   /// **'Use colors from your device wallpaper'**
   String get appearanceSystemColorsSubtitle;
 
+  /// No description provided for @settingsPreferencesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferences'**
+  String get settingsPreferencesTitle;
+
+  /// No description provided for @settingsPreferencesBannerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound, haptics, and performance tuning'**
+  String get settingsPreferencesBannerSubtitle;
+
+  /// No description provided for @settingsPreferencesSoundHaptics.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound & Haptics'**
+  String get settingsPreferencesSoundHaptics;
+
+  /// No description provided for @settingsPreferencesPerformance.
+  ///
+  /// In en, this message translates to:
+  /// **'Performance'**
+  String get settingsPreferencesPerformance;
+
+  /// No description provided for @settingsSoundEffectsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Play sounds on navigation and interactions'**
+  String get settingsSoundEffectsSubtitle;
+
+  /// No description provided for @settingsHapticFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Haptic feedback'**
+  String get settingsHapticFeedback;
+
+  /// No description provided for @settingsHapticFeedbackSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibrate on taps and interactions'**
+  String get settingsHapticFeedbackSubtitle;
+
+  /// No description provided for @settingsVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume'**
+  String get settingsVolume;
+
+  /// No description provided for @settingsCompactModeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reduce spacing for denser layouts'**
+  String get settingsCompactModeSubtitle;
+
+  /// No description provided for @settingsPredictiveBackDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview the previous page before going back'**
+  String get settingsPredictiveBackDescription;
+
   /// No description provided for @sessionsTerminateAll.
   ///
   /// In en, this message translates to:
@@ -6566,6 +6620,10 @@ abstract class AppLocalizations {
   /// **'All other devices will be signed out.'**
   String get sessionsTerminateAllConfirmBody;
 
+  /// No description provided for @dialogCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
   String get dialogCancel;
 }
 
