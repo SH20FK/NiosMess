@@ -227,7 +227,7 @@ class _VaffuruThemeSettingsScreenState
 
   String _variantLabel(BuildContext context, Md3Variant v) {
     return switch (v) {
-      Md3Variant.tonalSpot => context.l10n.appearanceVariantTonal,
+      Md3Variant.tonalSpot => context.l10n.appearanceVariantTonalSpot,
       Md3Variant.vibrant => context.l10n.appearanceVariantVibrant,
       Md3Variant.expressive => context.l10n.appearanceVariantExpressive,
       Md3Variant.neutral => context.l10n.appearanceVariantNeutral,
@@ -277,7 +277,7 @@ class _VaffuruThemeSettingsScreenState
             const SizedBox(height: 14),
             SegmentedButton<ThemeMode>(
               showSelectedIcon: false,
-              segments: const <ButtonSegment<ThemeMode>>[
+              segments: <ButtonSegment<ThemeMode>>[
                 ButtonSegment<ThemeMode>(value: ThemeMode.system, label: Text(context.l10n.commonSystem, style: TextStyle(fontSize: 13))),
                 ButtonSegment<ThemeMode>(value: ThemeMode.light, label: Text(context.l10n.appearanceLabelLight, style: TextStyle(fontSize: 13))),
                 ButtonSegment<ThemeMode>(value: ThemeMode.dark, label: Text(context.l10n.appearanceLabelDark, style: TextStyle(fontSize: 13))),

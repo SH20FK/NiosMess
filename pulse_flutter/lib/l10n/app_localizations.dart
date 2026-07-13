@@ -6517,17 +6517,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
 
-  /// No description provided for @appearanceSystemColors.
-  ///
-  /// In en, this message translates to:
-  /// **'System colors'**
-  String get appearanceSystemColors;
-
-  /// No description provided for @appearanceSystemColorsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Use colors from your device wallpaper'**
-  String get appearanceSystemColorsSubtitle;
 
   /// No description provided for @appearanceVariantTitle.
   ///
@@ -6541,54 +6530,23 @@ abstract class AppLocalizations {
   /// **'Choose tonal variant'**
   String get appearanceVariantSubtitle;
 
-  /// No description provided for @appearanceVariantTonal.
-  ///
-  /// In en, this message translates to:
-  /// **'Tonal'**
-  String get appearanceVariantTonal;
-
-  /// No description provided for @appearanceVariantVibrant.
-  ///
-  /// In en, this message translates to:
-  /// **'Vibrant'**
-  String get appearanceVariantVibrant;
-
-  /// No description provided for @appearanceVariantExpressive.
-  ///
-  /// In en, this message translates to:
-  /// **'Expressive'**
-  String get appearanceVariantExpressive;
-
-  /// No description provided for @appearanceVariantNeutral.
-  ///
-  /// In en, this message translates to:
-  /// **'Neutral'**
-  String get appearanceVariantNeutral;
-
-  /// No description provided for @appearanceVariantMonochrome.
-  ///
-  /// In en, this message translates to:
-  /// **'Monochrome'**
-  String get appearanceVariantMonochrome;
-
-  /// No description provided for @appearanceVariantFidelity.
-  ///
-  /// In en, this message translates to:
-  /// **'Fidelity'**
-  String get appearanceVariantFidelity;
-
-  /// No description provided for @appearanceThemeMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Theme mode'**
-  String get appearanceThemeMode;
-
   /// No description provided for @appearanceThemeModeSubtitle.
   ///
   /// In en, this message translates to:
   /// **'Switch between light, dark, or system'**
   String get appearanceThemeModeSubtitle;
 
+  /// No description provided for @appearanceSystemColors.
+  ///
+  /// In en, this message translates to:
+  /// **'System colors'**
+  String get appearanceSystemColors;
+
+  /// No description provided for @appearanceSystemColorsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use colors from your device wallpaper'**
+  String get appearanceSystemColorsSubtitle;
 
   /// No description provided for @sessionsTerminateAll.
   ///
