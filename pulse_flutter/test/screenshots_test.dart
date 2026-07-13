@@ -23,8 +23,16 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       final boundary = key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
       final image = await boundary.toImage(pixelRatio: 2.0);
-      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-      await File('${outDir.path}/$name.png').writeAsBytes(bytes!.buffer.asUint8List());
-    }, timeout: const Timeout(Duration(minutes: 5)));
+      final w = image.width;
+      final h = image.height;
+      final raw = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      // Write raw RGBA data: header line + raw pixel bytes
+      final header = '$w,$h\n';
+      final rawBytes = raw!.buffer.asUint8List();
+      final out = List<int>.generate(header.length + rawBytes.length, (i) {
+        return i < header.length ? header.codeUnitAt(i) : rawBytes[i - header.length];
+      });
+      await File('${outDir.path}/${name}.raw').writeAsBytes(out);
+    }, timeout: const Timeout(Duration(seconds: 30)));
   }
 }
