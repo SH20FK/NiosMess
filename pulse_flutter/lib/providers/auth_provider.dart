@@ -1,18 +1,19 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
+import 'package:pulse_flutter/core/services/push_notification_service.dart';
+import 'package:pulse_flutter/core/services/background_service.dart';
+import 'package:pulse_flutter/screenshots/mock_data_service.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:universal_io/io.dart';
-import 'package:flutter/foundation.dart';
-import 'package:pulse_flutter/core/services/push_notification_service.dart';
-import 'package:pulse_flutter/core/services/background_service.dart';
-import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
 class AuthState {
   const AuthState({
@@ -90,6 +91,22 @@ class AuthNotifier extends Notifier<AuthState> {
 
   @override
   AuthState build() {
+    if (kDebugMode) {
+      try {
+        final bool useMock = ref.read(uiSettingsProvider).useMockData;
+        if (useMock) {
+          _loadFuture = Future<void>.value();
+          return AuthState(
+            hydrated: true,
+            busy: false,
+            session: MockDataService.session,
+            pendingIdentifier: null,
+            error: null,
+            profile: MockDataService.profile,
+          );
+        }
+      } catch (_) {}
+    }
     _loadFuture = _load();
     ref.onDispose(() {
       _fcmTokenRefreshSubscription?.cancel();
