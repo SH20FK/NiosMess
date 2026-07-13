@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:pulse_flutter/core/diagnostics/app_logger.dart';
@@ -111,7 +111,7 @@ class PulseApp extends ConsumerWidget {
     return MaterialApp.router(
       onGenerateTitle: (BuildContext context) => context.l10n.appName,
       debugShowCheckedModeBanner: false,
-      showPerformanceOverlay: kDebugMode,
+      showPerformanceOverlay: false,
       locale: appLocale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
