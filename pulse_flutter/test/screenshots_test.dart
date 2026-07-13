@@ -25,6 +25,6 @@ void main() {
       final image = await boundary.toImage(pixelRatio: 2.0);
       final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
       await File('${outDir.path}/$name.png').writeAsBytes(bytes!.buffer.asUint8List());
-    });
+    }, timeout: const Timeout(Duration(minutes: 5)));
   }
 }
