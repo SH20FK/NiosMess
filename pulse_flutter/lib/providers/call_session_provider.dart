@@ -8,8 +8,16 @@ import 'package:pulse_flutter/repositories/call_repository.dart';
 /// Provider for the current active call session.
 ///
 /// null when no call is active.
-final StateProvider<CallSessionManager?> callSessionProvider =
-    StateProvider<CallSessionManager?>((_) => null);
+final callSessionProvider = NotifierProvider<CallSessionNotifier, CallSessionManager?>(
+  CallSessionNotifier.new,
+);
+
+class CallSessionNotifier extends Notifier<CallSessionManager?> {
+  @override
+  CallSessionManager? build() => null;
+
+  void setSession(CallSessionManager? manager) => state = manager;
+}
 
 /// Manages call session lifecycle — start, accept, end.
 class CallSessionManager {
@@ -24,7 +32,7 @@ class CallSessionManager {
     required this.aesKeyBytes,
   });
 
-  final Ref ref;
+  final WidgetRef ref;
   final int chatId;
   final int callId;
   final String roomId;

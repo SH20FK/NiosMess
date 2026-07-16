@@ -232,7 +232,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
         aesKeyBytes: aesKeyBytes,
       );
 
-      ref.read(callSessionProvider.notifier).state = manager;
+      ref.read(callSessionProvider.notifier).setSession(manager);
       manager.start();
 
       if (context.mounted) {

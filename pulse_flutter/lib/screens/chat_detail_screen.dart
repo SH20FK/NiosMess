@@ -1017,6 +1017,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               );
             },
             onForward: () => _forwardMessage(message),
+            onComments: () {
+              Navigator.of(ctx).pop();
+              if (message.commentsCount > 0 && isChannel) {
+                // Navigate to comments if applicable
+              }
+            },
             onEdit: () => _editMessage(message),
             onDelete: () => _deleteMessage(message),
           ),
@@ -1207,7 +1213,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         aesKeyBytes: aesKeyBytes,
       );
 
-      ref.read(callSessionProvider.notifier).state = manager;
+      ref.read(callSessionProvider.notifier).setSession(manager);
       manager.start();
 
       if (mounted) {
