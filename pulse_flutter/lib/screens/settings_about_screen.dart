@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:pulse_flutter/widgets/app_logo_mark.dart';
 
 class SettingsAboutScreen extends StatefulWidget {
@@ -131,42 +134,41 @@ class _HeroBlock extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Decorative dots
+            // Decorative floating M3 shapes
             Positioned(
-              top: -30,
-              left: -20,
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: scheme.primary.withValues(alpha: 0.06),
-                ),
-              ),
+              top: -20,
+              left: 20,
+              child: M3Container.c9SidedCookie(
+                width: 80,
+                height: 80,
+                color: scheme.primary.withValues(alpha: 0.1),
+                child: const SizedBox(),
+              ).animate(onPlay: (c) => c.repeat(reverse: true))
+               .moveY(begin: 0, end: 15, duration: 3.seconds, curve: Curves.easeInOutSine)
+               .rotate(begin: 0, end: 0.1, duration: 4.seconds),
             ),
             Positioned(
-              bottom: -20,
-              right: -30,
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: scheme.secondary.withValues(alpha: 0.04),
-                ),
-              ),
+              bottom: 10,
+              right: -10,
+              child: M3Container.c9SidedCookie(
+                width: 120,
+                height: 120,
+                color: scheme.secondary.withValues(alpha: 0.08),
+                child: const SizedBox(),
+              ).animate(onPlay: (c) => c.repeat())
+               .rotate(begin: 0, end: 1, duration: 20.seconds),
             ),
             Positioned(
-              top: 20,
-              right: 40,
-              child: Container(
+              top: 40,
+              right: 20,
+              child: M3Container.c9SidedCookie(
                 width: 50,
                 height: 50,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: scheme.tertiary.withValues(alpha: 0.05),
-                ),
-              ),
+                color: scheme.tertiary.withValues(alpha: 0.15),
+                child: const SizedBox(),
+              ).animate(onPlay: (c) => c.repeat(reverse: true))
+               .moveY(begin: -10, end: 10, duration: 2.5.seconds, curve: Curves.easeInOut)
+               .scale(begin: const Offset(1, 1), end: const Offset(1.2, 1.2), duration: 2.seconds),
             ),
             // Content
             Padding(
@@ -174,7 +176,31 @@ class _HeroBlock extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
-                  const AppLogoMark(size: 88).animate(controller: animation)
+                  SizedBox(
+                    width: 88,
+                    height: 88,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: <Widget>[
+                        M3Container.c9SidedCookie(
+                          width: 88,
+                          height: 88,
+                          color: scheme.primary,
+                          child: const SizedBox(),
+                        ).animate(onPlay: (c) => c.repeat())
+                         .rotate(duration: 10.seconds, curve: Curves.linear),
+                        SvgPicture.asset(
+                          'assets/svg/niosmess_logo_tintable.svg',
+                          width: 88 * 0.6,
+                          height: 88 * 0.6,
+                          colorFilter: ColorFilter.mode(
+                            scheme.onPrimary,
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ).animate(controller: animation)
                     .scale(
                       begin: const Offset(0.6, 0.6),
                       end: const Offset(1.0, 1.0),

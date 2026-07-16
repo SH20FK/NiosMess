@@ -990,16 +990,24 @@ class _SwipeToReply extends StatefulWidget {
 class _SwipeToReplyState extends State<_SwipeToReply>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late Animation<double> _animation;
   double _dragX = 0;
-  static const double _maxDrag = 52;
+  static const double _maxDrag = 64;
+  bool _triggered = false;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 250),
     );
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+    _controller.addListener(() {
+      setState(() {
+        _dragX = _animation.value;
+      });
+    });
   }
 
   @override
@@ -1008,46 +1016,54 @@ class _SwipeToReplyState extends State<_SwipeToReply>
     super.dispose();
   }
 
-  void _resetPosition() {
-    _dragX = 0;
-    _controller.reset();
-    setState(() {});
-  }
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
+      onHorizontalDragStart: (_) {
+        _controller.stop();
+        _triggered = false;
+      },
       onHorizontalDragUpdate: (DragUpdateDetails details) {
-        if (details.delta.dx < 0) {
-          _dragX = (_dragX + details.delta.dx).clamp(-_maxDrag, 0);
-          setState(() {});
-        }
+        setState(() {
+          _dragX = (_dragX + details.delta.dx).clamp(-_maxDrag * 1.5, 0);
+          if (_dragX <= -_maxDrag && !_triggered) {
+            _triggered = true;
+            HapticService.reaction(); // small pop when threshold met
+          } else if (_dragX > -_maxDrag && _triggered) {
+            _triggered = false;
+            HapticService.reaction(); // small pop when threshold un-met
+          }
+        });
       },
       onHorizontalDragEnd: (DragEndDetails details) {
-        if (_dragX <= -_maxDrag * 0.4) {
+        if (_dragX <= -_maxDrag) {
           HapticService.tap();
           widget.onReply();
         }
-        _resetPosition();
+        
+        // Snap back
+        _animation = Tween<double>(
+          begin: _dragX,
+          end: 0,
+        ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+        
+        _controller.forward(from: 0);
       },
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          AnimatedSlide(
-            offset: Offset(_dragX / _maxDrag, 0),
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic,
+          Transform.translate(
+            offset: Offset(_dragX, 0),
             child: widget.child,
           ),
-          if (_dragX < -16)
+          if (_dragX < -8)
             Positioned(
-              right: -_dragX + 4,
+              right: 16,
               top: 0,
               bottom: 0,
-              child: AnimatedOpacity(
-                opacity: (_dragX.abs() / _maxDrag).clamp(0.0, 1.0),
-                duration: const Duration(milliseconds: 120),
+              child: Transform.scale(
+                scale: (_dragX.abs() / _maxDrag).clamp(0.0, 1.0),
                 child: Center(
                   child: Container(
                     width: 36,
@@ -1056,7 +1072,7 @@ class _SwipeToReplyState extends State<_SwipeToReply>
                       color: widget.scheme.primaryContainer,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.reply_rounded, color: widget.scheme.primary, size: 18),
+                    child: Icon(Icons.reply_rounded, color: widget.scheme.primary, size: 20),
                   ),
                 ),
               ),
