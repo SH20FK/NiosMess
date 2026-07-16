@@ -1026,7 +1026,14 @@ class _SwipeToReplyState extends State<_SwipeToReply>
       },
       onHorizontalDragUpdate: (DragUpdateDetails details) {
         setState(() {
-          _dragX = (_dragX + details.delta.dx).clamp(-_maxDrag * 1.5, 0);
+          double delta = details.delta.dx;
+          // Apply friction if pulled past the threshold
+          if (_dragX < -_maxDrag && delta < 0) {
+            delta *= 0.3; 
+          }
+          
+          _dragX = (_dragX + delta).clamp(-_maxDrag * 1.2, 0);
+
           if (_dragX <= -_maxDrag && !_triggered) {
             _triggered = true;
             HapticService.reaction(); // small pop when threshold met
@@ -1042,11 +1049,11 @@ class _SwipeToReplyState extends State<_SwipeToReply>
           widget.onReply();
         }
         
-        // Snap back
+        // Snap back without overshooting past 0
         _animation = Tween<double>(
           begin: _dragX,
           end: 0,
-        ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+        ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
         
         _controller.forward(from: 0);
       },
