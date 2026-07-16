@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -94,6 +96,7 @@ class IncomingCallBanner extends ConsumerWidget {
       final roomId = 'call_${incoming.callId}';
       final e2ee = ref.read(e2eeServiceProvider);
       final aesKey = await e2ee.deriveCallKey(incoming.callId);
+      final aesKeyBytes = Uint8List.fromList(await aesKey.extractBytes());
 
       final manager = CallSessionManager(
         callId: incoming.callId,
@@ -101,7 +104,7 @@ class IncomingCallBanner extends ConsumerWidget {
         isVideo: incoming.isVideo,
         direction: CallDirection.incoming,
         displayName: ref.read(authProvider).session?.displayName ?? 'User',
-        aesKey: aesKey,
+        aesKeyBytes: aesKeyBytes,
       );
 
       ref.read(callSessionProvider.notifier).state = manager;

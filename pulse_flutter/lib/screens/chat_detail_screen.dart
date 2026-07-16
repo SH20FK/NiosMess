@@ -3,6 +3,7 @@ import 'package:pulse_flutter/widgets/chat/chat_detail_fab.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1341,6 +1342,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
       final e2ee = ref.read(e2eeServiceProvider);
       final aesKey = await e2ee.deriveCallKey(callId);
+      final aesKeyBytes = Uint8List.fromList(await aesKey.extractBytes());
 
       final manager = CallSessionManager(
         callId: callId,
@@ -1348,7 +1350,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         isVideo: isVideo,
         direction: CallDirection.outgoing,
         displayName: ref.read(authProvider).session?.displayName ?? 'User',
-        aesKey: aesKey,
+        aesKeyBytes: aesKeyBytes,
       );
 
       ref.read(callSessionProvider.notifier).state = manager;

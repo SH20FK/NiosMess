@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 
 import 'call_session_types.dart';
@@ -16,7 +15,7 @@ class CallSession {
     required this.isVideo,
     required this.direction,
     required this.displayName,
-    required this.aesKey,
+    required this.aesKeyBytes,
   });
 
   final int callId;
@@ -24,7 +23,7 @@ class CallSession {
   final bool isVideo;
   final CallDirection direction;
   final String displayName;
-  final SecretKey aesKey;
+  final Uint8List aesKeyBytes;
   final bool isMuted = false;
   final bool isSpeakerOn = false;
   final bool isSelfVideoEnabled = false;
@@ -33,9 +32,7 @@ class CallSession {
 
   CallSessionData get currentData => CallSessionData(
     state: CallSessionState.idle,
-    isMuted: false,
-    isSpeakerOn: false,
-    isSelfVideoEnabled: false,
+    callId: callId,
     isVideo: isVideo,
     durationSeconds: 0,
   );

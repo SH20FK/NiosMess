@@ -17,37 +17,53 @@ enum CallSessionState {
 class CallSessionData {
   const CallSessionData({
     required this.state,
-    required this.isMuted,
-    required this.isSpeakerOn,
-    required this.isSelfVideoEnabled,
+    required this.callId,
+    this.roomId,
     required this.isVideo,
+    this.direction,
+    this.localClientId,
+    this.isMuted = false,
+    this.isSpeakerOn = false,
+    this.isSelfVideoEnabled = false,
     required this.durationSeconds,
     this.remoteParticipants = const [],
   });
 
   final CallSessionState state;
+  final int callId;
+  final String? roomId;
+  final bool isVideo;
+  final CallDirection? direction;
+  final int? localClientId;
   final bool isMuted;
   final bool isSpeakerOn;
   final bool isSelfVideoEnabled;
-  final bool isVideo;
   final int durationSeconds;
   final List<RemoteParticipant> remoteParticipants;
 
   CallSessionData copyWith({
     CallSessionState? state,
+    int? callId,
+    String? roomId,
+    bool? isVideo,
+    CallDirection? direction,
+    int? localClientId,
     bool? isMuted,
     bool? isSpeakerOn,
     bool? isSelfVideoEnabled,
-    bool? isVideo,
     int? durationSeconds,
     List<RemoteParticipant>? remoteParticipants,
   }) {
     return CallSessionData(
       state: state ?? this.state,
+      callId: callId ?? this.callId,
+      roomId: roomId ?? this.roomId,
+      isVideo: isVideo ?? this.isVideo,
+      direction: direction ?? this.direction,
+      localClientId: localClientId ?? this.localClientId,
       isMuted: isMuted ?? this.isMuted,
       isSpeakerOn: isSpeakerOn ?? this.isSpeakerOn,
       isSelfVideoEnabled: isSelfVideoEnabled ?? this.isSelfVideoEnabled,
-      isVideo: isVideo ?? this.isVideo,
       durationSeconds: durationSeconds ?? this.durationSeconds,
       remoteParticipants: remoteParticipants ?? this.remoteParticipants,
     );

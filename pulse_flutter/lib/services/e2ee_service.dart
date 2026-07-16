@@ -153,7 +153,7 @@ class E2eeService {
   }
 
   Future<SecretKey> deriveCallKey(int callId) async {
-    final hkdf = Hkdf(hashAlgorithm: Sha256());
+    final hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
     final info = utf8.encode('nios-call-key-$callId');
     final keyPair = await loadKeyPair();
     if (keyPair == null) {
@@ -164,7 +164,6 @@ class E2eeService {
       secretKey: SecretKey(publicKey.bytes),
       nonce: info,
       info: info,
-      length: 32,
     );
     return derived;
   }

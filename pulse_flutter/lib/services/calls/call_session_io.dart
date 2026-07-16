@@ -8,93 +8,13 @@ import 'package:flutter/foundation.dart';
 import 'audio_output_pipeline.dart';
 import 'audio_pipeline.dart';
 import 'binary_packet.dart';
+import 'call_session_types.dart';
 import 'call_transport.dart';
 import 'nios_calls_api.dart';
 import 'quic_transport.dart';
 import 'video_output_pipeline.dart';
 import 'video_pipeline.dart';
 import 'ws_transport.dart';
-
-/// Possible states of a call session.
-enum CallSessionState {
-  idle,
-  connecting,
-  connected,
-  inCall,
-  reconnecting,
-  ended,
-}
-
-/// Direction of the call.
-enum CallDirection { outgoing, incoming }
-
-/// Data about a remote participant received via heartbeat.
-class RemoteParticipant {
-  const RemoteParticipant({
-    required this.clientId,
-    required this.nickname,
-  });
-
-  final int clientId;
-  final String nickname;
-}
-
-/// Full state of the call.
-class CallSessionData {
-  const CallSessionData({
-    required this.state,
-    required this.callId,
-    required this.roomId,
-    required this.isVideo,
-    required this.direction,
-    this.localClientId,
-    this.durationSeconds = 0,
-    this.remoteParticipants = const [],
-    this.isMuted = false,
-    this.isSpeakerOn = false,
-    this.isSelfVideoEnabled = false,
-  });
-
-  final CallSessionState state;
-  final int callId;
-  final String roomId;
-  final bool isVideo;
-  final CallDirection direction;
-  final int? localClientId;
-  final int durationSeconds;
-  final List<RemoteParticipant> remoteParticipants;
-  final bool isMuted;
-  final bool isSpeakerOn;
-  final bool isSelfVideoEnabled;
-
-  CallSessionData copyWith({
-    CallSessionState? state,
-    int? callId,
-    String? roomId,
-    bool? isVideo,
-    CallDirection? direction,
-    int? localClientId,
-    int? durationSeconds,
-    List<RemoteParticipant>? remoteParticipants,
-    bool? isMuted,
-    bool? isSpeakerOn,
-    bool? isSelfVideoEnabled,
-  }) {
-    return CallSessionData(
-      state: state ?? this.state,
-      callId: callId ?? this.callId,
-      roomId: roomId ?? this.roomId,
-      isVideo: isVideo ?? this.isVideo,
-      direction: direction ?? this.direction,
-      localClientId: localClientId ?? this.localClientId,
-      durationSeconds: durationSeconds ?? this.durationSeconds,
-      remoteParticipants: remoteParticipants ?? this.remoteParticipants,
-      isMuted: isMuted ?? this.isMuted,
-      isSpeakerOn: isSpeakerOn ?? this.isSpeakerOn,
-      isSelfVideoEnabled: isSelfVideoEnabled ?? this.isSelfVideoEnabled,
-    );
-  }
-}
 
 /// Callback types.
 typedef void OnStateChanged(CallSessionData data);
@@ -110,13 +30,13 @@ class CallSession {
     required this.isVideo,
     required this.direction,
     required this.displayName,
-    required this.aesKey,
+    required Uint8List aesKeyBytes,
     this.onStateChanged,
     this.onIncomingAudio,
     this.onIncomingVideo,
     this.onRemoteParticipantJoined,
     this.onRemoteParticipantLeft,
-  });
+  }) : aesKey = SecretKey(aesKeyBytes);
 
   final int callId;
   final String roomId;

@@ -1,5 +1,6 @@
-import 'package:cryptography/cryptography.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:typed_data';
+
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 
 /// Provider for the current active call session.
@@ -16,7 +17,7 @@ class CallSessionManager {
     required this.isVideo,
     required this.direction,
     required this.displayName,
-    required this.aesKey,
+    required this.aesKeyBytes,
   });
 
   final int callId;
@@ -24,7 +25,7 @@ class CallSessionManager {
   final bool isVideo;
   final CallDirection direction;
   final String displayName;
-  final SecretKey aesKey;
+  final Uint8List aesKeyBytes;
 
   CallSession? _session;
 
@@ -37,7 +38,7 @@ class CallSessionManager {
       isVideo: isVideo,
       direction: direction,
       displayName: displayName,
-      aesKey: aesKey,
+      aesKeyBytes: aesKeyBytes,
     );
     _session!.start();
     return _session!;
