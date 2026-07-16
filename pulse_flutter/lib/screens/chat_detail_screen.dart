@@ -1011,7 +1011,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               Clipboard.setData(ClipboardData(text: message.content));
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(context.l10n.chatMessageCopied),
+                  content: Text(context.l10n.chatMessageTextCopied),
                   duration: const Duration(seconds: 2),
                 ),
               );

@@ -39,7 +39,7 @@ class CallPushHandler extends Notifier<void> {
       isVideo: isVideo,
       initiatorId: initiatorId,
       initiatorName: initiatorName,
-    );
+    ));
   }
 }
 
