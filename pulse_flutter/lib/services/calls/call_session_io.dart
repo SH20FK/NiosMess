@@ -189,7 +189,7 @@ class CallSession {
       final SecretBox secretBox = SecretBox(
         parsed.payload,
         nonce: parsed.iv!,
-        mac: Mac.empty(),
+        mac: Mac.empty,
       );
       final List<int> decrypted = await AesGcm.with256bits().decrypt(
         secretBox,
@@ -207,7 +207,7 @@ class CallSession {
       final SecretBox secretBox = SecretBox(
         parsed.payload,
         nonce: parsed.iv!,
-        mac: Mac.empty(),
+        mac: Mac.empty,
       );
       final List<int> decrypted = await AesGcm.with256bits().decrypt(
         secretBox,
@@ -294,7 +294,7 @@ class CallSession {
     final Uint8List packet = packAudioPacket(
       clientId: _localClientId!,
       iv: iv,
-      encryptedOpus: secretBox.cipherText,
+      encryptedOpus: Uint8List.fromList(secretBox.cipherText),
     );
 
     if (packet.length <= kDatagramSizeLimit) {
@@ -403,7 +403,7 @@ class CallSession {
           frameType: frameType,
           timestamp: timestamp,
           iv: iv,
-          encryptedVp8: secretBox.cipherText,
+          encryptedVp8: Uint8List.fromList(secretBox.cipherText),
         );
 
         await _transport!.send(packet);
