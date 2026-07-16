@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 
 class VoiceMessagePlayer extends StatefulWidget {
@@ -76,7 +77,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     try {
       await _player.setAudioSource(
         AudioSource.uri(
-          Uri.parse(widget.audioUrl),
+          Uri.parse(ApiConstants.resolve(widget.audioUrl)),
           headers: cachedAuthHeaders(),
         ),
       );
@@ -125,8 +126,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     final Duration remaining = _duration - _position;
     final Color fg = widget.isMine ? widget.scheme.onPrimary : widget.scheme.primary;
     final Color bg = widget.isMine
-        ? widget.scheme.primary.withValues(alpha: 0.18)
-        : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.9);
+        ? widget.scheme.primary.withValues(alpha: 0.6)
+        : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.8);
 
     return Container(
       constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),

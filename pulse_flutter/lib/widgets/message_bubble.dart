@@ -1132,7 +1132,7 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
   Future<void> _initVideo() async {
     try {
       _videoController = VideoPlayerController.networkUrl(
-        Uri.parse(widget.videoUrl),
+        Uri.parse(ApiConstants.resolve(widget.videoUrl)),
         httpHeaders: cachedAuthHeaders(),
       );
       await _videoController!.initialize();
@@ -1270,7 +1270,7 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
       ),
       child: ClipOval(
         child: CachedNetworkImage(
-          imageUrl: widget.videoUrl,
+          imageUrl: ApiConstants.resolve(widget.videoUrl),
           cacheKey: '${widget.videoUrl}_circle_thumb',
           httpHeaders: cachedAuthHeaders(),
           width: circleSize,
