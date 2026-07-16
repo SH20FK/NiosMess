@@ -420,7 +420,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       child: Stack(
                         alignment: Alignment.center,
                         children: <Widget>[
-                          Container(
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
                             width: 48,
                             height: 48,
                             decoration: BoxDecoration(
@@ -436,16 +438,34 @@ class _ChatInputBarState extends State<ChatInputBar> {
                                 ),
                               ],
                             ),
-                            child: Icon(
-                              _isVideoMode ? Icons.videocam_rounded : Icons.mic_rounded,
-                              color: scheme.onPrimary,
-                              size: 22,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 250),
+                              transitionBuilder: (Widget child, Animation<double> anim) {
+                                return ScaleTransition(
+                                  scale: anim,
+                                  child: RotationTransition(
+                                    turns: anim,
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: Icon(
+                                _isVideoMode ? Icons.videocam_rounded : Icons.mic_rounded,
+                                key: ValueKey<bool>(_isVideoMode),
+                                color: scheme.onPrimary,
+                                size: 22,
+                              ),
                             ),
                           ),
-                          if (_isVideoMode)
-                            Positioned(
-                              top: 4,
-                              right: 4,
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeOutBack,
+                            top: _isVideoMode ? 4 : 24,
+                            right: _isVideoMode ? 4 : 24,
+                            child: AnimatedScale(
+                              scale: _isVideoMode ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeOutBack,
                               child: Container(
                                 width: 14,
                                 height: 14,
@@ -460,6 +480,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                                 child: Icon(Icons.videocam, size: 8, color: scheme.onError),
                               ),
                             ),
+                          ),
                         ],
                       ),
                     ),

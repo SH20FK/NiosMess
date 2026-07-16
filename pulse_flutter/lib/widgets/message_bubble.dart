@@ -1133,8 +1133,10 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
     try {
       _videoController = VideoPlayerController.networkUrl(
         Uri.parse(widget.videoUrl),
+        httpHeaders: cachedAuthHeaders(),
       );
       await _videoController!.initialize();
+      await _videoController!.setLooping(true);
       _videoController!.addListener(_onVideoStateChange);
       if (mounted) setState(() => _initialized = true);
     } catch (_) {

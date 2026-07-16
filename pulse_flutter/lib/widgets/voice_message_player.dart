@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:pulse_flutter/providers/token_provider.dart';
 
 class VoiceMessagePlayer extends StatefulWidget {
   const VoiceMessagePlayer({
@@ -39,7 +40,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   @override
   void initState() {
     super.initState();
-    _player = AudioPlayer(handleInterruptions: false);
+    _player = AudioPlayer(handleInterruptions: true);
     _initAudioSession();
     _waveformBars = _generateWaveform(widget.audioUrl.hashCode);
     _setupPlayer();
@@ -73,7 +74,12 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
 
   Future<void> _setupPlayer() async {
     try {
-      await _player.setAudioSource(AudioSource.uri(Uri.parse(widget.audioUrl)));
+      await _player.setAudioSource(
+        AudioSource.uri(
+          Uri.parse(widget.audioUrl),
+          headers: cachedAuthHeaders(),
+        ),
+      );
       _duration = Duration(seconds: widget.durationSeconds);
       _player.positionStream.listen((p) {
         if (mounted && !_seeking) setState(() => _position = p);
@@ -119,8 +125,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     final Duration remaining = _duration - _position;
     final Color fg = widget.isMine ? widget.scheme.onPrimary : widget.scheme.primary;
     final Color bg = widget.isMine
-        ? widget.scheme.primary.withValues(alpha: 0.08)
-        : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.5);
+        ? widget.scheme.primary.withValues(alpha: 0.18)
+        : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.9);
 
     return Container(
       constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),
