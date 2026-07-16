@@ -71,6 +71,8 @@ class CallSession {
   List<String> _verificationEmojis = [];
 
   CallSessionState _state = CallSessionState.idle;
+  bool _isMuted = false;
+  bool _isSpeakerOn = false;
 
   CallSessionData get currentData => CallSessionData(
         state: _state,
@@ -82,6 +84,8 @@ class CallSession {
         durationSeconds: _elapsedSeconds,
         remoteParticipants: _remoteParticipants,
         verificationEmojis: _verificationEmojis,
+        isMuted: _isMuted,
+        isSpeakerOn: _isSpeakerOn,
       );
 
   final StreamController<CallSessionData> _stateController =
@@ -396,14 +400,32 @@ class CallSession {
 
   /// Mute / unmute local audio.
   Future<void> setMuted(bool muted) async {
-    final data = currentData.copyWith(isMuted: muted);
+    _isMuted = muted;
+    final data = currentData;
     onStateChanged?.call(data);
     _stateController.add(data);
   }
 
   /// Toggle speakerphone.
   Future<void> setSpeakerOn(bool on) async {
-    final data = currentData.copyWith(isSpeakerOn: on);
+    _isSpeakerOn = on;
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(AudioSessionConfiguration(
+        avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
+        avAudioSessionCategoryOptions: on
+            ? const AVAudioSessionCategoryOptions(0x4 | 0x8) // defaultToSpeaker
+            : const AVAudioSessionCategoryOptions(0x4), // earpiece
+        avAudioSessionMode: AVAudioSessionMode.voiceChat,
+        avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
+        androidAudioAttributes: AndroidAudioAttributes(
+          contentType: AndroidAudioContentType.speech,
+          usage: on ? AndroidAudioUsage.media : AndroidAudioUsage.voiceCommunication,
+        ),
+        androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+      ));
+    } catch (_) {}
+    final data = currentData;
     onStateChanged?.call(data);
     _stateController.add(data);
   }
@@ -453,6 +475,7 @@ class CallSession {
 
     _audioPipeline = AudioPipeline(
       onOpusFrame: (opusData) {
+        if (_isMuted) return;
         final iv = Uint8List(12);
         final random = Random.secure();
         for (int i = 0; i < 12; i++) {

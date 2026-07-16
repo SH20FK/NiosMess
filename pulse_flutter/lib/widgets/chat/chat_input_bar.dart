@@ -396,14 +396,6 @@ class _ChatInputBarState extends State<ChatInputBar> {
                     onTap: () {
                       setState(() => _isVideoMode = !_isVideoMode);
                       HapticService.confirm();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_isVideoMode
-                              ? context.l10n.chatCircleVideo
-                              : context.l10n.chatVoiceMessage),
-                          duration: const Duration(milliseconds: 800),
-                        ),
-                      );
                     },
                     onLongPress: () {
                       if (_isVideoMode) {

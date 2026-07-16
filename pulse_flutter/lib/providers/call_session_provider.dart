@@ -55,6 +55,11 @@ class CallSessionManager {
       displayName: displayName,
       aesKeyBytes: aesKeyBytes,
     );
+    _session!.stateStream.listen((data) {
+      if (data.state == CallSessionState.ended) {
+        ref.read(callSessionProvider.notifier).setSession(null);
+      }
+    });
     _session!.start();
     return _session!;
   }
@@ -74,6 +79,7 @@ class CallSessionManager {
     await _session?.end();
     _session?.dispose();
     _session = null;
+    ref.read(callSessionProvider.notifier).setSession(null);
   }
 
   void dispose() {

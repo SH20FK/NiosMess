@@ -114,8 +114,8 @@ class IncomingCallBanner extends ConsumerWidget {
         aesKeyBytes: aesKeyBytes,
       );
 
-      ref.read(callSessionProvider.notifier).setSession(manager);
       manager.start();
+      ref.read(callSessionProvider.notifier).setSession(manager);
 
       if (context.mounted) {
         context.push('/call/${incoming.callId}');

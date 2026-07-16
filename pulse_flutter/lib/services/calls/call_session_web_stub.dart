@@ -26,8 +26,8 @@ class CallSession {
   final CallDirection direction;
   final String displayName;
   final Uint8List aesKeyBytes;
-  final bool isMuted = false;
-  final bool isSpeakerOn = false;
+  bool _isMuted = false;
+  bool _isSpeakerOn = false;
   final bool isSelfVideoEnabled = false;
 
   VideoOutputPipeline? get videoOutput => null;
@@ -37,6 +37,8 @@ class CallSession {
     callId: callId,
     isVideo: isVideo,
     durationSeconds: 0,
+    isMuted: _isMuted,
+    isSpeakerOn: _isSpeakerOn,
   );
 
   Stream<CallSessionData> get stateStream => const Stream.empty();
@@ -45,8 +47,12 @@ class CallSession {
     debugPrint('[CallSession] Web stub — calls not supported');
   }
 
-  void setMuted(bool muted) {}
-  void setSpeakerOn(bool on) {}
+  void setMuted(bool muted) {
+    _isMuted = muted;
+  }
+  void setSpeakerOn(bool on) {
+    _isSpeakerOn = on;
+  }
   Future<void> switchCamera() async {}
   Future<void> end() async {}
   void dispose() {}
