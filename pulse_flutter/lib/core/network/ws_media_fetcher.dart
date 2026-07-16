@@ -24,21 +24,27 @@ class WsMediaFetcher {
     }
 
     // 2. Fetch from WebSocket
+    debugPrint('WsMediaFetcher: requesting get_file for $filePath');
     final response = await wsClient.request('get_file', payload: {
-      'file_path': filePath,
+      'file_path': filePath.startsWith('/') ? filePath.substring(1) : filePath,
     });
 
     final payload = response['payload'] as Map<String, dynamic>?;
     if (payload == null) {
+      debugPrint('WsMediaFetcher: payload is null. Full response: $response');
       throw Exception('Invalid response payload');
     }
 
     final dataBase64 = payload['data_base64'] as String?;
     if (dataBase64 == null || dataBase64.isEmpty) {
+      debugPrint('WsMediaFetcher: data_base64 is empty. Payload: $payload');
       throw Exception('Empty data_base64');
     }
 
-    Uint8List fileBuffer = base64Decode(dataBase64);
+    String normalizedBase64 = dataBase64.replaceAll('\n', '').replaceAll('\r', '');
+    normalizedBase64 = normalizedBase64.padRight((normalizedBase64.length + 3) & ~3, '=');
+    
+    Uint8List fileBuffer = base64Decode(normalizedBase64);
 
     // 3. Decrypt if E2EE
     // In the user's snippet: decryptAesGcm(encryptedBuffer, keyB64, ivB64)
