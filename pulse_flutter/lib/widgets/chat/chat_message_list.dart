@@ -210,6 +210,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
         final Widget bubble = RepaintBoundary(
           child: MessageBubble(
             key: ValueKey<int>(message.id),
+            chatId: message.chatId,
             text: widget.displayTextBuilder(message),
             isMine: isMine,
             isE2ee: message.isE2ee,

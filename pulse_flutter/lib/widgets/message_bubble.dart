@@ -23,6 +23,7 @@ class MessageBubble extends ConsumerWidget {
     required this.text,
     required this.formattedTime,
     required this.isMine,
+    required this.chatId,
     this.isDeleted = false,
     this.isEdited = false,
     this.isRead = false,
@@ -57,6 +58,7 @@ class MessageBubble extends ConsumerWidget {
   final String text;
   final String formattedTime;
   final bool isMine;
+  final int chatId;
   final bool isDeleted;
   final bool isEdited;
   final bool isRead;
