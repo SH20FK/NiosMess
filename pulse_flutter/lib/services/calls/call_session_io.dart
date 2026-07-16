@@ -15,6 +15,7 @@ import 'quic_transport.dart';
 import 'video_output_pipeline.dart';
 import 'video_pipeline.dart';
 import 'ws_transport.dart';
+import 'e2ee_key_manager.dart';
 
 /// Callback types.
 typedef void OnStateChanged(CallSessionData data);
@@ -25,6 +26,7 @@ typedef void OnIncomingAudio(Uint8List opusData);
 /// Manages transport, heartbeat, media encryption, and state transitions.
 class CallSession {
   CallSession({
+    required this.chatId,
     required this.callId,
     required this.roomId,
     required this.isVideo,
@@ -38,6 +40,7 @@ class CallSession {
     this.onRemoteParticipantLeft,
   }) : aesKey = SecretKey(aesKeyBytes);
 
+  final int chatId;
   final int callId;
   final String roomId;
   final bool isVideo;
@@ -63,6 +66,10 @@ class CallSession {
   VideoPipeline? _videoPipeline;
   VideoOutputPipeline? _videoOutput;
 
+  final E2eeKeyManager _keyManager = E2eeKeyManager();
+  final List<RemoteParticipant> _remoteParticipants = [];
+  List<String> _verificationEmojis = [];
+
   CallSessionState _state = CallSessionState.idle;
 
   CallSessionData get currentData => CallSessionData(
@@ -73,6 +80,8 @@ class CallSession {
         direction: direction,
         localClientId: _localClientId,
         durationSeconds: _elapsedSeconds,
+        remoteParticipants: _remoteParticipants,
+        verificationEmojis: _verificationEmojis,
       );
 
   final StreamController<CallSessionData> _stateController =
@@ -87,6 +96,12 @@ class CallSession {
   /// This implements the correct transport priority with 2s timeout fallback.
   Future<void> start({bool preferQuic = true}) async {
     _setState(CallSessionState.connecting);
+
+    try {
+      await _keyManager.initialize();
+    } catch (e) {
+      debugPrint('[CallSession] E2EE Init failed: $e');
+    }
 
     CallTransport transport;
 
@@ -158,6 +173,10 @@ class CallSession {
         if (data.length >= 5) {
           _localClientId = parseClientIdPacket(data);
           debugPrint('[CallSession] Got Client ID: $_localClientId');
+          if (_keyManager.myPubKeyRaw != null) {
+            final pubKeyPacket = packPublicKeyPacket(myPubKeyRaw: _keyManager.myPubKeyRaw!);
+            _transport?.send(pubKeyPacket);
+          }
           _startHeartbeat();
           _setState(CallSessionState.inCall);
         }
@@ -166,73 +185,129 @@ class CallSession {
         debugPrint('[CallSession] Server sent end_call');
         _handleRemoteEnd();
         return;
-      case kPacketTypeAudio:
-      case kPacketTypeVideo:
+      case kPacketTypePublicKey:
+        _handlePeerPublicKey(data);
+        return;
+      case kPacketTypeKeyExchange:
+        _handlePeerKeyExchange(data);
+        return;
+      case kPacketTypeMedia:
+        _handleIncomingMedia(data);
+        return;
       case kPacketTypeHeartbeat:
-        _handleRelayedPacket(data);
+        _handlePeerHeartbeat(data);
         return;
     }
   }
 
-  void _handleRelayedPacket(Uint8List data) {
-    final ParsedPacket parsed = unpackPacket(data);
+  void _handlePeerHeartbeat(Uint8List data) {
+    final parsed = unpackPacket(data);
     if (parsed.senderClientId == _localClientId) return;
+    final String nickname = String.fromCharCodes(parsed.payload);
 
-    switch (parsed.type) {
-      case kPacketTypeAudio:
-        _handleIncomingAudio(parsed);
-        return;
-      case kPacketTypeVideo:
-        _handleIncomingVideo(parsed);
-        return;
-      case kPacketTypeHeartbeat:
-        final String nickname = String.fromCharCodes(parsed.payload);
+    final idx = _remoteParticipants.indexWhere((p) => p.clientId == parsed.senderClientId);
+    final participant = RemoteParticipant(
+      clientId: parsed.senderClientId,
+      nickname: nickname,
+    );
+    if (idx != -1) {
+      _remoteParticipants[idx] = participant;
+    } else {
+      _remoteParticipants.add(participant);
+    }
+    onRemoteParticipantJoined?.call(participant);
+    _triggerStateUpdate();
+  }
+
+  Future<void> _handlePeerPublicKey(Uint8List data) async {
+    if (data.length < 70) return;
+    final int peerId = ByteData.view(data.buffer, data.offsetInBytes, data.length).getUint32(1);
+    final Uint8List peerPubKeyRaw = data.sublist(5, 70);
+
+    try {
+      final exchangeData = await _keyManager.generateKeyExchange(peerId, peerPubKeyRaw);
+      final iv = exchangeData.sublist(0, 12);
+      final encryptedKey = exchangeData.sublist(12, 60);
+
+      final keyExchangePacket = packKeyExchangePacket(
+        peerId: peerId,
+        iv: iv,
+        encryptedKey: encryptedKey,
+      );
+      await _transport?.send(keyExchangePacket);
+      debugPrint('[CallSession] Sent key exchange packet (0x06) to peer $peerId');
+
+      if (!_remoteParticipants.any((p) => p.clientId == peerId)) {
         final participant = RemoteParticipant(
-          clientId: parsed.senderClientId,
-          nickname: nickname,
+          clientId: peerId,
+          nickname: 'User $peerId',
         );
-        onRemoteParticipantJoined?.call(participant);
-        return;
+        _remoteParticipants.add(participant);
+      }
+
+      await _recalculateVerificationEmojis();
+    } catch (e) {
+      debugPrint('[CallSession] Error handling peer public key: $e');
     }
   }
 
-  Future<void> _handleIncomingAudio(ParsedPacket parsed) async {
-    if (parsed.iv == null) return;
+  Future<void> _handlePeerKeyExchange(Uint8List data) async {
+    if (data.length < 65) return;
+    final int senderId = ByteData.view(data.buffer, data.offsetInBytes, data.length).getUint32(1);
+    final Uint8List iv = data.sublist(5, 17);
+    final Uint8List encryptedKey = data.sublist(17, 65);
+
     try {
-      final SecretBox secretBox = SecretBox(
-        parsed.payload,
-        nonce: parsed.iv!,
-        mac: Mac.empty,
+      await _keyManager.importKeyExchange(senderId, iv, encryptedKey);
+      debugPrint('[CallSession] Successfully imported media key for sender $senderId');
+    } catch (e) {
+      debugPrint('[CallSession] Decrypt peer key failed: $e');
+    }
+  }
+
+  Future<void> _handleIncomingMedia(Uint8List data) async {
+    if (data.length < 17) return;
+    final int senderId = ByteData.view(data.buffer, data.offsetInBytes, data.length).getUint32(1);
+    final Uint8List iv = data.sublist(5, 17);
+    final Uint8List ciphertext = data.sublist(17);
+
+    final peerKey = _keyManager.peerSenderKeys[senderId];
+    if (peerKey == null) return;
+
+    try {
+      final int tagOffset = ciphertext.length - 16;
+      if (tagOffset <= 0) return;
+      final rawCiphertext = ciphertext.sublist(0, tagOffset);
+      final tag = ciphertext.sublist(tagOffset);
+
+      final box = SecretBox(
+        rawCiphertext,
+        nonce: iv,
+        mac: Mac(tag),
       );
-      final List<int> decrypted = await AesGcm.with256bits().decrypt(
-        secretBox,
-        secretKey: aesKey,
+
+      final decrypted = await AesGcm.with256bits().decrypt(
+        box,
+        secretKey: peerKey,
       );
+
       onIncomingAudio?.call(Uint8List.fromList(decrypted));
     } catch (e) {
-      debugPrint('[CallSession] Audio decrypt failed: $e');
+      debugPrint('[CallSession] Media decrypt failed: $e');
     }
   }
 
-  Future<void> _handleIncomingVideo(ParsedPacket parsed) async {
-    if (parsed.iv == null) return;
-    try {
-      final SecretBox secretBox = SecretBox(
-        parsed.payload,
-        nonce: parsed.iv!,
-        mac: Mac.empty,
-      );
-      final List<int> decrypted = await AesGcm.with256bits().decrypt(
-        secretBox,
-        secretKey: aesKey,
-      );
-      onIncomingVideo?.call(
-        Uint8List.fromList(decrypted),
-        parsed.videoFrameType ?? 0,
-        parsed.videoTimestamp ?? 0,
-      );
-    } catch (e) {
-      debugPrint('[CallSession] Video decrypt failed: $e');
+  Future<void> _recalculateVerificationEmojis() async {
+    if (_localClientId == null) return;
+    _verificationEmojis = await _keyManager.getVerificationEmojis(_localClientId!);
+    _triggerStateUpdate();
+  }
+
+  void _triggerStateUpdate() {
+    final data = currentData;
+    onStateChanged?.call(data);
+    if (!_stateController.isClosed) {
+      _stateController.add(data);
     }
   }
 
@@ -255,10 +330,9 @@ class CallSession {
   Future<void> _sendHeartbeat() async {
     if (_transport == null || _localClientId == null) return;
     final Uint8List packet = packHeartbeatPacket(
-      clientId: _localClientId!,
       nickname: displayName,
     );
-    await _transport!.send(packet);
+    await _transport?.send(packet);
   }
 
   Future<void> _tryReconnect() async {
@@ -304,16 +378,19 @@ class CallSession {
       nonce: iv,
     );
 
-    final Uint8List packet = packAudioPacket(
-      clientId: _localClientId!,
+    final Uint8List encryptedMedia = Uint8List(secretBox.cipherText.length + secretBox.mac.bytes.length);
+    encryptedMedia.setRange(0, secretBox.cipherText.length, secretBox.cipherText);
+    encryptedMedia.setRange(secretBox.cipherText.length, encryptedMedia.length, secretBox.mac.bytes);
+
+    final Uint8List packet = packMediaPacket(
       iv: iv,
-      encryptedOpus: Uint8List.fromList(secretBox.cipherText),
+      encryptedData: encryptedMedia,
     );
 
     if (packet.length <= kDatagramSizeLimit) {
-      await _transport!.sendDatagram(packet);
+      await _transport?.sendDatagram(packet);
     } else {
-      await _transport!.send(packet);
+      await _transport?.send(packet);
     }
   }
 
@@ -375,11 +452,18 @@ class CallSession {
     };
 
     _audioPipeline = AudioPipeline(
-      onOpusFrame: (opusData) => sendAudio(
-        opusData: opusData,
-        iv: Uint8List(12),
-        key: aesKey,
-      ),
+      onOpusFrame: (opusData) {
+        final iv = Uint8List(12);
+        final random = Random.secure();
+        for (int i = 0; i < 12; i++) {
+          iv[i] = random.nextInt(256);
+        }
+        sendAudio(
+          opusData: opusData,
+          iv: iv,
+          key: _keyManager.mySenderKey ?? aesKey,
+        );
+      },
     );
     await _audioPipeline!.start();
 
@@ -407,16 +491,17 @@ class CallSession {
 
         final SecretBox secretBox = await AesGcm.with256bits().encrypt(
           encryptedVp8,
-          secretKey: aesKey,
+          secretKey: _keyManager.mySenderKey ?? aesKey,
           nonce: iv,
         );
 
-        final Uint8List packet = packVideoPacket(
-          clientId: _localClientId!,
-          frameType: frameType,
-          timestamp: timestamp,
+        final encryptedMedia = Uint8List(secretBox.cipherText.length + secretBox.mac.bytes.length);
+        encryptedMedia.setRange(0, secretBox.cipherText.length, secretBox.cipherText);
+        encryptedMedia.setRange(secretBox.cipherText.length, encryptedMedia.length, secretBox.mac.bytes);
+
+        final Uint8List packet = packMediaPacket(
           iv: iv,
-          encryptedVp8: Uint8List.fromList(secretBox.cipherText),
+          encryptedData: encryptedMedia,
         );
 
         await _transport!.send(packet);

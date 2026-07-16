@@ -23,7 +23,7 @@ import 'package:pulse_flutter/core/services/deep_link_service.dart';
 import 'package:pulse_flutter/firebase_options.dart';
 import 'package:pulse_flutter/providers/call_push_handler.dart';
 import 'package:pulse_flutter/widgets/calls/call_overlay.dart';
-import 'package:pulse_flutter/widgets/calls/incoming_call_banner.dart';
+import 'package:pulse_flutter/screens/calls/incoming_call_overlay.dart';
 
 Future<void> main() async {
   await runZonedGuarded<Future<void>>(
@@ -137,12 +137,7 @@ class PulseApp extends ConsumerWidget {
           child: Stack(
             children: [
               child ?? const SizedBox.shrink(),
-              const Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: IncomingCallBanner(),
-              ),
+              const IncomingCallOverlay(),
               const CallOverlay(),
             ],
           ),

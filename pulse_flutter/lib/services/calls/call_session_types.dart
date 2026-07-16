@@ -27,6 +27,7 @@ class CallSessionData {
     this.isSelfVideoEnabled = false,
     required this.durationSeconds,
     this.remoteParticipants = const [],
+    this.verificationEmojis = const [],
   });
 
   final CallSessionState state;
@@ -40,6 +41,7 @@ class CallSessionData {
   final bool isSelfVideoEnabled;
   final int durationSeconds;
   final List<RemoteParticipant> remoteParticipants;
+  final List<String> verificationEmojis;
 
   CallSessionData copyWith({
     CallSessionState? state,
@@ -53,6 +55,7 @@ class CallSessionData {
     bool? isSelfVideoEnabled,
     int? durationSeconds,
     List<RemoteParticipant>? remoteParticipants,
+    List<String>? verificationEmojis,
   }) {
     return CallSessionData(
       state: state ?? this.state,
@@ -66,6 +69,7 @@ class CallSessionData {
       isSelfVideoEnabled: isSelfVideoEnabled ?? this.isSelfVideoEnabled,
       durationSeconds: durationSeconds ?? this.durationSeconds,
       remoteParticipants: remoteParticipants ?? this.remoteParticipants,
+      verificationEmojis: verificationEmojis ?? this.verificationEmojis,
     );
   }
 }

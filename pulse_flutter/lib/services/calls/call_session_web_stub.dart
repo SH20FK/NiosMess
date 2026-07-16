@@ -10,6 +10,7 @@ import 'video_output_pipeline.dart';
 // ignore: use_key_in_widget_constructors
 class CallSession {
   CallSession({
+    required this.chatId,
     required this.callId,
     required this.roomId,
     required this.isVideo,
@@ -18,6 +19,7 @@ class CallSession {
     required this.aesKeyBytes,
   });
 
+  final int chatId;
   final int callId;
   final String roomId;
   final bool isVideo;

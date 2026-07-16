@@ -93,14 +93,21 @@ class IncomingCallBanner extends ConsumerWidget {
     ref.read(incomingCallProvider.notifier).state = null;
 
     try {
-      final roomId = 'call_${incoming.callId}';
+      await ref.read(callRepositoryProvider).join(
+        chatId: incoming.chatId,
+        roomId: incoming.roomId,
+        messageId: incoming.callId,
+      );
+
       final e2ee = ref.read(e2eeServiceProvider);
       final aesKey = await e2ee.deriveCallKey(incoming.callId);
       final aesKeyBytes = Uint8List.fromList(await aesKey.extractBytes());
 
       final manager = CallSessionManager(
+        ref: ref,
+        chatId: incoming.chatId,
         callId: incoming.callId,
-        roomId: roomId,
+        roomId: incoming.roomId,
         isVideo: incoming.isVideo,
         direction: CallDirection.incoming,
         displayName: ref.read(authProvider).session?.displayName ?? 'User',

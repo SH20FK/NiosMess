@@ -17,23 +17,24 @@ class CallPushHandler extends Notifier<void> {
     if (event is! Map) return;
     final Map<String, dynamic> msg = asStringMap(event);
     final String action = msg['action'] as String? ?? '';
-    if (action != 'call_initiated') return;
+    if (action != 'new_call') return;
 
-    final Map<String, dynamic> data = msg['data'] is Map
-        ? asStringMap(msg['data'] as Map)
+    final Map<String, dynamic> payload = msg['payload'] is Map
+        ? asStringMap(msg['payload'] as Map)
         : msg;
 
-    final callId = data['call_id'] as int?;
-    final chatId = data['chat_id'] as int?;
-    final initiatorId = data['initiator_id'] as int?;
-    final isVideo = data['is_video'] as bool? ?? false;
-    final initiatorName = data['initiator_name'] as String? ?? 'Someone';
+    final messageId = payload['message_id'] as int?;
+    final chatId = payload['chat_id'] as int?;
+    final roomId = payload['room_id'] as String?;
+    final initiatorId = payload['caller_id'] as int?;
+    final isVideo = payload['is_video'] as bool? ?? false;
+    final initiatorName = payload['caller_nickname'] as String? ?? 'Someone';
 
-    if (callId == null || chatId == null || initiatorId == null) return;
+    if (messageId == null || chatId == null || roomId == null || initiatorId == null) return;
 
     ref.read(incomingCallProvider.notifier).state = IncomingCallData(
-      callId: callId,
-      roomId: 'call_$callId',
+      callId: messageId,
+      roomId: roomId,
       chatId: chatId,
       isVideo: isVideo,
       initiatorId: initiatorId,

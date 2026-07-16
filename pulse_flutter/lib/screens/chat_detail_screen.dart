@@ -1033,11 +1033,224 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     // Implementation for opening media
   }
 
-  void _showMediaActions(ApiMessage message, bool isMine, {required bool amAdminOrOwner}) {
-    // Implementation for showing media actions
+  String _displayText(ApiMessage message) => message.content;
+
+  Future<void> _showMediaActions(
+    ApiMessage message,
+    bool isMine, {
+    required bool amAdminOrOwner,
+  }) async {
+    final String? mediaUrl = _mediaUrlFor(message);
+    if (mediaUrl == null || mediaUrl.trim().isEmpty) {
+      return;
+    }
+    final String fileName = (message.mediaName ?? '').trim().isNotEmpty
+        ? message.mediaName!.trim()
+        : _mediaLabel(message, mediaUrl);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext ctx) {
+        final ColorScheme scheme = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ListTile(
+                  leading: const Icon(Icons.save_alt_rounded),
+                  title: Text(context.l10n.mediaActionSave),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    saveM3File(
+                      context: context,
+                      fileName: fileName,
+                      fileSize: message.mediaSize ?? 0,
+                      mediaUrl: mediaUrl,
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.forward_rounded),
+                  title: Text(context.l10n.chatResendTo),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _forwardMessage(message);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.copy_rounded),
+                  title: Text(context.l10n.mediaActionCopy),
+                  onTap: () async {
+                    final ScaffoldMessengerState messenger =
+                        ScaffoldMessenger.of(context);
+                    final String copyLabel = context.l10n.mediaActionCopy;
+                    Navigator.of(ctx).pop();
+                    await Clipboard.setData(ClipboardData(text: mediaUrl));
+                    messenger.showSnackBar(
+                      SnackBar(content: Text(copyLabel)),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.open_in_new_rounded),
+                  title: Text(context.l10n.mediaActionOpenIn),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    FileOpener.openUrl(context, mediaUrl);
+                  },
+                ),
+                if (isMine || amAdminOrOwner)
+                  ListTile(
+                    leading: Icon(
+                      Icons.delete_outline_rounded,
+                      color: scheme.error,
+                    ),
+                    title: Text(
+                      context.l10n.chatDelete,
+                      style: TextStyle(color: scheme.error),
+                    ),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _deleteMessage(message);
+                    },
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
-  String _displayText(ApiMessage message) => message.content;
+  String _mediaLabel(ApiMessage message, String mediaUrl) {
+    final String explicit = (message.mediaName ?? '').trim();
+    if (explicit.isNotEmpty) {
+      return explicit;
+    }
+
+    final Uri? uri = Uri.tryParse(mediaUrl);
+    if (uri != null && uri.pathSegments.isNotEmpty) {
+      final String last = uri.pathSegments.last.trim();
+      if (last.isNotEmpty) {
+        return last;
+      }
+    }
+    return context.l10n.chatAttachment;
+  }
+
+  String? _replyPreviewFor(ApiMessage message, Map<int, ApiMessage> byId) {
+    final int? replyToId = message.replyToId;
+    if (replyToId == null) {
+      return null;
+    }
+    final ApiMessage? target = byId[replyToId];
+    if (target == null) {
+      return context.l10n.chatReplyToId(replyToId);
+    }
+    final String text = _displayText(target);
+    return '${target.senderDisplayName}: ${text.length > 64 ? '${text.substring(0, 64)}...' : text}';
+  }
+
+  Future<void> _retrySend(ApiMessage message) async {
+    if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+    final int? chatId = _chatId;
+    if (chatId == null) return;
+    ref.read(chatMessagesProvider(chatId).notifier).removeLocalMessage(message.id);
+    await ref.read(chatMessagesProvider(chatId).notifier).send(message.content, replyToId: message.replyToId);
+  }
+
+  Future<void> _startCall({required bool isVideo}) async {
+    final int? chatId = _chatId;
+    if (chatId == null) return;
+
+    final perm = await PermissionService().requestCallPermissions(video: isVideo);
+    if (!perm) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Permission required for calls')),
+        );
+      }
+      return;
+    }
+
+    try {
+      final random = Random.secure();
+      final roomId = List.generate(32, (_) => random.nextInt(16).toRadixString(16)).join();
+      final nickname = ref.read(authProvider).session?.displayName ?? 'User';
+
+      final result = await ref.read(callRepositoryProvider).initiate(
+        chatId: chatId,
+        roomId: roomId,
+        callerNickname: nickname,
+        isVideo: isVideo,
+      );
+
+      final callId = (result['payload']?['message_id'] ?? result['message_id'] ?? 0) as int;
+
+      unawaited(_tryCreateSfuRoom(roomId));
+
+      final e2ee = ref.read(e2eeServiceProvider);
+      final aesKey = await e2ee.deriveCallKey(callId);
+      final aesKeyBytes = Uint8List.fromList(await aesKey.extractBytes());
+
+      final manager = CallSessionManager(
+        ref: ref,
+        chatId: chatId,
+        callId: callId,
+        roomId: roomId,
+        isVideo: isVideo,
+        direction: CallDirection.outgoing,
+        displayName: nickname,
+        aesKeyBytes: aesKeyBytes,
+      );
+
+      ref.read(callSessionProvider.notifier).state = manager;
+      manager.start();
+
+      if (mounted) {
+        context.push('/call/$callId');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Call failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _tryCreateSfuRoom(String roomId) async {
+    try {
+      final api = NiosCallsApi();
+      await api.createRoom(roomId: roomId);
+      api.dispose();
+    } catch (e) {
+      debugPrint('SFU room creation skipped: $e');
+    }
+  }
+
+  void _startVoiceCall() => _startCall(isVideo: false);
+
+  void _startVideoCall() => _startCall(isVideo: true);
+
+  void _handleOpenMediaFor(ApiMessage message) {
+    if (message.hasMedia) {
+      _openMedia(message);
+    }
+  }
+
+  void _handleLongPressMediaFor(ApiMessage message, bool isMine, bool amAdminOrOwner) {
+    if (message.hasMedia) {
+      _showMediaActions(message, isMine, amAdminOrOwner: amAdminOrOwner);
+    }
+  }
+
+  void _handleLongPressFor(ApiMessage message, bool isMine, bool isChannel, bool amAdminOrOwner) {
+    _showMessageActions(message, isMine, isChannel: isChannel, amAdminOrOwner: amAdminOrOwner);
+  }
 
   @override
   Widget build(BuildContext context) {

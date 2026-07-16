@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
+import 'package:pulse_flutter/repositories/call_repository.dart';
 
 /// Provider for the current active call session.
 ///
@@ -12,6 +13,8 @@ final StateProvider<CallSessionManager?> callSessionProvider =
 /// Manages call session lifecycle — start, accept, end.
 class CallSessionManager {
   CallSessionManager({
+    required this.ref,
+    required this.chatId,
     required this.callId,
     required this.roomId,
     required this.isVideo,
@@ -20,6 +23,8 @@ class CallSessionManager {
     required this.aesKeyBytes,
   });
 
+  final Ref ref;
+  final int chatId;
   final int callId;
   final String roomId;
   final bool isVideo;
@@ -33,6 +38,7 @@ class CallSessionManager {
 
   CallSession start() {
     _session = CallSession(
+      chatId: chatId,
       callId: callId,
       roomId: roomId,
       isVideo: isVideo,
@@ -45,6 +51,17 @@ class CallSessionManager {
   }
 
   Future<void> end() async {
+    final duration = _session?.currentData.durationSeconds ?? 0;
+    final wasMissed = _session?.currentData.durationSeconds == 0;
+    try {
+      await ref.read(callRepositoryProvider).end(
+        chatId: chatId,
+        roomId: roomId,
+        messageId: callId,
+        duration: duration,
+        wasMissed: wasMissed,
+      );
+    } catch (_) {}
     await _session?.end();
     _session?.dispose();
     _session = null;

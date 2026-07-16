@@ -8,36 +8,62 @@ class CallRepository {
 
   final Ref _ref;
 
-  Future<ApiCallInitiateResult> initiate({
+  Future<Map<String, dynamic>> initiate({
     required int chatId,
+    required String roomId,
+    required String callerNickname,
     required bool isVideo,
   }) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request(
-          'initiate_call',
-          payload: <String, dynamic>{'chat_id': chatId, 'is_video': isVideo},
+          'start_call',
+          payload: <String, dynamic>{
+            'chat_id': chatId,
+            'room_id': roomId,
+            'caller_nickname': callerNickname,
+            'is_video': isVideo,
+          },
         );
-    return ApiCallInitiateResult.fromJson(asStringMap(response));
+    return asStringMap(response);
   }
 
-  Future<void> answer({required int callId, required bool accept}) async {
+  Future<void> join({
+    required int chatId,
+    required String roomId,
+    required int messageId,
+  }) async {
     await _ref
         .read(webSocketClientProvider)
         .request(
-          'answer_call',
-          payload: <String, dynamic>{'call_id': callId, 'accept': accept},
+          'join_call',
+          payload: <String, dynamic>{
+            'chat_id': chatId,
+            'room_id': roomId,
+            'message_id': messageId,
+          },
         );
   }
 
-  Future<ApiCallEndResult> end(int callId) async {
-    final dynamic response = await _ref
+  Future<void> end({
+    required int chatId,
+    required String roomId,
+    required int messageId,
+    required int duration,
+    required bool wasMissed,
+  }) async {
+    await _ref
         .read(webSocketClientProvider)
         .request(
           'end_call',
-          payload: <String, dynamic>{'call_id': callId},
+          payload: <String, dynamic>{
+            'chat_id': chatId,
+            'room_id': roomId,
+            'message_id': messageId,
+            'duration': duration,
+            'was_missed': wasMissed,
+          },
         );
-    return ApiCallEndResult.fromJson(asStringMap(response));
   }
 
   Future<ApiCallStatus> status(int callId) async {
