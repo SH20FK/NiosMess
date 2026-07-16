@@ -317,7 +317,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                       participantLabel,
                       style: textTheme.titleMedium?.copyWith(
                         color: Colors.white,
-                        shadows: const [Shadow(color: Colors.black85, blurRadius: 8)],
+                        shadows: const [Shadow(color: Colors.black.withValues(alpha: 0.85), blurRadius: 8)],
                       ),
                     ),
                     ValueListenableBuilder<int>(
@@ -330,7 +330,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                           style: textTheme.labelLarge?.copyWith(
                             fontFamily: 'monospace',
                             color: Colors.white.withValues(alpha: 0.8),
-                            shadows: const [Shadow(color: Colors.black85, blurRadius: 8)],
+                            shadows: const [Shadow(color: Colors.black.withValues(alpha: 0.85), blurRadius: 8)],
                           ),
                         );
                       },

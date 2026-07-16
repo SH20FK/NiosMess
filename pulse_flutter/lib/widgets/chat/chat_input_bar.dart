@@ -288,7 +288,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                         Expanded(
                           child: Focus(
                             onKeyEvent: (FocusNode node, KeyEvent event) {
-                              if (event is KeyDownEvent && event.logicalKey.keyLabel == 'Enter') {
+                              if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
                                 if (HardwareKeyboard.instance.isShiftPressed) {
                                   return KeyEventResult.ignored;
                                 } else {

@@ -5,10 +5,10 @@ import 'package:cryptography/cryptography.dart';
 class E2eeKeyManager {
   E2eeKeyManager();
 
-  final Ecdh _ecdh = Ecdh.p256();
+  final Ecdh _ecdh = Ecdh.p256(length: 256);
   final AesGcm _aesGcm = AesGcm.with256bits();
 
-  SimpleKeyPair? myKeyPair;
+  EcKeyPair? myKeyPair;
   Uint8List? myPubKeyRaw;
   SecretKey? mySenderKey;
   Uint8List? mySenderKeyRaw;
@@ -29,14 +29,14 @@ class E2eeKeyManager {
   ];
 
   Future<void> initialize() async {
-    myKeyPair = await _ecdh.newKeyPair();
+    myKeyPair = await _ecdh.newKeyPair() as EcKeyPair;
     final myPubKey = await myKeyPair!.extractPublicKey() as EcPublicKey;
     myPubKeyRaw = Uint8List(65);
     myPubKeyRaw![0] = 0x04;
     myPubKeyRaw!.setRange(1, 33, myPubKey.x);
     myPubKeyRaw!.setRange(33, 65, myPubKey.y);
 
-    mySenderKey = _aesGcm.newSecretKey();
+    mySenderKey = await _aesGcm.newSecretKey();
     mySenderKeyRaw = Uint8List.fromList(await mySenderKey!.extractBytes());
   }
 

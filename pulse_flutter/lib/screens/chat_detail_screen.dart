@@ -3,6 +3,7 @@ import 'package:pulse_flutter/widgets/chat/chat_detail_fab.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -905,7 +906,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     setState(() {
       _replyToMessageId = message.id;
       _replyPreviewText =
-          '\${message.senderDisplayName}: \${text.length > 80 ? '\${text.substring(0, 80)}...' : text}';
+           '${message.senderDisplayName}: ${text.length > 80 ? "${text.substring(0, 80)}..." : text}';
     });
   }
 
@@ -1018,7 +1019,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             onForward: () => _forwardMessage(message),
             onEdit: () => _editMessage(message),
             onDelete: () => _deleteMessage(message),
-            onRetry: () => _retrySend(message),
           ),
         ),
       ),
@@ -1040,7 +1040,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     bool isMine, {
     required bool amAdminOrOwner,
   }) async {
-    final String? mediaUrl = _mediaUrlFor(message);
+    final String? mediaUrl = message.mediaUrl;
     if (mediaUrl == null || mediaUrl.trim().isEmpty) {
       return;
     }
@@ -1260,7 +1260,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         appBar: AppBar(title: Text(context.l10n.chatTitleFallback(0))),
         body: PulseScaffoldBody(
           maxWidth: 1560,
-          child: const Center(child: PulseLoadingIndicator()),
+          child: const Center(child: AppLoadingIndicator()),
         ),
       );
     }
