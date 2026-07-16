@@ -1163,6 +1163,21 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     return _extractUrlFromText(message.content.trim());
   }
 
+  bool _isImageMedia(ApiMessage message, String mediaUrl) {
+    final String mediaType = (message.mediaType ?? '').toLowerCase();
+    if (mediaType.startsWith('image/')) {
+      return true;
+    }
+
+    final String lower = mediaUrl.toLowerCase();
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.bmp');
+  }
+
   String? _replyPreviewFor(ApiMessage message, Map<int, ApiMessage> byId) {
     final int? replyToId = message.replyToId;
     if (replyToId == null) {
@@ -1199,13 +1214,18 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     try {
+      final random = Random.secure();
+      final roomId = List.generate(32, (_) => random.nextInt(16).toRadixString(16)).join();
+      final nickname = ref.read(authProvider).session?.displayName ?? 'User';
+
       final result = await ref.read(callRepositoryProvider).initiate(
         chatId: chatId,
+        roomId: roomId,
+        callerNickname: nickname,
         isVideo: isVideo,
       );
 
-      final callId = result.callId;
-      final roomId = 'call_$callId';
+      final callId = (result['payload']?['message_id'] ?? result['message_id'] ?? 0) as int;
 
       unawaited(_tryCreateSfuRoom(roomId));
 
@@ -1214,11 +1234,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       final aesKeyBytes = Uint8List.fromList(await aesKey.extractBytes());
 
       final manager = CallSessionManager(
+        ref: ref,
+        chatId: chatId,
         callId: callId,
         roomId: roomId,
         isVideo: isVideo,
         direction: CallDirection.outgoing,
-        displayName: ref.read(authProvider).session?.displayName ?? 'User',
+        displayName: nickname,
         aesKeyBytes: aesKeyBytes,
       );
 
