@@ -1474,6 +1474,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           isGroup: isGroup,
           isChannel: isChannel,
           directUsername: directUsername,
+          onVoiceCall: _startVoiceCall,
+          onVideoCall: _startVideoCall,
           onBack: () {
             if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
             _goBack();
