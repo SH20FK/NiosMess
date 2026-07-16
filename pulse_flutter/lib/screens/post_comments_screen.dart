@@ -184,6 +184,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
 
                       return MessageBubble(
                         text: _displayText(message),
+                        chatId: message.chatId,
                         formattedTime: formatMessageTime(message.sentAt),
                         isMine: isMine,
                         isEdited: message.isEdited,
