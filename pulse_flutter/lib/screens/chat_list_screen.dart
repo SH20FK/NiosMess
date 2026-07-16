@@ -27,6 +27,7 @@ import 'package:pulse_flutter/providers/chat_filter_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_filter_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:pulse_flutter/widgets/chat/chat_search_field.dart';
+import 'package:pulse_flutter/widgets/chat_creation_surfaces.dart';
 
 
 enum _LastMessageKind { photo, video, audio, file }
@@ -106,13 +107,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
-      appBar: ChatListHeader(
-        onJoinTap: () => context.push('/join'),
-        onDirectTap: () => _showStartDirectChatDialog(context),
-      ),
+      appBar: const ChatListHeader(),
       floatingActionButton: _CreateFab(
+        onStartDirectChat: () => _showStartDirectChatDialog(context),
         onGroupTap: () => context.push('/chat/create?type=group'),
-        onChannelTap: () => context.push('/chat/create?type=channel'),
+        onJoinTap: () => context.push('/join'),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -893,131 +892,42 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 }
 
-class _CreateFab extends StatefulWidget {
+class _CreateFab extends StatelessWidget {
   const _CreateFab({
+    required this.onStartDirectChat,
     required this.onGroupTap,
-    required this.onChannelTap,
+    required this.onJoinTap,
   });
 
+  final VoidCallback onStartDirectChat;
   final VoidCallback onGroupTap;
-  final VoidCallback onChannelTap;
-
-  @override
-  State<_CreateFab> createState() => _CreateFabState();
-}
-
-class _CreateFabState extends State<_CreateFab>
-    with SingleTickerProviderStateMixin {
-  bool _open = false;
-
-  void _toggle() {
-    HapticService.confirm();
-    setState(() => _open = !_open);
-  }
-
-  void _close() {
-    if (!_open) return;
-    setState(() => _open = false);
-  }
+  final VoidCallback onJoinTap;
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final l10n = context.l10n;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: <Widget>[
-        if (_open) ...[
-          _FabAction(
-            icon: Icons.groups_rounded,
-            label: l10n.groupNewGroup,
-            scheme: scheme,
-            textTheme: textTheme,
-            onTap: () {
-              _close();
-              widget.onGroupTap();
-            },
-          ),
-          const SizedBox(height: 12),
-          _FabAction(
-            icon: Icons.campaign_rounded,
-            label: l10n.groupNewChannel,
-            scheme: scheme,
-            textTheme: textTheme,
-            onTap: () {
-              _close();
-              widget.onChannelTap();
-            },
-          ),
-          const SizedBox(height: 12),
-        ],
-        FloatingActionButton(
-          onPressed: _toggle,
-          heroTag: 'chat_create_fab',
-          child: AnimatedRotation(
-            turns: _open ? 0.125 : 0,
-            duration: const Duration(milliseconds: 250),
-            child: const Icon(Icons.add_rounded),
-          ),
-        ),
-      ],
+    return FloatingActionButton(
+      onPressed: () => _showCreateSheet(context),
+      heroTag: 'chat_create_fab',
+      child: const Icon(Icons.add_rounded),
     );
   }
-}
 
-class _FabAction extends StatelessWidget {
-  const _FabAction({
-    required this.icon,
-    required this.label,
-    required this.scheme,
-    required this.textTheme,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final ColorScheme scheme;
-  final TextTheme textTheme;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(28),
-          child: AnimatedScale(
-            scale: 1,
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.elasticOut,
-            child: Container(
-              height: 48,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.16),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(icon, size: 20, color: scheme.primary),
-                  const SizedBox(width: 8),
-                  Text(label, style: textTheme.labelLarge),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+  Future<void> _showCreateSheet(BuildContext context) async {
+    final String? action = await showCreateChatMenu(context);
+    if (action == null || !context.mounted) return;
+    switch (action) {
+      case 'group':
+        onGroupTap();
+        return;
+      case 'channel':
+        context.push('/chat/create?type=channel');
+        return;
+      case 'join':
+        onJoinTap();
+        return;
+      case 'direct':
+        onStartDirectChat();
+        return;
+    }
   }
 }
