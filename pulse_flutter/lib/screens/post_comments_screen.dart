@@ -194,6 +194,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                         senderDisplayName: message.senderDisplayName,
                         senderAvatarUrl: message.senderAvatarUrl,
                         senderBadges: message.senderBadges,
+                        hideFooter: true,
                         onLongPress: () {
                           setState(() {
                             _replyToMessageId = message.id;

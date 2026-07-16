@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
+import 'package:pulse_flutter/providers/token_provider.dart';
 
 class PulseAvatar extends StatelessWidget {
   const PulseAvatar({
@@ -165,6 +166,7 @@ class _CachedAvatarState extends State<_CachedAvatar> {
   void _resolveImage() {
     final ImageProvider provider = CachedNetworkImageProvider(
       widget.url,
+      headers: cachedAuthHeaders(),
       maxWidth: (widget.radius * 2 * 2).toInt(),
       maxHeight: (widget.radius * 2 * 2).toInt(),
     );

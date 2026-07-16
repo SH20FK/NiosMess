@@ -12,6 +12,7 @@ import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/widgets/glass_card.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -217,6 +218,7 @@ class _PostCardState extends ConsumerState<PostCard>
                             tag: 'post_media_${post.id}',
                             child: CachedNetworkImage(
                               imageUrl: ApiConstants.resolve(post.mediaUrl),
+                              httpHeaders: cachedAuthHeaders(),
                               fit: BoxFit.contain,
                               memCacheWidth: 800,
                               placeholder: (_, _) => Center(
@@ -394,6 +396,7 @@ class _FullScreenImageState extends State<_FullScreenImage> {
                     duration: const Duration(milliseconds: 250),
                     child: CachedNetworkImage(
                       imageUrl: widget.url,
+                      httpHeaders: cachedAuthHeaders(),
                       fit: BoxFit.contain,
                       placeholder: (_, _) => const Center(
                         child: AppLoadingIndicator(size: 32, color: Colors.white70),

@@ -138,6 +138,7 @@ class _CommentsBottomSheetState extends ConsumerState<CommentsBottomSheet> {
                           onLongPress: () => _setReply(comment),
                           child: MessageBubble(
                             text: _displayText(comment),
+                            chatId: comment.chatId,
                             formattedTime: formatMessageTime(comment.sentAt),
                             isMine: comment.senderId ==
                                 ref.read(authProvider).session?.userId,

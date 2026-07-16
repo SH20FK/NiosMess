@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -52,6 +53,7 @@ class MessageBubble extends ConsumerWidget {
     this.isCircleVideo = false,
     this.mediaDuration,
     this.animateHighlight = false,
+    this.hideFooter = false,
     super.key,
   });
 
@@ -87,6 +89,7 @@ class MessageBubble extends ConsumerWidget {
   final bool isCircleVideo;
   final int? mediaDuration;
   final bool animateHighlight;
+  final bool hideFooter;
 
   List<String> get mediaUrls {
     if (mediaUrl == null || mediaUrl!.trim().isEmpty) return [];
@@ -220,6 +223,8 @@ class MessageBubble extends ConsumerWidget {
     final bool hasMedia = (mediaUrl ?? '').trim().isNotEmpty;
     final String displayText = forwarded?.body ?? text;
     final bool hasText = displayText.trim().isNotEmpty;
+
+    final Map<String, String> headers = cachedAuthHeaders();
 
     final BorderRadius bubbleRadius = _getBubbleRadius(
       isMine,
@@ -374,6 +379,7 @@ class MessageBubble extends ConsumerWidget {
                               scheme: scheme,
                               textTheme: textTheme,
                               textColor: textColor,
+                              headers: headers,
                             ),
                           if (hasMedia && hasText) const SizedBox(height: 6),
                           if (hasText)
@@ -399,10 +405,11 @@ class MessageBubble extends ConsumerWidget {
                             ),
                         ],
                       ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: _MessageBubbleFooter(
+                      if (!hideFooter)
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: _MessageBubbleFooter(
                           isMine: isMine,
                           isE2ee: isE2ee,
                           isEdited: isEdited,
@@ -577,18 +584,19 @@ class MessageBubble extends ConsumerWidget {
                 isMine: isMine,
                 scheme: scheme,
               ),
-              Positioned(
-                bottom: 4,
-                right: 4,
-                child: _MessageBubbleFooter(
-                  isMine: isMine,
-                  isE2ee: isE2ee,
-                  isEdited: isEdited,
-                  isDeleted: isDeleted,
-                  isRead: isRead,
-                  formattedTime: formattedTime,
-                  scheme: scheme,
-                  textTheme: textTheme,
+              if (!hideFooter)
+                Positioned(
+                  bottom: 4,
+                  right: 4,
+                  child: _MessageBubbleFooter(
+                    isMine: isMine,
+                    isE2ee: isE2ee,
+                    isEdited: isEdited,
+                    isDeleted: isDeleted,
+                    isRead: isRead,
+                    formattedTime: formattedTime,
+                    scheme: scheme,
+                    textTheme: textTheme,
                 ),
               ),
             ],
@@ -603,6 +611,7 @@ class MessageBubble extends ConsumerWidget {
     required ColorScheme scheme,
     required TextTheme textTheme,
     required Color textColor,
+    required Map<String, String> headers,
   }) {
     if (isVoice && mediaUrl != null && mediaUrl!.trim().isNotEmpty) {
       return InkWell(
@@ -639,6 +648,7 @@ class MessageBubble extends ConsumerWidget {
           child: CachedNetworkImage(
             imageUrl: urls.first,
             cacheKey: '${urls.first}_preview',
+            httpHeaders: headers,
             width: 220,
             height: 180,
             fit: BoxFit.cover,
@@ -878,6 +888,7 @@ class _MessageBubbleHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               child: CachedNetworkImage(
                 imageUrl: ApiConstants.resolve(senderAvatarUrl),
+                httpHeaders: cachedAuthHeaders(),
                 width: 16,
                 height: 16,
                 memCacheWidth: 32,
@@ -1274,6 +1285,7 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
         child: CachedNetworkImage(
           imageUrl: widget.videoUrl,
           cacheKey: '${widget.videoUrl}_circle_thumb',
+          httpHeaders: cachedAuthHeaders(),
           width: circleSize,
           height: circleSize,
           fit: BoxFit.cover,
@@ -1403,6 +1415,7 @@ class _MediaCarouselState extends State<_MediaCarousel> {
                       child: CachedNetworkImage(
                         imageUrl: widget.urls[index],
                         cacheKey: '${widget.urls[index]}_preview',
+                        httpHeaders: cachedAuthHeaders(),
                         width: 220,
                         height: 180,
                         fit: BoxFit.cover,

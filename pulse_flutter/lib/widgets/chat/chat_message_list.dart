@@ -4,6 +4,7 @@ import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
+import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -315,6 +316,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                       ? ClipOval(
                           child: CachedNetworkImage(
                             imageUrl: ApiConstants.resolve(message.senderAvatarUrl),
+                            httpHeaders: cachedAuthHeaders(),
                             memCacheWidth: 56,
                             width: 28,
                             height: 28,

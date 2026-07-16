@@ -7,6 +7,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:path_provider/path_provider.dart';
@@ -116,7 +117,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
 
   Widget _buildImageViewer(ColorScheme scheme) {
     return PhotoView(
-      imageProvider: CachedNetworkImageProvider(widget.url),
+      imageProvider: CachedNetworkImageProvider(widget.url, headers: cachedAuthHeaders()),
       minScale: PhotoViewComputedScale.contained,
       maxScale: PhotoViewComputedScale.covered * 2.5,
       backgroundDecoration: BoxDecoration(color: scheme.scrim),
