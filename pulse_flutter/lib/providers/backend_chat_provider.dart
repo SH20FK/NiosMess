@@ -437,7 +437,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     state = AsyncData<List<ApiMessage>>(next);
 
     try {
-      final ApiMessage sent = await ref
+      ApiMessage sent = await ref
           .read(chatRepositoryProvider)
           .sendMessage(
             _chatId,
@@ -446,6 +446,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
             uploadId: uploadId,
             e2eeContent: e2eeContent,
           );
+
+      if (isE2ee) {
+        sent = sent.copyWith(content: trimmed);
+      }
 
       current = state.value ?? const <ApiMessage>[];
       next = List<ApiMessage>.from(current)
