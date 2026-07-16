@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
-import 'package:pulse_flutter/widgets/app_logo_mark.dart';
 
 class SettingsAboutScreen extends StatefulWidget {
   const SettingsAboutScreen({super.key});
@@ -133,6 +131,7 @@ class _HeroBlock extends StatelessWidget {
           ),
         ),
         child: Stack(
+          alignment: Alignment.center,
           children: [
             // Decorative floating M3 shapes
             Positioned(
@@ -143,9 +142,7 @@ class _HeroBlock extends StatelessWidget {
                 height: 80,
                 color: scheme.primary.withValues(alpha: 0.1),
                 child: const SizedBox(),
-              ).animate(onPlay: (c) => c.repeat(reverse: true))
-               .moveY(begin: 0, end: 15, duration: 3.seconds, curve: Curves.easeInOutSine)
-               .rotate(begin: 0, end: 0.1, duration: 4.seconds),
+              ),
             ),
             Positioned(
               bottom: 10,
@@ -166,9 +163,8 @@ class _HeroBlock extends StatelessWidget {
                 height: 50,
                 color: scheme.tertiary.withValues(alpha: 0.15),
                 child: const SizedBox(),
-              ).animate(onPlay: (c) => c.repeat(reverse: true))
-               .moveY(begin: -10, end: 10, duration: 2.5.seconds, curve: Curves.easeInOut)
-               .scale(begin: const Offset(1, 1), end: const Offset(1.2, 1.2), duration: 2.seconds),
+              ).animate(onPlay: (c) => c.repeat())
+               .rotate(begin: 0, end: 1, duration: 12.seconds),
             ),
             // Content
             Padding(
