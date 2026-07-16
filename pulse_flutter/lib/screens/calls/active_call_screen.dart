@@ -69,6 +69,9 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen>
   void _endCall() async {
     final manager = ref.read(callSessionProvider);
     await manager?.end();
+    // BUG FIX #2: Explicitly set provider state to null after call ends
+    // This triggers Riverpod listeners to rebuild UI and hide CallOverlay
+    ref.read(callSessionProvider.notifier).state = null;
     if (mounted) Navigator.of(context).pop();
   }
 

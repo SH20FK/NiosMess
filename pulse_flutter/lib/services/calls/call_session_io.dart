@@ -82,29 +82,42 @@ class CallSession {
   Stream<CallSessionData> get stateStream => _stateController.stream;
 
   /// Start the call: connect transport, start heartbeat.
-  Future<void> start({bool preferQuic = false}) async {
+  /// BUG FIX #3: Changed preferQuic default from false to true.
+  /// Server spec: "Client MUST try UDP first, fallback to TCP on failure."
+  /// This implements the correct transport priority with 2s timeout fallback.
+  Future<void> start({bool preferQuic = true}) async {
     _setState(CallSessionState.connecting);
 
     CallTransport transport;
 
     if (preferQuic) {
+      // BUG FIX #3: Implement 2-second timeout for QUIC connection attempt
       transport = QuicCallTransport();
       _transport = transport;
       _setupTransportListeners(transport);
 
-      var result = await transport.connect(
-        roomId: roomId,
-        nickname: displayName,
-      );
+      try {
+        var result = await transport.connect(
+          roomId: roomId,
+          nickname: displayName,
+        ).timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => TransportConnectResult.failed,
+        );
 
-      if (result == TransportConnectResult.connected) {
-        _setState(CallSessionState.connected);
-        return;
+        if (result == TransportConnectResult.connected) {
+          _setState(CallSessionState.connected);
+          return;
+        }
+      } catch (e) {
+        debugPrint('[CallSession] QUIC connection error: $e');
       }
 
       debugPrint('[CallSession] QUIC failed, falling back to WS');
+      await transport.disconnect();
     }
 
+    // Fallback to TCP WebSocket
     transport = WsCallTransport();
     _transport = transport;
 

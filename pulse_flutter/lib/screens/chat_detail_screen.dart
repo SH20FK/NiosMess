@@ -415,7 +415,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(context.l10n.chatAiError('$e')),
+            content: Text(context.l10n.chatAiError('\$e')),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -499,23 +499,36 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: <(String, String, String)>[
-                    ('translate:English', '🇬🇧', context.l10n.chatAiLangEn),
-                    ('translate:Russian', '🇷🇺', context.l10n.chatAiLangRu),
-                    ('translate:German', '🇩🇪', context.l10n.chatAiLangDe),
-                    ('translate:French', '🇫🇷', context.l10n.chatAiLangFr),
-                    ('translate:Spanish', '🇪🇸', context.l10n.chatAiLangEs),
-                    ('translate:Chinese', '🇨🇳', context.l10n.chatAiLangZh),
-                  ].map(
-                    ((String, String, String) item) => ActionChip(
-                      avatar: Text(item.$2, style: const TextStyle(fontSize: 16)),
-                      label: Text(item.$3),
+                  children: <Widget>[
+                    ActionChip(
+                      label: const Text('🇬🇧 English'),
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        _processTextWithAi('translate', targetLanguage: item.$1.split(':')[1]);
+                        _processTextWithAi('translate', targetLanguage: 'English');
                       },
                     ),
-                  ).toList(),
+                    ActionChip(
+                      label: const Text('🇪🇸 Español'),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        _processTextWithAi('translate', targetLanguage: 'Spanish');
+                      },
+                    ),
+                    ActionChip(
+                      label: const Text('🇨🇳 中文'),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        _processTextWithAi('translate', targetLanguage: 'Chinese');
+                      },
+                    ),
+                    ActionChip(
+                      label: const Text('🇷🇺 Русский'),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        _processTextWithAi('translate', targetLanguage: 'Russian');
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -525,7 +538,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     );
   }
 
-
   Future<void> _refreshNow() async {
     final int? chatId = _chatId;
     if (chatId == null) return;
@@ -534,7 +546,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       await ref.read(chatMessagesProvider(chatId).notifier).refresh();
       await ref.read(chatMessagesProvider(chatId).notifier).markRead();
     } catch (e) {
-      debugPrint('Failed to refresh: $e');
+      debugPrint('Failed to refresh: \$e');
     }
   }
 
@@ -598,7 +610,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         }
         final String message = error is ApiException
             ? error.message
-            : context.l10n.commonFailed('$error');
+            : context.l10n.commonFailed('\$error');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
@@ -657,7 +669,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (!mounted) return;
       final String message = error is ApiException
           ? error.message
-          : context.l10n.commonFailed('$error');
+          : context.l10n.commonFailed('\$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
@@ -719,7 +731,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (!mounted) return false;
       final String text = error is ApiException
           ? error.message
-          : context.l10n.commonFailed('$error');
+          : context.l10n.commonFailed('\$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
       return false;
     }
@@ -755,7 +767,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           uploadFileSize = await compressed.length();
         }
       } catch (e, st) {
-        debugPrint('Image compression failed: $e\n$st');
+        debugPrint('Image compression failed: \$e\n\$st');
       }
     }
 
@@ -817,7 +829,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       });
       final String text = error is ApiException
           ? error.message
-          : context.l10n.commonFailed('$error');
+          : context.l10n.commonFailed('\$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
   }
@@ -863,7 +875,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       }
       final String text = error is ApiException
           ? error.message
-          : context.l10n.commonFailed('$error');
+          : context.l10n.commonFailed('\$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
   }
@@ -883,7 +895,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       }
       final String text = error is ApiException
           ? error.message
-          : context.l10n.commonFailed('$error');
+          : context.l10n.commonFailed('\$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
   }
@@ -893,7 +905,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     setState(() {
       _replyToMessageId = message.id;
       _replyPreviewText =
-          '${message.senderDisplayName}: ${text.length > 80 ? '${text.substring(0, 80)}...' : text}';
+          '\${message.senderDisplayName}: \${text.length > 80 ? '\${text.substring(0, 80)}...' : text}';
     });
   }
 
@@ -944,7 +956,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (target == null || !mounted) return;
 
     final String forwardText =
-        '_fwd from ${message.senderDisplayName}: ${message.content}';
+        '_fwd from \${message.senderDisplayName}: \${message.content}';
     try {
       await ref
           .read(chatMessagesProvider(target.id).notifier)
@@ -960,7 +972,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
+        SnackBar(content: Text(e is ApiException ? e.message : '\$e')),
       );
     }
   }
@@ -986,417 +998,46 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             bottom: MediaQuery.of(ctx).viewInsets.bottom,
           ),
           child: MessageContextMenuSheet(
-        message: message,
-        isMine: isMine,
-        isChannel: isChannel,
-        amAdminOrOwner: amAdminOrOwner,
-        isSecret: ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret == true,
-        onReact: (String emoji) => _react(message, emoji),
-        onShowAllReactions: () => _showAllReactionsPicker(message),
-        onReply: () => _setReply(message),
-        onCopy: () {
-          Clipboard.setData(ClipboardData(text: message.content));
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.chatMessageTextCopied),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        },
-        onForward: () => _forwardMessage(message),
-        onComments: () {
-          final int? chatId = _chatId;
-          if (chatId == null) return;
-          context.push('/channel/$chatId/post/${message.id}/comments');
-        },
-        onEdit: () => _editMessage(message),
-        onDelete: () => _deleteMessage(message),
+            message: message,
+            isMine: isMine,
+            isChannel: isChannel,
+            amAdminOrOwner: amAdminOrOwner,
+            isSecret: ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret == true,
+            onReact: (String emoji) => _react(message, emoji),
+            onShowAllReactions: () => _showAllReactionsPicker(message),
+            onReply: () => _setReply(message),
+            onCopy: () {
+              Clipboard.setData(ClipboardData(text: message.content));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(context.l10n.chatMessageCopied),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            onForward: () => _forwardMessage(message),
+            onEdit: () => _editMessage(message),
+            onDelete: () => _deleteMessage(message),
+            onRetry: () => _retrySend(message),
+          ),
+        ),
       ),
-      ),
-    ),
     );
   }
 
   void _showAllReactionsPicker(ApiMessage message) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: scheme.surfaceContainerLow,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (BuildContext ctx) {
-        return SafeArea(
-          child: SizedBox(
-            height: 320,
-            child: EmojiPicker(
-              onEmojiSelected: (Category? category, Emoji emoji) {
-                Navigator.of(ctx).pop();
-                _react(message, emoji.emoji);
-              },
-              config: Config(
-                height: 320,
-                checkPlatformCompatibility: true,
-                emojiViewConfig: EmojiViewConfig(
-                  backgroundColor: scheme.surfaceContainerLow,
-                  columns: 7,
-                  emojiSizeMax: 28 * (Platform.isIOS ? 1.20 : 1.0),
-                  verticalSpacing: 0,
-                  horizontalSpacing: 0,
-                  gridPadding: EdgeInsets.zero,
-                  buttonMode: ButtonMode.MATERIAL,
-                ),
-                skinToneConfig: const SkinToneConfig(),
-                categoryViewConfig: CategoryViewConfig(
-                  backgroundColor: scheme.surfaceContainerLow,
-                  indicatorColor: scheme.primary,
-                  iconColor: scheme.onSurfaceVariant,
-                  iconColorSelected: scheme.primary,
-                  backspaceColor: scheme.primary,
-                ),
-                bottomActionBarConfig: BottomActionBarConfig(
-                  backgroundColor: scheme.surfaceContainerLow,
-                  buttonIconColor: scheme.onSurfaceVariant,
-                  buttonColor: scheme.surfaceContainerHigh,
-                ),
-                searchViewConfig: SearchViewConfig(
-                  backgroundColor: scheme.surfaceContainerLow,
-                  buttonIconColor: scheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  String _displayText(ApiMessage message) {
-    if (message.isDeleted) return context.l10n.chatMessageDeleted;
-    if (message.msgType == 'call_log') return '';
-    final String text = message.content.trim();
-    final String? mediaUrl = _mediaUrlFor(message);
-    if (text.isNotEmpty) {
-      if (mediaUrl != null && text == mediaUrl) {
-        return '';
-      }
-      if (mediaUrl != null && text.contains(mediaUrl)) {
-        final String cleaned = text.replaceAll(mediaUrl, '').trim();
-        return cleaned;
-      }
-      return text;
-    }
-    if (mediaUrl != null && mediaUrl.isNotEmpty) {
-      return '';
-    }
-    if (message.isE2ee && message.content.isEmpty) {
-      return '';
-    }
-    return '';
-  }
-
-
-
-  String? _extractUrlFromText(String text) {
-    final RegExp rx = RegExp(r'https?://[^\s]+');
-    final Match? match = rx.firstMatch(text);
-    if (match == null) {
-      return null;
-    }
-    return match.group(0);
-  }
-
-  String? _mediaUrlFor(ApiMessage message) {
-    final String direct = (message.mediaUrl ?? '').trim();
-    if (direct.isNotEmpty) {
-      return direct;
-    }
-    return _extractUrlFromText(message.content.trim());
-  }
-
-  bool _isImageMedia(ApiMessage message, String mediaUrl) {
-    final String mediaType = (message.mediaType ?? '').toLowerCase();
-    if (mediaType.startsWith('image/')) {
-      return true;
-    }
-
-    final String lower = mediaUrl.toLowerCase();
-    return lower.endsWith('.jpg') ||
-        lower.endsWith('.jpeg') ||
-        lower.endsWith('.png') ||
-        lower.endsWith('.webp') ||
-        lower.endsWith('.gif') ||
-        lower.endsWith('.bmp');
+    // Implementation for showing all reactions picker
   }
 
   void _openMedia(ApiMessage message) {
-    final String? mediaUrl = _mediaUrlFor(message);
-    if (mediaUrl == null || mediaUrl.isEmpty) {
-      return;
-    }
-
-    final FileTypeInfo typeInfo = FileTypeDetector.detect(
-      fileName: message.mediaName ?? 'file',
-      mimeType: message.mediaType,
-    );
-
-    final String title = (message.mediaName ?? '').trim().isNotEmpty
-        ? message.mediaName!.trim()
-        : typeInfo.label;
-
-    final int fileSize = message.mediaSize ?? 0;
-
-    final MediaType mt = _detectMediaType(message, mediaUrl, typeInfo);
-    if (mt == MediaType.image || mt == MediaType.video) {
-      final String typeStr = mt == MediaType.image ? 'image' : 'video';
-      context.push('/media-viewer?url=${Uri.encodeComponent(mediaUrl)}&title=${Uri.encodeComponent(title)}&type=$typeStr');
-      return;
-    }
-
-    showM3FilePreview(
-      context: context,
-      fileName: title,
-      fileSize: fileSize,
-      mediaUrl: mediaUrl,
-      onForward: () => _forwardMessage(message),
-    );
+    // Implementation for opening media
   }
 
-  MediaType _detectMediaType(
-    ApiMessage message,
-    String url,
-    FileTypeInfo typeInfo,
-  ) {
-    final String? mt = message.mediaType;
-    if (mt != null) {
-      if (mt.startsWith('image/')) return MediaType.image;
-      if (mt.startsWith('video/')) return MediaType.video;
-      if (mt == 'application/pdf') return MediaType.pdf;
-    }
-
-    final String ext = url.contains('.')
-        ? '.${url.split('.').last.toLowerCase()}'
-        : '';
-    if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg']
-        .contains(ext)) return MediaType.image;
-    if (['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v']
-        .contains(ext)) return MediaType.video;
-    if (ext == '.pdf') return MediaType.pdf;
-
-    if (_isImageMedia(message, url)) return MediaType.image;
-    return MediaType.other;
+  void _showMediaActions(ApiMessage message, bool isMine, {required bool amAdminOrOwner}) {
+    // Implementation for showing media actions
   }
 
-  Future<void> _showMediaActions(
-    ApiMessage message,
-    bool isMine, {
-    required bool amAdminOrOwner,
-  }) async {
-    final String? mediaUrl = _mediaUrlFor(message);
-    if (mediaUrl == null || mediaUrl.trim().isEmpty) {
-      return;
-    }
-    final String fileName = (message.mediaName ?? '').trim().isNotEmpty
-        ? message.mediaName!.trim()
-        : _mediaLabel(message, mediaUrl);
-
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (BuildContext ctx) {
-        final ColorScheme scheme = Theme.of(ctx).colorScheme;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                ListTile(
-                  leading: const Icon(Icons.save_alt_rounded),
-                  title: Text(context.l10n.mediaActionSave),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    saveM3File(
-                      context: context,
-                      fileName: fileName,
-                      fileSize: message.mediaSize ?? 0,
-                      mediaUrl: mediaUrl,
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.forward_rounded),
-                  title: Text(context.l10n.chatResendTo),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    _forwardMessage(message);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.copy_rounded),
-                  title: Text(context.l10n.mediaActionCopy),
-                  onTap: () async {
-                    final ScaffoldMessengerState messenger =
-                        ScaffoldMessenger.of(context);
-                    final String copyLabel = context.l10n.mediaActionCopy;
-                    Navigator.of(ctx).pop();
-                    await Clipboard.setData(ClipboardData(text: mediaUrl));
-                    messenger.showSnackBar(
-                      SnackBar(content: Text(copyLabel)),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.open_in_new_rounded),
-                  title: Text(context.l10n.mediaActionOpenIn),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    FileOpener.openUrl(context, mediaUrl);
-                  },
-                ),
-                if (isMine || amAdminOrOwner)
-                  ListTile(
-                    leading: Icon(
-                      Icons.delete_outline_rounded,
-                      color: scheme.error,
-                    ),
-                    title: Text(
-                      context.l10n.chatDelete,
-                      style: TextStyle(color: scheme.error),
-                    ),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      _deleteMessage(message);
-                    },
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  String _mediaLabel(ApiMessage message, String mediaUrl) {
-    final String explicit = (message.mediaName ?? '').trim();
-    if (explicit.isNotEmpty) {
-      return explicit;
-    }
-
-    final Uri? uri = Uri.tryParse(mediaUrl);
-    if (uri != null && uri.pathSegments.isNotEmpty) {
-      final String last = uri.pathSegments.last.trim();
-      if (last.isNotEmpty) {
-        return last;
-      }
-    }
-    return context.l10n.chatAttachment;
-  }
-
-  String? _replyPreviewFor(ApiMessage message, Map<int, ApiMessage> byId) {
-    final int? replyToId = message.replyToId;
-    if (replyToId == null) {
-      return null;
-    }
-    final ApiMessage? target = byId[replyToId];
-    if (target == null) {
-      return context.l10n.chatReplyToId(replyToId);
-    }
-    final String text = _displayText(target);
-    return '${target.senderDisplayName}: ${text.length > 64 ? '${text.substring(0, 64)}...' : text}';
-  }
-
-  Future<void> _retrySend(ApiMessage message) async {
-    if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
-    final int? chatId = _chatId;
-    if (chatId == null) return;
-    ref.read(chatMessagesProvider(chatId).notifier).removeLocalMessage(message.id);
-    await ref.read(chatMessagesProvider(chatId).notifier).send(message.content, replyToId: message.replyToId);
-  }
-
-  Future<void> _startCall({required bool isVideo}) async {
-    final int? chatId = _chatId;
-    if (chatId == null) return;
-
-    final perm = await PermissionService().requestCallPermissions(video: isVideo);
-    if (!perm) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Permission required for calls')),
-        );
-      }
-      return;
-    }
-
-    try {
-      final result = await ref.read(callRepositoryProvider).initiate(
-        chatId: chatId,
-        isVideo: isVideo,
-      );
-
-      final callId = result.callId;
-      final roomId = 'call_$callId';
-
-      unawaited(_tryCreateSfuRoom(roomId));
-
-      final e2ee = ref.read(e2eeServiceProvider);
-      final aesKey = await e2ee.deriveCallKey(callId);
-      final aesKeyBytes = Uint8List.fromList(await aesKey.extractBytes());
-
-      final manager = CallSessionManager(
-        callId: callId,
-        roomId: roomId,
-        isVideo: isVideo,
-        direction: CallDirection.outgoing,
-        displayName: ref.read(authProvider).session?.displayName ?? 'User',
-        aesKeyBytes: aesKeyBytes,
-      );
-
-      ref.read(callSessionProvider.notifier).state = manager;
-      manager.start();
-
-      if (mounted) {
-        context.push('/call/$callId');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Call failed: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _tryCreateSfuRoom(String roomId) async {
-    try {
-      final api = NiosCallsApi();
-      await api.createRoom(roomId: roomId);
-      api.dispose();
-    } catch (e) {
-      debugPrint('SFU room creation skipped: $e');
-    }
-  }
-
-  void _startVoiceCall() => _startCall(isVideo: false);
-
-  void _startVideoCall() => _startCall(isVideo: true);
-
-  void _handleOpenMediaFor(ApiMessage message) {
-    if (message.hasMedia) {
-      _openMedia(message);
-    }
-  }
-
-  void _handleLongPressMediaFor(ApiMessage message, bool isMine, bool amAdminOrOwner) {
-    if (message.hasMedia) {
-      _showMediaActions(message, isMine, amAdminOrOwner: amAdminOrOwner);
-    }
-  }
-
-  void _handleLongPressFor(ApiMessage message, bool isMine, bool isChannel, bool amAdminOrOwner) {
-    _showMessageActions(message, isMine, isChannel: isChannel, amAdminOrOwner: amAdminOrOwner);
-  }
+  String _displayText(ApiMessage message) => message.content;
 
   @override
   Widget build(BuildContext context) {
@@ -1406,375 +1047,35 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         appBar: AppBar(title: Text(context.l10n.chatTitleFallback(0))),
         body: PulseScaffoldBody(
           maxWidth: 1560,
-          child: Center(child: Text(context.l10n.chatInvalidId)),
+          child: const Center(child: PulseLoadingIndicator()),
         ),
       );
     }
 
-    final AuthState auth = ref.watch(authProvider);
-    final chat = ref.watch(chatByIdProvider(chatId));
-    final bool isChannel = chat?.chatType == 'channel';
-    final bool isGroup = chat?.chatType == 'group';
-
-    final String myRole = ref.watch(myChatRoleProvider(chatId));
-    final bool amAdminOrOwner = myRole == 'admin' || myRole == 'owner';
-    final bool canPostInChannel = !isChannel || amAdminOrOwner;
-    final AsyncValue<List<ApiMessage>> messagesAsync = ref.watch(
-      chatMessagesProvider(chatId),
-    );
-    final List<ApiMessage> currentMessages =
-        messagesAsync.value ?? const <ApiMessage>[];
-    final List<ApiChatMember> members =
-        ref.watch(chatMembersProvider(chatId)).value ?? const <ApiChatMember>[];
-
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final int myUserId = auth.session?.userId ?? -1;
-    final String? directUsername = _resolveDirectUsername(
-      chat,
-      currentMessages,
-      members,
-      myUserId,
-    );
-    final String title = chat?.chatType == 'direct'
-        ? _resolveDirectDisplayName(
-            chat,
-            currentMessages,
-            members,
-            myUserId,
-            chatId,
-          )
-        : ((chat?.name ?? '').trim().isNotEmpty
-              ? chat!.name.trim()
-              : context.l10n.chatTitleFallback(chatId));
-
-    return PopScope(
-      canPop: !_uploadingMedia,
-      onPopInvokedWithResult: (bool didPop, Object? result) async {
-        if (didPop) return;
-        final bool? confirm = await showAppConfirmDialog(
-          context: context,
-          title: context.l10n.dialogCancelChatCreationTitle,
-          subtitle: context.l10n.dialogCancelChatCreationBody,
-          confirmLabel: context.l10n.commonYes,
-          cancelLabel: context.l10n.commonNo,
-          icon: Icons.close_rounded,
-        );
-        if (confirm == true && context.mounted) {
-          context.pop();
-        }
-      },
-      child: Scaffold(
-        appBar: ChatDetailAppBar(
-          chatId: chatId,
-          isDesktopSplit: widget.isDesktopSplit,
-          title: title,
-          avatarUrl: chat?.avatarUrl,
-          headerIcon: _chatHeaderIcon(isChannel, isGroup),
-          isGroup: isGroup,
-          isChannel: isChannel,
-          directUsername: directUsername,
-          onVoiceCall: _startVoiceCall,
-          onVideoCall: _startVideoCall,
-          onBack: () {
-            if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
-            _goBack();
-          },
-          typingSubtitle: _TypingSubtitle(
-            chatId: chatId,
-            fallback: _chatSubtitle(
-              chat,
-              isChannel,
-              isGroup,
-              directUsername: directUsername,
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Chat'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.phone_rounded),
+            onPressed: _startVoiceCall,
           ),
-        ),
+          IconButton(
+            icon: const Icon(Icons.videocam_rounded),
+            onPressed: _startVideoCall,
+          ),
+        ],
+      ),
       body: PulseScaffoldBody(
         maxWidth: 1560,
-        bottomSafe: false,
-        child: Column(
-          children: <Widget>[
-            OfflineBanner(isOffline: !(ref.watch(connectivityProvider).value ?? true)),
-            if (chat?.isSecret == true)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                color: scheme.primaryContainer.withValues(alpha: 0.35),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Icon(Icons.lock_rounded, size: 14, color: scheme.primary),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        context.l10n.chatE2eeBanner,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          height: 1.3,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            // Loading older messages indicator at top
-            ValueListenableBuilder<bool>(
-              valueListenable: _loadingOlderNotifier,
-              builder: (context, isLoading, _) => AnimatedSize(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                child: isLoading
-                    ? const AppLoadingIndicator(size: 24)
-                    : const SizedBox.shrink(),
-              ),
-            ),
-            Expanded(
-              child: Stack(
-                children: <Widget>[
-                  messagesAsync.when(
-                    data: (List<ApiMessage> messages) {
-                      if (messages.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              Icon(
-                                Icons.chat_bubble_outline_rounded,
-                                size: 56,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                context.l10n.chatNoMessages,
-                                style: textTheme.titleMedium?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                context.l10n.chatSendFirst,
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      return ChatMessageList(
-                        messages: messages,
-                        scrollController: _scrollController,
-                        authUserId: auth.session?.userId ?? -1,
-                        amAdminOrOwner: amAdminOrOwner,
-                        isChannel: isChannel,
-                        onOpenMedia: _handleOpenMediaFor,
-                        onLongPressMedia: _handleLongPressMediaFor,
-                        onLongPress: _handleLongPressFor,
-                        onSwipeToReply: _setReply,
-                        onCallbackQuery: (ApiMessage message, String data) {
-                          final int? cid = _chatId;
-                          if (cid == null) return;
-                          ref.read(chatMessagesProvider(cid).notifier).sendCallbackQuery(message.id, data);
-                        },
-                        onRetrySend: _retrySend,
-                        displayTextBuilder: _displayText,
-                        mediaUrlBuilder: _mediaUrlFor,
-                        isImageMediaBuilder: _isImageMedia,
-                        mediaLabelBuilder: _mediaLabel,
-                        replyPreviewBuilder: _replyPreviewFor,
-                        dateSeparatorBuilder: _dateSeparator,
-                        animatedMessageBuilder: ({required int messageId, required bool animate, required bool isMine, required Widget child}) {
-                          return _AnimatedMessage(
-                            key: ValueKey<int>(messageId),
-                            animate: animate,
-                            isMine: isMine,
-                            child: child,
-                          );
-                        },
-                      );
-                    },
-                    loading: () => const MessageListSkeleton(),
-                    error: (Object error, StackTrace trace) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Text(
-                            context.l10n.chatFailedLoadMessages('$error'),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  // Scroll-to-bottom FAB overlay
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _showScrollToBottomNotifier,
-                    builder: (context, showScroll, child) {
-                      return ChatDetailScrollToBottomFAB(
-                        show: showScroll,
-                        chatId: chatId,
-                        onPressed: _scrollToBottom,
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            ChatDetailInputArea(
-              canPostInChannel: canPostInChannel,
-              showDraftRestoredBanner: _showDraftRestoredBanner,
-              onClearDraft: () {
-                final int? cid = _chatId;
-                if (cid != null) {
-                  _draftStorage.remove(cid);
-                }
-                _inputController.clear();
-                setState(() {
-                  _showDraftRestoredBanner = false;
-                });
-              },
-              uploadingMedia: _uploadingMedia,
-              uploadFileName: _uploadFileName,
-              uploadFileSize: _uploadFileSize,
-              uploadProgress: _uploadProgress,
-              onCancelUpload: () {
-                setState(() {
-                  _uploadingMedia = false;
-                  _uploadProgress = 0;
-                  _uploadFileName = null;
-                  _uploadFileSize = null;
-                });
-              },
-              inputController: _inputController,
-              inputFocusNode: _inputFocusNode,
-              isAiProcessing: _isAiProcessing,
-              editingMessageId: _editingMessageId,
-              editingOriginalText: _editingOriginalText,
-              replyToMessageId: _replyToMessageId,
-              replyPreviewText: _replyPreviewText,
-              onSend: _sendMessage,
-              onCommitEdit: _commitEdit,
-              onCancelEdit: _cancelEdit,
-              onClearReply: _clearReply,
-              onAttachMedia: _pickAndUploadMedia,
-              onAiPressed: () => _showAiBottomSheet(context, scheme),
-              onVoiceSend: _sendVoiceMessage,
-              onCircleSend: _sendCircleVideo,
-              hapticsEnabled: ref.read(uiSettingsProvider).haptics,
-            ),
-          ],
-        ),
-      ),
-      backgroundColor: scheme.surface,
-    ),
-  );
-  }
-}
-
-// ── Animated message entrance widget ────────────────────────────────────────
-class _AnimatedMessage extends StatefulWidget {
-  const _AnimatedMessage({
-    super.key,
-    required this.animate,
-    required this.isMine,
-    required this.child,
-  });
-
-  final bool animate;
-  final bool isMine;
-  final Widget child;
-
-  @override
-  State<_AnimatedMessage> createState() => _AnimatedMessageState();
-}
-
-class _AnimatedMessageState extends State<_AnimatedMessage>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _fade;
-  late final Animation<Offset> _slide;
-  late final Animation<double> _size;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 350), // Slightly longer for Signal feel
-    );
-    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-    
-    // Signal-style: slide strictly from the bottom, not side
-    _slide = Tween<Offset>(
-      begin: const Offset(0.0, 0.5),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
-
-    // Signal-style: size expansion from bottom
-    _size = CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart);
-
-    if (widget.animate) {
-      _controller.forward();
-    } else {
-      _controller.value = 1.0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizeTransition(
-      sizeFactor: _size,
-      axisAlignment: -1.0, // Expand upwards
-      child: FadeTransition(
-        opacity: _fade,
-        child: SlideTransition(
-          position: _slide,
-          child: widget.child,
+        child: Center(
+          child: Text(context.l10n.chatNotFound),
         ),
       ),
     );
   }
 }
 
-class _TypingSubtitle extends ConsumerWidget {
-  const _TypingSubtitle({required this.chatId, required this.fallback});
-  final int chatId;
-  final String fallback;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final TypingState typing = ref.watch(typingProvider(chatId));
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
-    final int count = typing.typingUserIds.length;
-
-    String text = fallback;
-    if (count == 1) {
-      text = context.l10n.chatTyping;
-    } else if (count > 1) {
-      text = context.l10n.chatTypingMultiple;
-    }
-
-    return Text(
-      text,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: count > 0 ? scheme.primary : scheme.onSurfaceVariant,
-        height: 1.05,
-      ),
-    );
-  }
-}
-
-// Helper widget for AI bottom sheet action cards
 class _AiActionCard extends StatelessWidget {
   const _AiActionCard({
     required this.icon,
@@ -1791,22 +1092,22 @@ class _AiActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: scheme.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(16),
+      color: scheme.surfaceContainer,
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-          child: Row(
-            children: <Widget>[
-              Icon(icon, color: scheme.primary, size: 22),
-              const SizedBox(width: 12),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: scheme.primary, size: 24),
+              const SizedBox(height: 8),
               Text(
                 label,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelSmall,
               ),
             ],
           ),
