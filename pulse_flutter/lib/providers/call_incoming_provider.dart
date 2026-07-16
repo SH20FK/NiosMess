@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Describes an incoming or ongoing call notification.
 class IncomingCallData {
@@ -19,10 +19,24 @@ class IncomingCallData {
   final String initiatorName;
 }
 
+class IncomingCallNotifier extends Notifier<IncomingCallData?> {
+  @override
+  IncomingCallData? build() => null;
+  void set(IncomingCallData? data) => state = data;
+}
+
 /// Tracks incoming call events from the main WebSocket.
-final StateProvider<IncomingCallData?> incomingCallProvider =
-    StateProvider<IncomingCallData?>((_) => null);
+final incomingCallProvider = NotifierProvider<IncomingCallNotifier, IncomingCallData?>(
+  IncomingCallNotifier.new,
+);
+
+class CallScreenVisibleNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool visible) => state = visible;
+}
 
 /// Tracks whether the active call screen is currently showing.
-final StateProvider<bool> isCallScreenVisibleProvider =
-    StateProvider<bool>((_) => false);
+final isCallScreenVisibleProvider = NotifierProvider<CallScreenVisibleNotifier, bool>(
+  CallScreenVisibleNotifier.new,
+);

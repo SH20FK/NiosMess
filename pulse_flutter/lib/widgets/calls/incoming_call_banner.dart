@@ -78,7 +78,7 @@ class IncomingCallBanner extends ConsumerWidget {
               const SizedBox(width: 8),
               IconButton(
                 onPressed: () {
-                  ref.read(incomingCallProvider.notifier).state = null;
+                  ref.read(incomingCallProvider.notifier).set(null);
                 },
                 icon: Icon(Icons.close_rounded, color: scheme.onPrimaryContainer),
               ),
@@ -90,7 +90,7 @@ class IncomingCallBanner extends ConsumerWidget {
   }
 
   Future<void> _joinCall(BuildContext context, WidgetRef ref, IncomingCallData incoming) async {
-    ref.read(incomingCallProvider.notifier).state = null;
+    ref.read(incomingCallProvider.notifier).set(null);
 
     try {
       await ref.read(callRepositoryProvider).join(

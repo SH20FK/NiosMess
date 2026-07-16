@@ -76,7 +76,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     if (videoOutput == null) return;
 
     _videoSubscription = videoOutput.frameStream.listen((frame) {
-      ref.read(remoteVideoFrameProvider.notifier).state = frame;
+      ref.read(remoteVideoFrameProvider.notifier).set(frame);
     });
   }
 

@@ -32,7 +32,7 @@ class CallPushHandler extends Notifier<void> {
 
     if (messageId == null || chatId == null || roomId == null || initiatorId == null) return;
 
-    ref.read(incomingCallProvider.notifier).state = IncomingCallData(
+    ref.read(incomingCallProvider.notifier).set(IncomingCallData(
       callId: messageId,
       roomId: roomId,
       chatId: chatId,

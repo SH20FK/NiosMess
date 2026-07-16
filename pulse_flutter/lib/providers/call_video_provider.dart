@@ -2,15 +2,28 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
+
+class RemoteVideoFrameNotifier extends Notifier<Uint8List?> {
+  @override
+  Uint8List? build() => null;
+  void set(Uint8List? frame) => state = frame;
+}
 
 /// The latest remote video frame as JPEG bytes.
-final StateProvider<Uint8List?> remoteVideoFrameProvider =
-    StateProvider<Uint8List?>((_) => null);
+final remoteVideoFrameProvider = NotifierProvider<RemoteVideoFrameNotifier, Uint8List?>(
+  RemoteVideoFrameNotifier.new,
+);
+
+class LocalVideoEnabledNotifier extends Notifier<bool> {
+  @override
+  bool build() => true;
+  void set(bool enabled) => state = enabled;
+}
 
 /// Whether the local camera is enabled.
-final StateProvider<bool> localVideoEnabledProvider =
-    StateProvider<bool>((_) => true);
+final localVideoEnabledProvider = NotifierProvider<LocalVideoEnabledNotifier, bool>(
+  LocalVideoEnabledNotifier.new,
+);
 
 /// Listen to a video frame stream and update [remoteVideoFrameProvider].
 void startListeningToVideoFrames(
@@ -20,6 +33,6 @@ void startListeningToVideoFrames(
 }) {
   existingSub?.cancel();
   existingSub = frameStream.listen((frame) {
-    ref.read(remoteVideoFrameProvider.notifier).state = frame;
+    ref.read(remoteVideoFrameProvider.notifier).set(frame);
   });
 }

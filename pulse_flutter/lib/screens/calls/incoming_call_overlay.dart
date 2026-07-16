@@ -204,11 +204,11 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
   }
 
   void _declineCall() {
-    ref.read(incomingCallProvider.notifier).state = null;
+    ref.read(incomingCallProvider.notifier).set(null);
   }
 
   Future<void> _acceptCall(BuildContext context, WidgetRef ref, IncomingCallData incoming) async {
-    ref.read(incomingCallProvider.notifier).state = null;
+    ref.read(incomingCallProvider.notifier).set(null);
 
     try {
       await ref.read(callRepositoryProvider).join(
