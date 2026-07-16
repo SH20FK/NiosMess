@@ -209,7 +209,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
 
         final Widget bubble = RepaintBoundary(
           child: MessageBubble(
-            key: ValueKey<String>('msg_${message.id}_${message.isRead}'),
+            key: ValueKey<int>(message.id),
             text: widget.displayTextBuilder(message),
             isMine: isMine,
             isE2ee: message.isE2ee,
@@ -346,6 +346,13 @@ class _ChatMessageListState extends State<ChatMessageList> {
             ),
           ],
         );
+      },
+      findChildIndexCallback: (Key key) {
+        if (key is! ValueKey<int>) return null;
+        final int id = key.value;
+        final int index = messages.indexWhere((ApiMessage m) => m.id == id);
+        if (index < 0) return null;
+        return messages.length - 1 - index;
       },
     );
   }

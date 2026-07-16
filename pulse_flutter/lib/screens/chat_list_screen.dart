@@ -51,13 +51,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(chatsProvider.notifier).refresh();
-      Future<void>.delayed(const Duration(milliseconds: 600), () {
-        if (mounted) {
-          setState(() => _isInitialLoaded = true);
-        }
-      });
+    // Don't call refresh() here — it causes a full rebuild on every
+    // screen return. The provider already fetches on first build and
+    // WebSocket push keeps data fresh.
+    Future<void>.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) setState(() => _isInitialLoaded = true);
     });
   }
 
@@ -302,6 +300,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                         delay: delayMs.ms,
                         curve: Curves.easeOutCubic,
                       );
+                },
+                findChildIndexCallback: (Key key) {
+                  final ValueKey<String> valueKey = key as ValueKey<String>;
+                  final String idStr = valueKey.value.replaceFirst('chat_', '');
+                  final int id = int.parse(idStr);
+                  final int index = searched.indexWhere((c) => c.id == id);
+                  return index >= 0 ? index : null;
                 },
                 childCount: searched.length,
               ),
