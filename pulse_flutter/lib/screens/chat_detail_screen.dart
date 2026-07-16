@@ -1369,6 +1369,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
             _goBack();
           },
+          onVoiceCall: _startVoiceCall,
+          onVideoCall: _startVideoCall,
           typingSubtitle: _TypingSubtitle(
             chatId: chatId,
             fallback: _chatSubtitle(
