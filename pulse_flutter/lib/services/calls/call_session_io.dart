@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:audio_session/audio_session.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 
@@ -414,8 +415,8 @@ class CallSession {
       await session.configure(AudioSessionConfiguration(
         avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
         avAudioSessionCategoryOptions: on
-            ? const AVAudioSessionCategoryOptions(0x4 | 0x8) // defaultToSpeaker
-            : const AVAudioSessionCategoryOptions(0x4), // earpiece
+            ? AVAudioSessionCategoryOptions(0x4 | 0x8) // defaultToSpeaker
+            : AVAudioSessionCategoryOptions(0x4), // earpiece
         avAudioSessionMode: AVAudioSessionMode.voiceChat,
         avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
         androidAudioAttributes: AndroidAudioAttributes(
