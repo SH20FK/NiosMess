@@ -9,6 +9,10 @@ class VoiceMessagePlayer extends StatefulWidget {
     required this.durationSeconds,
     required this.isMine,
     required this.scheme,
+    this.formattedTime,
+    this.isRead = false,
+    this.isE2ee = false,
+    this.isEdited = false,
     super.key,
   });
 
@@ -16,6 +20,10 @@ class VoiceMessagePlayer extends StatefulWidget {
   final int durationSeconds;
   final bool isMine;
   final ColorScheme scheme;
+  final String? formattedTime;
+  final bool isRead;
+  final bool isE2ee;
+  final bool isEdited;
 
   @override
   State<VoiceMessagePlayer> createState() => _VoiceMessagePlayerState();
@@ -33,10 +41,19 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     super.initState();
     _player = AudioPlayer(handleInterruptions: false);
     _initAudioSession();
-    final int seed = widget.audioUrl.hashCode;
-    final math.Random rng = math.Random(seed);
-    _waveformBars = List<double>.generate(40, (_) => 0.15 + 0.55 * rng.nextDouble());
+    _waveformBars = _generateWaveform(widget.audioUrl.hashCode);
     _setupPlayer();
+  }
+
+  List<double> _generateWaveform(int seed) {
+    final math.Random rng = math.Random(seed);
+    final List<double> bars = List<double>.generate(40, (_) {
+      return 0.12 + 0.70 * rng.nextDouble();
+    });
+    for (int i = 1; i < bars.length - 1; i++) {
+      bars[i] = (bars[i - 1] + bars[i] + bars[i + 1]) / 3;
+    }
+    return bars;
   }
 
   Future<void> _initAudioSession() async {
@@ -101,13 +118,14 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
         : 0.0;
     final Duration remaining = _duration - _position;
     final Color fg = widget.isMine ? widget.scheme.onPrimary : widget.scheme.primary;
+    final Color bg = widget.isMine
+        ? widget.scheme.primary.withValues(alpha: 0.08)
+        : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.5);
 
     return Container(
       constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),
       decoration: BoxDecoration(
-        color: widget.isMine
-            ? widget.scheme.primary.withValues(alpha: 0.08)
-            : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: bg,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -169,25 +187,76 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                           bars: _waveformBars,
                           progress: progress,
                           playedColor: fg,
-                          unplayedColor: fg.withValues(alpha: 0.18),
+                          unplayedColor: fg.withValues(alpha: 0.30),
                         ),
                       ),
                     ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(right: 8, bottom: 4),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      _formatDuration(remaining),
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: fg.withValues(alpha: 0.7),
-                        fontFeatures: const [FontFeature.tabularFigures()],
+                  padding: const EdgeInsets.only(right: 8, bottom: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      if (widget.formattedTime != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              if (widget.isE2ee)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 3),
+                                  child: Icon(
+                                    Icons.lock_rounded,
+                                    size: 10,
+                                    color: Colors.green.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              if (widget.isEdited)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 3),
+                                  child: Text(
+                                    'edited',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600,
+                                      color: fg.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                ),
+                              Text(
+                                widget.formattedTime!,
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                  color: fg.withValues(alpha: 0.6),
+                                ),
+                              ),
+                              if (widget.isMine)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 3),
+                                  child: Icon(
+                                    widget.isRead
+                                        ? Icons.done_all_rounded
+                                        : Icons.check_rounded,
+                                    size: 11,
+                                    color: fg.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      Text(
+                        _formatDuration(remaining),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: fg.withValues(alpha: 0.7),
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ],
@@ -233,7 +302,7 @@ class _WaveformPainter extends CustomPainter {
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(x, top, barWidth, barHeight),
-          const Radius.circular(2),
+          const Radius.circular(3),
         ),
         Paint()..color = played ? playedColor : unplayedColor,
       );
@@ -242,14 +311,14 @@ class _WaveformPainter extends CustomPainter {
     final double thumbX = progress * size.width;
     canvas.drawCircle(
       Offset(thumbX, midY),
-      4,
+      5,
       Paint()
         ..color = playedColor
         ..style = PaintingStyle.fill,
     );
     canvas.drawCircle(
       Offset(thumbX, midY),
-      4,
+      5,
       Paint()
         ..color = Colors.white.withValues(alpha: 0.5)
         ..style = PaintingStyle.stroke

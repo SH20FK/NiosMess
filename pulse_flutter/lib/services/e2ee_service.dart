@@ -152,6 +152,23 @@ class E2eeService {
     return utf8.decode(decrypted);
   }
 
+  Future<SecretKey> deriveCallKey(int callId) async {
+    final hkdf = Hkdf(hashAlgorithm: Sha256());
+    final info = utf8.encode('nios-call-key-$callId');
+    final keyPair = await loadKeyPair();
+    if (keyPair == null) {
+      return AesGcm.with256bits().newSecretKey();
+    }
+    final publicKey = await keyPair.extractPublicKey() as SimplePublicKey;
+    final derived = await hkdf.deriveKey(
+      secretKey: SecretKey(publicKey.bytes),
+      nonce: info,
+      info: info,
+      length: 32,
+    );
+    return derived;
+  }
+
   Future<bool> hasKeyPair() async {
     final raw = await _storage.read(key: _privateKeyStorageKey);
     return raw != null && raw.isNotEmpty;

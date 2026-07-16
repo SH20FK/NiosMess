@@ -17,6 +17,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.3.73"
+  adaptive_number:
+    dependency: transitive
+    description:
+      name: adaptive_number
+      sha256: "3a567544e9b5c9c803006f51140ad544aedc79604fd4f3f2c1380003f97c1d77"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   analyzer:
     dependency: transitive
     description:
@@ -177,6 +185,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.3.0"
+  basic_utils:
+    dependency: transitive
+    description:
+      name: basic_utils
+      sha256: "548047bef0b3b697be19fa62f46de54d99c9019a69fb7db92c69e19d87f633c7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.8.2"
   boolean_selector:
     dependency: transitive
     description:
@@ -409,6 +425,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.8.1"
+  ecdsa:
+    dependency: transitive
+    description:
+      name: ecdsa
+      sha256: "13b4e01ac140575cf88ef5e5268f92b8dd0a67a26c60a1b74e67d146068dc246"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.2"
+  elliptic:
+    dependency: transitive
+    description:
+      name: elliptic
+      sha256: "67931d408faa353bdebac9f7a1df0c3f6f828f4e8439cdf084573cd1601a2f4b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.12"
   emoji_picker_flutter:
     dependency: "direct main"
     description:
@@ -417,6 +449,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.4.0"
+  events_emitter:
+    dependency: transitive
+    description:
+      name: events_emitter
+      sha256: a075477bdf9c8c0c31bb7c7b7bdd357b4486c34f30163119f96de4e7f54abeff
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.2"
   fake_async:
     dependency: transitive
     description:
@@ -815,6 +855,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  hex:
+    dependency: transitive
+    description:
+      name: hex
+      sha256: "4e7cd54e4b59ba026432a6be2dd9d96e4c5205725194997193bf871703b82c4a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
   hive:
     dependency: "direct main"
     description:
@@ -1116,6 +1164,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
+  ninja_asn1:
+    dependency: transitive
+    description:
+      name: ninja_asn1
+      sha256: b0f04877243fda51c475ec2bcaadb55a92759baee9f02888124c60775760ccf7
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0"
   nm:
     dependency: transitive
     description:
@@ -1212,6 +1268,78 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.0.3"
+  opus_codec:
+    dependency: "direct main"
+    description:
+      name: opus_codec
+      sha256: d8ad96b7242e78025122bc2b3821788310ddfb4700f03da7c67da83339099287
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.5"
+  opus_codec_android:
+    dependency: transitive
+    description:
+      name: opus_codec_android
+      sha256: "347f61ac7fe53cb684ec4777b49688a8336077e025a3e04e3f61294da5d89c68"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.5"
+  opus_codec_dart:
+    dependency: "direct main"
+    description:
+      name: opus_codec_dart
+      sha256: a5570ca76ff4d973415991e09507cc05f11d640c2d635aee101152457fecf88f
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.5"
+  opus_codec_ios:
+    dependency: transitive
+    description:
+      name: opus_codec_ios
+      sha256: fdca5606410eaf14b9d1f1179f0b00b7994b6dbc64f0399e2955618b16ef9353
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.5"
+  opus_codec_linux:
+    dependency: transitive
+    description:
+      name: opus_codec_linux
+      sha256: "69762fa3c8e87e38e6279124544deeebad48b5c3d8b8950de2ce7ef9c63f80f6"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.5"
+  opus_codec_macos:
+    dependency: transitive
+    description:
+      name: opus_codec_macos
+      sha256: ff8012e5eb692a81151404bc5b43385794be0e7b779e60f7f9d7405bba69d693
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.5"
+  opus_codec_platform_interface:
+    dependency: transitive
+    description:
+      name: opus_codec_platform_interface
+      sha256: "76c6b64097fd1eed334e7be6fc161567058ba26e61f792be9416552fcf48e83b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.5"
+  opus_codec_web:
+    dependency: transitive
+    description:
+      name: opus_codec_web
+      sha256: c23af0111c986d62ab14c92a25a5e73939034f5d8cd3ef2aca76d904a5994f29
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.5"
+  opus_codec_windows:
+    dependency: transitive
+    description:
+      name: opus_codec_windows
+      sha256: "85fff458e90d1cca8ae0ea2527fa408db3c7dd4d48d98e407e2eac4f4c3a3426"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.5"
   package_config:
     dependency: transitive
     description:
@@ -1308,6 +1436,54 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  permission_handler:
+    dependency: "direct main"
+    description:
+      name: permission_handler
+      sha256: "59adad729136f01ea9e35a48f5d1395e25cba6cea552249ddbe9cf950f5d7849"
+      url: "https://pub.dev"
+    source: hosted
+    version: "11.4.0"
+  permission_handler_android:
+    dependency: transitive
+    description:
+      name: permission_handler_android
+      sha256: d3971dcdd76182a0c198c096b5db2f0884b0d4196723d21a866fc4cdea057ebc
+      url: "https://pub.dev"
+    source: hosted
+    version: "12.1.0"
+  permission_handler_apple:
+    dependency: transitive
+    description:
+      name: permission_handler_apple
+      sha256: "79dfa1df734798aa3cfdad166d3a3698c206d8813de13516ea1071b5d7e2f420"
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.4.10"
+  permission_handler_html:
+    dependency: transitive
+    description:
+      name: permission_handler_html
+      sha256: "38f000e83355abb3392140f6bc3030660cfaef189e1f87824facb76300b4ff24"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.3+5"
+  permission_handler_platform_interface:
+    dependency: transitive
+    description:
+      name: permission_handler_platform_interface
+      sha256: eb99b295153abce5d683cac8c02e22faab63e50679b937fa1bf67d58bb282878
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.3.0"
+  permission_handler_windows:
+    dependency: transitive
+    description:
+      name: permission_handler_windows
+      sha256: "1a790728016f79a41216d88672dbc5df30e686e811ad4e698bfc51f76ad91f1e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.1"
   petitparser:
     dependency: transitive
     description:
@@ -1348,6 +1524,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+  pointycastle:
+    dependency: transitive
+    description:
+      name: pointycastle
+      sha256: "92aa3841d083cc4b0f4709b5c74fd6409a3e6ba833ffc7dc6a8fee096366acf5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.0"
   pool:
     dependency: transitive
     description:
@@ -1388,6 +1572,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  pure_dart_quic:
+    dependency: "direct main"
+    description:
+      name: pure_dart_quic
+      sha256: "3ff78f895b80517e6d2c1645a2ef2396ef6cdada34b11a24957ab296e64f9e77"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   record:
     dependency: "direct main"
     description:
@@ -1464,10 +1656,10 @@ packages:
     dependency: transitive
     description:
       name: rxdart
-      sha256: "5c3004a4a8dbb94bd4bf5412a4def4acdaa12e12f269737a5751369e12d1a962"
+      sha256: "0c7c0cedd93788d996e33041ffecda924cc54389199cde4e6a34b440f50044cb"
       url: "https://pub.dev"
     source: hosted
-    version: "0.28.0"
+    version: "0.27.7"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -1913,6 +2105,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.1"
+  wasm_ffi:
+    dependency: transitive
+    description:
+      name: wasm_ffi
+      sha256: "950238f09e2d18b85c5c4356833a06319b049c1d19f936db32c3f0d8194e30b5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.3.0"
   watcher:
     dependency: transitive
     description:
@@ -1969,6 +2169,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.15.0"
+  x25519:
+    dependency: transitive
+    description:
+      name: x25519
+      sha256: cec3c125f0d934dccba6c4cab48f3fbf866dc78895dcc5a1584d35b0a845005b
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.1"
   xdg_directories:
     dependency: transitive
     description:
@@ -1994,5 +2202,5 @@ packages:
     source: hosted
     version: "3.1.3"
 sdks:
-  dart: ">=3.10.7 <4.0.0"
+  dart: ">=3.11.5 <4.0.0"
   flutter: ">=3.38.4"

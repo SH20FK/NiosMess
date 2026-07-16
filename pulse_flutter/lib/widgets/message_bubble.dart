@@ -576,30 +576,15 @@ class MessageBubble extends ConsumerWidget {
         InkWell(
           onLongPress: onLongPressMedia,
           borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            children: [
-              VoiceMessagePlayer(
-                audioUrl: mediaUrl!,
-                durationSeconds: mediaDuration ?? 0,
-                isMine: isMine,
-                scheme: scheme,
-              ),
-              if (!hideFooter)
-                Positioned(
-                  bottom: 4,
-                  right: 4,
-                  child: _MessageBubbleFooter(
-                    isMine: isMine,
-                    isE2ee: isE2ee,
-                    isEdited: isEdited,
-                    isDeleted: isDeleted,
-                    isRead: isRead,
-                    formattedTime: formattedTime,
-                    scheme: scheme,
-                    textTheme: textTheme,
-                ),
-              ),
-            ],
+          child: VoiceMessagePlayer(
+            audioUrl: mediaUrl!,
+            durationSeconds: mediaDuration ?? 0,
+            isMine: isMine,
+            scheme: scheme,
+            formattedTime: hideFooter ? null : formattedTime,
+            isRead: isRead,
+            isE2ee: isE2ee,
+            isEdited: isEdited,
           ),
         ),
       ],

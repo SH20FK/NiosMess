@@ -21,6 +21,9 @@ import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/services/deep_link_service.dart';
 import 'package:pulse_flutter/firebase_options.dart';
+import 'package:pulse_flutter/providers/call_push_handler.dart';
+import 'package:pulse_flutter/widgets/calls/call_overlay.dart';
+import 'package:pulse_flutter/widgets/calls/incoming_call_banner.dart';
 
 Future<void> main() async {
   await runZonedGuarded<Future<void>>(
@@ -90,6 +93,7 @@ class PulseApp extends ConsumerWidget {
         ? ref.read(uiSettingsProvider)
         : ref.read(uiSettingsProvider).copyWith(seedColor: effectiveSeed);
     final GoRouter router = ref.watch(appRouterProvider);
+    ref.watch(callPushHandlerProvider);
     final String systemLanguageCode =
         WidgetsBinding.instance.platformDispatcher.locale.languageCode;
     final String normalized = (localeCode ?? '').trim().toLowerCase();
@@ -128,7 +132,21 @@ class PulseApp extends ConsumerWidget {
         final mediaQuery = MediaQuery.of(context).copyWith(
           textScaler: TextScaler.linear(fontScale.scale),
         );
-        return MediaQuery(data: mediaQuery, child: child ?? const SizedBox.shrink());
+        return MediaQuery(
+          data: mediaQuery,
+          child: Stack(
+            children: [
+              child ?? const SizedBox.shrink(),
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: IncomingCallBanner(),
+              ),
+              const CallOverlay(),
+            ],
+          ),
+        );
       },
     );
   }

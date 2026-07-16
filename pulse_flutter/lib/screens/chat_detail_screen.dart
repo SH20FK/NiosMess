@@ -41,6 +41,12 @@ import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/providers/call_session_provider.dart';
+import 'package:pulse_flutter/repositories/call_repository.dart';
+import 'package:pulse_flutter/services/calls/call_session.dart';
+import 'package:pulse_flutter/services/calls/nios_calls_api.dart';
+import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/services/permission_service.dart';
 
 class ChatDetailScreen extends ConsumerStatefulWidget {
   const ChatDetailScreen({
@@ -681,6 +687,23 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     );
   }
 
+  Future<void> _sendCircleVideo(String filePath) async {
+    final int? chatId = _chatId;
+    if (chatId == null || _uploadingMedia) return;
+
+    final File file = File(filePath);
+    final int fileSize = await file.length();
+    final String filename = filePath.split('/').last;
+
+    await _uploadAndSend(
+      chatId: chatId,
+      filePath: filePath,
+      filename: filename,
+      mediaSubtype: 'circle',
+      fileSize: fileSize,
+    );
+  }
+
   Future<bool> _loadOlderMessages() async {
     final int? chatId = _chatId;
     if (chatId == null) {
@@ -1291,6 +1314,72 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     await ref.read(chatMessagesProvider(chatId).notifier).send(message.content, replyToId: message.replyToId);
   }
 
+  Future<void> _startCall({required bool isVideo}) async {
+    final int? chatId = _chatId;
+    if (chatId == null) return;
+
+    final perm = await PermissionService().requestCallPermissions(video: isVideo);
+    if (!perm) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Permission required for calls')),
+        );
+      }
+      return;
+    }
+
+    try {
+      final result = await ref.read(callRepositoryProvider).initiate(
+        chatId: chatId,
+        isVideo: isVideo,
+      );
+
+      final callId = result.callId;
+      final roomId = 'call_$callId';
+
+      unawaited(_tryCreateSfuRoom(roomId));
+
+      final e2ee = ref.read(e2eeServiceProvider);
+      final aesKey = await e2ee.deriveCallKey(callId);
+
+      final manager = CallSessionManager(
+        callId: callId,
+        roomId: roomId,
+        isVideo: isVideo,
+        direction: CallDirection.outgoing,
+        displayName: ref.read(authProvider).session?.displayName ?? 'User',
+        aesKey: aesKey,
+      );
+
+      ref.read(callSessionProvider.notifier).state = manager;
+      manager.start();
+
+      if (mounted) {
+        context.push('/call/$callId');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Call failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _tryCreateSfuRoom(String roomId) async {
+    try {
+      final api = NiosCallsApi();
+      await api.createRoom(roomId: roomId);
+      api.dispose();
+    } catch (e) {
+      debugPrint('SFU room creation skipped: $e');
+    }
+  }
+
+  void _startVoiceCall() => _startCall(isVideo: false);
+
+  void _startVideoCall() => _startCall(isVideo: true);
+
   void _handleOpenMediaFor(ApiMessage message) {
     if (message.hasMedia) {
       _openMedia(message);
@@ -1567,6 +1656,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               onAttachMedia: _pickAndUploadMedia,
               onAiPressed: () => _showAiBottomSheet(context, scheme),
               onVoiceSend: _sendVoiceMessage,
+              onCircleSend: _sendCircleVideo,
               hapticsEnabled: ref.read(uiSettingsProvider).haptics,
             ),
           ],

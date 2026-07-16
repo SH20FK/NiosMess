@@ -25,6 +25,7 @@ class ChatInputBar extends StatefulWidget {
     required this.onAttachMedia,
     required this.onAiPressed,
     required this.onVoiceSend,
+    this.onCircleSend,
     this.hapticsEnabled = true,
     super.key,
   });
@@ -44,6 +45,7 @@ class ChatInputBar extends StatefulWidget {
   final VoidCallback onAttachMedia;
   final VoidCallback onAiPressed;
   final void Function(String filePath) onVoiceSend;
+  final void Function(String filePath)? onCircleSend;
   final bool hapticsEnabled;
 
   @override
@@ -113,7 +115,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
       ),
     );
     if (result != null && mounted) {
-      widget.onVoiceSend(result);
+      if (widget.onCircleSend != null) {
+        widget.onCircleSend!(result);
+      } else {
+        widget.onVoiceSend(result);
+      }
     }
   }
 

@@ -34,6 +34,7 @@ import 'package:pulse_flutter/screens/splash_screen.dart';
 import 'package:pulse_flutter/screens/two_fa_screen.dart';
 import 'package:pulse_flutter/screens/verify_email_screen.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/screens/calls/active_call_screen.dart';
 
 class AppRouter {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -237,6 +238,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           channelId: 0,
           postId: int.parse(state.pathParameters['postId']!),
         )),
+      ),
+      GoRoute(
+        path: '/call/:callId',
+        pageBuilder: (context, state) => _page(state, const ActiveCallScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/:pathMatch(.*)',
