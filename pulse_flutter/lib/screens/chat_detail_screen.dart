@@ -416,7 +416,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(context.l10n.chatAiError('\$e')),
+            content: Text(context.l10n.chatAiError('$e')),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -547,7 +547,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       await ref.read(chatMessagesProvider(chatId).notifier).refresh();
       await ref.read(chatMessagesProvider(chatId).notifier).markRead();
     } catch (e) {
-      debugPrint('Failed to refresh: \$e');
+      debugPrint('Failed to refresh: $e');
     }
   }
 
@@ -611,7 +611,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         }
         final String message = error is ApiException
             ? error.message
-            : context.l10n.commonFailed('\$error');
+            : context.l10n.commonFailed('$error');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
@@ -670,7 +670,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (!mounted) return;
       final String message = error is ApiException
           ? error.message
-          : context.l10n.commonFailed('\$error');
+          : context.l10n.commonFailed('$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
@@ -732,7 +732,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (!mounted) return false;
       final String text = error is ApiException
           ? error.message
-          : context.l10n.commonFailed('\$error');
+          : context.l10n.commonFailed('$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
       return false;
     }
@@ -768,7 +768,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           uploadFileSize = await compressed.length();
         }
       } catch (e, st) {
-        debugPrint('Image compression failed: \$e\n\$st');
+        debugPrint('Image compression failed: $e\n$st');
       }
     }
 
@@ -830,7 +830,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       });
       final String text = error is ApiException
           ? error.message
-          : context.l10n.commonFailed('\$error');
+          : context.l10n.commonFailed('$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
   }
@@ -876,7 +876,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       }
       final String text = error is ApiException
           ? error.message
-          : context.l10n.commonFailed('\$error');
+          : context.l10n.commonFailed('$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
   }
@@ -896,7 +896,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       }
       final String text = error is ApiException
           ? error.message
-          : context.l10n.commonFailed('\$error');
+          : context.l10n.commonFailed('$error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
   }
@@ -957,7 +957,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (target == null || !mounted) return;
 
     final String forwardText =
-        '_fwd from \${message.senderDisplayName}: \${message.content}';
+        '_fwd from ${message.senderDisplayName}: ${message.content}';
     try {
       await ref
           .read(chatMessagesProvider(target.id).notifier)
@@ -973,7 +973,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : '\$e')),
+        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
       );
     }
   }
@@ -1018,10 +1018,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             },
             onForward: () => _forwardMessage(message),
             onComments: () {
-              Navigator.of(ctx).pop();
-              if (message.commentsCount > 0 && isChannel) {
-                // Navigate to comments if applicable
-              }
+              final int? chatId = _chatId;
+              if (chatId == null) return;
+              context.push('/channel/$chatId/post/${message.id}/comments');
             },
             onEdit: () => _editMessage(message),
             onDelete: () => _deleteMessage(message),
@@ -1147,6 +1146,23 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     return context.l10n.chatAttachment;
   }
 
+  String? _extractUrlFromText(String text) {
+    final RegExp rx = RegExp(r'https?://[^\s]+');
+    final Match? match = rx.firstMatch(text);
+    if (match == null) {
+      return null;
+    }
+    return match.group(0);
+  }
+
+  String? _mediaUrlFor(ApiMessage message) {
+    final String direct = (message.mediaUrl ?? '').trim();
+    if (direct.isNotEmpty) {
+      return direct;
+    }
+    return _extractUrlFromText(message.content.trim());
+  }
+
   String? _replyPreviewFor(ApiMessage message, Map<int, ApiMessage> byId) {
     final int? replyToId = message.replyToId;
     if (replyToId == null) {
@@ -1183,18 +1199,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     try {
-      final random = Random.secure();
-      final roomId = List.generate(32, (_) => random.nextInt(16).toRadixString(16)).join();
-      final nickname = ref.read(authProvider).session?.displayName ?? 'User';
-
       final result = await ref.read(callRepositoryProvider).initiate(
         chatId: chatId,
-        roomId: roomId,
-        callerNickname: nickname,
         isVideo: isVideo,
       );
 
-      final callId = (result['payload']?['message_id'] ?? result['message_id'] ?? 0) as int;
+      final callId = result.callId;
+      final roomId = 'call_$callId';
 
       unawaited(_tryCreateSfuRoom(roomId));
 
@@ -1203,13 +1214,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       final aesKeyBytes = Uint8List.fromList(await aesKey.extractBytes());
 
       final manager = CallSessionManager(
-        ref: ref,
-        chatId: chatId,
         callId: callId,
         roomId: roomId,
         isVideo: isVideo,
         direction: CallDirection.outgoing,
-        displayName: nickname,
+        displayName: ref.read(authProvider).session?.displayName ?? 'User',
         aesKeyBytes: aesKeyBytes,
       );
 
@@ -1266,35 +1275,373 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         appBar: AppBar(title: Text(context.l10n.chatTitleFallback(0))),
         body: PulseScaffoldBody(
           maxWidth: 1560,
-          child: const Center(child: AppLoadingIndicator()),
+          child: Center(child: Text(context.l10n.chatInvalidId)),
         ),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chat'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.phone_rounded),
-            onPressed: _startVoiceCall,
+    final AuthState auth = ref.watch(authProvider);
+    final chat = ref.watch(chatByIdProvider(chatId));
+    final bool isChannel = chat?.chatType == 'channel';
+    final bool isGroup = chat?.chatType == 'group';
+
+    final String myRole = ref.watch(myChatRoleProvider(chatId));
+    final bool amAdminOrOwner = myRole == 'admin' || myRole == 'owner';
+    final bool canPostInChannel = !isChannel || amAdminOrOwner;
+    final AsyncValue<List<ApiMessage>> messagesAsync = ref.watch(
+      chatMessagesProvider(chatId),
+    );
+    final List<ApiMessage> currentMessages =
+        messagesAsync.value ?? const <ApiMessage>[];
+    final List<ApiChatMember> members =
+        ref.watch(chatMembersProvider(chatId)).value ?? const <ApiChatMember>[];
+
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final int myUserId = auth.session?.userId ?? -1;
+    final String? directUsername = _resolveDirectUsername(
+      chat,
+      currentMessages,
+      members,
+      myUserId,
+    );
+    final String title = chat?.chatType == 'direct'
+        ? _resolveDirectDisplayName(
+            chat,
+            currentMessages,
+            members,
+            myUserId,
+            chatId,
+          )
+        : ((chat?.name ?? '').trim().isNotEmpty
+              ? chat!.name.trim()
+              : context.l10n.chatTitleFallback(chatId));
+
+    return PopScope(
+      canPop: !_uploadingMedia,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) return;
+        final bool? confirm = await showAppConfirmDialog(
+          context: context,
+          title: context.l10n.dialogCancelChatCreationTitle,
+          subtitle: context.l10n.dialogCancelChatCreationBody,
+          confirmLabel: context.l10n.commonYes,
+          cancelLabel: context.l10n.commonNo,
+          icon: Icons.close_rounded,
+        );
+        if (confirm == true && context.mounted) {
+          context.pop();
+        }
+      },
+      child: Scaffold(
+        appBar: ChatDetailAppBar(
+          chatId: chatId,
+          isDesktopSplit: widget.isDesktopSplit,
+          title: title,
+          avatarUrl: chat?.avatarUrl,
+          headerIcon: _chatHeaderIcon(isChannel, isGroup),
+          isGroup: isGroup,
+          isChannel: isChannel,
+          directUsername: directUsername,
+          onBack: () {
+            if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+            _goBack();
+          },
+          typingSubtitle: _TypingSubtitle(
+            chatId: chatId,
+            fallback: _chatSubtitle(
+              chat,
+              isChannel,
+              isGroup,
+              directUsername: directUsername,
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.videocam_rounded),
-            onPressed: _startVideoCall,
-          ),
-        ],
-      ),
+        ),
       body: PulseScaffoldBody(
         maxWidth: 1560,
-        child: Center(
-          child: Text(context.l10n.chatNotFound),
+        bottomSafe: false,
+        child: Column(
+          children: <Widget>[
+            OfflineBanner(isOffline: !(ref.watch(connectivityProvider).value ?? true)),
+            if (chat?.isSecret == true)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                color: scheme.primaryContainer.withValues(alpha: 0.35),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(Icons.lock_rounded, size: 14, color: scheme.primary),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        context.l10n.chatE2eeBanner,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            // Loading older messages indicator at top
+            ValueListenableBuilder<bool>(
+              valueListenable: _loadingOlderNotifier,
+              builder: (context, isLoading, _) => AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                child: isLoading
+                    ? const AppLoadingIndicator(size: 24)
+                    : const SizedBox.shrink(),
+              ),
+            ),
+            Expanded(
+              child: Stack(
+                children: <Widget>[
+                  messagesAsync.when(
+                    data: (List<ApiMessage> messages) {
+                      if (messages.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Icon(
+                                Icons.chat_bubble_outline_rounded,
+                                size: 56,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                context.l10n.chatNoMessages,
+                                style: textTheme.titleMedium?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                context.l10n.chatSendFirst,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return ChatMessageList(
+                        messages: messages,
+                        scrollController: _scrollController,
+                        authUserId: auth.session?.userId ?? -1,
+                        amAdminOrOwner: amAdminOrOwner,
+                        isChannel: isChannel,
+                        onOpenMedia: _handleOpenMediaFor,
+                        onLongPressMedia: _handleLongPressMediaFor,
+                        onLongPress: _handleLongPressFor,
+                        onSwipeToReply: _setReply,
+                        onCallbackQuery: (ApiMessage message, String data) {
+                          final int? cid = _chatId;
+                          if (cid == null) return;
+                          ref.read(chatMessagesProvider(cid).notifier).sendCallbackQuery(message.id, data);
+                        },
+                        onRetrySend: _retrySend,
+                        displayTextBuilder: _displayText,
+                        mediaUrlBuilder: _mediaUrlFor,
+                        isImageMediaBuilder: _isImageMedia,
+                        mediaLabelBuilder: _mediaLabel,
+                        replyPreviewBuilder: _replyPreviewFor,
+                        dateSeparatorBuilder: _dateSeparator,
+                        animatedMessageBuilder: ({required int messageId, required bool animate, required bool isMine, required Widget child}) {
+                          return _AnimatedMessage(
+                            key: ValueKey<int>(messageId),
+                            animate: animate,
+                            isMine: isMine,
+                            child: child,
+                          );
+                        },
+                      );
+                    },
+                    loading: () => const MessageListSkeleton(),
+                    error: (Object error, StackTrace trace) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            context.l10n.chatFailedLoadMessages('$error'),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  // Scroll-to-bottom FAB overlay
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _showScrollToBottomNotifier,
+                    builder: (context, showScroll, child) {
+                      return ChatDetailScrollToBottomFAB(
+                        show: showScroll,
+                        chatId: chatId,
+                        onPressed: _scrollToBottom,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            ChatDetailInputArea(
+              canPostInChannel: canPostInChannel,
+              showDraftRestoredBanner: _showDraftRestoredBanner,
+              onClearDraft: () {
+                final int? cid = _chatId;
+                if (cid != null) {
+                  _draftStorage.remove(cid);
+                }
+                _inputController.clear();
+                setState(() {
+                  _showDraftRestoredBanner = false;
+                });
+              },
+              uploadingMedia: _uploadingMedia,
+              uploadFileName: _uploadFileName,
+              uploadFileSize: _uploadFileSize,
+              uploadProgress: _uploadProgress,
+              onCancelUpload: () {
+                setState(() {
+                  _uploadingMedia = false;
+                  _uploadProgress = 0;
+                  _uploadFileName = null;
+                  _uploadFileSize = null;
+                });
+              },
+              inputController: _inputController,
+              inputFocusNode: _inputFocusNode,
+              isAiProcessing: _isAiProcessing,
+              editingMessageId: _editingMessageId,
+              editingOriginalText: _editingOriginalText,
+              replyToMessageId: _replyToMessageId,
+              replyPreviewText: _replyPreviewText,
+              onSend: _sendMessage,
+              onCommitEdit: _commitEdit,
+              onCancelEdit: _cancelEdit,
+              onClearReply: _clearReply,
+              onAttachMedia: _pickAndUploadMedia,
+              onAiPressed: () => _showAiBottomSheet(context, scheme),
+              onVoiceSend: _sendVoiceMessage,
+              onCircleSend: _sendCircleVideo,
+              hapticsEnabled: ref.read(uiSettingsProvider).haptics,
+            ),
+          ],
+        ),
+      ),
+      backgroundColor: scheme.surface,
+    ),
+  );
+  }
+}
+
+// ── Animated message entrance widget ────────────────────────────────────────
+class _AnimatedMessage extends StatefulWidget {
+  const _AnimatedMessage({
+    super.key,
+    required this.animate,
+    required this.isMine,
+    required this.child,
+  });
+
+  final bool animate;
+  final bool isMine;
+  final Widget child;
+
+  @override
+  State<_AnimatedMessage> createState() => _AnimatedMessageState();
+}
+
+class _AnimatedMessageState extends State<_AnimatedMessage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+  late final Animation<double> _size;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350), // Slightly longer for Signal feel
+    );
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    
+    // Signal-style: slide strictly from the bottom, not side
+    _slide = Tween<Offset>(
+      begin: const Offset(0.0, 0.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
+
+    // Signal-style: size expansion from bottom
+    _size = CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart);
+
+    if (widget.animate) {
+      _controller.forward();
+    } else {
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizeTransition(
+      sizeFactor: _size,
+      axisAlignment: -1.0, // Expand upwards
+      child: FadeTransition(
+        opacity: _fade,
+        child: SlideTransition(
+          position: _slide,
+          child: widget.child,
         ),
       ),
     );
   }
 }
 
+class _TypingSubtitle extends ConsumerWidget {
+  const _TypingSubtitle({required this.chatId, required this.fallback});
+  final int chatId;
+  final String fallback;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final TypingState typing = ref.watch(typingProvider(chatId));
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final int count = typing.typingUserIds.length;
+
+    String text = fallback;
+    if (count == 1) {
+      text = context.l10n.chatTyping;
+    } else if (count > 1) {
+      text = context.l10n.chatTypingMultiple;
+    }
+
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: count > 0 ? scheme.primary : scheme.onSurfaceVariant,
+        height: 1.05,
+      ),
+    );
+  }
+}
+
+// Helper widget for AI bottom sheet action cards
 class _AiActionCard extends StatelessWidget {
   const _AiActionCard({
     required this.icon,
@@ -1311,22 +1658,22 @@ class _AiActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: scheme.surfaceContainer,
-      borderRadius: BorderRadius.circular(12),
+      color: scheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: scheme.primary, size: 24),
-              const SizedBox(height: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          child: Row(
+            children: <Widget>[
+              Icon(icon, color: scheme.primary, size: 22),
+              const SizedBox(width: 12),
               Text(
                 label,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.labelSmall,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
