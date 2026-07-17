@@ -154,7 +154,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
             padding: const EdgeInsets.all(4),
             child: GestureDetector(
               onTap: _togglePlay,
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
@@ -163,15 +164,21 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                   boxShadow: [
                     BoxShadow(
                       color: fg.withValues(alpha: 0.3),
-                      blurRadius: 8,
+                      blurRadius: playing ? 12 : 6,
+                      spreadRadius: playing ? 2 : 0,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                child: Icon(
-                  playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  color: widget.isMine ? widget.scheme.surface : widget.scheme.surface,
-                  size: 26,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 150),
+                  transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                  child: Icon(
+                    playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    key: ValueKey<bool>(playing),
+                    color: widget.isMine ? widget.scheme.surface : widget.scheme.surface,
+                    size: 26,
+                  ),
                 ),
               ),
             ),
@@ -184,33 +191,35 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
               children: <Widget>[
                 SizedBox(
                   height: 40,
-                  child: GestureDetector(
-                    onTapDown: (TapDownDetails details) {
-                      final RenderBox box = context.findRenderObject() as RenderBox;
-                      final double localX = details.localPosition.dx;
-                      final double width = box.size.width - 60;
-                      _seekTo(localX / width);
-                    },
-                    onHorizontalDragStart: (_) => _seeking = true,
-                    onHorizontalDragUpdate: (DragUpdateDetails details) {
-                      final RenderBox box = context.findRenderObject() as RenderBox;
-                      final double localX = details.localPosition.dx;
-                      final double width = box.size.width - 60;
-                      _seekTo(localX / width);
-                    },
-                    onHorizontalDragEnd: (_) => _seeking = false,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: CustomPaint(
-                        size: const Size(double.infinity, 34),
-                        painter: _WaveformPainter(
-                          bars: _waveformBars,
-                          progress: progress,
-                          playedColor: fg,
-                          unplayedColor: fg.withValues(alpha: 0.30),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return GestureDetector(
+                        onTapDown: (TapDownDetails details) {
+                          final double localX = details.localPosition.dx;
+                          final double width = constraints.maxWidth;
+                          _seekTo(localX / width);
+                        },
+                        onHorizontalDragStart: (_) => _seeking = true,
+                        onHorizontalDragUpdate: (DragUpdateDetails details) {
+                          final double localX = details.localPosition.dx;
+                          final double width = constraints.maxWidth;
+                          _seekTo(localX / width);
+                        },
+                        onHorizontalDragEnd: (_) => _seeking = false,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: CustomPaint(
+                            size: Size(constraints.maxWidth, 34),
+                            painter: _WaveformPainter(
+                              bars: _waveformBars,
+                              progress: progress,
+                              playedColor: fg,
+                              unplayedColor: fg.withValues(alpha: 0.30),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    }
                   ),
                 ),
                 Padding(

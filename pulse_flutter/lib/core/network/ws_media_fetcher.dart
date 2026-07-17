@@ -8,6 +8,25 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 class WsMediaFetcher {
   static final DefaultCacheManager _cacheManager = DefaultCacheManager();
 
+  static void prefetchMedia({
+    required String filePath,
+    required WebSocketClient wsClient,
+    required bool isE2ee,
+    required int chatId,
+    required E2eeService e2eeService,
+  }) {
+    // Run asynchronously in background without awaiting
+    fetchToLocalFile(
+      filePath: filePath,
+      wsClient: wsClient,
+      isE2ee: isE2ee,
+      chatId: chatId,
+      e2eeService: e2eeService,
+    ).catchError((Object e) {
+      debugPrint('WsMediaFetcher: prefetch error for $filePath: $e');
+    });
+  }
+
   static Future<Uint8List> fetchAndDecryptMedia({
     required String filePath,
     required WebSocketClient wsClient,

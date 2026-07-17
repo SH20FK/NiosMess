@@ -525,6 +525,18 @@ class MessageBubble extends ConsumerWidget {
 
   Widget _buildCircleVideoContent(BuildContext context, ColorScheme scheme, TextTheme textTheme) {
     const double circleSize = 180;
+    
+    // Asynchronously prefetch media
+    if (mediaUrl != null && mediaUrl!.trim().isNotEmpty) {
+      WsMediaFetcher.prefetchMedia(
+        filePath: mediaUrl!,
+        wsClient: ref.read(webSocketClientProvider),
+        isE2ee: isE2ee,
+        chatId: chatId,
+        e2eeService: ref.read(e2eeServiceProvider),
+      );
+    }
+
     return Semantics(
       label: context.l10n.chatCircleVideo,
       child: SizedBox(
@@ -584,18 +596,31 @@ class MessageBubble extends ConsumerWidget {
         InkWell(
           onLongPress: onLongPressMedia,
           borderRadius: BorderRadius.circular(16),
-          child: VoiceMessagePlayer(
-            audioUrl: mediaUrl!,
-            durationSeconds: mediaDuration ?? 0,
-            isMine: isMine,
-            scheme: scheme,
-            formattedTime: hideFooter ? null : formattedTime,
-            isRead: isRead,
-            isE2ee: isE2ee,
-            isEdited: isEdited,
-            chatId: chatId,
-            wsClient: ref.read(webSocketClientProvider),
-            e2eeService: ref.read(e2eeServiceProvider),
+          child: Builder(
+            builder: (context) {
+              if (mediaUrl != null && mediaUrl!.trim().isNotEmpty) {
+                WsMediaFetcher.prefetchMedia(
+                  filePath: mediaUrl!,
+                  wsClient: ref.read(webSocketClientProvider),
+                  isE2ee: isE2ee,
+                  chatId: chatId,
+                  e2eeService: ref.read(e2eeServiceProvider),
+                );
+              }
+              return VoiceMessagePlayer(
+                audioUrl: mediaUrl!,
+                durationSeconds: mediaDuration ?? 0,
+                isMine: isMine,
+                scheme: scheme,
+                formattedTime: hideFooter ? null : formattedTime,
+                isRead: isRead,
+                isE2ee: isE2ee,
+                isEdited: isEdited,
+                chatId: chatId,
+                wsClient: ref.read(webSocketClientProvider),
+                e2eeService: ref.read(e2eeServiceProvider),
+              );
+            }
           ),
         ),
       ],
@@ -1174,7 +1199,11 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
     if (!mounted) return;
     final bool wasPlaying = _playing;
     final bool nowPlaying = _videoController?.value.isPlaying ?? false;
-    if (wasPlaying != nowPlaying) setState(() => _playing = nowPlaying);
+    if (wasPlaying != nowPlaying || nowPlaying) {
+      setState(() {
+        _playing = nowPlaying;
+      });
+    }
   }
 
   void _togglePlay() {
@@ -1199,6 +1228,9 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
   @override
   Widget build(BuildContext context) {
     const double circleSize = 180;
+    final double playProgress = _videoController != null && _videoController!.value.duration.inMilliseconds > 0
+        ? _videoController!.value.position.inMilliseconds / _videoController!.value.duration.inMilliseconds
+        : 0.0;
 
     return GestureDetector(
       onTap: _togglePlay,
@@ -1209,30 +1241,71 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Thumbnail or video
-            if (_showThumbnail || !_initialized)
-              _circleThumbnail(circleSize)
-            else
-              ClipOval(
+            // Video / Thumbnail Container
+            Container(
+              width: circleSize,
+              height: circleSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: widget.scheme.primary.withValues(alpha: 0.4),
+                  width: 2.5,
+                ),
+              ),
+              child: ClipOval(
+                child: Stack(
+                  children: [
+                    if (_showThumbnail || !_initialized)
+                      _circleThumbnail(circleSize)
+                    else
+                      SizedBox(
+                        width: circleSize,
+                        height: circleSize,
+                        child: VideoPlayer(_videoController!),
+                      ),
+                    // Blurred overlay if loading
+                    if (!_initialized)
+                      Container(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            // Custom radial progress indicator around the circle
+            if (_initialized && _videoController != null && !_showThumbnail)
+              IgnorePointer(
                 child: SizedBox(
-                  width: circleSize,
-                  height: circleSize,
-                  child: VideoPlayer(_videoController!),
+                  width: circleSize + 5,
+                  height: circleSize + 5,
+                  child: CircularProgressIndicator(
+                    value: playProgress,
+                    strokeWidth: 2.5,
+                    backgroundColor: Colors.transparent,
+                    valueColor: AlwaysStoppedAnimation<Color>(widget.scheme.primary),
+                  ),
                 ),
               ),
             // Play/pause overlay
             if (_showThumbnail || !_playing)
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: _showThumbnail ? Colors.black26 : Colors.black54,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  _showThumbnail ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                  color: Colors.white,
-                  size: 28,
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 150),
+                opacity: 1.0,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _showThumbnail ? Colors.black38 : Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _showThumbnail ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                 ),
               ),
             // Duration badge
