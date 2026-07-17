@@ -642,14 +642,18 @@ class MessageBubble extends ConsumerWidget {
         onTap: onOpenMedia,
         onLongPress: onLongPressMedia,
         borderRadius: BorderRadius.circular(12),
-        child: VoiceMessagePlayer(
-          audioUrl: mediaUrl!,
-          durationSeconds: mediaDuration ?? 0,
-          isMine: isMine,
-          scheme: scheme,
-          chatId: chatId,
-          wsClient: ref.read(webSocketClientProvider),
-          e2eeService: ref.read(e2eeServiceProvider),
+        child: Consumer(
+          builder: (context, ref, child) {
+            return VoiceMessagePlayer(
+              audioUrl: mediaUrl!,
+              durationSeconds: mediaDuration ?? 0,
+              isMine: isMine,
+              scheme: scheme,
+              chatId: chatId,
+              wsClient: ref.read(webSocketClientProvider),
+              e2eeService: ref.read(e2eeServiceProvider),
+            );
+          }
         ),
       );
     }
