@@ -58,8 +58,10 @@ enum UploadStatus { pending, uploading, success, error }
 class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
   @override
   Map<String, UploadTask> build() {
-    ref.listen(connectivityProvider, (bool? prev, bool next) {
-      if (prev == false && next == true) {
+    ref.listen(connectivityProvider, (AsyncValue<bool>? prev, AsyncValue<bool> next) {
+      final prevConnected = prev?.valueOrNull ?? false;
+      final nextConnected = next.valueOrNull ?? false;
+      if (!prevConnected && nextConnected) {
         retryAllErrors();
       }
     });

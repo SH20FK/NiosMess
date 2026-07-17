@@ -518,8 +518,10 @@ class MessageBubble extends ConsumerWidget {
                           textTheme: textTheme,
                         ),
                       ),
-                    ),
+                    ],
                   ),
+                  ),
+                ),
                   if (!isPrevSame)
                     Positioned(
                       left: isMine ? null : -8,
