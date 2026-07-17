@@ -21,6 +21,8 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
+import 'package:universal_io/io.dart';
 
 class MessageBubble extends ConsumerWidget {
   const MessageBubble({
@@ -244,8 +246,12 @@ class MessageBubble extends ConsumerWidget {
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: <Widget>[
-    if (isCircleVideo && hasMedia)
-      _buildCircleVideoContent(context, scheme, textTheme)
+            if (isCircleVideo && hasMedia)
+              _buildCircleVideoContent(context, scheme, textTheme,
+                chatId: chatId,
+                wsClient: ref.read(webSocketClientProvider),
+                e2eeService: ref.read(e2eeServiceProvider),
+              )
     else if (isVoice && hasMedia)
       _buildVoiceOnly(context, scheme, textTheme,
         chatId: chatId,
@@ -528,7 +534,11 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
-  Widget _buildCircleVideoContent(BuildContext context, ColorScheme scheme, TextTheme textTheme) {
+  Widget _buildCircleVideoContent(BuildContext context, ColorScheme scheme, TextTheme textTheme, {
+    required int chatId,
+    required WebSocketClient wsClient,
+    required E2eeService e2eeService,
+  }) {
     const double circleSize = 180;
     return Semantics(
       label: context.l10n.chatCircleVideo,
@@ -546,6 +556,9 @@ class MessageBubble extends ConsumerWidget {
           formattedTime: formattedTime,
           scheme: scheme,
           textTheme: textTheme,
+          chatId: chatId,
+          wsClient: wsClient,
+          e2eeService: e2eeService,
           onLongPress: onLongPressMedia,
         ),
       ),
@@ -643,6 +656,8 @@ class MessageBubble extends ConsumerWidget {
           scheme: scheme,
           textStyle: textTheme.bodySmall?.copyWith(color: textColor) ?? const TextStyle(),
           isMine: isMine,
+          chatId: chatId,
+          isE2ee: isE2ee,
           onOpenMedia: onOpenMedia,
           onLongPressMedia: onLongPressMedia,
         );
@@ -653,17 +668,14 @@ class MessageBubble extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: CachedNetworkImage(
-            imageUrl: urls.first,
-            cacheKey: '${urls.first}_preview',
-            httpHeaders: headers,
+          child: WsCachedImage(
+            mediaUrl: urls.first,
+            chatId: chatId,
+            isE2ee: isE2ee,
             width: 220,
             height: 180,
             fit: BoxFit.cover,
-            memCacheWidth: 440,
-            memCacheHeight: 360,
-            fadeInDuration: const Duration(milliseconds: 140),
-            placeholder: (BuildContext context, String _) => SizedBox(
+            placeholder: (BuildContext context) => SizedBox(
               width: 220,
               height: 180,
               child: Center(
@@ -672,7 +684,7 @@ class MessageBubble extends ConsumerWidget {
                 ),
               ),
             ),
-            errorWidget: (BuildContext context, String _, Object error) {
+            errorWidget: (BuildContext context, Object error) {
               return Container(
                 width: 220,
                 height: 180,
@@ -1121,6 +1133,9 @@ class _CircleVideoInlinePlayer extends StatefulWidget {
     required this.formattedTime,
     required this.scheme,
     required this.textTheme,
+    required this.chatId,
+    required this.wsClient,
+    required this.e2eeService,
     this.onLongPress,
   });
 
@@ -1134,6 +1149,9 @@ class _CircleVideoInlinePlayer extends StatefulWidget {
   final String formattedTime;
   final ColorScheme scheme;
   final TextTheme textTheme;
+  final int chatId;
+  final WebSocketClient wsClient;
+  final E2eeService e2eeService;
   final VoidCallback? onLongPress;
 
   @override
@@ -1154,9 +1172,15 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
 
   Future<void> _initVideo() async {
     try {
-      _videoController = VideoPlayerController.networkUrl(
-        Uri.parse(widget.videoUrl),
-        httpHeaders: cachedAuthHeaders(),
+      final localPath = await WsMediaFetcher.fetchToLocalFile(
+        filePath: widget.videoUrl,
+        wsClient: widget.wsClient,
+        isE2ee: widget.isE2ee,
+        chatId: widget.chatId,
+        e2eeService: widget.e2eeService,
+      );
+      _videoController = VideoPlayerController.file(
+        File(localPath),
       );
       await _videoController!.initialize();
       await _videoController!.setLooping(true);
@@ -1282,6 +1306,9 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
       width: circleSize,
       height: circleSize,
       decoration: BoxDecoration(
+        color: widget.isMine
+            ? widget.scheme.onPrimary.withValues(alpha: 0.12)
+            : widget.scheme.surfaceContainerHigh,
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
@@ -1291,41 +1318,8 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
           ),
         ],
       ),
-      child: ClipOval(
-        child: CachedNetworkImage(
-          imageUrl: widget.videoUrl,
-          cacheKey: '${widget.videoUrl}_circle_thumb',
-          httpHeaders: cachedAuthHeaders(),
-          width: circleSize,
-          height: circleSize,
-          fit: BoxFit.cover,
-          memCacheWidth: 360,
-          memCacheHeight: 360,
-          placeholder: (BuildContext context, String _) => Container(
-            width: circleSize,
-            height: circleSize,
-            decoration: BoxDecoration(
-              color: widget.isMine
-                  ? widget.scheme.onPrimary.withValues(alpha: 0.12)
-                  : widget.scheme.surfaceContainerHigh,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.videocam_rounded, size: 32),
-          ),
-          errorWidget: (BuildContext context, String _, Object error) {
-            return Container(
-              width: circleSize,
-              height: circleSize,
-              decoration: BoxDecoration(
-                color: widget.isMine
-                    ? widget.scheme.onPrimary.withValues(alpha: 0.12)
-                    : widget.scheme.surfaceContainerHigh,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.broken_image_rounded, size: 32),
-            );
-          },
-        ),
+      child: const Center(
+        child: Icon(Icons.videocam_rounded, size: 32),
       ),
     );
   }
@@ -1370,6 +1364,8 @@ class _MediaCarousel extends StatefulWidget {
     required this.isMine,
     required this.onOpenMedia,
     required this.onLongPressMedia,
+    required this.chatId,
+    required this.isE2ee,
   });
 
   final List<String> urls;
@@ -1378,6 +1374,8 @@ class _MediaCarousel extends StatefulWidget {
   final bool isMine;
   final VoidCallback? onOpenMedia;
   final VoidCallback? onLongPressMedia;
+  final int chatId;
+  final bool isE2ee;
 
   @override
   State<_MediaCarousel> createState() => _MediaCarouselState();
@@ -1422,17 +1420,14 @@ class _MediaCarouselState extends State<_MediaCarousel> {
                     curve: Curves.easeOut,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: CachedNetworkImage(
-                        imageUrl: widget.urls[index],
-                        cacheKey: '${widget.urls[index]}_preview',
-                        httpHeaders: cachedAuthHeaders(),
+                      child: WsCachedImage(
+                        mediaUrl: widget.urls[index],
+                        chatId: widget.chatId,
+                        isE2ee: widget.isE2ee,
                         width: 220,
                         height: 180,
                         fit: BoxFit.cover,
-                        memCacheWidth: 440,
-                        memCacheHeight: 360,
-                        fadeInDuration: const Duration(milliseconds: 140),
-                        placeholder: (_, _) => SizedBox(
+                        placeholder: (BuildContext context) => SizedBox(
                           width: 220,
                           height: 180,
                           child: Center(
@@ -1443,7 +1438,7 @@ class _MediaCarouselState extends State<_MediaCarousel> {
                             ),
                           ),
                         ),
-                        errorWidget: (_, _, _) => Container(
+                        errorWidget: (BuildContext context, Object error) => Container(
                           width: 220,
                           height: 180,
                           alignment: Alignment.center,

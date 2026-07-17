@@ -36,7 +36,8 @@ class WsMediaFetcher {
     required E2eeService e2eeService,
     required String? theirPublicKeyBase64,
   }) async {
-    final cacheKey = 'ws_media_$filePath';
+    final cleanPath = _cleanFilePath(filePath);
+    final cacheKey = 'ws_media_$cleanPath';
     final fileInfo = await _cacheManager.getFileFromCache(cacheKey);
     if (fileInfo != null) {
       return await fileInfo.file.readAsBytes();
@@ -48,14 +49,14 @@ class WsMediaFetcher {
     }
 
     final downloadUrl = '${ApiConstants.origin}/api/files/download';
-    debugPrint('WsMediaFetcher: requesting download from $downloadUrl for $filePath');
+    debugPrint('WsMediaFetcher: requesting download from $downloadUrl for $cleanPath (original: $filePath)');
 
     final response = await http.post(
       Uri.parse(downloadUrl),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'token': token,
-        'file_path': filePath.startsWith('/') ? filePath.substring(1) : filePath,
+        'file_path': cleanPath,
       }),
     );
 
@@ -67,16 +68,45 @@ class WsMediaFetcher {
     Uint8List fileBuffer = response.bodyBytes;
 
     if (isE2eeHeader) {
-      debugPrint('WsMediaFetcher: local E2EE decryption active for $filePath');
+      debugPrint('WsMediaFetcher: local E2EE decryption active for $cleanPath');
     }
 
     await _cacheManager.putFile(
       cacheKey,
       fileBuffer,
-      fileExtension: _getFileExtension(filePath),
+      fileExtension: _getFileExtension(cleanPath),
     );
 
     return fileBuffer;
+  }
+
+  static String _cleanFilePath(String path) {
+    String cleanPath = path;
+    final queryIdx = cleanPath.indexOf('?');
+    if (queryIdx != -1) {
+      cleanPath = cleanPath.substring(0, queryIdx);
+    }
+    if (cleanPath.contains('/api/media/')) {
+      cleanPath = cleanPath.substring(cleanPath.indexOf('/api/media/') + '/api/media/'.length);
+    } else if (cleanPath.contains('/static/uploads/')) {
+      cleanPath = cleanPath.substring(cleanPath.indexOf('/static/uploads/') + '/static/uploads/'.length);
+    } else if (cleanPath.contains('/static/')) {
+      cleanPath = cleanPath.substring(cleanPath.indexOf('/static/') + '/static/'.length);
+    } else if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+      try {
+        final uri = Uri.parse(cleanPath);
+        if (uri.pathSegments.isNotEmpty) {
+          final segments = uri.pathSegments;
+          final idx = segments.indexWhere((s) => s == 'media' || s == 'voice' || s == 'circles' || s == 'avatars');
+          if (idx != -1) {
+            cleanPath = segments.sublist(idx).join('/');
+          } else {
+            cleanPath = segments.last;
+          }
+        }
+      } catch (_) {}
+    }
+    return cleanPath;
   }
 
   static Future<String> fetchToLocalFile({
@@ -86,8 +116,9 @@ class WsMediaFetcher {
     required int chatId,
     required E2eeService e2eeService,
   }) async {
+    final cleanPath = _cleanFilePath(filePath);
     final bytes = await fetchAndDecryptMedia(
-      filePath: filePath,
+      filePath: cleanPath,
       wsClient: wsClient,
       isE2ee: isE2ee,
       chatId: chatId,
@@ -95,7 +126,7 @@ class WsMediaFetcher {
       theirPublicKeyBase64: null,
     );
 
-    final cacheKey = 'ws_media_$filePath';
+    final cacheKey = 'ws_media_$cleanPath';
     final fileInfo = await _cacheManager.getFileFromCache(cacheKey);
     if (fileInfo != null) {
       return fileInfo.file.path;
@@ -104,7 +135,7 @@ class WsMediaFetcher {
     final file = await _cacheManager.putFile(
       cacheKey,
       bytes,
-      fileExtension: _getFileExtension(filePath),
+      fileExtension: _getFileExtension(cleanPath),
     );
     return file.path;
   }
