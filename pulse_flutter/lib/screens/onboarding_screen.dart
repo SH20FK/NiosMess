@@ -8,7 +8,6 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/session_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/widgets/glass_card.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
@@ -170,8 +169,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             const SizedBox(height: 20),
                             Hero(
                               tag: 'onboarding_icon_${slide.tintIndex}',
-                              child: GlassCard(
+                              child: Container(
                                 padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
                                 child: Lottie.asset(
                                   slide.lottiePath,
                                   width: 160,
@@ -184,7 +187,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             const SizedBox(height: 24),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 8),
-                              child: GlassCard(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
                                 child: Padding(
                                   padding: const EdgeInsets.all(20),
                                   child: Column(

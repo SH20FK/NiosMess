@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -434,12 +435,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   void _showAiBottomSheet(BuildContext context, ColorScheme scheme) {
     if (_isInputEmpty) return;
-    showModalBottomSheet<void>(
+    AppBottomSheets.show<void>(
       context: context,
       showDragHandle: true,
-      backgroundColor: scheme.surfaceContainerLow,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (BuildContext ctx) {
         final TextTheme tt = Theme.of(ctx).textTheme;
@@ -980,10 +978,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     required bool isChannel,
     required bool amAdminOrOwner,
   }) async {
-    await showModalBottomSheet<void>(
+    await AppBottomSheets.show<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       barrierColor: Colors.black38,
       builder: (BuildContext ctx) => Container(
         decoration: BoxDecoration(
@@ -1028,7 +1025,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   }
 
   void _showReportMessageDialog(ApiMessage message) {
-    showModalBottomSheet<void>(
+    AppBottomSheets.show<void>(
       context: context,
       showDragHandle: true,
       builder: (BuildContext ctx) {
@@ -1127,7 +1124,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         ? message.mediaName!.trim()
         : _mediaLabel(message, mediaUrl);
 
-    await showModalBottomSheet<void>(
+    await AppBottomSheets.show<void>(
       context: context,
       showDragHandle: true,
       builder: (BuildContext ctx) {

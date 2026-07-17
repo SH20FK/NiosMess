@@ -28,6 +28,7 @@ import 'package:pulse_flutter/widgets/chat/chat_list_filter_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:pulse_flutter/widgets/chat/chat_search_field.dart';
 import 'package:pulse_flutter/widgets/chat_creation_surfaces.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 
 enum _LastMessageKind { photo, video, audio, file }
@@ -861,10 +862,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               ),
             ),
           )
-        : showModalBottomSheet<String>(
+        : AppBottomSheets.show<String>(
             context: context,
             showDragHandle: true,
-            backgroundColor: Colors.transparent,
             builder: buildMenuContent,
           ));
 

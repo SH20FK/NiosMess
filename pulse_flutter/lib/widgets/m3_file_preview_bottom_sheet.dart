@@ -13,6 +13,7 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class M3FilePreviewBottomSheet extends StatelessWidget {
   const M3FilePreviewBottomSheet({
@@ -585,7 +586,7 @@ Future<void> showM3FilePreview({
   String? mediaUrl,
   Future<void> Function()? onForward,
 }) async {
-  await showModalBottomSheet<void>(
+  await AppBottomSheets.show<void>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,

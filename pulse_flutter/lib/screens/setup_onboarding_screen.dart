@@ -11,6 +11,7 @@ import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/providers/session_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class SetupOnboardingScreen extends ConsumerStatefulWidget {
   const SetupOnboardingScreen({super.key});
@@ -553,7 +554,7 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
     final TextEditingController controller = TextEditingController();
     String query = '';
 
-    await showModalBottomSheet<void>(
+    await AppBottomSheets.show<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,

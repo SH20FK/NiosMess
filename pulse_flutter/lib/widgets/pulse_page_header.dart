@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pulse_flutter/widgets/glass_card.dart';
 
 class PulsePageHeader extends StatelessWidget {
   const PulsePageHeader({
@@ -22,8 +21,12 @@ class PulsePageHeader extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return GlassCard(
+    return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[

@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/call_video_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class ActiveVideoCallScreen extends ConsumerStatefulWidget {
   const ActiveVideoCallScreen({super.key});
@@ -135,9 +136,8 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
   }
 
   void _showVerificationBottomSheet(BuildContext context, CallSessionData data) {
-    showModalBottomSheet(
+    AppBottomSheets.show(
       context: context,
-      backgroundColor: Colors.transparent,
       builder: (context) {
         final scheme = Theme.of(context).colorScheme;
         final textTheme = Theme.of(context).textTheme;

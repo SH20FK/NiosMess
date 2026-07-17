@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 Future<void> showStartDirectChatDialog(BuildContext context) {
   return showAppDialog<void>(
@@ -72,10 +73,9 @@ Future<void> showStartDirectChatDialog(BuildContext context) {
 }
 
 Future<String?> showCreateChatMenu(BuildContext context) {
-  return showModalBottomSheet<String>(
+  return AppBottomSheets.show<String>(
     context: context,
     showDragHandle: true,
-    backgroundColor: Colors.transparent,
     builder: (BuildContext ctx) {
       final ColorScheme scheme = Theme.of(ctx).colorScheme;
       final TextTheme textTheme = Theme.of(ctx).textTheme;

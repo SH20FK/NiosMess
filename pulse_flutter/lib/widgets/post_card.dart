@@ -13,11 +13,11 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
-import 'package:pulse_flutter/widgets/glass_card.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class PostCard extends ConsumerStatefulWidget {
   const PostCard({required this.post, super.key});
@@ -89,8 +89,11 @@ class _PostCardState extends ConsumerState<PostCard>
     final bool isOwn = auth.profile?.id == widget.post.author.id;
     final NgPost post = widget.post;
 
-    return GlassCard(
-      padding: const EdgeInsets.all(0),
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: <Widget>[
           // ── Header ──────────────────────────────────────────────
@@ -262,8 +265,12 @@ class _PostCardState extends ConsumerState<PostCard>
           // ── Action bar ──────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 6, 8, 4),
-            child: GlassCard(
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Row(
                 children: <Widget>[
                   _ActionChip(
@@ -640,7 +647,7 @@ class _PostMenu extends ConsumerWidget {
   void _showEditSheet(BuildContext context, WidgetRef ref) {
     final TextEditingController ctrl =
         TextEditingController(text: post.content);
-    showModalBottomSheet<void>(
+    AppBottomSheets.show<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,

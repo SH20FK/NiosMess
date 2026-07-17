@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class SettingsLanguageRegionScreen extends ConsumerWidget {
   const SettingsLanguageRegionScreen({super.key});
@@ -151,7 +152,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
     final TextEditingController controller = TextEditingController();
     String query = '';
 
-    await showModalBottomSheet<void>(
+    await AppBottomSheets.show<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,

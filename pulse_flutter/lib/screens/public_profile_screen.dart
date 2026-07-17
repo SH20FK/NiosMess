@@ -13,6 +13,7 @@ import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class PublicProfileScreen extends ConsumerStatefulWidget {
   const PublicProfileScreen({required this.username, super.key});
@@ -468,7 +469,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   }
 
   void _showReportUserDialog(ApiProfile profile) {
-    showModalBottomSheet<void>(
+    AppBottomSheets.show<void>(
       context: context,
       showDragHandle: true,
       builder: (BuildContext ctx) {

@@ -5,7 +5,6 @@ import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
-import 'package:pulse_flutter/widgets/glass_card.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 import 'package:pulse_flutter/widgets/pulse_page_header.dart';
@@ -110,7 +109,13 @@ class _ContactDetailScreenState extends ConsumerState<ContactDetailScreen> {
                     icon: Icons.person_pin_circle_outlined,
                   ),
                   const SizedBox(height: 12),
-                  GlassCard(
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     child: Column(
                       children: <Widget>[
                         Hero(
@@ -229,7 +234,13 @@ class _ContactDetailScreenState extends ConsumerState<ContactDetailScreen> {
                   LayoutBuilder(
                     builder: (BuildContext context, BoxConstraints constraints) {
                       final bool stacked = constraints.maxWidth < 760;
-                      final Widget infoContent = GlassCard(
+                      final Widget infoContent = Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16.0),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
@@ -256,7 +267,13 @@ class _ContactDetailScreenState extends ConsumerState<ContactDetailScreen> {
                           ],
                         ),
                       );
-                      final Widget groupsContent = GlassCard(
+                      final Widget groupsContent = Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16.0),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
