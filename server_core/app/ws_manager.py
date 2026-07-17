@@ -3227,47 +3227,61 @@ async def handle_get_file(payload: dict, db: AsyncSession, user: User):
     if not file_path:
         return {"error": "file_path is required"}
         
-    # Защита от выхода за пределы директории (Directory Traversal)
-    file_path = file_path.replace("\\", "/").replace("../", "")
-    db_path = file_path
+    # --- 1. НАДЕЖНАЯ ЗАЩИТА ОТ DIRECTORY TRAVERSAL ---
+    # Получаем абсолютный путь к базовой папке загрузок
+    base_dir = os.path.abspath(settings.UPLOAD_DIR)
+    
+    # Убираем слеши в начале строки, чтобы os.path.join не воспринял путь как путь от корня системы (например "/etc/passwd")
+    safe_relative_path = file_path.lstrip("/\\")
+    
+    # Формируем и нормализуем итоговый абсолютный путь
+    full_path = os.path.abspath(os.path.join(base_dir, safe_relative_path))
+    
+    # Строго проверяем, что итоговый путь находится строго ВНУТРИ папки загрузок
+    # (Добавление os.sep гарантирует, что папка "/app/uploads_backup" не пройдет проверку для "/app/uploads")
+    if not full_path.startswith(base_dir + os.sep) and full_path != base_dir:
+        return {"error": "Security error: invalid or malicious file path"}
+    # --------------------------------------------------
 
-    # 1. Проверяем, привязан ли файл к какому-то сообщению
-    from app.models.models import Message, ChatMember
+    # Для поиска в БД нормализуем слеши (в БД пути обычно хранятся с прямым слешем)
+    db_path = file_path.replace("\\", "/")
+
+    # 2. Проверяем, привязан ли файл к какому-то сообщению
     r = await db.execute(select(Message).where(Message.media_path == db_path))
     msg = r.scalar_one_or_none()
     
     if not msg:
         return {"error": "File not found or not associated with any chat"}
         
-    # 2. Проверяем, состоит ли запрашивающий пользователь в чате этого сообщения
+    # 3. Проверяем, состоит ли запрашивающий пользователь в чате этого сообщения
     mem_r = await db.execute(select(ChatMember).where(
         ChatMember.chat_id == msg.chat_id,
         ChatMember.user_id == user.id,
         ChatMember.is_banned == False
     ))
     if not mem_r.scalar_one_or_none():
-        return {"error": "You're fucked up: You are not a member of this chat"}
+        return {"error": "Access denied: You are not a member of this chat"}
 
-    # 3. Читаем физический файл с диска
-    full_path = os.path.join(settings.UPLOAD_DIR, file_path)
+    # 4. Проверяем физическое наличие файла (включая зашифрованные версии)
     enc_path = full_path + ".enc"
     target_path = enc_path if os.path.exists(enc_path) else full_path
     
     if not os.path.exists(target_path):
         return {"error": "Physical file not found on server"}
         
+    # Читаем физический файл с диска
     async with aiofiles.open(target_path, "rb") as f:
         file_bytes = await f.read()
 
-    # 4. Если чат обычный (серверное шифрование), расшифровываем байты на стороне сервера
+    # 5. Если чат обычный (серверное шифрование), расшифровываем байты на стороне сервера
     if not msg.is_e2ee and msg.media_iv and msg.media_tag:
-        from app.services.encryption import decrypt_file_to_bytes
         try:
+            # Функция decrypt_file_to_bytes уже импортирована у вас в начале файла ws_manager.py
             file_bytes = decrypt_file_to_bytes(target_path, msg.media_iv, msg.media_tag)
         except Exception as e:
             return {"error": f"Failed to decrypt file on server: {str(e)}"}
 
-    # 5. Кодируем в Base64 для передачи по WebSocket
+    # 6. Кодируем в Base64 для передачи по WebSocket
     file_b64 = base64.b64encode(file_bytes).decode("utf-8")
     
     return {

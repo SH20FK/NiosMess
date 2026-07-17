@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Правовая информация и правила использования сервиса NiosMess.">
+    <meta name="theme-color" content="#F3F1EA">
+    <title>NiosMess — Правовая информация</title>
+    <script>document.documentElement.classList.add('js');</script>
+    <style>
+        :root {
+            color-scheme: light;
+
+            --canvas: #f3f1ea;
+            --canvas-deep: #e8e5dc;
+            --surface: #faf9f5;
+            --surface-strong: #ffffff;
+            --ink: #111419;
+            --ink-soft: #5c616a;
+            --ink-faint: #858991;
+            --line: #d2cfc5;
+            --line-strong: #aaa79e;
+            --accent: #2457ff;
+            --accent-hover: #1748df;
+            --accent-soft: #dfe6ff;
+            --night: #111419;
+            --night-soft: #1b2028;
+            --night-line: #303640;
+            --night-text: #f4f2ec;
+            --success: #0b8a5d;
+            --danger: #c03535;
+
+            --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+            --text-display: clamp(3.35rem, 7.4vw, 7.7rem);
+            --text-h1: clamp(2.75rem, 6vw, 6.15rem);
+            --text-h2: clamp(2.1rem, 4.4vw, 4.65rem);
+            --text-h3: clamp(1.35rem, 2vw, 2rem);
+            --text-lead: clamp(1.05rem, 1.6vw, 1.34rem);
+            --text-body: 1rem;
+            --text-small: 0.875rem;
+            --text-label: 0.72rem;
+
+            --space-1: 0.375rem;
+            --space-2: 0.625rem;
+            --space-3: 0.875rem;
+            --space-4: 1.25rem;
+            --space-5: 1.75rem;
+            --space-6: 2.5rem;
+            --space-7: 3.5rem;
+            --space-8: 5rem;
+            --space-9: 7.5rem;
+            --space-10: 10rem;
+
+            --radius-xs: 3px;
+            --radius-sm: 7px;
+            --radius-md: 14px;
+            --radius-lg: 28px;
+
+            --container: 86rem;
+            --gutter: clamp(1rem, 3.8vw, 4.5rem);
+            --header-height: 4.75rem;
+
+            --shadow-soft: 0 18px 50px rgba(17, 20, 25, 0.08);
+            --shadow-window: 0 30px 90px rgba(17, 20, 25, 0.17);
+
+            --duration-fast: 150ms;
+            --duration-base: 260ms;
+            --duration-slow: 520ms;
+            --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            background: var(--canvas);
+        }
+
+        body {
+            margin: 0;
+            min-width: 320px;
+            overflow-x: hidden;
+            background: var(--canvas);
+            color: var(--ink);
+            font-family: var(--font-sans);
+            font-size: var(--text-body);
+            line-height: 1.6;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body.menu-open {
+            overflow: hidden;
+        }
+
+        ::selection {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        img,
+        svg {
+            display: block;
+            max-width: 100%;
+        }
+
+        button,
+        a {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        button {
+            border: 0;
+            font: inherit;
+        }
+
+        :focus-visible {
+            outline: 3px solid color-mix(in srgb, var(--accent) 72%, white);
+            outline-offset: 3px;
+        }
+
+        .container {
+            width: min(100% - (var(--gutter) * 2), var(--container));
+            margin-inline: auto;
+        }
+
+        /* Шапка сайта */
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            height: var(--header-height);
+            border-bottom: 1px solid transparent;
+            background: color-mix(in srgb, var(--canvas) 90%, transparent);
+            transition: border-color var(--duration-base) ease, background-color var(--duration-base) ease;
+        }
+
+        .site-header::after {
+            position: absolute;
+            inset: auto 0 0;
+            height: 1px;
+            background: var(--line);
+            content: "";
+            opacity: 0;
+            transition: opacity var(--duration-base) ease;
+        }
+
+        .site-header.is-scrolled {
+            backdrop-filter: blur(14px);
+        }
+
+        .site-header.is-scrolled::after {
+            opacity: 1;
+        }
+
+        .header-inner {
+            display: grid;
+            height: 100%;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.8rem;
+            width: max-content;
+        }
+
+        .brand__mark {
+            position: relative;
+            width: 2.25rem;
+            height: 2.25rem;
+            overflow: hidden;
+            border: 1px solid var(--ink);
+            border-radius: var(--radius-sm);
+            background: var(--ink);
+        }
+
+        .brand__mark img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .brand__name {
+            font-size: 1.03rem;
+            font-weight: 820;
+            letter-spacing: -0.045em;
+        }
+
+        .brand__beta {
+            align-self: flex-start;
+            margin-top: 0.1rem;
+            color: var(--accent);
+            font-family: var(--font-mono);
+            font-size: 0.58rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .desktop-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(1.25rem, 2.8vw, 2.6rem);
+        }
+
+        .desktop-nav a {
+            position: relative;
+            color: var(--ink-soft);
+            font-size: 0.82rem;
+            font-weight: 700;
+            transition: color var(--duration-fast) ease;
+        }
+
+        .desktop-nav a::after {
+            position: absolute;
+            right: 0;
+            bottom: -0.48rem;
+            left: 0;
+            height: 1px;
+            background: var(--ink);
+            content: "";
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform var(--duration-base) var(--ease-out);
+        }
+
+        .desktop-nav a:hover,
+        .desktop-nav a[aria-current="page"] {
+            color: var(--ink);
+        }
+
+        .desktop-nav a:hover::after,
+        .desktop-nav a[aria-current="page"]::after {
+            transform: scaleX(1);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.65rem;
+        }
+
+        .header-login {
+            display: inline-flex;
+            min-height: 2.65rem;
+            align-items: center;
+            justify-content: center;
+            padding: 0.72rem 1rem;
+            border: 1px solid var(--ink);
+            border-radius: var(--radius-sm);
+            font-size: 0.78rem;
+            font-weight: 780;
+            transition: background-color var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+        }
+
+        .header-login:hover {
+            background: var(--ink);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        .menu-toggle {
+            display: none;
+            width: 2.75rem;
+            height: 2.75rem;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--line-strong);
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--ink);
+            cursor: pointer;
+        }
+
+        .menu-toggle__icon,
+        .menu-toggle__icon::before,
+        .menu-toggle__icon::after {
+            display: block;
+            width: 1.1rem;
+            height: 1.5px;
+            background: currentColor;
+            content: "";
+            transition: transform var(--duration-base) var(--ease-out);
+        }
+
+        .menu-toggle__icon {
+            position: relative;
+        }
+
+        .menu-toggle__icon::before {
+            position: absolute;
+            top: -0.35rem;
+        }
+
+        .menu-toggle__icon::after {
+            position: absolute;
+            top: 0.35rem;
+        }
+
+        .menu-toggle[aria-expanded="true"] .menu-toggle__icon {
+            background: transparent;
+        }
+
+        .menu-toggle[aria-expanded="true"] .menu-toggle__icon::before {
+            transform: translateY(0.35rem) rotate(45deg);
+        }
+
+        .menu-toggle[aria-expanded="true"] .menu-toggle__icon::after {
+            transform: translateY(-0.35rem) rotate(-45deg);
+        }
+
+        .mobile-menu {
+            position: fixed;
+            top: var(--header-height);
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 90;
+            display: none;
+            padding: 1.5rem var(--gutter) 2rem;
+            background: var(--canvas);
+            opacity: 0;
+            transform: translateY(-0.75rem);
+            transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+        }
+
+        .mobile-menu.is-open {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .mobile-menu nav {
+            display: grid;
+            border-top: 1px solid var(--line);
+        }
+
+        .mobile-menu nav a {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.25rem 0;
+            border-bottom: 1px solid var(--line);
+            font-size: clamp(1.45rem, 7vw, 2.2rem);
+            font-weight: 760;
+            letter-spacing: -0.045em;
+            line-height: 1.08;
+        }
+
+        .mobile-menu nav a::after {
+            color: var(--accent);
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            content: attr(data-index);
+            letter-spacing: 0.1em;
+        }
+
+        .mobile-menu__action {
+            width: 100%;
+            margin-top: 2rem;
+        }
+
+        /* Лейаут правового контента */
+        .legal-section {
+            padding: clamp(3rem, 6vw, 6rem) 0 clamp(5rem, 10vw, 10rem);
+        }
+
+        .legal-grid {
+            display: grid;
+            grid-template-columns: minmax(18rem, 1.2fr) minmax(0, 3fr);
+            gap: clamp(2rem, 5vw, 5.5rem);
+            align-items: start;
+        }
+
+        .legal-sidebar {
+            position: sticky;
+            top: calc(var(--header-height) + 2rem);
+            display: grid;
+            gap: 1.75rem;
+        }
+
+        .legal-nav {
+            display: grid;
+            gap: 0.45rem;
+            border-left: 2px solid var(--line);
+            padding-left: 1.15rem;
+            margin: 0;
+        }
+
+        .legal-nav__btn {
+            background: transparent;
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+            font-weight: 750;
+            text-align: left;
+            padding: 0.45rem 0;
+            cursor: pointer;
+            line-height: 1.4;
+            transition: color var(--duration-fast) ease, padding-left var(--duration-fast) ease;
+        }
+
+        .legal-nav__btn:hover {
+            color: var(--ink);
+        }
+
+        .legal-nav__btn.is-active {
+            color: var(--accent);
+            font-weight: 850;
+        }
+
+        .legal-content {
+            background: var(--surface-strong);
+            border: 1px solid var(--line-strong);
+            border-radius: var(--radius-md);
+            padding: clamp(1.5rem, 4vw, 4.5rem);
+            box-shadow: var(--shadow-soft);
+        }
+
+        /* Оформление правовых документов */
+        .legal-doc {
+            display: none;
+        }
+
+        .legal-doc.is-active {
+            display: block;
+        }
+
+        .legal-doc h1 {
+            font-size: clamp(1.8rem, 3.2vw, 2.85rem);
+            font-weight: 810;
+            letter-spacing: -0.055em;
+            line-height: 1.05;
+            margin: 0 0 0.85rem;
+        }
+
+        .legal-doc .doc-meta {
+            font-family: var(--font-mono);
+            font-size: var(--text-label);
+            color: var(--ink-soft);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 2.25rem;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 1rem;
+        }
+
+        .legal-doc h2 {
+            font-size: clamp(1.15rem, 2vw, 1.45rem);
+            font-weight: 790;
+            letter-spacing: -0.035em;
+            line-height: 1.25;
+            margin: 2.5rem 0 1rem;
+            color: var(--ink);
+        }
+
+        .legal-doc h3 {
+            font-size: 1.05rem;
+            font-weight: 780;
+            margin: 1.75rem 0 0.75rem;
+            color: var(--ink);
+        }
+
+        .legal-doc p,
+        .legal-doc li,
+        .legal-doc dd {
+            color: var(--ink-soft);
+            font-size: 0.94rem;
+            line-height: 1.68;
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+
+        .legal-doc strong {
+            color: var(--ink);
+            font-weight: 750;
+        }
+
+        .legal-doc ul {
+            margin: 0 0 1.25rem 0;
+            padding-left: 1.25rem;
+            list-style-type: square;
+        }
+
+        .legal-doc li {
+            margin-bottom: 0.5rem;
+        }
+
+        .legal-doc dl {
+            margin: 0 0 1.5rem;
+        }
+
+        .legal-doc dt {
+            font-weight: 780;
+            color: var(--ink);
+            margin-top: 1rem;
+            font-size: 0.94rem;
+        }
+
+        .legal-doc dd {
+            margin-left: 0;
+            padding-left: 1rem;
+            border-left: 2px solid var(--line);
+            margin-bottom: 1.25rem;
+        }
+
+        .legal-doc .note-block {
+            background: var(--canvas-deep);
+            border-radius: var(--radius-sm);
+            padding: 1.2rem var(--space-4);
+            margin: 1.5rem 0;
+        }
+
+        .legal-doc .note-block p {
+            margin: 0;
+            font-size: 0.88rem;
+        }
+
+        .legal-doc .note-block strong {
+            display: block;
+            margin-bottom: 0.45rem;
+            font-size: 0.9rem;
+        }
+
+        /* Футер сайта */
+        .site-footer {
+            background: var(--night);
+            color: var(--night-text);
+        }
+
+        .footer-main {
+            display: grid;
+            grid-template-columns: minmax(16rem, 2fr) repeat(3, minmax(8rem, 1fr));
+            gap: clamp(2rem, 5vw, 5.5rem);
+            padding: clamp(4rem, 8vw, 7.5rem) 0 clamp(3rem, 6vw, 5rem);
+        }
+
+        .footer-brand p {
+            max-width: 23rem;
+            margin: 1.4rem 0 0;
+            color: #9da4af;
+            font-size: 0.9rem;
+            line-height: 1.65;
+        }
+
+        .footer-brand .brand__mark {
+            border-color: #49515d;
+        }
+
+        .footer-column h2 {
+            margin: 0 0 1rem;
+            color: #777f8a;
+            font-family: var(--font-mono);
+            font-size: 0.62rem;
+            font-weight: 800;
+            letter-spacing: 0.11em;
+            text-transform: uppercase;
+        }
+
+        .footer-column ul {
+            display: grid;
+            gap: 0.65rem;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .footer-column a {
+            color: #c9ced6;
+            font-size: 0.82rem;
+            transition: color var(--duration-fast) ease;
+        }
+
+        .footer-column a:hover {
+            color: #fff;
+        }
+
+        .footer-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            padding: 1.35rem 0 1.5rem;
+            border-top: 1px solid var(--night-line);
+            color: #737b87;
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .footer-links-inline {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .footer-links-inline a {
+            color: #a7b3db;
+        }
+
+        /* Кнопка */
+        .button {
+            position: relative;
+            display: inline-flex;
+            min-height: 3.1rem;
+            align-items: center;
+            justify-content: center;
+            gap: 0.7rem;
+            padding: 0.82rem 1.12rem;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.86rem;
+            font-weight: 750;
+            letter-spacing: -0.01em;
+            line-height: 1;
+            transition: background-color var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+        }
+
+        .button--primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .button--primary:hover {
+            background: var(--accent-hover);
+        }
+
+        /* Адаптивность под мобильные */
+        @media (max-width: 1100px) {
+            .footer-main {
+                grid-template-columns: minmax(16rem, 1.5fr) repeat(3, minmax(7rem, 1fr));
+                gap: 2rem;
+            }
+        }
+
+        @media (max-width: 900px) {
+            :root {
+                --header-height: 4.35rem;
+            }
+
+            .desktop-nav,
+            .header-login {
+                display: none;
+            }
+
+            .menu-toggle {
+                display: inline-flex;
+            }
+
+            .mobile-menu {
+                display: block;
+                visibility: hidden;
+                pointer-events: none;
+            }
+
+            .mobile-menu.is-open {
+                visibility: visible;
+                pointer-events: auto;
+            }
+
+            .legal-grid {
+                grid-template-columns: 1fr;
+                gap: 1.75rem;
+            }
+
+            .legal-sidebar {
+                position: static;
+            }
+
+            .legal-nav {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                border-left: none;
+                border-bottom: 1px solid var(--line);
+                padding-left: 0;
+                padding-bottom: 0.75rem;
+                gap: 1rem;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .legal-nav::-webkit-scrollbar {
+                display: none;
+            }
+
+            .legal-nav__btn {
+                white-space: nowrap;
+                padding: 0.35rem 0.65rem;
+                border-radius: var(--radius-xs);
+                font-size: 0.84rem;
+            }
+
+            .legal-nav__btn.is-active {
+                background: var(--accent-soft);
+            }
+
+            .footer-main {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .footer-brand {
+                grid-column: 1 / -1;
+                padding-bottom: 2rem;
+                border-bottom: 1px solid var(--night-line);
+            }
+        }
+
+        @media (max-width: 640px) {
+            :root {
+                --gutter: 1rem;
+            }
+
+            .brand__name {
+                font-size: 0.95rem;
+            }
+
+            .brand__mark {
+                width: 2.1rem;
+                height: 2.1rem;
+            }
+
+            .footer-main {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-column:last-child {
+                grid-column: auto;
+            }
+
+            .footer-bottom {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .footer-links-inline {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .legal-content {
+                padding: 1.25rem 1rem;
+            }
+        }
+
+        @media (max-width: 390px) {
+            .brand__beta {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header" data-header>
+        <div class="container header-inner">
+            <a class="brand" href="https://ni-os.ru" aria-label="NiosMess — на главную">
+                <span class="brand__mark">
+                    <img
+                        src="https://ni-os.ru/avatar"
+                        alt=""
+                        width="36"
+                        height="36"
+                        onerror="this.style.display='none'; this.parentElement.textContent='N'; this.parentElement.style.color='#fff'; this.parentElement.style.display='grid'; this.parentElement.style.placeItems='center'; this.parentElement.style.fontWeight='800';"
+                    >
+                </span>
+                <span class="brand__name">NiosMess</span>
+                <span class="brand__beta">alpha</span>
+            </a>
+
+            <nav class="desktop-nav" aria-label="Основная навигация">
+                <a href="https://ni-os.ru/#features">Возможности</a>
+                <a href="https://ni-os.ru/#security">Безопасность</a>
+                <a href="https://ni-os.ru/web" target="_blank" rel="noopener noreferrer">Для разработчиков</a>
+                <a href="https://ni-os.ru/#faq">Помощь</a>
+            </nav>
+
+            <div class="header-actions">
+                <a class="header-login" href="https://ni-os.ru/web" target="_blank" rel="noopener noreferrer">Войти в Web</a>
+                <button class="menu-toggle" type="button" aria-label="Открыть меню" aria-expanded="false" aria-controls="mobile-menu" data-menu-toggle>
+                    <span class="menu-toggle__icon" aria-hidden="true"></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="mobile-menu" id="mobile-menu" data-mobile-menu aria-hidden="true">
+        <nav aria-label="Мобильная навигация">
+            <a href="https://ni-os.ru/#features" data-index="01">Возможности</a>
+            <a href="https://ni-os.ru/#security" data-index="02">Безопасность</a>
+            <a href="https://ni-os.ru/web" target="_blank" rel="noopener noreferrer" data-index="03">Разработчикам</a>
+            <a href="https://ni-os.ru/#faq" data-index="04">Помощь</a>
+        </nav>
+        <a class="button button--primary mobile-menu__action" href="https://ni-os.ru/web" target="_blank" rel="noopener noreferrer">Открыть NiosMess Web</a>
+    </div>
+
+    <main class="legal-section">
+        <div class="container legal-grid">
+            <aside class="legal-sidebar">
+                <nav class="legal-nav" aria-label="Правовые документы" data-legal-nav>
+                    <button class="legal-nav__btn is-active" type="button" data-doc-target="tos">Terms of Service</button>
+                    <button class="legal-nav__btn" type="button" data-doc-target="privacy">Privacy Policy</button>
+                    <button class="legal-nav__btn" type="button" data-doc-target="consent-ru">Согласие на ОПД (RU)</button>
+                    <button class="legal-nav__btn" type="button" data-doc-target="consent-en">Data Processing Consent (EN)</button>
+                </nav>
+            </aside>
+
+            <article class="legal-content">
+                <!-- TERMS OF SERVICE -->
+                <div class="legal-doc is-active" id="tos">
+                    <h1>Terms of Service</h1>
+                    <p class="doc-meta">Last Updated: June 29, 2026</p>
+
+                    <p>These Terms of Service (hereinafter referred to as the "Agreement") govern the relationship between the Administration of the NiosMess service (hereinafter referred to as the "Administration", "we", "us") and any individual using the service (hereinafter referred to as the "User", "you").</p>
+                    <p>By registering in NiosMess or using its functionality, you unconditionally agree to the terms of this Agreement. If you do not agree with any of the terms, you must immediately cease using the service.</p>
+
+                    <h2>1. General Provisions</h2>
+                    <dl>
+                        <dt>1.1. Subject of the Agreement</dt>
+                        <dd>The Administration grants the User a non-exclusive right to use the NiosMess messenger, including private and secret chats, groups, channels, and the NiosGram publication feed (hereinafter referred to as the "Service"), on an "as is" basis.</dd>
+
+                        <dt>1.2. Age Restrictions</dt>
+                        <dd>The Service is intended for individuals over 13 years of age (for residents of the EU/EEA — over 16 years of age, unless local member state law allows for a lower age). If you are under the specified age, you are not permitted to use the Service without the consent of your parents or legal guardians.</dd>
+
+                        <dt>1.3. Changes to the Agreement</dt>
+                        <dd>The Administration reserves the right to modify the Agreement at any time without prior notice. Continued use of the Service after changes are made constitutes acceptance of such changes.</dd>
+                    </dl>
+
+                    <h2>2. Rights and Obligations of the User</h2>
+                    <p><strong>2.1. Account Responsibility:</strong> The User bears full responsibility for the security of their credentials (password, 2FA codes) and for all actions performed under their account.</p>
+                    <p><strong>2.2. The User is prohibited from:</strong></p>
+                    <ul>
+                        <li>Using the Service for any illegal purposes, including, but not limited to: promoting terrorism, extremism, selling narcotics, weapons, and distributing child sexual abuse material (CSAM).</li>
+                        <li>Engaging in bulk sending of unsolicited messages (spam) or advertising without the consent of the recipients.</li>
+                        <li>Compromising the security of the Service (hacking, DDoS attacks, exploiting software vulnerabilities, distributing malware).</li>
+                        <li>Impersonating other individuals, representatives of the Administration, state bodies, or organizations to mislead others (phishing, scamming).</li>
+                        <li>Publicly posting (in channels, groups, or the NiosGram feed) personal data of third parties (doxxing) or content that violates third-party intellectual property rights.</li>
+                        <li>Using automated scripts (bots) to parse user data or artificially inflate reactions/comments in NiosGram.</li>
+                    </ul>
+
+                    <h2>3. Moderation System and Types of Sanctions</h2>
+                    <p>The Administration reserves the right to limit access to the Service if the User violates the terms of this Agreement. NiosMess provides for 3 (three) levels of sanctions:</p>
+
+                    <h3>3.1. Spamblock (Communication Restriction)</h3>
+                    <p><strong>Description:</strong> Temporary or permanent restriction of the account's ability to initiate new dialogues with users who have not added you to their contacts, as well as a restriction on creating public posts in NiosGram.</p>
+                    <p><strong>Reason:</strong> Bulk complaints from users about spam, suspicious activity, automated messaging, or intrusive advertising.</p>
+                    <p><strong>Removal:</strong> May be lifted automatically after the expiration of the period set by algorithms, or after review by the Administration.</p>
+
+                    <h3>3.2. Account Freeze (Temporary Block)</h3>
+                    <p><strong>Description:</strong> Complete suspension of access to account functionality (you cannot log into the profile, read, or send messages). Account data, chats, and posts remain preserved on the server.</p>
+                    <p><strong>Reason:</strong> Suspicion of account compromise (password leak), abnormal activity, or moderate violations of the Agreement (systematic insults, exploiting interface bugs).</p>
+                    <p><strong>Removal:</strong> Freezing is reversible. To restore access, the User must contact Support and verify their identity or resolve the cause of the violation.</p>
+
+                    <h3>3.3. Permanent Ban (Irreversible Block)</h3>
+                    <p><strong>Description:</strong> Complete, final, and indefinite termination of access to the account without the right to recovery. All active sessions are terminated. Public content of the user (in NiosGram) is subject to deletion.</p>
+                    <p><strong>Reason:</strong> Gross violations of applicable law, distribution or mention of any type of pornography, financial fraud, terrorist threats, trade of prohibited substances, or systematic circumvention of previous blocks.</p>
+                    <p><strong>Removal:</strong> A permanent ban is not subject to appeal or reversal. Support does not process applications for permanently blocked accounts.</p>
+
+                    <h2>4. Privacy and E2EE (End-to-End Encryption)</h2>
+                    <p><strong>4.1. Secret Chats:</strong> Messages sent in NiosMess Secret Chats are protected by end-to-end encryption (E2EE). The Administration does not have the technical capability to read, decrypt, or grant third parties access to such messages.</p>
+                    <p><strong>4.2. No E2EE Moderation:</strong> The Administration does not moderate the contents of Secret Chats. However, upon receiving a report from one of the participants of a secret chat with evidence of violations (using the built-in report feature for a specific message or forwarding messages to moderators), the Administration reserves the right to apply the sanctions described in Section 3 to the violator.</p>
+                    <p><strong>4.3. Public Content:</strong> Content published in the NiosGram feed, public channels, and groups is not encrypted with E2EE and is subject to automated and manual moderation for violations of the Service rules.</p>
+
+                    <h2>5. Limitation of Liability (Disclaimer of Liability)</h2>
+                    <p><strong>5.1. "As Is" Principle:</strong> The Service is provided on an "as is" basis. The Administration does not guarantee uninterrupted operation of the Service, the absence of errors, or the preservation of data (especially cached encryption keys in the local storage of the device).</p>
+                    <p><strong>5.2. User Content:</strong> The Administration is not responsible for any information posted by Users. All opinions, files, and media transmitted through the Service are the sole responsibility of the persons who published them.</p>
+                    <p><strong>5.3. Loss of Access:</strong> The Administration is not responsible for the User's loss of access to Secret Chats in the event of device loss, session reset, or using the "Reset E2EE Keys" function in the settings.</p>
+                    <p><strong>5.4. Damages:</strong> Under no circumstances shall the Administration be liable for any direct, indirect, incidental, or consequential damages (including lost profits) arising out of the use or inability to use the Service.</p>
+
+                    <h2>6. Intellectual Property</h2>
+                    <p>6.1. The User retains the rights to all content they upload or publish in NiosMess.</p>
+                    <p>6.2. By publishing content in public sections (NiosGram), the User grants the Administration a global, non-exclusive license to display, store, and transmit this content as part of the Service's operation.</p>
+
+                    <h2>7. Final Provisions</h2>
+                    <p>7.1. This Agreement is governed by and construed in accordance with the laws of the Republic of Cyprus. All disputes arising in connection with this Agreement shall be subject to the jurisdiction of the courts at the location of the Administration.</p>
+                    <p>7.2. All potential disputes arising from this Agreement shall be resolved through pre-trial correspondence via email.</p>
+                    <p>7.3. If any provision of this Agreement is found by a court to be invalid, the remaining provisions shall remain in full force and effect.</p>
+
+                    <div class="note-block">
+                        <p><strong>Support Service</strong><br>Email: niosmess@gmail.com</p>
+                    </div>
+                </div>
+
+                <!-- PRIVACY POLICY -->
+                <div class="legal-doc" id="privacy">
+                    <h1>Privacy and Personal Data Processing Policy</h1>
+                    <p class="doc-meta">Effective Date: June 29, 2026</p>
+
+                    <p>This Privacy Policy (hereinafter referred to as the "Policy") defines the procedure for processing and protecting personal data of users of the NiosMess service (hereinafter referred to as the "Service", "Messenger") carried out by the Service Administration (hereinafter referred to as the "Operator") in accordance with the EU General Data Protection Regulation (GDPR) and other applicable data protection laws.</p>
+
+                    <h2>1. Terms and Definitions</h2>
+                    <dl>
+                        <dt>Operator</dt>
+                        <dd>The Administration of the NiosMess Service, which independently or jointly with other parties organizes and carries out the processing of personal data.</dd>
+                        <dt>User</dt>
+                        <dd>Any individual registered in the Messenger and using its features.</dd>
+                        <dt>Personal Data (PD)</dt>
+                        <dd>Any information relating to an identified or identifiable natural person (data subject).</dd>
+                        <dt>End-to-End Encryption (E2EE)</dt>
+                        <dd>A data transmission method where only the Users participating in the communication have access to the messages. The Operator does not possess decryption keys and has no access to the content of such messages.</dd>
+                    </dl>
+
+                    <h2>2. Legal Basis for Processing Personal Data</h2>
+                    <p>The Operator processes Users' personal data based on the following legal grounds:</p>
+                    <ul>
+                        <li>The User's consent to the processing of their personal data, expressed by performing affirmative actions (checking the tick-box during registration).</li>
+                        <li>Performance of the Terms of Service to which the User is a party.</li>
+                        <li>Legitimate interests of the Operator (such as fraud prevention, ensuring Service security and stability).</li>
+                    </ul>
+
+                    <h2>3. List of Processed Personal Data</h2>
+                    <p>The Operator processes the following data of the User:</p>
+                    <ul>
+                        <li>Email address;</li>
+                        <li>Username and Display Name;</li>
+                        <li>Profile description ("About Me" / Bio);</li>
+                        <li>Profile image (Avatar);</li>
+                        <li>Network identifiers: IP address, device type and model, operating system, cookies, and local storage technologies (LocalStorage, IndexedDB) for session analytics and security purposes;</li>
+                        <li>Files and media voluntarily uploaded by the User to public channels, groups, or chats without end-to-end encryption.</li>
+                    </ul>
+
+                    <div class="note-block">
+                        <strong>Important Note on Secret Chats (E2EE):</strong>
+                        <p>The Operator processes Secret Chat messages exclusively in encrypted form (as unreadable encrypted data blocks) and transfers them between Users' devices. Decryption keys are stored solely locally on the Users' devices. Due to the architecture of E2EE, the Operator has no technical ability to decrypt, read, modify, or store the contents of Secret Chats in an unencrypted format.</p>
+                    </div>
+
+                    <h2>4. Purposes of Processing Personal Data</h2>
+                    <p>Personal data of Users is processed solely for the following purposes:</p>
+                    <ul>
+                        <li>Registration and identification of the User within the Service;</li>
+                        <li>Providing the core functionality of the messenger (message delivery, creation of groups and channels, publishing posts in the NiosGram feed);</li>
+                        <li>Ensuring account security, including sending two-factor authentication (2FA) codes;</li>
+                        <li>Moderation of public content in accordance with the Terms of Service (ToS) and applicable laws;</li>
+                        <li>Technical support and handling inquiries in case of account freeze.</li>
+                    </ul>
+
+                    <h2>5. Collection, Storage, and Deletion of Personal Data</h2>
+                    <p><strong>5.1. Data Location:</strong> The Operator hosts and processes the personal data of Users on secure servers located in the Netherlands (European Union) in compliance with the EU General Data Protection Regulation (GDPR).</p>
+                    <p><strong>5.2.</strong> Personal data is collected directly when the User fills out registration forms and during the use of the Messenger.</p>
+                    <p><strong>5.3.</strong> Personal data is stored in a form that allows identification of the data subject for no longer than is necessary for the purposes of its processing.</p>
+                    <p><strong>5.4.</strong> Upon account deletion by the User or upon a valid erasure request, all personal data of the User is permanently deleted or anonymized within 30 calendar days, except where a longer retention period is required by applicable law.</p>
+
+                    <h2>6. Disclosure of Personal Data to Third Parties and International Transfers</h2>
+                    <p><strong>6.1.</strong> The Operator does not transfer personal data of Users to third parties without their explicit consent, except when necessary to comply with applicable law or to respond to lawful requests from law enforcement agencies.</p>
+                    <p><strong>6.2.</strong> Any international transfer of personal data outside the European Economic Area (EEA) is carried out in accordance with applicable laws, using Standard Contractual Clauses (SCCs) or other appropriate safeguards to ensure an adequate level of data protection.</p>
+
+                    <h2>7. Rights of Users (Data Subjects)</h2>
+                    <p>Under the GDPR, the User has the right:</p>
+                    <ul>
+                        <li>To access their personal data and receive a copy of the processed data;</li>
+                        <li>To request rectification, restriction, or erasure ("right to be forgotten") of their personal data if it is incomplete, outdated, inaccurate, or unlawfully obtained;</li>
+                        <li>To withdraw consent to the processing of personal data at any time by sending a request to the Operator. Withdrawal of consent results in the deletion of the Messenger account;</li>
+                        <li>To data portability;</li>
+                        <li>To object to the processing of their data;</li>
+                        <li>To lodge a complaint with a supervisory data protection authority.</li>
+                    </ul>
+
+                    <h2>8. Protection of Personal Data</h2>
+                    <p>The Operator takes necessary and sufficient legal, organizational, and technical measures to protect personal data from unauthorized or accidental access, destruction, alteration, blocking, copying, distribution, as well as from other unlawful actions of third parties in accordance with international information security standards.</p>
+
+                    <h2>9. Amendments to the Privacy Policy</h2>
+                    <p>The Operator has the right to make changes to this Policy. The new version of the Policy takes effect from the moment it is posted on the Service website, unless otherwise provided by the new version.</p>
+
+                    <h2>10. Contact Information</h2>
+                    <p>For inquiries, withdrawal of consent, or obtaining information regarding the processing of personal data, the User may contact the Operator via email at: <strong>niosmess@gmail.com</strong>.</p>
+                </div>
+
+                <!-- CONSENT RU -->
+                <div class="legal-doc" id="consent-ru">
+                    <h1>Согласие на обработку персональных данных</h1>
+                    <p class="doc-meta">Действительно при регистрации</p>
+
+                    <p>Устанавливая отметку («галочку») в поле «Я согласен на обработку персональных данных» при регистрации или продолжая использовать сервис NiosMess (далее — «Сервис»), вы (далее — «Пользователь») предоставляете свое явное, добровольное и осознанное согласие Администрации Сервиса (далее — «Оператор») на обработку ваших персональных данных на условиях, изложенных ниже.</p>
+
+                    <h2>1. Предмет согласия</h2>
+                    <p>Пользователь дает согласие на обработку следующих персональных данных:</p>
+                    <ul>
+                        <li>Адрес электронной почты (Email);</li>
+                        <li>Имя пользователя (Username) и отображаемое имя (Display Name);</li>
+                        <li>Описание профиля («О себе» / Bio);</li>
+                        <li>Изображение профиля (Аватар);</li>
+                        <li>Сетевые идентификаторы: IP-адрес, тип и модель устройства, операционная система, файлы cookie и данные локального хранилища (LocalStorage, IndexedDB);</li>
+                        <li>Файлы и медиаматериалы, добровольно загружаемые или отправляемые Пользователем в публичные каналы, группы или чаты без сквозного шифрования.</li>
+                    </ul>
+
+                    <h2>2. Цели обработки данных</h2>
+                    <p>Персональные данные обрабатываются исключительно в следующих целях:</p>
+                    <ul>
+                        <li>Регистрация, идентификация и управление аккаунтом Пользователя в Сервисе;</li>
+                        <li>Обеспечение базового функционала мессенджера (отправка и доставка сообщений, создание групп и каналов, публикация постов в ленте NiosGram);</li>
+                        <li>Обеспечение безопасности, предотвращение мошеннических действий и отправка кодов двухфакторной аутентификации (2FA);</li>
+                        <li>Предоставление технической поддержки и обработка запросов Пользователя;</li>
+                        <li>Модерация публичного контента в соответствии с Пользовательским соглашением (ToS).</li>
+                    </ul>
+
+                    <h2>3. Хранение и защита данных</h2>
+                    <ul>
+                        <li>Все персональные данные размещаются на защищенных серверах, расположенных в Нидерландах (Европейский Союз), в соответствии с Общим регламентом по защите данных ЕС (GDPR).</li>
+                        <li>Сообщения Секретных чатов защищены сквозным шифрованием (E2EE), обрабатываются исключительно в зашифрованном виде и не могут быть прочитаны или сохранены Оператором в открытом виде.</li>
+                    </ul>
+
+                    <h2>4. Срок действия и отзыв согласия</h2>
+                    <ul>
+                        <li>Настоящее Согласие действует с момента регистрации Пользователя до момента удаления аккаунта или отзыва данного Согласия.</li>
+                        <li>Пользователь имеет право отозвать настоящее Согласие в любой момент. Запрос на отзыв согласия может быть направлен на адрес электронной почты: <strong>privacy@ni-os.ru</strong>.</li>
+                        <li>Пользователь понимает и соглашается с тем, что отзыв согласия делает невозможным предоставление услуг Сервиса и ведет к немедленному и безвозвратному удалению аккаунта Пользователя и его персональных данных.</li>
+                    </ul>
+
+                    <p>Настоящим я подтверждаю, что мне исполнилось 13 лет (или 16 лет, если я являюсь резидентом ЕС/ЕЭЗ, за исключением случаев, когда местное законодательство допускает более низкий возраст), либо я получил согласие родителей или законных представителей на регистрацию и использование Сервиса.</p>
+                </div>
+
+                <!-- CONSENT EN -->
+                <div class="legal-doc" id="consent-en">
+                    <h1>Consent to Personal Data Processing</h1>
+                    <p class="doc-meta">Valid upon registration</p>
+
+                    <p>By checking the box "I agree to the processing of my personal data" during registration, or by continuing to use the NiosMess service (hereinafter referred to as the "Service"), you (hereinafter referred to as the "User") provide your explicit, voluntary, and informed consent to the Service Administration (hereinafter referred to as the "Operator") to process your personal data under the terms set forth below.</p>
+
+                    <h2>1. Subject of Consent</h2>
+                    <p>The User consents to the processing of the following personal data:</p>
+                    <ul>
+                        <li>Email address;</li>
+                        <li>Username and Display Name;</li>
+                        <li>Profile description ("About Me" / Bio);</li>
+                        <li>Profile image (Avatar);</li>
+                        <li>Network identifiers: IP address, device type and model, operating system, cookie files, and local storage data (LocalStorage, IndexedDB);</li>
+                        <li>Any media files and text voluntarily uploaded or sent by the User to public channels, groups, or chats without end-to-end encryption.</li>
+                    </ul>
+
+                    <h2>2. Purposes of Data Processing</h2>
+                    <p>Personal data is processed for the following purposes:</p>
+                    <ul>
+                        <li>Creating and managing the User's account in the Service;</li>
+                        <li>Providing the core functionality of the messenger (sending and delivering messages, managing groups and channels, displaying public posts in NiosGram);</li>
+                        <li>Ensuring security, preventing fraudulent activity, and sending two-factor authentication (2FA) codes;</li>
+                        <li>Providing technical support and resolving User inquiries;</li>
+                        <li>Moderating public content in compliance with the Terms of Service.</li>
+                    </ul>
+
+                    <h2>3. Storage and Protection of Data</h2>
+                    <ul>
+                        <li>All personal data is hosted on secure servers located in the Netherlands (European Union) in accordance with the EU General Data Protection Regulation (GDPR).</li>
+                        <li>Secret Chat messages are protected by End-to-End Encryption (E2EE), are processed only in encrypted form, and are not accessible or stored in readable format by the Operator.</li>
+                    </ul>
+
+                    <h2>4. Consent Validity and Withdrawal</h2>
+                    <ul>
+                        <li>This Consent is valid from the moment of registration until the User deletes their account or withdraws this Consent.</li>
+                        <li>The User has the right to withdraw this Consent at any time. Withdrawal of consent can be requested by sending an email to: <strong>privacy@ni-os.ru</strong>.</li>
+                        <li>The User understands and agrees that withdrawing consent will prevent the Operator from providing the Service, and will result in the immediate and permanent deletion of the User's account and associated personal data.</li>
+                    </ul>
+
+                    <p>I hereby confirm that I am at least 13 years of age (or at least 16 years of age if residing in the EU/EEA, unless local law permits a lower age), or that I have obtained the consent of my parent or legal guardian to register and use the Service.</p>
+                </div>
+            </article>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-main">
+                <div class="footer-brand">
+                    <a class="brand" href="https://ni-os.ru" aria-label="NiosMess — на главную">
+                        <span class="brand__mark">
+                            <img
+                                src="https://ni-os.ru/avatar"
+                                alt=""
+                                width="36"
+                                height="36"
+                                loading="lazy"
+                                onerror="this.style.display='none'; this.parentElement.textContent='N'; this.parentElement.style.color='#fff'; this.parentElement.style.display='grid'; this.parentElement.style.placeItems='center'; this.parentElement.style.fontWeight='800';"
+                            >
+                        </span>
+                        <span class="brand__name">NiosMess</span>
+                        <span class="brand__beta">alpha</span>
+                    </a>
+                    <p>Быстрое и лёгкое приложение для общения, звонков и решения повседневных задач.</p>
+                </div>
+
+                <nav class="footer-column" aria-label="Загрузить приложение">
+                    <h2>Загрузить</h2>
+                    <ul>
+                        <li><a href="https://ni-os.ru/apk">Android версия (.apk)</a></li>
+                        <li><a href="https://ni-os.ru/exe">Windows версия (.exe)</a></li>
+                    </ul>
+                </nav>
+
+                <nav class="footer-column" aria-label="Платформа">
+                    <h2>Платформа</h2>
+                    <ul>
+                        <li><a href="https://ni-os.ru/web" target="_blank" rel="noopener noreferrer">Для разработчиков</a></li>
+                        <li><a href="https://ni-os.ru/#features">О мессенджере</a></li>
+                        <li><a href="https://ni-os.ru/web" target="_blank" rel="noopener noreferrer">NiosMess Web</a></li>
+                    </ul>
+                </nav>
+
+                <nav class="footer-column" aria-label="Правовая информация">
+                    <h2>Правовая информация</h2>
+                    <ul>
+                        <li><a href="#" data-footer-doc="tos">Условия использования</a></li>
+                        <li><a href="#" data-footer-doc="privacy">Политика конфиденциальности</a></li>
+                    </ul>
+                </nav>
+            </div>
+
+            <div class="footer-bottom">
+                <p>NiosMess © 2026</p>
+                <div class="footer-links-inline">
+                    <a href="https://ni-os.ru/apk">ni-os.ru/apk</a>
+                    <a href="https://ni-os.ru/exe">ni-os.ru/exe</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        (() => {
+            const body = document.body;
+            const header = document.querySelector('[data-header]');
+            const menuToggle = document.querySelector('[data-menu-toggle]');
+            const mobileMenu = document.querySelector('[data-mobile-menu]');
+            const mobileLinks = mobileMenu?.querySelectorAll('a') ?? [];
+            const docButtons = document.querySelectorAll('[data-doc-target]');
+            const footerDocLinks = document.querySelectorAll('[data-footer-doc]');
+            const docContainers = document.querySelectorAll('.legal-doc');
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            // Мобильное меню навигации
+            const setMenuState = (isOpen) => {
+                if (!menuToggle || !mobileMenu) return;
+
+                menuToggle.setAttribute('aria-expanded', String(isOpen));
+                menuToggle.setAttribute('aria-label', isOpen ? 'Закрыть меню' : 'Открыть меню');
+                mobileMenu.setAttribute('aria-hidden', String(!isOpen));
+                mobileMenu.classList.toggle('is-open', isOpen);
+                body.classList.toggle('menu-open', isOpen);
+
+                if (isOpen) {
+                    window.setTimeout(() => mobileMenu.querySelector('a')?.focus(), reduceMotion ? 0 : 220);
+                }
+            };
+
+            menuToggle?.addEventListener('click', () => {
+                const isOpen = menuToggle.getAttribute('aria-expanded') === 'true';
+                setMenuState(!isOpen);
+            });
+
+            mobileLinks.forEach((link) => {
+                link.addEventListener('click', () => setMenuState(false));
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && menuToggle?.getAttribute('aria-expanded') === 'true') {
+                    setMenuState(false);
+                    menuToggle.focus();
+                }
+            });
+
+            // Эффект тени у шапки при прокрутке
+            const updateHeader = () => {
+                header?.classList.toggle('is-scrolled', window.scrollY > 16);
+            };
+
+            updateHeader();
+            window.addEventListener('scroll', updateHeader, { passive: true });
+
+            // Переключение вкладок с правовыми документами
+            const switchDoc = (targetId, shouldScroll = true) => {
+                docButtons.forEach(btn => {
+                    const isActive = btn.getAttribute('data-doc-target') === targetId;
+                    btn.classList.toggle('is-active', isActive);
+                    btn.setAttribute('aria-selected', String(isActive));
+                });
+
+                docContainers.forEach(doc => {
+                    doc.classList.toggle('is-active', doc.id === targetId);
+                });
+
+                // Записываем хэш в историю браузера, чтобы пользователь мог скопировать прямую ссылку
+                if (window.location.hash !== `#${targetId}`) {
+                    history.replaceState(null, null, `#${targetId}`);
+                }
+
+                if (shouldScroll) {
+                    // Плавная прокрутка к началу документа на мобильных
+                    if (window.innerWidth <= 900) {
+                        const contentElement = document.querySelector('.legal-content');
+                        contentElement?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+                    } else {
+                        window.scrollTo({ top: 0, behavior: 'auto' });
+                    }
+                }
+            };
+
+            docButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const target = button.getAttribute('data-doc-target');
+                    if (target) switchDoc(target);
+                });
+            });
+
+            footerDocLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const target = link.getAttribute('data-footer-doc');
+                    if (target) switchDoc(target);
+                });
+            });
+
+            // Функция проверки хэша при загрузке страницы
+            const initFromHash = (shouldScroll = false) => {
+                const hash = window.location.hash.replace('#', '');
+                const validDocs = ['tos', 'privacy', 'consent-ru', 'consent-en'];
+                if (hash && validDocs.includes(hash)) {
+                    switchDoc(hash, shouldScroll);
+                }
+            };
+
+            // Запуск проверки при первой загрузке (без принудительной прокрутки)
+            initFromHash(false);
+
+            // Следим за изменением хэша, если пользователь кликает "Назад" или "Вперед" в браузере
+            window.addEventListener('hashchange', () => initFromHash(true));
+        })();
+    </script>
+</body>
+</html>

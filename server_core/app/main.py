@@ -7,20 +7,27 @@ import string
 import asyncio
 import time
 import urllib.parse
+import uuid
+import traceback
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Header, HTTPException, Depends
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Header, HTTPException, Depends, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse, Response
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 import base64
 import httpx
-
+from fastapi.responses import HTMLResponse
 from app.database import init_db, AsyncSessionLocal
 from app.config import settings
 from app.ws_manager import ws_endpoint
 from app.bot_api import router as bot_api_router
 from app.services.auth_svc import get_session_by_token, get_user_by_id
+from app.models.models import MediaUploadChunk, Message, ChatMember
+from app.services.encryption import decrypt_file_to_bytes
+
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
@@ -289,7 +296,7 @@ async def lifespan(app: FastAPI):
         bot_task = asyncio.create_task(dp.start_polling(bot))
         print("[Emergency Bot] Бот успешно запущен и слушает обновления.")
     except Exception as e:
-        print(f"[Emergency Bot] КРИТИЧЕСКАЯ ОШИБКА старта бота: {e}")
+        print(f"[Emergency Bot] КРИТИЧЕСКАЯ ОШИКА старта бота: {e}")
 
     watcher_task = asyncio.create_task(packets_file_watcher())
 
@@ -345,6 +352,7 @@ app.add_middleware(
 )
 
 app.include_router(bot_api_router)
+
 @app.post("/decocraft")
 async def create_decocraft_application(payload: DecoCraftAppPayload):
     # Превращаем заявку в словарь и добавляем пометку action_type
@@ -779,6 +787,10 @@ class TokenValidationRequest(BaseModel):
 class AIFlowRequest(BaseModel):
     token: str
     prompt: str
+
+class FileDownloadRequest(BaseModel):
+    token: str
+    file_path: str
 
 MISTRAL_API_KEYS = [
     "ydbvYyjwYxYgKsKqxJbGLugedWG1BCju",
@@ -1224,74 +1236,308 @@ Only valid JSON.
         raise HTTPException(status_code=500, detail=f"Ошибка генерации сценария: {str(e)}")
 
 # =======================================================================
+#    БЫСТРАЯ ЗАГРУЗКА И СКАЧИВАНИЕ ФАЙЛОВ ЧЕРЕЗ HTTP POST (БЕЗ ЧАНКОВ)
+# =======================================================================
+
+@app.post("/api/files/upload", tags=["Files"])
+async def fast_upload_file(
+    token: str = Form(...),
+    file: UploadFile = File(...),
+    media_subtype: str = Form("media")  # media, voice, circle
+):
+    """
+    Максимально быстрая загрузка файла в один поток без чанков.
+    Возвращает upload_id, который нужно передать в WebSocket send_message.
+    """
+    if media_subtype not in ("media", "voice", "circle"):
+        raise HTTPException(status_code=400, detail="Invalid media_subtype")
+
+    async with AsyncSessionLocal() as db:
+        # Проверка авторизации
+        session = await get_session_by_token(db, token)
+        if not session or not session.is_active:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        
+        user = await get_user_by_id(db, session.user_id)
+        if not user or not user.is_active or user.is_banned or user.is_frozen:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
+        # Читаем файл целиком в память (максимальная скорость)
+        content = await file.read()
+        
+        # Ограничение 50 МБ
+        if len(content) > 50 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File too large (max 50 MB)")
+
+        upload_id = uuid.uuid4().hex
+        ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "bin"
+        
+        subdir = media_subtype if media_subtype in ("voice", "circles") else "media"
+        temp_name = f"{subdir}/{user.id}_{upload_id}.{ext}"
+        temp_path = os.path.join(settings.UPLOAD_DIR, temp_name)
+        
+        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+
+        # Синхронная быстрая запись на диск 
+        with open(temp_path, "wb") as f:
+            f.write(content)
+
+        # Создаем запись MediaUploadChunk как "завершенную", чтобы ws_manager 
+        # мог подхватить этот файл при отправке сообщения
+        db.add(MediaUploadChunk(
+            upload_id=upload_id,
+            user_id=user.id,
+            filename=file.filename,
+            media_subtype=media_subtype,
+            total_chunks=1,
+            received_chunks=1,
+            temp_path=temp_path
+        ))
+        await db.commit()
+
+        return {
+            "status": "success",
+            "upload_id": upload_id,
+            "filename": file.filename,
+            "size": len(content)
+        }
+
+
+@app.post("/api/files/download", tags=["Files"])
+async def fast_download_file(payload: FileDownloadRequest):
+    """
+    Безопасное скачивание файла через POST-запрос с проверкой сессии и чата.
+    """
+    async with AsyncSessionLocal() as db:
+        # 1. Проверка авторизации
+        session = await get_session_by_token(db, payload.token)
+        if not session or not session.is_active:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        
+        user = await get_user_by_id(db, session.user_id)
+        if not user or not user.is_active or user.is_banned or user.is_frozen:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
+        # 2. Строгая защита от Directory Traversal
+        base_dir = os.path.abspath(settings.UPLOAD_DIR)
+        safe_relative_path = payload.file_path.lstrip("/\\")
+        full_path = os.path.abspath(os.path.join(base_dir, safe_relative_path))
+
+        if not full_path.startswith(base_dir + os.sep) and full_path != base_dir:
+            raise HTTPException(status_code=403, detail="Security error: Invalid file path")
+
+        db_path = payload.file_path.replace("\\", "/")
+
+        # 3. Проверяем, привязан ли файл к сообщению
+        r = await db.execute(select(Message).where(Message.media_path == db_path))
+        msg = r.scalar_one_or_none()
+
+        if not msg:
+            raise HTTPException(status_code=404, detail="File not found or not associated with any chat")
+
+        # 4. Проверяем права на скачивание (состоит ли пользователь в чате)
+        mem_r = await db.execute(select(ChatMember).where(
+            ChatMember.chat_id == msg.chat_id,
+            ChatMember.user_id == user.id,
+            ChatMember.is_banned == False
+        ))
+        if not mem_r.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="Access denied: You are not a member of this chat")
+
+        # 5. Поиск физического файла
+        enc_path = full_path + ".enc"
+        target_path = enc_path if os.path.exists(enc_path) else full_path
+
+        if not os.path.exists(target_path):
+            raise HTTPException(status_code=404, detail="Physical file not found on server")
+
+        # 6. Чтение и расшифровка (если файл зашифрован сервером)
+        if not msg.is_e2ee and msg.media_iv and msg.media_tag:
+            try:
+                file_bytes = decrypt_file_to_bytes(target_path, msg.media_iv, msg.media_tag)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to decrypt file: {str(e)}")
+        else:
+            # Читаем как есть (если это E2EE, клиент расшифрует сам)
+            with open(target_path, "rb") as f:
+                file_bytes = f.read()
+
+        media_type = msg.media_type or "application/octet-stream"
+        
+        # Передаем статус E2EE в заголовках, чтобы клиент знал, нужно ли расшифровывать локально
+        headers = {
+            "Content-Disposition": f'attachment; filename="{msg.media_name}"',
+            "X-Is-E2EE": str(bool(msg.is_e2ee)).lower()
+        }
+
+        # Отдаем сырые байты на максимальной скорости
+        return Response(content=file_bytes, media_type=media_type, headers=headers)
+
+
+def render_nios_error(code: str, title: str, desc: str) -> str:
+    template_path = os.path.join(settings.FILES_DIR, "error.html")
+    if os.path.exists(template_path):
+        try:
+            with open(template_path, "r", encoding="utf-8") as f:
+                html = f.read()
+                html = html.replace("[CODE]", code)
+                html = html.replace("[TITLE]", title)
+                html = html.replace("[DESC]", desc)
+                return html
+        except Exception:
+            pass
+    return f"<h1>{code} - {title}</h1><p>{desc}</p>"
+
+# =======================================================================
+#    ОБРАБОТКА ИСКЛЮЧЕНИЙ (ВОЗВРАЩЕНИЕ HTML ПРИ ЛЮБОЙ ОШИБКЕ)
+# =======================================================================
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    code = str(exc.status_code)
+    if exc.status_code == 404:
+        title = "Эту страницу съела кошка..."
+        desc = "Возможно, вы перешли по устаревшей ссылке или ошиблись в адресе. Ее больше нет. (кошки)"
+    elif exc.status_code == 500:
+        title = "Внутренняя ошибка"
+        desc = "Что-то пошло не так на наших серверах. Мы уже получили отчет о сбое и занимаемся этой проблемой. (поверь мне брат)"
+    else:
+        title = "Произошла ошибка"
+        desc = str(exc.detail)
+    
+    html = render_nios_error(code, title, desc)
+    return HTMLResponse(content=html, status_code=exc.status_code)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    code = "422"
+    title = "Ошибка валидации данных"
+    desc = "Переданы некорректные параметры запроса. Пожалуйста, проверьте вводимые данные."
+    html = render_nios_error(code, title, desc)
+    return HTMLResponse(content=html, status_code=422)
+
+@app.exception_handler(Exception)
+async def global_error_handler(request: Request, exc: Exception):
+    print(f"[Global Exception] {exc}")
+    traceback.print_exc()
+    
+    html = render_nios_error(
+        code="500",
+        title="Внутренняя ошибка",
+        desc="Что-то пошло не так на наших серверах. Мы уже получили отчет о сбое и чиним. (нет)"
+    )
+    return HTMLResponse(content=html, status_code=500)
+
+# =======================================================================
 #    ОБРАБОТКА МАРШРУТОВ SPA 
 # =======================================================================
+
 @app.get("/", include_in_schema=False)
 async def serve_index():
-    index = os.path.join(settings.FILES_DIR, "index.html")
+    index = os.path.join(settings.FILES_DIR, "index_dwn.html")
     if os.path.exists(index):
         return FileResponse(index)
-    return JSONResponse({"message": "Messenger API v3.0", "docs": "WebSocket only"})
-
+    return HTMLResponse(
+        content=render_nios_error("500", "Внутренняя ошибка #02", "Что-то произошло на наших серверах. Мы это уже чиним. (нет)"), 
+        status_code=500
+    )
+@app.get("/dox", include_in_schema=False)
+async def serve_index():
+    index = os.path.join(settings.FILES_DIR, "dox.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return HTMLResponse(
+        content=render_nios_error("500", "Внутренняя ошибка #02", "Что-то произошло на наших серверах. Мы это уже чиним. (нет)"), 
+        status_code=500
+    )
 @app.get("/ul", include_in_schema=False)
 @app.get("/UL", include_in_schema=False)
 async def serve_site():
     index = os.path.join(settings.FILES_DIR, "site.html")
     if os.path.exists(index):
         return FileResponse(index)
-    return JSONResponse({"message": "error"})
+    return HTMLResponse(
+        content=render_nios_error("500", "Внутренняя ошибка #02", "Что-то произошло на наших серверах. Мы это уже чиним. (нет)"), 
+        status_code=500
+    )
 
 @app.get("/cr", include_in_schema=False)
 @app.get("/constructor", include_in_schema=False)
-async def serve_site():
+async def serve_constructor():
     index = os.path.join(settings.FILES_DIR, "constructor.html")
     if os.path.exists(index):
         return FileResponse(index)
-    return JSONResponse({"message": "error"})
+    return HTMLResponse(
+        content=render_nios_error("500", "Внутренняя ошибка #02", "Что-то произошло на наших серверах. Мы это уже чиним. (нет)"), 
+        status_code=500
+    )
+
 @app.get("/nioscraft", include_in_schema=False)
-async def serve_site():
+async def serve_nioscraft():
     index = os.path.join(settings.FILES_DIR, "nioscraft.html")
     if os.path.exists(index):
         return FileResponse(index)
-    return JSONResponse({"message": "error"})
+    return HTMLResponse(
+        content=render_nios_error("500", "Внутренняя ошибка #02", "Что-то произошло на наших серверах. Мы это уже чиним. (нет)"), 
+        status_code=500
+    )
+
 @app.get("/WEB", include_in_schema=False)
 @app.get("/web", include_in_schema=False)
-async def serve_site():
+async def serve_web():
     index = os.path.join(settings.FILES_DIR, "index.html")
     if os.path.exists(index):
         return FileResponse(index)
-    return JSONResponse({"message": "error"})
+    return HTMLResponse(
+        content=render_nios_error("500", "Внутренняя ошибка #02", "Что-то произошло на наших серверах. Мы это уже чиним. (нет)"), 
+        status_code=500
+    )
+
 @app.get("/apk", include_in_schema=False)
-async def serve_site():
+async def serve_apk():
     index = os.path.join(settings.FILES_DIR, "niosmess.apk")
     if os.path.exists(index):
         return FileResponse(index)
-    return JSONResponse({"message": "error"})
+    return HTMLResponse(
+        content=render_nios_error("500", "Внутренняя ошибка #01", "Что-то произошло на наших серверах. Мы это уже чиним. (нет)"), 
+        status_code=500
+    )
+
 @app.get("/avatar", include_in_schema=False)
-async def serve_site():
+async def serve_avatar():
     index = os.path.join(settings.FILES_DIR, "niosmess.png")
     if os.path.exists(index):
         return FileResponse(index)
-    return JSONResponse({"message": "error"})
+    return HTMLResponse(
+        content=render_nios_error("500", "Внутренняя ошибка #01", "Что-то произошло на наших серверах. Мы это уже чиним. (нет)"), 
+        status_code=500
+    )
+
 @app.get("/exe", include_in_schema=False)
-async def serve_site():
+async def serve_exe():
     index = os.path.join(settings.FILES_DIR, "niosmess.exe")
     if os.path.exists(index):
         return FileResponse(index)
-    return JSONResponse({"message": "error"})
+    return HTMLResponse(
+        content=render_nios_error("500", "Внутренняя ошибка #01", "Что-то произошло на наших серверах. Мы это уже чиним. (нет)"), 
+        status_code=500
+    )
+
 # Универсальный обработчик SPA (ДОЛЖЕН БЫТЬ В САМОМ НИЗУ)
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str):
     if full_path.startswith("static/"):
-        return JSONResponse({"message": "Not found"})
+        return HTMLResponse(
+            content=render_nios_error("404", "Этот файл сьел кот...", "Его больше нет. (кота)"), 
+            status_code=404
+        )
+        
     filepath = os.path.join(settings.FILES_DIR, full_path)
     if os.path.isfile(filepath):
         return FileResponse(filepath)
+        
     index = os.path.join(settings.FILES_DIR, "index_dwn.html")
     if os.path.exists(index):
         return FileResponse(index)
+        
     return JSONResponse({"message": "Messenger API v3.0", "docs": "WebSocket only"})
-
-@app.exception_handler(Exception)
-async def global_error(request: Request, exc: Exception):
-    return JSONResponse(status_code=500, content={"detail": str(exc)})

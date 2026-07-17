@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ошибка [CODE] — NiosMess</title>
+    <style>
+        /* Темный премиальный фон, чтобы белая подстилка контрастно выделялась */
+        :root {
+            --bg-color: #0d0d12;
+            --text-main: #ffffff;
+            --text-muted: #8e8e93;
+            --btn-bg: #0077ff;
+            --btn-text: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Сетка для разделения экрана на 2 части (копия лендингов) */
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            width: 100%;
+            max-width: 1200px;
+            align-items: center;
+            padding: 40px;
+            gap: 80px;
+        }
+
+        /* Левая часть: текст ошибки сбоку */
+        .content-left {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 60px;
+            user-select: none;
+        }
+
+        .error-code {
+            font-size: clamp(80px, 8vw, 130px);
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ffffff, #a1a1a6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .error-title {
+            font-size: clamp(24px, 3vw, 36px);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 20px;
+        }
+
+        .error-desc {
+            font-size: 18px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            max-width: 440px;
+            margin-bottom: 40px;
+        }
+
+        .btn {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px 36px;
+            background-color: var(--btn-bg);
+            color: var(--btn-text);
+            border-radius: 12px;
+            font-size: 17px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 119, 255, 0.3);
+        }
+
+        /* Правая часть: Аватарка на белой подстилке */
+        .content-right {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* ТА САМАЯ БЕЛАЯ ПОДСТИЛКА */
+        .avatar-backdrop {
+            background-color: #ffffff;
+            padding: 30px; /* Отступы, создающие рамку/подстилку */
+            border-radius: 50px; /* Округлый квадрат, как иконка iOS */
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+            width: 100%;
+            max-width: 420px;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Картинка внутри подстилки */
+        .avatar-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 30px; /* Внутреннее скругление */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        /* Адаптив для телефонов (блоки встают друг под друга) */
+        @media (max-width: 900px) {
+            .layout {
+                grid-template-columns: 1fr;
+                text-align: center;
+                gap: 40px;
+                padding: 20px;
+            }
+
+            .content-left {
+                align-items: center;
+                order: 2; /* Текст уходит вниз */
+            }
+
+            .content-right {
+                order: 1; /* Аватарка уходит наверх */
+            }
+
+            .logo {
+                position: absolute;
+                top: 24px;
+                left: 24px;
+                margin-bottom: 0;
+            }
+
+            .avatar-backdrop {
+                max-width: 280px;
+                padding: 20px;
+                border-radius: 36px;
+                margin-top: 60px;
+            }
+
+            .avatar-image {
+                border-radius: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <!-- СЛЕВА: Текст с ошибкой -->
+        <div class="content-left">
+            <div class="logo">NiosMess</div>
+            <div class="error-code">[CODE]</div>
+            <div class="error-title">[TITLE]</div>
+            <div class="error-desc">[DESC]</div>
+            <a href="/" class="btn">Вернуться на главную</a>
+        </div>
+        
+        <!-- СПРАВА: Белая подстилка с авой -->
+        <div class="content-right">
+            <div class="avatar-backdrop">
+                <img src="https://ni-os.ru/avatar" alt="NiosMess" class="avatar-image">
+            </div>
+        </div>
+    </div>
+</body>
+</html>
