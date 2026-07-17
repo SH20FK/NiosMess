@@ -3287,6 +3287,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatVoiceMessage => 'Voice message';
 
   @override
+  String get chatSlideToCancel => 'Slide to cancel';
+
+  @override
+  String get chatLock => 'Lock';
+
+  @override
   String get chatSearchInChat => 'Search in chat';
 
   @override

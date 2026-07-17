@@ -3303,6 +3303,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatVoiceMessage => 'Голосовое сообщение';
 
   @override
+  String get chatSlideToCancel => 'Смахните для отмены';
+
+  @override
+  String get chatLock => 'Блокировка';
+
+  @override
   String get chatSearchInChat => 'Поиск в чате';
 
   @override

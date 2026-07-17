@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/connectivity_provider.dart';
 
 class UploadTask {
   const UploadTask({
@@ -54,10 +55,16 @@ class UploadTask {
 
 enum UploadStatus { pending, uploading, success, error }
 
-class UploadQueueNotifier extends StateNotifier<Map<String, UploadTask>> {
-  UploadQueueNotifier(this._ref) : super(const <String, UploadTask>{});
-
-  final Ref _ref;
+class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
+  @override
+  Map<String, UploadTask> build() {
+    ref.listen(connectivityProvider, (bool? prev, bool next) {
+      if (prev == false && next == true) {
+        retryAllErrors();
+      }
+    });
+    return const <String, UploadTask>{};
+  }
 
   void enqueue({
     required String localId,
@@ -96,7 +103,7 @@ class UploadQueueNotifier extends StateNotifier<Map<String, UploadTask>> {
     };
 
     try {
-      final uploadId = await _ref.read(chatRepositoryProvider).uploadStreamInChunks(
+      final uploadId = await ref.read(chatRepositoryProvider).uploadStreamInChunks(
         filePath: task.filePath,
         filename: task.filename,
         mediaSubtype: task.mediaSubtype,
@@ -119,15 +126,14 @@ class UploadQueueNotifier extends StateNotifier<Map<String, UploadTask>> {
           localId: currentTask.copyWith(status: UploadStatus.success, progress: 1.0),
         };
 
-        // Send actual message via WS
-        await _ref.read(chatMessagesProvider(task.chatId).notifier).send(
+        await ref.read(chatMessagesProvider(task.chatId).notifier).send(
           task.text,
           replyToId: task.replyToId,
           uploadId: uploadId,
           msgType: task.mediaSubtype == 'voice' 
               ? 'voice' 
               : (task.mediaSubtype == 'circle' ? 'circle' : 'media'),
-          localId: localId, // Pass localId so we can clean up if we want
+          localId: localId,
         );
       }
     } catch (e) {
@@ -137,8 +143,7 @@ class UploadQueueNotifier extends StateNotifier<Map<String, UploadTask>> {
           ...state,
           localId: currentTask.copyWith(status: UploadStatus.error, error: e.toString()),
         };
-        // Mark optimistic message as failed
-        _ref.read(chatMessagesProvider(task.chatId).notifier).markLocalMessageFailed(localId);
+        ref.read(chatMessagesProvider(task.chatId).notifier).markLocalMessageFailed(localId);
       }
     }
   }
@@ -149,11 +154,19 @@ class UploadQueueNotifier extends StateNotifier<Map<String, UploadTask>> {
       _startUpload(localId);
     }
   }
+
+  void retryAllErrors() {
+    for (final MapEntry<String, UploadTask> entry in state.entries) {
+      if (entry.value.status == UploadStatus.error) {
+        _startUpload(entry.key);
+      }
+    }
+  }
 }
 
-final uploadQueueProvider = StateNotifierProvider<UploadQueueNotifier, Map<String, UploadTask>>((ref) {
-  return UploadQueueNotifier(ref);
-});
+final uploadQueueProvider = NotifierProvider<UploadQueueNotifier, Map<String, UploadTask>>(
+  UploadQueueNotifier.new,
+);
 
 final uploadTaskProvider = Provider.family<UploadTask?, String>((ref, localId) {
   return ref.watch(uploadQueueProvider)[localId];

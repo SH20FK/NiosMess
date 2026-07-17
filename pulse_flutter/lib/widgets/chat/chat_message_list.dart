@@ -7,6 +7,7 @@ import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/chat/three_d_long_press_handler.dart';
 
 class _MessageLayoutData {
   const _MessageLayoutData({
@@ -255,13 +256,17 @@ class _ChatMessageListState extends State<ChatMessageList> {
 
         _messageKeys.putIfAbsent(message.id, () => GlobalKey());
 
-        final Widget animatedBubble = Container(
-          key: _messageKeys[message.id],
-          child: widget.animatedMessageBuilder(
-            messageId: message.id,
-            animate: isNewest,
-            isMine: isMine,
-            child: bubble,
+        final Widget animatedBubble = ThreeDLongPressHandler(
+          onLongPress: () => widget.onLongPress(
+              message, isMine, widget.isChannel, widget.amAdminOrOwner),
+          child: Container(
+            key: _messageKeys[message.id],
+            child: widget.animatedMessageBuilder(
+              messageId: message.id,
+              animate: isNewest,
+              isMine: isMine,
+              child: bubble,
+            ),
           ),
         );
 
@@ -310,40 +315,45 @@ class _ChatMessageListState extends State<ChatMessageList> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
-                GestureDetector(
-                  onTap: () {},
-                  child: message.senderAvatarUrl != null
-                      ? ClipOval(
-                          child: CachedNetworkImage(
-                            imageUrl: ApiConstants.resolve(message.senderAvatarUrl),
-                            httpHeaders: cachedAuthHeaders(),
-                            memCacheWidth: 56,
-                            width: 28,
-                            height: 28,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => CircleAvatar(
-                              radius: 14,
-                              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                              child: const Icon(Icons.person, size: 16),
+                if (!data.isNextSame) ...[
+                  Hero(
+                    tag: 'sender-avatar-${message.senderId}',
+                    child: GestureDetector(
+                    onTap: () {},
+                    child: message.senderAvatarUrl != null
+                        ? ClipOval(
+                            child: CachedNetworkImage(
+                              imageUrl: ApiConstants.resolve(message.senderAvatarUrl),
+                              httpHeaders: cachedAuthHeaders(),
+                              memCacheWidth: 56,
+                              width: 28,
+                              height: 28,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => CircleAvatar(
+                                radius: 14,
+                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                child: const Icon(Icons.person, size: 16),
+                              ),
+                              errorWidget: (context, url, error) => CircleAvatar(
+                                radius: 14,
+                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                child: const Icon(Icons.person, size: 16),
+                              ),
                             ),
-                            errorWidget: (context, url, error) => CircleAvatar(
-                              radius: 14,
-                              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                              child: const Icon(Icons.person, size: 16),
+                          )
+                        : CircleAvatar(
+                            radius: 14,
+                            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            child: Text(
+                              message.senderDisplayName.isNotEmpty
+                                  ? message.senderDisplayName[0]
+                                  : '?',
                             ),
                           ),
-                        )
-                      : CircleAvatar(
-                          radius: 14,
-                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          child: Text(
-                            message.senderDisplayName.isNotEmpty
-                                ? message.senderDisplayName[0]
-                                : '?',
-                          ),
-                        ),
-                ),
-                const SizedBox(width: 8),
+                  ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 Flexible(child: animatedBubble),
               ],
             ),

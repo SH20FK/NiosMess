@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:pulse_flutter/screens/circle_video_recorder_screen.dart';
 import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
@@ -57,6 +58,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
   bool _isInputEmpty = true;
   bool _isRecording = false;
   bool _isVideoMode = false;
+  Offset _recordingDragOffset = Offset.zero;
+  bool _isRecordingLocked = false;
+  Duration _recordingElapsed = Duration.zero;
 
   @override
   void initState() {
@@ -128,7 +132,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    final bool showSendButton = !_isInputEmpty || widget.editingMessageId != null;
+    final bool showSendButton = (!_isInputEmpty || widget.editingMessageId != null) && !_isRecording;
 
     return PopScope(
       canPop: !_showEmojiPicker,
@@ -228,23 +232,31 @@ class _ChatInputBarState extends State<ChatInputBar> {
               ),
             ),
 
-          // Voice Recording Panel (when recording)
+          // Voice Recording Overlay (when recording)
           if (_isRecording)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: VoiceRecordingPanel(
-                onSend: (String filePath) {
-                  setState(() => _isRecording = false);
-                  widget.onVoiceSend(filePath);
+                elapsed: _recordingElapsed,
+                dragOffset: _recordingDragOffset,
+                isLocked: _isRecordingLocked,
+                onSend: () async {
+                  HapticService.confirm();
+                  final String? path = await VoiceRecorderService.stopRecording();
+                  if (path != null && mounted) {
+                    setState(() => _isRecording = false);
+                    widget.onVoiceSend(path);
+                  }
                 },
-                onCancel: () {
-                  setState(() => _isRecording = false);
+                onCancel: () async {
+                  HapticService.destructive();
+                  await VoiceRecorderService.cancelRecording();
+                  if (mounted) setState(() => _isRecording = false);
                 },
               ),
             ),
 
-          // Input Row (when not recording)
-          if (!_isRecording) ...<Widget>[
+          // Input Row (always visible)
           const SizedBox(height: 4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -258,151 +270,241 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       color: scheme.surfaceContainerLow.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
-                        color: widget.inputFocusNode.hasFocus
-                            ? scheme.primary.withValues(alpha: 0.45)
-                            : scheme.outlineVariant.withValues(alpha: 0.30),
+                        color: _isRecording
+                            ? scheme.error.withValues(alpha: 0.45)
+                            : widget.inputFocusNode.hasFocus
+                                ? scheme.primary.withValues(alpha: 0.45)
+                                : scheme.outlineVariant.withValues(alpha: 0.30),
                         width: 1.0,
                       ),
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: <Widget>[
-                        // Emoji Toggle Button
-                        Tooltip(
-                          message: context.l10n.chatEmojiToggle,
-                          child: InkWell(
-                            onTap: _toggleEmojiPicker,
-                            borderRadius: BorderRadius.circular(20),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                              child: Icon(
-                                _showEmojiPicker ? Icons.keyboard_outlined : Icons.emoji_emotions_outlined,
-                                size: 22,
-                                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Text Field
-                        Expanded(
-                          child: Focus(
-                            onKeyEvent: (FocusNode node, KeyEvent event) {
-                              if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
-                                if (HardwareKeyboard.instance.isShiftPressed) {
-                                  return KeyEventResult.ignored;
-                                } else {
-                                  if (widget.editingMessageId != null) {
-                                    widget.onCommitEdit();
-                                  } else if (!_isInputEmpty) {
-                                    widget.onSend();
-                                  }
-                                  return KeyEventResult.handled;
-                                }
-                              }
-                              return KeyEventResult.ignored;
-                            },
-                            child: TextField(
-                              controller: widget.inputController,
-                              focusNode: widget.inputFocusNode,
-                              readOnly: widget.isAiProcessing,
-                              textInputAction: TextInputAction.newline,
-                              maxLines: 3,
-                              minLines: 1,
-                              keyboardType: TextInputType.multiline,
-                              textCapitalization: TextCapitalization.sentences,
-                              style: textTheme.bodyMedium?.copyWith(fontSize: 15),
-                              decoration: InputDecoration(
-                                hintText: context.l10n.chatMessageHint,
-                                hintStyle: textTheme.bodyMedium?.copyWith(
-                                  fontSize: 15,
-                                  color: scheme.onSurfaceVariant.withValues(alpha: 0.50),
+                    child: _isRecording
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Row(
+                              children: <Widget>[
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.mic_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                 ),
-                                filled: true,
-                                fillColor: Colors.transparent,
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
-                                isDense: true,
-                                isCollapsed: true,
-                              ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  VoiceRecorderService.formatDuration(_recordingElapsed),
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    fontFeatures: const [FontFeature.tabularFigures()],
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ),
+                          )
+                        : Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: <Widget>[
+                              // Emoji Toggle Button
+                              Tooltip(
+                                message: context.l10n.chatEmojiToggle,
+                                child: InkWell(
+                                  onTap: _toggleEmojiPicker,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                    child: Icon(
+                                      _showEmojiPicker ? Icons.keyboard_outlined : Icons.emoji_emotions_outlined,
+                                      size: 22,
+                                      color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                                    ),
+                                  ),
+                                ),
+                              ),
 
-                      // AI Assistant Button
-                      if (widget.isAiProcessing)
-                        SizedBox(
-                          width: 44,
-                          height: 44,
-                          child: AppLoadingIndicator(size: 18, color: scheme.primary),
-                        )
-                      else
-                        Tooltip(
-                          message: context.l10n.chatAiAssistant,
-                          child: InkWell(
-                            onTap: widget.onAiPressed,
-                            borderRadius: BorderRadius.circular(20),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                              child: Icon(
-                                Icons.auto_awesome_rounded,
-                                size: 20,
-                                color: _isInputEmpty
-                                    ? scheme.onSurfaceVariant.withValues(alpha: 0.4)
-                                    : scheme.primary,
+                              // Text Field
+                              Expanded(
+                                child: Focus(
+                                  onKeyEvent: (FocusNode node, KeyEvent event) {
+                                    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
+                                      if (HardwareKeyboard.instance.isShiftPressed) {
+                                        return KeyEventResult.ignored;
+                                      } else {
+                                        if (widget.editingMessageId != null) {
+                                          widget.onCommitEdit();
+                                        } else if (!_isInputEmpty) {
+                                          widget.onSend();
+                                        }
+                                        return KeyEventResult.handled;
+                                      }
+                                    }
+                                    return KeyEventResult.ignored;
+                                  },
+                                  child: TextField(
+                                    controller: widget.inputController,
+                                    focusNode: widget.inputFocusNode,
+                                    readOnly: widget.isAiProcessing,
+                                    textInputAction: TextInputAction.newline,
+                                    maxLines: 3,
+                                    minLines: 1,
+                                    keyboardType: TextInputType.multiline,
+                                    textCapitalization: TextCapitalization.sentences,
+                                    style: textTheme.bodyMedium?.copyWith(fontSize: 15),
+                                    decoration: InputDecoration(
+                                      hintText: context.l10n.chatMessageHint,
+                                      hintStyle: textTheme.bodyMedium?.copyWith(
+                                        fontSize: 15,
+                                        color: scheme.onSurfaceVariant.withValues(alpha: 0.50),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.transparent,
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
+                                      isDense: true,
+                                      isCollapsed: true,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
 
-                      // Attach Media Button
-                      if (widget.uploadingMedia)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 14, bottom: 14),
-                          child: AppLoadingIndicator(size: 20, color: scheme.primary),
-                        )
-                      else
-                        Tooltip(
-                          message: context.l10n.chatAttachMedia,
-                          child: InkWell(
-                            onTap: widget.onAttachMedia,
-                            borderRadius: BorderRadius.circular(20),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                              child: Icon(
-                                Icons.attach_file_rounded,
-                                size: 22,
-                                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                            // AI Assistant Button
+                            if (widget.isAiProcessing)
+                              SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: AppLoadingIndicator(size: 18, color: scheme.primary),
+                              )
+                            else
+                              Tooltip(
+                                message: context.l10n.chatAiAssistant,
+                                child: InkWell(
+                                  onTap: widget.onAiPressed,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                                    child: Icon(
+                                      Icons.auto_awesome_rounded,
+                                      size: 20,
+                                      color: _isInputEmpty
+                                          ? scheme.onSurfaceVariant.withValues(alpha: 0.4)
+                                          : scheme.primary,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+
+                            // Attach Media Button
+                            if (widget.uploadingMedia)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 14, bottom: 14),
+                                child: AppLoadingIndicator(size: 20, color: scheme.primary),
+                              )
+                            else
+                              Tooltip(
+                                message: context.l10n.chatAttachMedia,
+                                child: InkWell(
+                                  onTap: widget.onAttachMedia,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                                    child: Icon(
+                                      Icons.attach_file_rounded,
+                                      size: 22,
+                                      color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                           ),
-                        ),
-                    ],
                   ),
                 ),
               ),
-              ),
               const SizedBox(width: 6),
 
-              // Mic / Circle Video Button (when input empty, not editing)
-              if (_isInputEmpty && widget.editingMessageId == null)
+              // Mic Button (visible when recording, or when input empty + not editing)
+              if (_isRecording ||
+                  (_isInputEmpty && widget.editingMessageId == null))
                 Tooltip(
-                  message: _isVideoMode
-                      ? context.l10n.chatCircleVideo
-                      : context.l10n.chatVoiceMessage,
+                  message: _isRecording
+                      ? ''
+                      : (_isVideoMode
+                          ? context.l10n.chatCircleVideo
+                          : context.l10n.chatVoiceMessage),
                   child: GestureDetector(
                     onTap: () {
+                      if (_isRecording) return;
                       setState(() => _isVideoMode = !_isVideoMode);
                       HapticService.confirm();
                     },
-                    onLongPress: () {
+                    onLongPressStart: (details) async {
+                      if (_isRecording) return;
                       if (_isVideoMode) {
                         HapticService.tap();
                         _openCircleVideo();
-                      } else {
-                        setState(() => _isRecording = true);
+                        return;
+                      }
+                      HapticService.tap();
+                      final bool started =
+                          await VoiceRecorderService.startRecording(
+                        onTick: (Duration d) {
+                          if (mounted) {
+                            setState(() => _recordingElapsed = d);
+                          }
+                        },
+                      );
+                      if (started && mounted) {
+                        setState(() {
+                          _isRecording = true;
+                          _recordingDragOffset = Offset.zero;
+                          _isRecordingLocked = false;
+                          _recordingElapsed = Duration.zero;
+                        });
+                      }
+                    },
+                    onLongPressMoveUpdate: (details) {
+                      if (!_isRecording || _isRecordingLocked) return;
+                      setState(() {
+                        _recordingDragOffset = details.localOffsetFromOrigin;
+                      });
+                    },
+                    onLongPressEnd: (details) async {
+                      if (!_isRecording || _isRecordingLocked) return;
+
+                      final double dx = _recordingDragOffset.dx;
+                      final double dy = _recordingDragOffset.dy;
+
+                      if (dy < -80) {
+                        HapticService.confirm();
+                        setState(() => _isRecordingLocked = true);
+                        return;
+                      }
+
+                      if (dx < -120) {
+                        HapticService.destructive();
+                        await VoiceRecorderService.cancelRecording();
+                        if (mounted) {
+                          setState(() {
+                            _isRecording = false;
+                            _recordingDragOffset = Offset.zero;
+                          });
+                        }
+                        return;
+                      }
+
+                      HapticService.confirm();
+                      final String? path =
+                          await VoiceRecorderService.stopRecording();
+                      if (path != null && mounted) {
+                        setState(() => _isRecording = false);
+                        widget.onVoiceSend(path);
                       }
                     },
                     child: AnimatedScale(
@@ -479,8 +581,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   ),
                 ),
 
-              // Send/Check Button (when input has text or editing)
-              if (!_isInputEmpty || widget.editingMessageId != null)
+              // Send/Check Button (when input has text or editing, not recording)
+              if (!_isRecording &&
+                  (!_isInputEmpty || widget.editingMessageId != null))
                 AnimatedScale(
                   scale: showSendButton ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 200),
@@ -527,7 +630,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 ),
             ],
           ),
-          ],
+
           AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeInOut,

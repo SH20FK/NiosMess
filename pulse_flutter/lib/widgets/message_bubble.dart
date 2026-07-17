@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,6 +29,11 @@ import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/widgets/chat/md3_squiggle_progress.dart';
 
 class MessageBubble extends ConsumerWidget {
+  static final RegExp _emojiOnlyRegex = RegExp(
+    r'^(\p{Emoji}\p{EmojiModifier}?)+$',
+    unicode: true,
+  );
+
   const MessageBubble({
     required this.text,
     required this.formattedTime,
@@ -240,19 +246,95 @@ class MessageBubble extends ConsumerWidget {
       isNextSame,
     );
 
-    Widget content = Align(
+    final bool isBigEmoji = hasText &&
+        !hasMedia &&
+        !isVoice &&
+        !isCircleVideo &&
+        forwarded == null &&
+        displayText.length <= 12 &&
+        _emojiOnlyRegex.hasMatch(displayText.trim());
+
+    Widget content;
+    if (isBigEmoji) {
+      content = Align(
+        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            8,
+            isPrevSame ? 1.0 : 3.0,
+            8,
+            isNextSame ? 1.0 : 3.0,
+          ),
+          child: Column(
+            crossAxisAlignment: isMine
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                displayText.trim(),
+                style: textTheme.displaySmall?.copyWith(
+                  color: textColor,
+                  fontStyle: isDeleted ? FontStyle.italic : null,
+                ),
+              ),
+              if (reactions.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
+                    children: reactions.entries
+                        .map((MapEntry<String, int> item) {
+                          return GestureDetector(
+                            onTap: onReactionTap != null
+                                ? () {
+                                    HapticService.reaction();
+                                    onReactionTap!(item.key);
+                                  }
+                                : null,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerHigh,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                '${item.key} ${item.value}',
+                                style: textTheme.labelSmall,
+                              ),
+                            ),
+                          );
+                        })
+                        .toList(growable: false),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      content = Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 8),
+        padding: EdgeInsets.fromLTRB(
+          8,
+          isPrevSame ? 1.0 : 3.0,
+          8,
+          isNextSame ? 1.0 : 3.0,
+        ),
         child: Column(
           crossAxisAlignment: isMine
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: <Widget>[
             if (isCircleVideo && hasMedia)
-              _buildCircleVideoContent(context, scheme, textTheme)
+              _buildCircleVideoContent(context, ref, scheme, textTheme)
             else if (isVoice && hasMedia)
-              _buildVoiceOnly(context, scheme, textTheme)
+              _buildVoiceOnly(context, ref, scheme, textTheme)
             else
             InkWell(
               borderRadius: bubbleRadius,
@@ -268,15 +350,23 @@ class MessageBubble extends ConsumerWidget {
                   onLongPress!();
                 }
               },
-              child: Container(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width * 0.75,
-                ),
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-                decoration: BoxDecoration(
-                  color: bubbleColor,
-                  borderRadius: bubbleRadius,
-                  boxShadow: [
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.sizeOf(context).width * 0.75,
+                    ),
+                    padding: EdgeInsets.fromLTRB(
+                      12,
+                      isPrevSame ? 4.0 : 8.0,
+                      12,
+                      isNextSame ? 3.0 : 6.0,
+                    ),
+                    decoration: BoxDecoration(
+                      color: bubbleColor,
+                      borderRadius: bubbleRadius,
+                      boxShadow: [
                     BoxShadow(
                       color: scheme.shadow.withValues(alpha: 0.06),
                       blurRadius: 2,
@@ -383,7 +473,7 @@ class MessageBubble extends ConsumerWidget {
                           ],
                           if (hasMedia)
                             _mediaPreview(
-                              context,
+                              context, ref,
                               scheme: scheme,
                               textTheme: textTheme,
                               textColor: textColor,
@@ -428,9 +518,19 @@ class MessageBubble extends ConsumerWidget {
                           textTheme: textTheme,
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  if (!isPrevSame)
+                    Positioned(
+                      left: isMine ? null : -8,
+                      right: isMine ? -8 : null,
+                      top: 12,
+                      child: CustomPaint(
+                        painter: _BubbleTailPainter(bubbleColor, !isMine),
+                        size: const Size(8, 10),
+                      ),
+                    ),
+                ],
               ),
             ),
             if (replyMarkup != null && replyMarkup!.inlineKeyboard.isNotEmpty)
@@ -474,6 +574,8 @@ class MessageBubble extends ConsumerWidget {
         ),
       ),
     );
+
+    }
 
     if (animateHighlight) {
       content = TweenAnimationBuilder<Color?>(
@@ -526,7 +628,7 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
-  Widget _buildCircleVideoContent(BuildContext context, ColorScheme scheme, TextTheme textTheme) {
+  Widget _buildCircleVideoContent(BuildContext context, WidgetRef ref, ColorScheme scheme, TextTheme textTheme) {
     const double circleSize = 180;
     
     // Asynchronously prefetch media
@@ -565,7 +667,7 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
-  Widget _buildVoiceOnly(BuildContext context, ColorScheme scheme, TextTheme textTheme) {
+  Widget _buildVoiceOnly(BuildContext context, WidgetRef ref, ColorScheme scheme, TextTheme textTheme) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -631,7 +733,8 @@ class MessageBubble extends ConsumerWidget {
   }
 
   Widget _mediaPreview(
-    BuildContext context, {
+    BuildContext context,
+    WidgetRef ref, {
     required ColorScheme scheme,
     required TextTheme textTheme,
     required Color textColor,
@@ -1032,7 +1135,6 @@ class _SwipeToReply extends StatefulWidget {
 class _SwipeToReplyState extends State<_SwipeToReply>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _animation;
   double _dragX = 0;
   static const double _maxDrag = 64;
   bool _triggered = false;
@@ -1044,10 +1146,9 @@ class _SwipeToReplyState extends State<_SwipeToReply>
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
-    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
     _controller.addListener(() {
       setState(() {
-        _dragX = _animation.value;
+        _dragX = _controller.value;
       });
     });
   }
@@ -1090,14 +1191,15 @@ class _SwipeToReplyState extends State<_SwipeToReply>
           HapticService.tap();
           widget.onReply();
         }
-        
-        // Snap back without overshooting past 0
-        _animation = Tween<double>(
-          begin: _dragX,
-          end: 0,
-        ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
-        
-        _controller.forward(from: 0);
+
+        // Spring snap-back
+        final SpringSimulation spring = SpringSimulation(
+          SpringDescription(mass: 0.5, stiffness: 200, damping: 12),
+          _dragX,
+          0,
+          0,
+        );
+        _controller.animateWith(spring);
       },
       child: Stack(
         clipBehavior: Clip.none,
@@ -1581,10 +1683,37 @@ class _MediaCarouselState extends State<_MediaCarousel> {
                     style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+class _BubbleTailPainter extends CustomPainter {
+  _BubbleTailPainter(this.color, this.pointsLeft);
+  final Color color;
+  final bool pointsLeft;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()..color = color;
+    final Path path = Path();
+    if (pointsLeft) {
+      path.moveTo(size.width, 0);
+      path.lineTo(0, size.height * 0.5);
+      path.lineTo(size.width, size.height);
+    } else {
+      path.moveTo(0, 0);
+      path.lineTo(size.width, size.height * 0.5);
+      path.lineTo(0, size.height);
+    }
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_BubbleTailPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.pointsLeft != pointsLeft;
 }

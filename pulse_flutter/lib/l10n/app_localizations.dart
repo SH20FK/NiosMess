@@ -5988,6 +5988,18 @@ abstract class AppLocalizations {
   /// **'Voice message'**
   String get chatVoiceMessage;
 
+  /// No description provided for @chatSlideToCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide to cancel'**
+  String get chatSlideToCancel;
+
+  /// No description provided for @chatLock.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock'**
+  String get chatLock;
+
   /// No description provided for @chatSearchInChat.
   ///
   /// In en, this message translates to:
