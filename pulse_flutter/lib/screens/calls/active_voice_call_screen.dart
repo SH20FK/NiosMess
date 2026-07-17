@@ -149,45 +149,50 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
           behavior: HitTestBehavior.translucent,
           child: Stack(
             children: [
-              // Generative visualizer background (radial gradients)
+              // Generative MD3 shapes background (animating with volume)
               Positioned.fill(
                 child: RepaintBoundary(
                   child: ValueListenableBuilder<double>(
                     valueListenable: _volumeNotifier,
                     builder: (context, volume, _) {
-                      final dx1 = sin(volume * pi) * 30;
-                      final dy1 = cos(volume * pi) * 30;
-                      final dx2 = cos(volume * pi * 0.5) * 40;
-                      final dy2 = sin(volume * pi * 0.5) * 40;
+                      final scale = 1.0 + (volume * 0.15);
+                      final rotation = volume * pi * 0.25;
 
                       return Stack(
+                        alignment: Alignment.center,
                         children: [
-                          Transform.translate(
-                            offset: Offset(dx1, dy1),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: RadialGradient(
-                                  colors: [
-                                    scheme.primary.withValues(alpha: 0.15),
-                                    Colors.transparent,
-                                  ],
-                                  center: Alignment.centerLeft,
-                                  radius: 1.2,
+                          // Large rotating MD3 shape in background
+                          Transform.rotate(
+                            angle: rotation,
+                            child: AnimatedScale(
+                              scale: scale,
+                              duration: const Duration(milliseconds: 150),
+                              child: Container(
+                                width: 280,
+                                height: 280,
+                                decoration: BoxDecoration(
+                                  color: scheme.primary.withValues(alpha: 0.12),
+                                  borderRadius: const BorderRadius.all(
+                                    Radius.elliptical(120, 160),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                          Transform.translate(
-                            offset: Offset(dx2, dy2),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: RadialGradient(
-                                  colors: [
-                                    scheme.tertiary.withValues(alpha: 0.15),
-                                    Colors.transparent,
-                                  ],
-                                  center: Alignment.centerRight,
-                                  radius: 1.2,
+                          // Secondary MD3 shape with opposite rotation
+                          Transform.rotate(
+                            angle: -rotation * 0.8,
+                            child: AnimatedScale(
+                              scale: scale * 0.9,
+                              duration: const Duration(milliseconds: 150),
+                              child: Container(
+                                width: 220,
+                                height: 220,
+                                decoration: BoxDecoration(
+                                  color: scheme.tertiary.withValues(alpha: 0.1),
+                                  borderRadius: const BorderRadius.all(
+                                    Radius.elliptical(160, 100),
+                                  ),
                                 ),
                               ),
                             ),

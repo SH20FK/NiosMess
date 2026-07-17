@@ -38,7 +38,7 @@ class SoundService {
         AudioContext(
           android: AudioContextAndroid(
             contentType: AndroidContentType.sonification,
-            usageType: AndroidUsageType.notification,
+            usageType: AndroidUsageType.assistanceSonification,
             audioFocus: AndroidAudioFocus.none,
           ),
           iOS: AudioContextIOS(
