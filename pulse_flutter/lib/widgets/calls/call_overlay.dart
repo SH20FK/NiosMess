@@ -34,7 +34,13 @@ class CallOverlay extends ConsumerWidget {
             color: scheme.primaryContainer,
             child: InkWell(
               customBorder: const CircleBorder(),
-              onTap: () => context.push('/call/${data.callId}'),
+              onTap: () {
+                final router = GoRouter.of(context);
+                final currentPath = router.routeInformationProvider.value.uri.path;
+                if (!currentPath.startsWith('/call/')) {
+                  context.push('/call/${data.callId}');
+                }
+              },
               child: Container(
                 width: 60,
                 height: 60,

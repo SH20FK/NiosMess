@@ -28,6 +28,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
+import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/providers/typing_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
@@ -1024,10 +1025,88 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             },
             onEdit: () => _editMessage(message),
             onDelete: () => _deleteMessage(message),
+            onReport: () => _showReportMessageDialog(message),
           ),
         ),
       ),
     );
+  }
+
+  void _showReportMessageDialog(ApiMessage message) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext ctx) {
+        final ColorScheme scheme = Theme.of(ctx).colorScheme;
+        final TextTheme textTheme = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  context.l10n.reportSelectReason,
+                  style: textTheme.titleMedium,
+                ),
+              ),
+              ListTile(
+                leading: Icon(Icons.spam_rounded, color: scheme.error),
+                title: Text(context.l10n.reportReasonSpam),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _submitReport(message, 'spam');
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.report_problem_rounded, color: scheme.error),
+                title: Text(context.l10n.reportReasonScam),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _submitReport(message, 'scam');
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.gavel_rounded, color: scheme.error),
+                title: Text(context.l10n.reportReasonIllegal),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _submitReport(message, 'illegal');
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _submitReport(ApiMessage message, String reason) async {
+    try {
+      await ref.read(reportRepositoryProvider).report(
+        chatId: message.chatId,
+        reportedUserId: message.senderId,
+        messageIds: <int>[message.id],
+        reason: reason,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.reportSent),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to report: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   void _showAllReactionsPicker(ApiMessage message) {

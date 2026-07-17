@@ -3715,4 +3715,23 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsPredictiveBackDescription => 'Показывать предпросмотр предыдущего экрана перед возвратом';
+
+  @override
+  String get reportAction => 'Пожаловаться';
+  @override
+  String get reportMessage => 'Пожаловаться на сообщение';
+  @override
+  String get reportUser => 'Пожаловаться на пользователя';
+  @override
+  String get reportReasonSpam => 'Спам';
+  @override
+  String get reportReasonScam => 'Обман / Мошенничество';
+  @override
+  String get reportReasonIllegal => 'Запрещенный контент';
+  @override
+  String get reportSent => 'Жалоба успешно отправлена';
+  @override
+  String get reportConfirmTitle => 'Отправить жалобу';
+  @override
+  String get reportSelectReason => 'Выберите причину жалобы';
 }

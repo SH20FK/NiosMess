@@ -358,9 +358,28 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
+                      // Minimize button
+                      IconButton(
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.of(context).pop();
+                        },
+                        icon: const Icon(
+                          Icons.grid_view_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        style: IconButton.styleFrom(
+                          backgroundColor: scheme.surfaceContainerLow.withValues(alpha: 0.2),
+                          minimumSize: const Size(CallTokens.controlButtonSize, CallTokens.controlButtonSize),
+                        ),
+                      ),
                       // Mute Button
                       IconButton(
-                        onPressed: () => _toggleMute(session, data),
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          _toggleMute(session, data);
+                        },
                         icon: Icon(
                           data.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
                           color: Colors.white,
@@ -388,7 +407,10 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                       ),
                       // Camera Switch Button
                       IconButton(
-                        onPressed: _toggleCamera,
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          _toggleCamera();
+                        },
                         icon: const Icon(
                           Icons.flip_camera_ios_rounded,
                           color: Colors.white,

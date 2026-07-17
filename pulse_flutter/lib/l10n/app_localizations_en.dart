@@ -3699,4 +3699,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsPredictiveBackDescription => 'Preview the previous screen before returning';
+
+  @override
+  String get reportAction => 'Report';
+  @override
+  String get reportMessage => 'Report Message';
+  @override
+  String get reportUser => 'Report User';
+  @override
+  String get reportReasonSpam => 'Spam';
+  @override
+  String get reportReasonScam => 'Scam / Fraud';
+  @override
+  String get reportReasonIllegal => 'Illegal Content';
+  @override
+  String get reportSent => 'Report sent successfully';
+  @override
+  String get reportConfirmTitle => 'Send Report';
+  @override
+  String get reportSelectReason => 'Select reason for reporting';
 }

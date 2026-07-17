@@ -60,7 +60,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
   }
 
   void _triggerHaptic() {
-    HapticFeedback.lightImpact();
+    HapticFeedback.vibrate();
   }
 
   @override
@@ -105,6 +105,8 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
           onVerticalDragUpdate: (details) {
             if (details.primaryDelta! > 10) {
               _acceptCall(context, ref, data);
+            } else if (details.primaryDelta! < -10) {
+              _declineCall();
             }
           },
           child: Card(

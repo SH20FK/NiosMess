@@ -7,6 +7,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
+import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
@@ -378,6 +379,14 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                           onPressed: () => context.go('/chat/dm/${profile.username}?isSecret=1'),
                         ),
                       ),
+                      const SizedBox(width: 12),
+                      IconButton.filledTonal(
+                        onPressed: () => _showReportUserDialog(profile),
+                        icon: Icon(Icons.flag_rounded, color: scheme.error),
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                        ),
+                      ),
                     ],
                   ),
                 ).animate(delay: 60.ms).fade(duration: 260.ms).slideY(begin: 0.04, end: 0, duration: 260.ms),
@@ -456,6 +465,82 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         ],
       ),
     );
+  }
+
+  void _showReportUserDialog(ApiProfile profile) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext ctx) {
+        final ColorScheme scheme = Theme.of(ctx).colorScheme;
+        final TextTheme textTheme = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  context.l10n.reportSelectReason,
+                  style: textTheme.titleMedium,
+                ),
+              ),
+              ListTile(
+                leading: Icon(Icons.spam_rounded, color: scheme.error),
+                title: Text(context.l10n.reportReasonSpam),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _submitUserReport(profile, 'spam');
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.report_problem_rounded, color: scheme.error),
+                title: Text(context.l10n.reportReasonScam),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _submitUserReport(profile, 'scam');
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.gavel_rounded, color: scheme.error),
+                title: Text(context.l10n.reportReasonIllegal),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _submitUserReport(profile, 'illegal');
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _submitUserReport(ApiProfile profile, String reason) async {
+    try {
+      await ref.read(reportRepositoryProvider).report(
+        chatId: 0,
+        reportedUserId: profile.id,
+        reason: reason,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.reportSent),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to report: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   Widget _infoRow(

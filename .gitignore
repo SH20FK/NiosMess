@@ -71,3 +71,4 @@ switch-to-greetd.sh
 *.zip
 apk_full_log.txt
 .opencode.json
+serviceAccountKey.json

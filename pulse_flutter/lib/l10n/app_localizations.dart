@@ -4250,6 +4250,16 @@ abstract class AppLocalizations {
   /// **'Secret Chat'**
   String get settingsSecretChatsButton;
 
+  String get reportAction;
+  String get reportMessage;
+  String get reportUser;
+  String get reportReasonSpam;
+  String get reportReasonScam;
+  String get reportReasonIllegal;
+  String get reportSent;
+  String get reportConfirmTitle;
+  String get reportSelectReason;
+
   /// No description provided for @adminUserBanned.
   ///
   /// In en, this message translates to:

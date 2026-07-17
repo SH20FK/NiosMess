@@ -18,6 +18,7 @@ class MessageContextMenuSheet extends StatelessWidget {
     required this.onComments,
     required this.onEdit,
     required this.onDelete,
+    required this.onReport,
     this.isSecret = false,
     super.key,
   });
@@ -34,6 +35,7 @@ class MessageContextMenuSheet extends StatelessWidget {
   final VoidCallback onComments;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onReport;
   final bool isSecret;
 
   static const List<_QuickReaction> _quickReactions = <_QuickReaction>[
@@ -81,6 +83,7 @@ class MessageContextMenuSheet extends StatelessWidget {
               onComments: onComments,
               onEdit: onEdit,
               onDelete: onDelete,
+              onReport: onReport,
             ),
           ],
         ),
@@ -301,6 +304,7 @@ class _ActionsCompact extends StatelessWidget {
     required this.onComments,
     required this.onEdit,
     required this.onDelete,
+    required this.onReport,
   });
 
   final ApiMessage message;
@@ -315,6 +319,7 @@ class _ActionsCompact extends StatelessWidget {
   final VoidCallback onComments;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -403,6 +408,18 @@ class _ActionsCompact extends StatelessWidget {
         onTap: () {
           Navigator.of(context).pop();
           onDelete();
+        },
+      ));
+    }
+
+    if (!isMine && !message.isDeleted) {
+      list.add(_CompactAction(
+        icon: Icons.flag_rounded,
+        label: context.l10n.reportAction,
+        color: scheme.error,
+        onTap: () {
+          Navigator.of(context).pop();
+          onReport();
         },
       ));
     }
