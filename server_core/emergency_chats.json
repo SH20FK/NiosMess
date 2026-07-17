@@ -139,6 +139,38 @@
                 {
                     "sender": "admin",
                     "text": "пока"
+                },
+                {
+                    "sender": "user",
+                    "text": "ку"
+                },
+                {
+                    "sender": "admin",
+                    "text": "qq"
+                },
+                {
+                    "sender": "user",
+                    "text": "re"
+                },
+                {
+                    "sender": "admin",
+                    "text": "qq"
+                },
+                {
+                    "sender": "user",
+                    "text": "qq"
+                },
+                {
+                    "sender": "admin",
+                    "text": "qq"
+                },
+                {
+                    "sender": "user",
+                    "text": "Через 10 минут отправится соо алеше"
+                },
+                {
+                    "sender": "admin",
+                    "text": "ок"
                 }
             ]
         },
@@ -196,7 +228,7 @@
         }
     },
     "stats": {
-        "total_cases": 121,
+        "total_cases": 125,
         "success_cases": 98
     }
 }

@@ -66,4 +66,46 @@ class WsMediaFetcher {
 
     return fileBuffer;
   }
+
+  static Future<String> fetchToLocalFile({
+    required String filePath,
+    required WebSocketClient wsClient,
+    required bool isE2ee,
+    required int chatId,
+    required E2eeService e2eeService,
+  }) async {
+    final bytes = await fetchAndDecryptMedia(
+      filePath: filePath,
+      wsClient: wsClient,
+      isE2ee: isE2ee,
+      chatId: chatId,
+      e2eeService: e2eeService,
+      theirPublicKeyBase64: null,
+    );
+
+    final cacheKey = 'ws_media_$filePath';
+    final fileInfo = await _cacheManager.getFileFromCache(cacheKey);
+    if (fileInfo != null) {
+      return fileInfo.file.path;
+    }
+
+    final file = await _cacheManager.putFile(
+      cacheKey,
+      bytes,
+      fileExtension: _getFileExtension(filePath),
+    );
+    return file.path;
+  }
+
+  static String _getFileExtension(String filePath) {
+    final uri = Uri.tryParse(filePath);
+    if (uri != null && uri.pathSegments.isNotEmpty) {
+      final name = uri.pathSegments.last;
+      final dot = name.lastIndexOf('.');
+      if (dot != -1) {
+        return name.substring(dot + 1);
+      }
+    }
+    return 'dat';
+  }
 }

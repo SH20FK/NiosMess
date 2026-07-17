@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
+import 'package:pulse_flutter/core/network/web_socket_client.dart';
+import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 
 class VoiceMessagePlayer extends StatefulWidget {
   const VoiceMessagePlayer({
@@ -11,6 +14,9 @@ class VoiceMessagePlayer extends StatefulWidget {
     required this.durationSeconds,
     required this.isMine,
     required this.scheme,
+    required this.chatId,
+    required this.wsClient,
+    required this.e2eeService,
     this.formattedTime,
     this.isRead = false,
     this.isE2ee = false,
@@ -22,6 +28,9 @@ class VoiceMessagePlayer extends StatefulWidget {
   final int durationSeconds;
   final bool isMine;
   final ColorScheme scheme;
+  final int chatId;
+  final WebSocketClient wsClient;
+  final E2eeService e2eeService;
   final String? formattedTime;
   final bool isRead;
   final bool isE2ee;
@@ -75,11 +84,15 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
 
   Future<void> _setupPlayer() async {
     try {
+      final localPath = await WsMediaFetcher.fetchToLocalFile(
+        filePath: widget.audioUrl,
+        wsClient: widget.wsClient,
+        isE2ee: widget.isE2ee,
+        chatId: widget.chatId,
+        e2eeService: widget.e2eeService,
+      );
       await _player.setAudioSource(
-        AudioSource.uri(
-          Uri.parse(ApiConstants.resolve(widget.audioUrl)),
-          headers: cachedAuthHeaders(),
-        ),
+        AudioSource.file(localPath),
       );
       _duration = Duration(seconds: widget.durationSeconds);
       _player.positionStream.listen((p) {

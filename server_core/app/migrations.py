@@ -84,7 +84,10 @@ async def run_migrations():
         if not await column_exists("messages", "is_e2ee"):
             await db.execute(text("ALTER TABLE messages ADD COLUMN is_e2ee INTEGER DEFAULT 0"))
             print("[MIGRATION] Added is_e2ee to messages")
-
+        # Add public_key to sessions for Device-specific E2EE
+        if not await column_exists("sessions", "public_key"):
+            await db.execute(text("ALTER TABLE sessions ADD COLUMN public_key TEXT"))
+            print("[MIGRATION] Added public_key to sessions")
         # --- POSTS AND REACTIONS MIGRATIONS ---
         if not await table_exists("posts"):
             await db.execute(text("""

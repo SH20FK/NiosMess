@@ -104,7 +104,6 @@ class User(Base):
     badges = relationship("UserBadge", back_populates="user", cascade="all, delete-orphan")
     bot = relationship("Bot", back_populates="user", uselist=False, cascade="all, delete-orphan",
                      foreign_keys="Bot.user_id")
-
 class Session(Base):
     __tablename__ = "sessions"
     id = Column(Integer, primary_key=True, index=True)
@@ -115,6 +114,10 @@ class Session(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_active = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=True)
+    
+    # ── ДОБАВИТЬ ЭТУ СТРОКУ: Ключ шифрования для конкретного устройства ──
+    public_key = Column(Text, nullable=True) 
+    
     user = relationship("User", back_populates="sessions")
 
 class VerificationCode(Base):
@@ -307,3 +310,16 @@ class BotUpdate(Base):
     payload = Column(Text, nullable=False)
     is_delivered = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class Report(Base):
+    __tablename__ = "reports"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    reporter_id = Column(Integer, ForeignKey("users.id"))
+    reported_id = Column(Integer, ForeignKey("users.id"))
+    chat_id = Column(Integer, ForeignKey("chats.id"))
+    reason = Column(String)  # "spam", "scam", "illegal"
+    status = Column(String, default="pending")  # "pending", "resolved"
+    automod_verdict = Column(String)  # "spam_detected", "scam_detected", "illegal_detected", "clean"
+    reported_messages_json = Column(Text)  # JSON-массив ID сообщений
+    created_at = Column(DateTime, default=func.now())

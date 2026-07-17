@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NiosCraft Кабинет</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* ================= ДИЗАЙН И СТИЛИ В СТИЛЕ NETCAT VPN ================= */
+        :root {
+            --bg-top: #e0eaf5;
+            --bg-bottom: #f0f4f9;
+            --card-bg: rgba(255, 255, 255, 0.65);
+            --card-border: rgba(255, 255, 255, 0.8);
+            --text-dark: #12132a;
+            --text-muted: #6b7280;
+            --accent-green: #4ade80;
+            --accent-dark: #201f3e;
+            --btn-gradient: linear-gradient(90deg, #1f1d3c 0%, #2b4556 50%, #3e8a65 100%);
+            --nav-bg: rgba(245, 248, 255, 0.95);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
+
+        body {
+            background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+            color: var(--text-dark);
+            min-height: 100vh;
+            padding-bottom: 100px;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Шапка с аватаркой */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 20px 10px 20px; }
+        .header-logo { display: flex; align-items: center; gap: 12px; }
+        .logo-img { width: 42px; height: 42px; border-radius: 12px; object-fit: cover; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .server-title { font-size: 17px; font-weight: 800; color: #1e1e38; line-height: 1.1; }
+        .server-subtitle { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+        .status-badge { background: white; border: 1px solid #c9e8d4; color: #2e8b57; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+
+        .tab-content { display: none; padding: 0 20px; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Главная карточка (Стиль Добрый день) */
+        .hero-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,245,255,0.6) 100%);
+            border: 1px solid white;
+            border-radius: 28px;
+            padding: 24px;
+            margin-top: 10px;
+            margin-bottom: 16px;
+            box-shadow: 0 10px 30px rgba(30, 32, 44, 0.04);
+        }
+        .hero-card h1 { font-size: 26px; font-weight: 800; color: var(--accent-dark); line-height: 1.2; margin-bottom: 8px; }
+        .hero-card .sub { font-size: 14px; color: #5a6474; font-weight: 500; margin-bottom: 20px; line-height: 1.4; }
+
+        /* Круговой индикатор */
+        .status-row { display: flex; align-items: center; gap: 16px; }
+        .circle-outer { width: 90px; height: 90px; border-radius: 50%; background: var(--accent-green); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(74, 222, 128, 0.3); }
+        .circle-inner { width: 70px; height: 70px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .circle-inner span { font-size: 22px; font-weight: 800; color: var(--accent-dark); }
+        
+        .status-info h3 { font-size: 18px; font-weight: 800; color: var(--accent-dark); margin-bottom: 4px; }
+        .status-info p { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; font-weight: 500;}
+
+        /* Маленькие карточки 2 в ряд */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .small-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; padding: 18px 16px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 15px rgba(0,0,0,0.02); backdrop-filter: blur(10px); }
+        .small-card h4 { font-size: 15px; font-weight: 800; color: var(--text-dark); margin-bottom: 6px; line-height: 1.2; }
+        .small-card p { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-bottom: 15px; }
+
+        /* Кнопки */
+        .btn { background: var(--btn-gradient); color: white; border: none; padding: 12px 20px; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; transition: 0.2s; text-align: center; }
+        .btn:active { opacity: 0.8; transform: scale(0.98); }
+        .btn-light { background: transparent; border: 1px solid #d1d5db; color: #4b5563; box-shadow: none; }
+        
+        /* Тарифы */
+        .tier-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; padding: 20px; margin-bottom: 12px; display: flex; flex-direction: column; backdrop-filter: blur(10px); }
+        .tier-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .tier-name { font-size: 18px; font-weight: 800; color: var(--text-dark); }
+        .tier-price { font-size: 20px; font-weight: 800; color: var(--text-dark); }
+        
+        /* Формы (Заявка и Ник) */
+        .input-group { margin-bottom: 16px; }
+        .input-group label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text-dark); padding-left: 4px; }
+        .input-group input, .input-group textarea { width: 100%; padding: 15px; border-radius: 16px; border: 1px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.8); font-size: 15px; font-weight: 500; color: var(--text-dark); outline: none; transition: 0.2s; }
+        .input-group input:focus, .input-group textarea:focus { border-color: var(--accent-dark); background: white; }
+        .input-group textarea { resize: none; height: 100px; }
+
+        /* Панель ожидания оплаты */
+        .payment-status-panel { background: #e0f2ec; border: 1px solid #a3d9b8; border-radius: 20px; padding: 20px; margin-top: 15px; display: none; text-align: center; }
+        .payment-status-panel h4 { color: #206846; margin-bottom: 10px; font-size: 16px; }
+
+        /* Нижнее меню */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--nav-bg); backdrop-filter: blur(20px); border-top: 1px solid rgba(255,255,255,0.5); border-radius: 35px 35px 0 0; display: flex; justify-content: space-around; padding: 12px 10px 25px 10px; box-shadow: 0 -10px 30px rgba(0,0,0,0.04); z-index: 1000; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; opacity: 0.5; transition: 0.3s; width: 33%; }
+        .nav-item.active { opacity: 1; color: var(--accent-dark); }
+        .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
+        .nav-item span { font-size: 12px; font-weight: 700; }
+        .nav-item.active .nav-bg { background: #e0f2ec; color: #206846; padding: 6px 20px; border-radius: 20px; }
+
+        /* Загрузка */
+        .loader-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: var(--bg-top); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; transition: opacity 0.4s; }
+        .spinner { border: 4px solid rgba(0,0,0,0.05); border-top: 4px solid var(--accent-dark); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- Экран загрузки -->
+    <div class="loader-overlay" id="loader">
+        <div class="spinner"></div>
+        <p style="margin-top: 15px; font-weight: 700; color: #6b7280; font-size: 14px;">Синхронизация...</p>
+    </div>
+
+    <!-- Шапка -->
+    <header class="header">
+        <div class="header-logo">
+            <img src="https://nioscraft.ru/avatar.png" alt="Logo" class="logo-img" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MiIgaGVpZ2h0PSI0MiI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2NjYyIvPjwvc3ZnPg=='">
+            <div>
+                <div class="server-title">NiosCraft</div>
+                <div class="server-subtitle" id="tg-username">Кабинет</div>
+            </div>
+        </div>
+        <div class="status-badge" id="server-status">Защита активна</div>
+    </header>
+
+    <!-- Вкладка: ГЛАВНАЯ -->
+    <main id="tab-home" class="tab-content active">
+        <div class="hero-card">
+            <h1>Добрый день<br><span id="welcome-name">Игрок</span></h1>
+            <p class="sub">Ваш профиль авторизован через Telegram.</p>
+            
+            <div class="status-row">
+                <div class="circle-outer">
+                    <div class="circle-inner">
+                        <span id="player-prefix-badge">ON</span>
+                    </div>
+                </div>
+                <div class="status-info">
+                    <h3 id="player-nick">Загрузка...</h3>
+                    <p id="player-prefix-text">Проверка профиля</p>
+                    <button class="btn" style="padding: 10px 16px;" onclick="switchTab('shop')">Сменить префикс</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="small-card">
+                <div>
+                    <h4>Правила сервера</h4>
+                    <p>Для всех игроков</p>
+                </div>
+                <button class="btn btn-light" onclick="tg.openLink('https://ni-os.ru/#rules')">Читать</button>
+            </div>
+            <div class="small-card">
+                <div>
+                    <h4>Сайт проекта</h4>
+                    <p>Карта и новости</p>
+                </div>
+                <button class="btn btn-light" onclick="tg.openLink('https://ni-os.ru')">Открыть</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Вкладка: ТАРИФЫ (МАГАЗИН) -->
+    <main id="tab-shop" class="tab-content">
+        <div class="hero-card" style="padding: 20px; border-radius: 24px; margin-top: 0;">
+            <h1 style="font-size: 24px;">Тарифы и доступ</h1>
+            <p class="sub" style="margin-bottom: 10px;">Для получения привилегии укажите ваш игровой никнейм.</p>
+            <div class="input-group" style="margin-bottom: 0;">
+                <input type="text" id="donate-nick" placeholder="Ваш никнейм (Например: Steve)" style="background: white;">
+            </div>
+        </div>
+
+        <div id="payment-status-panel" class="payment-status-panel">
+            <h4>Счет успешно создан</h4>
+            <p style="font-size: 13px; color: #206846; margin-bottom: 12px; font-weight: 500;">Нажмите "Оплатить", а после вернитесь сюда и проверьте статус.</p>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn" id="payment-url-btn" onclick="openPaymentLink()">Оплатить</button>
+                <button class="btn btn-light" id="check-payment-btn" onclick="checkPayment()" style="background: white;">Проверить</button>
+            </div>
+            <p id="payment-error-msg" style="color: #e3342f; font-size: 12px; margin-top: 10px; display: none; font-weight: 600;"></p>
+        </div>
+
+        <div id="tiers-container">
+            <!-- Сюда подгрузятся тарифы -->
+        </div>
+    </main>
+
+    <!-- Вкладка: ЗАЯВКА -->
+    <main id="tab-apply" class="tab-content">
+        <div class="hero-card" style="padding: 20px; margin-top: 0;">
+            <h1 style="font-size: 24px;">Пробный доступ</h1>
+            <p class="sub" style="margin-bottom: 15px;">Заполните форму для получения доступа к приватному серверу.</p>
+            
+            <div class="input-group">
+                <label>Игровой никнейм</label>
+                <input type="text" id="form-nick" placeholder="Например: Steve">
+            </div>
+            <div class="input-group">
+                <label>Возраст</label>
+                <input type="number" id="form-age" placeholder="Полных лет">
+            </div>
+            <div class="input-group">
+                <label>Telegram для связи</label>
+                <input type="text" id="form-tg" placeholder="@username">
+            </div>
+            <div class="input-group">
+                <label>О себе</label>
+                <textarea id="form-about" placeholder="Чем планируете заниматься на сервере?"></textarea>
+            </div>
+            
+            <button class="btn" id="submit-apply-btn" onclick="submitApplication()">Отправить заявку</button>
+        </div>
+    </main>
+
+    <!-- Нижняя навигация -->
+    <nav class="bottom-nav" id="main-nav-bar">
+        <div class="nav-item active" onclick="switchTab('home')" id="nav-home">
+            <div class="nav-bg" style="display: flex; flex-direction: column; align-items: center;">
+                <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                <span>Главная</span>
+            </div>
+        </div>
+        <div class="nav-item" onclick="switchTab('shop')" id="nav-shop">
+            <div class="nav-bg" style="display: flex; flex-direction: column; align-items: center;">
+                <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+                <span>Тариф</span>
+            </div>
+        </div>
+        <div class="nav-item" onclick="switchTab('apply')" id="nav-apply">
+            <div class="nav-bg" style="display: flex; flex-direction: column; align-items: center;">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                <span>Заявка</span>
+            </div>
+        </div>
+    </nav>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.setHeaderColor('#e0eaf5');
+        tg.setBackgroundColor('#f0f4f9');
+
+        // ================= АПИ АДРЕСА ИЗ ТВОЕГО САЙТА =================
+        const API_URL_APPLY = 'https://ni-os.ru/decocraft';
+        const API_BASE_PAY = 'https://ni-os.ru/api'; 
+
+        const TIERS = [
+            { id: 'shield', name: 'Щит ✦', rubles: 25 },
+            { id: 'lightbolt', name: 'Молния ✦', rubles: 40 },
+            { id: '67', name: '67 ✦', rubles: 67 },
+            { id: 'fire', name: 'Огонек ✦', rubles: 100 },
+            { id: 'cat', name: 'Котик ✦', rubles: 216 }
+        ];
+
+        let currentInvoiceId = null;
+        let currentPayUrl = null;
+
+        window.onload = () => {
+            // Чтение параметров из URL ссылки
+            const urlParams = new URLSearchParams(window.location.search);
+            const playerNick = urlParams.get('nick');
+            const playerPrefix = urlParams.get('prefix') || urlParams.get('group');
+            const urlUsername = urlParams.get('username') || urlParams.get('tg');
+
+            // Юзернейм из параметров ссылки или из Telegram SDK
+            const user = tg.initDataUnsafe?.user;
+            const finalUsername = urlUsername || (user?.username ? `@${user.username}` : '');
+            
+            document.getElementById('tg-username').innerText = finalUsername ? finalUsername : 'Кабинет';
+            document.getElementById('form-tg').value = finalUsername;
+
+            if (user) {
+                document.getElementById('welcome-name').innerText = user.first_name;
+            }
+
+            // ================= РЕАЛЬНАЯ ЛОГИКА ОГРАНИЧЕНИЯ ДОСТУПА =================
+            if (!playerNick) {
+                // Ника нет — блокируем навигацию, показываем ТОЛЬКО заявку
+                document.getElementById('main-nav-bar').style.display = 'none'; // Скрываем навигацию
+                switchTab('apply');
+            } else {
+                // Ник передан — настраиваем профиль и показываем главную
+                document.getElementById('player-nick').innerText = playerNick;
+                document.getElementById('donate-nick').value = playerNick;
+                
+                if (playerPrefix) {
+                    document.getElementById('player-prefix-text').innerText = `Префикс: ${playerPrefix}`;
+                    document.getElementById('player-prefix-badge').innerText = playerPrefix.substring(0, 2).toUpperCase();
+                } else {
+                    document.getElementById('player-prefix-text').innerText = 'Игрок без префикса';
+                    document.getElementById('player-prefix-badge').innerText = 'ON';
+                }
+                
+                switchTab('home');
+            }
+
+            renderShop();
+            
+            // Прячем лоадер
+            setTimeout(() => {
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 400);
+            }, 500);
+        };
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content, .nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            document.getElementById(`nav-${tabId}`).classList.add('active');
+            tg.HapticFeedback.selectionChanged();
+        }
+
+        // ================= ЛОГИКА ТАРИФОВ И ОПЛАТЫ =================
+        function renderShop() {
+            const container = document.getElementById('tiers-container');
+            container.innerHTML = '';
+            
+            TIERS.forEach(t => {
+                const card = document.createElement('div');
+                card.className = 'tier-card';
+                card.innerHTML = `
+                    <div class="tier-header">
+                        <div class="tier-name">${t.name}</div>
+                        <div class="tier-price">${t.rubles} ₽</div>
+                    </div>
+                    <button class="btn" onclick="buyTier('${t.id}', this)">Оплатить</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        async function buyTier(groupId, btnElement) {
+            const nickInput = document.getElementById('donate-nick');
+            const nick = nickInput.value.trim();
+            
+            if (!nick) {
+                tg.HapticFeedback.notificationOccurred('error');
+                tg.showAlert("Пожалуйста, введите ваш игровой никнейм в поле выше!");
+                nickInput.focus();
+                return;
+            }
+
+            tg.HapticFeedback.impactOccurred('medium');
+            const originalText = btnElement.innerText;
+            btnElement.innerText = "Создание счета...";
+            btnElement.disabled = true;
+
+            try {
+                // Создаем инвойс через API твоего сайта
+                const res = await fetch(`${API_BASE_PAY}/createinvoice`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: nick, group: groupId })
+                });
+
+                if (!res.ok) throw new Error("Server error");
+                const data = await res.json();
+                
+                if (data.status === "success") {
+                    currentInvoiceId = data.invoice_id;
+                    currentPayUrl = data.payment_url;
+                    
+                    const statusPanel = document.getElementById('payment-status-panel');
+                    statusPanel.style.display = 'block';
+                    document.getElementById('payment-error-msg').style.display = 'none';
+                    
+                    statusPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    // Сразу открываем платежную страницу ЮКассы/YooMoney
+                    tg.openLink(currentPayUrl);
+                } else {
+                    tg.showAlert("Ошибка создания счета: " + (data.message || "Неизвестная ошибка"));
+                }
+            } catch (err) {
+                console.error(err);
+                tg.showAlert("Не удалось связаться с сервером оплаты. Попробуйте позже.");
+            } finally {
+                btnElement.innerText = originalText;
+                btnElement.disabled = false;
+            }
+        }
+
+        function openPaymentLink() {
+            if (currentPayUrl) {
+                tg.openLink(currentPayUrl);
+            }
+        }
+
+        async function checkPayment() {
+            if (!currentInvoiceId) return;
+            tg.HapticFeedback.impactOccurred('light');
+            
+            const btn = document.getElementById('check-payment-btn');
+            const errorMsg = document.getElementById('payment-error-msg');
+            const originalText = btn.innerText;
+            
+            btn.innerText = "Проверка...";
+            btn.disabled = true;
+            errorMsg.style.display = 'none';
+            
+            try {
+                // Запрос проверки счета по API твоего сайта
+                const res = await fetch(`${API_BASE_PAY}/checkinvoice`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ invoice_id: currentInvoiceId })
+                });
+                
+                const data = await res.json();
+                
+                if (data.status === "success") {
+                    if (data.payment_status === "PAID") {
+                        tg.HapticFeedback.notificationOccurred('success');
+                        const panel = document.getElementById('payment-status-panel');
+                        panel.innerHTML = `
+                            <h4 style="color: #206846;">Оплата успешно завершена! 🎉</h4>
+                            <p style="font-size: 13px; color: var(--text-dark); margin-bottom: 0;">Префикс скоро будет выдан. Приятной игры!</p>
+                        `;
+                        panel.style.background = "#dcfce7";
+                        panel.style.borderColor = "#86efac";
+                        currentInvoiceId = null;
+                        currentPayUrl = null;
+                    } else {
+                        errorMsg.textContent = "Счет еще не оплачен. Подождите минуту и попробуйте снова.";
+                        errorMsg.style.display = 'block';
+                    }
+                } else {
+                    errorMsg.textContent = "Ошибка проверки: " + (data.detail || data.message || "Счет не найден");
+                    errorMsg.style.display = 'block';
+                }
+            } catch(e) {
+                errorMsg.textContent = "Ошибка при проверке статуса. Попробуйте еще раз.";
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // ================= ЛОГИКА ОТПРАВКИ ЗАЯВКИ =================
+        async function submitApplication() {
+            const btn = document.getElementById('submit-apply-btn');
+            
+            const nick = document.getElementById('form-nick').value.trim();
+            const age = document.getElementById('form-age').value.trim();
+            const telegramContact = document.getElementById('form-tg').value.trim();
+            const about = document.getElementById('form-about').value.trim();
+
+            if (!nick || !age || !telegramContact || !about) {
+                tg.HapticFeedback.notificationOccurred('error');
+                tg.showAlert("Пожалуйста, заполните все поля формы.");
+                return;
+            }
+
+            tg.HapticFeedback.impactOccurred('medium');
+            btn.disabled = true;
+            btn.innerText = "Отправка...";
+
+            const payload = {
+                nick: nick,
+                age: age,
+                telegram: telegramContact,
+                about: about,
+                ip: 'tg_webapp' 
+            };
+
+            try {
+                // Отправка заявки на твой бэкенд
+                const response = await fetch(API_URL_APPLY, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) throw new Error("Server error");
+
+                tg.HapticFeedback.notificationOccurred('success');
+                tg.showAlert("Ваша заявка успешно отправлена администрации! Ждите сообщения.", function() {
+                    tg.close();
+                });
+
+            } catch (error) {
+                console.error(error);
+                tg.HapticFeedback.notificationOccurred('error');
+                tg.showAlert("Ошибка соединения с сервером. Попробуйте позже.");
+                btn.disabled = false;
+                btn.innerText = "Отправить заявку";
+            }
+        }
+    </script>
+</body>
+</html>

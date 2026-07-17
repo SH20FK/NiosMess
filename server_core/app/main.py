@@ -20,7 +20,7 @@ from app.database import init_db, AsyncSessionLocal
 from app.config import settings
 from app.ws_manager import ws_endpoint
 from app.bot_api import router as bot_api_router
-
+from app.services.auth_svc import get_session_by_token, get_user_by_id
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
@@ -28,8 +28,8 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 # =======================================================================
 #    НАСТРОЙКИ YOOMONEY (ВСТАВЬ СВОИ ДАННЫЕ СЮДА)
 # =======================================================================
-YOOMONEY_WALLET = os.getenv("YOOMONEY_WALLET", "4100119536538721") # Номер кошелька ЮMoney
-YOOMONEY_TOKEN = os.getenv("YOOMONEY_TOKEN", "4100119536538721.6BA35EE59ABC02EF371D634D31C71F3A9FB3464EDF01BC1AA41DBEE290C1471E72A0DF1D03501CB5CD6DE18ADE7D4C6712A5D75D309370DA538294F5937588F1398550D941607B5E507302E1F4627AB5D0D64C7718A1D50D7C82BCFDE9268792C4963902F6F419DCD8DF4F6DEC372070CF62D638928E087007AAACE35842B733")   # Токен для API (для проверки платежей)
+YOOMONEY_WALLET = os.getenv("YOOMONEY_WALLET", "4100118055534134") # Номер кошелька ЮMoney
+YOOMONEY_TOKEN = os.getenv("YOOMONEY_TOKEN", "4100118055534134.DC0949C84C7EFBB17F2A0DBA8E1655E1B634E43684BCF2B346DE7E6A64BC7CBBA7D3B16BE0E4BFA3A82126454F753A4A8F3DD6647EF72F0FCD02DBB5BA8CB4570F7E6A39617519B92832A985C36ED3EFE929A757984A6E43B1CA8AE906E9238EF262DC78B6B6C550B257ACCA3D3E32DE1BB2215439EFC7C2BACE53B32064AE96")   # Токен для API (для проверки платежей)
 
 # Маппинг тиров доната и их цен в рублях (как в плагине)
 TIERS = {
@@ -752,53 +752,23 @@ async def get_extended_db():
     return get_all_servers_db()
 
 # =======================================================================
-#    ЗАЩИЩЕННАЯ РАЗДАЧА СТАТИКИ И МЕДИА (АВТО-ДЕШИФРОВКА)
+#    РАЗДАЧА ОБЩЕДОСТУПНОЙ СТАТИКИ И МЕДИА (АВАТАРКИ И ПОСТЫ)
 # =======================================================================
 @app.get("/static/{file_path:path}", tags=["Static & Media"])
 @app.get("/api/media/{file_path:path}", tags=["Static & Media"])
 async def serve_media_files(file_path: str):
-    # Очищаем дубликаты путей, если фронт случайно сгенерировал кривую ссылку
+    # Очистка путей
     if file_path.startswith("media/media/"):
         file_path = file_path.replace("media/media/", "media/")
         
     full_path = os.path.join(settings.UPLOAD_DIR, file_path)
-    db_path = file_path.replace("\\", "/")
 
-    # 1. НОВЫЕ ФАЙЛЫ: клиент запрашивает .exe, но физически лежит .exe.enc
-    enc_path = full_path + ".enc"
-    if os.path.exists(enc_path):
-        async with AsyncSessionLocal() as db:
-            from app.models.models import Message
-            r = await db.execute(select(Message).where(Message.media_path == db_path))
-            msg = r.scalar_one_or_none()
-            if msg and msg.media_iv and msg.media_tag:
-                from app.services.encryption import decrypt_file_to_bytes
-                try:
-                    decrypted_data = decrypt_file_to_bytes(enc_path, msg.media_iv, msg.media_tag)
-                    return Response(content=decrypted_data, media_type=msg.media_type or "application/octet-stream")
-                except Exception as e:
-                    print(f"Decryption error: {e}")
+    # Обработка общедоступных файлов (например, аватарок пользователей/чатов или медиа постов)
+    if file_path.startswith("avatars/") or file_path.startswith("posts/"):
+        if os.path.exists(full_path):
+            return FileResponse(full_path)
 
-    # 2. СТАРЫЕ ФАЙЛЫ: клиент запрашивает прямо файл.enc (обратная совместимость)
-    if file_path.endswith(".enc") and os.path.exists(full_path):
-        async with AsyncSessionLocal() as db:
-            from app.models.models import Message
-            r = await db.execute(select(Message).where(Message.media_path == db_path))
-            msg = r.scalar_one_or_none()
-            if msg and msg.media_iv and msg.media_tag:
-                from app.services.encryption import decrypt_file_to_bytes
-                try:
-                    decrypted_data = decrypt_file_to_bytes(full_path, msg.media_iv, msg.media_tag)
-                    return Response(content=decrypted_data, media_type=msg.media_type or "application/octet-stream")
-                except Exception as e:
-                    print(f"Decryption error: {e}")
-
-    # 3. НЕЗАШИФРОВАННЫЕ ФАЙЛЫ: Обычные аватарки, посты и т.д.
-    if os.path.exists(full_path):
-        return FileResponse(full_path)
-
-    # Если ничего не найдено
-    return JSONResponse({"message": f"File not found: {file_path}"}, status_code=404)
+    raise HTTPException(status_code=404, detail="File not found")
 
 # =======================================================================
 #    СИСТЕМА АВТОРИЗАЦИИ И ИИ-ГЕНЕРАЦИИ ДЛЯ КОНСТРУКТОРА FLOWBUILDER
@@ -1278,7 +1248,37 @@ async def serve_site():
     if os.path.exists(index):
         return FileResponse(index)
     return JSONResponse({"message": "error"})
-
+@app.get("/nioscraft", include_in_schema=False)
+async def serve_site():
+    index = os.path.join(settings.FILES_DIR, "nioscraft.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return JSONResponse({"message": "error"})
+@app.get("/WEB", include_in_schema=False)
+@app.get("/web", include_in_schema=False)
+async def serve_site():
+    index = os.path.join(settings.FILES_DIR, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return JSONResponse({"message": "error"})
+@app.get("/apk", include_in_schema=False)
+async def serve_site():
+    index = os.path.join(settings.FILES_DIR, "niosmess.apk")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return JSONResponse({"message": "error"})
+@app.get("/avatar", include_in_schema=False)
+async def serve_site():
+    index = os.path.join(settings.FILES_DIR, "niosmess.png")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return JSONResponse({"message": "error"})
+@app.get("/exe", include_in_schema=False)
+async def serve_site():
+    index = os.path.join(settings.FILES_DIR, "niosmess.exe")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return JSONResponse({"message": "error"})
 # Универсальный обработчик SPA (ДОЛЖЕН БЫТЬ В САМОМ НИЗУ)
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str):
@@ -1287,7 +1287,7 @@ async def serve_spa(full_path: str):
     filepath = os.path.join(settings.FILES_DIR, full_path)
     if os.path.isfile(filepath):
         return FileResponse(filepath)
-    index = os.path.join(settings.FILES_DIR, "index.html")
+    index = os.path.join(settings.FILES_DIR, "index_dwn.html")
     if os.path.exists(index):
         return FileResponse(index)
     return JSONResponse({"message": "Messenger API v3.0", "docs": "WebSocket only"})

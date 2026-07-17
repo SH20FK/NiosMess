@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -18,6 +19,10 @@ import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/services/e2ee_service.dart';
 
 class MessageBubble extends ConsumerWidget {
   const MessageBubble({
@@ -536,6 +541,9 @@ class MessageBubble extends ConsumerWidget {
           formattedTime: formattedTime,
           scheme: scheme,
           textTheme: textTheme,
+          chatId: chatId,
+          wsClient: ref.read(webSocketClientProvider),
+          e2eeService: ref.read(e2eeServiceProvider),
           onLongPress: onLongPressMedia,
         ),
       ),
@@ -585,6 +593,9 @@ class MessageBubble extends ConsumerWidget {
             isRead: isRead,
             isE2ee: isE2ee,
             isEdited: isEdited,
+            chatId: chatId,
+            wsClient: ref.read(webSocketClientProvider),
+            e2eeService: ref.read(e2eeServiceProvider),
           ),
         ),
       ],
@@ -608,6 +619,9 @@ class MessageBubble extends ConsumerWidget {
           durationSeconds: mediaDuration ?? 0,
           isMine: isMine,
           scheme: scheme,
+          chatId: chatId,
+          wsClient: ref.read(webSocketClientProvider),
+          e2eeService: ref.read(e2eeServiceProvider),
         ),
       );
     }
@@ -1098,6 +1112,9 @@ class _CircleVideoInlinePlayer extends StatefulWidget {
     required this.formattedTime,
     required this.scheme,
     required this.textTheme,
+    required this.chatId,
+    required this.wsClient,
+    required this.e2eeService,
     this.onLongPress,
   });
 
@@ -1111,6 +1128,9 @@ class _CircleVideoInlinePlayer extends StatefulWidget {
   final String formattedTime;
   final ColorScheme scheme;
   final TextTheme textTheme;
+  final int chatId;
+  final WebSocketClient wsClient;
+  final E2eeService e2eeService;
   final VoidCallback? onLongPress;
 
   @override
@@ -1131,9 +1151,15 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
 
   Future<void> _initVideo() async {
     try {
-      _videoController = VideoPlayerController.networkUrl(
-        Uri.parse(ApiConstants.resolve(widget.videoUrl)),
-        httpHeaders: cachedAuthHeaders(),
+      final localPath = await WsMediaFetcher.fetchToLocalFile(
+        filePath: widget.videoUrl,
+        wsClient: widget.wsClient,
+        isE2ee: widget.isE2ee,
+        chatId: widget.chatId,
+        e2eeService: widget.e2eeService,
+      );
+      _videoController = VideoPlayerController.file(
+        File(localPath),
       );
       await _videoController!.initialize();
       await _videoController!.setLooping(true);
@@ -1269,16 +1295,14 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
         ],
       ),
       child: ClipOval(
-        child: CachedNetworkImage(
-          imageUrl: ApiConstants.resolve(widget.videoUrl),
-          cacheKey: '${widget.videoUrl}_circle_thumb',
-          httpHeaders: cachedAuthHeaders(),
+        child: WsCachedImage(
+          mediaUrl: widget.videoUrl,
+          chatId: widget.chatId,
+          isE2ee: widget.isE2ee,
           width: circleSize,
           height: circleSize,
           fit: BoxFit.cover,
-          memCacheWidth: 360,
-          memCacheHeight: 360,
-          placeholder: (BuildContext context, String _) => Container(
+          placeholder: (BuildContext context) => Container(
             width: circleSize,
             height: circleSize,
             decoration: BoxDecoration(
@@ -1289,7 +1313,7 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
             ),
             child: const Icon(Icons.videocam_rounded, size: 32),
           ),
-          errorWidget: (BuildContext context, String _, Object error) {
+          errorWidget: (BuildContext context, Object error) {
             return Container(
               width: circleSize,
               height: circleSize,
