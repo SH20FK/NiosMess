@@ -18,6 +18,7 @@ import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 
@@ -247,7 +248,7 @@ class MessageBubble extends ConsumerWidget {
       _buildCircleVideoContent(context, scheme, textTheme)
     else if (isVoice && hasMedia)
       _buildVoiceOnly(context, scheme, textTheme,
-        chatId: widget.chatId,
+        chatId: chatId,
         wsClient: ref.read(webSocketClientProvider),
         e2eeService: ref.read(e2eeServiceProvider),
       )
@@ -386,7 +387,7 @@ class MessageBubble extends ConsumerWidget {
                               textTheme: textTheme,
                               textColor: textColor,
                               headers: headers,
-                              chatId: widget.chatId,
+                              chatId: chatId,
                               wsClient: ref.read(webSocketClientProvider),
                               e2eeService: ref.read(e2eeServiceProvider),
                             ),
