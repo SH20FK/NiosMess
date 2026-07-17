@@ -106,6 +106,11 @@ class WsMediaFetcher {
         }
       } catch (_) {}
     }
+    
+    // Удаляем все ведущие слэши для точного совпадения в БД
+    while (cleanPath.startsWith('/') || cleanPath.startsWith('\\')) {
+      cleanPath = cleanPath.substring(1);
+    }
     return cleanPath;
   }
 
