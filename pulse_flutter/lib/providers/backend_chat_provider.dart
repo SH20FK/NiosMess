@@ -377,13 +377,20 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     } catch (e) { debugPrint('[backend_chat_provider.dart] Error: $e'); }
   }
 
-  Future<void> send(String content, {int? replyToId, String? uploadId}) async {
+  Future<void> send(String content, {int? replyToId, String? uploadId, String msgType = 'text', String? localId}) async {
     final String trimmed = content.trim();
     if (trimmed.isEmpty && (uploadId == null || uploadId.trim().isEmpty)) {
       return;
     }
 
-    final int tempId = -(DateTime.now().millisecondsSinceEpoch + _sendCounter++);
+    // Try to parse localId to an integer if it's already there
+    final int tempId;
+    if (localId != null) {
+      tempId = int.tryParse(localId) ?? -(DateTime.now().millisecondsSinceEpoch + _sendCounter++);
+    } else {
+      tempId = -(DateTime.now().millisecondsSinceEpoch + _sendCounter++);
+    }
+
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     final String myUsername = ref.read(authProvider).session?.username ?? '';
 
@@ -413,11 +420,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       senderDisplayName: myUsername.isEmpty ? 'Я' : myUsername,
       senderBadges: const [],
       content: trimmed,
-      msgType: uploadId != null ? 'media' : 'text',
+      msgType: uploadId != null ? msgType : 'text',
       replyToId: replyToId,
-      mediaUrl: null,
-      mediaType: null,
-      mediaName: null,
+      mediaUrl: uploadId != null ? 'local://$localId' : null, // placeholder indicating local file being sent
+      mediaType: uploadId != null ? 'file' : null,
+      mediaName: uploadId != null ? 'file' : null,
       mediaSize: null,
       mediaDuration: null,
       commentsCount: 0,
@@ -432,9 +439,12 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     );
 
     List<ApiMessage> current = state.value ?? const <ApiMessage>[];
-    List<ApiMessage> next = List<ApiMessage>.from(current)..add(optimisticMessage);
-    next.sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
-    state = AsyncData<List<ApiMessage>>(next);
+    // Avoid duplicates if we already added it in optimistic UI from outside
+    if (!current.any((m) => m.id == tempId)) {
+      List<ApiMessage> next = List<ApiMessage>.from(current)..add(optimisticMessage);
+      next.sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+      state = AsyncData<List<ApiMessage>>(next);
+    }
 
     try {
       ApiMessage sent = await ref
@@ -452,7 +462,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       }
 
       current = state.value ?? const <ApiMessage>[];
-      next = List<ApiMessage>.from(current)
+      List<ApiMessage> next = List<ApiMessage>.from(current)
         ..removeWhere((ApiMessage message) => message.id == tempId)
         ..removeWhere((ApiMessage message) => message.id == sent.id)
         ..add(sent)
@@ -464,7 +474,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       await _playNotificationSound(volume: 0.65);
     } catch (e) {
       current = state.value ?? const <ApiMessage>[];
-      next = List<ApiMessage>.from(current);
+      List<ApiMessage> next = List<ApiMessage>.from(current);
       final int index = next.indexWhere((ApiMessage m) => m.id == tempId);
       if (index != -1) {
         final ApiMessage failedMsg = ApiMessage(
@@ -495,6 +505,27 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         next[index] = failedMsg;
         state = AsyncData<List<ApiMessage>>(next);
       }
+    }
+  }
+
+  void addOptimisticLocalMessage(ApiMessage msg) {
+    List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    if (!current.any((m) => m.id == msg.id)) {
+      List<ApiMessage> next = List<ApiMessage>.from(current)..add(msg);
+      next.sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+      state = AsyncData<List<ApiMessage>>(next);
+    }
+  }
+
+  void markLocalMessageFailed(String localId) {
+    final int tempId = int.tryParse(localId) ?? 0;
+    if (tempId == 0) return;
+    List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    final int index = current.indexWhere((m) => m.id == tempId);
+    if (index != -1) {
+      List<ApiMessage> next = List<ApiMessage>.from(current);
+      next[index] = next[index].copyWith(isSending: false, isFailed: true);
+      state = AsyncData<List<ApiMessage>>(next);
     }
   }
 

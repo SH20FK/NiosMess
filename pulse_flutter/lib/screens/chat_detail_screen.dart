@@ -29,6 +29,7 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
+import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/providers/typing_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
@@ -630,64 +631,58 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     String text = '',
     bool showSentSnackBar = false,
   }) async {
-    setState(() {
-      _uploadingMedia = true;
-      _uploadProgress = 0;
-      _uploadFileName = filename;
-      _uploadFileSize = fileSize;
-    });
+    final String localId = (-(DateTime.now().millisecondsSinceEpoch + Random().nextInt(1000))).toString();
+    final int tempIntId = int.parse(localId);
 
-    try {
-      final String uploadId = await ref
-          .read(chatRepositoryProvider)
-          .uploadStreamInChunks(
-            readStream: readStream,
-            filePath: filePath,
-            filename: filename,
-            mediaSubtype: mediaSubtype,
-            fileSize: fileSize,
-            onProgress: (int sent, int total) {
-              if (!mounted || total <= 0) return;
-              setState(() => _uploadProgress = sent / total);
-            },
-          );
+    // Create and add optimistic local message instantly in ChatMessagesNotifier
+    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+    final String myUsername = ref.read(authProvider).session?.username ?? '';
+    final optimisticMessage = ApiMessage(
+      id: tempIntId,
+      chatId: chatId,
+      senderId: myUserId,
+      senderUsername: myUsername,
+      senderDisplayName: myUsername.isEmpty ? 'Я' : myUsername,
+      senderBadges: const [],
+      content: text,
+      msgType: mediaSubtype == 'voice' 
+          ? 'voice' 
+          : (mediaSubtype == 'circle' ? 'circle' : 'media'),
+      replyToId: _replyToMessageId,
+      mediaUrl: filePath ?? 'local://$localId',
+      mediaType: 'file',
+      mediaName: filename,
+      mediaSize: fileSize,
+      mediaDuration: null,
+      commentsCount: 0,
+      reactions: const {},
+      sentAt: DateTime.now(),
+      editedAt: null,
+      isDeleted: false,
+      isSending: true,
+      isFailed: false,
+    );
 
-      await ref
-          .read(chatMessagesProvider(chatId).notifier)
-          .send(text, replyToId: _replyToMessageId, uploadId: uploadId);
+    ref.read(chatMessagesProvider(chatId).notifier).addOptimisticLocalMessage(optimisticMessage);
+    _clearReply();
+    _scrollToBottom();
 
-      _clearReply();
-      _scrollToBottom();
-
-      if (showSentSnackBar && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.chatMediaSent),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (error) {
-      if (!mounted) return;
-      final String message = error is ApiException
-          ? error.message
-          : context.l10n.commonFailed('$error');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _uploadingMedia = false;
-          _uploadProgress = 0;
-          _uploadFileName = null;
-          _uploadFileSize = null;
-        });
-      }
-    }
+    // Enqueue task globally so it survives page navigation
+    ref.read(uploadQueueProvider.notifier).enqueue(
+      localId: localId,
+      chatId: chatId,
+      filePath: filePath ?? '',
+      filename: filename,
+      mediaSubtype: mediaSubtype,
+      fileSize: fileSize,
+      text: text,
+      replyToId: _replyToMessageId,
+    );
   }
 
   Future<void> _sendVoiceMessage(String filePath) async {
     final int? chatId = _chatId;
-    if (chatId == null || _uploadingMedia) return;
+    if (chatId == null) return;
 
     final File file = File(filePath);
     final int fileSize = await file.length();
@@ -704,7 +699,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   Future<void> _sendCircleVideo(String filePath) async {
     final int? chatId = _chatId;
-    if (chatId == null || _uploadingMedia) return;
+    if (chatId == null) return;
 
     final File file = File(filePath);
     final int fileSize = await file.length();
@@ -741,7 +736,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   Future<void> _pickAndUploadMedia() async {
     final int? chatId = _chatId;
-    if (chatId == null || _uploadingMedia) {
+    if (chatId == null) {
       return;
     }
 
@@ -1419,7 +1414,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               : context.l10n.chatTitleFallback(chatId));
 
     return PopScope(
-      canPop: !_uploadingMedia,
+      canPop: true,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (didPop) return;
         final bool? confirm = await showAppConfirmDialog(
@@ -1604,18 +1599,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   _showDraftRestoredBanner = false;
                 });
               },
-              uploadingMedia: _uploadingMedia,
-              uploadFileName: _uploadFileName,
-              uploadFileSize: _uploadFileSize,
-              uploadProgress: _uploadProgress,
-              onCancelUpload: () {
-                setState(() {
-                  _uploadingMedia = false;
-                  _uploadProgress = 0;
-                  _uploadFileName = null;
-                  _uploadFileSize = null;
-                });
-              },
+              uploadingMedia: false,
+              uploadFileName: null,
+              uploadFileSize: null,
+              uploadProgress: 0,
+              onCancelUpload: () {},
               inputController: _inputController,
               inputFocusNode: _inputFocusNode,
               isAiProcessing: _isAiProcessing,

@@ -23,6 +23,8 @@ import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/providers/upload_queue_provider.dart';
+import 'package:pulse_flutter/widgets/chat/md3_squiggle_progress.dart';
 
 class MessageBubble extends ConsumerWidget {
   const MessageBubble({
@@ -1175,6 +1177,9 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
   }
 
   Future<void> _initVideo() async {
+    if (widget.videoUrl.startsWith('local://')) {
+      return;
+    }
     try {
       final localPath = await WsMediaFetcher.fetchToLocalFile(
         filePath: widget.videoUrl,
@@ -1267,8 +1272,26 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
                     if (!_initialized)
                       Container(
                         color: Colors.black.withValues(alpha: 0.35),
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                        child: Center(
+                          child: widget.videoUrl.startsWith('local://')
+                              ? Consumer(
+                                  builder: (context, ref, child) {
+                                    final localId = widget.videoUrl.replaceFirst('local://', '');
+                                    final task = ref.watch(uploadTaskProvider(localId));
+                                    final progressVal = task?.progress ?? 0.0;
+                                    return SizedBox(
+                                      width: 44,
+                                      height: 44,
+                                      child: Md3SquiggleProgress(
+                                        progress: progressVal,
+                                        color: widget.scheme.primary,
+                                        isCircular: true,
+                                        strokeWidth: 3,
+                                      ),
+                                    );
+                                  },
+                                )
+                              : const CircularProgressIndicator(strokeWidth: 2),
                         ),
                       ),
                   ],
@@ -1290,7 +1313,7 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
                 ),
               ),
             // Play/pause overlay
-            if (_showThumbnail || !_playing)
+            if ((_showThumbnail || !_playing) && !widget.videoUrl.startsWith('local://'))
               AnimatedOpacity(
                 duration: const Duration(milliseconds: 150),
                 opacity: 1.0,

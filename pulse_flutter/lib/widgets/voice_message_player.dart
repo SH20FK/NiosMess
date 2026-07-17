@@ -1,12 +1,15 @@
 import 'dart:math' as math;
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/providers/upload_queue_provider.dart';
+import 'package:pulse_flutter/widgets/chat/md3_squiggle_progress.dart';
 
 class VoiceMessagePlayer extends StatefulWidget {
   const VoiceMessagePlayer({
@@ -46,6 +49,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   Duration _duration = Duration.zero;
   late final List<double> _waveformBars;
   bool _seeking = false;
+  bool _localLoading = false;
 
   @override
   void initState() {
@@ -53,6 +57,10 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     _player = AudioPlayer(handleInterruptions: true);
     _initAudioSession();
     _waveformBars = _generateWaveform(widget.audioUrl.hashCode);
+    
+    if (widget.audioUrl.startsWith('local://')) {
+      _localLoading = true;
+    }
     _setupPlayer();
   }
 
@@ -83,6 +91,9 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   }
 
   Future<void> _setupPlayer() async {
+    if (widget.audioUrl.startsWith('local://')) {
+      return;
+    }
     try {
       final localPath = await WsMediaFetcher.fetchToLocalFile(
         filePath: widget.audioUrl,
@@ -152,36 +163,58 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.all(4),
-            child: GestureDetector(
-              onTap: _togglePlay,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: fg,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: fg.withValues(alpha: 0.3),
-                      blurRadius: playing ? 12 : 6,
-                      spreadRadius: playing ? 2 : 0,
-                      offset: const Offset(0, 2),
+            child: widget.audioUrl.startsWith('local://')
+                ? Consumer(
+                    builder: (context, ref, child) {
+                      final localId = widget.audioUrl.replaceFirst('local://', '');
+                      final task = ref.watch(uploadTaskProvider(localId));
+                      final uploadProgress = task?.progress ?? 0.0;
+                      return Container(
+                        width: 48,
+                        height: 48,
+                        alignment: Alignment.center,
+                        child: SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: CircularProgressIndicator(
+                            value: uploadProgress,
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(fg),
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : GestureDetector(
+                    onTap: _togglePlay,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: fg,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: fg.withValues(alpha: 0.3),
+                            blurRadius: playing ? 12 : 6,
+                            spreadRadius: playing ? 2 : 0,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 150),
+                        transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                        child: Icon(
+                          playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                          key: ValueKey<bool>(playing),
+                          color: widget.isMine ? widget.scheme.surface : widget.scheme.surface,
+                          size: 26,
+                        ),
+                      ),
                     ),
-                  ],
-                ),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 150),
-                  transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
-                  child: Icon(
-                    playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    key: ValueKey<bool>(playing),
-                    color: widget.isMine ? widget.scheme.surface : widget.scheme.surface,
-                    size: 26,
                   ),
-                ),
-              ),
-            ),
           ),
           const SizedBox(width: 4),
           Expanded(
@@ -193,6 +226,22 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                   height: 40,
                   child: LayoutBuilder(
                     builder: (context, constraints) {
+                      if (widget.audioUrl.startsWith('local://')) {
+                        final localId = widget.audioUrl.replaceFirst('local://', '');
+                        return Consumer(
+                          builder: (context, ref, child) {
+                            final task = ref.watch(uploadTaskProvider(localId));
+                            final progressVal = task?.progress ?? 0.0;
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 14),
+                              child: Md3SquiggleProgress(
+                                progress: progressVal,
+                                color: fg,
+                              ),
+                            );
+                          },
+                        );
+                      }
                       return GestureDetector(
                         onTapDown: (TapDownDetails details) {
                           final double localX = details.localPosition.dx;
