@@ -1,7 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,20 +18,8 @@ import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
-import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
-import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
-import 'package:pulse_flutter/providers/web_socket_provider.dart';
-import 'package:pulse_flutter/services/e2ee_service.dart';
-import 'package:pulse_flutter/core/network/web_socket_client.dart';
-import 'package:pulse_flutter/providers/upload_queue_provider.dart';
-import 'package:pulse_flutter/widgets/chat/md3_squiggle_progress.dart';
 
 class MessageBubble extends ConsumerWidget {
-  static final RegExp _emojiOnlyRegex = RegExp(
-    r'^(\p{Emoji}\p{EmojiModifier}?)+$',
-    unicode: true,
-  );
-
   const MessageBubble({
     required this.text,
     required this.formattedTime,
@@ -246,95 +232,19 @@ class MessageBubble extends ConsumerWidget {
       isNextSame,
     );
 
-    final bool isBigEmoji = hasText &&
-        !hasMedia &&
-        !isVoice &&
-        !isCircleVideo &&
-        forwarded == null &&
-        displayText.length <= 12 &&
-        _emojiOnlyRegex.hasMatch(displayText.trim());
-
-    Widget content;
-    if (isBigEmoji) {
-      content = Align(
-        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            8,
-            isPrevSame ? 1.0 : 3.0,
-            8,
-            isNextSame ? 1.0 : 3.0,
-          ),
-          child: Column(
-            crossAxisAlignment: isMine
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                displayText.trim(),
-                style: textTheme.displaySmall?.copyWith(
-                  color: textColor,
-                  fontStyle: isDeleted ? FontStyle.italic : null,
-                ),
-              ),
-              if (reactions.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
-                    children: reactions.entries
-                        .map((MapEntry<String, int> item) {
-                          return GestureDetector(
-                            onTap: onReactionTap != null
-                                ? () {
-                                    HapticService.reaction();
-                                    onReactionTap!(item.key);
-                                  }
-                                : null,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHigh,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                '${item.key} ${item.value}',
-                                style: textTheme.labelSmall,
-                              ),
-                            ),
-                          );
-                        })
-                        .toList(growable: false),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      );
-    } else {
-      content = Align(
+    Widget content = Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          8,
-          isPrevSame ? 1.0 : 3.0,
-          8,
-          isNextSame ? 1.0 : 3.0,
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 8),
         child: Column(
           crossAxisAlignment: isMine
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: <Widget>[
             if (isCircleVideo && hasMedia)
-              _buildCircleVideoContent(context, ref, scheme, textTheme)
+              _buildCircleVideoContent(context, scheme, textTheme)
             else if (isVoice && hasMedia)
-              _buildVoiceOnly(context, ref, scheme, textTheme)
+              _buildVoiceOnly(context, scheme, textTheme)
             else
             InkWell(
               borderRadius: bubbleRadius,
@@ -350,23 +260,15 @@ class MessageBubble extends ConsumerWidget {
                   onLongPress!();
                 }
               },
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.sizeOf(context).width * 0.75,
-                    ),
-                    padding: EdgeInsets.fromLTRB(
-                      12,
-                      isPrevSame ? 4.0 : 8.0,
-                      12,
-                      isNextSame ? 3.0 : 6.0,
-                    ),
-                    decoration: BoxDecoration(
-                      color: bubbleColor,
-                      borderRadius: bubbleRadius,
-                      boxShadow: [
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.sizeOf(context).width * 0.75,
+                ),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+                decoration: BoxDecoration(
+                  color: bubbleColor,
+                  borderRadius: bubbleRadius,
+                  boxShadow: [
                     BoxShadow(
                       color: scheme.shadow.withValues(alpha: 0.06),
                       blurRadius: 2,
@@ -473,7 +375,7 @@ class MessageBubble extends ConsumerWidget {
                           ],
                           if (hasMedia)
                             _mediaPreview(
-                              context, ref,
+                              context,
                               scheme: scheme,
                               textTheme: textTheme,
                               textColor: textColor,
@@ -520,19 +422,7 @@ class MessageBubble extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  ),
                 ),
-                  if (!isPrevSame)
-                    Positioned(
-                      left: isMine ? null : -8,
-                      right: isMine ? -8 : null,
-                      top: 12,
-                      child: CustomPaint(
-                        painter: _BubbleTailPainter(bubbleColor, !isMine),
-                        size: const Size(8, 10),
-                      ),
-                    ),
-                ],
               ),
             ),
             if (replyMarkup != null && replyMarkup!.inlineKeyboard.isNotEmpty)
@@ -576,8 +466,6 @@ class MessageBubble extends ConsumerWidget {
         ),
       ),
     );
-
-    }
 
     if (animateHighlight) {
       content = TweenAnimationBuilder<Color?>(
@@ -630,20 +518,8 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
-  Widget _buildCircleVideoContent(BuildContext context, WidgetRef ref, ColorScheme scheme, TextTheme textTheme) {
+  Widget _buildCircleVideoContent(BuildContext context, ColorScheme scheme, TextTheme textTheme) {
     const double circleSize = 180;
-    
-    // Asynchronously prefetch media
-    if (mediaUrl != null && mediaUrl!.trim().isNotEmpty) {
-      WsMediaFetcher.prefetchMedia(
-        filePath: mediaUrl!,
-        wsClient: ref.read(webSocketClientProvider),
-        isE2ee: isE2ee,
-        chatId: chatId,
-        e2eeService: ref.read(e2eeServiceProvider),
-      );
-    }
-
     return Semantics(
       label: context.l10n.chatCircleVideo,
       child: SizedBox(
@@ -660,16 +536,13 @@ class MessageBubble extends ConsumerWidget {
           formattedTime: formattedTime,
           scheme: scheme,
           textTheme: textTheme,
-          chatId: chatId,
-          wsClient: ref.read(webSocketClientProvider),
-          e2eeService: ref.read(e2eeServiceProvider),
           onLongPress: onLongPressMedia,
         ),
       ),
     );
   }
 
-  Widget _buildVoiceOnly(BuildContext context, WidgetRef ref, ColorScheme scheme, TextTheme textTheme) {
+  Widget _buildVoiceOnly(BuildContext context, ColorScheme scheme, TextTheme textTheme) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -703,31 +576,15 @@ class MessageBubble extends ConsumerWidget {
         InkWell(
           onLongPress: onLongPressMedia,
           borderRadius: BorderRadius.circular(16),
-          child: Builder(
-            builder: (context) {
-              if (mediaUrl != null && mediaUrl!.trim().isNotEmpty) {
-                WsMediaFetcher.prefetchMedia(
-                  filePath: mediaUrl!,
-                  wsClient: ref.read(webSocketClientProvider),
-                  isE2ee: isE2ee,
-                  chatId: chatId,
-                  e2eeService: ref.read(e2eeServiceProvider),
-                );
-              }
-              return VoiceMessagePlayer(
-                audioUrl: mediaUrl!,
-                durationSeconds: mediaDuration ?? 0,
-                isMine: isMine,
-                scheme: scheme,
-                formattedTime: hideFooter ? null : formattedTime,
-                isRead: isRead,
-                isE2ee: isE2ee,
-                isEdited: isEdited,
-                chatId: chatId,
-                wsClient: ref.read(webSocketClientProvider),
-                e2eeService: ref.read(e2eeServiceProvider),
-              );
-            }
+          child: VoiceMessagePlayer(
+            audioUrl: mediaUrl!,
+            durationSeconds: mediaDuration ?? 0,
+            isMine: isMine,
+            scheme: scheme,
+            formattedTime: hideFooter ? null : formattedTime,
+            isRead: isRead,
+            isE2ee: isE2ee,
+            isEdited: isEdited,
           ),
         ),
       ],
@@ -735,8 +592,7 @@ class MessageBubble extends ConsumerWidget {
   }
 
   Widget _mediaPreview(
-    BuildContext context,
-    WidgetRef ref, {
+    BuildContext context, {
     required ColorScheme scheme,
     required TextTheme textTheme,
     required Color textColor,
@@ -747,18 +603,11 @@ class MessageBubble extends ConsumerWidget {
         onTap: onOpenMedia,
         onLongPress: onLongPressMedia,
         borderRadius: BorderRadius.circular(12),
-        child: Consumer(
-          builder: (context, ref, child) {
-            return VoiceMessagePlayer(
-              audioUrl: mediaUrl!,
-              durationSeconds: mediaDuration ?? 0,
-              isMine: isMine,
-              scheme: scheme,
-              chatId: chatId,
-              wsClient: ref.read(webSocketClientProvider),
-              e2eeService: ref.read(e2eeServiceProvider),
-            );
-          }
+        child: VoiceMessagePlayer(
+          audioUrl: mediaUrl!,
+          durationSeconds: mediaDuration ?? 0,
+          isMine: isMine,
+          scheme: scheme,
         ),
       );
     }
@@ -1137,6 +986,7 @@ class _SwipeToReply extends StatefulWidget {
 class _SwipeToReplyState extends State<_SwipeToReply>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late Animation<double> _animation;
   double _dragX = 0;
   static const double _maxDrag = 64;
   bool _triggered = false;
@@ -1148,9 +998,10 @@ class _SwipeToReplyState extends State<_SwipeToReply>
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
     _controller.addListener(() {
       setState(() {
-        _dragX = _controller.value;
+        _dragX = _animation.value;
       });
     });
   }
@@ -1193,15 +1044,14 @@ class _SwipeToReplyState extends State<_SwipeToReply>
           HapticService.tap();
           widget.onReply();
         }
-
-        // Spring snap-back
-        final SpringSimulation spring = SpringSimulation(
-          SpringDescription(mass: 0.5, stiffness: 200, damping: 12),
-          _dragX,
-          0,
-          0,
-        );
-        _controller.animateWith(spring);
+        
+        // Snap back without overshooting past 0
+        _animation = Tween<double>(
+          begin: _dragX,
+          end: 0,
+        ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
+        
+        _controller.forward(from: 0);
       },
       child: Stack(
         clipBehavior: Clip.none,
@@ -1248,9 +1098,6 @@ class _CircleVideoInlinePlayer extends StatefulWidget {
     required this.formattedTime,
     required this.scheme,
     required this.textTheme,
-    required this.chatId,
-    required this.wsClient,
-    required this.e2eeService,
     this.onLongPress,
   });
 
@@ -1264,9 +1111,6 @@ class _CircleVideoInlinePlayer extends StatefulWidget {
   final String formattedTime;
   final ColorScheme scheme;
   final TextTheme textTheme;
-  final int chatId;
-  final WebSocketClient wsClient;
-  final E2eeService e2eeService;
   final VoidCallback? onLongPress;
 
   @override
@@ -1286,19 +1130,10 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
   }
 
   Future<void> _initVideo() async {
-    if (widget.videoUrl.startsWith('local://')) {
-      return;
-    }
     try {
-      final localPath = await WsMediaFetcher.fetchToLocalFile(
-        filePath: widget.videoUrl,
-        wsClient: widget.wsClient,
-        isE2ee: widget.isE2ee,
-        chatId: widget.chatId,
-        e2eeService: widget.e2eeService,
-      );
-      _videoController = VideoPlayerController.file(
-        File(localPath),
+      _videoController = VideoPlayerController.networkUrl(
+        Uri.parse(widget.videoUrl),
+        httpHeaders: cachedAuthHeaders(),
       );
       await _videoController!.initialize();
       await _videoController!.setLooping(true);
@@ -1313,11 +1148,7 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
     if (!mounted) return;
     final bool wasPlaying = _playing;
     final bool nowPlaying = _videoController?.value.isPlaying ?? false;
-    if (wasPlaying != nowPlaying || nowPlaying) {
-      setState(() {
-        _playing = nowPlaying;
-      });
-    }
+    if (wasPlaying != nowPlaying) setState(() => _playing = nowPlaying);
   }
 
   void _togglePlay() {
@@ -1342,9 +1173,6 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
   @override
   Widget build(BuildContext context) {
     const double circleSize = 180;
-    final double playProgress = _videoController != null && _videoController!.value.duration.inMilliseconds > 0
-        ? _videoController!.value.position.inMilliseconds / _videoController!.value.duration.inMilliseconds
-        : 0.0;
 
     return GestureDetector(
       onTap: _togglePlay,
@@ -1355,89 +1183,30 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Video / Thumbnail Container
-            Container(
-              width: circleSize,
-              height: circleSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: widget.scheme.primary.withValues(alpha: 0.4),
-                  width: 2.5,
-                ),
-              ),
-              child: ClipOval(
-                child: Stack(
-                  children: [
-                    if (_showThumbnail || !_initialized)
-                      _circleThumbnail(circleSize)
-                    else
-                      SizedBox(
-                        width: circleSize,
-                        height: circleSize,
-                        child: VideoPlayer(_videoController!),
-                      ),
-                    // Blurred overlay if loading
-                    if (!_initialized)
-                      Container(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        child: Center(
-                          child: widget.videoUrl.startsWith('local://')
-                              ? Consumer(
-                                  builder: (context, ref, child) {
-                                    final localId = widget.videoUrl.replaceFirst('local://', '');
-                                    final task = ref.watch(uploadTaskProvider(localId));
-                                    final progressVal = task?.progress ?? 0.0;
-                                    return SizedBox(
-                                      width: 44,
-                                      height: 44,
-                                      child: Md3SquiggleProgress(
-                                        progress: progressVal,
-                                        color: widget.scheme.primary,
-                                        isCircular: true,
-                                        strokeWidth: 3,
-                                      ),
-                                    );
-                                  },
-                                )
-                              : const CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            // Custom radial progress indicator around the circle
-            if (_initialized && _videoController != null && !_showThumbnail)
-              IgnorePointer(
+            // Thumbnail or video
+            if (_showThumbnail || !_initialized)
+              _circleThumbnail(circleSize)
+            else
+              ClipOval(
                 child: SizedBox(
-                  width: circleSize + 5,
-                  height: circleSize + 5,
-                  child: CircularProgressIndicator(
-                    value: playProgress,
-                    strokeWidth: 2.5,
-                    backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation<Color>(widget.scheme.primary),
-                  ),
+                  width: circleSize,
+                  height: circleSize,
+                  child: VideoPlayer(_videoController!),
                 ),
               ),
             // Play/pause overlay
-            if ((_showThumbnail || !_playing) && !widget.videoUrl.startsWith('local://'))
-              AnimatedOpacity(
-                duration: const Duration(milliseconds: 150),
-                opacity: 1.0,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: _showThumbnail ? Colors.black38 : Colors.black54,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    _showThumbnail ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
+            if (_showThumbnail || !_playing)
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _showThumbnail ? Colors.black26 : Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _showThumbnail ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                  color: Colors.white,
+                  size: 28,
                 ),
               ),
             // Duration badge
@@ -1500,14 +1269,16 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
         ],
       ),
       child: ClipOval(
-        child: WsCachedImage(
-          mediaUrl: widget.videoUrl,
-          chatId: widget.chatId,
-          isE2ee: widget.isE2ee,
+        child: CachedNetworkImage(
+          imageUrl: widget.videoUrl,
+          cacheKey: '${widget.videoUrl}_circle_thumb',
+          httpHeaders: cachedAuthHeaders(),
           width: circleSize,
           height: circleSize,
           fit: BoxFit.cover,
-          placeholder: (BuildContext context) => Container(
+          memCacheWidth: 360,
+          memCacheHeight: 360,
+          placeholder: (BuildContext context, String _) => Container(
             width: circleSize,
             height: circleSize,
             decoration: BoxDecoration(
@@ -1518,7 +1289,7 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
             ),
             child: const Icon(Icons.videocam_rounded, size: 32),
           ),
-          errorWidget: (BuildContext context, Object error) {
+          errorWidget: (BuildContext context, String _, Object error) {
             return Container(
               width: circleSize,
               height: circleSize,
@@ -1686,36 +1457,9 @@ class _MediaCarouselState extends State<_MediaCarousel> {
                   ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
+      ),
     );
   }
-}
-
-class _BubbleTailPainter extends CustomPainter {
-  _BubbleTailPainter(this.color, this.pointsLeft);
-  final Color color;
-  final bool pointsLeft;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()..color = color;
-    final Path path = Path();
-    if (pointsLeft) {
-      path.moveTo(size.width, 0);
-      path.lineTo(0, size.height * 0.5);
-      path.lineTo(size.width, size.height);
-    } else {
-      path.moveTo(0, 0);
-      path.lineTo(size.width, size.height * 0.5);
-      path.lineTo(0, size.height);
-    }
-    path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(_BubbleTailPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.pointsLeft != pointsLeft;
 }
