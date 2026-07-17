@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:universal_io/io.dart';
+import 'package:http/http.dart' as http;
+import 'package:pulse_flutter/core/network/api_constants.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
@@ -369,63 +371,54 @@ class ChatRepository {
     required int fileSize,
     required void Function(int sent, int total) onProgress,
   }) async {
-    if (fileSize <= 0) {
-      throw Exception('File is empty');
+    // 1. Get Session Token
+    final token = _ref.read(webSocketClientProvider).readToken();
+    if (token == null) {
+      throw Exception('Unauthorized: No session token available');
     }
 
-    const int chunkSize = 262144; // 256 KB
-    final int totalChunks = (fileSize / chunkSize).ceil();
+    // 2. Read File Bytes
+    List<int> bytes;
+    if (filePath != null && filePath.isNotEmpty) {
+      bytes = await File(filePath).readAsBytes();
+    } else if (readStream != null) {
+      final List<int> buf = [];
+      await for (final chunk in readStream) {
+        buf.addAll(chunk);
+      }
+      bytes = buf;
+    } else {
+      throw Exception('No file path or stream provided');
+    }
 
-    final UploadInitResult init = await initUpload(
-      filename: filename,
-      totalChunks: totalChunks,
-      fileSize: fileSize,
-      mediaSubtype: mediaSubtype,
+    // 3. Make HTTP POST multipart request
+    final uploadUrl = Uri.parse('${ApiConstants.origin}/api/files/upload');
+    final request = http.MultipartRequest('POST', uploadUrl);
+    request.fields['token'] = token;
+    request.fields['media_subtype'] = mediaSubtype;
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: filename,
+      ),
     );
 
-    Stream<List<int>> stream;
-    if (readStream != null) {
-      stream = readStream;
-    } else if (filePath != null && filePath.isNotEmpty) {
-      stream = File(filePath).openRead();
+    onProgress(0, 100);
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    onProgress(100, 100);
+
+    if (response.statusCode != 200) {
+      throw Exception('Upload failed with status code ${response.statusCode}: ${response.body}');
+    }
+
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    if (json['status'] == 'success') {
+      return json['upload_id'] as String;
     } else {
-      throw Exception('No stream or file path provided for upload');
+      throw Exception(json['detail'] ?? 'Upload error');
     }
-
-    int currentChunkIndex = 0;
-    final List<int> buffer = <int>[];
-
-    await for (final List<int> data in stream) {
-      buffer.addAll(data);
-
-      while (buffer.length >= chunkSize) {
-        final List<int> chunk = buffer.sublist(0, chunkSize);
-        buffer.removeRange(0, chunkSize);
-
-        await uploadChunk(
-          uploadId: init.uploadId,
-          chunkIndex: currentChunkIndex,
-          chunk: chunk,
-          filename: filename,
-        );
-
-        currentChunkIndex++;
-        onProgress(currentChunkIndex, totalChunks);
-      }
-    }
-
-    if (buffer.isNotEmpty) {
-      await uploadChunk(
-        uploadId: init.uploadId,
-        chunkIndex: currentChunkIndex,
-        chunk: buffer,
-        filename: filename,
-      );
-      currentChunkIndex++;
-      onProgress(currentChunkIndex, totalChunks);
-    }
-
-    return init.uploadId;
   }
 
   Future<ApiMessage?> editMessage(
