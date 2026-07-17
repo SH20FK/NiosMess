@@ -203,12 +203,12 @@ class _ChatTileState extends State<ChatTile>
                                           style: textTheme.titleMedium,
                                         ),
                                       ),
-                                      if (widget.isSecret) ...<Widget>[
+                                       if (widget.isSecret) ...<Widget>[
                                         const SizedBox(width: 4),
                                         Icon(
                                           Icons.lock_rounded,
                                           size: 14,
-                                          color: Colors.green,
+                                          color: scheme.tertiary,
                                         ),
                                       ],
                                       if (widget.isPinned) ...<Widget>[

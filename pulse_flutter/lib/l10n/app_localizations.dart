@@ -4259,6 +4259,12 @@ abstract class AppLocalizations {
   String get reportSent;
   String get reportConfirmTitle;
   String get reportSelectReason;
+  String get callConnecting;
+  String get callE2eeSecurityCode;
+  String get callE2eeGenerating;
+  String get callE2eeVerifyHint;
+  String get callIncomingVoice;
+  String get callIncomingVideo;
 
   /// No description provided for @adminUserBanned.
   ///

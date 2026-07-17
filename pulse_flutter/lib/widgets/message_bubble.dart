@@ -970,7 +970,7 @@ class _MessageBubbleFooter extends StatelessWidget {
           Icon(
             Icons.lock_rounded,
             size: 11,
-            color: Colors.green.withValues(alpha: 0.7),
+            color: scheme.tertiary.withValues(alpha: 0.7),
           ),
           const SizedBox(width: 3),
         ],

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
@@ -163,7 +164,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          data.isVideo ? 'Видеовызов...' : 'Голосовой вызов...',
+                          data.isVideo ? context.l10n.callIncomingVideo : context.l10n.callIncomingVoice,
                           style: textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant,
                           ),

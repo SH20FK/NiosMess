@@ -289,13 +289,13 @@ class _ChatMessageListState extends State<ChatMessageList> {
                         child: AppLoadingIndicator(size: 14),
                       ),
                     ),
-                  if (message.isFailed)
+                    if (message.isFailed)
                     Padding(
                       padding: const EdgeInsets.only(right: 4, bottom: 4),
                       child: IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.refresh_rounded,
-                          color: Colors.red,
+                          color: Theme.of(context).colorScheme.error,
                           size: 22,
                         ),
                         onPressed: () => widget.onRetrySend(message),

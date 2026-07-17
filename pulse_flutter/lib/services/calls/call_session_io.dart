@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:audio_session/audio_session.dart';
+import 'package:camera/camera.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 
@@ -39,6 +40,7 @@ class CallSession {
     this.onIncomingVideo,
     this.onRemoteParticipantJoined,
     this.onRemoteParticipantLeft,
+    this.onCameraReady,
   }) : aesKey = SecretKey(aesKeyBytes);
 
   final int chatId;
@@ -55,6 +57,7 @@ class CallSession {
       onIncomingVideo;
   void Function(RemoteParticipant participant)? onRemoteParticipantJoined;
   void Function(int clientId)? onRemoteParticipantLeft;
+  void Function(CameraController? controller)? onCameraReady;
 
   CallTransport? _transport;
   int? _localClientId;
@@ -505,6 +508,7 @@ class CallSession {
     };
 
     _videoPipeline = VideoPipeline(
+      onCameraReady: onCameraReady,
       onSendPacket: ({
         required int frameType,
         required double timestamp,

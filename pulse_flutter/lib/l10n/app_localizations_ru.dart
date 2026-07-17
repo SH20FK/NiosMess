@@ -3740,4 +3740,17 @@ class AppLocalizationsRu extends AppLocalizations {
   String get reportConfirmTitle => 'Отправить жалобу';
   @override
   String get reportSelectReason => 'Выберите причину жалобы';
+  @override
+  String get callConnecting => 'Подключение...';
+  @override
+  String get callE2eeSecurityCode => 'Код безопасности';
+  @override
+  String get callE2eeGenerating => 'Генерация кода...';
+  @override
+  String get callE2eeVerifyHint =>
+      'Сравните эти эмодзи на обоих экранах звонка, чтобы убедиться в защите от постороннего вмешательства.';
+  @override
+  String get callIncomingVoice => 'Голосовой вызов...';
+  @override
+  String get callIncomingVideo => 'Видеовызов...';
 }

@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/call_video_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
@@ -159,7 +161,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
               ),
               const SizedBox(height: 16),
               Text(
-                'Код безопасности E2EE',
+                context.l10n.callE2eeSecurityCode + ' E2EE',
                 style: textTheme.titleMedium,
               ),
               const SizedBox(height: 16),
@@ -178,12 +180,12 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                 )
               else
                 Text(
-                  'Генерация кода...',
+                  context.l10n.callE2eeGenerating,
                   style: textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               const SizedBox(height: 12),
               Text(
-                'Сравните эти эмодзи на обоих экранах звонка, чтобы убедиться в защите от постороннего вмешательства.',
+                context.l10n.callE2eeVerifyHint,
                 style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
@@ -209,7 +211,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     final participants = data.remoteParticipants;
     final participantLabel = participants.isNotEmpty
         ? participants.map((p) => p.nickname).join(', ')
-        : 'Подключение...';
+        : context.l10n.callConnecting;
 
     // 1 participant (fullscreen + PiP) or multi-party (grid)
     final bool isMultiParty = participants.length >= 2;
@@ -279,9 +281,9 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                             ),
                           ],
                         ),
-                        child: Stack(
+                            child: Stack(
                           children: [
-                            _LocalCameraPreview(),
+                            const _LocalCameraPreview(),
                             // Swipe line indicator
                             Positioned(
                               left: 0,
@@ -472,7 +474,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 color: Colors.black,
-                child: _LocalCameraPreview(),
+                child: const _LocalCameraPreview(),
               ),
             );
           }
@@ -505,9 +507,13 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
 }
 
 class _LocalCameraPreview extends ConsumerWidget {
+  const _LocalCameraPreview();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isEnabled = ref.watch(localVideoEnabledProvider);
+    final controller = ref.watch(localCameraControllerProvider);
+
     if (!isEnabled) {
       return const Center(
         child: Icon(
@@ -517,15 +523,20 @@ class _LocalCameraPreview extends ConsumerWidget {
         ),
       );
     }
-    return Container(
-      color: Colors.black87,
-      child: const Center(
-        child: Icon(
-          Icons.videocam_rounded,
-          color: Colors.white38,
-          size: 36,
+
+    if (controller == null || !controller.value.isInitialized) {
+      return const Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
         ),
-      ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: CameraPreview(controller),
     );
   }
 }

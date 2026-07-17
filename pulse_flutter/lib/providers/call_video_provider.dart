@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:camera/camera.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class RemoteVideoFrameNotifier extends Notifier<Uint8List?> {
@@ -23,6 +24,19 @@ class LocalVideoEnabledNotifier extends Notifier<bool> {
 /// Whether the local camera is enabled.
 final localVideoEnabledProvider = NotifierProvider<LocalVideoEnabledNotifier, bool>(
   LocalVideoEnabledNotifier.new,
+);
+
+class LocalCameraControllerNotifier extends Notifier<CameraController?> {
+  @override
+  CameraController? build() => null;
+  void set(CameraController? controller) => state = controller;
+}
+
+/// The active local [CameraController] used to render a live preview in the PiP window.
+/// Updated by [VideoPipeline] when the camera initialises or switches.
+final localCameraControllerProvider =
+    NotifierProvider<LocalCameraControllerNotifier, CameraController?>(
+  LocalCameraControllerNotifier.new,
 );
 
 /// Listen to a video frame stream and update [remoteVideoFrameProvider].

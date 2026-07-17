@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -102,21 +101,6 @@ class SettingsPreferencesScreen extends ConsumerWidget {
             ),
           ],
         ),
-        if (kDebugMode)
-          SettingsSection(
-            title: 'Developer',
-            children: <Widget>[
-              SettingsSwitchTile(
-                icon: Icons.science_rounded,
-                title: 'Mock data',
-                subtitle: 'Show fake chats and messages without a server',
-                value: settings.useMockData,
-                onChanged: (bool value) {
-                  ref.read(uiSettingsProvider.notifier).setUseMockData(value);
-                },
-              ),
-            ],
-          ),
       ],
     );
   }

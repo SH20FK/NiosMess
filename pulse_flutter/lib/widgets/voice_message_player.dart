@@ -288,7 +288,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                                   child: Icon(
                                     Icons.lock_rounded,
                                     size: 10,
-                                    color: Colors.green.withValues(alpha: 0.7),
+                                    color: fg.withValues(alpha: 0.6),
                                   ),
                                 ),
                               if (widget.isEdited)
@@ -398,7 +398,7 @@ class _WaveformPainter extends CustomPainter {
       Offset(thumbX, midY),
       5,
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.5)
+        ..color = unplayedColor.withValues(alpha: 0.5)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5,
     );

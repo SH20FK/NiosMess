@@ -16,6 +16,9 @@ typedef SendVideoPacket = Future<void> Function({
   required Uint8List encryptedVp8,
 });
 
+/// Callback notifying when the local [CameraController] is ready (or null when stopped).
+typedef OnCameraReady = void Function(CameraController? controller);
+
 /// Captures camera frames, encodes as JPEG, and sends via the SFU protocol.
 ///
 /// JPEG frames are sent as Type 2 (Video) packets with frameType=0 (keyframe)
@@ -23,6 +26,7 @@ typedef SendVideoPacket = Future<void> Function({
 class VideoPipeline {
   VideoPipeline({
     required this.onSendPacket,
+    this.onCameraReady,
     this.targetFps = 15,
     this.quality = 70,
     this.maxWidth = 640,
@@ -30,6 +34,7 @@ class VideoPipeline {
   });
 
   final SendVideoPacket onSendPacket;
+  final OnCameraReady? onCameraReady;
   final int targetFps;
   final int quality;
   final int maxWidth;
@@ -47,6 +52,9 @@ class VideoPipeline {
   CameraLensDirection _currentLens = CameraLensDirection.front;
 
   bool get isRunning => _started && !_stopped;
+
+  /// Exposes the underlying CameraController so the UI can render a live preview.
+  CameraController? get cameraController => _controller;
 
   Future<void> start() async {
     if (_started) return;
@@ -86,6 +94,7 @@ class VideoPipeline {
       await _controller!.initialize();
       await _controller!.startImageStream(_onCameraImage);
 
+      onCameraReady?.call(_controller);
       debugPrint('[VideoPipeline] Camera initialized: ${cam.lensDirection}');
     } catch (e) {
       debugPrint('[VideoPipeline] Camera init error: $e');
@@ -233,6 +242,7 @@ class VideoPipeline {
     } catch (_) {}
     await _controller?.dispose();
     _controller = null;
+    onCameraReady?.call(null);
 
     debugPrint('[VideoPipeline] Stopped');
   }

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/providers/call_video_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
@@ -54,6 +55,11 @@ class CallSessionManager {
       direction: direction,
       displayName: displayName,
       aesKeyBytes: aesKeyBytes,
+      onCameraReady: isVideo
+          ? (controller) {
+              ref.read(localCameraControllerProvider.notifier).set(controller);
+            }
+          : null,
     );
     _session!.stateStream.listen((data) {
       if (data.state == CallSessionState.ended) {

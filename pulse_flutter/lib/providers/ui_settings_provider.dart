@@ -46,7 +46,6 @@ class UiSettingsState {
     required this.backgroundMode,
     required this.useSystemDynamic,
     required this.fontScale,
-    required this.useMockData,
   });
 
   const UiSettingsState.defaults()
@@ -65,8 +64,7 @@ class UiSettingsState {
       predictiveBackEnabled = true,
       backgroundMode = BackgroundMode.off,
       useSystemDynamic = false,
-      fontScale = AppFontScale.normal,
-      useMockData = false;
+      fontScale = AppFontScale.normal;
 
   final ThemeMode themeMode;
   final Color seedColor;
@@ -84,7 +82,6 @@ class UiSettingsState {
   final BackgroundMode backgroundMode;
   final bool useSystemDynamic;
   final AppFontScale fontScale;
-  final bool useMockData;
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
@@ -105,7 +102,6 @@ class UiSettingsState {
     BackgroundMode? backgroundMode,
     bool? useSystemDynamic,
     AppFontScale? fontScale,
-    bool? useMockData,
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -126,7 +122,6 @@ class UiSettingsState {
       backgroundMode: backgroundMode ?? this.backgroundMode,
       useSystemDynamic: useSystemDynamic ?? this.useSystemDynamic,
       fontScale: fontScale ?? this.fontScale,
-      useMockData: useMockData ?? this.useMockData,
     );
   }
 
@@ -154,7 +149,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _backgroundModeKey = 'ui.backgroundMode';
   static const String _useSystemDynamicKey = 'ui.useSystemDynamic';
   static const String _fontScaleKey = 'ui.fontScale';
-  static const String _mockDataKey = 'ui.mockData';
 
   bool _loaded = false;
 
@@ -209,7 +203,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
         (AppFontScale fs) => fs.name == prefs.getString(_fontScaleKey),
         orElse: () => AppFontScale.normal,
       ),
-      useMockData: prefs.getBool(_mockDataKey) ?? false,
     );
     } catch (e) {
       debugPrint('[UiSettingsNotifier] Failed to load settings: $e');
@@ -241,7 +234,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.setString(_backgroundModeKey, nextState.backgroundMode.name),
       prefs.setBool(_useSystemDynamicKey, nextState.useSystemDynamic),
       prefs.setString(_fontScaleKey, nextState.fontScale.name),
-      prefs.setBool(_mockDataKey, nextState.useMockData),
     ]);
   }
 
@@ -312,8 +304,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
 
   void setFontScale(AppFontScale value) =>
       _set(state.copyWith(fontScale: value));
-
-  void setUseMockData(bool value) => _set(state.copyWith(useMockData: value));
 }
 
 final NotifierProvider<UiSettingsNotifier, UiSettingsState> uiSettingsProvider =

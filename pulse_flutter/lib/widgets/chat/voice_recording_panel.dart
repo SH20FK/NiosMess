@@ -75,13 +75,13 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
       child: Container(
         width: 36,
         height: 36,
-        decoration: const BoxDecoration(
-          color: Colors.red,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.error,
           shape: BoxShape.circle,
         ),
-        child: const Icon(
+        child: Icon(
           Icons.mic_rounded,
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.onError,
           size: 20,
         ),
       ),

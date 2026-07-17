@@ -3724,4 +3724,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reportConfirmTitle => 'Send Report';
   @override
   String get reportSelectReason => 'Select reason for reporting';
+  @override
+  String get callConnecting => 'Connecting...';
+  @override
+  String get callE2eeSecurityCode => 'Security code';
+  @override
+  String get callE2eeGenerating => 'Generating code...';
+  @override
+  String get callE2eeVerifyHint =>
+      'Compare these emojis on both call screens to verify protection against interception.';
+  @override
+  String get callIncomingVoice => 'Voice call...';
+  @override
+  String get callIncomingVideo => 'Video call...';
 }

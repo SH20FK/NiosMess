@@ -15,21 +15,11 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/websocket_dispatcher_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
-import 'package:pulse_flutter/screenshots/mock_data_service.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 
 class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   @override
   Future<List<ApiChatSummary>> build() async {
-    if (kDebugMode) {
-      try {
-        final bool useMock = ref.read(uiSettingsProvider).useMockData;
-        if (useMock) {
-          return MockDataService.chatsForUserId(1);
-        }
-      } catch (_) {}
-    }
-
     final bool authenticated = ref.watch(
       authProvider.select((AuthState state) => state.isAuthenticated),
     );
@@ -187,15 +177,6 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   @override
   Future<List<ApiMessage>> build() async {
-    if (kDebugMode) {
-      try {
-        final bool useMock = ref.read(uiSettingsProvider).useMockData;
-        if (useMock) {
-          return MockDataService.messagesForChat(_chatId);
-        }
-      } catch (_) {}
-    }
-
     final bool authenticated = ref.watch(
       authProvider.select((AuthState state) => state.isAuthenticated),
     );

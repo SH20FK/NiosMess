@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 
@@ -21,10 +22,10 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
   bool _areControlsVisible = true;
   Timer? _controlsAutoHideTimer;
 
-  // Visualizer volume notifier (tied to animated gradients)
-  final ValueNotifier<double> _volumeNotifier = ValueNotifier<double>(0.0);
-  Timer? _visualizerTimer;
-  final Random _random = Random();
+  // Smooth breathing animation controller — replaces random visualizer.
+  // Two slow sine waves with slightly different periods create a natural
+  // "voice activity" feel without fake randomness.
+  late final AnimationController _breathController;
 
   // Timer ValueNotifier
   final ValueNotifier<int> _timerNotifier = ValueNotifier<int>(0);
@@ -50,16 +51,13 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     _controlsFadeController.value = 1.0;
     _resetControlsTimer();
 
-    // Visualizer runs at <=15 FPS (Frame duration 66ms)
-    _visualizerTimer = Timer.periodic(CallTokens.visualizerFrameDuration, (_) {
-      // Simulate volume changes when call is active
-      final session = ref.read(callSessionProvider)?.session;
-      if (session != null && session.currentData.state == CallSessionState.inCall) {
-        _volumeNotifier.value = _random.nextDouble();
-      } else {
-        _volumeNotifier.value = 0.0;
-      }
-    });
+    // Smooth breathing animation: 3.5 s loop, repeats forever.
+    // The UI reads _breathController.value and derives scale/rotation via sin()
+    // — no randomness, no Timers, no dropped frames.
+    _breathController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3500),
+    )..repeat();
 
     _listenToState();
   }
@@ -82,10 +80,9 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
   @override
   void dispose() {
     _controlsFadeController.dispose();
+    _breathController.dispose();
     _controlsAutoHideTimer?.cancel();
-    _visualizerTimer?.cancel();
     _stateSubscription?.cancel();
-    _volumeNotifier.dispose();
     _timerNotifier.dispose();
     super.dispose();
   }
@@ -139,7 +136,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     final participants = data.remoteParticipants;
     final participantLabel = participants.isNotEmpty
         ? participants.map((p) => p.nickname).join(', ')
-        : 'Подключение...';
+        : context.l10n.callConnecting;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -149,24 +146,25 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
           behavior: HitTestBehavior.translucent,
           child: Stack(
             children: [
-              // Generative MD3 shapes background (animating with volume)
+              // Generative MD3 shapes background — smooth breathing animation.
+              // Two ellipses pulsate via sin() at slightly different phases.
               Positioned.fill(
                 child: RepaintBoundary(
-                  child: ValueListenableBuilder<double>(
-                    valueListenable: _volumeNotifier,
-                    builder: (context, volume, _) {
-                      final scale = 1.0 + (volume * 0.15);
-                      final rotation = volume * pi * 0.25;
+                  child: AnimatedBuilder(
+                    animation: _breathController,
+                    builder: (context, _) {
+                      final t = _breathController.value * 2 * pi;
+                      final scale1 = 1.0 + 0.08 * sin(t);
+                      final scale2 = 1.0 + 0.06 * sin(t + pi * 0.6);
+                      final rotation = 0.12 * sin(t * 0.7);
 
                       return Stack(
                         alignment: Alignment.center,
                         children: [
-                          // Large rotating MD3 shape in background
                           Transform.rotate(
                             angle: rotation,
-                            child: AnimatedScale(
-                              scale: scale,
-                              duration: const Duration(milliseconds: 150),
+                            child: Transform.scale(
+                              scale: scale1,
                               child: Container(
                                 width: 280,
                                 height: 280,
@@ -179,12 +177,10 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                               ),
                             ),
                           ),
-                          // Secondary MD3 shape with opposite rotation
                           Transform.rotate(
                             angle: -rotation * 0.8,
-                            child: AnimatedScale(
-                              scale: scale * 0.9,
-                              duration: const Duration(milliseconds: 150),
+                            child: Transform.scale(
+                              scale: scale2 * 0.9,
                               child: Container(
                                 width: 220,
                                 height: 220,
@@ -278,7 +274,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Код безопасности',
+                              context.l10n.callE2eeSecurityCode,
                               style: textTheme.labelSmall?.copyWith(
                                 color: Colors.white.withValues(alpha: 0.4),
                               ),
