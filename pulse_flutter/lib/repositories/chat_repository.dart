@@ -375,7 +375,7 @@ class ChatRepository {
       throw Exception('File is empty');
     }
 
-    final token = await _ref.read(apiProvider).getToken();
+    final token = _ref.read(webSocketClientProvider).readToken();
     if (token == null) {
       throw Exception('Unauthorized: No session token');
     }
