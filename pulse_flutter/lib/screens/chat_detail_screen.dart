@@ -1052,7 +1052,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 ),
               ),
               ListTile(
-                leading: Icon(Icons.spam_rounded, color: scheme.error),
+                leading: Icon(Icons.report_gmailerrorred_rounded, color: scheme.error),
                 title: Text(context.l10n.reportReasonSpam),
                 onTap: () {
                   Navigator.of(ctx).pop();
