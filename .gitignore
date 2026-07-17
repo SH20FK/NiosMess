@@ -43,6 +43,9 @@ Desktop.ini
 *.pem
 credentials.json
 
+# === Server Core ===
+server_core/
+
 # === Agent / Tool artifacts ===
 .antigravitycli/
 .codegraph/
