@@ -455,8 +455,9 @@ class MessageBubble extends ConsumerWidget {
                                           color: scheme.primary,
                                           fontWeight: FontWeight.w800,
                                         ),
-                                      ),
-                                    ],
+                ),
+              ),
+            ],
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
@@ -1688,7 +1689,6 @@ class _MediaCarouselState extends State<_MediaCarousel> {
             ],
           ),
         ),
-      ),
     );
   }
 }

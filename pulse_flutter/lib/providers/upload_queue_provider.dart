@@ -59,8 +59,8 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
   @override
   Map<String, UploadTask> build() {
     ref.listen(connectivityProvider, (AsyncValue<bool>? prev, AsyncValue<bool> next) {
-      final prevConnected = prev?.valueOrNull ?? false;
-      final nextConnected = next.valueOrNull ?? false;
+      final prevConnected = prev?.asData?.value ?? false;
+      final nextConnected = next.asData?.value ?? false;
       if (!prevConnected && nextConnected) {
         retryAllErrors();
       }
