@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mesh_gradient/mesh_gradient.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
@@ -10,7 +11,7 @@ class SettingsAppearanceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const VaffuruThemeSettingsScreen();
+    return const _AppearanceScreen();
   }
 }
 
@@ -18,7 +19,7 @@ enum _ThemePaletteId {
   amethyst, lagoon, meadow, ember, orchid, slate, sky, rose,
 }
 
-const Map<_ThemePaletteId, Color> _appPalettes = <_ThemePaletteId, Color>{
+const _ThemePaletteData = <_ThemePaletteId, Color>{
   _ThemePaletteId.amethyst: Color(0xFF6750A4),
   _ThemePaletteId.lagoon: Color(0xFF006C5B),
   _ThemePaletteId.meadow: Color(0xFF4C662B),
@@ -29,225 +30,380 @@ const Map<_ThemePaletteId, Color> _appPalettes = <_ThemePaletteId, Color>{
   _ThemePaletteId.rose: Color(0xFF476810),
 };
 
-class VaffuruThemeSettingsScreen extends ConsumerStatefulWidget {
-  const VaffuruThemeSettingsScreen({super.key});
+class _AppearanceScreen extends ConsumerStatefulWidget {
+  const _AppearanceScreen();
 
   @override
-  ConsumerState<VaffuruThemeSettingsScreen> createState() =>
-      _VaffuruThemeSettingsScreenState();
+  ConsumerState<_AppearanceScreen> createState() => _AppearanceScreenState();
 }
 
-class _VaffuruThemeSettingsScreenState extends ConsumerState<VaffuruThemeSettingsScreen> {
+class _AppearanceScreenState extends ConsumerState<_AppearanceScreen> {
+  ThemeData? _prevTheme;
+  ColorScheme? _prevScheme;
+
   @override
   Widget build(BuildContext context) {
-    final UiSettingsState settings = ref.watch(uiSettingsProvider);
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
+    final settings = ref.watch(uiSettingsProvider);
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final prevTheme = _prevTheme ?? theme;
+    final prevScheme = _prevScheme ?? scheme;
 
-    return SettingsScaffold(
-      title: context.l10n.appearanceTitle,
-      children: <Widget>[
-        // --- 1. MD3 Ultra-Expressive Hero ---
-        const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _MD3ColorHero(scheme: scheme),
-        ),
-        const SizedBox(height: 24),
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_prevTheme != theme) {
+        setState(() {
+          _prevTheme = theme;
+          _prevScheme = scheme;
+        });
+      }
+    });
 
-        // --- 2. Theme Mode SegmentedButton ---
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SegmentedButton<ThemeMode>(
-            segments: <ButtonSegment<ThemeMode>>[
-              ButtonSegment<ThemeMode>(
-                value: ThemeMode.system,
-                icon: const Icon(Icons.brightness_auto_rounded),
-                label: Text(context.l10n.commonSystem),
+    return TweenAnimationBuilder<ThemeData>(
+      tween: ThemeDataTween(begin: prevTheme, end: theme),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeInOutCubic,
+      builder: (_, animatedTheme, __) {
+        return Theme(
+          data: animatedTheme,
+          child: _buildContent(settings, animatedTheme.colorScheme, textTheme),
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(
+    UiSettingsState settings,
+    ColorScheme scheme,
+    TextTheme textTheme,
+  ) {
+    return TweenAnimationBuilder<ColorScheme?>(
+      tween: ColorSchemeTween(begin: _prevScheme, end: scheme),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeInOutCubic,
+      builder: (_, animatedScheme, child) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                animatedScheme.primaryContainer.withValues(alpha: 0.15),
+                animatedScheme.tertiaryContainer.withValues(alpha: 0.08),
+                Colors.transparent,
+              ],
+            ),
+          ),
+          child: child,
+        );
+      },
+      child: SettingsScaffold(
+        title: context.l10n.appearanceTitle,
+        children: [
+          const SizedBox(height: 16),
+          // --- 1. Mesh Gradient Hero ---
+          _MeshHero(scheme: scheme),
+          const SizedBox(height: 28),
+          // --- 2. Theme Mode Cards ---
+          _ThemeModeSelector(settings: settings),
+          const SizedBox(height: 28),
+          // --- 3. Dynamic Color + Settings ---
+          SettingsSection(
+            title: context.l10n.appearanceAccentPalette,
+            children: [
+              SettingsSwitchTile(
+                icon: Icons.wallpaper_rounded,
+                title: context.l10n.appearanceSystemColors,
+                subtitle: context.l10n.appearanceSystemColorsSubtitle,
+                value: settings.useSystemDynamic,
+                onChanged: (v) {
+                  ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(v);
+                },
               ),
-              ButtonSegment<ThemeMode>(
-                value: ThemeMode.light,
-                icon: const Icon(Icons.light_mode_rounded),
-                label: Text(context.l10n.commonLight),
-              ),
-              ButtonSegment<ThemeMode>(
-                value: ThemeMode.dark,
-                icon: const Icon(Icons.dark_mode_rounded),
-                label: Text(context.l10n.commonDark),
+              SettingsSwitchTile(
+                icon: Icons.dock_rounded,
+                title: 'Плавающая навигация',
+                subtitle: 'Открепить нижнюю панель от края экрана',
+                value: settings.navBarFloating,
+                onChanged: (v) {
+                  ref.read(uiSettingsProvider.notifier).setNavBarFloating(v);
+                },
               ),
             ],
-            selected: {settings.themeMode},
-            onSelectionChanged: (Set<ThemeMode> newSelection) {
-              ref.read(uiSettingsProvider.notifier).setThemeMode(newSelection.first);
-            },
           ),
-        ),
-        const SizedBox(height: 24),
-
-        // --- 3. Dynamic Color Toggle ---
-        SettingsSection(
-          title: context.l10n.appearanceAccentPalette,
-          children: [
-            SettingsSwitchTile(
-              icon: Icons.wallpaper_rounded,
-              title: context.l10n.appearanceSystemColors,
-              subtitle: context.l10n.appearanceSystemColorsSubtitle,
-              value: settings.useSystemDynamic,
-              onChanged: (bool value) {
-                ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(value);
-              },
-            ),
-            SettingsSwitchTile(
-              icon: Icons.dock_rounded,
-              title: 'Плавающая навигация', // fallback if l10n is tricky
-              subtitle: 'Открепить нижнюю панель от края экрана',
-              value: settings.navBarFloating,
-              onChanged: (bool value) {
-                ref.read(uiSettingsProvider.notifier).setNavBarFloating(value);
-              },
-            ),
-          ],
-        ),
-
-        // --- 4. Color Palette Grid ---
-        AnimatedSize(
-          duration: const Duration(milliseconds: 300),
-          child: settings.useSystemDynamic
-              ? const SizedBox.shrink()
-              : Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  child: GridView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                    ),
-                    itemCount: _appPalettes.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      final MapEntry<_ThemePaletteId, Color> entry =
-                          _appPalettes.entries.elementAt(index);
-                      final bool isSelected =
-                          entry.value.value == settings.seedColor.value;
-                      return ActiveColorOrb(
-                        color: entry.value,
-                        selected: isSelected,
-                        onTap: () {
-                          ref
-                              .read(uiSettingsProvider.notifier)
-                              .setSeedColor(entry.value);
-                        },
-                      );
-                    },
+          const SizedBox(height: 8),
+          // --- 4. Wallpaper Chips or Palette Grid ---
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOutCubic,
+            child: settings.useSystemDynamic
+                ? _WallpaperChips(scheme: scheme)
+                : _PaletteGrid(
+                    settings: settings,
+                    scheme: scheme,
                   ),
-                ),
-        ),
-        const SizedBox(height: 32),
-      ],
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
     );
   }
 }
 
-class _MD3ColorHero extends StatelessWidget {
-  const _MD3ColorHero({required this.scheme});
+// ──────────────────────────────────────────
+// 1. Mesh Gradient Hero
+// ──────────────────────────────────────────
+class _MeshHero extends StatelessWidget {
+  const _MeshHero({required this.scheme});
   final ColorScheme scheme;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 220,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(32),
+        child: SizedBox(
+          height: 220,
+          child: AnimatedMeshGradient(
+            colors: [
+              scheme.primary,
+              scheme.tertiary,
+              scheme.secondary,
+              scheme.surfaceContainerHighest,
+            ],
+            options: AnimatedMeshGradientOptions(
+              frequency: 3,
+              amplitude: 20,
+              speed: 1.5,
+              grain: 0.06,
+            ),
+          ),
+        ),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
+    );
+  }
+}
+
+// ──────────────────────────────────────────
+// 2. Theme Mode Cards
+// ──────────────────────────────────────────
+class _ThemeModeSelector extends StatelessWidget {
+  const _ThemeModeSelector({required this.settings});
+  final UiSettingsState settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
         children: [
-          // Background abstract shape 1 (Primary)
-          Positioned(
-            top: -40,
-            left: -30,
-            child: Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                color: scheme.primary,
-                shape: BoxShape.circle,
-              ),
+          Expanded(
+            child: _ThemeModeCard(
+              mode: ThemeMode.light,
+              icon: Icons.light_mode_rounded,
+              label: context.l10n.commonLight,
+              isSelected: settings.themeMode == ThemeMode.light,
+              bgColor: scheme.surface,
+              fgColor: scheme.onSurface,
             ),
           ),
-          // Background abstract shape 2 (Tertiary)
-          Positioned(
-            bottom: -60,
-            right: -20,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                color: scheme.tertiaryContainer,
-                borderRadius: BorderRadius.circular(100),
-              ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ThemeModeCard(
+              mode: ThemeMode.dark,
+              icon: Icons.dark_mode_rounded,
+              label: context.l10n.commonDark,
+              isSelected: settings.themeMode == ThemeMode.dark,
+              bgColor: const Color(0xFF1D1B20),
+              fgColor: const Color(0xFFE6E1E5),
             ),
           ),
-          // Foreground UI Pill
-          Positioned(
-            top: 40,
-            right: 20,
-            child: Container(
-              width: 120,
-              height: 48,
-              decoration: BoxDecoration(
-                color: scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              alignment: Alignment.center,
-              child: Container(
-                width: 60,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: scheme.onPrimaryContainer.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(4),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ThemeModeCard(
+              mode: ThemeMode.system,
+              icon: Icons.brightness_auto_rounded,
+              label: context.l10n.commonSystem,
+              isSelected: settings.themeMode == ThemeMode.system,
+              bgColor: scheme.surfaceContainerHighest,
+              fgColor: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeModeCard extends StatelessWidget {
+  const _ThemeModeCard({
+    required this.mode,
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.bgColor,
+    required this.fgColor,
+  });
+
+  final ThemeMode mode;
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final Color bgColor;
+  final Color fgColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOutCubic,
+      height: 76,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isSelected ? scheme.primary : scheme.outlineVariant.withValues(alpha: 0.3),
+          width: isSelected ? 2 : 1,
+        ),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: scheme.primary.withValues(alpha: 0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            context
+                .read(uiSettingsProvider.notifier)
+                .setThemeMode(mode);
+          },
+          child: Transform.scale(
+            scale: isSelected ? 1.0 : 0.97,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: isSelected ? scheme.primary : fgColor, size: 24),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: isSelected ? scheme.primary : fgColor,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────
+// 3. Palette Grid
+// ──────────────────────────────────────────
+class _PaletteGrid extends StatelessWidget {
+  const _PaletteGrid({required this.settings, required this.scheme});
+  final UiSettingsState settings;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        shrinkWrap: true,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+          childAspectRatio: 0.75,
+        ),
+        itemCount: _ThemePaletteData.length,
+        itemBuilder: (_, index) {
+          final entry = _ThemePaletteData.entries.elementAt(index);
+          final isSelected = entry.value.value == settings.seedColor.value;
+          return ActiveColorOrb(
+            color: entry.value,
+            selected: isSelected,
+            onTap: () {
+              context
+                  .read(uiSettingsProvider.notifier)
+                  .setSeedColor(entry.value);
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────
+// 4. Wallpaper Chips
+// ──────────────────────────────────────────
+class _WallpaperChips extends StatelessWidget {
+  const _WallpaperChips({required this.scheme});
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = [
+      scheme.primary,
+      scheme.tertiary,
+      scheme.secondary,
+      scheme.error,
+      scheme.surfaceContainerHighest,
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.wallpaper_rounded, size: 18, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Text(
+                'Цвета из обоев',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
-            ),
+            ],
           ),
-          // Floating FAB
-          Positioned(
-            bottom: 30,
-            left: 30,
-            child: Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: scheme.secondaryContainer,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: scheme.shadow.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.color_lens_rounded,
-                color: scheme.onSecondaryContainer,
-                size: 32,
-              ),
-            ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: colors.map((c) {
+              return CircleAvatar(
+                radius: 12,
+                backgroundColor: c,
+              );
+            }).toList(),
           ),
-          // Error dot
-          Positioned(
-            top: 60,
-            left: 100,
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: scheme.error,
-                shape: BoxShape.circle,
-              ),
+          const SizedBox(height: 6),
+          Text(
+            'Обновляются автоматически при смене обоев',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
           ),
         ],
