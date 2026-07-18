@@ -3431,6 +3431,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutTagline => 'Next-gen messenger';
 
   @override
+  String get aboutTabDevelopers => 'Developers';
+
+  @override
+  String get aboutTabFaq => 'FAQ';
+
+  @override
+  String get aboutTabChangelog => 'Changelog';
+
+  @override
+  String get appearanceFloatingNav => 'Floating navigation';
+
+  @override
+  String get appearanceFloatingNavSubtitle => 'Detach the bottom bar from the screen edge';
+
+  @override
+  String get appearanceWallpaperColors => 'Wallpaper colors';
+
+  @override
+  String get appearanceWallpaperColorsSubtitle => 'Updated automatically when wallpaper changes';
+
+  @override
+  String get preferencesResetAll => 'Reset all settings';
+
+  @override
+  String get preferencesResetAllSubtitle => 'Restore theme, sound, spacing and other parameters to defaults';
+
+  @override
+  String get preferencesResetConfirmTitle => 'Reset settings?';
+
+  @override
+  String get preferencesResetConfirmBody => 'All appearance and behavior settings will be restored to defaults. This action cannot be undone.';
+
+  @override
+  String get preferencesResetConfirm => 'Reset';
+
+  @override
   String get aboutFaqQ1 =>
       'What are secret chats and how are they different from regular ones?';
 

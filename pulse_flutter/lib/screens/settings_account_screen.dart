@@ -44,17 +44,21 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
 
   Future<void> _toggleBiometric() async {
     final BiometricService biometric = ref.read(biometricServiceProvider);
-    if (_biometricEnabled) {
-      await biometric.setBiometricEnabled(false);
-      setState(() => _biometricEnabled = false);
-    } else {
-      final bool authenticated = await biometric.authenticate(
-        reason: context.l10n.biometricAuthReason,
-      );
-      if (authenticated) {
-        await biometric.setBiometricEnabled(true);
-        if (mounted) setState(() => _biometricEnabled = true);
+    try {
+      if (_biometricEnabled) {
+        await biometric.setBiometricEnabled(false);
+        if (mounted) setState(() => _biometricEnabled = false);
+      } else {
+        final bool authenticated = await biometric.authenticate(
+          reason: context.l10n.biometricAuthReason,
+        );
+        if (authenticated) {
+          await biometric.setBiometricEnabled(true);
+          if (mounted) setState(() => _biometricEnabled = true);
+        }
       }
+    } catch (e) {
+      if (mounted) AppToast.showError(context, '$e');
     }
   }
 

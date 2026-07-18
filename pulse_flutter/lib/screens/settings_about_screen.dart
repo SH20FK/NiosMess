@@ -76,10 +76,10 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                       Theme.of(context).textTheme.labelLarge,
                   indicatorSize: TabBarIndicatorSize.tab,
                   dividerHeight: 0,
-                  tabs: const <Tab>[
-                    Tab(text: '👨‍💻', iconMargin: EdgeInsets.zero),
-                    Tab(text: '❓', iconMargin: EdgeInsets.zero),
-                    Tab(text: '🎉', iconMargin: EdgeInsets.zero),
+                  tabs: <Tab>[
+                    Tab(icon: const Icon(Icons.code_rounded), text: context.l10n.aboutTabDevelopers, iconMargin: EdgeInsets.zero),
+                    Tab(icon: const Icon(Icons.help_outline_rounded), text: context.l10n.aboutTabFaq, iconMargin: EdgeInsets.zero),
+                    Tab(icon: const Icon(Icons.history_rounded), text: context.l10n.aboutTabChangelog, iconMargin: EdgeInsets.zero),
                   ],
                 ),
               ),
@@ -101,7 +101,6 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
   }
 }
 
-// ─── Hero Block ────────────────────────────────────────────────────────────
 
 class _HeroBlock extends StatelessWidget {
   const _HeroBlock({required this.animation, required this.packageInfo});
@@ -242,7 +241,6 @@ class _HeroBlock extends StatelessWidget {
   }
 }
 
-// ─── Developers Tab ────────────────────────────────────────────────────────
 
 class _DevelopersTab extends StatelessWidget {
   @override
@@ -443,7 +441,6 @@ class _DeveloperCard extends StatelessWidget {
   }
 }
 
-// ─── FAQ Tab ───────────────────────────────────────────────────────────────
 
 class _FaqTab extends StatelessWidget {
   @override
@@ -501,7 +498,6 @@ class _FaqTab extends StatelessWidget {
   }
 }
 
-// ─── Changelog Tab ─────────────────────────────────────────────────────────
 
 class _ChangelogTab extends StatelessWidget {
   const _ChangelogTab({required this.packageInfo});

@@ -3446,6 +3446,42 @@ class AppLocalizationsRu extends AppLocalizations {
   String get aboutTagline => 'Мессенджер нового поколения';
 
   @override
+  String get aboutTabDevelopers => 'Разработчики';
+
+  @override
+  String get aboutTabFaq => 'FAQ';
+
+  @override
+  String get aboutTabChangelog => 'Обновления';
+
+  @override
+  String get appearanceFloatingNav => 'Плавающая навигация';
+
+  @override
+  String get appearanceFloatingNavSubtitle => 'Открепить нижнюю панель от края экрана';
+
+  @override
+  String get appearanceWallpaperColors => 'Цвета из обоев';
+
+  @override
+  String get appearanceWallpaperColorsSubtitle => 'Обновляются автоматически при смене обоев';
+
+  @override
+  String get preferencesResetAll => 'Сбросить все настройки';
+
+  @override
+  String get preferencesResetAllSubtitle => 'Вернуть тему, звук, отступы и другие параметры к значениям по умолчанию';
+
+  @override
+  String get preferencesResetConfirmTitle => 'Сбросить настройки?';
+
+  @override
+  String get preferencesResetConfirmBody => 'Все настройки внешнего вида и поведения будут возвращены к значениям по умолчанию. Это действие нельзя отменить.';
+
+  @override
+  String get preferencesResetConfirm => 'Сбросить';
+
+  @override
   String get aboutFaqQ1 =>
       'Что такое секретные чаты и чем они отличаются от обычных?';
 

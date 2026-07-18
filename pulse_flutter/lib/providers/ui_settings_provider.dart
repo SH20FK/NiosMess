@@ -5,15 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum Md3Variant {
-  tonalSpot,
-  vibrant,
-  expressive,
-  neutral,
-  monochrome,
-  fidelity,
-}
-
 enum AppTimeZoneMode { auto, manual }
 
 enum BackgroundMode { off, economy, reliable }

@@ -6252,6 +6252,21 @@ abstract class AppLocalizations {
   /// **'Next-gen messenger'**
   String get aboutTagline;
 
+  String get aboutTabDevelopers;
+  String get aboutTabFaq;
+  String get aboutTabChangelog;
+
+  String get appearanceFloatingNav;
+  String get appearanceFloatingNavSubtitle;
+  String get appearanceWallpaperColors;
+  String get appearanceWallpaperColorsSubtitle;
+
+  String get preferencesResetAll;
+  String get preferencesResetAllSubtitle;
+  String get preferencesResetConfirmTitle;
+  String get preferencesResetConfirmBody;
+  String get preferencesResetConfirm;
+
   /// No description provided for @aboutFaqQ1.
   ///
   /// In en, this message translates to:

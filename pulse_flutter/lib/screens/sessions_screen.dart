@@ -135,9 +135,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
           .where((ApiSession s) => s.id != null)
           .map((ApiSession s) => s.id)
           .toList();
-      for (final int id in otherIds) {
-        await ref.read(authRepositoryProvider).revokeSession(id);
-      }
+      await Future.wait(
+        otherIds.map((int id) => ref.read(authRepositoryProvider).revokeSession(id)),
+      );
       await _loadSessions();
       if (!mounted) return;
       AppToast.showSuccess(context, context.l10n.sessionsRevokedSuccess);
@@ -153,8 +153,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    // We don't have a reliable way to determine current session id yet
-    final int? currentSessionId = null;
+    final int? currentSessionId = _sessions != null && _sessions!.isNotEmpty
+        ? _sessions!.reduce((a, b) => a.lastActive.isAfter(b.lastActive) ? a : b).id
+        : null;
 
     return SettingsScaffold(
       title: context.l10n.sessionsTitle,
@@ -164,7 +165,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
           icon: Icons.devices_rounded,
           title: context.l10n.sessionsTitle,
           subtitle: context.l10n.sessionsBannerSubtitle,
-          iconColor: Colors.blueGrey,
+          iconColor: scheme.primary,
         ),
         if (_loading)
           const Padding(
@@ -219,7 +220,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
               final IconData icon = _deviceIcon(session.deviceInfo);
               final String os = _deviceOs(session.deviceInfo);
 
-              return Card(
+              return Semantics(
+                label: '$os, ${session.ipAddress}, ${session.lastActive}',
+                button: true,
+                selected: isCurrent,
+                child: Card(
                 elevation: 0,
                 margin: const EdgeInsets.fromLTRB(12, 6, 12, 6),
                 color: isCurrent
@@ -378,6 +383,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                       ],
                     ),
                   ),
+                ),
                 ),
               );
             }).toList(),

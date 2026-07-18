@@ -118,8 +118,8 @@ class _AppearanceScreenState extends ConsumerState<_AppearanceScreen> {
               ),
               SettingsSwitchTile(
                 icon: Icons.dock_rounded,
-                title: 'Плавающая навигация',
-                subtitle: 'Открепить нижнюю панель от края экрана',
+                title: context.l10n.appearanceFloatingNav,
+                subtitle: context.l10n.appearanceFloatingNavSubtitle,
                 value: settings.navBarFloating,
                 onChanged: (v) {
                   ref.read(uiSettingsProvider.notifier).setNavBarFloating(v);
@@ -148,9 +148,7 @@ class _AppearanceScreenState extends ConsumerState<_AppearanceScreen> {
   }
 }
 
-// ──────────────────────────────────────────
 // 1. Mesh Gradient Hero
-// ──────────────────────────────────────────
 class _MeshHero extends StatelessWidget {
   const _MeshHero({required this.scheme});
   final ColorScheme scheme;
@@ -163,18 +161,20 @@ class _MeshHero extends StatelessWidget {
         borderRadius: BorderRadius.circular(32),
         child: SizedBox(
           height: 220,
-          child: AnimatedMeshGradient(
-            colors: [
-              scheme.primary,
-              scheme.tertiary,
-              scheme.secondary,
-              scheme.surfaceContainerHighest,
-            ],
-            options: AnimatedMeshGradientOptions(
-              frequency: 3,
-              amplitude: 20,
-              speed: 1.5,
-              grain: 0.06,
+          child: ExcludeSemantics(
+            child: AnimatedMeshGradient(
+              colors: [
+                scheme.primary,
+                scheme.tertiary,
+                scheme.secondary,
+                scheme.surfaceContainerHighest,
+              ],
+              options: AnimatedMeshGradientOptions(
+                frequency: 3,
+                amplitude: 20,
+                speed: 1.5,
+                grain: 0.06,
+              ),
             ),
           ),
         ),
@@ -183,9 +183,7 @@ class _MeshHero extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────
 // 2. Theme Mode Cards
-// ──────────────────────────────────────────
 class _ThemeModeSelector extends StatelessWidget {
   const _ThemeModeSelector({
     required this.settings,
@@ -263,7 +261,11 @@ class _ThemeModeCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return AnimatedContainer(
+    return Semantics(
+      selected: isSelected,
+      button: true,
+      label: label,
+      child: AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOutCubic,
       height: 76,
@@ -308,13 +310,12 @@ class _ThemeModeCard extends StatelessWidget {
           ),
         ),
       ),
+      ),
     );
   }
 }
 
-// ──────────────────────────────────────────
 // 3. Palette Grid
-// ──────────────────────────────────────────
 class _PaletteGrid extends StatelessWidget {
   const _PaletteGrid({required this.settings, required this.onColorSelected});
   final UiSettingsState settings;
@@ -348,9 +349,7 @@ class _PaletteGrid extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────
 // 4. Wallpaper Chips
-// ──────────────────────────────────────────
 class _WallpaperChips extends StatelessWidget {
   const _WallpaperChips({required this.scheme});
   final ColorScheme scheme;
@@ -375,7 +374,7 @@ class _WallpaperChips extends StatelessWidget {
               Icon(Icons.wallpaper_rounded, size: 18, color: scheme.onSurfaceVariant),
               const SizedBox(width: 8),
               Text(
-                'Цвета из обоев',
+                context.l10n.appearanceWallpaperColors,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -395,7 +394,7 @@ class _WallpaperChips extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Обновляются автоматически при смене обоев',
+            context.l10n.appearanceWallpaperColorsSubtitle,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),

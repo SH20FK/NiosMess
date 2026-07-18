@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class SettingsPreferencesScreen extends ConsumerWidget {
@@ -90,13 +92,89 @@ class SettingsPreferencesScreen extends ConsumerWidget {
                 ref.read(uiSettingsProvider.notifier).setOptimizeForWeakDevices(value);
               },
             ),
-            SettingsSwitchTile(
-              icon: Icons.swipe_rounded,
-              title: context.l10n.settingsPredictiveBackToggle,
-              subtitle: context.l10n.settingsPredictiveBackDescription,
-              value: settings.predictiveBackEnabled,
-              onChanged: (bool value) {
-                ref.read(uiSettingsProvider.notifier).setPredictiveBackEnabled(value);
+          ],
+        ),
+        SettingsSection(
+          title: context.l10n.appearanceAccentPalette,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: <Widget>[
+                  Icon(Icons.text_fields_rounded, color: scheme.onSurfaceVariant, size: 20),
+                  const SizedBox(width: 12),
+                  Text(
+                    context.l10n.appearanceAccentPalette,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: SegmentedButton<AppFontScale>(
+                segments: <ButtonSegment<AppFontScale>>[
+                  ButtonSegment<AppFontScale>(
+                    value: AppFontScale.small,
+                    label: Text('A'),
+                  ),
+                  ButtonSegment<AppFontScale>(
+                    value: AppFontScale.normal,
+                    label: Text('A', style: TextStyle(fontSize: 18)),
+                  ),
+                  ButtonSegment<AppFontScale>(
+                    value: AppFontScale.large,
+                    label: Text('A', style: TextStyle(fontSize: 22)),
+                  ),
+                  ButtonSegment<AppFontScale>(
+                    value: AppFontScale.extraLarge,
+                    label: Text('A', style: TextStyle(fontSize: 28)),
+                  ),
+                ],
+                selected: {settings.fontScale},
+                onSelectionChanged: (Set<AppFontScale> selection) {
+                  ref.read(uiSettingsProvider.notifier).setFontScale(selection.first);
+                },
+              ),
+            ),
+          ],
+        ),
+        SettingsSection(
+          children: <Widget>[
+            SettingsTile(
+              icon: Icons.restart_alt_rounded,
+              title: context.l10n.preferencesResetAll,
+              subtitle: context.l10n.preferencesResetAllSubtitle,
+              iconColor: scheme.error,
+              onTap: () async {
+                final bool? confirmed = await showAppConfirmDialog(
+                  context: context,
+                  title: context.l10n.preferencesResetConfirmTitle,
+                  subtitle: context.l10n.preferencesResetConfirmBody,
+                  confirmLabel: context.l10n.preferencesResetConfirm,
+                  cancelLabel: context.l10n.commonCancel,
+                  icon: Icons.restart_alt_rounded,
+                  destructive: true,
+                );
+                if (confirmed != true) return;
+                final notifier = ref.read(uiSettingsProvider.notifier);
+                notifier.setThemeMode(ThemeMode.system);
+                notifier.setSeedColor(const Color(0xFF6750A4));
+                notifier.setNotifications(true);
+                notifier.setCompactMode(false);
+                notifier.setHaptics(true);
+                notifier.setHideOnline(false);
+                notifier.setSoundEffects(true);
+                notifier.setSoundVolume(0.85);
+                notifier.setUseSystemDynamic(false);
+                notifier.setFontScale(AppFontScale.normal);
+                notifier.setNavBarFloating(true);
+                notifier.setOptimizeForWeakDevices(false);
+                notifier.setPredictiveBackEnabled(true);
+                notifier.setBackgroundMode(BackgroundMode.off);
+                if (context.mounted) AppToast.showSuccess(context, context.l10n.preferencesResetConfirm);
               },
             ),
           ],

@@ -173,10 +173,15 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      _SegmentedProgressBar(
-                        appDataBytes: appDataBytes,
-                        cacheBytes: cacheBytes,
-                        draftBytes: draftBytes,
+                      Semantics(
+                        label: '${context.l10n.settingsStorageAppData}: ${_format(appDataBytes)}, '
+                            '${context.l10n.settingsStorageLegendCache}: ${_format(cacheBytes)}, '
+                            '${context.l10n.settingsStorageLegendDrafts}: ${_format(draftBytes)}',
+                        child: _SegmentedProgressBar(
+                          appDataBytes: appDataBytes,
+                          cacheBytes: cacheBytes,
+                          draftBytes: draftBytes,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Wrap(

@@ -118,7 +118,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
           icon: Icons.lock_rounded,
           title: context.l10n.e2eeBannerTitle,
           subtitle: context.l10n.e2eeBannerSubtitle,
-          iconColor: Colors.green,
+          iconColor: scheme.tertiary,
         ),
         SettingsSection(
           title: context.l10n.e2eeDeviceKey,
@@ -127,24 +127,27 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
               icon: _hasKey ? Icons.vpn_key_rounded : Icons.vpn_key_outlined,
               title: _hasKey ? context.l10n.e2eeKeyPairReady : context.l10n.e2eeNoKeyPair,
               subtitle: _hasKey ? context.l10n.e2eeTapToRegenerate : context.l10n.e2eeGenerateKeyPair,
-              iconColor: _hasKey ? Colors.green : scheme.onSurfaceVariant,
-              onTap: _loading ? () {} : _hasKey ? _rotateKey : _generateKey,
+              iconColor: _hasKey ? scheme.tertiary : scheme.onSurfaceVariant,
+              enabled: !_loading,
+              onTap: _hasKey ? _rotateKey : _generateKey,
             ),
             if (_hasKey)
               SettingsTile(
                 icon: Icons.refresh_rounded,
                 title: context.l10n.e2eeRotateKey,
                 subtitle: context.l10n.e2eeRotateKeySubtitle,
-                iconColor: Colors.orange,
-                onTap: _loading ? () {} : () { _rotateKey(); },
+                iconColor: scheme.secondary,
+                enabled: !_loading,
+                onTap: _rotateKey,
               ),
             if (_hasKey)
               SettingsTile(
                 icon: Icons.delete_sweep_rounded,
                 title: context.l10n.e2eeEraseTitle,
                 subtitle: context.l10n.e2eeEraseSubtitle,
-                iconColor: Colors.red,
-                onTap: _loading ? () {} : () { _eraseSecretChats(); },
+                iconColor: scheme.error,
+                enabled: !_loading,
+                onTap: _eraseSecretChats,
               ),
             if (_error != null)
               Padding(

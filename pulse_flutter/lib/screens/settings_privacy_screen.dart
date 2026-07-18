@@ -123,7 +123,6 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                 icon: Icons.info_outline_rounded,
                 title: context.l10n.settingsBackgroundNotAvailable,
                 subtitle: context.l10n.settingsBackgroundNotAvailableDesc,
-                value: '',
                 iconColor: scheme.onSurfaceVariant,
               ),
           ],

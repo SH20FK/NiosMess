@@ -11,13 +11,13 @@ import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 
 class SettingsScaffold extends ConsumerWidget {
   const SettingsScaffold({
-    required this.title,
+    this.title,
     required this.children,
     this.onRefresh,
     super.key,
   });
 
-  final String title;
+  final String? title;
   final List<Widget> children;
   final Future<void> Function()? onRefresh;
 
@@ -78,11 +78,11 @@ class SettingsScaffold extends ConsumerWidget {
                 28,
               ),
               children: <Widget>[
-              if (!hasNavBanner)
+              if (!hasNavBanner && title != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16, left: 4),
                   child: Text(
-                    title,
+                    title!,
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.5,
@@ -218,30 +218,34 @@ class SettingsSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           if (title != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    title!,
-                    style: textTheme.titleSmall?.copyWith(
-                      color: scheme.onSurface,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.1,
-                    ),
-                  ),
-                  if (subtitle != null) ...<Widget>[
-                    const SizedBox(height: 4),
+            Semantics(
+              header: true,
+              label: title,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
                     Text(
-                      subtitle!,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        height: 1.3,
+                      title!,
+                      style: textTheme.titleSmall?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.1,
                       ),
                     ),
+                    if (subtitle != null) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle!,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ClipRRect(
@@ -303,6 +307,7 @@ class SettingsTile extends ConsumerWidget {
     this.trailing,
     this.foregroundColor,
     this.iconColor,
+    this.enabled = true,
     super.key,
   });
 
@@ -313,6 +318,7 @@ class SettingsTile extends ConsumerWidget {
   final Widget? trailing;
   final Color? foregroundColor;
   final Color? iconColor;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -324,6 +330,7 @@ class SettingsTile extends ConsumerWidget {
     return Semantics(
       label: '$title${subtitle != null ? ', $subtitle' : ''}',
       button: true,
+      enabled: enabled,
       child: ListTile(
         titleAlignment: ListTileTitleAlignment.threeLine,
         minVerticalPadding: 14,
@@ -341,7 +348,7 @@ class SettingsTile extends ConsumerWidget {
         title: Text(
           title,
           style: textTheme.bodyLarge?.copyWith(
-            color: resolvedTextColor,
+            color: enabled ? resolvedTextColor : resolvedTextColor.withValues(alpha: 0.38),
             fontWeight: FontWeight.w600,
             height: 1.15,
           ),
@@ -361,42 +368,16 @@ class SettingsTile extends ConsumerWidget {
               color: scheme.onSurfaceVariant,
               size: 20,
             ),
-        onTap: () {
-          ref.read(appSoundProvider).playUiTick();
-          if (ref.read(uiSettingsProvider).haptics) {
-            HapticService.tap();
-          }
-          onTap();
-        },
+        onTap: enabled
+            ? () {
+                ref.read(appSoundProvider).playUiTick();
+                if (ref.read(uiSettingsProvider).haptics) {
+                  HapticService.tap();
+                }
+                onTap();
+              }
+            : null,
       ),
-    );
-  }
-}
-
-class SettingsDangerTile extends ConsumerWidget {
-  const SettingsDangerTile({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    required this.onTap,
-    super.key,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return SettingsTile(
-      icon: icon,
-      title: title,
-      subtitle: subtitle,
-      onTap: onTap,
-      foregroundColor: scheme.error,
-      trailing: const SizedBox.shrink(),
     );
   }
 }
@@ -498,54 +479,58 @@ class SettingsInfoTile extends ConsumerWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final Color resolvedIconColor = iconColor ?? scheme.onSurfaceVariant;
 
-    return ListTile(
-      titleAlignment: ListTileTitleAlignment.threeLine,
-      minVerticalPadding: 14,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: resolvedIconColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(16),
+    return Semantics(
+      label: '$title${value != null ? ', $value' : ''}${subtitle != null ? ', $subtitle' : ''}',
+      readOnly: true,
+      child: ListTile(
+        titleAlignment: ListTileTitleAlignment.threeLine,
+        minVerticalPadding: 14,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: resolvedIconColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          alignment: Alignment.center,
+          child: Icon(icon, color: resolvedIconColor, size: 20),
         ),
-        alignment: Alignment.center,
-        child: Icon(icon, color: resolvedIconColor, size: 20),
-      ),
-      title: Text(
-        title,
-        style: textTheme.bodyLarge?.copyWith(
-          fontWeight: FontWeight.w600,
-          height: 1.15,
+        title: Text(
+          title,
+          style: textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            height: 1.15,
+          ),
         ),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle!,
+                style: textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.3,
+                ),
+              )
+            : null,
+        trailing: value == null
+            ? null
+            : Text(
+                value!,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+        onLongPress: onLongPress == null
+            ? null
+            : () {
+                ref.read(appSoundProvider).playUiTick(volume: 0.65);
+                if (ref.read(uiSettingsProvider).haptics) {
+                  HapticService.confirm();
+                }
+                onLongPress!();
+              },
       ),
-      subtitle: subtitle != null
-          ? Text(
-              subtitle!,
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                height: 1.3,
-              ),
-            )
-          : null,
-      trailing: value == null
-          ? null
-          : Text(
-              value!,
-              style: textTheme.bodyMedium?.copyWith(
-                color: scheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-      onLongPress: onLongPress == null
-          ? null
-          : () {
-              ref.read(appSoundProvider).playUiTick(volume: 0.65);
-              if (ref.read(uiSettingsProvider).haptics) {
-                HapticService.confirm();
-              }
-              onLongPress!();
-            },
     );
   }
 }
@@ -587,91 +572,4 @@ class SettingsConfirmDialog extends StatelessWidget {
   }
 }
 
-class SettingsSessionTile extends ConsumerWidget {
-  const SettingsSessionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.ip,
-    required this.onRevoke,
-    required this.currentLabel,
-    this.isCurrent = false,
-    super.key,
-  });
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String ip;
-  final VoidCallback onRevoke;
-  final String currentLabel;
-  final bool isCurrent;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    return ListTile(
-      titleAlignment: ListTileTitleAlignment.threeLine,
-      minVerticalPadding: 14,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: isCurrent
-              ? scheme.primaryContainer
-              : scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        alignment: Alignment.center,
-        child: Icon(
-          icon,
-          color: isCurrent ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
-          size: 20,
-        ),
-      ),
-      title: Row(
-        children: <Widget>[
-          Expanded(
-            child: Text(
-              title,
-              style: textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                height: 1.15,
-              ),
-            ),
-          ),
-          if (isCurrent)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                currentLabel,
-                style: textTheme.labelSmall?.copyWith(
-                  color: scheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-        ],
-      ),
-      subtitle: Text(
-        '$subtitle · $ip',
-        style: textTheme.bodySmall?.copyWith(
-          color: scheme.onSurfaceVariant,
-          height: 1.3,
-        ),
-      ),
-      trailing: IconButton(
-        onPressed: onRevoke,
-        icon: const Icon(Icons.logout_rounded),
-        tooltip: context.l10n.settingsRevokeSession,
-      ),
-    );
-  }
-}
