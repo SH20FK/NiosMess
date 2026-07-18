@@ -113,19 +113,19 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(context.l10n.commentsTitle),
-          bottom: commentsAsync.when(
-            data: (List<ApiMessage> comments) => PreferredSize(
-              preferredSize: const Size.fromHeight(24),
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  '${comments.length}',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
+bottom: commentsAsync.when(
+              data: (List<ApiMessage> comments) => PreferredSize(
+                preferredSize: const Size.fromHeight(24),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    context.l10n.commentsCount(comments.length),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
-            ),
             loading: () => null,
             error: (_, __) => null,
           ),
@@ -195,6 +195,13 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                         senderBadges: message.senderBadges,
                         hideFooter: true,
                         onLongPress: () {
+                          setState(() {
+                            _replyToMessageId = message.id;
+                            _replyPreview =
+                                '${message.senderDisplayName}: ${_displayText(message)}';
+                          });
+                        },
+                        onSwipeToReply: () {
                           setState(() {
                             _replyToMessageId = message.id;
                             _replyPreview =

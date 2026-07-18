@@ -1367,6 +1367,17 @@ class AppLocalizationsRu extends AppLocalizations {
   String get commentsEmpty => 'Комментариев пока нет';
 
   @override
+  String commentsCount(int count) {
+    if (count % 10 == 1 && count % 100 != 11) {
+      return '$count комментарий';
+    } else if (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) {
+      return '$count комментария';
+    } else {
+      return '$count комментариев';
+    }
+  }
+
+  @override
   String get commentsDeleted => 'Комментарий удалён';
 
   @override

@@ -503,15 +503,37 @@ class MessageBubble extends ConsumerWidget {
       );
     }
 
-    if (onSwipeToReply != null) {
-      content = _SwipeToReply(
-        onReply: onSwipeToReply!,
-        scheme: scheme,
-        child: content,
-      );
-    }
+if (onSwipeToReply != null) {
+        content = _SwipeToReply(
+          onReply: onSwipeToReply!,
+          scheme: scheme,
+          child: content,
+        );
+      }
 
-    final bool optimize = ref.read(uiSettingsProvider).optimizeForWeakDevices;
+      // Add indentation for replies
+      if (replyToId != null) {
+        content = Padding(
+          padding: const EdgeInsets.only(left: 48),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              content,
+              Positioned(
+                left: -40,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 2,
+                  color: scheme.outlineVariant.withValues(alpha: 0.4),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      final bool optimize = ref.read(uiSettingsProvider).optimizeForWeakDevices;
     if (optimize || !animate) {
       return content;
     }

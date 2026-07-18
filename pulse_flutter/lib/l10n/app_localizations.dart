@@ -2594,6 +2594,12 @@ abstract class AppLocalizations {
   /// **'No comments yet'**
   String get commentsEmpty;
 
+  /// No description provided for @commentsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} comments'**
+  String commentsCount(int count);
+
   /// No description provided for @commentsDeleted.
   ///
   /// In en, this message translates to:

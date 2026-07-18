@@ -1361,6 +1361,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commentsEmpty => 'No comments yet';
 
   @override
+  String commentsCount(int count) => '$count comment${count == 1 ? '' : 's'}';
+
+  @override
   String get commentsDeleted => 'Comment deleted';
 
   @override
