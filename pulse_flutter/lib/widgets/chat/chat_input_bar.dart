@@ -143,9 +143,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
           });
         }
       },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
           // Panels (Edit/Reply)
           if (widget.editingMessageId != null)
             AnimatedSize(
@@ -481,7 +483,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       final double dx = _recordingDragOffset.dx;
                       final double dy = _recordingDragOffset.dy;
 
-                      if (dy < -80) {
+                      if (dy < -60) {
                         HapticService.confirm();
                         setState(() => _isRecordingLocked = true);
                         return;
@@ -601,14 +603,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: <Color>[
-                              scheme.primary,
-                              scheme.primary.withValues(alpha: 0.82),
-                            ],
-                          ),
+                          color: scheme.primary,
                           shape: BoxShape.circle,
                           boxShadow: <BoxShadow>[
                             BoxShadow(
@@ -619,10 +614,15 @@ class _ChatInputBarState extends State<ChatInputBar> {
                             ),
                           ],
                         ),
-                        child: Icon(
-                          widget.editingMessageId != null ? Icons.check_rounded : Icons.send_rounded,
-                          color: scheme.onPrimary,
-                          size: 22,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                          child: Icon(
+                            widget.editingMessageId != null ? Icons.check_rounded : Icons.send_rounded,
+                            key: ValueKey<bool>(widget.editingMessageId != null),
+                            color: scheme.onPrimary,
+                            size: 22,
+                          ),
                         ),
                       ),
                     ),
@@ -672,6 +672,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 : const SizedBox.shrink(),
           ),
         ],
+        ),
       ),
     );
   }

@@ -61,7 +61,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
     return (-widget.dragOffset.dx / 120.0).clamp(0.0, 1.0);
   }
 
-  bool get _showLockIndicator => widget.dragOffset.dy < -40;
+  bool get _showLockIndicator => widget.dragOffset.dy < -20;
 
   Widget _pulsingMic() {
     return AnimatedBuilder(

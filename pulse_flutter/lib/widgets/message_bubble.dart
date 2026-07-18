@@ -516,20 +516,16 @@ class MessageBubble extends ConsumerWidget {
       return content;
     }
 
-    return _OnceAnimated(
-      key: ValueKey<int>(text.hashCode),
-      messageId: text.hashCode,
-      child: RepaintBoundary(
-        child: content
-            .animate()
-            .fade(duration: 180.ms, curve: Curves.easeOutCubic)
-            .slideY(
-              begin: 0.04,
-              end: 0,
-              duration: 180.ms,
-              curve: Curves.easeOutCubic,
-            ),
-      ),
+    return RepaintBoundary(
+      child: content
+          .animate()
+          .fade(duration: 180.ms, curve: Curves.easeOutCubic)
+          .slideY(
+            begin: 0.04,
+            end: 0,
+            duration: 180.ms,
+            curve: Curves.easeOutCubic,
+          ),
     );
   }
 
@@ -1246,12 +1242,14 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: _showThumbnail ? Colors.black26 : Colors.black54,
+                  color: _showThumbnail 
+                      ? widget.scheme.surface.withValues(alpha: 0.3) 
+                      : widget.scheme.surface.withValues(alpha: 0.6),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   _showThumbnail ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                  color: Colors.white,
+                  color: widget.scheme.onSurface,
                   size: 28,
                 ),
               ),
@@ -1268,7 +1266,7 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
                   ),
                   child: Text(
                     _formatDuration(widget.durationSeconds),
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: widget.scheme.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -1279,7 +1277,7 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.5),
+                  color: widget.scheme.surface.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: _MessageBubbleFooter(
@@ -1327,31 +1325,6 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
     final int m = seconds ~/ 60;
     final int s = seconds % 60;
     return '${m}:${s.toString().padLeft(2, '0')}';
-  }
-}
-
-class _OnceAnimated extends StatefulWidget {
-  const _OnceAnimated({
-    super.key,
-    required this.messageId,
-    required this.child,
-  });
-
-  final int messageId;
-  final Widget child;
-
-  @override
-  State<_OnceAnimated> createState() => _OnceAnimatedState();
-}
-
-class _OnceAnimatedState extends State<_OnceAnimated> {
-  bool _played = false;
-
-  @override
-  Widget build(BuildContext context) {
-    if (_played) return widget.child;
-    _played = true;
-    return widget.child;
   }
 }
 
@@ -1465,12 +1438,12 @@ class _MediaCarouselState extends State<_MediaCarousel> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.black54,
+                    color: widget.scheme.surface.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     '${_currentPage + 1}/${widget.urls.length}',
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    style: TextStyle(color: widget.scheme.onSurface, fontSize: 12),
                   ),
                 ),
               ),

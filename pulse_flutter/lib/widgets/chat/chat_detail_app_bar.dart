@@ -130,12 +130,12 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
           IconButton(
             onPressed: onVoiceCall,
             icon: const Icon(Icons.phone_rounded),
-            tooltip: 'Voice call',
+            tooltip: context.l10n.callIncomingVoice,
           ),
           IconButton(
             onPressed: onVideoCall,
             icon: const Icon(Icons.videocam_rounded),
-            tooltip: 'Video call',
+            tooltip: context.l10n.callIncomingVideo,
           ),
         ],
         if (_showOverflowMenu)
