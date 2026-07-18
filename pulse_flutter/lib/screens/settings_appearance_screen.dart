@@ -39,7 +39,6 @@ class _AppearanceScreen extends ConsumerStatefulWidget {
 
 class _AppearanceScreenState extends ConsumerState<_AppearanceScreen> {
   ThemeData? _prevTheme;
-  ColorScheme? _prevScheme;
 
   @override
   Widget build(BuildContext context) {
@@ -48,13 +47,11 @@ class _AppearanceScreenState extends ConsumerState<_AppearanceScreen> {
     final textTheme = Theme.of(context).textTheme;
     final theme = Theme.of(context);
     final prevTheme = _prevTheme ?? theme;
-    final prevScheme = _prevScheme ?? scheme;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_prevTheme != theme) {
         setState(() {
           _prevTheme = theme;
-          _prevScheme = scheme;
         });
       }
     });
@@ -66,7 +63,7 @@ class _AppearanceScreenState extends ConsumerState<_AppearanceScreen> {
       builder: (_, animatedTheme, __) {
         return Theme(
           data: animatedTheme,
-          child: _buildContent(settings, animatedTheme.colorScheme, textTheme),
+          child: _buildContent(settings, scheme, textTheme),
         );
       },
     );
@@ -77,26 +74,20 @@ class _AppearanceScreenState extends ConsumerState<_AppearanceScreen> {
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
-    return TweenAnimationBuilder<ColorScheme?>(
-      tween: ColorSchemeTween(begin: _prevScheme, end: scheme),
+    return AnimatedContainer(
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeInOutCubic,
-      builder: (_, animatedScheme, child) {
-        return Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                animatedScheme.primaryContainer.withValues(alpha: 0.15),
-                animatedScheme.tertiaryContainer.withValues(alpha: 0.08),
-                Colors.transparent,
-              ],
-            ),
-          ),
-          child: child,
-        );
-      },
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            scheme.primaryContainer.withValues(alpha: 0.15),
+            scheme.tertiaryContainer.withValues(alpha: 0.08),
+            Colors.transparent,
+          ],
+        ),
+      ),
       child: SettingsScaffold(
         title: context.l10n.appearanceTitle,
         children: [
