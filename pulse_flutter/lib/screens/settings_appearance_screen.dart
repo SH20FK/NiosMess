@@ -96,7 +96,12 @@ class _AppearanceScreenState extends ConsumerState<_AppearanceScreen> {
           _MeshHero(scheme: scheme),
           const SizedBox(height: 28),
           // --- 2. Theme Mode Cards ---
-          _ThemeModeSelector(settings: settings),
+          _ThemeModeSelector(
+            settings: settings,
+            onThemeModeChanged: (mode) {
+              ref.read(uiSettingsProvider.notifier).setThemeMode(mode);
+            },
+          ),
           const SizedBox(height: 28),
           // --- 3. Dynamic Color + Settings ---
           SettingsSection(
@@ -127,12 +132,14 @@ class _AppearanceScreenState extends ConsumerState<_AppearanceScreen> {
           AnimatedSize(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOutCubic,
-            child: settings.useSystemDynamic
-                ? _WallpaperChips(scheme: scheme)
-                : _PaletteGrid(
-                    settings: settings,
-                    scheme: scheme,
-                  ),
+          child: settings.useSystemDynamic
+              ? _WallpaperChips(scheme: scheme)
+              : _PaletteGrid(
+                  settings: settings,
+                  onColorSelected: (color) {
+                    ref.read(uiSettingsProvider.notifier).setSeedColor(color);
+                  },
+                ),
           ),
           const SizedBox(height: 32),
         ],
@@ -180,8 +187,12 @@ class _MeshHero extends StatelessWidget {
 // 2. Theme Mode Cards
 // ──────────────────────────────────────────
 class _ThemeModeSelector extends StatelessWidget {
-  const _ThemeModeSelector({required this.settings});
+  const _ThemeModeSelector({
+    required this.settings,
+    required this.onThemeModeChanged,
+  });
   final UiSettingsState settings;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -194,34 +205,34 @@ class _ThemeModeSelector extends StatelessWidget {
         children: [
           Expanded(
             child: _ThemeModeCard(
-              mode: ThemeMode.light,
               icon: Icons.light_mode_rounded,
               label: context.l10n.commonLight,
               isSelected: settings.themeMode == ThemeMode.light,
               bgColor: scheme.surface,
               fgColor: scheme.onSurface,
+              onTap: () => onThemeModeChanged(ThemeMode.light),
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: _ThemeModeCard(
-              mode: ThemeMode.dark,
               icon: Icons.dark_mode_rounded,
               label: context.l10n.commonDark,
               isSelected: settings.themeMode == ThemeMode.dark,
               bgColor: const Color(0xFF1D1B20),
               fgColor: const Color(0xFFE6E1E5),
+              onTap: () => onThemeModeChanged(ThemeMode.dark),
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: _ThemeModeCard(
-              mode: ThemeMode.system,
               icon: Icons.brightness_auto_rounded,
               label: context.l10n.commonSystem,
               isSelected: settings.themeMode == ThemeMode.system,
               bgColor: scheme.surfaceContainerHighest,
               fgColor: scheme.onSurfaceVariant,
+              onTap: () => onThemeModeChanged(ThemeMode.system),
             ),
           ),
         ],
@@ -232,20 +243,20 @@ class _ThemeModeSelector extends StatelessWidget {
 
 class _ThemeModeCard extends StatelessWidget {
   const _ThemeModeCard({
-    required this.mode,
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.bgColor,
     required this.fgColor,
+    required this.onTap,
   });
 
-  final ThemeMode mode;
   final IconData icon;
   final String label;
   final bool isSelected;
   final Color bgColor;
   final Color fgColor;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -275,13 +286,9 @@ class _ThemeModeCard extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            context
-                .read(uiSettingsProvider.notifier)
-                .setThemeMode(mode);
-          },
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: onTap,
           child: Transform.scale(
             scale: isSelected ? 1.0 : 0.97,
             child: Column(
@@ -309,9 +316,9 @@ class _ThemeModeCard extends StatelessWidget {
 // 3. Palette Grid
 // ──────────────────────────────────────────
 class _PaletteGrid extends StatelessWidget {
-  const _PaletteGrid({required this.settings, required this.scheme});
+  const _PaletteGrid({required this.settings, required this.onColorSelected});
   final UiSettingsState settings;
-  final ColorScheme scheme;
+  final ValueChanged<Color> onColorSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -333,11 +340,7 @@ class _PaletteGrid extends StatelessWidget {
           return ActiveColorOrb(
             color: entry.value,
             selected: isSelected,
-            onTap: () {
-              context
-                  .read(uiSettingsProvider.notifier)
-                  .setSeedColor(entry.value);
-            },
+            onTap: () => onColorSelected(entry.value),
           );
         },
       ),
