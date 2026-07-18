@@ -40,9 +40,8 @@ class _ChatSearchFieldState extends ConsumerState<ChatSearchField> {
   }
 
   void _openMessage(ApiSearchMessage msg) {
-    if (msg.chatId == null) return;
     _searchController.closeView('');
-    ref.read(desktopChatProvider.notifier).selectChat(msg.chatId!);
+    ref.read(desktopChatProvider.notifier).selectChat(msg.chatId);
     final router = GoRouter.of(context);
     final currentPath = router.routeInformationProvider.value.uri.path;
     if (!currentPath.startsWith('/chat/${msg.chatId}')) {
@@ -107,13 +106,13 @@ class _ChatSearchFieldState extends ConsumerState<ChatSearchField> {
                 child: Icon(Icons.message_rounded, color: scheme.onPrimaryContainer, size: 20),
               ),
               title: Text(
-                msg.senderName ?? 'User',
+                msg.senderDisplayName,
                 style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
-                msg.text ?? '',
+                msg.content,
                 style: textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
