@@ -170,6 +170,12 @@ abstract class AppLocalizations {
   /// **'Blocked'**
   String get commonBlocked;
 
+  /// No description provided for @commonUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get commonUnknown;
+
   /// No description provided for @commonOk.
   ///
   /// In en, this message translates to:

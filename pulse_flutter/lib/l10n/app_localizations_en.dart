@@ -45,6 +45,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonBlocked => 'Blocked';
 
   @override
+  String get commonUnknown => 'Unknown';
+
+  @override
   String get commonOk => 'OK';
 
   @override
@@ -288,9 +291,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileJoinedDate => 'Joined';
-
-  @override
-  String get profileCall => 'Call';
 
   @override
   String get profileBlock => 'Block';

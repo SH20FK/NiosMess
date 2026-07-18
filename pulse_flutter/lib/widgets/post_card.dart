@@ -329,7 +329,7 @@ class _PostCardState extends ConsumerState<PostCard>
                     scale: _heartScale.value,
                     child: Opacity(
                       opacity: _heartOpacity.value,
-                      child: const Icon(
+                      child: Icon(
                         Icons.favorite_rounded,
                         color: scheme.error,
                         size: 100,
@@ -392,7 +392,7 @@ class _FullScreenImageState extends State<_FullScreenImage> {
     return GestureDetector(
       onTap: () => Navigator.of(context).pop(),
       child: ColoredBox(
-        color: scheme.scaffoldBackgroundColor,
+        color: scheme.surface,
         child: Stack(
         children: <Widget>[
           Positioned.fill(

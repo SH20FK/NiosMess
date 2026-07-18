@@ -45,6 +45,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get commonBlocked => 'Заблокирован';
 
   @override
+  String get commonUnknown => 'Неизвестно';
+
+  @override
   String get commonOk => 'ОК';
 
   @override
@@ -289,9 +292,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get profileJoinedDate => 'Вступил';
-
-  @override
-  String get profileCall => 'Позвонить';
 
   @override
   String get profileBlock => 'Заблокировать';

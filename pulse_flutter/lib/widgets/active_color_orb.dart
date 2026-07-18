@@ -91,7 +91,7 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
         onTap: () {
           ref.read(appSoundProvider).playUiTick();
           if (ref.read(uiSettingsProvider).haptics) {
-            HapticService.selection();
+            HapticService.tap();
           }
           widget.onTap();
         },
