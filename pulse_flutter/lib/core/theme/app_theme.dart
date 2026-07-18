@@ -39,16 +39,19 @@ class AppTheme {
     );
   }
 
-  static ThemeData themed(UiSettingsState settings, Brightness brightness) {
+  static ThemeData themed(UiSettingsState settings, Brightness brightness, {ColorScheme? dynamicScheme}) {
     final int cacheKey = settings.seedColor.toARGB32() ^ 
                          brightness.index ^ 
                          (settings.themeMode.index << 8) ^ 
                          (settings.useSystemDynamic ? 1 : 0) ^
-                         (settings.predictiveBackEnabled ? 2 : 0);
+                         (settings.predictiveBackEnabled ? 2 : 0) ^
+                         (dynamicScheme?.primary.toARGB32() ?? 0);
     final ThemeData? cached = _themeCache[cacheKey];
     if (cached != null) return cached;
 
-    final ColorScheme scheme = _scheme(settings, brightness);
+    final ColorScheme scheme = (settings.useSystemDynamic && dynamicScheme != null)
+        ? dynamicScheme
+        : _scheme(settings, brightness);
     final TextTheme textTheme = AppTypography.build(scheme);
 
     final ThemeData theme = ThemeData(
@@ -56,6 +59,25 @@ class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
       textTheme: textTheme,
+      dialogTheme: DialogTheme(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+        ),
+        backgroundColor: scheme.surfaceContainerHigh,
+      ),
+      cardTheme: CardTheme(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        color: scheme.surfaceContainerLow,
+        margin: EdgeInsets.zero,
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        backgroundColor: scheme.surfaceContainerLow,
+      ),
       appBarTheme: AppBarTheme(
         elevation: 0,
         centerTitle: false,

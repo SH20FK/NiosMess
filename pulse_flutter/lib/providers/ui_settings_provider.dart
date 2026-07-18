@@ -46,6 +46,7 @@ class UiSettingsState {
     required this.backgroundMode,
     required this.useSystemDynamic,
     required this.fontScale,
+    required this.navBarFloating,
   });
 
   const UiSettingsState.defaults()
@@ -64,7 +65,8 @@ class UiSettingsState {
       predictiveBackEnabled = true,
       backgroundMode = BackgroundMode.off,
       useSystemDynamic = false,
-      fontScale = AppFontScale.normal;
+      fontScale = AppFontScale.normal,
+      navBarFloating = true;
 
   final ThemeMode themeMode;
   final Color seedColor;
@@ -82,6 +84,7 @@ class UiSettingsState {
   final BackgroundMode backgroundMode;
   final bool useSystemDynamic;
   final AppFontScale fontScale;
+  final bool navBarFloating;
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
@@ -102,6 +105,7 @@ class UiSettingsState {
     BackgroundMode? backgroundMode,
     bool? useSystemDynamic,
     AppFontScale? fontScale,
+    bool? navBarFloating,
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -122,6 +126,7 @@ class UiSettingsState {
       backgroundMode: backgroundMode ?? this.backgroundMode,
       useSystemDynamic: useSystemDynamic ?? this.useSystemDynamic,
       fontScale: fontScale ?? this.fontScale,
+      navBarFloating: navBarFloating ?? this.navBarFloating,
     );
   }
 
@@ -149,6 +154,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _backgroundModeKey = 'ui.backgroundMode';
   static const String _useSystemDynamicKey = 'ui.useSystemDynamic';
   static const String _fontScaleKey = 'ui.fontScale';
+  static const String _navBarFloatingKey = 'ui.navBarFloating';
 
   bool _loaded = false;
 
@@ -203,6 +209,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
         (AppFontScale fs) => fs.name == prefs.getString(_fontScaleKey),
         orElse: () => AppFontScale.normal,
       ),
+      navBarFloating: prefs.getBool(_navBarFloatingKey) ?? true,
     );
     } catch (e) {
       debugPrint('[UiSettingsNotifier] Failed to load settings: $e');
@@ -234,6 +241,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.setString(_backgroundModeKey, nextState.backgroundMode.name),
       prefs.setBool(_useSystemDynamicKey, nextState.useSystemDynamic),
       prefs.setString(_fontScaleKey, nextState.fontScale.name),
+      prefs.setBool(_navBarFloatingKey, nextState.navBarFloating),
     ]);
   }
 
@@ -304,22 +312,12 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
 
   void setFontScale(AppFontScale value) =>
       _set(state.copyWith(fontScale: value));
+
+  void setNavBarFloating(bool value) =>
+      _set(state.copyWith(navBarFloating: value));
 }
 
 final NotifierProvider<UiSettingsNotifier, UiSettingsState> uiSettingsProvider =
     NotifierProvider<UiSettingsNotifier, UiSettingsState>(
       UiSettingsNotifier.new,
     );
-
-final FutureProvider<Color?> systemAccentColorProvider =
-    FutureProvider<Color?>((Ref ref) async {
-  if (!Platform.isAndroid && !Platform.isIOS) return null;
-  for (int i = 0; i < 3; i++) {
-    try {
-      final Color? color = await DynamicColorPlugin.getAccentColor();
-      if (color != null) return color;
-    } catch (_) {}
-    if (i < 2) await Future.delayed(Duration(milliseconds: 300 * (i + 1)));
-  }
-  return null;
-});

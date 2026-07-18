@@ -22,6 +22,7 @@ class AppBottomNav extends ConsumerWidget {
     final int totalUnread = ref.watch(
       totalUnreadCountProvider.select((int c) => c > 99 ? 99 : c),
     );
+    final bool isFloating = ref.watch(uiSettingsProvider.select((s) => s.navBarFloating));
 
     final List<_NavItem> items = <_NavItem>[
       _NavItem(
@@ -47,17 +48,22 @@ class AppBottomNav extends ConsumerWidget {
       ),
     ];
 
-    return NavigationBar(
+    final Scheme = Theme.of(context).colorScheme;
+
+    Widget navBar = NavigationBar(
       selectedIndex: currentIndex,
+      elevation: 0,
+      backgroundColor: isFloating ? Scheme.surfaceContainerHighest.withOpacity(0.9) : Scheme.surfaceContainerLow,
+      indicatorColor: Scheme.secondaryContainer,
       onDestinationSelected: (int index) {
-        ref.read(appSoundProvider).playUiTick();
-        if (hapticsEnabled && index != currentIndex) {
-          HapticService.tap();
-        }
-        onTap(index);
-      },
-      destinations: items
-          .asMap()
+            ref.read(appSoundProvider).playUiTick();
+            if (hapticsEnabled && index != currentIndex) {
+              HapticService.tap();
+            }
+            onTap(index);
+          },
+          destinations: items
+              .asMap()
           .entries
           .map(
             (MapEntry<int, _NavItem> entry) {
@@ -114,6 +120,18 @@ class AppBottomNav extends ConsumerWidget {
           )
           .toList(growable: false),
     );
+
+    if (isFloating) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(32),
+          child: navBar,
+        ),
+      );
+    } else {
+      return navBar;
+    }
   }
 }
 

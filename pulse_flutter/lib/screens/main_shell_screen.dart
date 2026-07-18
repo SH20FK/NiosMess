@@ -259,6 +259,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
         }
 
         return Scaffold(
+          extendBody: true,
           body: Column(
             children: [
               OfflineBanner(isOffline: isOffline),
@@ -273,10 +274,12 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
             ],
           ),
           bottomNavigationBar: RepaintBoundary(
-            child: AppBottomNav(
-              currentIndex: currentIndex,
-              onTap: _onTapTab,
-              hapticsEnabled: settings.haptics,
+            child: SafeArea(
+              child: AppBottomNav(
+                currentIndex: currentIndex,
+                onTap: _onTapTab,
+                hapticsEnabled: settings.haptics,
+              ),
             ),
           ),
           floatingActionButton: currentIndex == 0 ? _composeFab(context) : null,

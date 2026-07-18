@@ -424,28 +424,28 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              TextField(
+              SearchBar(
                 controller: _searchController,
                 onChanged: (String value) {
                   setState(() => _query = value);
                   ref.read(debouncedSearchProvider.notifier).search(value);
                 },
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: context.l10n.contactsSearchHint,
-                  prefixIcon: const Icon(Icons.person_search_rounded),
-                  suffixIcon: query.isEmpty
-                      ? null
-                       : IconButton(
-                           onPressed: () {
-                             if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
-                             _searchController.clear();
-                             setState(() => _query = '');
-                             ref.read(debouncedSearchProvider.notifier).clear();
-                           },
-                           icon: const Icon(Icons.close_rounded),
-                         ),
-                ),
+                hintText: context.l10n.contactsSearchHint,
+                leading: const Icon(Icons.person_search_rounded),
+                elevation: const WidgetStatePropertyAll(0),
+                backgroundColor: WidgetStatePropertyAll(scheme.surfaceContainerHigh),
+                trailing: <Widget>[
+                  if (query.isNotEmpty)
+                    IconButton(
+                      onPressed: () {
+                        if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+                        _searchController.clear();
+                        setState(() => _query = '');
+                        ref.read(debouncedSearchProvider.notifier).clear();
+                      },
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                ],
               ),
             ],
           ),
