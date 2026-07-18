@@ -69,7 +69,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
     final ApiSearchUser? picked = await showModalBottomSheet<ApiSearchUser>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
+      
       builder: (BuildContext ctx) {
         return Consumer(
           builder: (BuildContext ctx, WidgetRef ref, _) {

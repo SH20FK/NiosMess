@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:universal_io/io.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -24,13 +25,8 @@ class M3FilePickerResult {
 }
 
 Future<M3FilePickerResult?> showM3FilePicker(BuildContext context) async {
-  return showModalBottomSheet<M3FilePickerResult>(
+  return AppBottomSheets.show<M3FilePickerResult>(
     context: context,
-    showDragHandle: true,
-    backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
     builder: (BuildContext ctx) => _CompactAttachmentMenu(),
   );
 }

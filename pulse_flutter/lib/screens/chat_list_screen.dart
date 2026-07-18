@@ -602,7 +602,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
     return showModalBottomSheet<_ChatSwipeAction>(
       context: context,
-      showDragHandle: true,
+      
       backgroundColor: Colors.transparent,
       builder: buildMenuContent,
     );
@@ -864,7 +864,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           )
         : AppBottomSheets.show<String>(
             context: context,
-            showDragHandle: true,
+            
             builder: buildMenuContent,
           ));
 

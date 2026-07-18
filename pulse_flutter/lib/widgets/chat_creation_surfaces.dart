@@ -75,7 +75,7 @@ Future<void> showStartDirectChatDialog(BuildContext context) {
 Future<String?> showCreateChatMenu(BuildContext context) {
   return AppBottomSheets.show<String>(
     context: context,
-    showDragHandle: true,
+    
     builder: (BuildContext ctx) {
       final ColorScheme scheme = Theme.of(ctx).colorScheme;
       final TextTheme textTheme = Theme.of(ctx).textTheme;

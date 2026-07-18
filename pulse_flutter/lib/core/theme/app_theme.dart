@@ -158,7 +158,7 @@ class AppTheme {
         backgroundColor: scheme.surfaceContainerHigh,
         modalBackgroundColor: scheme.surfaceContainerHigh,
         surfaceTintColor: Colors.transparent,
-        showDragHandle: true,
+        
         dragHandleColor: scheme.onSurfaceVariant.withValues(alpha: 0.38),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),

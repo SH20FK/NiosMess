@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -112,7 +112,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       PageRouteBuilder<String>(
         opaque: false,
         barrierDismissible: true,
-        barrierColor: Colors.black38,
+        
         pageBuilder: (_, __, ___) => const CircleVideoRecorderScreen(),
         transitionsBuilder: (_, Animation<double> a, __, Widget child) =>
             FadeTransition(opacity: a, child: child),

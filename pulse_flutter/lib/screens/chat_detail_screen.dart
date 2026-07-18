@@ -2,7 +2,7 @@ import 'package:pulse_flutter/widgets/chat/chat_detail_app_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_fab.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
 import 'dart:async';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
@@ -437,8 +437,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (_isInputEmpty) return;
     AppBottomSheets.show<void>(
       context: context,
-      showDragHandle: true,
-      ),
+      
       builder: (BuildContext ctx) {
         final TextTheme tt = Theme.of(ctx).textTheme;
         return SafeArea(
@@ -920,7 +919,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     final ApiChatSummary? target = await showModalBottomSheet<ApiChatSummary>(
       context: context,
-      showDragHandle: true,
+      
       builder: (BuildContext ctx) {
         return SafeArea(
           child: Column(
@@ -981,7 +980,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     await AppBottomSheets.show<void>(
       context: context,
       isScrollControlled: true,
-      barrierColor: Colors.black38,
+      
       builder: (BuildContext ctx) => Container(
         decoration: BoxDecoration(
           color: Theme.of(ctx).colorScheme.surface,
@@ -1027,7 +1026,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   void _showReportMessageDialog(ApiMessage message) {
     AppBottomSheets.show<void>(
       context: context,
-      showDragHandle: true,
+      
       builder: (BuildContext ctx) {
         final ColorScheme scheme = Theme.of(ctx).colorScheme;
         final TextTheme textTheme = Theme.of(ctx).textTheme;
@@ -1126,7 +1125,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     await AppBottomSheets.show<void>(
       context: context,
-      showDragHandle: true,
+      
       builder: (BuildContext ctx) {
         final ColorScheme scheme = Theme.of(ctx).colorScheme;
         return SafeArea(

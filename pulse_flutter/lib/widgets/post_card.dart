@@ -351,7 +351,7 @@ class _PostCardState extends ConsumerState<PostCard>
     Navigator.of(context).push(
       PageRouteBuilder<void>(
         opaque: false,
-        barrierColor: Colors.black,
+        
         barrierLabel: context.l10n.semanticsClose,
         pageBuilder: (_, _, _) => _FullScreenImage(url: url),
         transitionsBuilder: (_, a1, _, child) {
@@ -650,7 +650,7 @@ class _PostMenu extends ConsumerWidget {
     AppBottomSheets.show<void>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
+      
       builder: (_) => Padding(
         padding: EdgeInsets.only(
           left: 16,

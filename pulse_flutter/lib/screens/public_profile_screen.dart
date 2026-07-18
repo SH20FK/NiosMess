@@ -471,7 +471,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   void _showReportUserDialog(ApiProfile profile) {
     AppBottomSheets.show<void>(
       context: context,
-      showDragHandle: true,
+      
       builder: (BuildContext ctx) {
         final ColorScheme scheme = Theme.of(ctx).colorScheme;
         final TextTheme textTheme = Theme.of(ctx).textTheme;

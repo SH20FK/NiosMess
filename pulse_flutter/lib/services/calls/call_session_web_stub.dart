@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 
 import 'call_session_types.dart';
@@ -17,6 +18,7 @@ class CallSession {
     required this.direction,
     required this.displayName,
     required this.aesKeyBytes,
+    this.onCameraReady,
   });
 
   final int chatId;
@@ -26,6 +28,7 @@ class CallSession {
   final CallDirection direction;
   final String displayName;
   final Uint8List aesKeyBytes;
+  final void Function(CameraController?)? onCameraReady;
   bool _isMuted = false;
   bool _isSpeakerOn = false;
   final bool isSelfVideoEnabled = false;

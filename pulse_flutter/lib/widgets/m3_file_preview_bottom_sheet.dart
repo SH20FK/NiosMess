@@ -588,7 +588,7 @@ Future<void> showM3FilePreview({
 }) async {
   await AppBottomSheets.show<void>(
     context: context,
-    showDragHandle: true,
+    
     isScrollControlled: true,
     builder: (BuildContext ctx) => M3FilePreviewBottomSheet(
       fileName: fileName,

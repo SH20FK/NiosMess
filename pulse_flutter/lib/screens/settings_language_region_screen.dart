@@ -155,7 +155,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
     await AppBottomSheets.show<void>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
+      
       builder: (BuildContext context) {
         final ColorScheme scheme = Theme.of(context).colorScheme;
         final TextTheme textTheme = Theme.of(context).textTheme;
