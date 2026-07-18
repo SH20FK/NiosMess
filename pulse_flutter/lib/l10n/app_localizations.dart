@@ -638,23 +638,18 @@ abstract class AppLocalizations {
   /// **'Username'**
   String get profileUsername;
 
+  /// No description provided for @profileDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get profileDescription;
+
   /// No description provided for @profileJoinedDate.
   ///
   /// In en, this message translates to:
   /// **'Joined'**
   String get profileJoinedDate;
 
-  /// No description provided for @profileCall.
-  ///
-  /// In en, this message translates to:
-  /// **'Call'**
-  String get profileCall;
-
-  /// No description provided for @profileBlock.
-  ///
-  /// In en, this message translates to:
-  /// **'Block'**
-  String get profileBlock;
 
   /// No description provided for @profileReport.
   ///
@@ -823,17 +818,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'blocked'**
   String get profileBlocked;
-
-  /// No description provided for @profileCall.
-  ///
-  /// In en, this message translates to:
-  /// **'Call'**
-  String get profileCall;
-
-  /// No description provided for @profileThemeStudio.
-  ///
-  /// In en, this message translates to:
-  /// **'Theme studio'**
   String get profileThemeStudio;
 
   /// No description provided for @profileGuestName.

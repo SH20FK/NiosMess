@@ -109,9 +109,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               name: displayName,
               username: username,
               avatarUrl: auth.profile?.avatarUrl,
-              bio: bio.isNotEmpty ? bio : null,
-              badges: auth.profile?.badges ?? const <ApiBadge>[],
-              storageUsed: storageUsed.isNotEmpty ? storageUsed : null,
               onEdit: () {
                 showDialog<void>(
                   context: context,
@@ -131,51 +128,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
               child: Column(
-                children: <Widget>[
-                  // Quick actions
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    child: Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: _QuickActionButton(
-                            icon: Icons.edit_rounded,
-                            label: context.l10n.profileEdit,
-                            onTap: () {
-                              showDialog<void>(
-                                context: context,
-                                builder: (ctx) => _EditProfileDialog(
-                                  initialName: displayName,
-                                  initialBio: bio,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _QuickActionButton(
-                            icon: Icons.share_rounded,
-                            label: context.l10n.commonShare,
-                            onTap: () {
-                              // Share profile
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _QuickActionButton(
-                            icon: Icons.copy_rounded,
-                            label: context.l10n.commonCopy,
-                            onTap: () {
-                              // Copy username
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Appearance
                 children: [
                   // Appearance
                   SettingsSection(

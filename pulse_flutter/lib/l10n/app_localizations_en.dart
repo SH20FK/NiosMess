@@ -377,13 +377,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileEdit => 'Edit profile';
 
   @override
-  String get profileBlock => 'Block';
-
-  @override
   String get profileBlocked => 'blocked';
-
-  @override
-  String get profileCall => 'Call';
 
   @override
   String get profileThemeStudio => 'Theme studio';

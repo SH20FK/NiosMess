@@ -379,13 +379,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get profileEdit => 'Редактировать профиль';
 
   @override
-  String get profileBlock => 'Заблокировать';
-
-  @override
   String get profileBlocked => 'Заблокирован';
-
-  @override
-  String get profileCall => 'Позвонить';
 
   @override
   String get profileThemeStudio => 'Редактор тем';

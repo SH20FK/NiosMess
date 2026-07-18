@@ -9,8 +9,6 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';;
-import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 
 class GroupProfileScreen extends ConsumerWidget {
@@ -102,6 +100,7 @@ class GroupProfileScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 12),
                   ],
                 ),
               ),
@@ -209,37 +208,14 @@ class GroupProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     _MemberPreview(membersCount: chat.membersCount, isChannel: isChannel),
                   ],
-],
-                    ),
-                  ),
-                ),
+                ],
               ),
-              const SizedBox(height: 12),
-              // Admin actions
-              if (!isChannel) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppConstants.screenHorizontalPadding),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.group_add_rounded, size: 18),
-                          label: Text(context.l10n.groupProfileAddMember),
-                          onPressed: () => context.push('/chat/$chatId/members/add'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.admin_panel_settings_rounded, size: 18),
-                          label: Text(context.l10n.groupProfileManageAdmins),
-                          onPressed: () => context.push('/chat/$chatId/admins'),
-                        ),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 12),
-              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildInfoCard(BuildContext context, ColorScheme scheme, TextTheme textTheme, {
     required String title,
@@ -315,7 +291,16 @@ class GroupProfileScreen extends ConsumerWidget {
             ),
             IconButton(
               icon: const Icon(Icons.copy_rounded, size: 20),
-              }
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: '@${chat.username}'));
+                AppToast.showInfo(context, context.l10n.groupProfileLinkCopied);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _MemberPreview extends StatelessWidget {
@@ -327,21 +312,19 @@ class _MemberPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
 
-    final int previewCount = 5;
-    final List<Widget> avatars = List.generate(
-      previewCount.clamp(0, membersCount),
-      (index) => Padding(
+    final int previewCount = (membersCount < 5 ? membersCount : 5);
+    final List<Widget> avatars = List<Widget>.generate(previewCount, (index) {
+      return Padding(
         padding: EdgeInsets.only(right: index == previewCount - 1 ? 0 : -8),
         child: PulseAvatar(
           name: 'Member ${index + 1}',
           radius: 16,
-          fallbackColor: Theme.of(context).colorScheme.primaryContainer,
-          textColor: Theme.of(context).colorScheme.onPrimaryContainer,
+          fallbackColor: scheme.primaryContainer,
+          textColor: scheme.onPrimaryContainer,
         ),
-      ),
-    );
+      );
+    });
 
     if (membersCount > previewCount) {
       avatars.add(
@@ -349,7 +332,7 @@ class _MemberPreview extends StatelessWidget {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            color: scheme.surfaceContainerHighest,
             shape: BoxShape.circle,
           ),
           alignment: Alignment.center,
@@ -357,7 +340,7 @@ class _MemberPreview extends StatelessWidget {
             '+${membersCount - previewCount}',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: scheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -368,13 +351,11 @@ class _MemberPreview extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppConstants.screenHorizontalPadding),
       child: Row(
         children: <Widget>[
-          Expanded(
-            child: Row(children: avatars),
-          ),
+          Expanded(child: Row(children: avatars)),
           Text(
-            '+${membersCount}',
+            '+$membersCount',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: scheme.onSurfaceVariant,
             ),
           ),
         ],
