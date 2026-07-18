@@ -3,6 +3,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
@@ -49,7 +50,6 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   Duration _duration = Duration.zero;
   late final List<double> _waveformBars;
   bool _seeking = false;
-  bool _localLoading = false;
 
   @override
   void initState() {
@@ -57,17 +57,16 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     _player = AudioPlayer(handleInterruptions: true);
     _initAudioSession();
     _waveformBars = _generateWaveform(widget.audioUrl.hashCode);
-    
-    if (widget.audioUrl.startsWith('local://')) {
-      _localLoading = true;
-    }
     _setupPlayer();
   }
 
   List<double> _generateWaveform(int seed) {
     final math.Random rng = math.Random(seed);
-    final List<double> bars = List<double>.generate(40, (_) {
-      return 0.12 + 0.70 * rng.nextDouble();
+    final List<double> bars = List<double>.generate(50, (i) {
+      final double envelope = math.sin(math.pi * i / 49);
+      final double noise = 0.15 + 0.65 * rng.nextDouble();
+      final double wave = 0.3 + 0.4 * math.sin(i * 0.3 + seed * 0.001);
+      return (envelope * 0.4 + noise * 0.4 + wave * 0.2).clamp(0.08, 1.0);
     });
     for (int i = 1; i < bars.length - 1; i++) {
       bars[i] = (bars[i - 1] + bars[i] + bars[i + 1]) / 3;
@@ -149,6 +148,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
         : 0.0;
     final Duration remaining = _duration - _position;
     final Color fg = widget.isMine ? widget.scheme.onPrimary : widget.scheme.primary;
+    final Color onFg = widget.isMine ? widget.scheme.primary : widget.scheme.onPrimary;
     final Color bg = widget.isMine
         ? widget.scheme.primary.withValues(alpha: 0.6)
         : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.8);
@@ -204,12 +204,12 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                         ],
                       ),
                       child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 150),
+                        duration: const Duration(milliseconds: 200),
                         transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
                         child: Icon(
                           playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                           key: ValueKey<bool>(playing),
-                          color: widget.isMine ? widget.scheme.surface : widget.scheme.surface,
+                          color: onFg,
                           size: 26,
                         ),
                       ),
@@ -295,7 +295,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                                 Padding(
                                   padding: const EdgeInsets.only(right: 3),
                                   child: Text(
-                                    'edited',
+                                    context.l10n.chatEdited,
                                     style: TextStyle(
                                       fontSize: 9,
                                       fontWeight: FontWeight.w600,
@@ -368,19 +368,21 @@ class _WaveformPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double barWidth = (size.width - (bars.length - 1) * 2) / bars.length;
+    final double gap = 1.5;
+    final double barWidth = (size.width - (bars.length - 1) * gap) / bars.length;
     final double midY = size.height / 2;
+    final double maxBarHeight = size.height * 0.85;
 
     for (int i = 0; i < bars.length; i++) {
-      final double x = i * (barWidth + 2);
-      final double barHeight = bars[i] * size.height;
+      final double x = i * (barWidth + gap);
+      final double barHeight = bars[i] * maxBarHeight;
       final double top = midY - barHeight / 2;
       final bool played = i / bars.length <= progress;
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(x, top, barWidth, barHeight),
-          const Radius.circular(3),
+          Radius.circular(barWidth / 2),
         ),
         Paint()..color = played ? playedColor : unplayedColor,
       );

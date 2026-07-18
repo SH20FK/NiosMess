@@ -52,7 +52,6 @@ class PulseAvatar extends StatelessWidget {
     final String url = ApiConstants.resolve(avatarUrl);
 
     final Widget fallback = _fallbackAvatar(
-      context,
       initials: initials,
       background: background,
       foreground: foreground,
@@ -61,14 +60,26 @@ class PulseAvatar extends StatelessWidget {
 
     final Widget child = url.isEmpty
         ? fallback
-        : _CachedAvatar(
-            url: url,
-            radius: radius,
-            fallback: fallback,
+        : ClipOval(
+            child: CachedNetworkImage(
+              imageUrl: url,
+              httpHeaders: cachedAuthHeaders(),
+              memCacheWidth: (radius * 2 * 2).toInt(),
+              memCacheHeight: (radius * 2 * 2).toInt(),
+              placeholder: (_, __) => _ShimmerPlaceholder(
+                radius: radius,
+                background: background,
+              ),
+              errorWidget: (_, __, ___) => fallback,
+              fadeInDuration: const Duration(milliseconds: 300),
+              width: radius * 2,
+              height: radius * 2,
+              fit: BoxFit.cover,
+            ),
           );
 
     final Widget avatar = borderWidth <= 0
-        ? SizedBox(width: radius * 2, height: radius * 2, child: ClipOval(child: child))
+        ? SizedBox(width: radius * 2, height: radius * 2, child: child)
         : Container(
             width: radius * 2,
             height: radius * 2,
@@ -79,7 +90,7 @@ class PulseAvatar extends StatelessWidget {
                 width: borderWidth,
               ),
             ),
-            child: ClipOval(child: child),
+            child: child,
           );
 
     return Semantics(
@@ -89,8 +100,7 @@ class PulseAvatar extends StatelessWidget {
     );
   }
 
-  Widget _fallbackAvatar(
-    BuildContext context, {
+  Widget _fallbackAvatar({
     required String initials,
     required Color background,
     required Color foreground,
@@ -122,87 +132,63 @@ class PulseAvatar extends StatelessWidget {
   }
 }
 
-class _CachedAvatar extends StatefulWidget {
-  const _CachedAvatar({
-    required this.url,
-    required this.radius,
-    required this.fallback,
-  });
-
-  final String url;
+class _ShimmerPlaceholder extends StatefulWidget {
+  const _ShimmerPlaceholder({required this.radius, required this.background});
   final double radius;
-  final Widget fallback;
+  final Color background;
 
   @override
-  State<_CachedAvatar> createState() => _CachedAvatarState();
+  State<_ShimmerPlaceholder> createState() => _ShimmerPlaceholderState();
 }
 
-class _CachedAvatarState extends State<_CachedAvatar> {
-  ImageStream? _imageStream;
-  ImageInfo? _currentInfo;
-  ImageStreamListener? _listener;
+class _ShimmerPlaceholderState extends State<_ShimmerPlaceholder>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _resolveImage();
-  }
-
-  @override
-  void didUpdateWidget(_CachedAvatar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.url != widget.url) {
-      _stopListening();
-      _resolveImage();
-    }
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
   }
 
   @override
   void dispose() {
-    _stopListening();
+    _controller.dispose();
     super.dispose();
-  }
-
-  void _resolveImage() {
-    final ImageProvider provider = CachedNetworkImageProvider(
-      widget.url,
-      headers: cachedAuthHeaders(),
-      maxWidth: (widget.radius * 2 * 2).toInt(),
-      maxHeight: (widget.radius * 2 * 2).toInt(),
-    );
-
-    final ImageStream stream = provider.resolve(
-      ImageConfiguration.empty,
-    );
-
-    _stopListening();
-    _imageStream = stream;
-    _listener = ImageStreamListener(_onImage);
-    stream.addListener(_listener!);
-  }
-
-  void _onImage(ImageInfo info, bool _) {
-    if (!mounted) return;
-    setState(() => _currentInfo = info);
-  }
-
-  void _stopListening() {
-    if (_listener != null && _imageStream != null) {
-      _imageStream!.removeListener(_listener!);
-      _listener = null;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_currentInfo != null) {
-      return RawImage(
-        image: _currentInfo!.image,
-        width: widget.radius * 2,
-        height: widget.radius * 2,
-        fit: BoxFit.cover,
-      );
-    }
-    return widget.fallback;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, __) {
+        return Container(
+          width: widget.radius * 2,
+          height: widget.radius * 2,
+          decoration: BoxDecoration(
+            color: widget.background,
+            shape: BoxShape.circle,
+          ),
+          child: Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: ClipOval(
+                  child: LinearProgressIndicator(
+                    value: null,
+                    backgroundColor: Colors.transparent,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.surface.withValues(alpha: 0.15),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
