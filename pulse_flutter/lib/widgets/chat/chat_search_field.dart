@@ -58,7 +58,7 @@ class _ChatSearchFieldState extends ConsumerState<ChatSearchField> {
     return SearchAnchor.bar(
       searchController: _searchController,
       barHintText: context.l10n.chatListSearchMessagesHint,
-      barElevation: const WidgetStatePropertyAll(0),
+      barElevation: const WidgetStatePropertyAll<double>(0.0),
       barBackgroundColor: WidgetStatePropertyAll(scheme.surfaceContainerHigh),
       barShape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
       barPadding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16)),
@@ -88,7 +88,7 @@ class _ChatSearchFieldState extends ConsumerState<ChatSearchField> {
                   padding: const EdgeInsets.all(32),
                   child: Center(
                     child: Text(
-                      context.l10n.chatListSearchNoResults,
+                      context.l10n.emptyStateNoItems,
                       style: textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
                     ),
                   ),

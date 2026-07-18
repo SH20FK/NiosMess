@@ -45,7 +45,7 @@ class _VaffuruThemeSettingsScreenState extends ConsumerState<VaffuruThemeSetting
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return SettingsScaffold(
-      title: context.l10n.settingsAppearanceTitle,
+      title: context.l10n.appearanceTitle,
       children: <Widget>[
         // --- 1. MD3 Ultra-Expressive Hero ---
         const SizedBox(height: 16),
@@ -63,17 +63,17 @@ class _VaffuruThemeSettingsScreenState extends ConsumerState<VaffuruThemeSetting
               ButtonSegment(
                 value: ThemeMode.system,
                 icon: const Icon(Icons.brightness_auto_rounded),
-                label: Text(context.l10n.appearanceThemeSystem),
+                label: Text(context.l10n.commonSystem),
               ),
               ButtonSegment(
                 value: ThemeMode.light,
                 icon: const Icon(Icons.light_mode_rounded),
-                label: Text(context.l10n.appearanceThemeLight),
+                label: Text(context.l10n.commonLight),
               ),
               ButtonSegment(
                 value: ThemeMode.dark,
                 icon: const Icon(Icons.dark_mode_rounded),
-                label: Text(context.l10n.appearanceThemeDark),
+                label: Text(context.l10n.commonDark),
               ),
             ],
             selected: {settings.themeMode},
@@ -86,12 +86,12 @@ class _VaffuruThemeSettingsScreenState extends ConsumerState<VaffuruThemeSetting
 
         // --- 3. Dynamic Color Toggle ---
         SettingsSection(
-          title: context.l10n.settingsAppearanceColorSection,
+          title: context.l10n.appearanceAccentPalette,
           children: [
             SettingsSwitchTile(
               icon: Icons.wallpaper_rounded,
-              title: context.l10n.appearanceSystemDynamic,
-              subtitle: context.l10n.appearanceSystemDynamicSubtitle,
+              title: context.l10n.appearanceSystemColors,
+              subtitle: context.l10n.appearanceSystemColorsSubtitle,
               value: settings.useSystemDynamic,
               onChanged: (bool value) {
                 ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(value);

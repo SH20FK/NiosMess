@@ -48,13 +48,13 @@ class AppBottomNav extends ConsumerWidget {
       ),
     ];
 
-    final Scheme = Theme.of(context).colorScheme;
+    final scheme = Theme.of(context).colorScheme;
 
     Widget navBar = NavigationBar(
       selectedIndex: currentIndex,
       elevation: 0,
-      backgroundColor: isFloating ? Scheme.surfaceContainerHighest.withOpacity(0.9) : Scheme.surfaceContainerLow,
-      indicatorColor: Scheme.secondaryContainer,
+      backgroundColor: isFloating ? scheme.surfaceContainerHighest.withOpacity(0.9) : scheme.surfaceContainerLow,
+      indicatorColor: scheme.secondaryContainer,
       onDestinationSelected: (int index) {
             ref.read(appSoundProvider).playUiTick();
             if (hapticsEnabled && index != currentIndex) {

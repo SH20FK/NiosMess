@@ -84,6 +84,7 @@ dependencies:
   shimmer: ^3.0.0
   flutter_svg: ^2.3.0
   permission_handler: ^11.3.1
+  pure_dart_quic: ^1.0.0
   image: ^4.1.4
   opus_codec_dart: ^3.0.5
   opus_codec: ^3.0.5
