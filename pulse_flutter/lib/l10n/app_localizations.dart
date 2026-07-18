@@ -6255,6 +6255,30 @@ abstract class AppLocalizations {
   String get aboutTabDevelopers;
   String get aboutTabFaq;
   String get aboutTabChangelog;
+  String get aboutTabLegal;
+
+  String get legalPrivacyTitle;
+  String get legalPrivacySubtitle;
+  String get legalToSTitle;
+  String get legalToSSubtitle;
+  String get legalConsentTitle;
+  String get legalConsentSubtitle;
+  String get legalSectionTitle;
+  String get legalSectionSubtitle;
+
+  String get alphaDialogTitle;
+  String get alphaDialogBody;
+  String get alphaDialogReportTo;
+  String get alphaDialogUnderstood;
+  String get alphaSectionTitle;
+  String get alphaSectionBadge;
+  String get alphaSectionBody;
+  String get alphaShowAgain;
+
+  String get registerConsentPrivacy;
+  String get registerConsentToS;
+  String get registerConsentReadMore;
+  String get registerConsentRequired;
 
   String get appearanceFloatingNav;
   String get appearanceFloatingNavSubtitle;

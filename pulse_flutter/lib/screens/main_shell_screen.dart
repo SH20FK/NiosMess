@@ -13,6 +13,7 @@ import 'package:pulse_flutter/screens/contacts_screen.dart';
 import 'package:pulse_flutter/screens/niosgram_screen.dart';
 import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
+import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
 import 'package:pulse_flutter/widgets/chat_creation_surfaces.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
@@ -43,6 +44,13 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
     super.initState();
     _pageController = PageController(initialPage: _tabIndex(widget.tab));
     _checkBiometricLock();
+    _showAlphaDialog();
+  }
+
+  Future<void> _showAlphaDialog() async {
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
+    await AlphaTestDialog.showIfFirstLaunch(context);
   }
 
   Future<void> _checkBiometricLock() async {

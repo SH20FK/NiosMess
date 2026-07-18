@@ -3455,6 +3455,69 @@ class AppLocalizationsRu extends AppLocalizations {
   String get aboutTabChangelog => 'Обновления';
 
   @override
+  String get aboutTabLegal => 'Правовое';
+
+  @override
+  String get legalPrivacyTitle => 'Политика конфиденциальности';
+
+  @override
+  String get legalPrivacySubtitle => 'Как мы обрабатываем ваши данные';
+
+  @override
+  String get legalToSTitle => 'Условия использования';
+
+  @override
+  String get legalToSSubtitle => 'Правила сервиса и модерации';
+
+  @override
+  String get legalConsentTitle => 'Согласие на обработку данных';
+
+  @override
+  String get legalConsentSubtitle => 'Ваше согласие на обработку ПД';
+
+  @override
+  String get legalSectionTitle => 'Документы';
+
+  @override
+  String get legalSectionSubtitle => 'Ознакомьтесь с правовыми документами NiosMess';
+
+  @override
+  String get alphaDialogTitle => 'Приложение в альфа-тесте';
+
+  @override
+  String get alphaDialogBody => 'NiosMess находится на стадии альфа-тестирования. Возможны баги, ошибки и нестабильная работа. Мы активно работаем над улучшением.';
+
+  @override
+  String get alphaDialogReportTo => 'Сообщать о багах:';
+
+  @override
+  String get alphaDialogUnderstood => 'Понятно';
+
+  @override
+  String get alphaSectionTitle => 'Статус тестирования';
+
+  @override
+  String get alphaSectionBadge => 'Альфа-тест';
+
+  @override
+  String get alphaSectionBody => 'Приложение находится в стадии альфа-тестирования. Возможны баги и ошибки. Сообщайте о проблемах в Telegram.';
+
+  @override
+  String get alphaShowAgain => 'Показать предупреждение снова';
+
+  @override
+  String get registerConsentPrivacy => 'Я ознакомился и согласен с ';
+
+  @override
+  String get registerConsentToS => 'Я принимаю ';
+
+  @override
+  String get registerConsentReadMore => 'прочитать';
+
+  @override
+  String get registerConsentRequired => 'Необходимо принять условия для регистрации';
+
+  @override
   String get appearanceFloatingNav => 'Плавающая навигация';
 
   @override

@@ -119,6 +119,7 @@ flutter:
     - assets/lottie/
     - assets/icons/
     - assets/svg/
+    - assets/legal/
     - assets/NiosMess_icon.png
 
   fonts:

@@ -1,0 +1,31 @@
+CONSENT TO PERSONAL DATA PROCESSING
+
+By checking the box "I agree to the processing of my personal data" during registration, or by continuing to use the NiosMess service (hereinafter referred to as the "Service"), you (hereinafter referred to as the "User") provide your explicit, voluntary, and informed consent to the Service Administration (hereinafter referred to as the "Operator") to process your personal data under the terms set forth below.
+
+1. Subject of Consent
+The User consents to the processing of the following personal data:
+- Email address;
+- Username and Display Name;
+- Profile description ("About Me" / Bio);
+- Profile image (Avatar);
+- Network identifiers: IP address, device type and model, operating system, cookie files, and local storage data (LocalStorage, IndexedDB);
+- Any media files and text voluntarily uploaded or sent by the User to public channels, groups, or chats without end-to-end encryption.
+
+2. Purposes of Data Processing
+Personal data is processed for the following purposes:
+- Creating and managing the User's account in the Service;
+- Providing the core functionality of the messenger (sending and delivering messages, managing groups and channels, displaying public posts in NiosGram);
+- Ensuring security, preventing fraudulent activity, and sending two-factor authentication (2FA) codes;
+- Providing technical support and resolving User inquiries;
+- Moderating public content in compliance with the Terms of Service.
+
+3. Storage and Protection of Data
+- All personal data is hosted on secure servers located in the Netherlands (European Union) in accordance with the EU General Data Protection Regulation (GDPR).
+- Secret Chat messages are protected by End-to-End Encryption (E2EE), are processed only in encrypted form, and are not accessible or stored in readable format by the Operator.
+
+4. Consent Validity and Withdrawal
+- This Consent is valid from the moment of registration until the User deletes their account or withdraws this Consent.
+- The User has the right to withdraw this Consent at any time. Withdrawal of consent can be requested by sending an email to: privacy@ni-os.ru.
+- The User understands and agrees that withdrawing consent will prevent the Operator from providing the Service, and will result in the immediate and permanent deletion of the User's account and associated personal data.
+
+I hereby confirm that I am at least 13 years of age (or at least 16 years of age if residing in the EU/EEA, unless local law permits a lower age), or that I have obtained the consent of my parent or legal guardian to register and use the Service.

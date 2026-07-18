@@ -3440,6 +3440,69 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutTabChangelog => 'Changelog';
 
   @override
+  String get aboutTabLegal => 'Legal';
+
+  @override
+  String get legalPrivacyTitle => 'Privacy Policy';
+
+  @override
+  String get legalPrivacySubtitle => 'How we handle your data';
+
+  @override
+  String get legalToSTitle => 'Terms of Service';
+
+  @override
+  String get legalToSSubtitle => 'Service rules and moderation';
+
+  @override
+  String get legalConsentTitle => 'Data Processing Consent';
+
+  @override
+  String get legalConsentSubtitle => 'Your consent to data processing';
+
+  @override
+  String get legalSectionTitle => 'Documents';
+
+  @override
+  String get legalSectionSubtitle => 'Review the legal documents of NiosMess';
+
+  @override
+  String get alphaDialogTitle => 'App is in Alpha Testing';
+
+  @override
+  String get alphaDialogBody => 'NiosMess is in the alpha testing stage. Bugs, errors, and unstable behavior may occur. We are actively working on improvements.';
+
+  @override
+  String get alphaDialogReportTo => 'Report bugs to:';
+
+  @override
+  String get alphaDialogUnderstood => 'Got it';
+
+  @override
+  String get alphaSectionTitle => 'Testing Status';
+
+  @override
+  String get alphaSectionBadge => 'Alpha Test';
+
+  @override
+  String get alphaSectionBody => 'The app is in the alpha testing stage. Bugs and errors may occur. Report issues via Telegram.';
+
+  @override
+  String get alphaShowAgain => 'Show warning again';
+
+  @override
+  String get registerConsentPrivacy => 'I have read and agree to the ';
+
+  @override
+  String get registerConsentToS => 'I accept the ';
+
+  @override
+  String get registerConsentReadMore => 'read more';
+
+  @override
+  String get registerConsentRequired => 'You must accept the terms to register';
+
+  @override
   String get appearanceFloatingNav => 'Floating navigation';
 
   @override

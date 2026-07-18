@@ -6,6 +6,7 @@ import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/screens/legal_viewer_screen.dart';
 import 'package:pulse_flutter/widgets/animated_mesh_background.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -24,6 +25,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool _hidePassword = true;
+  bool _consentPrivacy = false;
+  bool _consentToS = false;
 
   @override
   void dispose() {
@@ -37,6 +40,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _submit() async {
     final FormState? form = _formKey.currentState;
     if (form == null || !form.validate()) {
+      return;
+    }
+
+    if (!_consentPrivacy || !_consentToS) {
+      AppToast.showError(context, context.l10n.registerConsentRequired);
       return;
     }
 
@@ -219,7 +227,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             return null;
                           },
                         ).animate().fade(duration: 400.ms, delay: 200.ms),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 20),
+                        _ConsentCheckbox(
+                          value: _consentPrivacy,
+                          onChanged: (v) => setState(() => _consentPrivacy = v!),
+                          label: context.l10n.registerConsentPrivacy,
+                          onReadMore: () => context.push('/legal/privacy'),
+                        ),
+                        const SizedBox(height: 8),
+                        _ConsentCheckbox(
+                          value: _consentToS,
+                          onChanged: (v) => setState(() => _consentToS = v!),
+                          label: context.l10n.registerConsentToS,
+                          onReadMore: () => context.push('/legal/tos'),
+                        ),
+                        const SizedBox(height: 24),
                         SizedBox(
                           height: 58,
                           child: FilledButton(
@@ -252,6 +274,67 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ),
       ),
       ),
+    );
+  }
+}
+
+class _ConsentCheckbox extends StatelessWidget {
+  const _ConsentCheckbox({
+    required this.value,
+    required this.onChanged,
+    required this.label,
+    required this.onReadMore,
+  });
+
+  final bool value;
+  final ValueChanged<bool?> onChanged;
+  final String label;
+  final VoidCallback onReadMore;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Checkbox(
+          value: value,
+          onChanged: onChanged,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        Expanded(
+          child: GestureDetector(
+            onTap: onChanged != null ? () => onChanged!(!value) : null,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: <Widget>[
+                  Text(
+                    label,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: onReadMore,
+                    child: Text(
+                      context.l10n.registerConsentReadMore,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

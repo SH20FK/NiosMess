@@ -25,6 +25,7 @@ import 'package:pulse_flutter/screens/reset_password_request_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
+import 'package:pulse_flutter/screens/legal_viewer_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
@@ -68,7 +69,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       final bool isAuth = authState.isAuthenticated;
       final String path = state.uri.path;
 
-      final bool isPublic = path == '/' || path == '/login' || path == '/register' || path == '/onboarding' || path.startsWith('/reset-password') || path.startsWith('/verify-email') || path.startsWith('/2fa') || path.startsWith('/setup');
+      final bool isPublic = path == '/' || path == '/login' || path == '/register' || path == '/onboarding' || path.startsWith('/reset-password') || path.startsWith('/verify-email') || path.startsWith('/2fa') || path.startsWith('/setup') || path.startsWith('/legal');
 
       if (!isAuth && !isPublic) return '/login';
       if (isAuth && (path == '/login' || path == '/onboarding' || path == '/register' || path.startsWith('/setup') || path.startsWith('/2fa'))) return '/main/chats';
@@ -227,6 +228,18 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/settings/sessions',
         pageBuilder: (context, state) => _page(state, const SessionsScreen(), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/legal/privacy',
+        pageBuilder: (context, state) => _page(state, const LegalViewerScreen(docType: LegalDocType.privacy), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/legal/tos',
+        pageBuilder: (context, state) => _page(state, const LegalViewerScreen(docType: LegalDocType.tos), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/legal/consent',
+        pageBuilder: (context, state) => _page(state, const LegalViewerScreen(docType: LegalDocType.consent), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/niosgram/create',

@@ -2,9 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsAboutScreen extends StatefulWidget {
   const SettingsAboutScreen({super.key});
@@ -80,6 +83,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                     Tab(icon: const Icon(Icons.code_rounded), text: context.l10n.aboutTabDevelopers, iconMargin: EdgeInsets.zero),
                     Tab(icon: const Icon(Icons.help_outline_rounded), text: context.l10n.aboutTabFaq, iconMargin: EdgeInsets.zero),
                     Tab(icon: const Icon(Icons.history_rounded), text: context.l10n.aboutTabChangelog, iconMargin: EdgeInsets.zero),
+                    Tab(icon: const Icon(Icons.gavel_rounded), text: context.l10n.aboutTabLegal, iconMargin: EdgeInsets.zero),
                   ],
                 ),
               ),
@@ -91,6 +95,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                   _DevelopersTab(),
                   _FaqTab(),
                   _ChangelogTab(packageInfo: _packageInfo),
+                  _LegalTab(),
                 ],
               ),
             ),
@@ -664,6 +669,224 @@ class _ReleaseCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _LegalTab extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      children: <Widget>[
+        Text(
+          context.l10n.legalSectionTitle,
+          style: textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: scheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          context.l10n.legalSectionSubtitle,
+          style: textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 20),
+        _LegalCard(
+          icon: Icons.privacy_tip_rounded,
+          title: context.l10n.legalPrivacyTitle,
+          subtitle: context.l10n.legalPrivacySubtitle,
+          iconColor: scheme.primary,
+          onTap: () => context.push('/legal/privacy'),
+        ),
+        const SizedBox(height: 10),
+        _LegalCard(
+          icon: Icons.description_rounded,
+          title: context.l10n.legalToSTitle,
+          subtitle: context.l10n.legalToSSubtitle,
+          iconColor: scheme.tertiary,
+          onTap: () => context.push('/legal/tos'),
+        ),
+        const SizedBox(height: 10),
+        _LegalCard(
+          icon: Icons.assignment_turned_in_rounded,
+          title: context.l10n.legalConsentTitle,
+          subtitle: context.l10n.legalConsentSubtitle,
+          iconColor: scheme.secondary,
+          onTap: () => context.push('/legal/consent'),
+        ),
+        const SizedBox(height: 28),
+        Text(
+          context.l10n.alphaSectionTitle,
+          style: textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: scheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: scheme.errorContainer.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: scheme.error.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(Icons.bug_report_rounded, color: scheme.error, size: 22),
+                  const SizedBox(width: 10),
+                  Text(
+                    context.l10n.alphaSectionBadge,
+                    style: textTheme.labelLarge?.copyWith(
+                      color: scheme.error,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                context.l10n.alphaSectionBody,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                context.l10n.alphaDialogReportTo,
+                style: textTheme.labelLarge?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: <Widget>[
+                  _TelegramLink(
+                    handle: 'Door0S',
+                    onTap: () => _launchTelegram('Door0S'),
+                  ),
+                  const SizedBox(width: 10),
+                  _TelegramLink(
+                    handle: 'sanlsan',
+                    onTap: () => _launchTelegram('sanlsan'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextButton.icon(
+          onPressed: () => AlphaTestDialog.showIfFirstLaunch(context),
+          icon: const Icon(Icons.replay_rounded, size: 18),
+          label: Text(context.l10n.alphaShowAgain),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _launchTelegram(String handle) async {
+    final uri = Uri.parse('https://t.me/$handle');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+}
+
+class _LegalCard extends StatelessWidget {
+  const _LegalCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.iconColor,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Material(
+      color: scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      style: textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TelegramLink extends StatelessWidget {
+  const _TelegramLink({required this.handle, required this.onTap});
+
+  final String handle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return ActionChip(
+      label: Text('@$handle'),
+      avatar: Icon(Icons.send_rounded, size: 16, color: scheme.primary),
+      onPressed: onTap,
     );
   }
 }
