@@ -24,6 +24,7 @@ import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
 import 'package:universal_io/io.dart';
+import 'package:pulse_flutter/core/utils/message_formatter.dart';
 
 class MessageBubble extends ConsumerWidget {
   const MessageBubble({
@@ -168,9 +169,6 @@ class MessageBubble extends ConsumerWidget {
     }
   }
 
-  static final RegExp _fwdRegExp = RegExp(r'^_fwd from\s+(.+?):\s*(.*)$');
-  static final RegExp _mentionRegExp = RegExp(r'@(\w+)');
-
   static TextSpan _parseTextWithMentions(
     BuildContext context,
     String text,
@@ -182,7 +180,7 @@ class MessageBubble extends ConsumerWidget {
     final List<TextSpan> spans = <TextSpan>[];
     int lastEnd = 0;
 
-    for (final RegExpMatch match in _mentionRegExp.allMatches(text)) {
+    for (final RegExpMatch match in MessageFormatter._mentionRegExp.allMatches(text)) {
       if (match.start > lastEnd) {
         spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
       }
@@ -227,7 +225,7 @@ class MessageBubble extends ConsumerWidget {
         ? scheme.onSurfaceVariant
         : (isMine ? scheme.onPrimaryContainer : scheme.onSurface);
     final bool hasMedia = (mediaUrl ?? '').trim().isNotEmpty;
-    final String displayText = forwarded?.body ?? text;
+    final String displayText = MessageFormatter.displayText(text);
     final bool hasText = displayText.trim().isNotEmpty;
 
     final Map<String, String> headers = cachedAuthHeaders();
@@ -789,7 +787,7 @@ class MessageBubble extends ConsumerWidget {
 
   _ForwardedPayload? _parseForwarded(String rawText) {
     final String trimmed = rawText.trim();
-    final Match? result = _fwdRegExp.firstMatch(trimmed);
+    final Match? result = MessageFormatter._fwdRegExp.firstMatch(trimmed);
     if (result == null) return null;
     final String sender = (result.group(1) ?? '').trim();
     final String body = (result.group(2) ?? '').trim();
