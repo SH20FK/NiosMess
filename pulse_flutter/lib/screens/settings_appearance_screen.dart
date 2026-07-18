@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mesh_gradient/mesh_gradient.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/active_color_orb.dart';
@@ -19,15 +20,21 @@ enum _ThemePaletteId {
   amethyst, lagoon, meadow, ember, orchid, slate, sky, rose,
 }
 
-const _ThemePaletteData = <_ThemePaletteId, Color>{
-  _ThemePaletteId.amethyst: Color(0xFF6750A4),
-  _ThemePaletteId.lagoon: Color(0xFF006C5B),
-  _ThemePaletteId.meadow: Color(0xFF4C662B),
-  _ThemePaletteId.ember: Color(0xFF984061),
-  _ThemePaletteId.orchid: Color(0xFF825500),
-  _ThemePaletteId.slate: Color(0xFF0061A4),
-  _ThemePaletteId.sky: Color(0xFF006874),
-  _ThemePaletteId.rose: Color(0xFF476810),
+class _ThemePaletteEntry {
+  const _ThemePaletteEntry(this.color, this.nameKey);
+  final Color color;
+  final String nameKey;
+}
+
+const _ThemePaletteData = <_ThemePaletteId, _ThemePaletteEntry>{
+  _ThemePaletteId.amethyst: _ThemePaletteEntry(Color(0xFF6750A4), 'Amethyst'),
+  _ThemePaletteId.lagoon: _ThemePaletteEntry(Color(0xFF006C5B), 'Lagoon'),
+  _ThemePaletteId.meadow: _ThemePaletteEntry(Color(0xFF4C662B), 'Meadow'),
+  _ThemePaletteId.ember: _ThemePaletteEntry(Color(0xFF984061), 'Ember'),
+  _ThemePaletteId.orchid: _ThemePaletteEntry(Color(0xFF825500), 'Orchid'),
+  _ThemePaletteId.slate: _ThemePaletteEntry(Color(0xFF0061A4), 'Slate'),
+  _ThemePaletteId.sky: _ThemePaletteEntry(Color(0xFF006874), 'Sky'),
+  _ThemePaletteId.rose: _ThemePaletteEntry(Color(0xFF476810), 'Rose'),
 };
 
 class _AppearanceScreen extends ConsumerStatefulWidget {
@@ -43,27 +50,26 @@ class _AppearanceScreenState extends ConsumerState<_AppearanceScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(uiSettingsProvider);
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final theme = Theme.of(context);
-    final prevTheme = _prevTheme ?? theme;
+    final brightness = Theme.of(context).brightness;
+    final targetTheme = AppTheme.themed(settings, brightness);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_prevTheme != theme) {
-        setState(() {
-          _prevTheme = theme;
-        });
+      if (_prevTheme != null && _prevTheme != targetTheme) {
+        setState(() {});
       }
     });
 
+    final prevTheme = _prevTheme ?? targetTheme;
+    _prevTheme = targetTheme;
+
     return TweenAnimationBuilder<ThemeData>(
-      tween: ThemeDataTween(begin: prevTheme, end: theme),
+      tween: ThemeDataTween(begin: prevTheme, end: targetTheme),
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeInOutCubic,
       builder: (_, animatedTheme, __) {
         return Theme(
           data: animatedTheme,
-          child: _buildContent(settings, scheme, textTheme),
+          child: _buildContent(settings, animatedTheme.colorScheme, animatedTheme.textTheme),
         );
       },
     );
@@ -148,10 +154,17 @@ class _AppearanceScreenState extends ConsumerState<_AppearanceScreen> {
   }
 }
 
-// 1. Mesh Gradient Hero
-class _MeshHero extends StatelessWidget {
+// 1. Mesh Gradient Hero — interactive touch-reactive
+class _MeshHero extends StatefulWidget {
   const _MeshHero({required this.scheme});
   final ColorScheme scheme;
+
+  @override
+  State<_MeshHero> createState() => _MeshHeroState();
+}
+
+class _MeshHeroState extends State<_MeshHero> {
+  Offset _touchPoint = Offset.zero;
 
   @override
   Widget build(BuildContext context) {
@@ -162,18 +175,48 @@ class _MeshHero extends StatelessWidget {
         child: SizedBox(
           height: 220,
           child: ExcludeSemantics(
-            child: AnimatedMeshGradient(
-              colors: [
-                scheme.primary,
-                scheme.tertiary,
-                scheme.secondary,
-                scheme.surfaceContainerHighest,
-              ],
-              options: AnimatedMeshGradientOptions(
-                frequency: 3,
-                amplitude: 20,
-                speed: 1.5,
-                grain: 0.06,
+            child: GestureDetector(
+              onPanUpdate: (details) {
+                setState(() {
+                  _touchPoint = details.localPosition;
+                });
+              },
+              child: Stack(
+                children: <Widget>[
+                  AnimatedMeshGradient(
+                    colors: [
+                      widget.scheme.primary,
+                      widget.scheme.tertiary,
+                      widget.scheme.secondary,
+                      widget.scheme.surfaceContainerHighest,
+                    ],
+                    options: AnimatedMeshGradientOptions(
+                      frequency: 3,
+                      amplitude: 20,
+                      speed: 1.5,
+                      grain: 0.06,
+                    ),
+                  ),
+                  if (_touchPoint != Offset.zero)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween<double>(begin: 0.0, end: 1.0),
+                          duration: const Duration(milliseconds: 800),
+                          curve: Curves.easeOutCubic,
+                          builder: (_, value, __) {
+                            return CustomPaint(
+                              painter: _TouchRipplePainter(
+                                center: _touchPoint,
+                                progress: value,
+                                color: widget.scheme.onPrimary,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -181,6 +224,31 @@ class _MeshHero extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TouchRipplePainter extends CustomPainter {
+  const _TouchRipplePainter({
+    required this.center,
+    required this.progress,
+    required this.color,
+  });
+
+  final Offset center;
+  final double progress;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final radius = progress * 80;
+    final paint = Paint()
+      ..color = color.withValues(alpha: (1 - progress) * 0.15)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, radius, paint);
+  }
+
+  @override
+  bool shouldRepaint(_TouchRipplePainter old) =>
+      center != old.center || progress != old.progress;
 }
 
 // 2. Theme Mode Cards
@@ -324,26 +392,20 @@ class _PaletteGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: GridView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        shrinkWrap: true,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: 0.75,
-        ),
-        itemCount: _ThemePaletteData.length,
-        itemBuilder: (_, index) {
-          final entry = _ThemePaletteData.entries.elementAt(index);
-          final isSelected = entry.value.value == settings.seedColor.value;
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 12,
+        runSpacing: 16,
+        children: _ThemePaletteData.entries.map((entry) {
+          final isSelected = entry.value.color.value == settings.seedColor.value;
           return ActiveColorOrb(
-            color: entry.value,
+            color: entry.value.color,
             selected: isSelected,
-            onTap: () => onColorSelected(entry.value),
+            label: entry.value.nameKey,
+            onTap: () => onColorSelected(entry.value.color),
           );
-        },
+        }).toList(),
       ),
     );
   }

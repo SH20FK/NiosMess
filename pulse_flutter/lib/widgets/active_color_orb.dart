@@ -1,34 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
-class ActiveColorOrb extends StatefulWidget {
+class ActiveColorOrb extends ConsumerStatefulWidget {
   const ActiveColorOrb({
     required this.color,
     required this.selected,
     required this.onTap,
+    required this.label,
     super.key,
   });
 
   final Color color;
   final bool selected;
   final VoidCallback onTap;
+  final String label;
 
   @override
-  State<ActiveColorOrb> createState() => _ActiveColorOrbState();
+  ConsumerState<ActiveColorOrb> createState() => _ActiveColorOrbState();
 }
 
-class _ActiveColorOrbState extends State<ActiveColorOrb>
+class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _pulseController;
+  late final AnimationController _bounceController;
+  late final Animation<double> _bounceAnim;
+  late final Animation<double> _glowAnim;
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
+    _bounceController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 400),
     );
+    _bounceAnim = TweenSequence<double>(<TweenSequenceItem<double>>[
+      TweenSequenceItem<double>(
+        tween: Tween<double>(begin: 1.0, end: 1.18)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 40,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(begin: 1.18, end: 1.0)
+            .chain(CurveTween(curve: Curves.bounceOut)),
+        weight: 60,
+      ),
+    ]).animate(_bounceController);
+
+    _glowAnim = Tween<double>(begin: 0.3, end: 0.55)
+        .animate(CurvedAnimation(parent: _bounceController, curve: Curves.easeInOut));
+
     if (widget.selected) {
-      _pulseController.value = 1;
+      _bounceController.value = 1.0;
     }
   }
 
@@ -36,84 +60,112 @@ class _ActiveColorOrbState extends State<ActiveColorOrb>
   void didUpdateWidget(ActiveColorOrb old) {
     super.didUpdateWidget(old);
     if (widget.selected && !old.selected) {
-      _pulseController.forward(from: 0);
-    } else if (!widget.selected && old.selected) {
-      _pulseController.reverse();
+      _bounceController.forward(from: 0);
     }
   }
 
   @override
   void dispose() {
-    _pulseController.dispose();
+    _bounceController.dispose();
     super.dispose();
   }
 
-  List<Color> _tonalPalette(Color seed, Brightness brightness) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: seed,
+  Color _seedPrimary(Brightness brightness) {
+    return ColorScheme.fromSeed(
+      seedColor: widget.color,
       brightness: brightness,
-    );
-    return [
-      scheme.surfaceContainerHigh,
-      scheme.primaryContainer,
-      scheme.primary,
-      scheme.onPrimaryContainer,
-      scheme.onPrimary,
-    ];
+    ).primary;
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final tones = _tonalPalette(widget.color, scheme.brightness);
+    final textTheme = Theme.of(context).textTheme;
+    final seedPrimary = _seedPrimary(scheme.brightness);
 
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _pulseController,
-          builder: (context, child) {
-            final pulse = _pulseController.value;
-            final orbSize = 48.0 + (widget.selected ? pulse * 4 : 0);
-            final segHeight = (orbSize - 4) / 5;
+    return Semantics(
+      selected: widget.selected,
+      button: true,
+      label: widget.label,
+      child: GestureDetector(
+        onTap: () {
+          ref.read(appSoundProvider).playUiTick();
+          if (ref.read(uiSettingsProvider).haptics) {
+            HapticService.selection();
+          }
+          widget.onTap();
+        },
+        child: RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _bounceController,
+            builder: (context, child) {
+              final scale = widget.selected ? _bounceAnim.value : 1.0;
+              final glowAlpha = widget.selected ? _glowAnim.value : 0.0;
 
-            return Container(
-              width: orbSize,
-              height: orbSize + 12,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: widget.selected
-                    ? Border.all(
-                        color: scheme.primary,
-                        width: 2.0 * (1 + pulse * 0.3),
-                      )
-                    : Border.all(
-                        color: scheme.outlineVariant.withValues(alpha: 0.3),
-                        width: 1,
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Transform.scale(
+                    scale: scale,
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: seedPrimary,
+                        border: widget.selected
+                            ? Border.all(
+                                color: scheme.primary.withValues(alpha: 0.6),
+                                width: 3,
+                              )
+                            : Border.all(
+                                color: scheme.outlineVariant.withValues(alpha: 0.2),
+                                width: 1,
+                              ),
+                        boxShadow: widget.selected
+                            ? <BoxShadow>[
+                                BoxShadow(
+                                  color: seedPrimary.withValues(alpha: glowAlpha),
+                                  blurRadius: 14,
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : <BoxShadow>[
+                                BoxShadow(
+                                  color: scheme.shadow.withValues(alpha: 0.08),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                       ),
-                boxShadow: widget.selected
-                    ? [
-                        BoxShadow(
-                          color: scheme.primary.withValues(alpha: 0.3 + pulse * 0.2),
-                          blurRadius: 8 + pulse * 6,
-                          spreadRadius: 1 + pulse * 2,
-                        ),
-                      ]
-                    : null,
-              ),
-              padding: const EdgeInsets.all(2),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Column(
-                  children: tones.map((c) {
-                    return Expanded(
-                      child: Container(color: c),
-                    );
-                  }).toList(),
-                ),
-              ),
-            );
-          },
+                      child: widget.selected
+                          ? Icon(
+                              Icons.check_rounded,
+                              color: ColorScheme.fromSeed(
+                                seedColor: widget.color,
+                                brightness: scheme.brightness,
+                              ).onPrimary,
+                              size: 28,
+                            )
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.label,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: widget.selected
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant,
+                      fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
