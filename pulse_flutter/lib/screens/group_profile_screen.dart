@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -92,9 +93,7 @@ class GroupProfileScreen extends ConsumerWidget {
                                 Clipboard.setData(ClipboardData(
                                   text: chat.inviteLink ?? chat.shareLink ?? 'https://niosmess.com/chat/$chatId',
                                 ));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(context.l10n.groupProfileLinkCopied)),
-                                );
+                                AppToast.showInfo(context, context.l10n.groupProfileLinkCopied);
                               },
                             ),
                           ),

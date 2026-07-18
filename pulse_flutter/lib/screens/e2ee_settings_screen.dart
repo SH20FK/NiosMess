@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -41,9 +42,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
       await ref.read(authRepositoryProvider).setPublicKey(publicKeyB64);
       if (!mounted) return;
       setState(() { _hasKey = true; _loading = false; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.e2eeKeyGenerated)),
-      );
+      AppToast.showSuccess(context, context.l10n.e2eeKeyGenerated);
     } catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; _error = '$e'; });
@@ -71,9 +70,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
       await ref.read(authRepositoryProvider).setPublicKey(publicKeyB64);
       if (!mounted) return;
       setState(() { _loading = false; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.e2eeKeyRotated)),
-      );
+      AppToast.showSuccess(context, context.l10n.e2eeKeyRotated);
     } catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; _error = '$e'; });
@@ -102,13 +99,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
       await e2ee.deleteKeyPair();
       if (!mounted) return;
       setState(() { _hasKey = false; _loading = false; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.l10n.e2eeEraseDone(result.deletedChatsCount, result.deletedFilesCount),
-          ),
-        ),
-      );
+      AppToast.showSuccess(context, context.l10n.e2eeEraseDone(result.deletedChatsCount, result.deletedFilesCount));
     } catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; _error = '$e'; });

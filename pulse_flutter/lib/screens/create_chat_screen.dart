@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -100,18 +101,13 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
       if (!mounted) return;
       context.replace('/chat/${result.chatId}');
       if (nextStep == false) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.chatInviteLinkCopied)),
-        );
+        AppToast.showInfo(context, context.l10n.chatInviteLinkCopied);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _chatType == 'channel'
-                  ? context.l10n.groupCreatedChannel
-                  : context.l10n.groupCreatedGroup,
-            ),
-          ),
+        AppToast.showSuccess(
+          context,
+          _chatType == 'channel'
+              ? context.l10n.groupCreatedChannel
+              : context.l10n.groupCreatedGroup,
         );
       }
     } catch (error) {
@@ -119,9 +115,7 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
       final String message = error is ApiException
           ? error.message
           : context.l10n.groupCreateFailed('$error');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      AppToast.showError(context, message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -129,9 +123,7 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
 
   bool _validateStep() {
     if (_step == 1 && _nameController.text.trim().length < 3) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.groupNameTooShort)));
+      AppToast.showInfo(context, context.l10n.groupNameTooShort);
       return false;
     }
 
@@ -139,9 +131,7 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
       final String username = _usernameController.text.trim();
       final RegExp rx = RegExp(r'^[A-Za-z0-9._]{3,32}$');
       if (!rx.hasMatch(username)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.groupUsernameRules)),
-        );
+        AppToast.showInfo(context, context.l10n.groupUsernameRules);
         return false;
       }
     }

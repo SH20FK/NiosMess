@@ -7,6 +7,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
@@ -181,9 +182,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   Future<void> _downloadMedia(BuildContext context, WidgetRef ref) async {
     if (kIsWeb) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.mediaViewerDownloadWeb)),
-      );
+      AppToast.showInfo(context, context.l10n.mediaViewerDownloadWeb);
       return;
     }
     try {
@@ -198,9 +197,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         final file = File(savePath);
         await file.writeAsBytes(bytes);
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.mediaSavedTo(savePath))),
-        );
+        AppToast.showSuccess(context, context.l10n.mediaSavedTo(savePath));
       } else {
         try {
           final bytes = await ref
@@ -209,22 +206,15 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
           final file = File(savePath);
           await file.writeAsBytes(bytes);
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.mediaSavedTo(savePath))),
-          );
+          AppToast.showSuccess(context, context.l10n.mediaSavedTo(savePath));
         } catch (_) {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(context.l10n.mediaViewerDownloadFailedExt)),
-          );
+          AppToast.showError(context, context.l10n.mediaViewerDownloadFailedExt);
         }
       }
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.mediaDownloadFailed('$e'))),
-      );
+      AppToast.showError(context, context.l10n.mediaDownloadFailed('$e'));
     }
   }
 }

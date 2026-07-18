@@ -13,6 +13,7 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class M3FilePreviewBottomSheet extends StatelessWidget {
@@ -299,14 +300,9 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
     final String reference = hasRemoteUrl ? mediaUrl! : (filePath ?? fileName);
     await Clipboard.setData(ClipboardData(text: reference));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          hasRemoteUrl
-              ? context.l10n.filePreviewLinkCopied
-              : context.l10n.filePreviewPathCopied,
-        ),
-      ),
+    AppToast.showInfo(
+      context,
+      hasRemoteUrl ? context.l10n.filePreviewLinkCopied : context.l10n.filePreviewPathCopied,
     );
   }
 }
@@ -399,14 +395,10 @@ Future<void> saveM3File({
       params: SaveFileDialogParams(data: data, fileName: fileName),
     );
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(context.l10n.filePreviewSaved)));
+    AppToast.showSuccess(context, context.l10n.filePreviewSaved);
   } catch (error) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(context.l10n.filePreviewSaveError(error))));
+    AppToast.showError(context, context.l10n.filePreviewSaveError(error));
   }
 }
 
@@ -548,9 +540,7 @@ class _AudioPreviewContentState extends State<_AudioPreviewContent> {
     } catch (e) {
       debugPrint('[AudioPreview] Play error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.commonFailed('$e'))),
-        );
+        AppToast.showError(context, context.l10n.commonFailed('$e'));
       }
     }
   }

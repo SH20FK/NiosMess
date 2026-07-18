@@ -9,6 +9,7 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/app_error_banner.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 IconData _deviceIcon(String deviceInfo) {
   final String lower = deviceInfo.toLowerCase();
@@ -107,14 +108,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       await ref.read(authRepositoryProvider).revokeSession(sessionId);
       await _loadSessions();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.sessionsRevokedSuccess)),
-      );
+      AppToast.showSuccess(context, context.l10n.sessionsRevokedSuccess);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
-      );
+      AppToast.showError(context, e is ApiException ? e.message : '$e');
     } finally {
       if (mounted) setState(() => _revokingId = null);
     }
@@ -143,14 +140,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       }
       await _loadSessions();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.sessionsRevokedSuccess)),
-      );
+      AppToast.showSuccess(context, context.l10n.sessionsRevokedSuccess);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
-      );
+      AppToast.showError(context, e is ApiException ? e.message : '$e');
     } finally {
       if (mounted) setState(() => _terminatingAll = false);
     }

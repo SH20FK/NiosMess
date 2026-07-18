@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/invite_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
@@ -67,18 +68,14 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
       if (!mounted) return;
       setState(() => _preview = preview);
       if (preview == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.groupInvitePreviewNotFound)),
-        );
+        AppToast.showInfo(context, context.l10n.groupInvitePreviewNotFound);
       }
     } catch (error) {
       if (!mounted) return;
       final String message = error is ApiException
           ? error.message
           : context.l10n.groupInviteFailedLoad('$error');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      AppToast.showError(context, message);
     } finally {
       if (mounted) setState(() => _loadingPreview = false);
     }
@@ -88,9 +85,7 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
     final AuthState auth = ref.read(authProvider);
     if (!auth.isAuthenticated) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.groupSignInToJoin)));
+      AppToast.showInfo(context, context.l10n.groupSignInToJoin);
       context.push('/login');
       return;
     }
@@ -108,17 +103,13 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
       await ref.read(chatsProvider.notifier).refresh();
       if (!mounted) return;
       context.replace('/chat/${result.chatId}');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(result.message)));
+      AppToast.showSuccess(context, result.message);
     } catch (error) {
       if (!mounted) return;
       final String message = error is ApiException
           ? error.message
           : context.l10n.groupJoinFailed('$error');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      AppToast.showError(context, message);
     } finally {
       if (mounted) setState(() => _joining = false);
     }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -170,16 +171,10 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
           .inviteUser(widget.chatId, picked.id);
       await _loadMembers();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.chatMembersInvited(picked.username)),
-        ),
-      );
+      AppToast.showSuccess(context, context.l10n.chatMembersInvited(picked.username));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : context.l10n.chatMembersActionFailed(e.toString()))),
-      );
+      AppToast.showError(context, e is ApiException ? e.message : context.l10n.chatMembersActionFailed(e.toString()));
     } finally {
       if (mounted) setState(() => _actionBusy = false);
     }
@@ -204,9 +199,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
       await _loadMembers();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
-      );
+      AppToast.showError(context, e is ApiException ? e.message : '$e');
     } finally {
       if (mounted) setState(() => _actionBusy = false);
     }
@@ -231,9 +224,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
       await _loadMembers();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
-      );
+      AppToast.showError(context, e is ApiException ? e.message : '$e');
     } finally {
       if (mounted) setState(() => _actionBusy = false);
     }
@@ -248,9 +239,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
       await _loadMembers();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
-      );
+      AppToast.showError(context, e is ApiException ? e.message : '$e');
     } finally {
       if (mounted) setState(() => _actionBusy = false);
     }

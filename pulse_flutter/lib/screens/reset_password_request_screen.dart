@@ -7,6 +7,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_curves.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 class ResetPasswordRequestScreen extends ConsumerStatefulWidget {
   const ResetPasswordRequestScreen({super.key});
@@ -42,12 +43,11 @@ class _ResetPasswordRequestScreenState
       return;
     }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(result.message ?? context.l10n.resetPasswordRequestSent)));
-
     if (result.success) {
+      AppToast.showSuccess(context, result.message ?? context.l10n.resetPasswordRequestSent);
       context.go('/reset-password/confirm?email=${Uri.encodeComponent(email)}');
+    } else {
+      AppToast.showError(context, result.message ?? context.l10n.resetPasswordRequestSent);
     }
   }
 

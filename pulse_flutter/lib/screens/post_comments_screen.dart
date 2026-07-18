@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
@@ -67,9 +68,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
       final String message = error is ApiException
           ? error.message
           : context.l10n.commentsFailedSend('$error');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      AppToast.showError(context, message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

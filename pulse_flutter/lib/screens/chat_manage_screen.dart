@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -64,15 +65,11 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
           );
       await ref.read(chatsProvider.notifier).refresh();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.groupManageChatUpdated)),
-      );
+      AppToast.showSuccess(context, context.l10n.groupManageChatUpdated);
       context.pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
-      );
+      AppToast.showError(context, e is ApiException ? e.message : '$e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -101,14 +98,10 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
           .uploadChatAvatar(widget.chatId, bytes, filename);
       await ref.read(chatsProvider.notifier).refresh();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.groupManageAvatarUpdated)),
-      );
+      AppToast.showSuccess(context, context.l10n.groupManageAvatarUpdated);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
-      );
+      AppToast.showError(context, e is ApiException ? e.message : '$e');
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
@@ -133,18 +126,14 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
       context.go('/main/chats');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
-      );
+      AppToast.showError(context, e is ApiException ? e.message : '$e');
     }
   }
 
   Future<void> _copyMeta(String title, String value) async {
     await Clipboard.setData(ClipboardData(text: value));
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(context.l10n.chatManageCopied(title))));
+    AppToast.showInfo(context, context.l10n.chatManageCopied(title));
   }
 
   @override
@@ -498,9 +487,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: value));
               if (!context.mounted) return;
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(context.l10n.chatManageCopied(title))));
+              AppToast.showInfo(context, context.l10n.chatManageCopied(title));
             },
             icon: Icon(Icons.copy_rounded, color: scheme.primary),
             tooltip: context.l10n.chatManageCopy,

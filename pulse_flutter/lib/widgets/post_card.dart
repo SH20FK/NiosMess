@@ -13,6 +13,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -329,12 +330,7 @@ class _PostCardState extends ConsumerState<PostCard>
                       Clipboard.setData(
                         ClipboardData(text: post.content),
                       );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(context.l10n.niosgramCopied),
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
+                      AppToast.showInfo(context, context.l10n.niosgramCopied);
                     },
                     scheme: scheme,
                   ),
@@ -607,9 +603,7 @@ class _PostMenu extends ConsumerWidget {
         } else if (value == 'copy') {
           await Clipboard.setData(ClipboardData(text: post.content));
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(context.l10n.niosgramCopied)),
-            );
+            AppToast.showInfo(context, context.l10n.niosgramCopied);
           }
         }
       },

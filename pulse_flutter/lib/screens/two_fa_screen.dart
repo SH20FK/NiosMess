@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_curves.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/code_preview.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/animated_mesh_background.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -58,12 +59,7 @@ class _TwoFaScreenState extends ConsumerState<TwoFaScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text(result.message ?? context.l10n.twoFaFailed),
-      ),
-    );
+    AppToast.showError(context, result.message ?? context.l10n.twoFaFailed);
   }
 
   String get _normalizedCode =>

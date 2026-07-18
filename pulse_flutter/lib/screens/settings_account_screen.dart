@@ -9,6 +9,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 class SettingsAccountScreen extends ConsumerStatefulWidget {
   const SettingsAccountScreen({super.key});
@@ -117,20 +118,13 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
           .toggle2fa(enabled: !currentlyEnabled, password: password);
       await ref.read(authProvider.notifier).refreshProfile();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            currentlyEnabled
-                ? context.l10n.settings2faDisabled
-                : context.l10n.settings2faEnabled,
-          ),
-        ),
+      AppToast.showSuccess(
+        context,
+        currentlyEnabled ? context.l10n.settings2faDisabled : context.l10n.settings2faEnabled,
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
-      );
+      AppToast.showError(context, e is ApiException ? e.message : '$e');
     } finally {
       if (mounted) setState(() => _toggling2fa = false);
     }

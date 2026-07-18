@@ -6,6 +6,7 @@ import 'package:universal_io/io.dart';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -417,12 +418,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.chatAiError('$e')),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        AppToast.showError(context, context.l10n.chatAiError('$e'));
       }
     } finally {
       if (mounted) {
@@ -611,9 +607,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         final String message = error is ApiException
             ? error.message
             : context.l10n.commonFailed('$error');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        AppToast.showError(context, message);
       }),
     );
   }
@@ -726,7 +720,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       final String text = error is ApiException
           ? error.message
           : context.l10n.commonFailed('$error');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      AppToast.showError(context, text);
       return false;
     }
   }
@@ -824,7 +818,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       final String text = error is ApiException
           ? error.message
           : context.l10n.commonFailed('$error');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      AppToast.showError(context, text);
     }
   }
 
@@ -870,7 +864,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       final String text = error is ApiException
           ? error.message
           : context.l10n.commonFailed('$error');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      AppToast.showError(context, text);
     }
   }
 
@@ -890,7 +884,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       final String text = error is ApiException
           ? error.message
           : context.l10n.commonFailed('$error');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      AppToast.showError(context, text);
     }
   }
 
@@ -957,17 +951,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           .send(forwardText);
       await ref.read(chatsProvider.notifier).refresh();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.chatMessageForwarded),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      AppToast.showSuccess(context, context.l10n.chatMessageForwarded);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : '$e')),
-      );
+      AppToast.showError(context, e is ApiException ? e.message : '$e');
     }
   }
 
@@ -1001,12 +988,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             onReply: () => _setReply(message),
             onCopy: () {
               Clipboard.setData(ClipboardData(text: message.content));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(context.l10n.chatMessageTextCopied),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+              AppToast.showInfo(context, context.l10n.chatMessageTextCopied);
             },
             onForward: () => _forwardMessage(message),
             onComments: () {
@@ -1083,20 +1065,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         reason: reason,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.reportSent),
-          backgroundColor: Colors.green,
-        ),
-      );
+      AppToast.showSuccess(context, context.l10n.reportSent);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to report: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      AppToast.showError(context, 'Failed to report: $e');
     }
   }
 
@@ -1159,14 +1131,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   leading: const Icon(Icons.copy_rounded),
                   title: Text(context.l10n.mediaActionCopy),
                   onTap: () async {
-                    final ScaffoldMessengerState messenger =
-                        ScaffoldMessenger.of(context);
                     final String copyLabel = context.l10n.mediaActionCopy;
                     Navigator.of(ctx).pop();
                     await Clipboard.setData(ClipboardData(text: mediaUrl));
-                    messenger.showSnackBar(
-                      SnackBar(content: Text(copyLabel)),
-                    );
+                    if (ctx.mounted) AppToast.showInfo(ctx, copyLabel);
                   },
                 ),
                 ListTile(
@@ -1276,9 +1244,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final perm = await PermissionService().requestCallPermissions(video: isVideo);
     if (!perm) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Permission required for calls')),
-        );
+        AppToast.showError(context, 'Permission required for calls');
       }
       return;
     }
@@ -1322,9 +1288,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Call failed: $e')),
-        );
+        AppToast.showError(context, 'Call failed: $e');
       }
     }
   }

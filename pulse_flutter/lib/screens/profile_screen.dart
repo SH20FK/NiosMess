@@ -7,6 +7,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/storage/local_storage_service.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/utils/image_compressor.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
@@ -63,14 +64,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await ref.read(authRepositoryProvider).uploadAvatar(bytes, file.name);
       await ref.read(authProvider.notifier).refreshProfile();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.profileAvatarUpdated)),
-      );
+      AppToast.showSuccess(context, context.l10n.profileAvatarUpdated);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.profileError(e))),
-      );
+      AppToast.showError(context, context.l10n.profileError(e));
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
@@ -311,9 +308,7 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.profileError('$e'))),
-      );
+      AppToast.showError(context, context.l10n.profileError('$e'));
       setState(() => _saving = false);
     }
   }

@@ -6,6 +6,7 @@ import 'package:pulse_flutter/core/storage/local_storage_service.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 class SettingsStorageScreen extends ConsumerStatefulWidget {
   const SettingsStorageScreen({super.key});
@@ -66,9 +67,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
       await action();
       if (!mounted) return;
       _refresh();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.settingsStorageCleared)));
+      AppToast.showSuccess(context, context.l10n.settingsStorageCleared);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

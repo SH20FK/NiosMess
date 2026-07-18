@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_curves.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/code_preview.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class VerifyEmailScreen extends ConsumerStatefulWidget {
@@ -50,12 +51,11 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(result.message ?? context.l10n.verifyEmailDone)),
-    );
-
     if (result.success) {
+      AppToast.showSuccess(context, result.message ?? context.l10n.verifyEmailDone);
       context.go('/setup');
+    } else {
+      AppToast.showError(context, result.message ?? context.l10n.verifyEmailDone);
     }
   }
 

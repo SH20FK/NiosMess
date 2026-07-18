@@ -8,6 +8,7 @@ import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 class IncomingCallBanner extends ConsumerWidget {
   const IncomingCallBanner({super.key});
@@ -122,9 +123,7 @@ class IncomingCallBanner extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to join call: $e')),
-        );
+        AppToast.showError(context, 'Failed to join call: $e');
       }
     }
   }

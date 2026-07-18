@@ -1,4 +1,5 @@
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:universal_io/io.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -55,9 +56,7 @@ class _CompactAttachmentMenu extends StatelessWidget {
     final String? filePath = file.path;
 
     if (readStream == null && filePath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.filePickerReadError)),
-      );
+      AppToast.showError(context, context.l10n.filePickerReadError);
       return;
     }
 

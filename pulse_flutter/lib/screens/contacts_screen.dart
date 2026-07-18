@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
@@ -86,9 +87,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       final String message = error is ApiException
           ? error.message
           : context.l10n.contactsFailedToOpenChat('$error');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      AppToast.showError(context, message);
     } finally {
       if (mounted) setState(() => _openingUsername = null);
     }

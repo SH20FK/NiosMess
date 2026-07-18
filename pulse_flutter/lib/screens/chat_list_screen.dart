@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/rendering.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -637,14 +638,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       await ref.read(chatRepositoryProvider).leaveChat(chat.id);
       await ref.read(chatsProvider.notifier).refresh();
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.chatListLeft)));
+      AppToast.showSuccess(context, context.l10n.chatListLeft);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.commonFailed('$e'))));
+      AppToast.showError(context, context.l10n.commonFailed('$e'));
     }
   }
 
