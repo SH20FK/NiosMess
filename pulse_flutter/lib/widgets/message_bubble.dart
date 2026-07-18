@@ -180,7 +180,7 @@ class MessageBubble extends ConsumerWidget {
     final List<TextSpan> spans = <TextSpan>[];
     int lastEnd = 0;
 
-    for (final RegExpMatch match in MessageFormatter._mentionRegExp.allMatches(text)) {
+    for (final RegExpMatch match in MessageFormatter.mentionRegExp.allMatches(text)) {
       if (match.start > lastEnd) {
         spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
       }
@@ -787,7 +787,7 @@ class MessageBubble extends ConsumerWidget {
 
   _ForwardedPayload? _parseForwarded(String rawText) {
     final String trimmed = rawText.trim();
-    final Match? result = MessageFormatter._fwdRegExp.firstMatch(trimmed);
+    final Match? result = MessageFormatter.fwdRegExp.firstMatch(trimmed);
     if (result == null) return null;
     final String sender = (result.group(1) ?? '').trim();
     final String body = (result.group(2) ?? '').trim();
