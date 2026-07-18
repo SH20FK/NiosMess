@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/models/api/badge_model.dart';
+import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -29,6 +31,9 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.onEdit,
     required this.onUploadAvatar,
     required this.isUploadingAvatar,
+    this.bio,
+    this.badges = const <ApiBadge>[],
+    this.storageUsed,
   });
 
   final String name;
@@ -37,12 +42,15 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
   final VoidCallback onEdit;
   final VoidCallback onUploadAvatar;
   final bool isUploadingAvatar;
+  final String? bio;
+  final List<ApiBadge> badges;
+  final String? storageUsed;
 
   @override
   double get minExtent => 88;
 
   @override
-  double get maxExtent => 320;
+  double get maxExtent => 440;
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
@@ -96,6 +104,7 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
+          // Fog background
           Positioned.fill(
             child: _ProfileHeaderFadeTransition(
               opacity: fogOpacity,
@@ -107,6 +116,7 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
               ),
             ),
           ),
+          // Shadow gradient at bottom
           Positioned(
             left: 0,
             right: 0,
@@ -131,108 +141,185 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
               ),
             ),
           ),
+          // Expanded state: avatar + info + badges + stats
           Positioned.fill(
             child: _ProfileHeaderFadeTransition(
               opacity: expandedOpacity,
               child: Padding(
                 padding: EdgeInsets.only(top: topInset + 20),
                 child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      GestureDetector(
-                        onTap: isUploadingAvatar ? null : onUploadAvatar,
-                        child: SizedBox(
-                          width: 112,
-                          height: 112,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: <Widget>[
-                              PulseAvatar(
-                                radius: 56,
-                                name: name,
-                                avatarUrl: avatarUrl,
-                                fallbackColor: scheme.primaryContainer,
-                                textColor: scheme.onPrimaryContainer,
-                                borderColor: scheme.surface,
-                                borderWidth: 2,
-                              ),
-                              Positioned(
-                                right: 2,
-                                bottom: 2,
-                                child: Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    color: scheme.surface,
-                                    shape: BoxShape.circle,
-                                    boxShadow: <BoxShadow>[
-                                      BoxShadow(
-                                        color: scheme.shadow.withValues(alpha: 0.10),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  alignment: Alignment.center,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        // Avatar
+                        GestureDetector(
+                          onTap: isUploadingAvatar ? null : onUploadAvatar,
+                          child: SizedBox(
+                            width: 112,
+                            height: 112,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: <Widget>[
+                                PulseAvatar(
+                                  radius: 56,
+                                  name: name,
+                                  avatarUrl: avatarUrl,
+                                  fallbackColor: scheme.primaryContainer,
+                                  textColor: scheme.onPrimaryContainer,
+                                  borderColor: scheme.surface,
+                                  borderWidth: 2,
+                                ),
+                                Positioned(
+                                  right: 2,
+                                  bottom: 2,
                                   child: Container(
-                                    width: 24,
-                                    height: 24,
+                                    width: 32,
+                                    height: 32,
                                     decoration: BoxDecoration(
-                                      color: scheme.primary,
+                                      color: scheme.surface,
                                       shape: BoxShape.circle,
+                                      boxShadow: <BoxShadow>[
+                                        BoxShadow(
+                                          color: scheme.shadow.withValues(alpha: 0.10),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
                                     ),
                                     alignment: Alignment.center,
-                                        child: isUploadingAvatar
-                                          ? AppLoadingIndicator(size: 12, color: scheme.onPrimary)
+                                    child: Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        color: scheme.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: isUploadingAvatar
+                                        ? AppLoadingIndicator(size: 12, color: scheme.onPrimary)
                                         : Icon(
                                             Icons.camera_alt_rounded,
                                             size: 12,
                                             color: scheme.onPrimary,
                                           ),
+                                    ),
                                   ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        // Name + username
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 320),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Text(
+                                name,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.6,
+                                  color: scheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                username.isEmpty ? '' : '@$username',
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: scheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 32),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 280),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Text(
-                              name,
+                        // Bio
+                        if (bio != null && bio!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 320),
+                            child: Text(
+                              bio!.trim(),
                               textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.6,
-                                color: scheme.onSurface,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              username.isEmpty ? '' : '@$username',
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
+                              maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                               style: textTheme.bodyMedium?.copyWith(
                                 color: scheme.onSurfaceVariant,
+                                height: 1.4,
                               ),
                             ),
-                          ],
+                          ),
+                        ],
+                        // Badges
+                        if (badges.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              alignment: WrapAlignment.center,
+                              children: badges.map((ApiBadge b) {
+                                return BadgeChip(
+                                  id: b.id,
+                                  name: b.name,
+                                  icon: b.icon,
+                                  color: b.color,
+                                  mode: BadgeDisplayMode.infoLabel,
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ],
+                        // Stats row
+                        const SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 40),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              _StatItem(
+                                icon: Icons.workspace_premium_rounded,
+                                value: '${badges.length}',
+                                label: 'badges',
+                                scheme: scheme,
+                                textTheme: textTheme,
+                              ),
+                              const SizedBox(width: 36),
+                              _StatItem(
+                                icon: Icons.sd_storage_rounded,
+                                value: storageUsed ?? '--',
+                                label: 'storage',
+                                scheme: scheme,
+                                textTheme: textTheme,
+                              ),
+                              const SizedBox(width: 36),
+                              _StatItem(
+                                icon: Icons.person_rounded,
+                                value: '1',
+                                label: 'profile',
+                                scheme: scheme,
+                                textTheme: textTheme,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
+          // Edit gear button
           Positioned(
             right: 16,
             top: gearTop,
@@ -245,6 +332,7 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
               ),
             ),
           ),
+          // Collapsed state
           Positioned(
             left: collapsedAvatarLeft,
             top: collapsedAvatarTop,
@@ -299,7 +387,50 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
         avatarUrl != oldDelegate.avatarUrl ||
         isUploadingAvatar != oldDelegate.isUploadingAvatar ||
         onEdit != oldDelegate.onEdit ||
-        onUploadAvatar != oldDelegate.onUploadAvatar;
+        onUploadAvatar != oldDelegate.onUploadAvatar ||
+        bio != oldDelegate.bio ||
+        badges != oldDelegate.badges ||
+        storageUsed != oldDelegate.storageUsed;
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  const _StatItem({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.scheme,
+    required this.textTheme,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+  final ColorScheme scheme;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: scheme.onSurface,
+          ),
+        ),
+        Text(
+          label,
+          style: textTheme.labelSmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
   }
 }
 
