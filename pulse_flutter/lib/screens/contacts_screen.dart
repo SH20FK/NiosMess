@@ -433,7 +433,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                 hintText: context.l10n.contactsSearchHint,
                 leading: const Icon(Icons.person_search_rounded),
                 elevation: const WidgetStatePropertyAll<double>(0.0),
-                backgroundColor: WidgetStatePropertyAll(scheme.surfaceContainerHigh),
+                backgroundColor: WidgetStatePropertyAll<Color>(scheme.surfaceContainerHigh),
                 trailing: <Widget>[
                   if (query.isNotEmpty)
                     IconButton(

@@ -59,9 +59,9 @@ class _ChatSearchFieldState extends ConsumerState<ChatSearchField> {
       searchController: _searchController,
       barHintText: context.l10n.chatListSearchMessagesHint,
       barElevation: const WidgetStatePropertyAll<double>(0.0),
-      barBackgroundColor: WidgetStatePropertyAll(scheme.surfaceContainerHigh),
-      barShape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
-      barPadding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16)),
+      barBackgroundColor: WidgetStatePropertyAll<Color>(scheme.surfaceContainerHigh),
+      barShape: WidgetStatePropertyAll<OutlinedBorder>(RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
+      barPadding: const WidgetStatePropertyAll<EdgeInsetsGeometry>(EdgeInsets.symmetric(horizontal: 16)),
       suggestionsBuilder: (BuildContext context, SearchController controller) async {
         _onSearchChanged(controller.text);
         
@@ -96,7 +96,7 @@ class _ChatSearchFieldState extends ConsumerState<ChatSearchField> {
               ];
             }
             
-            return result.messages.map((msg) => ListTile(
+            return result.messages.map<Widget>((msg) => ListTile(
               leading: Container(
                 width: 40,
                 height: 40,

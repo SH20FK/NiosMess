@@ -65,7 +65,7 @@ class AppBottomNav extends ConsumerWidget {
           destinations: items
               .asMap()
           .entries
-          .map(
+          .map<Widget>(
             (MapEntry<int, _NavItem> entry) {
               final _NavItem item = entry.value;
               final int index = entry.key;

@@ -59,18 +59,18 @@ class _VaffuruThemeSettingsScreenState extends ConsumerState<VaffuruThemeSetting
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: SegmentedButton<ThemeMode>(
-            segments: [
-              ButtonSegment(
+            segments: <ButtonSegment<ThemeMode>>[
+              ButtonSegment<ThemeMode>(
                 value: ThemeMode.system,
                 icon: const Icon(Icons.brightness_auto_rounded),
                 label: Text(context.l10n.commonSystem),
               ),
-              ButtonSegment(
+              ButtonSegment<ThemeMode>(
                 value: ThemeMode.light,
                 icon: const Icon(Icons.light_mode_rounded),
                 label: Text(context.l10n.commonLight),
               ),
-              ButtonSegment(
+              ButtonSegment<ThemeMode>(
                 value: ThemeMode.dark,
                 icon: const Icon(Icons.dark_mode_rounded),
                 label: Text(context.l10n.commonDark),
