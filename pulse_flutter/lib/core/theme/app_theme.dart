@@ -59,25 +59,6 @@ class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
       textTheme: textTheme,
-      dialogTheme: DialogTheme(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
-        ),
-        backgroundColor: scheme.surfaceContainerHigh,
-      ),
-      cardTheme: CardTheme(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
-        color: scheme.surfaceContainerLow,
-        margin: EdgeInsets.zero,
-      ),
-      bottomSheetTheme: BottomSheetThemeData(
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        backgroundColor: scheme.surfaceContainerLow,
-      ),
       appBarTheme: AppBarTheme(
         elevation: 0,
         centerTitle: false,

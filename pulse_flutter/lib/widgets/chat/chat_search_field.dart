@@ -41,7 +41,7 @@ class _ChatSearchFieldState extends ConsumerState<ChatSearchField> {
 
   void _openMessage(ApiSearchMessage msg) {
     _searchController.closeView('');
-    ref.read(desktopChatProvider.notifier).selectChat(msg.chatId);
+    ref.read(desktopSelectedChatProvider.notifier).setSelectedChat(msg.chatId);
     final router = GoRouter.of(context);
     final currentPath = router.routeInformationProvider.value.uri.path;
     if (!currentPath.startsWith('/chat/${msg.chatId}')) {
@@ -123,7 +123,7 @@ class _ChatSearchFieldState extends ConsumerState<ChatSearchField> {
           loading: () => [
             const Padding(
               padding: EdgeInsets.all(32),
-              child: Center(child: PulseLoadingIndicator(size: 32)),
+              child: Center(child: AppLoadingIndicator(size: 32)),
             )
           ],
           error: (e, _) => [
