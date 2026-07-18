@@ -9,6 +9,8 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';;
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 
 class GroupProfileScreen extends ConsumerWidget {
@@ -204,15 +206,40 @@ class GroupProfileScreen extends ConsumerWidget {
                       '${chat.membersCount} ${isChannel ? 'subscribers' : 'members'}',
                       style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                     ),
+                    const SizedBox(height: 12),
+                    _MemberPreview(membersCount: chat.membersCount, isChannel: isChannel),
                   ],
-                ],
+],
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+              const SizedBox(height: 12),
+              // Admin actions
+              if (!isChannel) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppConstants.screenHorizontalPadding),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.group_add_rounded, size: 18),
+                          label: Text(context.l10n.groupProfileAddMember),
+                          onPressed: () => context.push('/chat/$chatId/members/add'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.admin_panel_settings_rounded, size: 18),
+                          label: Text(context.l10n.groupProfileManageAdmins),
+                          onPressed: () => context.push('/chat/$chatId/admins'),
+                        ),
+                      ),
+                    ],
+                  ),
+                const SizedBox(height: 12),
+              ],
 
   Widget _buildInfoCard(BuildContext context, ColorScheme scheme, TextTheme textTheme, {
     required String title,
@@ -288,12 +315,69 @@ class GroupProfileScreen extends ConsumerWidget {
             ),
             IconButton(
               icon: const Icon(Icons.copy_rounded, size: 20),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: '@${chat.username}'));
-              },
-            ),
-          ],
+              }
+}
+
+class _MemberPreview extends StatelessWidget {
+  const _MemberPreview({required this.membersCount, required this.isChannel});
+
+  final int membersCount;
+  final bool isChannel;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final int previewCount = 5;
+    final List<Widget> avatars = List.generate(
+      previewCount.clamp(0, membersCount),
+      (index) => Padding(
+        padding: EdgeInsets.only(right: index == previewCount - 1 ? 0 : -8),
+        child: PulseAvatar(
+          name: 'Member ${index + 1}',
+          radius: 16,
+          fallbackColor: Theme.of(context).colorScheme.primaryContainer,
+          textColor: Theme.of(context).colorScheme.onPrimaryContainer,
         ),
+      ),
+    );
+
+    if (membersCount > previewCount) {
+      avatars.add(
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            '+${membersCount - previewCount}',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppConstants.screenHorizontalPadding),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Row(children: avatars),
+          ),
+          Text(
+            '+${membersCount}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }
