@@ -77,3 +77,11 @@ switch-to-greetd.sh
 apk_full_log.txt
 .opencode.json
 serviceAccountKey.json
+
+# === Local-only docs / scripts (keep locally, not in repo) ===
+goal.md
+design.md
+ДОКУМЕНТАЦИЯ.md
+ДОКУМЕТАЦИЯ БОТЫ.md
+NiosMess_Setup.iss
+update_script.ps1
