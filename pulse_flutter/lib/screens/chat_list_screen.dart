@@ -37,9 +37,7 @@ enum _LastMessageKind { photo, video, audio, file }
 enum _ChatSwipeAction { delete }
 
 class ChatListScreen extends ConsumerStatefulWidget {
-  const ChatListScreen({this.onFabExtendedChanged, super.key});
-
-  final ValueChanged<bool>? onFabExtendedChanged;
+  const ChatListScreen({super.key});
 
   @override
   ConsumerState<ChatListScreen> createState() => _ChatListScreenState();
@@ -110,11 +108,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: const ChatListHeader(),
-      floatingActionButton: _CreateFab(
-        onStartDirectChat: () => _showStartDirectChatDialog(context),
-        onGroupTap: () => context.push('/chat/create?type=group'),
-        onJoinTap: () => context.push('/join'),
-      ),
       body: RefreshIndicator(
         onRefresh: () async {
           HapticService.confirm();
@@ -170,15 +163,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   bool _handleUserScroll(UserScrollNotification notification) {
-    if (notification.metrics.axis != Axis.vertical) {
-      return false;
-    }
-    if (notification.direction == ScrollDirection.reverse) {
-      widget.onFabExtendedChanged?.call(false);
-    } else if (notification.direction == ScrollDirection.forward ||
-        notification.metrics.pixels <= 0) {
-      widget.onFabExtendedChanged?.call(true);
-    }
     return false;
   }
 
@@ -889,42 +873,4 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 }
 
-class _CreateFab extends StatelessWidget {
-  const _CreateFab({
-    required this.onStartDirectChat,
-    required this.onGroupTap,
-    required this.onJoinTap,
-  });
 
-  final VoidCallback onStartDirectChat;
-  final VoidCallback onGroupTap;
-  final VoidCallback onJoinTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: () => _showCreateSheet(context),
-      heroTag: 'chat_create_fab',
-      child: const Icon(Icons.add_rounded),
-    );
-  }
-
-  Future<void> _showCreateSheet(BuildContext context) async {
-    final String? action = await showCreateChatMenu(context);
-    if (action == null || !context.mounted) return;
-    switch (action) {
-      case 'group':
-        onGroupTap();
-        return;
-      case 'channel':
-        context.push('/chat/create?type=channel');
-        return;
-      case 'join':
-        onJoinTap();
-        return;
-      case 'direct':
-        onStartDirectChat();
-        return;
-    }
-  }
-}

@@ -37,7 +37,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
   ];
 
   late final PageController _pageController;
-  bool _fabExtended = true;
 
   @override
   void initState() {
@@ -92,13 +91,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
     context.go('/main/$targetTab');
   }
 
-  void _setFabExtended(bool value) {
-    if (_fabExtended == value || !mounted) {
-      return;
-    }
-    setState(() => _fabExtended = value);
-  }
-
   Widget _composeFab(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     return FloatingActionButton.extended(
@@ -142,7 +134,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
                 Container(
                   constraints: const BoxConstraints(minWidth: 320, maxWidth: 460),
                   width: constraints.maxWidth * 0.35,
-                  child: ChatListScreen(onFabExtendedChanged: _setFabExtended),
+                  child: ChatListScreen(),
                 ),
                 const VerticalDivider(thickness: 1, width: 1),
                 Expanded(
@@ -164,7 +156,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
               ],
             )
           else
-            ChatListScreen(onFabExtendedChanged: _setFabExtended),
+            ChatListScreen(),
           const ContactsScreen(),
           const NiosgramScreen(),
           const ProfileScreen(),
@@ -274,12 +266,10 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
             ],
           ),
           bottomNavigationBar: RepaintBoundary(
-            child: SafeArea(
-              child: AppBottomNav(
-                currentIndex: currentIndex,
-                onTap: _onTapTab,
-                hapticsEnabled: settings.haptics,
-              ),
+            child: AppBottomNav(
+              currentIndex: currentIndex,
+              onTap: _onTapTab,
+              hapticsEnabled: settings.haptics,
             ),
           ),
           floatingActionButton: currentIndex == 0 ? _composeFab(context) : null,

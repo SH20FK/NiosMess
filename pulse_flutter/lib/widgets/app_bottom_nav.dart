@@ -54,7 +54,7 @@ class AppBottomNav extends ConsumerWidget {
     Widget navBar = NavigationBar(
       selectedIndex: currentIndex,
       elevation: 0,
-      backgroundColor: isFloating ? scheme.surfaceContainerHighest.withOpacity(0.9) : scheme.surfaceContainerLow,
+      backgroundColor: isFloating ? scheme.surfaceContainerHighest.withValues(alpha: 0.92) : scheme.surfaceContainerLow,
       indicatorColor: scheme.secondaryContainer,
       onDestinationSelected: (int index) {
             ref.read(appSoundProvider).playUiTick();
@@ -125,9 +125,21 @@ class AppBottomNav extends ConsumerWidget {
     if (isFloating) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
-          child: navBar,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(32),
+            child: navBar,
+          ),
         ),
       );
     } else {

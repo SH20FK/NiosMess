@@ -18,6 +18,8 @@ node_modules/
 out/
 
 # === Build artifacts ===
+mock_quic/
+jobs.json
 Output/
 *.exe
 *.msi
