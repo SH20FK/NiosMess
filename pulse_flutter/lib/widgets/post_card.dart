@@ -19,6 +19,7 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PostCard extends ConsumerStatefulWidget {
   const PostCard({required this.post, super.key});
@@ -90,13 +91,17 @@ class _PostCardState extends ConsumerState<PostCard>
     final bool isOwn = auth.profile?.id == widget.post.author.id;
     final NgPost post = widget.post;
 
-    return Card(
+    return GestureDetector(
+      onDoubleTap: _onDoubleTapLike,
+      child: Card(
       margin: EdgeInsets.zero,
       elevation: 0,
       color: Theme.of(context).colorScheme.surfaceContainerLow,
       clipBehavior: Clip.antiAlias,
-      child: Column(
+      child: Stack(
         children: <Widget>[
+          Column(
+            children: <Widget>[
           // ── Header ──────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 10, 0),
@@ -208,7 +213,7 @@ class _PostCardState extends ConsumerState<PostCard>
               padding: const EdgeInsets.only(top: 10),
               child: GestureDetector(
                 onDoubleTap: _onDoubleTapLike,
-                onTap: () => _openFullScreen(context, post.mediaUrl!),
+                onTap: () => _openFullScreen(context, ApiConstants.resolve(post.mediaUrl), post.id),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: AspectRatio(
@@ -238,24 +243,6 @@ class _PostCardState extends ConsumerState<PostCard>
                             ),
                           ),
                         ),
-                        if (_showHeart)
-                          AnimatedBuilder(
-                            animation: _heartController,
-                            builder: (_, anim) => Transform.scale(
-                              scale: _heartScale.value,
-                              child: Opacity(
-                                opacity: _heartOpacity.value,
-                                child: const Icon(
-                                  Icons.favorite_rounded,
-                                  color: Color(0xFFFF3B5C),
-                                  size: 80,
-                                  shadows: <Shadow>[
-                                    Shadow(blurRadius: 20, color: Colors.black45),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -279,8 +266,7 @@ class _PostCardState extends ConsumerState<PostCard>
                     activeIcon: Icons.favorite_rounded,
                     count: post.likesCount,
                     active: post.myReaction == true,
-                    activeColor: const Color(0xFFFF3B5C),
-                    isLike: true,
+                    activeColor: scheme.error,
                     onTap: () {
                       if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
                       ref
@@ -296,7 +282,6 @@ class _PostCardState extends ConsumerState<PostCard>
                     count: post.dislikesCount,
                     active: post.myReaction == false,
                     activeColor: scheme.error,
-                    isLike: false,
                     onTap: () {
                       if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
                       ref
@@ -312,7 +297,6 @@ class _PostCardState extends ConsumerState<PostCard>
                     count: post.commentsCount,
                     active: false,
                     activeColor: scheme.primary,
-                    isLike: false,
                     onTap: () =>
                         context.push('/niosgram/post/${post.id}/comments'),
                     scheme: scheme,
@@ -324,13 +308,9 @@ class _PostCardState extends ConsumerState<PostCard>
                     count: 0,
                     active: false,
                     activeColor: scheme.onSurfaceVariant,
-                    isLike: false,
                     onTap: () {
                       if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
-                      Clipboard.setData(
-                        ClipboardData(text: post.content),
-                      );
-                      AppToast.showInfo(context, context.l10n.niosgramCopied);
+                      Share.share(post.content);
                     },
                     scheme: scheme,
                   ),
@@ -338,18 +318,42 @@ class _PostCardState extends ConsumerState<PostCard>
               ),
             ),
           ),
+          ],
+        ),
+          if (_showHeart)
+            Positioned.fill(
+              child: Center(
+                child: AnimatedBuilder(
+                  animation: _heartController,
+                  builder: (_, anim) => Transform.scale(
+                    scale: _heartScale.value,
+                    child: Opacity(
+                      opacity: _heartOpacity.value,
+                      child: const Icon(
+                        Icons.favorite_rounded,
+                        color: scheme.error,
+                        size: 100,
+                        shadows: <Shadow>[
+                          Shadow(blurRadius: 24, color: Colors.black45),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
+      ),
       ),
     );
   }
 
-  static void _openFullScreen(BuildContext context, String url) {
+  static void _openFullScreen(BuildContext context, String url, int postId) {
     Navigator.of(context).push(
       PageRouteBuilder<void>(
-        opaque: false,
-        
+        opaque: true,
         barrierLabel: context.l10n.semanticsClose,
-        pageBuilder: (_, _, _) => _FullScreenImage(url: url),
+        pageBuilder: (_, _, _) => _FullScreenImage(url: url, postId: postId),
         transitionsBuilder: (_, a1, _, child) {
           return FadeTransition(
             opacity: CurvedAnimation(parent: a1, curve: Curves.easeOut),
@@ -363,8 +367,9 @@ class _PostCardState extends ConsumerState<PostCard>
 
 // ── Full-screen image viewer ─────────────────────────────────────────
 class _FullScreenImage extends StatefulWidget {
-  const _FullScreenImage({required this.url});
+  const _FullScreenImage({required this.url, required this.postId});
   final String url;
+  final int postId;
 
   @override
   State<_FullScreenImage> createState() => _FullScreenImageState();
@@ -383,13 +388,16 @@ class _FullScreenImageState extends State<_FullScreenImage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () => Navigator.of(context).pop(),
-      child: Stack(
+      child: ColoredBox(
+        color: scheme.scaffoldBackgroundColor,
+        child: Stack(
         children: <Widget>[
           Positioned.fill(
             child: Hero(
-              tag: 'post_media_${widget.url.hashCode}',
+              tag: 'post_media_${widget.postId}',
               child: InteractiveViewer(
                 minScale: 0.8,
                 maxScale: 5.0,
@@ -401,13 +409,13 @@ class _FullScreenImageState extends State<_FullScreenImage> {
                       imageUrl: widget.url,
                       httpHeaders: cachedAuthHeaders(),
                       fit: BoxFit.contain,
-                      placeholder: (_, _) => const Center(
-                        child: AppLoadingIndicator(size: 32, color: Colors.white70),
+                      placeholder: (_, _) => Center(
+                        child: AppLoadingIndicator(size: 32, color: scheme.onSurface),
                       ),
-                      errorWidget: (_, _, _) => const Center(
+                      errorWidget: (_, _, _) => Center(
                         child: Icon(
                           Icons.broken_image_rounded,
-                          color: Colors.white38,
+                          color: scheme.outline,
                           size: 56,
                         ),
                       ),
@@ -426,13 +434,13 @@ class _FullScreenImageState extends State<_FullScreenImage> {
               child: Center(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.black45,
+                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.close_rounded,
-                      color: Colors.white,
+                      color: scheme.onSurface,
                       size: 22,
                     ),
                     onPressed: () => Navigator.of(context).pop(),
@@ -442,6 +450,7 @@ class _FullScreenImageState extends State<_FullScreenImage> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -455,7 +464,6 @@ class _ActionChip extends StatefulWidget {
     required this.count,
     required this.active,
     required this.activeColor,
-    required this.isLike,
     required this.onTap,
     required this.scheme,
   });
@@ -465,7 +473,6 @@ class _ActionChip extends StatefulWidget {
   final int count;
   final bool active;
   final Color activeColor;
-  final bool isLike;
   final VoidCallback onTap;
   final ColorScheme scheme;
 
