@@ -42,6 +42,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonCancel => 'Cancel';
 
   @override
+  String get commonBlocked => 'Blocked';
+
+  @override
   String get commonOk => 'OK';
 
   @override
@@ -284,6 +287,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileDescription => 'Description';
 
   @override
+  String get profileJoinedDate => 'Joined';
+
+  @override
+  String get profileCall => 'Call';
+
+  @override
+  String get profileBlock => 'Block';
+
+  @override
+  String get profileReport => 'Report';
+
+  @override
   String get profilePreferences => 'Preferences';
 
   @override
@@ -360,6 +375,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileEdit => 'Edit profile';
+
+  @override
+  String get profileBlock => 'Block';
+
+  @override
+  String get profileBlocked => 'blocked';
+
+  @override
+  String get profileCall => 'Call';
 
   @override
   String get profileThemeStudio => 'Theme studio';

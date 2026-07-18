@@ -164,6 +164,12 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get commonCancel;
 
+  /// No description provided for @commonBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked'**
+  String get commonBlocked;
+
   /// No description provided for @commonOk.
   ///
   /// In en, this message translates to:
@@ -632,11 +638,29 @@ abstract class AppLocalizations {
   /// **'Username'**
   String get profileUsername;
 
-  /// No description provided for @profileDescription.
+  /// No description provided for @profileJoinedDate.
   ///
   /// In en, this message translates to:
-  /// **'Description'**
-  String get profileDescription;
+  /// **'Joined'**
+  String get profileJoinedDate;
+
+  /// No description provided for @profileCall.
+  ///
+  /// In en, this message translates to:
+  /// **'Call'**
+  String get profileCall;
+
+  /// No description provided for @profileBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Block'**
+  String get profileBlock;
+
+  /// No description provided for @profileReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Report'**
+  String get profileReport;
 
   /// No description provided for @profilePreferences.
   ///
@@ -787,6 +811,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit profile'**
   String get profileEdit;
+
+  /// No description provided for @profileBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Block'**
+  String get profileBlock;
+
+  /// No description provided for @profileBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'blocked'**
+  String get profileBlocked;
+
+  /// No description provided for @profileCall.
+  ///
+  /// In en, this message translates to:
+  /// **'Call'**
+  String get profileCall;
 
   /// No description provided for @profileThemeStudio.
   ///

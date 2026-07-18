@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
@@ -300,11 +301,6 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                               children: <Widget>[
                                 _profileTag(
                                   context,
-                                  icon: Icons.alternate_email_rounded,
-                                  label: profile.username,
-                                ),
-                                _profileTag(
-                                  context,
                                   icon: isMe
                                       ? Icons.visibility_rounded
                                       : Icons.public_rounded,
@@ -382,9 +378,17 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
+                      Expanded(
+                        child: PulseButton(
+                          label: context.l10n.profileCall,
+                          icon: Icons.call_rounded,
+                          onPressed: () => context.go('/call/dm/${profile.username}?isVideo=0'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
                       IconButton.filledTonal(
-                        onPressed: () => _showReportUserDialog(profile),
-                        icon: Icon(Icons.flag_rounded, color: scheme.error),
+                        onPressed: () => _showBlockDialog(profile),
+                        icon: Icon(Icons.block_rounded, color: scheme.error),
                         style: IconButton.styleFrom(
                           minimumSize: const Size(48, 48),
                         ),
@@ -424,11 +428,10 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                       _infoRow(
                         context,
                         icon: Icons.notes_rounded,
-                        label: context.l10n.profileDescription,
-                        value: profile.bio.trim().isEmpty
-                            ? context.l10n.commonNoDescription
-                            : profile.bio.trim(),
-                        multiline: true,
+                        label: context.l10n.profileJoinedDate,
+                        value: profile.createdAt != null
+                            ? DateFormat('MMM d, yyyy').format(profile.createdAt!)
+                            : context.l10n.commonUnknown,
                       ),
                     ],
                   ),
@@ -511,6 +514,61 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                   Navigator.of(ctx).pop();
                   _submitUserReport(profile, 'illegal');
                 },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showBlockDialog(ApiProfile profile) {
+    AppBottomSheets.show<void>(
+      context: context,
+      builder: (BuildContext ctx) {
+        final ColorScheme scheme = Theme.of(ctx).colorScheme;
+        final TextTheme textTheme = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  context.l10n.profileBlock,
+                  style: textTheme.titleMedium,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  '${context.l10n.profileBlock} @${profile.username}?',
+                  style: textTheme.bodyMedium,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        // TODO: Implement block user
+                        AppToast.showInfo(context, '${profile.username} ${context.l10n.commonBlocked}');
+                      },
+                      child: Text(context.l10n.profileBlock),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.tonal(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text(context.l10n.commonCancel),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
             ],

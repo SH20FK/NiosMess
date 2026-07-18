@@ -10,6 +10,7 @@ class ApiProfile {
     this.twoFaEnabled,
     this.spamBlock,
     this.badges = const <ApiBadge>[],
+    this.createdAt,
   });
 
   final int id;
@@ -20,6 +21,7 @@ class ApiProfile {
   final bool? twoFaEnabled;
   final bool? spamBlock;
   final List<ApiBadge> badges;
+  final DateTime? createdAt;
 
   factory ApiProfile.fromJson(Map<String, dynamic> json) {
     final dynamic badgesRaw = json['badges'];
@@ -47,6 +49,9 @@ class ApiProfile {
       twoFaEnabled: json['two_fa_enabled'] as bool?,
       spamBlock: json['spam_block'] as bool?,
       badges: badges,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : null,
     );
   }
 }

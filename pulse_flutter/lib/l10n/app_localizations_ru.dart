@@ -42,6 +42,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get commonCancel => 'Отмена';
 
   @override
+  String get commonBlocked => 'Заблокирован';
+
+  @override
   String get commonOk => 'ОК';
 
   @override
@@ -285,6 +288,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get profileDescription => 'Описание';
 
   @override
+  String get profileJoinedDate => 'Вступил';
+
+  @override
+  String get profileCall => 'Позвонить';
+
+  @override
+  String get profileBlock => 'Заблокировать';
+
+  @override
+  String get profileReport => 'Пожаловаться';
+
+  @override
   String get profilePreferences => 'Предпочтения';
 
   @override
@@ -362,6 +377,15 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get profileEdit => 'Редактировать профиль';
+
+  @override
+  String get profileBlock => 'Заблокировать';
+
+  @override
+  String get profileBlocked => 'Заблокирован';
+
+  @override
+  String get profileCall => 'Позвонить';
 
   @override
   String get profileThemeStudio => 'Редактор тем';
