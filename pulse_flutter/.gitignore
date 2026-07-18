@@ -48,3 +48,8 @@ app.*.map.json
 /android/.gradle-user-home
 /android/.kotlin
 **/google-services.json
+
+# Local dev artifacts
+mock_quic/
+jobs.json
+pubspec.lock
