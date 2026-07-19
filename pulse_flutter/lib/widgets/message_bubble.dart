@@ -61,6 +61,9 @@ class MessageBubble extends ConsumerWidget {
     this.mediaDuration,
     this.animateHighlight = false,
     this.hideFooter = false,
+    this.isSending = false,
+    this.uploadProgress,
+    this.localId,
     super.key,
   });
 
@@ -97,6 +100,9 @@ class MessageBubble extends ConsumerWidget {
   final int? mediaDuration;
   final bool animateHighlight;
   final bool hideFooter;
+  final bool isSending;
+  final double? uploadProgress;
+  final String? localId;
 
   List<String> get mediaUrls {
     if (mediaUrl == null || mediaUrl!.trim().isEmpty) return [];
@@ -679,47 +685,56 @@ if (onSwipeToReply != null) {
           onLongPressMedia: onLongPressMedia,
         );
       }
-      return InkWell(
-        onTap: onOpenMedia,
-        onLongPress: onLongPressMedia,
-        borderRadius: BorderRadius.circular(12),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: WsCachedImage(
-            mediaUrl: urls.first,
-            chatId: chatId,
-            isE2ee: isE2ee,
-            width: 220,
-            height: 180,
-            fit: BoxFit.cover,
-            placeholder: (BuildContext context) => SizedBox(
-              width: 220,
-              height: 180,
-              child: Center(
-                child: AppLoadingIndicator(
-                  color: isMine ? scheme.onPrimary : scheme.primary,
-                ),
-              ),
-            ),
-            errorWidget: (BuildContext context, Object error) {
-              return Container(
+      return Stack(
+        children: [
+          InkWell(
+            onTap: onOpenMedia,
+            onLongPress: onLongPressMedia,
+            borderRadius: BorderRadius.circular(12),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: WsCachedImage(
+                mediaUrl: urls.first,
+                chatId: chatId,
+                isE2ee: isE2ee,
                 width: 220,
                 height: 180,
-                alignment: Alignment.center,
-                color: isMine
-                    ? scheme.onPrimary.withValues(alpha: 0.12)
-                    : scheme.surfaceContainerHigh,
-                child: Semantics(
-                  label: context.l10n.chatImageUnavailable,
-                  child: Text(
-                    context.l10n.chatImageUnavailable,
-                    style: textTheme.bodySmall?.copyWith(color: textColor),
+                fit: BoxFit.cover,
+                placeholder: (BuildContext context) => SizedBox(
+                  width: 220,
+                  height: 180,
+                  child: Center(
+                    child: AppLoadingIndicator(
+                      color: isMine ? scheme.onPrimary : scheme.primary,
+                    ),
                   ),
                 ),
-              );
-            },
+                errorWidget: (BuildContext context, Object error) {
+                  return Container(
+                    width: 220,
+                    height: 180,
+                    alignment: Alignment.center,
+                    color: isMine
+                        ? scheme.onPrimary.withValues(alpha: 0.12)
+                        : scheme.surfaceContainerHigh,
+                    child: Semantics(
+                      label: context.l10n.chatImageUnavailable,
+                      child: Text(
+                        context.l10n.chatImageUnavailable,
+                        style: textTheme.bodySmall?.copyWith(color: textColor),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
-        ),
+          if (isSending) _UploadProgressOverlay(
+            progress: uploadProgress,
+            isMine: isMine,
+            scheme: scheme,
+          ),
+        ],
       );
     }
 
@@ -727,79 +742,90 @@ if (onSwipeToReply != null) {
       fileName: mediaLabel ?? 'file',
     );
 
-    return InkWell(
-      onTap: onOpenMedia,
-      onLongPress: onLongPressMedia,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 220,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          color: isMine
-              ? scheme.onPrimary.withValues(alpha: 0.15)
-              : scheme.surfaceContainerHigh,
+    return Stack(
+      children: [
+        InkWell(
+          onTap: onOpenMedia,
+          onLongPress: onLongPressMedia,
           borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: (isMine ? scheme.onPrimary : scheme.primary).withValues(
-                  alpha: 0.12,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                getIconDataByName(
-                  FileTypeDetector.detect(fileName: mediaLabel ?? '').icon,
-                ),
-                color: isMine ? scheme.onPrimary : scheme.primary,
-                size: 20,
-              ),
+          child: Container(
+            width: 220,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: isMine
+                  ? scheme.onPrimary.withValues(alpha: 0.15)
+                  : scheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    (mediaLabel ?? context.l10n.chatOpenAttachment)
-                            .trim()
-                            .isEmpty
-                        ? context.l10n.chatOpenAttachment
-                        : mediaLabel!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: textColor,
-                      fontWeight: FontWeight.w600,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: (isMine ? scheme.onPrimary : scheme.primary).withValues(
+                      alpha: 0.12,
                     ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${typeInfo.label} • ${context.l10n.chatTapToPreview}',
-                    style: textTheme.labelSmall?.copyWith(
-                      color: isMine
-                          ? scheme.onPrimary.withValues(alpha: 0.82)
-                          : scheme.onSurfaceVariant,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    getIconDataByName(
+                      FileTypeDetector.detect(fileName: mediaLabel ?? '').icon,
                     ),
+                    color: isMine ? scheme.onPrimary : scheme.primary,
+                    size: 20,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        (mediaLabel ?? context.l10n.chatOpenAttachment)
+                                .trim()
+                                .isEmpty
+                            ? context.l10n.chatOpenAttachment
+                            : mediaLabel!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: textColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${typeInfo.label} • ${context.l10n.chatTapToPreview}',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: isMine
+                              ? scheme.onPrimary.withValues(alpha: 0.82)
+                              : scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: isMine ? scheme.onPrimary : scheme.onSurfaceVariant,
+                  size: 18,
+                ),
+              ],
             ),
-            const SizedBox(width: 6),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: isMine ? scheme.onPrimary : scheme.onSurfaceVariant,
-              size: 18,
-            ),
-          ],
+          ),
         ),
-      ),
+        if (isSending) Positioned.fill(
+          child: _UploadProgressOverlay(
+            progress: uploadProgress,
+            isMine: isMine,
+            scheme: scheme,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1469,6 +1495,69 @@ class _MediaCarouselState extends State<_MediaCarousel> {
                   ),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UploadProgressOverlay extends StatelessWidget {
+  const _UploadProgressOverlay({
+    required this.progress,
+    required this.isMine,
+    required this.scheme,
+  });
+
+  final double? progress;
+  final bool isMine;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final double? p = progress?.clamp(0.0, 1.0);
+    final int percent = ((p ?? 0.0) * 100).toInt();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.45),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 36,
+              height: 36,
+              child: AppLoadingIndicator(
+                size: 32,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$percent%',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (p != null) ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: p,
+                    minHeight: 3,
+                    backgroundColor: Colors.white.withValues(alpha: 0.18),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

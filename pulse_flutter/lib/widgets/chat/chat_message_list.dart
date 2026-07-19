@@ -1,10 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
+import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/chat/three_d_long_press_handler.dart';
@@ -72,7 +74,7 @@ List<_MessageLayoutData> _precomputeLayout(List<ApiMessage> messages) {
   return layout;
 }
 
-class ChatMessageList extends StatefulWidget {
+class ChatMessageList extends ConsumerStatefulWidget {
   const ChatMessageList({
     required this.messages,
     required this.scrollController,
@@ -129,10 +131,10 @@ class ChatMessageList extends StatefulWidget {
       animatedMessageBuilder;
 
   @override
-  State<ChatMessageList> createState() => _ChatMessageListState();
+  ConsumerState<ChatMessageList> createState() => _ChatMessageListState();
 }
 
-class _ChatMessageListState extends State<ChatMessageList> {
+class _ChatMessageListState extends ConsumerState<ChatMessageList> {
   List<_MessageLayoutData>? _layoutCache;
   List<ApiMessage>? _cachedMessages;
   Map<int, ApiMessage>? _byIdCache;
@@ -204,10 +206,15 @@ class _ChatMessageListState extends State<ChatMessageList> {
         final String? mediaLabel =
             hasMedia ? widget.mediaLabelBuilder(message, mediaUrl) : null;
 
-        final bool isVoice = message.msgType == 'voice' ||
-            (message.mediaType?.startsWith('audio/') == true);
+        final bool isVoice = message.msgType == 'voice';
         final bool isCircleVideo = message.msgType == 'circle';
         final int? mediaDuration = message.mediaDuration;
+        final bool isLocalSending = message.isSending && message.id < 0;
+        final UploadTask? uploadTask = isLocalSending
+            ? ref.watch(uploadTaskProvider(message.id.toString()))
+            : null;
+        final double? uploadProgress =
+            isLocalSending ? (uploadTask?.progress ?? 0.0) : null;
 
         final Widget bubble = RepaintBoundary(
           child: MessageBubble(
@@ -237,6 +244,9 @@ class _ChatMessageListState extends State<ChatMessageList> {
             senderBadges: message.senderBadges,
             senderDisplayName: message.senderDisplayName,
             animate: now.difference(message.resolvedSentAt).inSeconds < 4,
+            isSending: isLocalSending,
+            uploadProgress: uploadProgress,
+            localId: isLocalSending ? message.id.toString() : null,
             onOpenMedia: hasMedia ? () => widget.onOpenMedia(message) : null,
             onLongPressMedia: hasMedia
                 ? () => widget.onLongPressMedia(

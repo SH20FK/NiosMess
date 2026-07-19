@@ -389,14 +389,51 @@ class ChatRepository {
     request.fields['media_subtype'] = mediaSubtype;
 
     if (filePath != null && filePath.isNotEmpty) {
-      request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: filename));
+      final File file = File(filePath);
+      final Stream<List<int>> source = file.openRead();
+      int sent = 0;
+      final Stream<List<int>> counted = source.transform(
+        StreamTransformer<List<int>, List<int>>.fromHandlers(
+          handleData: (List<int> chunk, EventSink<List<int>> sink) {
+            sent += chunk.length;
+            onProgress(sent, fileSize);
+            sink.add(chunk);
+          },
+        ),
+      );
+      request.files.add(
+        http.MultipartFile(
+          'file',
+          counted,
+          fileSize,
+          filename: filename,
+        ),
+      );
     } else if (bytes != null) {
-      request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+      final Stream<List<int>> source = Stream.fromIterable([bytes]);
+      int sent = 0;
+      final Stream<List<int>> counted = source.transform(
+        StreamTransformer<List<int>, List<int>>.fromHandlers(
+          handleData: (List<int> chunk, EventSink<List<int>> sink) {
+            sent += chunk.length;
+            onProgress(sent, fileSize);
+            sink.add(chunk);
+          },
+        ),
+      );
+      request.files.add(
+        http.MultipartFile(
+          'file',
+          counted,
+          bytes.length,
+          filename: filename,
+        ),
+      );
     } else {
       throw Exception('No file path or bytes provided for upload');
     }
 
-    onProgress(0, 100);
+    onProgress(0, fileSize);
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
@@ -409,7 +446,7 @@ class ChatRepository {
       throw Exception('Upload failed: ${response.body}');
     }
 
-    onProgress(100, 100);
+    onProgress(fileSize, fileSize);
     return body['upload_id'] as String;
   }
 

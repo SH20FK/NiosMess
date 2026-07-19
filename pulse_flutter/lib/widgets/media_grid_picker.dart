@@ -27,6 +27,7 @@ class MediaGridPicker extends StatefulWidget {
 
 class _MediaGridPickerState extends State<MediaGridPicker> {
   List<AssetEntity> _allAssets = [];
+  Set<String> _selectedIds = {};
   bool _loading = true;
   String? _error;
 
@@ -76,15 +77,43 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
     }
   }
 
-  Future<void> _pickAsset(AssetEntity asset) async {
-    final File? file = await asset.file;
-    if (file == null || !mounted) return;
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
 
-    Navigator.of(context).pop(MediaGridPickerResult(
-      filePath: file.path,
-      fileName: (asset.title != null && asset.title!.isNotEmpty) ? asset.title! : file.path.split('/').last,
-      fileSize: await file.length(),
-    ));
+  Future<void> _sendSelected() async {
+    if (_selectedIds.isEmpty) return;
+
+    final List<AssetEntity> selected = _allAssets
+        .where((a) => _selectedIds.contains(a.id))
+        .toList();
+
+    final List<MediaGridPickerResult> results = [];
+    for (final AssetEntity asset in selected) {
+      final File? file = await asset.file;
+      if (file == null) continue;
+      results.add(MediaGridPickerResult(
+        filePath: file.path,
+        fileName: (asset.title != null && asset.title!.isNotEmpty)
+            ? asset.title!
+            : file.path.split('/').last,
+        fileSize: await file.length(),
+      ));
+    }
+
+    if (results.isNotEmpty && mounted) {
+      Navigator.of(context).pop(results);
+    }
+  }
+
+  void _openFilePicker() {
+    Navigator.of(context).pop(null);
   }
 
   @override
@@ -130,9 +159,50 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
         itemCount: _allAssets.length,
         itemBuilder: (context, index) {
           final AssetEntity asset = _allAssets[index];
+          final bool selected = _selectedIds.contains(asset.id);
           return GestureDetector(
-            onTap: () => _pickAsset(asset),
-            child: _AssetThumbnail(asset: asset, scheme: scheme),
+            onTap: () => _toggleSelection(asset.id),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _AssetThumbnail(asset: asset, scheme: scheme),
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: selected ? scheme.primary : Colors.black38,
+                      border: Border.all(
+                        color: selected ? scheme.primary : Colors.white70,
+                        width: 2,
+                      ),
+                    ),
+                    child: selected
+                        ? Icon(Icons.check_rounded, size: 16, color: scheme.onPrimary)
+                        : null,
+                  ),
+                ),
+                if (asset.type == AssetType.video)
+                  Positioned(
+                    left: 6,
+                    bottom: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _formatDuration(Duration(milliseconds: asset.duration)),
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           );
         },
       );
@@ -142,7 +212,7 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
             child: Row(
               children: [
                 Text(
@@ -151,18 +221,48 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
                 ),
                 const Spacer(),
                 TextButton.icon(
-                  onPressed: () => Navigator.of(context).pop(null),
+                  onPressed: _openFilePicker,
                   icon: const Icon(Icons.folder_open_rounded, size: 18),
                   label: Text(context.l10n.filePickerFile),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Expanded(child: body),
+          if (_selectedIds.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                border: Border(top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3))),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    '${_selectedIds.length} ${context.l10n.filePickerGallery}',
+                    style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                  ),
+                  const Spacer(),
+                  FilledButton.icon(
+                    onPressed: _sendSelected,
+                    icon: const Icon(Icons.send_rounded, size: 18),
+                    label: Text(
+                      '${context.l10n.chatAttachment} (${_selectedIds.length})',
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes.toString().padLeft(2, '0');
+    final seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 }
 
@@ -175,7 +275,7 @@ class _AssetThumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Uint8List?>(
-      future: asset.thumbnailDataWithSize(const ThumbnailSize(300, 300)),
+      future: asset.thumbnailDataWithSize(const ThumbnailSize(400, 400)),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Container(
@@ -185,28 +285,7 @@ class _AssetThumbnail extends StatelessWidget {
         }
         final Uint8List? data = snapshot.data;
         if (data != null) {
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.memory(data, fit: BoxFit.cover),
-              if (asset.type == AssetType.video)
-                Positioned(
-                  left: 6,
-                  bottom: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      _formatDuration(Duration(milliseconds: asset.duration)),
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ),
-            ],
-          );
+          return Image.memory(data, fit: BoxFit.cover);
         }
         return Container(
           color: scheme.surfaceContainerHighest,
@@ -214,11 +293,5 @@ class _AssetThumbnail extends StatelessWidget {
         );
       },
     );
-  }
-
-  String _formatDuration(Duration d) {
-    final minutes = d.inMinutes.toString().padLeft(2, '0');
-    final seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
   }
 }

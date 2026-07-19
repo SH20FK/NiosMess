@@ -728,57 +728,59 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return;
     }
 
-    final M3FilePickerResult? result = await showM3FilePicker(context);
-    if (result == null || !mounted) {
+    final List<M3FilePickerResult>? results = await showM3FilePicker(context);
+    if (results == null || results.isEmpty || !mounted) {
       return;
     }
 
-    final String filename = result.fileName;
-    final String mediaSubtype = result.mediaSubtype;
+    for (int i = 0; i < results.length; i++) {
+      final M3FilePickerResult result = results[i];
+      final String filename = result.fileName;
+      final String mediaSubtype = result.mediaSubtype;
 
-    String? uploadFilePath = result.filePath;
-    Uint8List? uploadBytes;
-    Stream<List<int>>? uploadStream = result.readStream;
-    int uploadFileSize = result.fileSize;
+      String? uploadFilePath = result.filePath;
+      Uint8List? uploadBytes;
+      int uploadFileSize = result.fileSize;
 
-    if (uploadFilePath != null) {
-      try {
-        final File originalFile = File(uploadFilePath);
-        final File? compressed = await ImageCompressor.compressImageFile(
-          file: originalFile,
-          fileName: filename,
-        );
-        if (compressed != null) {
-          uploadFilePath = compressed.path;
-          uploadFileSize = await compressed.length();
+      if (uploadFilePath != null) {
+        try {
+          final File originalFile = File(uploadFilePath);
+          final File? compressed = await ImageCompressor.compressImageFile(
+            file: originalFile,
+            fileName: filename,
+          );
+          if (compressed != null) {
+            uploadFilePath = compressed.path;
+            uploadFileSize = await compressed.length();
+          }
+        } catch (e, st) {
+          debugPrint('Image compression failed: $e\n$st');
         }
-      } catch (e, st) {
-        debugPrint('Image compression failed: $e\n$st');
-      }
-    } else if (uploadStream != null) {
-      try {
-        final List<int> allBytes = <int>[];
-        await for (final List<int> chunk in uploadStream) {
-          allBytes.addAll(chunk);
+      } else if (result.readStream != null) {
+        try {
+          final List<int> allBytes = <int>[];
+          await for (final List<int> chunk in result.readStream!) {
+            allBytes.addAll(chunk);
+          }
+          uploadBytes = Uint8List.fromList(allBytes);
+          uploadFileSize = uploadBytes.length;
+        } catch (e, st) {
+          debugPrint('Failed to read stream: $e\n$st');
+          continue;
         }
-        uploadBytes = Uint8List.fromList(allBytes);
-        uploadFileSize = uploadBytes.length;
-      } catch (e, st) {
-        debugPrint('Failed to read stream: $e\n$st');
-        return;
       }
+
+      await _uploadAndSend(
+        chatId: chatId,
+        filePath: uploadFilePath,
+        bytes: uploadBytes,
+        filename: filename,
+        mediaSubtype: mediaSubtype,
+        fileSize: uploadFileSize,
+        text: i == 0 ? _inputController.text : '',
+        showSentSnackBar: i == 0,
+      );
     }
-
-    await _uploadAndSend(
-      chatId: chatId,
-      filePath: uploadFilePath,
-      bytes: uploadBytes,
-      filename: filename,
-      mediaSubtype: mediaSubtype,
-      fileSize: uploadFileSize,
-      text: _inputController.text,
-      showSentSnackBar: true,
-    );
 
     if (mounted) _inputController.clear();
   }
@@ -1094,6 +1096,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         ? message.mediaName!.trim()
         : _mediaLabel(message, mediaUrl);
 
+    if (_isImageMedia(message, mediaUrl)) {
+      context.push(
+        '/media-viewer?url=${Uri.encodeComponent(mediaUrl)}'
+        '&type=image&title=${Uri.encodeComponent(fileName)}',
+      );
+      return;
+    }
+
     context.push(
       '/file-viewer?name=${Uri.encodeComponent(fileName)}'
       '&url=${Uri.encodeComponent(mediaUrl)}',
@@ -1231,12 +1241,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     final String lower = mediaUrl.toLowerCase();
-    return lower.endsWith('.jpg') ||
-        lower.endsWith('.jpeg') ||
-        lower.endsWith('.png') ||
-        lower.endsWith('.webp') ||
-        lower.endsWith('.gif') ||
-        lower.endsWith('.bmp');
+    final String fileName = (message.mediaName ?? '').toLowerCase();
+    bool isImageExt(String s) =>
+        s.endsWith('.jpg') ||
+        s.endsWith('.jpeg') ||
+        s.endsWith('.png') ||
+        s.endsWith('.webp') ||
+        s.endsWith('.gif') ||
+        s.endsWith('.bmp') ||
+        s.endsWith('.svg');
+    return isImageExt(lower) || (fileName.isNotEmpty && isImageExt(fileName));
   }
 
   String? _replyPreviewFor(ApiMessage message, Map<int, ApiMessage> byId) {

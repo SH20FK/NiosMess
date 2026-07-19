@@ -25,11 +25,12 @@ class M3FilePickerResult {
   String get formattedSize => FileTypeDetector.formatFileSize(fileSize);
 }
 
-Future<M3FilePickerResult?> showM3FilePicker(BuildContext context) async {
-  return AppBottomSheets.show<M3FilePickerResult>(
+Future<List<M3FilePickerResult>?> showM3FilePicker(BuildContext context) async {
+  final M3FilePickerResult? single = await AppBottomSheets.show<M3FilePickerResult>(
     context: context,
     builder: (BuildContext ctx) => _CompactAttachmentMenu(),
   );
+  return single != null ? [single] : null;
 }
 
 class _CompactAttachmentMenu extends StatelessWidget {
@@ -68,26 +69,30 @@ class _CompactAttachmentMenu extends StatelessWidget {
   }
 
   Future<void> _openMediaGrid(BuildContext context) async {
-    final MediaGridPickerResult? result = await showModalBottomSheet<MediaGridPickerResult>(
+    final List<MediaGridPickerResult>? results = await showModalBottomSheet<List<MediaGridPickerResult>?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (_) => const MediaGridPicker(),
     );
 
-    if (result == null || !context.mounted) return;
+    if (results == null || results.isEmpty || !context.mounted) return;
 
-    if (result.filePath.isNotEmpty) {
-      Navigator.of(context).pop(
-        M3FilePickerResult(
-          readStream: null,
-          filePath: result.filePath,
-          fileName: result.fileName,
-          fileSize: result.fileSize,
-          mediaSubtype: 'media',
-        ),
-      );
-    }
+    final List<M3FilePickerResult> converted = results
+        .where((r) => r.filePath.isNotEmpty)
+        .map((r) => M3FilePickerResult(
+              readStream: null,
+              filePath: r.filePath,
+              fileName: r.fileName,
+              fileSize: r.fileSize,
+              mediaSubtype: 'media',
+            ))
+        .toList();
+
+    if (converted.isEmpty) return;
+
+    // Pop bottom sheet with first result, others queued via callback
+    Navigator.of(context).pop(converted.first);
   }
 
   @override
