@@ -41,138 +41,100 @@ class _AlphaTestDialogWidget extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Dialog.fullscreen(
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              scheme.errorContainer.withValues(alpha: 0.3),
-              scheme.surface,
-            ],
+    return AlertDialog(
+      backgroundColor: scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: scheme.errorContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.bug_report_rounded,
+              color: scheme.onErrorContainer,
+              size: 32,
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+          const SizedBox(height: 20),
+          Text(
+            context.l10n.alphaDialogTitle,
+            style: textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+              color: scheme.onSurface,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            context.l10n.alphaDialogBody,
+            style: textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                // Icon with pulsing glow
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: scheme.errorContainer,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: scheme.error.withValues(alpha: 0.2),
-                        blurRadius: 24,
-                        spreadRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.bug_report_rounded,
-                    color: scheme.onErrorContainer,
-                    size: 48,
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Title
+              children: [
                 Text(
-                  context.l10n.alphaDialogTitle,
-                  style: textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
+                  context.l10n.alphaDialogReportTo,
+                  style: textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                     color: scheme.onSurface,
                   ),
-                  textAlign: TextAlign.center,
                 ),
-
-                const SizedBox(height: 16),
-
-                // Body
-                Text(
-                  context.l10n.alphaDialogBody,
-                  style: textTheme.bodyLarge?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    height: 1.6,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 28),
-
-                // Report section
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: scheme.outlineVariant.withValues(alpha: 0.2),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _TelegramButton(
+                      handle: 'sansana',
+                      onTap: () => _launchTelegram(context, 'sansana'),
                     ),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        context.l10n.alphaDialogReportTo,
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _TelegramButton(
-                            handle: 'Door0S',
-                            onTap: () => _launchTelegram(context, 'Door0S'),
-                          ),
-                          const SizedBox(width: 12),
-                          _TelegramButton(
-                            handle: 'sanlsan',
-                            onTap: () => _launchTelegram(context, 'sanlsan'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Got it button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: FilledButton(
-                    onPressed: () {
-                      AlphaTestDialog.markAcknowledged();
-                      Navigator.of(context).pop();
-                    },
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                    const SizedBox(width: 10),
+                    _TelegramButton(
+                      handle: 'sh20fk',
+                      onTap: () => _launchTelegram(context, 'sh20fk'),
                     ),
-                    child: Text(
-                      context.l10n.alphaDialogUnderstood,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                    ),
-                  ),
+                  ],
                 ),
               ],
             ),
           ),
-        ),
+        ],
       ),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+      actions: <Widget>[
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: () {
+              AlphaTestDialog.markAcknowledged();
+              Navigator.of(context).pop();
+            },
+            style: FilledButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Text(context.l10n.alphaDialogUnderstood),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -189,13 +151,14 @@ class _TelegramButton extends StatelessWidget {
 
     return FilledButton.tonalIcon(
       onPressed: onTap,
-      icon: Icon(Icons.send_rounded, size: 18, color: scheme.primary),
+      icon: Icon(Icons.send_rounded, size: 16, color: scheme.primary),
       label: Text('@$handle'),
       style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
         ),
+        visualDensity: VisualDensity.compact,
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
@@ -23,63 +24,65 @@ class ActiveColorOrb extends ConsumerStatefulWidget {
 }
 
 class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _bounceController;
-  late final Animation<double> _bounceAnim;
-  late final Animation<double> _glowAnim;
+    with TickerProviderStateMixin {
+  late final AnimationController _lavaController;
+  late final AnimationController _pulseController;
+  late Color _seedPrimary;
+  bool _isActive = true;
 
-  late ColorScheme _seedScheme;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bool active = TickerMode.of(context);
+    if (active != _isActive) {
+      _isActive = active;
+      if (active) {
+        _lavaController.repeat();
+      } else {
+        _lavaController.stop();
+      }
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    _bounceController = AnimationController(
+    _lavaController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(seconds: 4),
+    )..repeat();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
     );
-    _bounceAnim = TweenSequence<double>(<TweenSequenceItem<double>>[
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1.0, end: 1.18)
-            .chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 40,
-      ),
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1.18, end: 1.0)
-            .chain(CurveTween(curve: Curves.bounceOut)),
-        weight: 60,
-      ),
-    ]).animate(_bounceController);
 
-    _glowAnim = Tween<double>(begin: 0.3, end: 0.55)
-        .animate(CurvedAnimation(parent: _bounceController, curve: Curves.easeInOut));
-
-    _seedScheme = ColorScheme.fromSeed(
+    _seedPrimary = ColorScheme.fromSeed(
       seedColor: widget.color,
       brightness: Theme.of(context).brightness,
-    );
-
-    if (widget.selected) {
-      _bounceController.value = 1.0;
-    }
+    ).primary;
   }
 
   @override
   void didUpdateWidget(ActiveColorOrb old) {
     super.didUpdateWidget(old);
     if (widget.color != old.color) {
-      _seedScheme = ColorScheme.fromSeed(
+      _seedPrimary = ColorScheme.fromSeed(
         seedColor: widget.color,
         brightness: Theme.of(context).brightness,
-      );
+      ).primary;
     }
     if (widget.selected && !old.selected) {
-      _bounceController.forward(from: 0);
+      _pulseController.forward(from: 0);
+    } else if (!widget.selected && old.selected) {
+      _pulseController.reverse();
     }
   }
 
   @override
   void dispose() {
-    _bounceController.dispose();
+    _lavaController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -87,7 +90,6 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final seedPrimary = _seedScheme.primary;
 
     return Semantics(
       selected: widget.selected,
@@ -106,51 +108,55 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               AnimatedBuilder(
-                animation: _bounceController,
-                builder: (context, child) {
-                  final scale = widget.selected ? _bounceAnim.value : 1.0;
-                  final glowAlpha = widget.selected ? _glowAnim.value : 0.0;
-
-                  return Transform.scale(
-                    scale: scale,
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: seedPrimary,
-                        border: widget.selected
-                            ? Border.all(
-                                color: seedPrimary.withValues(alpha: 0.6),
-                                width: 3,
-                              )
-                            : Border.all(
-                                color: scheme.outlineVariant.withValues(alpha: 0.2),
-                                width: 1,
-                              ),
-                        boxShadow: widget.selected
-                            ? <BoxShadow>[
-                                BoxShadow(
-                                  color: seedPrimary.withValues(alpha: glowAlpha),
-                                  blurRadius: 14,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : <BoxShadow>[
-                                BoxShadow(
-                                  color: scheme.shadow.withValues(alpha: 0.08),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                      ),
-                      child: widget.selected
-                          ? Icon(
-                              Icons.check_rounded,
-                              color: _seedScheme.onPrimary,
-                              size: 26,
+                animation: Listenable.merge([_lavaController, _pulseController]),
+                builder: (_, _) {
+                  final lava = _lavaController.value;
+                  final pulse = _pulseController.value;
+                  const double size = 56;
+                  return Container(
+                    width: size,
+                    height: size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: scheme.surfaceContainerHighest,
+                      border: widget.selected
+                          ? Border.all(
+                              color: _seedPrimary.withValues(alpha: 0.6),
+                              width: 2,
                             )
-                          : null,
+                          : Border.all(
+                              color: scheme.outlineVariant.withValues(alpha: 0.2),
+                              width: 1,
+                            ),
+                      boxShadow: widget.selected
+                          ? <BoxShadow>[
+                              BoxShadow(
+                                color: _seedPrimary.withValues(
+                                    alpha: 0.3 + pulse * 0.2),
+                                blurRadius: 8 + pulse * 6,
+                                spreadRadius: 1 + pulse * 2,
+                              ),
+                            ]
+                          : <BoxShadow>[
+                              BoxShadow(
+                                color: scheme.shadow.withValues(alpha: 0.08),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                    ),
+                    padding: EdgeInsets.all(3.5),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(26),
+                      child: CustomPaint(
+                        painter: _LavaLampPainter(
+                          color1: _seedPrimary,
+                          color2: widget.color,
+                          t: lava,
+                          selected: widget.selected,
+                        ),
+                        child: const SizedBox.expand(),
+                      ),
                     ),
                   );
                 },
@@ -173,4 +179,76 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
       ),
     );
   }
+}
+
+class _LavaLampPainter extends CustomPainter {
+  const _LavaLampPainter({
+    required this.color1,
+    required this.color2,
+    required this.t,
+    required this.selected,
+  });
+
+  final Color color1;
+  final Color color2;
+  final double t;
+  final bool selected;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect rect = Offset.zero & size;
+    final double radius = size.width / 2;
+    final Offset center = rect.center;
+
+    final Paint leftPaint = Paint()..color = color1;
+    final Paint rightPaint = Paint()..color = color2;
+
+    final double wave = math.sin(t) * 0.12;
+
+    final Path leftPath = Path();
+    final Path rightPath = Path();
+
+    leftPath.moveTo(center.dx * (1 + wave), 0);
+    leftPath.lineTo(0, 0);
+    leftPath.lineTo(0, size.height);
+    leftPath.lineTo(center.dx * (1 + wave), size.height);
+
+    rightPath.moveTo(center.dx * (1 + wave), 0);
+    rightPath.lineTo(size.width, 0);
+    rightPath.lineTo(size.width, size.height);
+    rightPath.lineTo(center.dx * (1 + wave), size.height);
+
+    for (double y = 0; y <= size.height; y += 4) {
+      final double localWave = math.sin(t * 1.3 + y * 0.05) * 4;
+      final double x = center.dx * (1 + wave) + localWave;
+      leftPath.lineTo(x.clamp(0, center.dx * 2), y);
+      rightPath.lineTo(x.clamp(0, center.dx * 2), y);
+    }
+
+    canvas.drawPath(leftPath, leftPaint);
+    canvas.drawPath(rightPath, rightPaint);
+
+    if (selected) {
+      final Paint borderPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      for (int i = 0; i < 8; i++) {
+        final double phase = t + i * 0.8;
+        final double alpha = (math.sin(phase) * 0.5 + 0.5) * 0.5;
+        borderPaint.color = color1.withValues(alpha: alpha);
+        canvas.drawCircle(
+          center,
+          radius - 2 - i * 0.5,
+          borderPaint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LavaLampPainter old) =>
+      t != old.t ||
+      color1 != old.color1 ||
+      color2 != old.color2 ||
+      selected != old.selected;
 }
