@@ -2507,6 +2507,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filePreviewSave => 'Save';
 
   @override
+  String get filePreviewOpenExternal => 'Open externally';
+
+  @override
   String get filePreviewLink => 'Link';
 
   @override

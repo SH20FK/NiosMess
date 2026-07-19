@@ -4574,6 +4574,12 @@ abstract class AppLocalizations {
   /// **'Save'**
   String get filePreviewSave;
 
+  /// No description provided for @filePreviewOpenExternal.
+  ///
+  /// In en, this message translates to:
+  /// **'Open externally'**
+  String get filePreviewOpenExternal;
+
   /// No description provided for @filePreviewLink.
   ///
   /// In en, this message translates to:

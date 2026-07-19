@@ -208,75 +208,51 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
     Navigator.of(context).pop();
 
     if (typeInfo.isImage) {
-      if (hasRemoteUrl) {
-        await context.push('/media-viewer?url=${Uri.encodeComponent(mediaUrl!)}&title=${Uri.encodeComponent(fileName)}&type=image');
-        return;
-      }
-      if (hasBytes) {
-        await showDialog<void>(
-          context: context,
-          builder: (BuildContext ctx) {
-            final ColorScheme scheme = Theme.of(ctx).colorScheme;
-            return Dialog.fullscreen(
-              child: Stack(
-                children: <Widget>[
-                  Container(
-                    color: scheme.scrim,
-                    alignment: Alignment.center,
-                    child: InteractiveViewer(
-                      minScale: 0.8,
-                      maxScale: 4,
-                      child: Image.memory(fileBytes!, fit: BoxFit.contain),
-                    ),
-                  ),
-                  Positioned(
-                    top: 16,
-                    left: 16,
-                    child: IconButton.filled(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      }
+      Navigator.of(context).pop();
+      await context.push(
+        '/file-viewer?name=${Uri.encodeComponent(fileName)}'
+        '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}'
+        '${hasLocalPath ? '&path=${Uri.encodeComponent(filePath!)}' : ''}',
+      );
       return;
     }
 
     if (typeInfo.isVideo && hasRemoteUrl) {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) =>
-              _VideoPreviewScreen(fileName: fileName, videoUrl: mediaUrl!),
-        ),
+      Navigator.of(context).pop();
+      await context.push(
+        '/file-viewer?name=${Uri.encodeComponent(fileName)}'
+        '&url=${Uri.encodeComponent(mediaUrl!)}',
       );
       return;
     }
 
     if (typeInfo.isAudio && (hasRemoteUrl || hasLocalPath)) {
-      await showDialog<void>(
-        context: context,
-        builder: (BuildContext ctx) {
-          return Dialog(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: _AudioPreviewContent(
-                fileName: fileName,
-                remoteUrl: hasRemoteUrl ? mediaUrl : null,
-                localPath: hasLocalPath ? filePath : null,
-              ),
-            ),
-          );
-        },
+      Navigator.of(context).pop();
+      await context.push(
+        '/file-viewer?name=${Uri.encodeComponent(fileName)}'
+        '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}'
+        '${hasLocalPath ? '&path=${Uri.encodeComponent(filePath!)}' : ''}',
       );
       return;
     }
 
     if (typeInfo.isPdf && (hasRemoteUrl || hasBytes)) {
-      await _openFile(context);
+      Navigator.of(context).pop();
+      await context.push(
+        '/file-viewer?name=${Uri.encodeComponent(fileName)}'
+        '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}',
+      );
+      return;
+    }
+
+    if (typeInfo.isDocument) {
+      Navigator.of(context).pop();
+      await context.push(
+        '/file-viewer?name=${Uri.encodeComponent(fileName)}'
+        '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}'
+        '${hasLocalPath ? '&path=${Uri.encodeComponent(filePath!)}' : ''}',
+      );
+      return;
     }
   }
 

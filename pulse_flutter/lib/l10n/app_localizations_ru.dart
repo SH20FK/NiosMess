@@ -2530,6 +2530,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get filePreviewSave => 'Сохранить';
 
   @override
+  String get filePreviewOpenExternal => 'Открыть внешним приложением';
+
+  @override
   String get filePreviewLink => 'Ссылка';
 
   @override

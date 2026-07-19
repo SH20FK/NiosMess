@@ -26,6 +26,8 @@ import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/legal_viewer_screen.dart';
+import 'package:pulse_flutter/screens/native_file_viewer_screen.dart';
+import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
@@ -240,6 +242,26 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/legal/consent',
         pageBuilder: (context, state) => _page(state, const LegalViewerScreen(docType: LegalDocType.consent), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/file-viewer',
+        pageBuilder: (context, state) {
+          final fileName = state.uri.queryParameters['name'] ?? '';
+          final url = state.uri.queryParameters['url'];
+          final localPath = state.uri.queryParameters['path'];
+          final typeStr = state.uri.queryParameters['type'] ?? 'unknown';
+          final fileType = FileTypeDetector.detect(fileName: fileName);
+          return _page(
+            state,
+            NativeFileViewerScreen(
+              fileName: fileName,
+              fileType: fileType,
+              url: url,
+              localPath: localPath,
+            ),
+            pageKey: state.pageKey,
+          );
+        },
       ),
       GoRoute(
         path: '/niosgram/create',
