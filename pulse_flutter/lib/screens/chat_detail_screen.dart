@@ -1612,25 +1612,19 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
   late final AnimationController _controller;
   late final Animation<double> _fade;
   late final Animation<Offset> _slide;
-  late final Animation<double> _size;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350), // Slightly longer for Signal feel
+      duration: const Duration(milliseconds: 300),
     );
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-    
-    // Signal-style: slide strictly from the bottom, not side
     _slide = Tween<Offset>(
-      begin: const Offset(0.0, 0.5),
+      begin: const Offset(0.0, 0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
-
-    // Signal-style: size expansion from bottom
-    _size = CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart);
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     if (widget.animate) {
       _controller.forward();
@@ -1647,15 +1641,11 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
 
   @override
   Widget build(BuildContext context) {
-    return SizeTransition(
-      sizeFactor: _size,
-      axisAlignment: -1.0, // Expand upwards
-      child: FadeTransition(
-        opacity: _fade,
-        child: SlideTransition(
-          position: _slide,
-          child: widget.child,
-        ),
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: widget.child,
       ),
     );
   }

@@ -113,8 +113,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
         opaque: false,
         barrierDismissible: true,
         
-        pageBuilder: (_, __, ___) => const CircleVideoRecorderScreen(),
-        transitionsBuilder: (_, Animation<double> a, __, Widget child) =>
+        pageBuilder: (_, _, _) => const CircleVideoRecorderScreen(),
+        transitionsBuilder: (_, Animation<double> a, _, Widget child) =>
             FadeTransition(opacity: a, child: child),
       ),
     );
@@ -265,7 +265,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             children: <Widget>[
               Expanded(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 54),
+                  constraints: const BoxConstraints(minHeight: 52, maxHeight: 140),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     decoration: BoxDecoration(
@@ -352,7 +352,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                                     focusNode: widget.inputFocusNode,
                                     readOnly: widget.isAiProcessing,
                                     textInputAction: TextInputAction.newline,
-                                    maxLines: 3,
+                                    maxLines: 5,
                                     minLines: 1,
                                     keyboardType: TextInputType.multiline,
                                     textCapitalization: TextCapitalization.sentences,
@@ -368,10 +368,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
                                       border: InputBorder.none,
                                       enabledBorder: InputBorder.none,
                                       focusedBorder: InputBorder.none,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
-                                      isDense: true,
-                                      isCollapsed: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 14),
+                                      isDense: false,
+                                      alignLabelWithHint: false,
                                     ),
+                                    textAlignVertical: TextAlignVertical.center,
                                   ),
                                 ),
                               ),

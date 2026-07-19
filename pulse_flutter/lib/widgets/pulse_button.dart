@@ -29,19 +29,21 @@ class PulseButton extends StatelessWidget {
                 HapticService.tap();
                 onPressed?.call();
               },
-        child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          if (isLoading)
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: AppLoadingIndicator(size: 16),
-            )
-          else if (icon != null)
-            Icon(icon, size: 18),
-          if (isLoading || icon != null) const SizedBox(width: 8),
-          Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            if (isLoading)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: AppLoadingIndicator(size: 16),
+              )
+            else if (icon != null)
+              Icon(icon, size: 20),
+            if (icon != null || isLoading) const SizedBox(height: 4),
+            Text(label, overflow: TextOverflow.ellipsis),
           ],
         ),
       ),

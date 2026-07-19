@@ -361,6 +361,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                     horizontal: AppConstants.screenHorizontalPadding,
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
                         child: PulseButton(
@@ -472,6 +473,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     );
   }
 
+  // ignore: unused_element
   void _showReportUserDialog(ApiProfile profile) {
     AppBottomSheets.show<void>(
       context: context,
@@ -527,7 +529,6 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     AppBottomSheets.show<void>(
       context: context,
       builder: (BuildContext ctx) {
-        final ColorScheme scheme = Theme.of(ctx).colorScheme;
         final TextTheme textTheme = Theme.of(ctx).textTheme;
         return SafeArea(
           child: Column(

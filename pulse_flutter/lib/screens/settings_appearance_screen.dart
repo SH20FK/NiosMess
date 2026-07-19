@@ -46,7 +46,7 @@ class _AppearanceScreen extends ConsumerWidget {
       tween: ThemeDataTween(begin: targetTheme, end: targetTheme),
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeInOutCubic,
-      builder: (_, animatedTheme, __) {
+      builder: (_, animatedTheme, _) {
         return Theme(
           data: animatedTheme,
           child: _buildContent(context, ref, settings, animatedTheme.colorScheme),
@@ -150,26 +150,45 @@ class _MeshWithOrbs extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          // Mesh gradient hero
+          // Mesh gradient hero with fallback
           ClipRRect(
             borderRadius: BorderRadius.circular(28),
             child: SizedBox(
               height: 200,
-              child: ExcludeSemantics(
-                child: AnimatedMeshGradient(
-                  colors: [
-                    scheme.primary,
-                    scheme.tertiary,
-                    scheme.secondary,
-                    scheme.surfaceContainerHighest,
-                  ],
-                  options: AnimatedMeshGradientOptions(
-                    frequency: 3,
-                    amplitude: 20,
-                    speed: 1.5,
-                    grain: 0.06,
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          scheme.primary.withValues(alpha: 0.30),
+                          scheme.tertiary.withValues(alpha: 0.20),
+                          scheme.secondary.withValues(alpha: 0.20),
+                          scheme.surfaceContainerHighest,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
                   ),
-                ),
+                  ExcludeSemantics(
+                    child: AnimatedMeshGradient(
+                      colors: [
+                        scheme.primary,
+                        scheme.tertiary,
+                        scheme.secondary,
+                        scheme.surfaceContainerHighest,
+                      ],
+                      options: AnimatedMeshGradientOptions(
+                        frequency: 3,
+                        amplitude: 20,
+                        speed: 1.5,
+                        grain: 0.06,
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -184,10 +203,10 @@ class _MeshWithOrbs extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 itemCount: _palettes.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 16),
+                separatorBuilder: (_, _) => const SizedBox(width: 16),
                 itemBuilder: (_, index) {
                   final entry = _palettes[index];
-                  final isSelected = entry.color.value == settings.seedColor.value;
+                  final isSelected = entry.color.toARGB32() == settings.seedColor.toARGB32();
                   return ActiveColorOrb(
                     color: entry.color,
                     selected: isSelected,

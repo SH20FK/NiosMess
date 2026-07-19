@@ -33,7 +33,6 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.isUploadingAvatar,
     this.bio,
     this.badges = const <ApiBadge>[],
-    this.storageUsed,
   });
 
   final String name;
@@ -44,7 +43,6 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
   final bool isUploadingAvatar;
   final String? bio;
   final List<ApiBadge> badges;
-  final String? storageUsed;
 
   @override
   double get minExtent => 88;
@@ -279,39 +277,6 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
                             ),
                           ),
                         ],
-                        // Stats row
-                        const SizedBox(height: 20),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 40),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: <Widget>[
-                              _StatItem(
-                                icon: Icons.workspace_premium_rounded,
-                                value: '${badges.length}',
-                                label: 'badges',
-                                scheme: scheme,
-                                textTheme: textTheme,
-                              ),
-                              const SizedBox(width: 36),
-                              _StatItem(
-                                icon: Icons.sd_storage_rounded,
-                                value: storageUsed ?? '--',
-                                label: 'storage',
-                                scheme: scheme,
-                                textTheme: textTheme,
-                              ),
-                              const SizedBox(width: 36),
-                              _StatItem(
-                                icon: Icons.person_rounded,
-                                value: '1',
-                                label: 'profile',
-                                scheme: scheme,
-                                textTheme: textTheme,
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -389,48 +354,7 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
         onEdit != oldDelegate.onEdit ||
         onUploadAvatar != oldDelegate.onUploadAvatar ||
         bio != oldDelegate.bio ||
-        badges != oldDelegate.badges ||
-        storageUsed != oldDelegate.storageUsed;
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  const _StatItem({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.scheme,
-    required this.textTheme,
-  });
-
-  final IconData icon;
-  final String value;
-  final String label;
-  final ColorScheme scheme;
-  final TextTheme textTheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Icon(icon, size: 20, color: scheme.onSurfaceVariant),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: scheme.onSurface,
-          ),
-        ),
-        Text(
-          label,
-          style: textTheme.labelSmall?.copyWith(
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
+        badges != oldDelegate.badges;
   }
 }
 
