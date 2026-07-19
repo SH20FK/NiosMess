@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/core/storage/notification_storage.dart';
@@ -125,7 +126,8 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
           isLoadingMore: false,
         ),
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[niosgram_provider] Load more error: $e');
       state = AsyncData<NiosgramState>(
         current.value.copyWith(isLoadingMore: false),
       );
@@ -164,8 +166,8 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
           'is_like': isLike,
         },
       );
-    } catch (_) {
-      // Rollback on error
+    } catch (e) {
+      debugPrint('[niosgram_provider] Like error: $e');
       state = AsyncData<NiosgramState>(current.value);
     }
   }
@@ -238,7 +240,8 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
           ),
         );
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[niosgram_provider] Toggle repost error: $e');
       state = AsyncData<NiosgramState>(current.value);
     }
   }
@@ -261,7 +264,8 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
         'follow_user',
         payload: <String, dynamic>{'user_id': userId},
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[niosgram_provider] Follow error: $e');
       state = AsyncData<NiosgramState>(current.value);
     }
   }

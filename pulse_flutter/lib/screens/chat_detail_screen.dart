@@ -357,7 +357,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (_screenshotOverlay != null) return;
     _screenshotOverlay = OverlayEntry(
       builder: (_) => Container(
-        color: Colors.black,
+        color: Theme.of(context).colorScheme.scrim,
         width: double.infinity,
         height: double.infinity,
       ),
@@ -1080,7 +1080,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       AppToast.showSuccess(context, context.l10n.reportSent);
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, 'Failed to report: $e');
+      AppToast.showError(context, context.l10n.chatReportFailed('$e'));
     }
   }
 
@@ -1281,7 +1281,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final perm = await PermissionService().requestCallPermissions(video: isVideo);
     if (!perm) {
       if (mounted) {
-        AppToast.showError(context, 'Permission required for calls');
+        AppToast.showError(context, context.l10n.chatCallPermissionRequired);
       }
       return;
     }
@@ -1325,7 +1325,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Call failed: $e');
+        AppToast.showError(context, context.l10n.chatCallFailed('$e'));
       }
     }
   }
@@ -1520,6 +1520,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                                   color: scheme.onSurfaceVariant,
                                 ),
                               ),
+                              const SizedBox(height: 20),
+                              ElevatedButton.icon(
+                                onPressed: () => _inputFocusNode.requestFocus(),
+                                icon: const Icon(Icons.edit_rounded, size: 18),
+                                label: Text(context.l10n.chatSendFirst),
+                              ),
                             ],
                           ),
                         );
@@ -1560,11 +1566,23 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     loading: () => const MessageListSkeleton(),
                     error: (Object error, StackTrace trace) {
                       return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Text(
-                            context.l10n.chatFailedLoadMessages('$error'),
-                          ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Text(
+                                context.l10n.chatFailedLoadMessages('$error'),
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => ref.invalidate(
+                                chatMessagesProvider(chatId),
+                              ),
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: Text(context.l10n.commonRetry),
+                            ),
+                          ],
                         ),
                       );
                     },

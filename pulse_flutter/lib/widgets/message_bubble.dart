@@ -316,7 +316,6 @@ class MessageBubble extends ConsumerWidget {
                             GestureDetector(
                               onTap: onReplyTap,
                               child: Container(
-                                width: double.infinity,
                                 margin: const EdgeInsets.only(bottom: 6),
                                 padding: const EdgeInsets.only(left: 8),
                                 decoration: BoxDecoration(
@@ -344,7 +343,6 @@ class MessageBubble extends ConsumerWidget {
                             ),
                           if (forwarded != null) ...<Widget>[
                             Container(
-                              width: double.infinity,
                               margin: const EdgeInsets.only(bottom: 6),
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
@@ -601,7 +599,6 @@ if (onSwipeToReply != null) {
           GestureDetector(
             onTap: onReplyTap,
             child: Container(
-              width: double.infinity,
               margin: const EdgeInsets.only(bottom: 6),
               padding: const EdgeInsets.only(left: 8),
               decoration: BoxDecoration(
@@ -1521,7 +1518,7 @@ class _UploadProgressOverlay extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        color: Colors.black.withValues(alpha: 0.45),
+        color: scheme.scrim.withValues(alpha: 0.45),
         alignment: Alignment.center,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1537,7 +1534,7 @@ class _UploadProgressOverlay extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               '$percent%',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,

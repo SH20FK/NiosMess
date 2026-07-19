@@ -3911,4 +3911,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get callIncomingVoice => 'Голосовой вызов...';
   @override
   String get callIncomingVideo => 'Видеовызов...';
+  @override
+  String get chatCallPermissionRequired => 'Требуется разрешение для звонков';
+  @override
+  String chatCallFailed(Object error) => 'Ошибка звонка: $error';
+  @override
+  String chatReportFailed(Object error) => 'Ошибка репорта: $error';
+  @override
+  String legalDocumentFailed(Object error) => 'Ошибка загрузки документа: $error';
+  @override
+  String nativeFileFailed(Object error) => 'Ошибка загрузки файла: $error';
+  @override
+  String get routerNotFound => '404 — Страница не найдена';
 }

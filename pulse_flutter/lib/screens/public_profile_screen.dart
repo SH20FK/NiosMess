@@ -9,6 +9,7 @@ import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
@@ -565,10 +566,21 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 children: <Widget>[
                   Expanded(
                     child: FilledButton(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.of(ctx).pop();
-                        // TODO: Implement block user
-                        AppToast.showInfo(context, '${profile.username} ${context.l10n.commonBlocked}');
+                        try {
+                          await ref.read(webSocketClientProvider).request(
+                            'block_user',
+                            payload: <String, dynamic>{
+                              'user_id': profile.id,
+                            },
+                          );
+                          if (!mounted) return;
+                          AppToast.showSuccess(context, '${profile.username} ${context.l10n.commonBlocked}');
+                        } catch (e) {
+                          if (!mounted) return;
+                          AppToast.showError(context, context.l10n.commonFailed('$e'));
+                        }
                       },
                       child: Text(context.l10n.profileBlock),
                     ),
@@ -601,7 +613,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       AppToast.showSuccess(context, context.l10n.reportSent);
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, 'Failed to report: $e');
+      AppToast.showError(context, context.l10n.chatReportFailed('$e'));
     }
   }
 

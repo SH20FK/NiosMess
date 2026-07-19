@@ -28,6 +28,7 @@ import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/legal_viewer_screen.dart';
 import 'package:pulse_flutter/screens/native_file_viewer_screen.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
@@ -280,8 +281,8 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/:pathMatch(.*)',
-        pageBuilder: (context, state) => _page(state, const Scaffold(
-          body: Center(child: Text('404 — Page not found')),
+        pageBuilder: (context, state) => _page(state, Scaffold(
+          body: Center(child: Text(context.l10n.routerNotFound)),
         )),
       ),
     ],

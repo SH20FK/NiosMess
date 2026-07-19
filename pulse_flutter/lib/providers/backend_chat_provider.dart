@@ -101,9 +101,13 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         if (publicKey.isNotEmpty) {
           try {
             await ref.read(authRepositoryProvider).setPublicKey(publicKey);
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('[backend_chat_provider] Set public key error: $e');
+          }
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[backend_chat_provider] Get public key error: $e');
+      }
       final List<ApiChatSummary> chats = await ref.read(chatRepositoryProvider).listChats(publicKey: publicKey);
       // Save cache
       await ref.read(cacheServiceProvider).saveChats(chats);

@@ -9,7 +9,7 @@ import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
-import 'package:pulse_flutter/widgets/chat/three_d_long_press_handler.dart';
+
 
 class _MessageLayoutData {
   const _MessageLayoutData({
@@ -266,7 +266,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
 
         _messageKeys.putIfAbsent(message.id, () => GlobalKey());
 
-        final Widget animatedBubble = ThreeDLongPressHandler(
+        final Widget animatedBubble = InkWell(
           onLongPress: () => widget.onLongPress(
               message, isMine, widget.isChannel, widget.amAdminOrOwner),
           child: Container(
@@ -363,7 +363,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
                   ),
                   ),
                   const SizedBox(width: 8),
-                ],
+                ] else
+                  const SizedBox(width: 36),
                 Flexible(child: animatedBubble),
               ],
             ),

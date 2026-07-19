@@ -6886,6 +6886,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Preview the previous screen before returning'**
   String get settingsPredictiveBackDescription;
+
+  /// No description provided for @chatCallPermissionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission required for calls'**
+  String get chatCallPermissionRequired;
+
+  /// No description provided for @chatCallFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Call failed: $error'**
+  String chatCallFailed(Object error);
+
+  /// No description provided for @chatReportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to report: $error'**
+  String chatReportFailed(Object error);
+
+  /// No description provided for @legalDocumentFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load document: $error'**
+  String legalDocumentFailed(Object error);
+
+  /// No description provided for @nativeFileFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load file: $error'**
+  String nativeFileFailed(Object error);
+
+  /// No description provided for @routerNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'404 — Page not found'**
+  String get routerNotFound;
 }
 
 class _AppLocalizationsDelegate

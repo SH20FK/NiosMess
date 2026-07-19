@@ -121,7 +121,7 @@ class _HeroBlock extends StatelessWidget {
 
     return RepaintBoundary(
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
@@ -174,27 +174,27 @@ class _HeroBlock extends StatelessWidget {
             ),
             // Content
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
                   SizedBox(
-                    width: 88,
-                    height: 88,
+                    width: 72,
+                    height: 72,
                     child: Stack(
                       alignment: Alignment.center,
                       children: <Widget>[
                         M3Container.c9SidedCookie(
-                          width: 88,
-                          height: 88,
+                          width: 72,
+                          height: 72,
                           color: scheme.primary,
                           child: const SizedBox(),
                         ).animate(onPlay: (c) => c.repeat())
                          .rotate(duration: 10.seconds, curve: Curves.linear),
                         SvgPicture.asset(
                           'assets/svg/niosmess_logo_tintable.svg',
-                          width: 88 * 0.6,
-                          height: 88 * 0.6,
+                          width: 72 * 0.6,
+                          height: 72 * 0.6,
                           colorFilter: ColorFilter.mode(
                             scheme.onPrimary,
                             BlendMode.srcIn,
@@ -210,7 +210,7 @@ class _HeroBlock extends StatelessWidget {
                       duration: 600.ms,
                     )
                     .fade(duration: 400.ms),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   Text(
                     context.l10n.appName,
                     textAlign: TextAlign.center,
@@ -220,15 +220,15 @@ class _HeroBlock extends StatelessWidget {
                       color: scheme.primary,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     context.l10n.aboutTagline,
                     textAlign: TextAlign.center,
-                    style: textTheme.bodyLarge?.copyWith(
+                    style: textTheme.bodyMedium?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   FutureBuilder<PackageInfo>(
                     future: packageInfo,
                     builder: (context, snapshot) {

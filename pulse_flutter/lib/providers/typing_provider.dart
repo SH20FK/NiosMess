@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
@@ -68,7 +69,9 @@ class TypingNotifier extends Notifier<TypingState> {
           'is_typing': true,
         },
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[typing_provider] Send typing error: $e');
+    }
 
     _stopTimer?.cancel();
     _stopTimer = Timer(const Duration(seconds: 3), _sendStopTyping);
@@ -86,7 +89,9 @@ class TypingNotifier extends Notifier<TypingState> {
           'is_typing': false,
         },
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[typing_provider] Send stop typing error: $e');
+    }
   }
 }
 

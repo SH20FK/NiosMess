@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/call_video_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
@@ -81,7 +82,9 @@ class CallSessionManager {
         duration: duration,
         wasMissed: wasMissed,
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[call_session_provider] Send call log error: $e');
+    }
     await _session?.end();
     _session?.dispose();
     _session = null;

@@ -3887,4 +3887,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get callIncomingVoice => 'Voice call...';
   @override
   String get callIncomingVideo => 'Video call...';
+  @override
+  String get chatCallPermissionRequired => 'Permission required for calls';
+  @override
+  String chatCallFailed(Object error) => 'Call failed: $error';
+  @override
+  String chatReportFailed(Object error) => 'Failed to report: $error';
+  @override
+  String legalDocumentFailed(Object error) => 'Failed to load document: $error';
+  @override
+  String nativeFileFailed(Object error) => 'Failed to load file: $error';
+  @override
+  String get routerNotFound => '404 — Page not found';
 }

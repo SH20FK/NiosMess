@@ -111,7 +111,8 @@ class AuthNotifier extends Notifier<AuthState> {
         if (decoded is Map<String, dynamic>) {
           session = AuthSession.fromJson(decoded);
         }
-      } catch (_) {
+      } catch (e) {
+        debugPrint('[auth_provider] Session deserialize error: $e');
         session = null;
       }
     }

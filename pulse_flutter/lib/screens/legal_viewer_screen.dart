@@ -53,7 +53,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _content = 'Failed to load document: $e';
+          _content = context.l10n.legalDocumentFailed('$e');
           _loading = false;
         });
       }
