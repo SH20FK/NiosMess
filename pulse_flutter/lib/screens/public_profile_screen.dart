@@ -10,6 +10,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
@@ -360,43 +361,53 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppConstants.screenHorizontalPadding,
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: PulseButton(
-                          label: context.l10n.profileMessage,
-                          icon: Icons.message_rounded,
-                          onPressed: () => context.go('/chat/dm/${profile.username}'),
-                        ),
+                      _ProfileActionCard(
+                        label: context.l10n.profileMessage,
+                        icon: Icons.message_rounded,
+                        primary: true,
+                        onTap: () => context.go('/chat/dm/${profile.username}'),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: PulseButton(
-                          label: context.l10n.settingsSecretChatsButton,
-                          icon: Icons.lock_rounded,
-                          onPressed: () => context.go('/chat/dm/${profile.username}?isSecret=1'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: PulseButton(
-                          label: context.l10n.profileCall,
-                          icon: Icons.call_rounded,
-                          onPressed: () => context.go('/call/dm/${profile.username}?isVideo=0'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      IconButton.filledTonal(
-                        onPressed: () => _showBlockDialog(profile),
-                        icon: Icon(Icons.block_rounded, color: scheme.error),
-                        style: IconButton.styleFrom(
-                          minimumSize: const Size(48, 48),
-                        ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _ProfileActionCard(
+                              label: context.l10n.settingsSecretChatsButton,
+                              icon: Icons.lock_rounded,
+                              onTap: () => context.go('/chat/dm/${profile.username}?isSecret=1'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _ProfileActionCard(
+                              label: context.l10n.profileCall,
+                              icon: Icons.call_rounded,
+                              onTap: () => context.go('/call/dm/${profile.username}?isVideo=0'),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ).animate(delay: 60.ms).fade(duration: 260.ms).slideY(begin: 0.04, end: 0, duration: 260.ms),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.screenHorizontalPadding,
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton.filledTonal(
+                      onPressed: () => _showBlockDialog(profile),
+                      icon: Icon(Icons.block_rounded, color: scheme.error),
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                      ),
+                    ),
+                  ),
+                ),
               ],
 
               const SizedBox(height: 16),
@@ -675,6 +686,118 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: child,
+    );
+  }
+}
+
+class _ProfileActionCard extends StatefulWidget {
+  const _ProfileActionCard({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.primary = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool primary;
+
+  @override
+  State<_ProfileActionCard> createState() => _ProfileActionCardState();
+}
+
+class _ProfileActionCardState extends State<_ProfileActionCard> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    final Color bg = widget.primary
+        ? scheme.primary
+        : scheme.surfaceContainerHigh;
+    final Color fg = widget.primary
+        ? scheme.onPrimary
+        : scheme.onSurface;
+    final Color iconBg = widget.primary
+        ? scheme.primaryContainer.withValues(alpha: 0.3)
+        : scheme.primaryContainer.withValues(alpha: 0.5);
+    final Color iconColor = widget.primary
+        ? scheme.onPrimaryContainer
+        : scheme.primary;
+
+    return Semantics(
+      label: widget.label,
+      button: true,
+      child: Listener(
+        onPointerDown: (_) => setState(() => _pressed = true),
+        onPointerUp: (_) => setState(() => _pressed = false),
+        onPointerCancel: (_) => setState(() => _pressed = false),
+        child: GestureDetector(
+          onTap: () {
+            HapticService.tap();
+            widget.onTap();
+          },
+          child: AnimatedScale(
+            scale: _pressed ? 0.94 : 1.0,
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOutCubic,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              decoration: BoxDecoration(
+                color: _pressed && !widget.primary
+                    ? scheme.primaryContainer.withValues(alpha: 0.5)
+                    : bg,
+                borderRadius: BorderRadius.circular(20),
+                border: !widget.primary
+                    ? Border.all(
+                        color: scheme.outlineVariant.withValues(alpha: 0.14),
+                      )
+                    : null,
+                boxShadow: widget.primary
+                    ? [
+                        BoxShadow(
+                          color: scheme.primary.withValues(alpha: 0.25),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: iconBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(widget.icon, size: 18, color: iconColor),
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      widget.label,
+                      style: textTheme.labelLarge?.copyWith(
+                        color: fg,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

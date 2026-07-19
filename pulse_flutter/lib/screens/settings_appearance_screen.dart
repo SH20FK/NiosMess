@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mesh_gradient/mesh_gradient.dart';
@@ -40,16 +43,28 @@ class _AppearanceScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(uiSettingsProvider);
     final brightness = Theme.of(context).brightness;
-    final targetTheme = AppTheme.themed(settings, brightness);
 
-    return TweenAnimationBuilder<ThemeData>(
-      tween: ThemeDataTween(begin: targetTheme, end: targetTheme),
-      duration: const Duration(milliseconds: 600),
-      curve: Curves.easeInOutCubic,
-      builder: (_, animatedTheme, _) {
-        return Theme(
-          data: animatedTheme,
-          child: _buildContent(context, ref, settings, animatedTheme.colorScheme),
+    return DynamicColorBuilder(
+      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        final dynamicScheme = brightness == Brightness.light
+            ? lightDynamic
+            : darkDynamic;
+        final targetTheme = AppTheme.themed(settings, brightness,
+            dynamicScheme: settings.useSystemDynamic
+                ? dynamicScheme
+                : null);
+
+        return TweenAnimationBuilder<ThemeData>(
+          tween: ThemeDataTween(begin: targetTheme, end: targetTheme),
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOutCubic,
+          builder: (_, animatedTheme, _) {
+            return Theme(
+              data: animatedTheme,
+              child: _buildContent(
+                  context, ref, settings, animatedTheme.colorScheme),
+            );
+          },
         );
       },
     );
@@ -79,7 +94,6 @@ class _AppearanceScreen extends ConsumerWidget {
         children: [
           const SizedBox(height: 16),
 
-          // Mesh hero + orbs in one block
           _MeshWithOrbs(
             scheme: scheme,
             settings: settings,
@@ -90,7 +104,6 @@ class _AppearanceScreen extends ConsumerWidget {
 
           const SizedBox(height: 24),
 
-          // Theme mode cards
           _ThemeModeSelector(
             settings: settings,
             onThemeModeChanged: (mode) {
@@ -100,7 +113,6 @@ class _AppearanceScreen extends ConsumerWidget {
 
           const SizedBox(height: 24),
 
-          // Settings switches
           SettingsSection(
             title: context.l10n.appearanceAccentPalette,
             children: [
@@ -132,8 +144,7 @@ class _AppearanceScreen extends ConsumerWidget {
   }
 }
 
-// Mesh hero + horizontal scrollable orbs
-class _MeshWithOrbs extends StatelessWidget {
+class _MeshWithOrbs extends StatefulWidget {
   const _MeshWithOrbs({
     required this.scheme,
     required this.settings,
@@ -145,57 +156,165 @@ class _MeshWithOrbs extends StatelessWidget {
   final ValueChanged<Color> onColorSelected;
 
   @override
+  State<_MeshWithOrbs> createState() => _MeshWithOrbsState();
+}
+
+class _MeshWithOrbsState extends State<_MeshWithOrbs> {
+  Offset _touchPos = Offset.zero;
+  bool _isTouching = false;
+
+  void _onPanUpdate(DragUpdateDetails details) {
+    setState(() {
+      _touchPos = details.localPosition;
+      _isTouching = true;
+    });
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    setState(() => _isTouching = false);
+  }
+
+  void _onPanCancel() {
+    setState(() => _isTouching = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final scheme = widget.scheme;
+    final settings = widget.settings;
+    final radius = 80.0;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          // Mesh gradient hero with fallback
           ClipRRect(
             borderRadius: BorderRadius.circular(28),
             child: SizedBox(
               height: 200,
-              child: Stack(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
+              child: GestureDetector(
+                onPanStart: (details) {
+                  setState(() {
+                    _touchPos = details.localPosition;
+                    _isTouching = true;
+                  });
+                },
+                onPanUpdate: _onPanUpdate,
+                onPanEnd: _onPanEnd,
+                onPanCancel: _onPanCancel,
+                child: Stack(
+                  children: [
+                    // Fallback gradient
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            scheme.primary.withValues(alpha: 0.30),
+                            scheme.tertiary.withValues(alpha: 0.20),
+                            scheme.secondary.withValues(alpha: 0.20),
+                            scheme.primaryContainer.withValues(alpha: 0.15),
+                            scheme.secondaryContainer.withValues(alpha: 0.10),
+                            scheme.surfaceContainerHighest,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                    ),
+
+                    // Base mesh layer (4 main colors)
+                    ExcludeSemantics(
+                      child: AnimatedMeshGradient(
                         colors: [
-                          scheme.primary.withValues(alpha: 0.30),
-                          scheme.tertiary.withValues(alpha: 0.20),
-                          scheme.secondary.withValues(alpha: 0.20),
+                          scheme.primary,
+                          scheme.tertiary,
+                          scheme.secondary,
                           scheme.surfaceContainerHighest,
                         ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                        options: AnimatedMeshGradientOptions(
+                          frequency: 3,
+                          amplitude: 20,
+                          speed: 1.5,
+                          grain: 0.1,
+                        ),
+                        child: const SizedBox.expand(),
                       ),
                     ),
-                  ),
-                  ExcludeSemantics(
-                    child: AnimatedMeshGradient(
-                      colors: [
-                        scheme.primary,
-                        scheme.tertiary,
-                        scheme.secondary,
-                        scheme.surfaceContainerHighest,
-                      ],
-                      options: AnimatedMeshGradientOptions(
-                        frequency: 3,
-                        amplitude: 20,
-                        speed: 1.5,
-                        grain: 0.06,
+
+                    // Depth mesh layer (container colors, slower, translucent)
+                    ExcludeSemantics(
+                      child: Opacity(
+                        opacity: 0.35,
+                        child: AnimatedMeshGradient(
+                          colors: [
+                            scheme.primaryContainer,
+                            scheme.secondaryContainer,
+                            scheme.tertiaryContainer,
+                            scheme.surface,
+                          ],
+                          options: AnimatedMeshGradientOptions(
+                            frequency: 4,
+                            amplitude: 12,
+                            speed: 0.8,
+                            grain: 0.0,
+                          ),
+                          child: const SizedBox.expand(),
+                        ),
                       ),
-                      child: const SizedBox.expand(),
                     ),
-                  ),
-                ],
+
+                    // Vignette (edge darkening)
+                    IgnorePointer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: RadialGradient(
+                            center: Alignment.center,
+                            radius: 0.7,
+                            colors: [
+                              Colors.transparent,
+                              scheme.surface.withValues(alpha: 0.08),
+                              scheme.surface.withValues(alpha: 0.18),
+                            ],
+                            stops: const [0.4, 0.75, 1.0],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Touch reactive glow
+                    if (_isTouching)
+                      IgnorePointer(
+                        child: AnimatedOpacity(
+                          opacity: _isTouching ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 150),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: RadialGradient(
+                                center: Alignment(
+                                  (_touchPos.dx / 200 - 0.5) * 2,
+                                  (_touchPos.dy / 200 - 0.5) * 2,
+                                ),
+                                radius: math.max(
+                                    radius / 100, 0.3),
+                                colors: [
+                                  scheme.primary.withValues(alpha: 0.15),
+                                  scheme.tertiary.withValues(alpha: 0.05),
+                                  Colors.transparent,
+                                ],
+                                stops: const [0.0, 0.5, 1.0],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
 
           const SizedBox(height: 16),
 
-          // Horizontal scrollable color orbs
           if (!settings.useSystemDynamic)
             SizedBox(
               height: 120,
@@ -206,31 +325,33 @@ class _MeshWithOrbs extends StatelessWidget {
                 separatorBuilder: (_, _) => const SizedBox(width: 16),
                 itemBuilder: (_, index) {
                   final entry = _palettes[index];
-                  final isSelected = entry.color.toARGB32() == settings.seedColor.toARGB32();
+                  final isSelected =
+                      entry.color.toARGB32() == settings.seedColor.toARGB32();
                   return ActiveColorOrb(
                     color: entry.color,
                     selected: isSelected,
                     label: entry.name,
-                    onTap: () => onColorSelected(entry.color),
+                    onTap: () => widget.onColorSelected(entry.color),
                   );
                 },
               ),
             ),
 
-          // Wallpaper chips when dynamic color is on
           if (settings.useSystemDynamic)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.wallpaper_rounded, size: 18, color: scheme.onSurfaceVariant),
+                  Icon(Icons.wallpaper_rounded,
+                      size: 18, color: scheme.onSurfaceVariant),
                   const SizedBox(width: 8),
                   Text(
                     context.l10n.appearanceWallpaperColors,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -241,7 +362,6 @@ class _MeshWithOrbs extends StatelessWidget {
   }
 }
 
-// Theme mode cards
 class _ThemeModeSelector extends StatelessWidget {
   const _ThemeModeSelector({
     required this.settings,
@@ -335,7 +455,9 @@ class _ThemeModeCard extends StatelessWidget {
           color: bgColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? scheme.primary : scheme.outlineVariant.withValues(alpha: 0.3),
+            color: isSelected
+                ? scheme.primary
+                : scheme.outlineVariant.withValues(alpha: 0.3),
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
@@ -358,13 +480,15 @@ class _ThemeModeCard extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, color: isSelected ? scheme.primary : fgColor, size: 24),
+                  Icon(icon,
+                      color: isSelected ? scheme.primary : fgColor, size: 24),
                   const SizedBox(height: 4),
                   Text(
                     label,
                     style: textTheme.labelSmall?.copyWith(
                       color: isSelected ? scheme.primary : fgColor,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
                 ],

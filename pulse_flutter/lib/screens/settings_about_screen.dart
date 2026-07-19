@@ -42,7 +42,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         backgroundColor: scheme.surface,
         body: CustomScrollView(
@@ -72,18 +72,20 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: TabBar(
-                  labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  isScrollable: true,
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  labelStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                   unselectedLabelStyle:
-                      Theme.of(context).textTheme.labelLarge,
-                  indicatorSize: TabBarIndicatorSize.tab,
+                      Theme.of(context).textTheme.labelMedium,
+                  indicatorSize: TabBarIndicatorSize.label,
                   dividerHeight: 0,
                   tabs: <Tab>[
-                    Tab(icon: const Icon(Icons.code_rounded), text: context.l10n.aboutTabDevelopers, iconMargin: EdgeInsets.zero),
-                    Tab(icon: const Icon(Icons.help_outline_rounded), text: context.l10n.aboutTabFaq, iconMargin: EdgeInsets.zero),
-                    Tab(icon: const Icon(Icons.history_rounded), text: context.l10n.aboutTabChangelog, iconMargin: EdgeInsets.zero),
-                    Tab(icon: const Icon(Icons.gavel_rounded), text: context.l10n.aboutTabLegal, iconMargin: EdgeInsets.zero),
+                    Tab(icon: const Icon(Icons.code_rounded, size: 20), text: context.l10n.aboutTabDevelopers, iconMargin: EdgeInsets.zero),
+                    Tab(icon: const Icon(Icons.help_outline_rounded, size: 20), text: context.l10n.aboutTabFaq, iconMargin: EdgeInsets.zero),
+                    Tab(icon: const Icon(Icons.history_rounded, size: 20), text: context.l10n.aboutTabChangelog, iconMargin: EdgeInsets.zero),
+                    Tab(icon: const Icon(Icons.gavel_rounded, size: 20), text: context.l10n.aboutTabLegal, iconMargin: EdgeInsets.zero),
                   ],
                 ),
               ),
