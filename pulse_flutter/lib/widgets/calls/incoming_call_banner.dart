@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/repositories/call_repository.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';

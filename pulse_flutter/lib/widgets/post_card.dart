@@ -310,7 +310,7 @@ class _PostCardState extends ConsumerState<PostCard>
                     activeColor: scheme.onSurfaceVariant,
                     onTap: () {
                       if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
-                      Share.share(post.content);
+                      SharePlus.instance.share(ShareParams(text: post.content));
                     },
                     scheme: scheme,
                   ),

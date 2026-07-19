@@ -44,25 +44,21 @@ class _CompactAttachmentMenu extends StatelessWidget {
     final FilePickerResult? result = await FilePicker.pickFiles(
       type: type,
       allowedExtensions: allowedExtensions,
-      allowMultiple: false,
-      withData: false,
-      withReadStream: true,
     );
 
     if (result == null || result.files.isEmpty || !context.mounted) return;
 
     final PlatformFile file = result.files.first;
-    final Stream<List<int>>? readStream = file.readStream;
     final String? filePath = file.path;
 
-    if (readStream == null && filePath == null) {
+    if (filePath == null) {
       AppToast.showError(context, context.l10n.filePickerReadError);
       return;
     }
 
     Navigator.of(context).pop(
       M3FilePickerResult(
-        readStream: readStream,
+        readStream: null,
         filePath: filePath,
         fileName: file.name,
         fileSize: file.size,

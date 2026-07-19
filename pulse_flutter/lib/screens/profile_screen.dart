@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:universal_io/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -55,7 +56,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     try {
       final PlatformFile file = result.files.first;
-      final Uint8List bytes = file.bytes ?? 
+      Uint8List bytes = file.bytes ?? 
           (file.path != null ? await File(file.path!).readAsBytes() : Uint8List(0));
       if (bytes.isEmpty) return;
       final Uint8List? compressed = await ImageCompressor.compressImageBytes(
