@@ -202,6 +202,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get registerPasswordError => 'Minimum 8 characters';
 
   @override
+  String get registerNameRequired => 'Name is required';
+
+  @override
+  String get registerUsernameTooShort => 'Username must be at least 3 characters';
+
+  @override
   String get registerSubmit => 'Create account';
 
   @override

@@ -202,6 +202,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get registerPasswordError => 'Минимум 8 символов';
 
   @override
+  String get registerNameRequired => 'Введите имя';
+
+  @override
+  String get registerUsernameTooShort => 'Минимум 3 символа';
+
+  @override
   String get registerSubmit => 'Создать аккаунт';
 
   @override

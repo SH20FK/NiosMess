@@ -6,7 +6,6 @@ import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
-import 'package:pulse_flutter/screens/legal_viewer_screen.dart';
 import 'package:pulse_flutter/widgets/animated_mesh_background.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -78,7 +77,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return PopScope(
-      canPop: false,
+      canPop: true,
       child: AnimatedMeshBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -131,9 +130,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             color: scheme.onPrimaryContainer,
                             size: 38,
                           ),
-                        ).animate(onPlay: (c) => c.repeat(reverse: true))
-                          .shimmer(duration: 2000.ms, color: scheme.primaryContainer)
-                          .scale(begin: const Offset(1, 1), end: const Offset(1.05, 1.05), duration: 2000.ms, curve: Curves.easeInOut),
+                        ).animate().fade(duration: 400.ms).scale(
+                        begin: const Offset(0.8, 0.8),
+                        end: const Offset(1, 1),
+                        duration: 400.ms,
+                        curve: Curves.easeOutBack,
+                      ),
                         const SizedBox(height: 24),
                         Text(
                           context.l10n.registerTitle,
@@ -161,7 +163,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                           validator: (String? value) {
                             if ((value ?? '').trim().isEmpty) {
-                              return context.l10n.profileDisplayName;
+                              return context.l10n.registerNameRequired;
                             }
                             return null;
                           },
@@ -176,7 +178,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                           validator: (String? value) {
                             if ((value ?? '').trim().length < 3) {
-                              return context.l10n.profileUsername;
+                              return context.l10n.registerUsernameTooShort;
                             }
                             return null;
                           },
@@ -311,6 +313,8 @@ class _ConsentCheckbox extends StatelessWidget {
               padding: const EdgeInsets.only(top: 12),
               child: Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 4,
+                runSpacing: 2,
                 children: <Widget>[
                   Text(
                     label,

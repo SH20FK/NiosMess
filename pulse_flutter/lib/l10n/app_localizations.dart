@@ -476,6 +476,18 @@ abstract class AppLocalizations {
   /// **'Minimum 8 characters'**
   String get registerPasswordError;
 
+  /// No description provided for @registerNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Name is required'**
+  String get registerNameRequired;
+
+  /// No description provided for @registerUsernameTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Username must be at least 3 characters'**
+  String get registerUsernameTooShort;
+
   /// No description provided for @registerSubmit.
   ///
   /// In en, this message translates to:

@@ -39,7 +39,7 @@ class AppBottomNav extends ConsumerWidget {
       ),
       _NavItem(
         context.l10n.tabNiosgram,
-        Icons.grid_view_rounded,
+        Icons.grid_view_outlined,
         Icons.grid_view_rounded,
       ),
       _NavItem(
@@ -123,21 +123,22 @@ class AppBottomNav extends ConsumerWidget {
     );
 
     if (isFloating) {
+      final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: EdgeInsets.fromLTRB(10, 0, 10, 12 + bottomInset),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(32),
+            borderRadius: BorderRadius.circular(28),
             boxShadow: <BoxShadow>[
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 28,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(32),
+            borderRadius: BorderRadius.circular(28),
             child: navBar,
           ),
         ),

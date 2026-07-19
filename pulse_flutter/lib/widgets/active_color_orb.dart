@@ -28,6 +28,8 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
   late final Animation<double> _bounceAnim;
   late final Animation<double> _glowAnim;
 
+  late ColorScheme _seedScheme;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +53,11 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
     _glowAnim = Tween<double>(begin: 0.3, end: 0.55)
         .animate(CurvedAnimation(parent: _bounceController, curve: Curves.easeInOut));
 
+    _seedScheme = ColorScheme.fromSeed(
+      seedColor: widget.color,
+      brightness: Theme.of(context).brightness,
+    );
+
     if (widget.selected) {
       _bounceController.value = 1.0;
     }
@@ -59,6 +66,12 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
   @override
   void didUpdateWidget(ActiveColorOrb old) {
     super.didUpdateWidget(old);
+    if (widget.color != old.color) {
+      _seedScheme = ColorScheme.fromSeed(
+        seedColor: widget.color,
+        brightness: Theme.of(context).brightness,
+      );
+    }
     if (widget.selected && !old.selected) {
       _bounceController.forward(from: 0);
     }
@@ -70,18 +83,11 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
     super.dispose();
   }
 
-  Color _seedPrimary(Brightness brightness) {
-    return ColorScheme.fromSeed(
-      seedColor: widget.color,
-      brightness: brightness,
-    ).primary;
-  }
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final seedPrimary = _seedPrimary(scheme.brightness);
+    final seedPrimary = _seedScheme.primary;
 
     return Semantics(
       selected: widget.selected,
@@ -96,26 +102,26 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
           widget.onTap();
         },
         child: RepaintBoundary(
-          child: AnimatedBuilder(
-            animation: _bounceController,
-            builder: (context, child) {
-              final scale = widget.selected ? _bounceAnim.value : 1.0;
-              final glowAlpha = widget.selected ? _glowAnim.value : 0.0;
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              AnimatedBuilder(
+                animation: _bounceController,
+                builder: (context, child) {
+                  final scale = widget.selected ? _bounceAnim.value : 1.0;
+                  final glowAlpha = widget.selected ? _glowAnim.value : 0.0;
 
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Transform.scale(
+                  return Transform.scale(
                     scale: scale,
                     child: Container(
-                      width: 64,
-                      height: 64,
+                      width: 56,
+                      height: 56,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: seedPrimary,
                         border: widget.selected
                             ? Border.all(
-                                color: scheme.primary.withValues(alpha: 0.6),
+                                color: seedPrimary.withValues(alpha: 0.6),
                                 width: 3,
                               )
                             : Border.all(
@@ -141,30 +147,27 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
                       child: widget.selected
                           ? Icon(
                               Icons.check_rounded,
-                              color: ColorScheme.fromSeed(
-                                seedColor: widget.color,
-                                brightness: scheme.brightness,
-                              ).onPrimary,
-                              size: 28,
+                              color: _seedScheme.onPrimary,
+                              size: 26,
                             )
                           : null,
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    widget.label,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: widget.selected
-                          ? scheme.primary
-                          : scheme.onSurfaceVariant,
-                      fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              );
-            },
+                  );
+                },
+              ),
+              const SizedBox(height: 6),
+              Text(
+                widget.label,
+                style: textTheme.labelSmall?.copyWith(
+                  color: widget.selected
+                      ? scheme.primary
+                      : scheme.onSurfaceVariant,
+                  fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ),
       ),
