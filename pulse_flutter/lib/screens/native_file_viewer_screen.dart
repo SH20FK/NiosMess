@@ -142,7 +142,7 @@ class _ImageViewer extends StatelessWidget {
         fit: BoxFit.contain,
         width: double.infinity,
         height: double.infinity,
-        placeholderBuilder: (_, __) => const Center(
+        placeholderBuilder: (_) => const Center(
           child: AppLoadingIndicator(size: 32),
         ),
       );
@@ -157,10 +157,10 @@ class _ImageViewer extends StatelessWidget {
         imageUrl: url!,
         httpHeaders: cachedAuthHeaders(),
         fit: BoxFit.contain,
-        placeholder: (_, __) => const Center(
+        placeholder: (_, _) => const Center(
           child: AppLoadingIndicator(size: 32),
         ),
-        errorWidget: (_, __, ___) => Icon(
+        errorWidget: (_, _, _) => Icon(
           Icons.broken_image_rounded,
           color: scheme.outline,
           size: 56,
@@ -271,7 +271,7 @@ class _PdfViewerState extends State<_PdfViewer> {
 
     return Stack(
       children: <Widget>[
-        PdfView(
+        PDFView(
           filePath: _localPath,
           onRender: (pages) {
             setState(() {
@@ -405,7 +405,7 @@ class _MusicPlayerState extends State<_MusicPlayer> {
   String _formatTime(Duration d) {
     final m = d.inMinutes;
     final s = d.inSeconds % 60;
-    return '${m}:${s.toString().padLeft(2, '0')}';
+    return '$m:${s.toString().padLeft(2, '0')}';
   }
 
   @override
