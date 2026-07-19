@@ -1,10 +1,9 @@
-import 'package:universal_io/io.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:pulse_flutter/screens/circle_video_recorder_screen.dart';
 import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -633,39 +632,53 @@ class _ChatInputBarState extends State<ChatInputBar> {
           ),
 
           AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeInOut,
-            height: _showEmojiPicker ? 340 : 0,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOutCubic,
+            height: _showEmojiPicker ? 380 : 0,
+            clipBehavior: Clip.hardEdge,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              boxShadow: [
+                BoxShadow(
+                  color: scheme.shadow.withValues(alpha: 0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
             child: _showEmojiPicker
                 ? EmojiPicker(
                     textEditingController: widget.inputController,
                     config: Config(
-                      height: 340,
+                      height: 380,
                       checkPlatformCompatibility: true,
                       emojiViewConfig: EmojiViewConfig(
-                        backgroundColor: scheme.surfaceContainerLow,
-                        columns: 7,
-                        emojiSizeMax: 28 * (Platform.isIOS ? 1.20 : 1.0),
-                        verticalSpacing: 0,
-                        horizontalSpacing: 0,
-                        gridPadding: EdgeInsets.zero,
-                        buttonMode: ButtonMode.MATERIAL,
+                        backgroundColor: Colors.transparent,
+                        columns: 8,
+                        emojiSizeMax: 26,
+                        verticalSpacing: 2,
+                        horizontalSpacing: 2,
+                        gridPadding: const EdgeInsets.symmetric(horizontal: 8),
+                        buttonMode: ButtonMode.NONE,
                       ),
                       skinToneConfig: const SkinToneConfig(),
                       categoryViewConfig: CategoryViewConfig(
-                        backgroundColor: scheme.surfaceContainerLow,
+                        backgroundColor: Colors.transparent,
+                        tabBarHeight: 36,
                         indicatorColor: scheme.primary,
-                        iconColor: scheme.onSurfaceVariant,
+                        iconColor: scheme.onSurfaceVariant.withValues(alpha: 0.5),
                         iconColorSelected: scheme.primary,
-                        backspaceColor: scheme.primary,
+                        backspaceColor: scheme.onSurfaceVariant,
+                        dividerColor: Colors.transparent,
                       ),
                       bottomActionBarConfig: BottomActionBarConfig(
-                        backgroundColor: scheme.surfaceContainerLow,
-                        buttonIconColor: scheme.onSurfaceVariant,
+                        backgroundColor: Colors.transparent,
                         buttonColor: scheme.surfaceContainerHigh,
+                        buttonIconColor: scheme.onSurfaceVariant,
                       ),
                       searchViewConfig: SearchViewConfig(
-                        backgroundColor: scheme.surfaceContainerLow,
+                        backgroundColor: scheme.surfaceContainerHighest,
                         buttonIconColor: scheme.onSurfaceVariant,
                       ),
                     ),
