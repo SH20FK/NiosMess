@@ -143,7 +143,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
                           labelText: context.l10n.loginIdentifierLabel,
-                          prefixIcon: const Icon(Icons.alternate_email_rounded),
+                          prefixIcon: const Icon(Icons.email_rounded),
                         ),
                         validator: (String? value) {
                           if ((value ?? '').trim().isEmpty) {

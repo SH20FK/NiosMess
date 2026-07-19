@@ -79,7 +79,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     await ref.read(sessionProvider.notifier).completeOnboarding();
     if (mounted) {
       final bool authenticated = ref.read(authProvider).isAuthenticated;
-      context.go(authenticated ? '/main/chats' : '/login');
+      context.go(authenticated ? '/main/chats' : '/register');
     }
   }
 
@@ -143,7 +143,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         await ref.read(sessionProvider.notifier).completeOnboarding();
                         if (!context.mounted) return;
                         final bool authenticated = ref.read(authProvider).isAuthenticated;
-                        context.go(authenticated ? '/main/chats' : '/login');
+      context.go(authenticated ? '/main/chats' : '/register');
                       },
                       child: Text(context.l10n.commonSkip),
                     ),

@@ -149,6 +149,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                     const SizedBox(height: 36),
                     TextFormField(
                       controller: _emailController,
+                      readOnly: true,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         labelText: context.l10n.registerEmailLabel,

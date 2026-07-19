@@ -156,6 +156,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         const SizedBox(height: 28),
                         TextFormField(
                           controller: _nameController,
+                          readOnly: auth.busy,
                           textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
                             labelText: context.l10n.profileDisplayName,
@@ -171,6 +172,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _usernameController,
+                          readOnly: auth.busy,
                           textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
                             labelText: context.l10n.profileUsername,
@@ -186,6 +188,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _emailController,
+                          readOnly: auth.busy,
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
@@ -203,6 +206,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _passwordController,
+                          readOnly: auth.busy,
                           obscureText: _hidePassword,
                           textInputAction: TextInputAction.done,
                           onFieldSubmitted: (_) {
