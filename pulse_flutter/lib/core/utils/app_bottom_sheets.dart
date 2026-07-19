@@ -55,7 +55,7 @@ class _AppBottomSheetContainer extends StatelessWidget {
                 width: 32,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: scheme.onSurfaceVariant.withOpacity(0.4),
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

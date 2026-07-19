@@ -120,12 +120,12 @@ class _ImageViewer extends StatelessWidget {
       minScale: 0.8,
       maxScale: 5.0,
       child: Center(
-        child: _buildContent(scheme),
+        child: _buildContent(scheme, context),
       ),
     );
   }
 
-  Widget _buildContent(ColorScheme scheme) {
+  Widget _buildContent(ColorScheme scheme, BuildContext context) {
     if (isSvg && bytes != null) {
       return SvgPicture.memory(
         bytes!,
@@ -168,7 +168,7 @@ class _ImageViewer extends StatelessWidget {
       );
     }
 
-    return const Center(child: Text('No image data'));
+    return Center(child: Text(context.l10n.mediaViewerCannotPreview));
   }
 }
 

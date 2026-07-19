@@ -231,12 +231,28 @@ class _HeroBlock extends StatelessWidget {
                   const SizedBox(height: 12),
                   FutureBuilder<PackageInfo>(
                     future: packageInfo,
-                    builder: (context, snapshot) => Chip(
-                      label: Text('v${snapshot.data?.version ?? "..."}'),
-                      avatar: const Icon(Icons.new_releases_rounded, size: 16),
-                      backgroundColor: scheme.primaryContainer.withValues(alpha: 0.5),
-                      side: BorderSide.none,
-                    ),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Chip(
+                          label: Text('...'),
+                          avatar: Icon(Icons.new_releases_rounded, size: 16),
+                          side: BorderSide.none,
+                        );
+                      }
+                      if (snapshot.hasError || !snapshot.hasData) {
+                        return Chip(
+                          label: Text(context.l10n.commonUnknown),
+                          avatar: const Icon(Icons.error_outline_rounded, size: 16),
+                          side: BorderSide.none,
+                        );
+                      }
+                      return Chip(
+                        label: Text('v${snapshot.data!.version}'),
+                        avatar: const Icon(Icons.new_releases_rounded, size: 16),
+                        backgroundColor: scheme.primaryContainer.withValues(alpha: 0.5),
+                        side: BorderSide.none,
+                      );
+                    },
                   ),
                 ],
               ),

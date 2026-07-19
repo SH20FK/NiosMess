@@ -52,7 +52,7 @@ class ChatListSkeleton extends StatelessWidget {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: scheme.surface,
               borderRadius: BorderRadius.circular(24),
             ),
             child: Row(
@@ -60,8 +60,8 @@ class ChatListSkeleton extends StatelessWidget {
                 Container(
                   width: 52,
                   height: 52,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -74,7 +74,7 @@ class ChatListSkeleton extends StatelessWidget {
                         width: 140 + (index % 3) * 40.0,
                         height: 16,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: scheme.surface,
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
@@ -83,7 +83,7 @@ class ChatListSkeleton extends StatelessWidget {
                         width: 200 + (index % 4) * 30.0,
                         height: 12,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: scheme.surface,
                           borderRadius: BorderRadius.circular(6),
                         ),
                       ),
@@ -124,7 +124,7 @@ class MessageListSkeleton extends StatelessWidget {
               margin: const EdgeInsets.symmetric(vertical: 4),
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: scheme.surface,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(18),
                   topRight: const Radius.circular(18),
@@ -139,7 +139,7 @@ class MessageListSkeleton extends StatelessWidget {
                     width: bubbleWidth,
                     height: 14,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: scheme.surface,
                       borderRadius: BorderRadius.circular(6),
                     ),
                   ),
@@ -148,7 +148,7 @@ class MessageListSkeleton extends StatelessWidget {
                     width: bubbleWidth * 0.5,
                     height: 10,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: scheme.surface,
                       borderRadius: BorderRadius.circular(5),
                     ),
                   ),

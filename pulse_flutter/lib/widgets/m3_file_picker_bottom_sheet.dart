@@ -1,10 +1,10 @@
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
-import 'package:universal_io/io.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/widgets/media_grid_picker.dart';
 
 class M3FilePickerResult {
   M3FilePickerResult({
@@ -71,6 +71,29 @@ class _CompactAttachmentMenu extends StatelessWidget {
     );
   }
 
+  Future<void> _openMediaGrid(BuildContext context) async {
+    final MediaGridPickerResult? result = await showModalBottomSheet<MediaGridPickerResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (_) => const MediaGridPicker(),
+    );
+
+    if (result == null || !context.mounted) return;
+
+    if (result.filePath.isNotEmpty) {
+      Navigator.of(context).pop(
+        M3FilePickerResult(
+          readStream: null,
+          filePath: result.filePath,
+          fileName: result.fileName,
+          fileSize: result.fileSize,
+          mediaSubtype: 'media',
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -81,7 +104,7 @@ class _CompactAttachmentMenu extends StatelessWidget {
         label: context.l10n.filePickerGallery,
         containerColor: scheme.primaryContainer,
         iconColor: scheme.onPrimaryContainer,
-        onTap: () => _pickFile(context, type: FileType.media, mediaSubtype: 'media'),
+        onTap: () => _openMediaGrid(context),
       ),
       _AttachItem(
         icon: Icons.description_rounded,

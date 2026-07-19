@@ -8,6 +8,7 @@ import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 class IncomingCallBanner extends ConsumerWidget {
@@ -70,7 +71,7 @@ class IncomingCallBanner extends ConsumerWidget {
               FilledButton.icon(
                 onPressed: () => _joinCall(context, ref, incoming),
                 icon: const Icon(Icons.phone_rounded, size: 18),
-                label: const Text('Join'),
+                label: Text(context.l10n.activeCallAnswer),
                 style: FilledButton.styleFrom(
                   backgroundColor: scheme.primary,
                   foregroundColor: scheme.onPrimary,

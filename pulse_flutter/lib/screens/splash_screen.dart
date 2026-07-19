@@ -84,7 +84,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               opacity: 0.01,
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(color: Colors.black),
+                child: Container(color: scheme.surface),
               ),
             ),
           ),

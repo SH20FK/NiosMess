@@ -130,7 +130,7 @@ class _ChatSearchFieldState extends ConsumerState<ChatSearchField> {
             Padding(
               padding: const EdgeInsets.all(32),
               child: Center(
-                child: Text('Error: $e', style: TextStyle(color: scheme.error)),
+                child: Text(context.l10n.commonFailed(e), style: TextStyle(color: scheme.error)),
               ),
             )
           ],

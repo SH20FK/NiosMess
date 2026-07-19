@@ -55,7 +55,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     try {
       final PlatformFile file = result.files.first;
-      Uint8List bytes = file.bytes!;
+      final Uint8List bytes = file.bytes ?? 
+          (file.path != null ? await File(file.path!).readAsBytes() : Uint8List(0));
+      if (bytes.isEmpty) return;
       final Uint8List? compressed = await ImageCompressor.compressImageBytes(
         bytes: bytes,
         fileName: file.name,
