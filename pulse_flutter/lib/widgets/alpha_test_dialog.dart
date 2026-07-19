@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/app_logo_mark.dart';
 
 class AlphaTestDialog {
   static const String _key = 'alpha_test_acknowledged';
@@ -49,19 +50,7 @@ class _AlphaTestDialogWidget extends StatelessWidget {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: scheme.errorContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.bug_report_rounded,
-              color: scheme.onErrorContainer,
-              size: 32,
-            ),
-          ),
+          AppLogoMark(size: 64),
           const SizedBox(height: 20),
           Text(
             context.l10n.alphaDialogTitle,
@@ -102,8 +91,8 @@ class _AlphaTestDialogWidget extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _TelegramButton(
-                      handle: 'sansana',
-                      onTap: () => _launchTelegram(context, 'sansana'),
+                      handle: 'sanlsan',
+                      onTap: () => _launchTelegram(context, 'sanlsan'),
                     ),
                     const SizedBox(width: 10),
                     _TelegramButton(
