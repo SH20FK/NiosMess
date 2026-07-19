@@ -515,6 +515,18 @@ class _ChangelogTab extends StatelessWidget {
 
     final List<_Release> releases = <_Release>[
       _Release(
+        version: 'v3.0.0',
+        date: context.l10n.aboutChangelogDateJuly2026,
+        changes: <String>[
+          context.l10n.aboutChangelogV300C1,
+          context.l10n.aboutChangelogV300C2,
+          context.l10n.aboutChangelogV300C3,
+          context.l10n.aboutChangelogV300C4,
+          context.l10n.aboutChangelogV300C5,
+          context.l10n.aboutChangelogV300C6,
+        ],
+      ),
+      _Release(
         version: 'v2.1.0',
         date: context.l10n.aboutChangelogDateJune2026,
         changes: <String>[

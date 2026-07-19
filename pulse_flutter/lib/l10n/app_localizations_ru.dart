@@ -3662,6 +3662,27 @@ class AppLocalizationsRu extends AppLocalizations {
   String get aboutChangelogDateJanuary2026 => 'Январь 2026';
 
   @override
+  String get aboutChangelogDateJuly2026 => 'Июль 2026';
+
+  @override
+  String get aboutChangelogV300C1 => 'Ультра MD3 Expressive дизайн с меш-градиентами';
+
+  @override
+  String get aboutChangelogV300C2 => 'Переработанные чат-баблы с экспрессивными углами';
+
+  @override
+  String get aboutChangelogV300C3 => 'Плавающая навигация в стиле Telegram';
+
+  @override
+  String get aboutChangelogV300C4 => 'Живая палитра цветов с плавным переходом темы';
+
+  @override
+  String get aboutChangelogV300C5 => 'Интеграция правовых документов (Privacy, ToS, Consent)';
+
+  @override
+  String get aboutChangelogV300C6 => 'Система баг-репортов альфа-теста через Telegram';
+
+  @override
   String get aboutChangelogV210C1 => 'Предиктивный жест «Назад» (Android 13+)';
 
   @override

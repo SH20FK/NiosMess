@@ -6479,6 +6479,48 @@ abstract class AppLocalizations {
   /// **'January 2026'**
   String get aboutChangelogDateJanuary2026;
 
+  /// No description provided for @aboutChangelogDateJuly2026.
+  ///
+  /// In en, this message translates to:
+  /// **'July 2026'**
+  String get aboutChangelogDateJuly2026;
+
+  /// No description provided for @aboutChangelogV300C1.
+  ///
+  /// In en, this message translates to:
+  /// **'Ultra MD3 Expressive design system with mesh gradients'**
+  String get aboutChangelogV300C1;
+
+  /// No description provided for @aboutChangelogV300C2.
+  ///
+  /// In en, this message translates to:
+  /// **'Redesigned chat bubbles with expressive corners'**
+  String get aboutChangelogV300C2;
+
+  /// No description provided for @aboutChangelogV300C3.
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram-style floating navigation bar'**
+  String get aboutChangelogV300C3;
+
+  /// No description provided for @aboutChangelogV300C4.
+  ///
+  /// In en, this message translates to:
+  /// **'Live color palette with morphing theme transition'**
+  String get aboutChangelogV300C4;
+
+  /// No description provided for @aboutChangelogV300C5.
+  ///
+  /// In en, this message translates to:
+  /// **'Legal documents integration (Privacy, ToS, Consent)'**
+  String get aboutChangelogV300C5;
+
+  /// No description provided for @aboutChangelogV300C6.
+  ///
+  /// In en, this message translates to:
+  /// **'Alpha test bug report system via Telegram'**
+  String get aboutChangelogV300C6;
+
   /// No description provided for @aboutChangelogV210C1.
   ///
   /// In en, this message translates to:

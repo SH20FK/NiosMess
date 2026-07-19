@@ -3638,6 +3638,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutChangelogDateJanuary2026 => 'January 2026';
 
   @override
+  String get aboutChangelogDateJuly2026 => 'July 2026';
+
+  @override
+  String get aboutChangelogV300C1 => 'Ultra MD3 Expressive design with mesh gradients';
+
+  @override
+  String get aboutChangelogV300C2 => 'Redesigned chat bubbles with expressive corners';
+
+  @override
+  String get aboutChangelogV300C3 => 'Telegram-style floating navigation bar';
+
+  @override
+  String get aboutChangelogV300C4 => 'Live color palette with morphing theme transition';
+
+  @override
+  String get aboutChangelogV300C5 => 'Legal documents integration (Privacy, ToS, Consent)';
+
+  @override
+  String get aboutChangelogV300C6 => 'Alpha test bug report system via Telegram';
+
+  @override
   String get aboutChangelogV210C1 => 'Predictive back gesture (Android 13+)';
 
   @override
