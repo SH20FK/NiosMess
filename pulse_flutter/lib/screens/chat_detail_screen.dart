@@ -4,13 +4,11 @@ import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
 import 'dart:async';
 import 'package:universal_io/io.dart';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:pulse_flutter/widgets/chat/chat_message_list.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +18,6 @@ import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
-import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/utils/image_compressor.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
@@ -30,11 +27,10 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
-import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/providers/typing_provider.dart';
-import 'package:pulse_flutter/repositories/chat_repository.dart';
-import 'package:pulse_flutter/screens/media_viewer_screen.dart';
+import 'package:pulse_flutter/repositories/auth_repository.dart';
+import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/widgets/m3_file_picker_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/message_context_menu_sheet.dart';
@@ -615,7 +611,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   Future<void> _uploadAndSend({
     required int chatId,
     String? filePath,
-    Stream<List<int>>? readStream,
+    Uint8List? bytes,
     required String filename,
     required String mediaSubtype,
     required int fileSize,
@@ -625,7 +621,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final String localId = (-(DateTime.now().millisecondsSinceEpoch + Random().nextInt(1000))).toString();
     final int tempIntId = int.parse(localId);
 
-    // Create and add optimistic local message instantly in ChatMessagesNotifier
+    final int? replyToId = _replyToMessageId;
+
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     final String myUsername = ref.read(authProvider).session?.username ?? '';
     final optimisticMessage = ApiMessage(
@@ -639,7 +636,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       msgType: mediaSubtype == 'voice' 
           ? 'voice' 
           : (mediaSubtype == 'circle' ? 'circle' : 'media'),
-      replyToId: _replyToMessageId,
+      replyToId: replyToId,
       mediaUrl: filePath ?? 'local://$localId',
       mediaType: 'file',
       mediaName: filename,
@@ -658,16 +655,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _clearReply();
     _scrollToBottom();
 
-    // Enqueue task globally so it survives page navigation
     ref.read(uploadQueueProvider.notifier).enqueue(
       localId: localId,
       chatId: chatId,
       filePath: filePath ?? '',
+      bytes: bytes,
       filename: filename,
       mediaSubtype: mediaSubtype,
       fileSize: fileSize,
       text: text,
-      replyToId: _replyToMessageId,
+      replyToId: replyToId,
     );
   }
 
@@ -740,6 +737,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final String mediaSubtype = result.mediaSubtype;
 
     String? uploadFilePath = result.filePath;
+    Uint8List? uploadBytes;
     Stream<List<int>>? uploadStream = result.readStream;
     int uploadFileSize = result.fileSize;
 
@@ -757,12 +755,24 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       } catch (e, st) {
         debugPrint('Image compression failed: $e\n$st');
       }
+    } else if (uploadStream != null) {
+      try {
+        final List<int> allBytes = <int>[];
+        await for (final List<int> chunk in uploadStream) {
+          allBytes.addAll(chunk);
+        }
+        uploadBytes = Uint8List.fromList(allBytes);
+        uploadFileSize = uploadBytes.length;
+      } catch (e, st) {
+        debugPrint('Failed to read stream: $e\n$st');
+        return;
+      }
     }
 
     await _uploadAndSend(
       chatId: chatId,
       filePath: uploadFilePath,
-      readStream: uploadStream,
+      bytes: uploadBytes,
       filename: filename,
       mediaSubtype: mediaSubtype,
       fileSize: uploadFileSize,
@@ -1077,7 +1087,17 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   }
 
   void _openMedia(ApiMessage message) {
-    // Implementation for opening media
+    final String? mediaUrl = message.mediaUrl;
+    if (mediaUrl == null || mediaUrl.trim().isEmpty) return;
+
+    final String fileName = (message.mediaName ?? '').trim().isNotEmpty
+        ? message.mediaName!.trim()
+        : _mediaLabel(message, mediaUrl);
+
+    context.push(
+      '/file-viewer?name=${Uri.encodeComponent(fileName)}'
+      '&url=${Uri.encodeComponent(mediaUrl)}',
+    );
   }
 
   String _displayText(ApiMessage message) => message.content;
@@ -1198,7 +1218,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (direct.isNotEmpty) {
       return direct;
     }
-    return _extractUrlFromText(message.content.trim());
+    if (message.msgType == 'media') {
+      return _extractUrlFromText(message.content.trim());
+    }
+    return null;
   }
 
   bool _isImageMedia(ApiMessage message, String mediaUrl) {

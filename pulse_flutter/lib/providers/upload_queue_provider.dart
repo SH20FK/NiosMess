@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
@@ -10,6 +11,7 @@ class UploadTask {
     required this.localId,
     required this.chatId,
     required this.filePath,
+    this.bytes,
     required this.filename,
     required this.mediaSubtype,
     required this.fileSize,
@@ -23,6 +25,7 @@ class UploadTask {
   final String localId;
   final int chatId;
   final String filePath;
+  final Uint8List? bytes;
   final String filename;
   final String mediaSubtype;
   final int fileSize;
@@ -41,6 +44,7 @@ class UploadTask {
       localId: localId,
       chatId: chatId,
       filePath: filePath,
+      bytes: bytes,
       filename: filename,
       mediaSubtype: mediaSubtype,
       fileSize: fileSize,
@@ -72,6 +76,7 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
     required String localId,
     required int chatId,
     required String filePath,
+    Uint8List? bytes,
     required String filename,
     required String mediaSubtype,
     required int fileSize,
@@ -82,6 +87,7 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
       localId: localId,
       chatId: chatId,
       filePath: filePath,
+      bytes: bytes,
       filename: filename,
       mediaSubtype: mediaSubtype,
       fileSize: fileSize,
@@ -106,7 +112,8 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
 
     try {
       final uploadId = await ref.read(chatRepositoryProvider).uploadStreamInChunks(
-        filePath: task.filePath,
+        filePath: task.filePath.isNotEmpty ? task.filePath : null,
+        bytes: task.bytes,
         filename: task.filename,
         mediaSubtype: task.mediaSubtype,
         fileSize: task.fileSize,

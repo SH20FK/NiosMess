@@ -82,7 +82,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         final String uploadIdStr = await ref
             .read(chatRepositoryProvider)
             .uploadStreamInChunks(
-              readStream: Stream<List<int>>.value(file.bytes!),
+              bytes: file.bytes,
               filename: file.name,
               mediaSubtype: mediaSubtype,
               fileSize: file.size,

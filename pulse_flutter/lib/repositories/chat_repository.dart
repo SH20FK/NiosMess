@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:universal_io/io.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -364,7 +365,7 @@ class ChatRepository {
   }
 
   Future<String> uploadStreamInChunks({
-    Stream<List<int>>? readStream,
+    Uint8List? bytes,
     String? filePath,
     required String filename,
     required String mediaSubtype,
@@ -389,11 +390,10 @@ class ChatRepository {
 
     if (filePath != null && filePath.isNotEmpty) {
       request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: filename));
-    } else if (readStream != null) {
-      final bytes = await readStream.reduce((a, b) => a + b);
+    } else if (bytes != null) {
       request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
     } else {
-      throw Exception('No stream or file path provided for upload');
+      throw Exception('No file path or bytes provided for upload');
     }
 
     onProgress(0, 100);
