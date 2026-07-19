@@ -198,7 +198,7 @@ class _MeshWithOrbs extends StatelessWidget {
           // Horizontal scrollable color orbs
           if (!settings.useSystemDynamic)
             SizedBox(
-              height: 90,
+              height: 120,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 4),

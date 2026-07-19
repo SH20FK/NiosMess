@@ -85,67 +85,70 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
           }
           widget.onTap();
         },
-        child: RepaintBoundary(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              AnimatedBuilder(
-                animation: _pulseController,
-                builder: (_, _) {
-                  final pulse = _pulseController.value;
-                  return Container(
-                    width: 56,
-                    height: 56,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            AnimatedBuilder(
+              animation: _pulseController,
+              builder: (_, _) {
+                final pulse = _pulseController.value;
+                return Material(
+                  type: MaterialType.transparency,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: Container(
+                    width: 84,
+                    height: 84,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: widget.selected
                           ? Border.all(
-                              color: _previewScheme.primary.withValues(alpha: 0.6),
+                              color: _previewScheme.primary.withValues(alpha: 0.5),
                               width: 2,
                             )
                           : Border.all(
-                              color: scheme.outlineVariant.withValues(alpha: 0.2),
+                              color: scheme.outlineVariant.withValues(alpha: 0.15),
                               width: 1,
                             ),
                       boxShadow: widget.selected
                           ? <BoxShadow>[
                               BoxShadow(
                                 color: _previewScheme.primary.withValues(
-                                    alpha: 0.3 + pulse * 0.2),
-                                blurRadius: 8 + pulse * 6,
-                                spreadRadius: 1 + pulse * 2,
+                                    alpha: 0.25 + pulse * 0.15),
+                                blurRadius: 10 + pulse * 8,
+                                spreadRadius: 2 + pulse * 3,
                               ),
                             ]
                           : <BoxShadow>[
                               BoxShadow(
-                                color: scheme.shadow.withValues(alpha: 0.08),
+                                color: scheme.shadow.withValues(alpha: 0.06),
                                 blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
                             ],
                     ),
-                    padding: EdgeInsets.all(2.5),
+                    padding: EdgeInsets.all(4),
                     child: CustomPaint(
                       painter: _PaletteOrbPainter(scheme: _previewScheme),
                       child: const SizedBox.expand(),
                     ),
-                  );
-                },
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              widget.label,
+              style: textTheme.labelMedium?.copyWith(
+                color: widget.selected
+                    ? scheme.primary
+                    : scheme.onSurfaceVariant,
+                fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
               ),
-              const SizedBox(height: 6),
-              Text(
-                widget.label,
-                style: textTheme.labelSmall?.copyWith(
-                  color: widget.selected
-                      ? scheme.primary
-                      : scheme.onSurfaceVariant,
-                  fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );
