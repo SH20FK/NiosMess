@@ -79,7 +79,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     await ref.read(sessionProvider.notifier).completeOnboarding();
     if (mounted) {
       final bool authenticated = ref.read(authProvider).isAuthenticated;
-      context.go(authenticated ? '/main/chats' : '/register');
+      context.go(authenticated ? '/main/chats' : '/login');
     }
   }
 

@@ -53,7 +53,11 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
 
     if (result.success) {
       AppToast.showSuccess(context, result.message ?? context.l10n.verifyEmailDone);
-      context.go('/setup');
+      if (ref.read(authProvider).isAuthenticated) {
+        context.go('/setup');
+      } else {
+        context.go('/login');
+      }
     } else {
       AppToast.showError(context, result.message ?? context.l10n.verifyEmailDone);
     }
