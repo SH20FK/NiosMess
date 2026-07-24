@@ -3158,6 +3158,42 @@ class AppLocalizationsRu extends AppLocalizations {
   String get e2eeEraseConfirmTitle => 'Удалить все секретные чаты?';
 
   @override
+  String get e2eeEncryptionTitle => 'Шифрование';
+
+  @override
+  String get e2eeVerified => 'Подтверждён';
+
+  @override
+  String get e2eeUnverified => 'Не подтверждён';
+
+  @override
+  String get e2eeVisualWordsDesc =>
+      'Сравните эти 4 слова с собеседником по защищённому каналу:';
+
+  @override
+  String get e2eeCompareWordsHint =>
+      'Если слова и цвета совпадают, соединение безопасно.';
+
+  @override
+  String get e2eeYourFingerprint => 'Ваш отпечаток';
+
+  @override
+  String get e2eePeerFingerprint => 'Отпечаток собеседника';
+
+  @override
+  String get e2eeVerifyAction => 'Подтвердить';
+
+  @override
+  String get e2eeCheckEnc => 'Проверка';
+
+  @override
+  String get e2eePeerVerified => 'Собеседник подтверждён';
+
+  @override
+  String get e2eeMitmWarning =>
+      'ВНИМАНИЕ: Несовпадение ключа безопасности! Возможна MITM-атака!';
+
+  @override
   String get e2eeEraseConfirmBody =>
       'Вся история секретных чатов и связанные файлы будут безвозвратно удалены с сервера. Это действие нельзя отменить.';
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
@@ -386,11 +387,22 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     if (chat?.isSecret == true && chat?.partnerPublicKey != null && trimmed.isNotEmpty) {
       try {
         final e2eeService = ref.read(e2eeServiceProvider);
-        e2eeContent = await e2eeService.encryptE2EEMessage(
-          plaintext: trimmed,
+        final session = await e2eeService.getOrCreateSession(
           chatId: _chatId,
           theirPublicKeyBase64: chat!.partnerPublicKey!,
         );
+        if (session != null) {
+          e2eeContent = await e2eeService.encryptE2EEMessageDR(
+            plaintext: trimmed,
+            chatId: _chatId,
+          );
+        } else {
+          e2eeContent = await e2eeService.encryptE2EEMessage(
+            plaintext: trimmed,
+            chatId: _chatId,
+            theirPublicKeyBase64: chat.partnerPublicKey!,
+          );
+        }
         isE2ee = true;
       } catch (e) {
         debugPrint('[backend_chat_provider.dart] E2EE encrypt failed: $e');
@@ -490,6 +502,31 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         next[index] = failedMsg;
         state = AsyncData<List<ApiMessage>>(next);
       }
+    }
+  }
+
+  Future<void> sendHandshakeMessage({
+    required String dhPubB64,
+    required String edPubB64,
+    required List<int> signature,
+  }) async {
+    final handshakePayload = jsonEncode({
+      'dh': dhPubB64,
+      'ed': edPubB64,
+      'sig': base64Encode(signature),
+    });
+
+    try {
+      await ref.read(chatRepositoryProvider).sendMessage(
+        _chatId,
+        content: handshakePayload,
+        replyToId: null,
+        uploadId: null,
+        e2eeContent: null,
+      );
+    } catch (e) {
+      debugPrint('[backend_chat_provider.dart] sendHandshakeMessage error: $e');
+      rethrow;
     }
   }
 

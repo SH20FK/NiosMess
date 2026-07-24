@@ -1,6 +1,7 @@
 import 'package:pulse_flutter/widgets/chat/chat_detail_app_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_fab.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
+import 'package:pulse_flutter/widgets/chat/e2ee_verification_sheet.dart';
 import 'dart:async';
 import 'package:universal_io/io.dart';
 import 'dart:math';
@@ -10,6 +11,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/widgets/chat/chat_message_list.dart';
+import 'package:pulse_flutter/widgets/empty_feed_widget.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -350,6 +352,50 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       _showScreenshotOverlay();
     } else if (state == AppLifecycleState.resumed) {
       _removeScreenshotOverlay();
+    }
+  }
+
+  void _showE2eeVerification() {
+    final int? chatId = _chatId;
+    if (chatId == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => E2eeVerificationSheet(
+        chatId: chatId,
+        onInitiateHandshake: () => _initiateE2eeHandshake(chatId),
+      ),
+    );
+  }
+
+  Future<void> _initiateE2eeHandshake(int chatId) async {
+    try {
+      final e2ee = ref.read(e2eeServiceProvider);
+      final chat = ref.read(chatByIdProvider(chatId));
+      if (chat?.partnerPublicKey == null || chat!.partnerPublicKey!.isEmpty) {
+        AppToast.showError(context, 'No peer public key available');
+        return;
+      }
+      final edPubB64 = await e2ee.getEdPublicKeyBase64();
+      await e2ee.initiateHandshake(
+        chatId: chatId,
+        theirPublicKeyBase64: chat.partnerPublicKey!,
+        theirEdPublicKeyBase64: edPubB64,
+      );
+      final msg = await e2ee.createHandshakeMessage(chatId);
+      await ref.read(chatMessagesProvider(chatId).notifier).sendHandshakeMessage(
+        dhPubB64: msg.dhPubB64,
+        edPubB64: msg.edPubB64,
+        signature: msg.signature,
+      );
+      if (!mounted) return;
+      AppToast.showSuccess(context, 'E2EE handshake initiated');
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.showError(context, 'Handshake failed: $e');
     }
   }
 
@@ -1435,6 +1481,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           headerIcon: _chatHeaderIcon(isChannel, isGroup),
           isGroup: isGroup,
           isChannel: isChannel,
+          isSecret: chat?.isSecret == true,
           directUsername: directUsername,
           onBack: () {
             if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
@@ -1442,6 +1489,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           },
           onVoiceCall: _startVoiceCall,
           onVideoCall: _startVideoCall,
+          onSecurityTap: _showE2eeVerification,
           typingSubtitle: _TypingSubtitle(
             chatId: chatId,
             fallback: _chatSubtitle(
@@ -1459,25 +1507,30 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           children: <Widget>[
             OfflineBanner(isOffline: !(ref.watch(connectivityProvider).value ?? true)),
             if (chat?.isSecret == true)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                color: scheme.primaryContainer.withValues(alpha: 0.35),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Icon(Icons.lock_rounded, size: 14, color: scheme.primary),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        context.l10n.chatE2eeBanner,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          height: 1.3,
+              GestureDetector(
+                onTap: _showE2eeVerification,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  color: scheme.primaryContainer.withValues(alpha: 0.35),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Icon(Icons.lock_rounded, size: 14, color: scheme.primary),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          context.l10n.chatE2eeBanner,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            height: 1.3,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Icon(Icons.chevron_right_rounded, size: 14, color: scheme.onSurfaceVariant),
+                    ],
+                  ),
                 ),
               ),
             // Loading older messages indicator at top
@@ -1497,37 +1550,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   messagesAsync.when(
                     data: (List<ApiMessage> messages) {
                       if (messages.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              Icon(
-                                Icons.chat_bubble_outline_rounded,
-                                size: 56,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                context.l10n.chatNoMessages,
-                                style: textTheme.titleMedium?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                context.l10n.chatSendFirst,
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              ElevatedButton.icon(
-                                onPressed: () => _inputFocusNode.requestFocus(),
-                                icon: const Icon(Icons.edit_rounded, size: 18),
-                                label: Text(context.l10n.chatSendFirst),
-                              ),
-                            ],
-                          ),
+                        return EmptyFeedWidget(
+                          title: context.l10n.chatNoMessages,
+                          description: context.l10n.chatSendFirst,
+                          actionLabel: context.l10n.chatSendFirst,
+                          onAction: () => _inputFocusNode.requestFocus(),
                         );
                       }
 

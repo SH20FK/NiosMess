@@ -15,9 +15,11 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.directUsername,
     this.isGroup = false,
     this.isChannel = false,
+    this.isSecret = false,
     required this.onBack,
     this.onVoiceCall,
     this.onVideoCall,
+    this.onSecurityTap,
   });
 
   final int chatId;
@@ -29,9 +31,11 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? directUsername;
   final bool isGroup;
   final bool isChannel;
+  final bool isSecret;
   final VoidCallback onBack;
   final VoidCallback? onVoiceCall;
   final VoidCallback? onVideoCall;
+  final VoidCallback? onSecurityTap;
 
   bool get _showCallButtons => !isChannel && (onVoiceCall != null || onVideoCall != null);
   bool get _showOverflowMenu => isGroup || isChannel;
@@ -126,6 +130,15 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: <Widget>[
+        if (isSecret)
+          IconButton(
+            onPressed: onSecurityTap,
+            icon: Icon(
+              Icons.security_rounded,
+              color: scheme.primary,
+            ),
+            tooltip: context.l10n.e2eeEncryptionTitle,
+          ),
         if (_showCallButtons) ...[
           IconButton(
             onPressed: onVoiceCall,

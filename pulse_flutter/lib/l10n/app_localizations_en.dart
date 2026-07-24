@@ -3146,6 +3146,42 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get e2eeEncryptionTitle => 'Encryption';
+
+  @override
+  String get e2eeVerified => 'Verified';
+
+  @override
+  String get e2eeUnverified => 'Unverified';
+
+  @override
+  String get e2eeVisualWordsDesc =>
+      'Compare these 4 words with your contact via a secure channel:';
+
+  @override
+  String get e2eeCompareWordsHint =>
+      'If the words and colors match exactly, the connection is secure.';
+
+  @override
+  String get e2eeYourFingerprint => 'Your Fingerprint';
+
+  @override
+  String get e2eePeerFingerprint => 'Peer Fingerprint';
+
+  @override
+  String get e2eeVerifyAction => 'Verify';
+
+  @override
+  String get e2eeCheckEnc => 'Check';
+
+  @override
+  String get e2eePeerVerified => 'Peer verified successfully';
+
+  @override
+  String get e2eeMitmWarning =>
+      'WARNING: Security key mismatch! Possible MITM attack!';
+
+  @override
   String get chatMembersBanConfirmTitle => 'Ban member?';
 
   @override

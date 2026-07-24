@@ -5762,6 +5762,72 @@ abstract class AppLocalizations {
   /// **'Deleted {chats} chats and {files} files'**
   String e2eeEraseDone(int chats, int files);
 
+  /// No description provided for @e2eeEncryptionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Encryption'**
+  String get e2eeEncryptionTitle;
+
+  /// No description provided for @e2eeVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified'**
+  String get e2eeVerified;
+
+  /// No description provided for @e2eeUnverified.
+  ///
+  /// In en, this message translates to:
+  /// **'Unverified'**
+  String get e2eeUnverified;
+
+  /// No description provided for @e2eeVisualWordsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare these 4 words with your contact via a secure channel:'**
+  String get e2eeVisualWordsDesc;
+
+  /// No description provided for @e2eeCompareWordsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'If the words and colors match exactly, the connection is secure.'**
+  String get e2eeCompareWordsHint;
+
+  /// No description provided for @e2eeYourFingerprint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Fingerprint'**
+  String get e2eeYourFingerprint;
+
+  /// No description provided for @e2eePeerFingerprint.
+  ///
+  /// In en, this message translates to:
+  /// **'Peer Fingerprint'**
+  String get e2eePeerFingerprint;
+
+  /// No description provided for @e2eeVerifyAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify'**
+  String get e2eeVerifyAction;
+
+  /// No description provided for @e2eeCheckEnc.
+  ///
+  /// In en, this message translates to:
+  /// **'Check'**
+  String get e2eeCheckEnc;
+
+  /// No description provided for @e2eePeerVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Peer verified successfully'**
+  String get e2eePeerVerified;
+
+  /// No description provided for @e2eeMitmWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'WARNING: Security key mismatch! Possible MITM attack!'**
+  String get e2eeMitmWarning;
+
   /// No description provided for @chatMembersBanConfirmTitle.
   ///
   /// In en, this message translates to:
