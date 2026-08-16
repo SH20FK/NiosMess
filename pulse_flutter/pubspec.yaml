@@ -161,7 +161,8 @@ msix_config:
   output_name: "NiosMess"
   output_path: "build/windows/x64/runner/Release"
   certificate_path: "NiosMessCert.pfx"
-  certificate_password: "123456"
+  # Pass the password out-of-band instead of committing it:
+  #   flutter pub run msix:create --certificate-password <pwd>
   capabilities: "internetClient, internetClientServer, privateNetworkClientServer"
 
 flutter_launcher_icons:
