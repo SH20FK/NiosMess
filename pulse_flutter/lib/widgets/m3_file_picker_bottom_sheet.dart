@@ -8,14 +8,12 @@ import 'package:pulse_flutter/widgets/media_grid_picker.dart';
 
 class M3FilePickerResult {
   M3FilePickerResult({
-    required this.readStream,
     required this.fileName,
     required this.fileSize,
     required this.mediaSubtype,
     this.filePath,
   });
 
-  final Stream<List<int>>? readStream;
   final String fileName;
   final int fileSize;
   final String mediaSubtype;
@@ -26,11 +24,10 @@ class M3FilePickerResult {
 }
 
 Future<List<M3FilePickerResult>?> showM3FilePicker(BuildContext context) async {
-  final M3FilePickerResult? single = await AppBottomSheets.show<M3FilePickerResult>(
+  return AppBottomSheets.show<List<M3FilePickerResult>>(
     context: context,
     builder: (BuildContext ctx) => _CompactAttachmentMenu(),
   );
-  return single != null ? [single] : null;
 }
 
 class _CompactAttachmentMenu extends StatelessWidget {
@@ -57,15 +54,14 @@ class _CompactAttachmentMenu extends StatelessWidget {
       return;
     }
 
-    Navigator.of(context).pop(
+    Navigator.of(context).pop(<M3FilePickerResult>[
       M3FilePickerResult(
-        readStream: null,
         filePath: filePath,
         fileName: file.name,
         fileSize: file.size,
         mediaSubtype: mediaSubtype,
       ),
-    );
+    ]);
   }
 
   Future<void> _openMediaGrid(BuildContext context) async {
@@ -81,7 +77,6 @@ class _CompactAttachmentMenu extends StatelessWidget {
     final List<M3FilePickerResult> converted = results
         .where((r) => r.filePath.isNotEmpty)
         .map((r) => M3FilePickerResult(
-              readStream: null,
               filePath: r.filePath,
               fileName: r.fileName,
               fileSize: r.fileSize,
@@ -91,8 +86,7 @@ class _CompactAttachmentMenu extends StatelessWidget {
 
     if (converted.isEmpty) return;
 
-    // Pop bottom sheet with first result, others queued via callback
-    Navigator.of(context).pop(converted.first);
+    Navigator.of(context).pop(converted);
   }
 
   @override

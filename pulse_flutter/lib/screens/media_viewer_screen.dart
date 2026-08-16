@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show DeviceOrientation;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -11,6 +13,9 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/core/network/web_socket_client.dart';
+import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:universal_io/io.dart';
@@ -24,6 +29,7 @@ class MediaViewerScreen extends ConsumerStatefulWidget {
     this.mediaType = MediaType.other,
     this.filePath,
     this.mediaName,
+    this.e2eeFileKey,
     super.key,
   });
 
@@ -31,6 +37,9 @@ class MediaViewerScreen extends ConsumerStatefulWidget {
   final String? title;
   final MediaType mediaType;
   final String? filePath;
+
+  /// Base64 per-file AES key for E2EE media (secret chats).
+  final String? e2eeFileKey;
   final String? mediaName;
 
   @override
@@ -42,6 +51,16 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   ChewieController? _chewieController;
   bool _initialized = false;
 
+  Uint8List? _fileKey() {
+    final String? b64 = widget.e2eeFileKey;
+    if (b64 == null || b64.isEmpty) return null;
+    try {
+      return base64Decode(b64);
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -51,9 +70,14 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   Future<void> _initMedia() async {
     if (widget.mediaType == MediaType.video) {
       try {
-        _videoController = VideoPlayerController.networkUrl(
-          Uri.parse(widget.url),
+        // Download through the authenticated fetcher (also handles E2EE
+        // blobs) and play from the local file.
+        final String localPath = await WsMediaFetcher.fetchToLocalFile(
+          filePath: widget.url,
+          wsClient: ref.read(webSocketClientProvider),
+          e2eeFileKey: _fileKey(),
         );
+        _videoController = VideoPlayerController.file(File(localPath));
         await _videoController!.initialize();
         _chewieController = ChewieController(
           videoPlayerController: _videoController!,

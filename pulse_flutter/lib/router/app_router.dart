@@ -149,10 +149,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
               : typeRaw == 'video'
                   ? MediaType.video
                   : MediaType.other;
+          final Object? extra = state.extra;
           return _page(state, MediaViewerScreen(
             url: url,
             title: Uri.decodeComponent(state.uri.queryParameters['title'] ?? 'Attachment'),
             mediaType: mediaType,
+            e2eeFileKey: extra is String ? extra : null,
           ));
         },
       ),

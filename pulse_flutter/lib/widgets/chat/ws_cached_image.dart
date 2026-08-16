@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:universal_io/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
@@ -62,6 +63,23 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
     });
 
     try {
+      // Optimistic local messages reference a file on disk (or a
+      // local:// placeholder while bytes are in flight) — never fetch those
+      // over the network.
+      if (!widget.mediaUrl.startsWith('local://')) {
+        final File? local = _tryLocalFile(widget.mediaUrl);
+        if (local != null && await local.exists()) {
+          final Uint8List localBytes = await local.readAsBytes();
+          if (mounted) {
+            setState(() {
+              _bytes = localBytes;
+              _isLoading = false;
+            });
+          }
+          return;
+        }
+      }
+
       final wsClient = ref.read(webSocketClientProvider);
       Uint8List? fileKey;
       if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
@@ -87,6 +105,19 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  /// Returns a [File] when [path] points at the local filesystem.
+  static File? _tryLocalFile(String path) {
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('local://')) {
+      return null;
+    }
+    if (path.contains('://')) return null; // other schemes
+    try {
+      return File(path);
+    } catch (_) {
+      return null;
     }
   }
 

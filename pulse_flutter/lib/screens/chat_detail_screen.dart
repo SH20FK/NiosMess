@@ -814,18 +814,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         } catch (e, st) {
           debugPrint('Image compression failed: $e\n$st');
         }
-      } else if (result.readStream != null) {
-        try {
-          final List<int> allBytes = <int>[];
-          await for (final List<int> chunk in result.readStream!) {
-            allBytes.addAll(chunk);
-          }
-          uploadBytes = Uint8List.fromList(allBytes);
-          uploadFileSize = uploadBytes.length;
-        } catch (e, st) {
-          debugPrint('Failed to read stream: $e\n$st');
-          continue;
-        }
       }
 
       await _uploadAndSend(
@@ -1158,6 +1146,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       context.push(
         '/media-viewer?url=${Uri.encodeComponent(mediaUrl)}'
         '&type=image&title=${Uri.encodeComponent(fileName)}',
+        extra: message.e2eeFileKey,
+      );
+      return;
+    }
+
+    if (_isVideoMedia(message, mediaUrl)) {
+      context.push(
+        '/media-viewer?url=${Uri.encodeComponent(mediaUrl)}'
+        '&type=video&title=${Uri.encodeComponent(fileName)}',
+        extra: message.e2eeFileKey,
       );
       return;
     }
@@ -1166,6 +1164,24 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       '/file-viewer?name=${Uri.encodeComponent(fileName)}'
       '&url=${Uri.encodeComponent(mediaUrl)}',
     );
+  }
+
+  bool _isVideoMedia(ApiMessage message, String mediaUrl) {
+    final String mediaType = (message.mediaType ?? '').toLowerCase();
+    if (mediaType.startsWith('video/')) {
+      return true;
+    }
+
+    final String lower = mediaUrl.toLowerCase();
+    final String fileName = (message.mediaName ?? '').toLowerCase();
+    bool isVideoExt(String s) =>
+        s.endsWith('.mp4') ||
+        s.endsWith('.mov') ||
+        s.endsWith('.mkv') ||
+        s.endsWith('.webm') ||
+        s.endsWith('.3gp') ||
+        s.endsWith('.avi');
+    return isVideoExt(lower) || (fileName.isNotEmpty && isVideoExt(fileName));
   }
 
   String _displayText(ApiMessage message) => message.content;
