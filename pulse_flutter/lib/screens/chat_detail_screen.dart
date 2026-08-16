@@ -19,6 +19,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
+import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/image_compressor.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -44,9 +45,6 @@ import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
-import 'package:pulse_flutter/providers/call_session_provider.dart';
-import 'package:pulse_flutter/repositories/call_repository.dart';
-import 'package:pulse_flutter/services/calls/call_session.dart';
 import 'package:pulse_flutter/services/calls/call_starter.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 
@@ -369,7 +367,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       final e2ee = ref.read(e2eeServiceProvider);
       final chat = ref.read(chatByIdProvider(chatId));
       if (chat?.partnerPublicKey == null || chat!.partnerPublicKey!.isEmpty) {
-        AppToast.showError(context, 'No peer public key available');
+        AppToast.showError(context, context.l10n.e2eeHandshakeNoPeerKey);
         return;
       }
       final edPubB64 = await e2ee.getEdPublicKeyBase64();
@@ -385,10 +383,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         signature: msg.signature,
       );
       if (!mounted) return;
-      AppToast.showSuccess(context, 'E2EE handshake initiated');
+      AppToast.showSuccess(context, context.l10n.e2eeHandshakeInitiated);
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, 'Handshake failed: $e');
+      AppToast.showError(context, context.l10n.e2eeHandshakeFailed(e));
     }
   }
 
@@ -662,6 +660,26 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     final int? replyToId = _replyToMessageId;
 
+    // Secret chats: encrypt the payload locally; the per-file key travels in
+    // the Double-Ratchet message envelope and never reaches the server.
+    Uint8List effectiveBytes = bytes ?? Uint8List(0);
+    String effectiveFilePath = filePath ?? '';
+    Uint8List? e2eeFileKey;
+    if (ref.read(chatByIdProvider(chatId))?.isSecret == true) {
+      try {
+        final Uint8List plain = bytes != null && bytes.isNotEmpty
+            ? bytes
+            : (filePath != null ? await File(filePath).readAsBytes() : Uint8List(0));
+        if (plain.isNotEmpty) {
+          e2eeFileKey = E2eeFileCrypto.generateFileKey();
+          effectiveBytes = await E2eeFileCrypto.encrypt(plain, e2eeFileKey);
+          effectiveFilePath = ''; // upload ciphertext bytes instead of the file
+        }
+      } catch (e) {
+        debugPrint('[chat_detail] E2EE file encrypt failed: $e');
+      }
+    }
+
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     final String myUsername = ref.read(authProvider).session?.username ?? '';
     final optimisticMessage = ApiMessage(
@@ -697,13 +715,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     ref.read(uploadQueueProvider.notifier).enqueue(
       localId: localId,
       chatId: chatId,
-      filePath: filePath ?? '',
-      bytes: bytes,
+      filePath: effectiveFilePath,
+      bytes: effectiveBytes,
       filename: filename,
       mediaSubtype: mediaSubtype,
       fileSize: fileSize,
       text: text,
       replyToId: replyToId,
+      e2eeFileKey: e2eeFileKey,
     );
   }
 

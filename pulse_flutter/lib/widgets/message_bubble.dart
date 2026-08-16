@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
@@ -56,6 +58,7 @@ class MessageBubble extends ConsumerWidget {
     this.isNextSame = false,
     this.animate = false,
     this.isE2ee = false,
+    this.e2eeFileKey,
     this.isVoice = false,
     this.isCircleVideo = false,
     this.mediaDuration,
@@ -75,6 +78,9 @@ class MessageBubble extends ConsumerWidget {
   final bool isEdited;
   final bool isRead;
   final bool isE2ee;
+
+  /// Base64 per-file AES key from the E2EE envelope (secret chats).
+  final String? e2eeFileKey;
   final String? replyPreview;
   final int? replyToId;
   final VoidCallback? onReplyTap;
@@ -579,7 +585,7 @@ if (onSwipeToReply != null) {
           textTheme: textTheme,
           chatId: chatId,
           wsClient: wsClient,
-          e2eeService: e2eeService,
+          e2eeFileKey: e2eeFileKey,
           onLongPress: onLongPressMedia,
         ),
       ),
@@ -624,13 +630,13 @@ if (onSwipeToReply != null) {
           onLongPress: onLongPressMedia,
           borderRadius: BorderRadius.circular(16),
           child: VoiceMessagePlayer(
+            e2eeFileKey: e2eeFileKey,
             audioUrl: mediaUrl!,
             durationSeconds: mediaDuration ?? 0,
             isMine: isMine,
             scheme: scheme,
             chatId: chatId,
             wsClient: wsClient,
-            e2eeService: e2eeService,
             formattedTime: hideFooter ? null : formattedTime,
             isRead: isRead,
             isE2ee: isE2ee,
@@ -657,13 +663,13 @@ if (onSwipeToReply != null) {
         onLongPress: onLongPressMedia,
         borderRadius: BorderRadius.circular(12),
         child: VoiceMessagePlayer(
+          e2eeFileKey: e2eeFileKey,
           audioUrl: mediaUrl!,
           durationSeconds: mediaDuration ?? 0,
           isMine: isMine,
           scheme: scheme,
           chatId: chatId,
           wsClient: wsClient,
-          e2eeService: e2eeService,
         ),
       );
     }
@@ -678,6 +684,7 @@ if (onSwipeToReply != null) {
           isMine: isMine,
           chatId: chatId,
           isE2ee: isE2ee,
+          e2eeFileKey: e2eeFileKey,
           onOpenMedia: onOpenMedia,
           onLongPressMedia: onLongPressMedia,
         );
@@ -691,6 +698,7 @@ if (onSwipeToReply != null) {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: WsCachedImage(
+                e2eeFileKey: e2eeFileKey,
                 mediaUrl: urls.first,
                 chatId: chatId,
                 isE2ee: isE2ee,
@@ -1175,7 +1183,7 @@ class _CircleVideoInlinePlayer extends StatefulWidget {
     required this.textTheme,
     required this.chatId,
     required this.wsClient,
-    required this.e2eeService,
+    this.e2eeFileKey,
     this.onLongPress,
   });
 
@@ -1191,7 +1199,7 @@ class _CircleVideoInlinePlayer extends StatefulWidget {
   final TextTheme textTheme;
   final int chatId;
   final WebSocketClient wsClient;
-  final E2eeService e2eeService;
+  final String? e2eeFileKey;
   final VoidCallback? onLongPress;
 
   @override
@@ -1212,12 +1220,14 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
 
   Future<void> _initVideo() async {
     try {
+      Uint8List? fileKey;
+      if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
+        fileKey = base64Decode(widget.e2eeFileKey!);
+      }
       final localPath = await WsMediaFetcher.fetchToLocalFile(
         filePath: widget.videoUrl,
         wsClient: widget.wsClient,
-        isE2ee: widget.isE2ee,
-        chatId: widget.chatId,
-        e2eeService: widget.e2eeService,
+        e2eeFileKey: fileKey,
       );
       _videoController = VideoPlayerController.file(
         File(localPath),
@@ -1383,6 +1393,7 @@ class _MediaCarousel extends StatefulWidget {
     required this.onLongPressMedia,
     required this.chatId,
     required this.isE2ee,
+    this.e2eeFileKey,
   });
 
   final List<String> urls;
@@ -1393,6 +1404,7 @@ class _MediaCarousel extends StatefulWidget {
   final VoidCallback? onLongPressMedia;
   final int chatId;
   final bool isE2ee;
+  final String? e2eeFileKey;
 
   @override
   State<_MediaCarousel> createState() => _MediaCarouselState();
@@ -1438,6 +1450,7 @@ class _MediaCarouselState extends State<_MediaCarousel> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: WsCachedImage(
+                        e2eeFileKey: widget.e2eeFileKey,
                         mediaUrl: widget.urls[index],
                         chatId: widget.chatId,
                         isE2ee: widget.isE2ee,

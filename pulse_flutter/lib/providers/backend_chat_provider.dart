@@ -16,7 +16,40 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/websocket_dispatcher_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/services/double_ratchet_service.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
+
+/// Parsed E2EE handshake (HELO) message: a plain text message whose content
+/// is JSON `{"dh": ..., "ed": ..., "sig": ...}`.
+class _E2eeHelo {
+  const _E2eeHelo({required this.dhPubB64, required this.edPubB64, required this.signature});
+
+  final String dhPubB64;
+  final String edPubB64;
+  final List<int> signature;
+}
+
+_E2eeHelo? _parseHeloMessage(ApiMessage message) {
+  if (message.isE2ee || message.isDeleted || message.msgType != 'text') {
+    return null;
+  }
+  final String content = message.content;
+  if (!content.startsWith('{"dh"')) return null;
+  try {
+    final Map<String, dynamic> map = jsonDecode(content) as Map<String, dynamic>;
+    final String? dh = map['dh'] as String?;
+    final String? ed = map['ed'] as String?;
+    final String? sig = map['sig'] as String?;
+    if (dh == null || ed == null || dh.isEmpty || ed.isEmpty) return null;
+    return _E2eeHelo(
+      dhPubB64: dh,
+      edPubB64: ed,
+      signature: sig != null ? base64Decode(sig) : const <int>[],
+    );
+  } catch (_) {
+    return null;
+  }
+}
 
 class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   @override
@@ -206,7 +239,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       debugPrint('[backend_chat_provider.dart] Messages cache load error: $e');
     }
 
-    return _fetch();
+    final List<ApiMessage> messages = await _fetch();
+    unawaited(ensureSecretHandshake());
+    return messages;
   }
 
   void handlePush(ApiMessage message) {
@@ -223,6 +258,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
 
     final List<ApiMessage> decrypted = await _decryptE2eeMessages(<ApiMessage>[message]);
+    if (decrypted.isEmpty) {
+      // The message was E2EE protocol traffic (handshake) — not rendered.
+      return;
+    }
     final ApiMessage finalMessage = decrypted.first;
 
     final List<ApiMessage> next = List<ApiMessage>.from(current)..add(finalMessage);
@@ -258,12 +297,29 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   Future<List<ApiMessage>> _decryptE2eeMessages(List<ApiMessage> messages) async {
     final partnerPublicKey = await _getPartnerPublicKey();
-    if (partnerPublicKey == null) return messages;
+    if (partnerPublicKey == null) {
+      // Not a secret chat — but handshake echoes can still be filtered out.
+      return messages.where((ApiMessage m) => _parseHeloMessage(m) == null).toList();
+    }
 
     final e2eeService = ref.read(e2eeServiceProvider);
     final List<ApiMessage> result = <ApiMessage>[];
 
-    for (final ApiMessage msg in messages) {
+    for (int i = 0; i < messages.length; i++) {
+      final ApiMessage msg = messages[i];
+
+      final _E2eeHelo? helo = _parseHeloMessage(msg);
+      if (helo != null) {
+        // Only act on a HELO when it is the newest message (fresh handshake
+        // in flight); old HELOs from history must not re-key the session.
+        final bool isLatest = i == messages.length - 1;
+        if (isLatest) {
+          await _handleIncomingHelo(helo, partnerPublicKey);
+        }
+        // Handshake messages are protocol traffic — never rendered.
+        continue;
+      }
+
       if (!msg.isE2ee || msg.e2eeContent == null || msg.e2eeContent!.isEmpty) {
         result.add(msg);
         continue;
@@ -275,6 +331,24 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           chatId: _chatId,
           theirPublicKeyBase64: partnerPublicKey,
         );
+
+        // Media envelope: carries the per-file AES key for local decryption.
+        if (decrypted.startsWith('{"e2ee_file"')) {
+          try {
+            final Map<String, dynamic> envelope =
+                jsonDecode(decrypted) as Map<String, dynamic>;
+            if (envelope['e2ee_file'] == true && envelope['fk'] is String) {
+              result.add(msg.copyWith(
+                content: '',
+                e2eeFileKey: envelope['fk'] as String,
+                mediaName: (envelope['name'] as String?) ?? msg.mediaName,
+                mediaSize: msg.mediaSize ?? (envelope['size'] as int?),
+              ));
+              continue;
+            }
+          } catch (_) {}
+        }
+
         result.add(msg.copyWith(content: decrypted));
       } catch (e) {
         debugPrint('[backend_chat_provider.dart] E2EE decrypt failed for msg ${msg.id}: $e');
@@ -282,6 +356,88 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       }
     }
     return result;
+  }
+
+  /// Runs the receiving side of the E2EE handshake state machine:
+  /// - no session → respond (create responder session, reply with our HELO);
+  /// - pending initiator session → the peer's HELO completes it;
+  /// - secured/compromised → ignore (old duplicate).
+  Future<void> _handleIncomingHelo(
+    _E2eeHelo helo,
+    String partnerPublicKey,
+  ) async {
+    final E2eeService e2ee = ref.read(e2eeServiceProvider);
+    final E2eeSessionStatus status = e2ee.getSessionStatus(_chatId);
+    final DoubleRatchetSession? existing =
+        await e2ee.getOrCreateSession(chatId: _chatId, theirPublicKeyBase64: partnerPublicKey);
+
+    try {
+      if (existing != null && status == E2eeSessionStatus.connecting) {
+        await e2ee.completeHandshake(
+          chatId: _chatId,
+          theirEphemeralPublicKeyBase64: helo.dhPubB64,
+          theirEdPublicKeyBase64: helo.edPubB64,
+        );
+        debugPrint('[backend_chat_provider.dart] E2EE handshake completed for chat $_chatId');
+        return;
+      }
+
+      if (existing == null) {
+        await e2ee.handleHeloMessage(
+          chatId: _chatId,
+          dhPubB64: helo.dhPubB64,
+          edPubB64: helo.edPubB64,
+          signature: helo.signature,
+          theirPublicKeyBase64: partnerPublicKey,
+          theirEdPublicKeyBase64: helo.edPubB64,
+        );
+        // Answer with our own ephemeral so the initiator can complete too.
+        final ({String dhPubB64, String edPubB64, List<int> signature}) ack =
+            await e2ee.createHandshakeMessage(_chatId);
+        await sendHandshakeMessage(
+          dhPubB64: ack.dhPubB64,
+          edPubB64: ack.edPubB64,
+          signature: ack.signature,
+        );
+        debugPrint('[backend_chat_provider.dart] E2EE handshake responded for chat $_chatId');
+      }
+    } catch (e) {
+      debugPrint('[backend_chat_provider.dart] E2EE handshake handling failed: $e');
+    }
+  }
+
+  /// Makes sure a secret direct chat eventually runs a Double Ratchet
+  /// handshake without the user pressing anything: when no session exists,
+  /// exactly one side (the one with the lexicographically greater static
+  /// public key) initiates, the other responds on HELO receipt.
+  Future<void> ensureSecretHandshake() async {
+    final String? partnerPublicKey = await _getPartnerPublicKey();
+    if (partnerPublicKey == null) return;
+
+    final E2eeService e2ee = ref.read(e2eeServiceProvider);
+    final DoubleRatchetSession? existing = await e2ee.getOrCreateSession(
+      chatId: _chatId,
+      theirPublicKeyBase64: partnerPublicKey,
+    );
+    if (existing != null) return;
+
+    final String ourPub = await e2ee.getPublicKeyBase64();
+    if (ourPub.compareTo(partnerPublicKey) <= 0) return; // peer initiates
+
+    final String edPubB64 = await e2ee.getEdPublicKeyBase64();
+    await e2ee.initiateHandshake(
+      chatId: _chatId,
+      theirPublicKeyBase64: partnerPublicKey,
+      theirEdPublicKeyBase64: edPubB64,
+    );
+    final ({String dhPubB64, String edPubB64, List<int> signature}) msg =
+        await e2ee.createHandshakeMessage(_chatId);
+    await sendHandshakeMessage(
+      dhPubB64: msg.dhPubB64,
+      edPubB64: msg.edPubB64,
+      signature: msg.signature,
+    );
+    debugPrint('[backend_chat_provider.dart] E2EE handshake auto-initiated for chat $_chatId');
   }
 
   Future<void> _saveToCache(List<ApiMessage> messages) async {
@@ -363,7 +519,12 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     } catch (e) { debugPrint('[backend_chat_provider.dart] Error: $e'); }
   }
 
-  Future<void> send(String content, {int? replyToId, String? uploadId, String msgType = 'text', String? localId}) async {
+  Future<void> send(String content,
+      {int? replyToId,
+      String? uploadId,
+      String msgType = 'text',
+      String? localId,
+      String? e2eePlaintext}) async {
     final String trimmed = content.trim();
     if (trimmed.isEmpty && (uploadId == null || uploadId.trim().isEmpty)) {
       return;
@@ -384,7 +545,12 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     bool isE2ee = false;
 
     final ApiChatSummary? chat = ref.read(chatByIdProvider(_chatId));
-    if (chat?.isSecret == true && chat?.partnerPublicKey != null && trimmed.isNotEmpty) {
+    // For media in secret chats the DR plaintext is the file-key envelope,
+    // not the visible text.
+    final String e2eePlain = e2eePlaintext ?? trimmed;
+    if (chat?.isSecret == true &&
+        chat?.partnerPublicKey != null &&
+        e2eePlain.isNotEmpty) {
       try {
         final e2eeService = ref.read(e2eeServiceProvider);
         final session = await e2eeService.getOrCreateSession(
@@ -393,12 +559,12 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         );
         if (session != null) {
           e2eeContent = await e2eeService.encryptE2EEMessageDR(
-            plaintext: trimmed,
+            plaintext: e2eePlain,
             chatId: _chatId,
           );
         } else {
           e2eeContent = await e2eeService.encryptE2EEMessage(
-            plaintext: trimmed,
+            plaintext: e2eePlain,
             chatId: _chatId,
             theirPublicKeyBase64: chat.partnerPublicKey!,
           );
@@ -416,7 +582,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       senderUsername: myUsername,
       senderDisplayName: myUsername.isEmpty ? 'Я' : myUsername,
       senderBadges: const [],
-      content: trimmed,
+      content: (isE2ee && uploadId != null) ? '' : trimmed,
       msgType: uploadId != null ? msgType : 'text',
       replyToId: replyToId,
       mediaUrl: uploadId != null ? 'local://$localId' : null, // placeholder indicating local file being sent

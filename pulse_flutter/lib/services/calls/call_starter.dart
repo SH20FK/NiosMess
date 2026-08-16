@@ -1,8 +1,10 @@
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
@@ -21,6 +23,31 @@ class CallStartException implements Exception {
 
   @override
   String toString() => 'CallStartException($failure${cause == null ? '' : ': $cause'})';
+}
+
+/// Derives the shared fallback media key for a call from the ECDH secret
+/// with the chat partner. Falls back to a random key for chats without a
+/// known partner key — real per-sender media keys come from the in-call
+/// ECDH exchange anyway.
+Future<Uint8List> deriveCallMediaKey(
+  WidgetRef ref, {
+  required int chatId,
+  required int callId,
+}) async {
+  final E2eeService e2ee = ref.read(e2eeServiceProvider);
+  final String? partnerKey =
+      ref.read(chatByIdProvider(chatId))?.partnerPublicKey;
+  try {
+    if (partnerKey != null && partnerKey.isNotEmpty) {
+      final SecretKey key = await e2ee.deriveCallKey(
+        callId,
+        theirPublicKeyBase64: partnerKey,
+      );
+      return Uint8List.fromList(await key.extractBytes());
+    }
+  } catch (_) {}
+  final SecretKey random = await AesGcm.with256bits().newSecretKey();
+  return Uint8List.fromList(await random.extractBytes());
 }
 
 /// Shared bootstrap for outgoing calls (chat screen and /call/dm/:username
@@ -64,9 +91,10 @@ Future<int> startOutgoingCall({
     api.dispose();
   } catch (_) {}
 
-  final E2eeService e2ee = ref.read(e2eeServiceProvider);
-  final Uint8List aesKeyBytes = Uint8List.fromList(
-    await (await e2ee.deriveCallKey(callId)).extractBytes(),
+  final Uint8List aesKeyBytes = await deriveCallMediaKey(
+    ref,
+    chatId: chatId,
+    callId: callId,
   );
 
   final CallSessionManager manager = CallSessionManager(

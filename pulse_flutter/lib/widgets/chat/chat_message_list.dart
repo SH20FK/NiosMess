@@ -223,6 +223,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             text: widget.displayTextBuilder(message),
             isMine: isMine,
             isE2ee: message.isE2ee,
+            e2eeFileKey: message.e2eeFileKey,
             isPrevSame: data.isPrevSame,
             isNextSame: data.isNextSame,
             formattedTime: formatMessageTime(message.sentAt),

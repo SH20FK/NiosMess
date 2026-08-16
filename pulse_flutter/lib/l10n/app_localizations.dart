@@ -5270,6 +5270,24 @@ abstract class AppLocalizations {
   /// **'Could not start the call'**
   String get callRedirectFailed;
 
+  /// No description provided for @e2eeHandshakeInitiated.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure handshake initiated'**
+  String get e2eeHandshakeInitiated;
+
+  /// No description provided for @e2eeHandshakeNoPeerKey.
+  ///
+  /// In en, this message translates to:
+  /// **'No peer public key available'**
+  String get e2eeHandshakeNoPeerKey;
+
+  /// No description provided for @e2eeHandshakeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Handshake failed: {error}'**
+  String e2eeHandshakeFailed(Object error);
+
   /// No description provided for @directResolverSecretTitle.
   ///
   /// In en, this message translates to:

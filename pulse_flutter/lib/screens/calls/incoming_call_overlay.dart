@@ -8,9 +8,9 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
+import 'package:pulse_flutter/services/calls/call_starter.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
-import 'package:pulse_flutter/services/e2ee_service.dart';
 
 class IncomingCallOverlay extends ConsumerStatefulWidget {
   const IncomingCallOverlay({super.key});
@@ -220,9 +220,11 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
         messageId: incoming.callId,
       );
 
-      final e2ee = ref.read(e2eeServiceProvider);
-      final aesKey = await e2ee.deriveCallKey(incoming.callId);
-      final aesKeyBytes = Uint8List.fromList(await aesKey.extractBytes());
+      final aesKeyBytes = await deriveCallMediaKey(
+        ref,
+        chatId: incoming.chatId,
+        callId: incoming.callId,
+      );
 
       final manager = CallSessionManager(
         ref: ref,

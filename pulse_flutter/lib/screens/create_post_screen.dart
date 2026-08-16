@@ -43,14 +43,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       return;
     }
 
-    Uint8List? previewBytes = await file.readAsBytes();
-    if (previewBytes != null) {
-      final Uint8List? compressed = await ImageCompressor.compressImageBytes(
-        bytes: previewBytes,
-        fileName: file.name,
-      );
-      if (compressed != null) previewBytes = compressed;
-    }
+    Uint8List previewBytes = await file.readAsBytes();
+    final Uint8List? compressed = await ImageCompressor.compressImageBytes(
+      bytes: previewBytes,
+      fileName: file.name,
+    );
+    if (compressed != null) previewBytes = compressed;
 
     setState(() {
       _selectedFile = file;

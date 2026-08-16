@@ -36,6 +36,7 @@ class ApiMessage {
     this.isFailed = false,
     this.isE2ee = false,
     this.e2eeContent,
+    this.e2eeFileKey,
     this.isRead = false,
   });
 
@@ -64,6 +65,10 @@ class ApiMessage {
   final bool isFailed;
   final bool isE2ee;
   final String? e2eeContent;
+
+  /// Base64 per-file AES key for E2EE media (local + cache only, comes from
+  /// the decrypted message envelope, never sent to the server).
+  final String? e2eeFileKey;
   final bool isRead;
 
   bool get isEdited => editedAt != null;
@@ -98,6 +103,7 @@ class ApiMessage {
     bool? isFailed,
     bool? isE2ee,
     String? e2eeContent,
+    String? e2eeFileKey,
     bool? isRead,
   }) {
     return ApiMessage(
@@ -126,6 +132,7 @@ class ApiMessage {
       isFailed: isFailed ?? this.isFailed,
       isE2ee: isE2ee ?? this.isE2ee,
       e2eeContent: e2eeContent ?? this.e2eeContent,
+      e2eeFileKey: e2eeFileKey ?? this.e2eeFileKey,
       isRead: isRead ?? this.isRead,
     );
   }
@@ -191,6 +198,7 @@ class ApiMessage {
           : null,
       isE2ee: isE2ee,
       e2eeContent: e2eeContentRaw,
+      e2eeFileKey: json['e2ee_file_key'] as String?,
       isRead: _parseBool(json['is_read']),
     );
   }
@@ -220,6 +228,7 @@ class ApiMessage {
       'is_e2ee': isE2ee,
       'is_read': isRead,
       if (e2eeContent != null) 'e2ee_content': e2eeContent,
+      if (e2eeFileKey != null) 'e2ee_file_key': e2eeFileKey,
       if (replyMarkup != null) 'reply_markup': replyMarkup!.toJson(),
     };
   }

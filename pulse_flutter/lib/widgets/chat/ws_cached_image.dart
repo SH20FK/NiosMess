@@ -1,9 +1,9 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class WsCachedImage extends ConsumerStatefulWidget {
@@ -11,6 +11,7 @@ class WsCachedImage extends ConsumerStatefulWidget {
     required this.mediaUrl,
     required this.chatId,
     required this.isE2ee,
+    this.e2eeFileKey,
     this.width,
     this.height,
     this.fit,
@@ -22,6 +23,9 @@ class WsCachedImage extends ConsumerStatefulWidget {
   final String mediaUrl;
   final int chatId;
   final bool isE2ee;
+
+  /// Base64 AES key from the E2EE message envelope; null for plain media.
+  final String? e2eeFileKey;
   final double? width;
   final double? height;
   final BoxFit? fit;
@@ -59,15 +63,15 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
 
     try {
       final wsClient = ref.read(webSocketClientProvider);
-      final e2eeService = ref.read(e2eeServiceProvider);
-      
+      Uint8List? fileKey;
+      if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
+        fileKey = base64Decode(widget.e2eeFileKey!);
+      }
+
       final bytes = await WsMediaFetcher.fetchAndDecryptMedia(
         filePath: widget.mediaUrl,
         wsClient: wsClient,
-        isE2ee: widget.isE2ee,
-        chatId: widget.chatId,
-        e2eeService: e2eeService,
-        theirPublicKeyBase64: null, // Depending on where public key is stored
+        e2eeFileKey: fileKey,
       );
 
       if (mounted) {

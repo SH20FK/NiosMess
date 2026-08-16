@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +20,7 @@ class UploadTask {
     required this.status,
     this.text = '',
     this.replyToId,
+    this.e2eeFileKey,
     this.error,
   });
 
@@ -33,6 +35,9 @@ class UploadTask {
   final UploadStatus status;
   final String text;
   final int? replyToId;
+
+  /// Per-file AES key for secret chats (bytes are already encrypted).
+  final Uint8List? e2eeFileKey;
   final String? error;
 
   UploadTask copyWith({
@@ -84,6 +89,7 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
     required int fileSize,
     String text = '',
     int? replyToId,
+    Uint8List? e2eeFileKey,
   }) {
     final task = UploadTask(
       localId: localId,
@@ -97,6 +103,7 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
       status: UploadStatus.pending,
       text: text,
       replyToId: replyToId,
+      e2eeFileKey: e2eeFileKey,
     );
 
     state = {...state, localId: task};
@@ -149,6 +156,15 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
 
       final currentTask = state[localId];
       if (currentTask != null) {
+        String? e2eePlaintext;
+        if (task.e2eeFileKey != null) {
+          e2eePlaintext = jsonEncode(<String, dynamic>{
+            'e2ee_file': true,
+            'fk': base64Encode(task.e2eeFileKey!),
+            'name': task.filename,
+            'size': task.fileSize,
+          });
+        }
         await ref.read(chatMessagesProvider(task.chatId).notifier).send(
           task.text,
           replyToId: task.replyToId,
@@ -157,6 +173,7 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
               ? 'voice'
               : (task.mediaSubtype == 'circle' ? 'circle' : 'media'),
           localId: localId,
+          e2eePlaintext: e2eePlaintext,
         );
         // The server message replaced the optimistic one, so the task has
         // served its purpose — drop it to keep the map bounded.

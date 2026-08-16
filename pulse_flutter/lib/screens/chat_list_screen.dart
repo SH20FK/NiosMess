@@ -627,61 +627,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     }
   }
 
-  void _showStartDirectChatDialog(BuildContext context) {
-    showAppDialog<void>(
-      context: context,
-      builder: (BuildContext ctx) {
-        final TextEditingController usernameController = TextEditingController();
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            String? errorText;
-
-            void submit() {
-              String username = usernameController.text.trim();
-              if (username.startsWith('@')) {
-                username = username.substring(1);
-              }
-              if (username.isEmpty) {
-                setState(() {
-                  errorText = context.l10n.chatCreatePersonalErrorEmpty;
-                });
-                return;
-              }
-              Navigator.of(ctx).pop();
-              this.context.push('/chat/dm/$username');
-            }
-
-            return AppDialog(
-              title: context.l10n.chatCreatePersonalPrompt,
-              actions: <AppDialogAction>[
-                AppDialogAction(
-                  label: context.l10n.commonCancel,
-                  onPressed: () => Navigator.of(ctx).pop(),
-                ),
-                AppDialogAction(
-                  label: context.l10n.chatCreatePersonalStart,
-                  isPrimary: true,
-                  onPressed: submit,
-                ),
-              ],
-              child: TextField(
-                controller: usernameController,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: context.l10n.chatCreatePersonalUsernameLabel,
-                  hintText: context.l10n.chatCreatePersonalUsernameHint,
-                  errorText: errorText,
-                  prefixText: '@',
-                ),
-                onSubmitted: (_) => submit(),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   Future<void> _showChatContextMenu(
     BuildContext context,
     ApiChatSummary chat,

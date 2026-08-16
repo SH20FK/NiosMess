@@ -2908,6 +2908,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String callRedirectStarting(Object username) => 'Звоним $username…';
 
   @override
+  String get e2eeHandshakeInitiated => 'Безопасное соединение устанавливается';
+
+  @override
+  String get e2eeHandshakeNoPeerKey => 'Нет публичного ключа собеседника';
+
+  @override
+  String e2eeHandshakeFailed(Object error) => 'Не удалось установить соединение: $error';
+
+  @override
   String get callRedirectFailed => 'Не удалось начать звонок';
 
   @override

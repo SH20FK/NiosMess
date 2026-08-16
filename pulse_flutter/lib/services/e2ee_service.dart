@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
@@ -25,7 +26,11 @@ class E2eeSessionInfo {
 }
 
 class E2eeService {
-  E2eeService();
+  E2eeService() {
+    // Restore verified-peer map so MITM detection survives restarts.
+    // Static maps make repeat calls idempotent.
+    unawaited(loadVerifiedPeers());
+  }
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final X25519 _x25519 = X25519();
@@ -298,6 +303,15 @@ class E2eeService {
     _sessionStatus[chatId] = E2eeSessionStatus.connecting;
   }
 
+  /// Initiator received the responder's HELO (their ephemeral DH pub).
+  ///
+  /// The pending initiator session already carries matching chain keys:
+  /// its sending chain equals the responder's initial receiving chain, and
+  /// the first message from the responder triggers a DH-ratchet step in
+  /// decrypt() exactly as in a normal Double Ratchet exchange. So completing
+  /// the handshake must NOT re-derive the session — rebuilding it from
+  /// DH(their_ephemeral) alone desynchronizes both sides. We only record the
+  /// peer's real Ed25519 identity and flip the status.
   Future<void> completeHandshake({
     required int chatId,
     required String theirEphemeralPublicKeyBase64,
@@ -306,20 +320,16 @@ class E2eeService {
     final pending = _sessions[chatId];
     if (pending == null) throw StateError('No pending session for chat $chatId');
 
-    final theirEphemeral = SimplePublicKey(
-      base64Decode(theirEphemeralPublicKeyBase64),
-      type: KeyPairType.x25519,
-    );
+    if (_verifiedPeers.containsKey(chatId) &&
+        _verifiedPeers[chatId] != theirEdPublicKeyBase64) {
+      debugPrint('[E2eeService] MITM DETECTED: peer Ed25519 key changed for chat $chatId');
+      _sessionStatus[chatId] = E2eeSessionStatus.compromised;
+      return;
+    }
 
-    final session = await _dr.completeHandshake(
-      pendingSession: pending,
-      theirEphemeralPublic: theirEphemeral,
-      peerStaticEdB64: theirEdPublicKeyBase64,
-    );
-
-    _sessions[chatId] = session;
+    pending.peerStaticEd = theirEdPublicKeyBase64;
     _sessionStatus[chatId] = E2eeSessionStatus.secured;
-    await _saveSession(chatId, session);
+    await _saveSession(chatId, pending);
   }
 
   Future<({String dhPubB64, String edPubB64, List<int> signature})>
@@ -534,22 +544,26 @@ class E2eeService {
     }
   }
 
-  // ─── Call key derivation (unchanged) ─────────────────────────
+  // ─── Call key derivation ──────────────────────────────────────
 
-  Future<SecretKey> deriveCallKey(int callId) async {
+  /// Derives the call media key from the ECDH shared secret with the peer,
+  /// so both sides arrive at the same key (deriving from one's own public
+  /// key produced different keys per side and leaked a public value into
+  /// the KDF).
+  Future<SecretKey> deriveCallKey(
+    int callId, {
+    required String theirPublicKeyBase64,
+  }) async {
     final hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
     final info = utf8.encode('nios-call-key-$callId');
-    final keyPair = await loadKeyPair();
-    if (keyPair == null) {
-      return AesGcm.with256bits().newSecretKey();
-    }
-    final publicKey = await keyPair.extractPublicKey() as SimplePublicKey;
-    final derived = await hkdf.deriveKey(
-      secretKey: SecretKey(publicKey.bytes),
+    final shared = await computeSharedSecret(
+      theirPublicKeyBase64: theirPublicKeyBase64,
+    );
+    return hkdf.deriveKey(
+      secretKey: shared,
       nonce: info,
       info: info,
     );
-    return derived;
   }
 }
 

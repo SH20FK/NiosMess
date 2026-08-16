@@ -2884,6 +2884,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String callRedirectStarting(Object username) => 'Calling $username…';
 
   @override
+  String get e2eeHandshakeInitiated => 'Secure handshake initiated';
+
+  @override
+  String get e2eeHandshakeNoPeerKey => 'No peer public key available';
+
+  @override
+  String e2eeHandshakeFailed(Object error) => 'Handshake failed: $error';
+
+  @override
   String get callRedirectFailed => 'Could not start the call';
 
   @override

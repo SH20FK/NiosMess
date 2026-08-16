@@ -1,11 +1,12 @@
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
-import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/widgets/chat/md3_squiggle_progress.dart';
@@ -18,7 +19,7 @@ class VoiceMessagePlayer extends StatefulWidget {
     required this.scheme,
     required this.chatId,
     required this.wsClient,
-    required this.e2eeService,
+    this.e2eeFileKey,
     this.formattedTime,
     this.isRead = false,
     this.isE2ee = false,
@@ -32,7 +33,9 @@ class VoiceMessagePlayer extends StatefulWidget {
   final ColorScheme scheme;
   final int chatId;
   final WebSocketClient wsClient;
-  final E2eeService e2eeService;
+
+  /// Base64 AES key from the E2EE message envelope; null for plain media.
+  final String? e2eeFileKey;
   final String? formattedTime;
   final bool isRead;
   final bool isE2ee;
@@ -92,12 +95,14 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
       return;
     }
     try {
+      Uint8List? fileKey;
+      if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
+        fileKey = base64Decode(widget.e2eeFileKey!);
+      }
       final localPath = await WsMediaFetcher.fetchToLocalFile(
         filePath: widget.audioUrl,
         wsClient: widget.wsClient,
-        isE2ee: widget.isE2ee,
-        chatId: widget.chatId,
-        e2eeService: widget.e2eeService,
+        e2eeFileKey: fileKey,
       );
       await _player.setAudioSource(
         AudioSource.file(localPath),

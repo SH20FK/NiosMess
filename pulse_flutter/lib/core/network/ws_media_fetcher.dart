@@ -1,112 +1,160 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import 'package:universal_io/io.dart';
 import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
-import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+/// Downloads chat media over the authenticated `/api/files/download`
+/// endpoint and caches it locally.
+///
+/// For E2EE (secret) chats the server stores the file as an opaque
+/// encrypted blob and returns `X-Is-E2EE: true`; the ciphertext is cached
+/// as-is and decrypted per read with the per-file key carried in the
+/// Double-Ratchet message envelope — plaintext media never hits disk.
 class WsMediaFetcher {
   static final DefaultCacheManager _cacheManager = DefaultCacheManager();
 
-  static void prefetchMedia({
-    required String filePath,
-    required WebSocketClient wsClient,
-    required bool isE2ee,
-    required int chatId,
-    required E2eeService e2eeService,
-  }) {
-    fetchToLocalFile(
-      filePath: filePath,
-      wsClient: wsClient,
-      isE2ee: isE2ee,
-      chatId: chatId,
-      e2eeService: e2eeService,
-    ).catchError((Object e) {
-      debugPrint('WsMediaFetcher: prefetch error for $filePath: $e');
-    });
-  }
-
+  /// Fetches media bytes; decrypts them when [e2eeFileKey] is provided.
   static Future<Uint8List> fetchAndDecryptMedia({
     required String filePath,
     required WebSocketClient wsClient,
-    required bool isE2ee,
-    required int chatId,
-    required E2eeService e2eeService,
-    required String? theirPublicKeyBase64,
+    Uint8List? e2eeFileKey,
   }) async {
-    final cleanPath = _cleanFilePath(filePath);
-    final cacheKey = 'ws_media_$cleanPath';
-    final fileInfo = await _cacheManager.getFileFromCache(cacheKey);
-    if (fileInfo != null) {
-      return await fileInfo.file.readAsBytes();
+    final String cleanPath = _cleanFilePath(filePath);
+    final String cacheKey = 'ws_media_$cleanPath';
+    final FileInfo? fileInfo = await _cacheManager.getFileFromCache(cacheKey);
+
+    final Uint8List blob = fileInfo != null
+        ? await fileInfo.file.readAsBytes()
+        : await _download(cleanPath, wsClient);
+
+    if (e2eeFileKey != null) {
+      try {
+        return await E2eeFileCrypto.decrypt(blob, e2eeFileKey);
+      } catch (e) {
+        debugPrint('WsMediaFetcher: E2EE decrypt failed for $cleanPath: $e');
+        rethrow;
+      }
+    }
+    return blob;
+  }
+
+  /// Fetches media into a local cache file and returns its path.
+  ///
+  /// For E2EE media the cached (and returned) file contains the DECRYPTED
+  /// bytes — required by players that stream from a file path. The cache is
+  /// app-private.
+  static Future<String> fetchToLocalFile({
+    required String filePath,
+    required WebSocketClient wsClient,
+    Uint8List? e2eeFileKey,
+  }) async {
+    final String cleanPath = _cleanFilePath(filePath);
+
+    if (e2eeFileKey != null) {
+      final Uint8List bytes = await fetchAndDecryptMedia(
+        filePath: cleanPath,
+        wsClient: wsClient,
+        e2eeFileKey: e2eeFileKey,
+      );
+      final String cacheKey = 'ws_media_dec_$cleanPath';
+      final FileInfo? cached = await _cacheManager.getFileFromCache(cacheKey);
+      if (cached != null) return cached.file.path;
+      final File put = await _cacheManager.putFile(
+        cacheKey,
+        bytes,
+        fileExtension: _getFileExtension(cleanPath),
+      );
+      return put.path;
     }
 
-    final token = wsClient.readToken();
+    final Uint8List bytes = await fetchAndDecryptMedia(
+      filePath: cleanPath,
+      wsClient: wsClient,
+    );
+    final String cacheKey = 'ws_media_$cleanPath';
+    final FileInfo? cached = await _cacheManager.getFileFromCache(cacheKey);
+    if (cached != null) return cached.file.path;
+    final File put = await _cacheManager.putFile(
+      cacheKey,
+      bytes,
+      fileExtension: _getFileExtension(cleanPath),
+    );
+    return put.path;
+  }
+
+  static Future<Uint8List> _download(
+    String cleanPath,
+    WebSocketClient wsClient,
+  ) async {
+    final String? token = wsClient.readToken();
     if (token == null) {
       throw Exception('Unauthorized: No session token');
     }
 
-    final downloadUrl = '${ApiConstants.origin}/api/files/download';
-    debugPrint('WsMediaFetcher: requesting download from $downloadUrl for $cleanPath (original: $filePath)');
+    final String downloadUrl = '${ApiConstants.origin}/api/files/download';
 
-    final response = await http.post(
+    final http.Response response = await http.post(
       Uri.parse(downloadUrl),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'token': token,
-        'file_path': cleanPath,
-      }),
+      headers: <String, String>{'Content-Type': 'application/json'},
+      body:
+          '{"token":"$token","file_path":"${cleanPath.replaceAll('"', '\\"')}"',
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Download failed with status code ${response.statusCode}: ${response.body}');
+      throw Exception(
+        'Download failed with status code ${response.statusCode}: ${response.body}',
+      );
     }
 
-    final isE2eeHeader = response.headers['x-is-e2ee'] == 'true' || response.headers['X-Is-E2EE'] == 'true';
-    Uint8List fileBuffer = response.bodyBytes;
-
-    if (isE2eeHeader) {
-      debugPrint('WsMediaFetcher: local E2EE decryption active for $cleanPath');
-    }
-
+    // Cache the raw server bytes (ciphertext for E2EE files) so repeated
+    // reads do not re-download.
     await _cacheManager.putFile(
-      cacheKey,
-      fileBuffer,
+      'ws_media_$cleanPath',
+      response.bodyBytes,
       fileExtension: _getFileExtension(cleanPath),
     );
-
-    return fileBuffer;
+    return response.bodyBytes;
   }
 
   static String _cleanFilePath(String path) {
     String cleanPath = path;
-    final queryIdx = cleanPath.indexOf('?');
+    final int queryIdx = cleanPath.indexOf('?');
     if (queryIdx != -1) {
       cleanPath = cleanPath.substring(0, queryIdx);
     }
     if (cleanPath.contains('/api/media/')) {
-      cleanPath = cleanPath.substring(cleanPath.indexOf('/api/media/') + '/api/media/'.length);
+      cleanPath = cleanPath.substring(
+        cleanPath.indexOf('/api/media/') + '/api/media/'.length,
+      );
     } else if (cleanPath.contains('/static/uploads/')) {
-      cleanPath = cleanPath.substring(cleanPath.indexOf('/static/uploads/') + '/static/uploads/'.length);
+      cleanPath = cleanPath.substring(
+        cleanPath.indexOf('/static/uploads/') + '/static/uploads/'.length,
+      );
     } else if (cleanPath.contains('/static/')) {
-      cleanPath = cleanPath.substring(cleanPath.indexOf('/static/') + '/static/'.length);
-    } else if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+      cleanPath = cleanPath.substring(
+        cleanPath.indexOf('/static/') + '/static/'.length,
+      );
+    } else if (cleanPath.startsWith('http://') ||
+        cleanPath.startsWith('https://')) {
       try {
-        final uri = Uri.parse(cleanPath);
+        final Uri uri = Uri.parse(cleanPath);
         if (uri.pathSegments.isNotEmpty) {
-          final segments = uri.pathSegments;
-          final idx = segments.indexWhere((s) => s == 'media' || s == 'voice' || s == 'circles' || s == 'avatars');
-          if (idx != -1) {
-            cleanPath = segments.sublist(idx).join('/');
-          } else {
-            cleanPath = segments.last;
-          }
+          final List<String> segments = uri.pathSegments;
+          final int idx = segments.indexWhere(
+            (String s) =>
+                s == 'media' || s == 'voice' || s == 'circles' || s == 'avatars',
+          );
+          cleanPath = idx != -1
+              ? segments.sublist(idx).join('/')
+              : segments.last;
         }
       } catch (_) {}
     }
-    
+
     // Удаляем все ведущие слэши для точного совпадения в БД
     while (cleanPath.startsWith('/') || cleanPath.startsWith('\\')) {
       cleanPath = cleanPath.substring(1);
@@ -114,42 +162,11 @@ class WsMediaFetcher {
     return cleanPath;
   }
 
-  static Future<String> fetchToLocalFile({
-    required String filePath,
-    required WebSocketClient wsClient,
-    required bool isE2ee,
-    required int chatId,
-    required E2eeService e2eeService,
-  }) async {
-    final cleanPath = _cleanFilePath(filePath);
-    final bytes = await fetchAndDecryptMedia(
-      filePath: cleanPath,
-      wsClient: wsClient,
-      isE2ee: isE2ee,
-      chatId: chatId,
-      e2eeService: e2eeService,
-      theirPublicKeyBase64: null,
-    );
-
-    final cacheKey = 'ws_media_$cleanPath';
-    final fileInfo = await _cacheManager.getFileFromCache(cacheKey);
-    if (fileInfo != null) {
-      return fileInfo.file.path;
-    }
-
-    final file = await _cacheManager.putFile(
-      cacheKey,
-      bytes,
-      fileExtension: _getFileExtension(cleanPath),
-    );
-    return file.path;
-  }
-
   static String _getFileExtension(String filePath) {
-    final uri = Uri.tryParse(filePath);
+    final Uri? uri = Uri.tryParse(filePath);
     if (uri != null && uri.pathSegments.isNotEmpty) {
-      final name = uri.pathSegments.last;
-      final dot = name.lastIndexOf('.');
+      final String name = uri.pathSegments.last;
+      final int dot = name.lastIndexOf('.');
       if (dot != -1) {
         return name.substring(dot + 1);
       }
