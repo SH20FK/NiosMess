@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -107,7 +108,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
             if (details.primaryDelta! > 10) {
               _acceptCall(context, ref, data);
             } else if (details.primaryDelta! < -10) {
-              _declineCall();
+              _declineCall(data);
             }
           },
           child: Card(
@@ -177,7 +178,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        onPressed: _declineCall,
+                        onPressed: () => _declineCall(data),
                         icon: const Icon(Icons.call_end_rounded, color: Colors.white, size: 22),
                         style: IconButton.styleFrom(
                           backgroundColor: scheme.error,
@@ -206,8 +207,17 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     );
   }
 
-  void _declineCall() {
+  void _declineCall(IncomingCallData incoming) {
     ref.read(incomingCallProvider.notifier).set(null);
+    unawaited(
+      ref.read(callRepositoryProvider).decline(
+            chatId: incoming.chatId,
+            roomId: incoming.roomId,
+            messageId: incoming.callId,
+          ).catchError((Object e) {
+        debugPrint('[IncomingCallOverlay] decline signal failed: $e');
+      }),
+    );
   }
 
   Future<void> _acceptCall(BuildContext context, WidgetRef ref, IncomingCallData incoming) async {

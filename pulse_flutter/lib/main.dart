@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/diagnostics/app_logger.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
@@ -46,10 +47,18 @@ Future<void> main() async {
       await SharedPreferences.getInstance();
       AppTimeSettings.initialize();
       if (!kIsWeb) {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
-        await PushNotificationService.init();
+        // firebase_options.dart only configures android (and web); guard the
+        // rest instead of crashing with UnsupportedError on desktop.
+        if (Platform.isAndroid || Platform.isIOS) {
+          try {
+            await Firebase.initializeApp(
+              options: DefaultFirebaseOptions.currentPlatform,
+            );
+            await PushNotificationService.init();
+          } catch (e) {
+            AppLogger.instance.error(e, StackTrace.current, source: 'firebase');
+          }
+        }
         await DeepLinkService.init();
         BackgroundService.init();
       }

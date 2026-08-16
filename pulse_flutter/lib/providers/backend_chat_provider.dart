@@ -63,9 +63,9 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     }
 
     ref.read(webSocketDispatcherProvider);
-    WebSocketPushDispatcher.registerChat(-1, _handleNewMessagePush);
+    WebSocketPushDispatcher.registerGlobal(_handlePushEvent);
     ref.onDispose(() {
-      WebSocketPushDispatcher.unregisterChat(-1);
+      WebSocketPushDispatcher.unregisterGlobal();
     });
 
     // Load cache immediately
@@ -79,6 +79,35 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     }
 
     return _fetch();
+  }
+
+  void _handlePushEvent(ChatPushEvent event) {
+    switch (event.kind) {
+      case ChatPushEventKind.newMessage:
+        _handleNewMessagePush(event.message);
+      case ChatPushEventKind.edited:
+        _handleEditedPush(event.message);
+      case ChatPushEventKind.deleted:
+      case ChatPushEventKind.reaction:
+      case ChatPushEventKind.read:
+        break;
+    }
+  }
+
+  void _handleEditedPush(ApiMessage message) {
+    final List<ApiChatSummary>? currentChats = state.value;
+    if (currentChats == null) return;
+
+    final int index =
+        currentChats.indexWhere((ApiChatSummary c) => c.id == message.chatId);
+    if (index == -1) return;
+    final ApiChatSummary chat = currentChats[index];
+    if (chat.lastMessage?.id != message.id) return;
+
+    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(currentChats);
+    updated[index] = chat.copyWith(lastMessage: message);
+    state = AsyncData<List<ApiChatSummary>>(updated);
+    ref.read(cacheServiceProvider).saveChats(updated);
   }
 
   void _handleNewMessagePush(ApiMessage message) {
@@ -244,10 +273,88 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     return messages;
   }
 
-  void handlePush(ApiMessage message) {
-    if (message.chatId == _chatId) {
-      _handleNewIncomingMessage(message);
+  void handlePush(ChatPushEvent event) {
+    if (event.message.chatId != _chatId) return;
+    switch (event.kind) {
+      case ChatPushEventKind.newMessage:
+        _handleNewIncomingMessage(event.message);
+      case ChatPushEventKind.edited:
+        _handleEditedIncomingMessage(event.message);
+      case ChatPushEventKind.deleted:
+        _handleDeletedIncomingMessage(event.message);
+      case ChatPushEventKind.reaction:
+        _handleReactionPush(event.message, event.reactionEmoji!,
+            added: event.reactionAdded);
+      case ChatPushEventKind.read:
+        _handleReadPush(event.userId!);
     }
+  }
+
+  Future<void> _handleEditedIncomingMessage(ApiMessage message) async {
+    final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    final int index = current.indexWhere((ApiMessage m) => m.id == message.id);
+    if (index == -1) return;
+
+    ApiMessage next = message;
+    // Secret chats: re-decrypt the edited payload.
+    if (message.isE2ee && message.e2eeContent != null) {
+      final List<ApiMessage> decrypted =
+          await _decryptE2eeMessages(<ApiMessage>[message]);
+      if (decrypted.isNotEmpty) next = decrypted.first;
+    }
+
+    final List<ApiMessage> updated = List<ApiMessage>.from(current)
+      ..[index] = next;
+    state = AsyncData<List<ApiMessage>>(updated);
+    await _saveToCache(updated);
+  }
+
+  void _handleDeletedIncomingMessage(ApiMessage message) {
+    final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    final int index = current.indexWhere((ApiMessage m) => m.id == message.id);
+    if (index == -1) return;
+
+    final List<ApiMessage> updated = List<ApiMessage>.from(current)
+      ..removeAt(index);
+    state = AsyncData<List<ApiMessage>>(updated);
+    _saveToCache(updated);
+  }
+
+  void _handleReactionPush(ApiMessage message, String emoji,
+      {required bool added}) {
+    final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    final int index = current.indexWhere((ApiMessage m) => m.id == message.id);
+    if (index == -1) return;
+
+    final Map<String, int> reactions =
+        Map<String, int>.from(current[index].reactions);
+    final int count = (reactions[emoji] ?? 0) + (added ? 1 : -1);
+    if (count > 0) {
+      reactions[emoji] = count;
+    } else {
+      reactions.remove(emoji);
+    }
+
+    final List<ApiMessage> updated = List<ApiMessage>.from(current)
+      ..[index] = current[index].copyWith(reactions: reactions);
+    state = AsyncData<List<ApiMessage>>(updated);
+    _saveToCache(updated);
+  }
+
+  /// [userId] read the whole chat: every message NOT sent by them is now read.
+  void _handleReadPush(int userId) {
+    final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    bool changed = false;
+    final List<ApiMessage> updated = current.map((ApiMessage m) {
+      if (m.senderId != userId && !m.isRead) {
+        changed = true;
+        return m.copyWith(isRead: true);
+      }
+      return m;
+    }).toList();
+    if (!changed) return;
+    state = AsyncData<List<ApiMessage>>(updated);
+    _saveToCache(updated);
   }
 
   Future<void> _handleNewIncomingMessage(ApiMessage message) async {

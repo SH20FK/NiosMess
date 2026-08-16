@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
+import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
 class CallPushHandler extends Notifier<void> {
@@ -17,6 +18,10 @@ class CallPushHandler extends Notifier<void> {
     if (event is! Map) return;
     final Map<String, dynamic> msg = asStringMap(event);
     final String action = msg['action'] as String? ?? '';
+    if (action == 'end_call') {
+      _handleEndCall(msg);
+      return;
+    }
     if (action != 'new_call') return;
 
     final Map<String, dynamic> payload = msg['payload'] is Map
@@ -40,6 +45,25 @@ class CallPushHandler extends Notifier<void> {
       initiatorId: initiatorId,
       initiatorName: initiatorName,
     ));
+  }
+
+  /// The other side ended/cancelled the call: dismiss the ringing banner and
+  /// tear down the active session if it matches.
+  void _handleEndCall(Map<String, dynamic> msg) {
+    final Map<String, dynamic> payload = msg['payload'] is Map
+        ? asStringMap(msg['payload'] as Map)
+        : const <String, dynamic>{};
+    final String? roomId = payload['room_id'] as String?;
+
+    final IncomingCallData? incoming = ref.read(incomingCallProvider);
+    if (incoming != null && (roomId == null || incoming.roomId == roomId)) {
+      ref.read(incomingCallProvider.notifier).set(null);
+    }
+
+    final CallSessionManager? manager = ref.read(callSessionProvider);
+    if (manager != null && roomId != null && manager.roomId == roomId) {
+      unawaited(manager.remoteEnd());
+    }
   }
 }
 

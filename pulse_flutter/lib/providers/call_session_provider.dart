@@ -95,4 +95,13 @@ class CallSessionManager {
     _session?.dispose();
     _session = null;
   }
+
+  /// The remote side ended the call (end_call push): tear down locally
+  /// without echoing end signaling back to the server.
+  Future<void> remoteEnd() async {
+    await _session?.end();
+    _session?.dispose();
+    _session = null;
+    ref.read(callSessionProvider.notifier).setSession(null);
+  }
 }

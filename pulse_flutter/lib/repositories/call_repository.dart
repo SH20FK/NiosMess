@@ -66,6 +66,25 @@ class CallRepository {
         );
   }
 
+  /// Callee rejected the call: finalize it server-side; the server
+  /// broadcasts end_call so the caller hangs up immediately.
+  Future<void> decline({
+    required int chatId,
+    required String roomId,
+    required int messageId,
+  }) async {
+    await _ref
+        .read(webSocketClientProvider)
+        .request(
+          'decline_call',
+          payload: <String, dynamic>{
+            'chat_id': chatId,
+            'room_id': roomId,
+            'message_id': messageId,
+          },
+        );
+  }
+
   Future<ApiCallStatus> status(int callId) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)

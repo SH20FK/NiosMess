@@ -29,7 +29,8 @@ class MainShellScreen extends ConsumerStatefulWidget {
   ConsumerState<MainShellScreen> createState() => _MainShellScreenState();
 }
 
-class _MainShellScreenState extends ConsumerState<MainShellScreen> {
+class _MainShellScreenState extends ConsumerState<MainShellScreen>
+    with WidgetsBindingObserver {
   static const List<String> _tabs = <String>[
     'chats',
     'contacts',
@@ -39,12 +40,27 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
 
   late final PageController _pageController;
 
+  bool _biometricLocked = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(initialPage: _tabIndex(widget.tab));
     _checkBiometricLock();
     _showAlphaDialog();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-lock when leaving the foreground; unlock (or exit) on return.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _biometricLocked = true;
+    } else if (state == AppLifecycleState.resumed && _biometricLocked) {
+      _biometricLocked = false;
+      _checkBiometricLock();
+    }
   }
 
   Future<void> _showAlphaDialog() async {
@@ -80,6 +96,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
     super.dispose();
   }
