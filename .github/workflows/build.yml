@@ -8,8 +8,30 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pulse_flutter
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter analyze --fatal-infos
+
+      - run: flutter test
+
   build-android:
     name: Build Android APK
+    needs: test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,14 +59,14 @@ jobs:
           cat > android/app/google-services.json << 'EOF'
           {
             "project_info": {
-              "project_number": "31725064203",
-              "project_id": "niosmess",
-              "storage_bucket": "niosmess.firebasestorage.app"
+              "project_number": "825221435616",
+              "project_id": "niosmes",
+              "storage_bucket": "niosmes.firebasestorage.app"
             },
             "client": [
               {
                 "client_info": {
-                  "mobilesdk_app_id": "1:31725064203:android:326bc0c2a61a2aa482370e",
+                  "mobilesdk_app_id": "1:825221435616:android:225ca60a8de4e3ce388085",
                   "android_client_info": {
                     "package_name": "com.niosmess.pulse"
                   }
@@ -52,7 +74,7 @@ jobs:
                 "oauth_client": [],
                 "api_key": [
                   {
-                    "current_key": "AIzaSyAgIlq9dix4DYlLBNUF4eqsofZqh_uItUI"
+                    "current_key": "AIzaSyBKS1OjGKwwJmvEnBwg8q1_WDw1G_def2w"
                   }
                 ],
                 "services": {
@@ -75,6 +97,7 @@ jobs:
 
   build-android-debug:
     name: Build Android APK (debug)
+    needs: test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -102,14 +125,14 @@ jobs:
           cat > android/app/google-services.json << 'EOF'
           {
             "project_info": {
-              "project_number": "31725064203",
-              "project_id": "niosmess",
-              "storage_bucket": "niosmess.firebasestorage.app"
+              "project_number": "825221435616",
+              "project_id": "niosmes",
+              "storage_bucket": "niosmes.firebasestorage.app"
             },
             "client": [
               {
                 "client_info": {
-                  "mobilesdk_app_id": "1:31725064203:android:326bc0c2a61a2aa482370e",
+                  "mobilesdk_app_id": "1:825221435616:android:225ca60a8de4e3ce388085",
                   "android_client_info": {
                     "package_name": "com.niosmess.pulse"
                   }
@@ -117,7 +140,7 @@ jobs:
                 "oauth_client": [],
                 "api_key": [
                   {
-                    "current_key": "AIzaSyAgIlq9dix4DYlLBNUF4eqsofZqh_uItUI"
+                    "current_key": "AIzaSyBKS1OjGKwwJmvEnBwg8q1_WDw1G_def2w"
                   }
                 ],
                 "services": {
@@ -140,6 +163,7 @@ jobs:
 
   build-web:
     name: Build Web
+    needs: test
     runs-on: ubuntu-latest
     defaults:
       run:
