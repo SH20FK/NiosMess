@@ -74,15 +74,20 @@ class CallSessionData {
   }
 }
 
-/// A remote participant in the call.
+/// A remote participant in a call.
 class RemoteParticipant {
-  const RemoteParticipant({
+  RemoteParticipant({
     required this.clientId,
     required this.nickname,
-  });
+    DateTime? lastSeen,
+  }) : lastSeen = lastSeen ?? DateTime.now();
 
   final int clientId;
   final String nickname;
+
+  /// Last heartbeat received from this participant; used to drop peers
+  /// that silently disappeared.
+  final DateTime lastSeen;
 }
 
 /// Callback: outgoing audio frame (Opus) to send.

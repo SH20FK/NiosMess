@@ -151,3 +151,57 @@ Uint8List addLengthPrefix(Uint8List packet) {
   framed.setRange(4, framed.length, packet);
   return framed;
 }
+
+/// Plaintext framing for video media inside the encrypted media payload.
+///
+/// Audio and video share the 0x01 media packet type (the SFU treats the
+/// payload as opaque), so video frames carry a magic prefix in the
+/// decrypted plaintext:
+///
+///   [magic "VIDO" 4b][frameType 1b][timestamp f64 8b][jpeg bytes]
+///
+/// Opus audio frames never legitimately start with these 4 bytes, so the
+/// disambiguation is reliable without touching the wire format.
+const List<int> kVideoFrameMagic = <int>[0x56, 0x49, 0x44, 0x4F]; // "VIDO"
+const int kVideoFrameHeaderBytes = 13;
+
+Uint8List packVideoFramePlain({
+  required int frameType,
+  required double timestamp,
+  required Uint8List jpeg,
+}) {
+  final Uint8List plain = Uint8List(kVideoFrameHeaderBytes + jpeg.length);
+  plain.setRange(0, 4, kVideoFrameMagic);
+  plain[4] = frameType;
+  ByteData.view(plain.buffer, plain.offsetInBytes, plain.length)
+      .setFloat64(5, timestamp);
+  plain.setRange(kVideoFrameHeaderBytes, plain.length, jpeg);
+  return plain;
+}
+
+class VideoFrameData {
+  const VideoFrameData({
+    required this.frameType,
+    required this.timestamp,
+    required this.jpeg,
+  });
+
+  final int frameType;
+  final double timestamp;
+  final Uint8List jpeg;
+}
+
+/// Returns the video frame if [plain] carries video framing, otherwise null
+/// (meaning the payload is an Opus audio frame).
+VideoFrameData? tryUnpackVideoFrame(Uint8List plain) {
+  if (plain.length <= kVideoFrameHeaderBytes) return null;
+  for (int i = 0; i < 4; i++) {
+    if (plain[i] != kVideoFrameMagic[i]) return null;
+  }
+  return VideoFrameData(
+    frameType: plain[4],
+    timestamp: ByteData.view(plain.buffer, plain.offsetInBytes, plain.length)
+        .getFloat64(5),
+    jpeg: Uint8List.sublistView(plain, kVideoFrameHeaderBytes),
+  );
+}

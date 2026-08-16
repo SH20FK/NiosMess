@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
@@ -41,12 +41,9 @@ class VideoPipeline {
   final int maxHeight;
 
   CameraController? _controller;
-  StreamSubscription<CameraImage>? _imageSub;
   bool _started = false;
   bool _stopped = false;
   bool _capturing = false;
-  int _frameCount = 0;
-  Timer? _fpsTimer;
   int _lastFrameMs = 0;
   int _frameIntervalMs = 0;
   CameraLensDirection _currentLens = CameraLensDirection.front;
@@ -114,10 +111,12 @@ class VideoPipeline {
       if (jpeg.isEmpty) return;
 
       final timestamp = now / 1000.0;
+      // AES-GCM requires a unique nonce per key; use a random IV like the
+      // audio path does.
+      final random = math.Random.secure();
       final iv = Uint8List(12);
       for (int i = 0; i < 12; i++) {
-        iv[i] = _frameCount & 0xFF;
-        _frameCount++;
+        iv[i] = random.nextInt(256);
       }
 
       await onSendPacket(
@@ -135,37 +134,33 @@ class VideoPipeline {
 
   Future<Uint8List> _convertToJpeg(CameraImage image) async {
     try {
-      img.Image? dartImage;
+      // Copy the raw plane bytes on the platform thread: CameraImage holds
+      // native buffers that cannot cross isolate boundaries.
+      final ImageFormatGroup group = image.format.group;
+      final List<Uint8List> planes = <Uint8List>[
+        for (final Plane plane in image.planes)
+          Uint8List.fromList(plane.bytes),
+      ];
+      final int width = image.width;
+      final int height = image.height;
+      final int maxWidth = this.maxWidth;
+      final int maxHeight = this.maxHeight;
 
-      if (image.format.group == ImageFormatGroup.bgra8888) {
-        final Uint8List bgraBytes = image.planes[0].bytes;
-        final Uint8List rgbaBytes = Uint8List(bgraBytes.length);
-        for (int i = 0; i < bgraBytes.length; i += 4) {
-          rgbaBytes[i] = bgraBytes[i + 2];
-          rgbaBytes[i + 1] = bgraBytes[i + 1];
-          rgbaBytes[i + 2] = bgraBytes[i];
-          rgbaBytes[i + 3] = bgraBytes[i + 3];
-        }
-        dartImage = img.Image.fromBytes(
-          width: image.width,
-          height: image.height,
-          bytes: rgbaBytes.buffer,
-          numChannels: 4,
+      // BGRA→RGBA, resize and PNG encode are pure Dart and heavy — run them
+      // off the UI thread, then JPEG-compress on the platform thread.
+      final Uint8List png = await Isolate.run(() {
+        return _encodeFramePng(
+          planes: planes,
+          width: width,
+          height: height,
+          group: group,
+          maxWidth: maxWidth,
+          maxHeight: maxHeight,
         );
-      } else if (image.format.group == ImageFormatGroup.yuv420) {
-        final Uint8List nv21 = _yuv420ToNv21(image);
-        dartImage = img.decodeImage(nv21);
-      } else {
-        final Uint8List raw = _concatenatePlanes(image);
-        dartImage = img.decodeImage(raw);
-      }
-
-      if (dartImage == null) return Uint8List(0);
-
-      final img.Image resized = _resizeIfNeeded(dartImage);
+      });
 
       final result = await FlutterImageCompress.compressWithList(
-        img.encodePng(resized),
+        png,
         quality: quality,
         format: CompressFormat.jpeg,
       );
@@ -177,47 +172,78 @@ class VideoPipeline {
     }
   }
 
-  Uint8List _yuv420ToNv21(CameraImage image) {
-    final int width = image.width;
-    final int height = image.height;
+  static Uint8List _encodeFramePng({
+    required List<Uint8List> planes,
+    required int width,
+    required int height,
+    required ImageFormatGroup group,
+    required int maxWidth,
+    required int maxHeight,
+  }) {
+    img.Image? dartImage;
+    if (group == ImageFormatGroup.bgra8888) {
+      final Uint8List bgraBytes = planes[0];
+      final Uint8List rgbaBytes = Uint8List(bgraBytes.length);
+      for (int i = 0; i < bgraBytes.length; i += 4) {
+        rgbaBytes[i] = bgraBytes[i + 2];
+        rgbaBytes[i + 1] = bgraBytes[i + 1];
+        rgbaBytes[i + 2] = bgraBytes[i];
+        rgbaBytes[i + 3] = bgraBytes[i + 3];
+      }
+      dartImage = img.Image.fromBytes(
+        width: width,
+        height: height,
+        bytes: rgbaBytes.buffer,
+        numChannels: 4,
+      );
+    } else if (group == ImageFormatGroup.yuv420) {
+      dartImage = img.decodeImage(_yuv420ToNv21(planes, width, height));
+    } else {
+      dartImage = img.decodeImage(_concatenatePlanes(planes));
+    }
+    if (dartImage == null) return Uint8List(0);
+
+    if (dartImage.width <= maxWidth && dartImage.height <= maxHeight) {
+      return img.encodePng(dartImage);
+    }
+    final double scale =
+        math.min(maxWidth / dartImage.width, maxHeight / dartImage.height);
+    final int w = (dartImage.width * scale).round();
+    final int h = (dartImage.height * scale).round();
+    return img.encodePng(img.copyResize(dartImage, width: w, height: h));
+  }
+
+  static Uint8List _yuv420ToNv21(List<Uint8List> planes, int width, int height) {
     final int ySize = width * height;
     final int uvSize = (width * height) ~/ 2;
     final Uint8List nv21 = Uint8List(ySize + uvSize);
 
-    final Plane yPlane = image.planes[0];
-    nv21.setRange(0, ySize, yPlane.bytes);
+    final Uint8List yPlane = planes[0];
+    nv21.setRange(0, ySize, yPlane);
 
-    final Plane uPlane = image.planes[1];
-    final Plane vPlane = image.planes[2];
+    final Uint8List uPlane = planes[1];
+    final Uint8List vPlane = planes[2];
     int uvOffset = ySize;
-    for (int i = 0; i < uPlane.bytes.length && uvOffset + 1 < nv21.length; i++) {
-      nv21[uvOffset++] = vPlane.bytes[i];
-      nv21[uvOffset++] = uPlane.bytes[i];
+    for (int i = 0; i < uPlane.length && uvOffset + 1 < nv21.length; i++) {
+      nv21[uvOffset++] = vPlane[i];
+      nv21[uvOffset++] = uPlane[i];
     }
 
     return nv21;
   }
 
-  Uint8List _concatenatePlanes(CameraImage image) {
+  static Uint8List _concatenatePlanes(List<Uint8List> planes) {
     int totalSize = 0;
-    for (final plane in image.planes) {
-      totalSize += plane.bytes.length;
+    for (final Uint8List plane in planes) {
+      totalSize += plane.length;
     }
     final Uint8List all = Uint8List(totalSize);
     int offset = 0;
-    for (final plane in image.planes) {
-      all.setRange(offset, offset + plane.bytes.length, plane.bytes);
-      offset += plane.bytes.length;
+    for (final Uint8List plane in planes) {
+      all.setRange(offset, offset + plane.length, plane);
+      offset += plane.length;
     }
     return all;
-  }
-
-  img.Image _resizeIfNeeded(img.Image src) {
-    if (src.width <= maxWidth && src.height <= maxHeight) return src;
-    final scale = math.min(maxWidth / src.width, maxHeight / src.height);
-    final w = (src.width * scale).round();
-    final h = (src.height * scale).round();
-    return img.copyResize(src, width: w, height: h);
   }
 
   Future<void> switchCamera() async {
@@ -232,10 +258,6 @@ class VideoPipeline {
     if (_stopped) return;
     _stopped = true;
     _capturing = false;
-    _fpsTimer?.cancel();
-
-    await _imageSub?.cancel();
-    _imageSub = null;
 
     try {
       await _controller?.stopImageStream();

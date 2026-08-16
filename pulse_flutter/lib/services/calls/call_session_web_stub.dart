@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 
 import 'call_session_types.dart';
-import 'call_transport.dart';
 import 'video_output_pipeline.dart';
 
 // ignore: use_key_in_widget_constructors
@@ -56,6 +54,7 @@ class CallSession {
   void setSpeakerOn(bool on) {
     _isSpeakerOn = on;
   }
+  Future<void> setLocalVideoEnabled(bool enabled) async {}
   Future<void> switchCamera() async {}
   Future<void> end() async {}
   void dispose() {}

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:audio_session/audio_session.dart';
 import 'package:camera/camera.dart';
@@ -77,6 +76,13 @@ class CallSession {
   CallSessionState _state = CallSessionState.idle;
   bool _isMuted = false;
   bool _isSpeakerOn = false;
+  bool _isSelfVideoEnabled = true;
+  final List<StreamSubscription<void>> _transportSubs =
+      <StreamSubscription<void>>[];
+  int _reconnectAttempts = 0;
+  static const int _maxReconnectAttempts = 5;
+  /// Participants that have not sent a heartbeat for this long are dropped.
+  static const Duration _participantStaleTimeout = Duration(seconds: 10);
 
   CallSessionData get currentData => CallSessionData(
         state: _state,
@@ -86,10 +92,11 @@ class CallSession {
         direction: direction,
         localClientId: _localClientId,
         durationSeconds: _elapsedSeconds,
-        remoteParticipants: _remoteParticipants,
+        remoteParticipants: List<RemoteParticipant>.unmodifiable(_remoteParticipants),
         verificationEmojis: _verificationEmojis,
         isMuted: _isMuted,
         isSpeakerOn: _isSpeakerOn,
+        isSelfVideoEnabled: _isSelfVideoEnabled,
       );
 
   final StreamController<CallSessionData> _stateController =
@@ -160,16 +167,21 @@ class CallSession {
   }
 
   void _setupTransportListeners(CallTransport transport) {
-    transport.onPacketReceived.listen((Uint8List data) {
-      _handleIncomingPacket(data);
-    });
+    for (final StreamSubscription<void> sub in _transportSubs) {
+      unawaited(sub.cancel());
+    }
+    _transportSubs.clear();
 
-    transport.onDisconnected.listen((_) {
+    _transportSubs.add(transport.onPacketReceived.listen((Uint8List data) {
+      _handleIncomingPacket(data);
+    }));
+
+    _transportSubs.add(transport.onDisconnected.listen((_) {
       if (!_ended) {
         _setState(CallSessionState.reconnecting);
-        _tryReconnect();
+        unawaited(_tryReconnect());
       }
-    });
+    }));
   }
 
   void _handleIncomingPacket(Uint8List data) {
@@ -217,6 +229,7 @@ class CallSession {
     final participant = RemoteParticipant(
       clientId: parsed.senderClientId,
       nickname: nickname,
+      lastSeen: DateTime.now(),
     );
     if (idx != -1) {
       _remoteParticipants[idx] = participant;
@@ -225,6 +238,18 @@ class CallSession {
     }
     onRemoteParticipantJoined?.call(participant);
     _triggerStateUpdate();
+  }
+
+  /// Drops participants whose heartbeat has gone stale.
+  void _pruneStaleParticipants() {
+    final DateTime now = DateTime.now();
+    _remoteParticipants.removeWhere((RemoteParticipant p) {
+      final bool stale = now.difference(p.lastSeen) > _participantStaleTimeout;
+      if (stale) {
+        onRemoteParticipantLeft?.call(p.clientId);
+      }
+      return stale;
+    });
   }
 
   Future<void> _handlePeerPublicKey(Uint8List data) async {
@@ -269,7 +294,14 @@ class CallSession {
       await _keyManager.importKeyExchange(senderId, iv, encryptedKey);
       debugPrint('[CallSession] Successfully imported media key for sender $senderId');
     } catch (e) {
+      // We likely received the exchange before the peer's public key packet.
+      // Re-announce our own key so the peer can retry the exchange.
       debugPrint('[CallSession] Decrypt peer key failed: $e');
+      if (_keyManager.myPubKeyRaw != null) {
+        final Uint8List pubKeyPacket =
+            packPublicKeyPacket(myPubKeyRaw: _keyManager.myPubKeyRaw!);
+        unawaited(_transport?.send(pubKeyPacket));
+      }
     }
   }
 
@@ -298,8 +330,16 @@ class CallSession {
         box,
         secretKey: peerKey,
       );
+      final Uint8List plain = Uint8List.fromList(decrypted);
 
-      onIncomingAudio?.call(Uint8List.fromList(decrypted));
+      // Video frames carry a "VIDO" plaintext header (see binary_packet.dart);
+      // everything else is an Opus audio frame.
+      final VideoFrameData? video = tryUnpackVideoFrame(plain);
+      if (video != null) {
+        onIncomingVideo?.call(video.jpeg, video.frameType, video.timestamp);
+      } else {
+        onIncomingAudio?.call(plain);
+      }
     } catch (e) {
       debugPrint('[CallSession] Media decrypt failed: $e');
     }
@@ -323,15 +363,14 @@ class CallSession {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _sendHeartbeat();
+      _pruneStaleParticipants();
     });
 
     _durationTimer?.cancel();
     _elapsedSeconds = 0;
     _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       _elapsedSeconds++;
-      final data = currentData;
-      onStateChanged?.call(data);
-      _stateController.add(data);
+      _triggerStateUpdate();
     });
   }
 
@@ -345,7 +384,18 @@ class CallSession {
 
   Future<void> _tryReconnect() async {
     if (_ended) return;
-    await Future.delayed(const Duration(seconds: 2));
+
+    if (_reconnectAttempts >= _maxReconnectAttempts) {
+      _setState(CallSessionState.ended);
+      return;
+    }
+    _reconnectAttempts++;
+
+    // Exponential backoff: 2s, 4s, 8s, 16s, 30s.
+    final Duration delay = Duration(
+      seconds: min(2 * (1 << (_reconnectAttempts - 1)), 30),
+    );
+    await Future.delayed(delay);
     if (_ended) return;
 
     final transport = WsCallTransport();
@@ -357,10 +407,18 @@ class CallSession {
       nickname: displayName,
     );
 
+    if (_ended) {
+      unawaited(transport.disconnect());
+      return;
+    }
+
     if (result == TransportConnectResult.connected) {
+      _reconnectAttempts = 0;
       _setState(CallSessionState.connected);
-    } else {
+    } else if (_reconnectAttempts >= _maxReconnectAttempts) {
       _setState(CallSessionState.ended);
+    } else {
+      unawaited(_tryReconnect());
     }
   }
 
@@ -405,9 +463,7 @@ class CallSession {
   /// Mute / unmute local audio.
   Future<void> setMuted(bool muted) async {
     _isMuted = muted;
-    final data = currentData;
-    onStateChanged?.call(data);
-    _stateController.add(data);
+    _triggerStateUpdate();
   }
 
   /// Toggle speakerphone.
@@ -429,9 +485,7 @@ class CallSession {
         androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
       ));
     } catch (_) {}
-    final data = currentData;
-    onStateChanged?.call(data);
-    _stateController.add(data);
+    _triggerStateUpdate();
   }
 
   /// End the call.
@@ -500,12 +554,22 @@ class CallSession {
   }
 
   Future<void> _startVideoPipeline() async {
-    _videoOutput = VideoOutputPipeline();
-    _videoOutput!.start();
+    if (_videoOutput == null) {
+      _videoOutput = VideoOutputPipeline();
+      _videoOutput!.start();
+    }
 
     onIncomingVideo = (data, frameType, timestamp) {
       _videoOutput?.pushFrame(data);
     };
+
+    if (!_isSelfVideoEnabled) return;
+
+    await _startVideoCapture();
+  }
+
+  Future<void> _startVideoCapture() async {
+    if (_videoPipeline != null) return;
 
     _videoPipeline = VideoPipeline(
       onCameraReady: onCameraReady,
@@ -517,8 +581,14 @@ class CallSession {
       }) async {
         if (_transport == null || _localClientId == null || _ended) return;
 
+        final Uint8List plain = packVideoFramePlain(
+          frameType: frameType,
+          timestamp: timestamp,
+          jpeg: encryptedVp8,
+        );
+
         final SecretBox secretBox = await AesGcm.with256bits().encrypt(
-          encryptedVp8,
+          plain,
           secretKey: _keyManager.mySenderKey ?? aesKey,
           nonce: iv,
         );
@@ -538,6 +608,20 @@ class CallSession {
     await _videoPipeline!.start();
   }
 
+  /// Turn the local camera stream on/off without leaving the call.
+  Future<void> setLocalVideoEnabled(bool enabled) async {
+    if (_isSelfVideoEnabled == enabled) return;
+    _isSelfVideoEnabled = enabled;
+
+    if (!enabled) {
+      await _videoPipeline?.stop();
+      _videoPipeline = null;
+    } else if (isVideo) {
+      await _startVideoCapture();
+    }
+    _triggerStateUpdate();
+  }
+
   Future<void> _stopAudioPipeline() async {
     await _audioPipeline?.stop();
     _audioPipeline = null;
@@ -551,9 +635,7 @@ class CallSession {
 
   void _setState(CallSessionState newState) {
     _state = newState;
-    final data = currentData;
-    onStateChanged?.call(data);
-    _stateController.add(data);
+    _triggerStateUpdate();
 
     if (newState == CallSessionState.inCall) {
       _startAudioPipeline();
@@ -564,6 +646,9 @@ class CallSession {
   }
 
   void dispose() {
+    // Mark ended first so the WS disconnect notification below does not
+    // trigger a reconnect on a disposed session.
+    _ended = true;
     _heartbeatTimer?.cancel();
     _durationTimer?.cancel();
     _audioPipeline?.dispose();
@@ -574,8 +659,13 @@ class CallSession {
     _videoPipeline = null;
     _videoOutput?.dispose();
     _videoOutput = null;
-    _stateController.close();
+    for (final StreamSubscription<void> sub in _transportSubs) {
+      unawaited(sub.cancel());
+    }
+    _transportSubs.clear();
     _transport?.disconnect();
     (_transport as WsCallTransport?)?.dispose();
+    _transport = null;
+    _stateController.close();
   }
 }
