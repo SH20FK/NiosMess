@@ -6,7 +6,6 @@ import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
-import 'package:pulse_flutter/widgets/pulse_button.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/animated_mesh_background.dart';
 

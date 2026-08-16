@@ -31,7 +31,6 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/providers/typing_provider.dart';
-import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/widgets/m3_file_picker_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
@@ -48,9 +47,8 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
-import 'package:pulse_flutter/services/calls/nios_calls_api.dart';
+import 'package:pulse_flutter/services/calls/call_starter.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
-import 'package:pulse_flutter/services/permission_service.dart';
 
 class ChatDetailScreen extends ConsumerStatefulWidget {
   const ChatDetailScreen({
@@ -79,11 +77,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   Timer? _draftSaveTimer;
   bool _showDraftRestoredBanner = false;
-
-  bool _uploadingMedia = false;
-  double _uploadProgress = 0;
-  String? _uploadFileName;
-  int? _uploadFileSize;
 
   int? _replyToMessageId;
   String? _replyPreviewText;
@@ -1324,65 +1317,29 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? chatId = _chatId;
     if (chatId == null) return;
 
-    final perm = await PermissionService().requestCallPermissions(video: isVideo);
-    if (!perm) {
-      if (mounted) {
-        AppToast.showError(context, context.l10n.chatCallPermissionRequired);
-      }
-      return;
-    }
-
     try {
-      final random = Random.secure();
-      final roomId = List.generate(32, (_) => random.nextInt(16).toRadixString(16)).join();
-      final nickname = ref.read(authProvider).session?.displayName ?? 'User';
-
-      final result = await ref.read(callRepositoryProvider).initiate(
-        chatId: chatId,
-        roomId: roomId,
-        callerNickname: nickname,
-        isVideo: isVideo,
-      );
-
-      final callId = (result['payload']?['message_id'] ?? result['message_id'] ?? 0) as int;
-
-      unawaited(_tryCreateSfuRoom(roomId));
-
-      final e2ee = ref.read(e2eeServiceProvider);
-      final aesKey = await e2ee.deriveCallKey(callId);
-      final aesKeyBytes = Uint8List.fromList(await aesKey.extractBytes());
-
-      final manager = CallSessionManager(
+      final int callId = await startOutgoingCall(
         ref: ref,
         chatId: chatId,
-        callId: callId,
-        roomId: roomId,
         isVideo: isVideo,
-        direction: CallDirection.outgoing,
-        displayName: nickname,
-        aesKeyBytes: aesKeyBytes,
       );
-
-      manager.start();
-      ref.read(callSessionProvider.notifier).setSession(manager);
 
       if (mounted) {
         context.push('/call/$callId');
+      }
+    } on CallStartException catch (e) {
+      if (mounted) {
+        AppToast.showError(
+          context,
+          e.failure == CallStartFailure.permissions
+              ? context.l10n.chatCallPermissionRequired
+              : context.l10n.chatCallFailed(e),
+        );
       }
     } catch (e) {
       if (mounted) {
         AppToast.showError(context, context.l10n.chatCallFailed('$e'));
       }
-    }
-  }
-
-  Future<void> _tryCreateSfuRoom(String roomId) async {
-    try {
-      final api = NiosCallsApi();
-      await api.createRoom(roomId: roomId);
-      api.dispose();
-    } catch (e) {
-      debugPrint('SFU room creation skipped: $e');
     }
   }
 
@@ -1641,11 +1598,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   _showDraftRestoredBanner = false;
                 });
               },
-              uploadingMedia: false,
-              uploadFileName: null,
-              uploadFileSize: null,
-              uploadProgress: 0,
-              onCancelUpload: () {},
+              uploadingMedia:
+                  ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
               inputController: _inputController,
               inputFocusNode: _inputFocusNode,
               isAiProcessing: _isAiProcessing,

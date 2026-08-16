@@ -38,6 +38,7 @@ import 'package:pulse_flutter/screens/splash_screen.dart';
 import 'package:pulse_flutter/screens/two_fa_screen.dart';
 import 'package:pulse_flutter/screens/verify_email_screen.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/screens/call_redirect_screen.dart';
 import 'package:pulse_flutter/screens/calls/active_call_screen.dart';
 
 class AppRouter {
@@ -247,10 +248,9 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/file-viewer',
         pageBuilder: (context, state) {
-          final fileName = state.uri.queryParameters['name'] ?? '';
           final url = state.uri.queryParameters['url'];
           final localPath = state.uri.queryParameters['path'];
-          final typeStr = state.uri.queryParameters['type'] ?? 'unknown';
+          final fileName = state.uri.queryParameters['name'] ?? '';
           final fileType = FileTypeDetector.detect(fileName: fileName);
           return _page(
             state,
@@ -278,6 +278,17 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/call/:callId',
         pageBuilder: (context, state) => _page(state, const ActiveCallScreen(), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/call/dm/:username',
+        pageBuilder: (context, state) => _page(
+          state,
+          CallRedirectScreen(
+            username: state.pathParameters['username']!,
+            isVideo: state.uri.queryParameters['isVideo'] == '1',
+          ),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/:pathMatch(.*)',

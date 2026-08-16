@@ -78,13 +78,11 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
   Future<void> _uploadAvatar() async {
     if (_uploadingAvatar) return;
     final FilePickerResult? picked = await FilePicker.pickFiles(
-      allowMultiple: false,
       type: FileType.image,
-      withData: true,
     );
     if (picked == null || picked.files.isEmpty || !mounted) return;
 
-    final Uint8List? bytes = picked.files.first.bytes;
+    final Uint8List? bytes = await picked.files.first.readAsBytes();
     if (bytes == null || bytes.isEmpty) return;
 
     final String filename = picked.files.first.name.isNotEmpty

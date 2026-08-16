@@ -5,6 +5,7 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -244,7 +245,7 @@ class _PdfViewerState extends State<_PdfViewer> {
   }
 
   Future<String> _getTempDir() async {
-    return '/tmp';
+    return (await getTemporaryDirectory()).path;
   }
 
   @override

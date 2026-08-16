@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/network/api_constants.dart';
-import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';

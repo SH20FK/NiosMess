@@ -47,7 +47,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _uploadAvatar() async {
     final FilePickerResult? result = await FilePicker.pickFiles(
       type: FileType.image,
-      withData: true,
     );
     if (result == null || result.files.isEmpty) return;
 
@@ -56,8 +55,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     try {
       final PlatformFile file = result.files.first;
-      Uint8List bytes = file.bytes ?? 
-          (file.path != null ? await File(file.path!).readAsBytes() : Uint8List(0));
+      final Uint8List? read = await file.readAsBytes();
+      final Uint8List bytes = read ?? Uint8List(0);
       if (bytes.isEmpty) return;
       final Uint8List? compressed = await ImageCompressor.compressImageBytes(
         bytes: bytes,

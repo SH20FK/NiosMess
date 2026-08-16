@@ -131,8 +131,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
     setState(() => _terminatingAll = true);
     try {
+      final int? currentId = _currentSessionId;
       final List<int> otherIds = _sessions!
-          .where((ApiSession s) => s.id != null)
+          .where((ApiSession s) => s.id != currentId)
           .map((ApiSession s) => s.id)
           .toList();
       await Future.wait(
@@ -149,13 +150,17 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     }
   }
 
+  /// Best-effort detection of the current session: the server does not mark it,
+  /// so we use the most recently active one (which is this device after a refresh).
+  int? get _currentSessionId => _sessions != null && _sessions!.isNotEmpty
+      ? _sessions!.reduce((a, b) => a.lastActive.isAfter(b.lastActive) ? a : b).id
+      : null;
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final int? currentSessionId = _sessions != null && _sessions!.isNotEmpty
-        ? _sessions!.reduce((a, b) => a.lastActive.isAfter(b.lastActive) ? a : b).id
-        : null;
+    final int? currentSessionId = _currentSessionId;
 
     return SettingsScaffold(
       title: context.l10n.sessionsTitle,

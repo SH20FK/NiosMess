@@ -5258,6 +5258,18 @@ abstract class AppLocalizations {
   /// **'We could not resolve this user right now.'**
   String get directResolverUserNotFoundDesc;
 
+  /// No description provided for @callRedirectStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Calling {username}…'**
+  String callRedirectStarting(Object username);
+
+  /// No description provided for @callRedirectFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not start the call'**
+  String get callRedirectFailed;
+
   /// No description provided for @directResolverSecretTitle.
   ///
   /// In en, this message translates to:

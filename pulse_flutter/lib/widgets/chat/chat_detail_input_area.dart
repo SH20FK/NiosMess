@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/chat/chat_input_bar.dart';
-import 'package:pulse_flutter/widgets/file_upload_progress_widget.dart';
 
 class ChatDetailInputArea extends StatelessWidget {
   const ChatDetailInputArea({
@@ -10,10 +9,6 @@ class ChatDetailInputArea extends StatelessWidget {
     required this.showDraftRestoredBanner,
     required this.onClearDraft,
     required this.uploadingMedia,
-    this.uploadFileName,
-    this.uploadFileSize,
-    required this.uploadProgress,
-    required this.onCancelUpload,
     required this.inputController,
     required this.inputFocusNode,
     required this.isAiProcessing,
@@ -35,12 +30,12 @@ class ChatDetailInputArea extends StatelessWidget {
   final bool canPostInChannel;
   final bool showDraftRestoredBanner;
   final VoidCallback onClearDraft;
+
+  /// True while this chat has uploads in flight — swaps the attach button
+  /// for a spinner in [ChatInputBar]. Per-message progress lives in the
+  /// message bubble itself.
   final bool uploadingMedia;
-  final String? uploadFileName;
-  final int? uploadFileSize;
-  final double uploadProgress;
-  final VoidCallback onCancelUpload;
-  
+
   final TextEditingController inputController;
   final FocusNode inputFocusNode;
   final bool isAiProcessing;
@@ -117,13 +112,6 @@ class ChatDetailInputArea extends StatelessWidget {
                               ],
                             ),
                           ),
-                        ),
-                      if (uploadingMedia && uploadFileName != null)
-                        FileUploadProgressWidget(
-                          fileName: uploadFileName!,
-                          fileSize: uploadFileSize ?? 0,
-                          progress: uploadProgress,
-                          onCancel: onCancelUpload,
                         ),
                       ChatInputBar(
                         inputController: inputController,

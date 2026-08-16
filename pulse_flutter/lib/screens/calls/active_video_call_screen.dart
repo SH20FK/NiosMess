@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -407,6 +406,24 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                           minimumSize: const Size(CallTokens.controlButtonSize, CallTokens.controlButtonSize),
                         ),
                       ),
+                      // Speaker Button
+                      IconButton(
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          _toggleSpeaker(session, data);
+                        },
+                        icon: Icon(
+                          data.isSpeakerOn
+                              ? Icons.volume_up_rounded
+                              : Icons.volume_off_rounded,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                        style: IconButton.styleFrom(
+                          backgroundColor: scheme.surfaceContainerLow.withValues(alpha: 0.2),
+                          minimumSize: const Size(CallTokens.controlButtonSize, CallTokens.controlButtonSize),
+                        ),
+                      ),
                       // Camera Switch Button
                       IconButton(
                         onPressed: () {
@@ -420,6 +437,26 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                         ),
                         style: IconButton.styleFrom(
                           backgroundColor: scheme.surfaceContainerLow.withValues(alpha: 0.2),
+                          minimumSize: const Size(CallTokens.controlButtonSize, CallTokens.controlButtonSize),
+                        ),
+                      ),
+                      // Video On/Off Button
+                      IconButton(
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          session.setLocalVideoEnabled(!data.isSelfVideoEnabled);
+                        },
+                        icon: Icon(
+                          data.isSelfVideoEnabled
+                              ? Icons.videocam_rounded
+                              : Icons.videocam_off_rounded,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                        style: IconButton.styleFrom(
+                          backgroundColor: !data.isSelfVideoEnabled
+                              ? scheme.error.withValues(alpha: 0.3)
+                              : scheme.surfaceContainerLow.withValues(alpha: 0.2),
                           minimumSize: const Size(CallTokens.controlButtonSize, CallTokens.controlButtonSize),
                         ),
                       ),

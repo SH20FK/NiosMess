@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter/rendering.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -28,7 +27,6 @@ import 'package:pulse_flutter/providers/chat_filter_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_filter_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:pulse_flutter/widgets/chat/chat_search_field.dart';
-import 'package:pulse_flutter/widgets/chat_creation_surfaces.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 

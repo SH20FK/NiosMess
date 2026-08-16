@@ -29,8 +29,8 @@ class E2eeKeyManager {
   ];
 
   Future<void> initialize() async {
-    myKeyPair = await _ecdh.newKeyPair() as EcKeyPair;
-    final myPubKey = await myKeyPair!.extractPublicKey() as EcPublicKey;
+    myKeyPair = await _ecdh.newKeyPair();
+    final myPubKey = await myKeyPair!.extractPublicKey();
     myPubKeyRaw = Uint8List(65);
     myPubKeyRaw![0] = 0x04;
     myPubKeyRaw!.setRange(1, 33, myPubKey.x);

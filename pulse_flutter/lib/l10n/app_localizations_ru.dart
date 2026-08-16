@@ -2905,6 +2905,12 @@ class AppLocalizationsRu extends AppLocalizations {
       'Не удалось найти этого пользователя.';
 
   @override
+  String callRedirectStarting(Object username) => 'Звоним $username…';
+
+  @override
+  String get callRedirectFailed => 'Не удалось начать звонок';
+
+  @override
   String get directResolverSecretTitle => 'Секретный чат';
 
   @override

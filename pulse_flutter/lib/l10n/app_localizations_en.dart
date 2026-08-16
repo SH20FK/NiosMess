@@ -2881,6 +2881,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'We could not resolve this user right now.';
 
   @override
+  String callRedirectStarting(Object username) => 'Calling $username…';
+
+  @override
+  String get callRedirectFailed => 'Could not start the call';
+
+  @override
   String get directResolverSecretTitle => 'Secret Chat';
 
   @override

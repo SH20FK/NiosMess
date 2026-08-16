@@ -35,7 +35,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _pickMedia() async {
     final FilePickerResult? result = await FilePicker.pickFiles(
       type: FileType.media,
-      withData: true,
     );
     if (result == null || result.files.isEmpty) return;
     final PlatformFile file = result.files.first;
@@ -44,7 +43,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       return;
     }
 
-    Uint8List? previewBytes = file.bytes;
+    Uint8List? previewBytes = await file.readAsBytes();
     if (previewBytes != null) {
       final Uint8List? compressed = await ImageCompressor.compressImageBytes(
         bytes: previewBytes,
@@ -79,10 +78,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         final String ext =
             file.name.contains('.') ? file.name.split('.').last : '';
         final String mediaSubtype = _mediaSubtype(ext);
+        final Uint8List? fileBytes = await file.readAsBytes();
         final String uploadIdStr = await ref
             .read(chatRepositoryProvider)
             .uploadStreamInChunks(
-              bytes: file.bytes,
+              bytes: fileBytes,
               filename: file.name,
               mediaSubtype: mediaSubtype,
               fileSize: file.size,

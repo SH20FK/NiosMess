@@ -60,6 +60,8 @@ class UploadTask {
 enum UploadStatus { pending, uploading, success, error }
 
 class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
+  static const int _maxConcurrentUploads = 3;
+
   @override
   Map<String, UploadTask> build() {
     ref.listen(connectivityProvider, (AsyncValue<bool>? prev, AsyncValue<bool> next) {
@@ -98,12 +100,29 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
     );
 
     state = {...state, localId: task};
-    _startUpload(localId);
+    _pump();
+  }
+
+  /// Starts pending tasks while staying under the concurrency limit.
+  void _pump() {
+    final int active = state.values
+        .where((UploadTask t) => t.status == UploadStatus.uploading)
+        .length;
+    final List<String> pending = state.entries
+        .where((MapEntry<String, UploadTask> e) =>
+            e.value.status == UploadStatus.pending)
+        .map((MapEntry<String, UploadTask> e) => e.key)
+        .toList();
+    for (int i = active;
+        i < _maxConcurrentUploads && pending.isNotEmpty;
+        i++) {
+      _startUpload(pending.removeAt(0));
+    }
   }
 
   Future<void> _startUpload(String localId) async {
     final task = state[localId];
-    if (task == null) return;
+    if (task == null || task.status == UploadStatus.uploading) return;
 
     state = {
       ...state,
@@ -130,20 +149,21 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
 
       final currentTask = state[localId];
       if (currentTask != null) {
-        state = {
-          ...state,
-          localId: currentTask.copyWith(status: UploadStatus.success, progress: 1.0),
-        };
-
         await ref.read(chatMessagesProvider(task.chatId).notifier).send(
           task.text,
           replyToId: task.replyToId,
           uploadId: uploadId,
-          msgType: task.mediaSubtype == 'voice' 
-              ? 'voice' 
+          msgType: task.mediaSubtype == 'voice'
+              ? 'voice'
               : (task.mediaSubtype == 'circle' ? 'circle' : 'media'),
           localId: localId,
         );
+        // The server message replaced the optimistic one, so the task has
+        // served its purpose — drop it to keep the map bounded.
+        state = {
+          ...state,
+        }..remove(localId);
+        _pump();
       }
     } catch (e) {
       final currentTask = state[localId];
@@ -153,23 +173,31 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
           localId: currentTask.copyWith(status: UploadStatus.error, error: e.toString()),
         };
         ref.read(chatMessagesProvider(task.chatId).notifier).markLocalMessageFailed(localId);
+        _pump();
       }
     }
   }
 
   void retry(String localId) {
     final task = state[localId];
-    if (task != null) {
-      _startUpload(localId);
-    }
+    if (task == null || task.status == UploadStatus.uploading) return;
+    state = {
+      ...state,
+      localId: task.copyWith(status: UploadStatus.pending, progress: 0.0, error: null),
+    };
+    _pump();
   }
 
   void retryAllErrors() {
     for (final MapEntry<String, UploadTask> entry in state.entries) {
       if (entry.value.status == UploadStatus.error) {
-        _startUpload(entry.key);
+        state = {
+          ...state,
+          entry.key: entry.value.copyWith(status: UploadStatus.pending, progress: 0.0, error: null),
+        };
       }
     }
+    _pump();
   }
 }
 
@@ -180,3 +208,16 @@ final uploadQueueProvider = NotifierProvider<UploadQueueNotifier, Map<String, Up
 final uploadTaskProvider = Provider.family<UploadTask?, String>((ref, localId) {
   return ref.watch(uploadQueueProvider)[localId];
 });
+
+/// Tasks of one chat that are still pending or transferring.
+final activeChatUploadsProvider = Provider.family<List<UploadTask>, int>((ref, chatId) {
+  return ref
+      .watch(uploadQueueProvider)
+      .values
+      .where((UploadTask t) => t.chatId == chatId && !_isTerminal(t.status))
+      .toList();
+});
+
+/// Finished transfers are pruned so the state map does not grow forever.
+bool _isTerminal(UploadStatus status) =>
+    status == UploadStatus.success || status == UploadStatus.error;

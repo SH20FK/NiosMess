@@ -27,7 +27,7 @@ class MediaGridPicker extends StatefulWidget {
 
 class _MediaGridPickerState extends State<MediaGridPicker> {
   List<AssetEntity> _allAssets = [];
-  Set<String> _selectedIds = {};
+  final Set<String> _selectedIds = {};
   bool _loading = true;
   String? _error;
 

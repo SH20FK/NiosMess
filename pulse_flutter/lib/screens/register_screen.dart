@@ -312,7 +312,7 @@ class _ConsentCheckbox extends StatelessWidget {
         ),
         Expanded(
           child: GestureDetector(
-            onTap: onChanged != null ? () => onChanged!(!value) : null,
+            onTap: () => onChanged(!value),
             child: Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Wrap(

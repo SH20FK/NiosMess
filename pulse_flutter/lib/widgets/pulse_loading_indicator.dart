@@ -15,8 +15,6 @@ class AppLoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-
     final LoadingIndicatorM3E indicator = color != null
         ? LoadingIndicatorM3E(color: color!)
         : LoadingIndicatorM3E(variant: variant);
