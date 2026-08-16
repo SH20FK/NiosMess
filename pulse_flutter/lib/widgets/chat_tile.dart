@@ -129,16 +129,16 @@ class _ChatTileState extends State<ChatTile>
               widget.onTap();
             },
             onLongPress: _handleLongPress,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(28),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               curve: Curves.easeOutCubic,
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: vertical),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: vertical),
               decoration: BoxDecoration(
                 color: _isHovered || _isExpanded
                     ? scheme.primaryContainer.withValues(alpha: 0.28)
                     : scheme.surfaceContainerLow.withValues(alpha: 0.82),
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(28),
                 border: Border.all(
                   color: _isHovered || _isExpanded
                       ? scheme.primary.withValues(alpha: 0.24)

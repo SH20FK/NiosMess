@@ -131,7 +131,7 @@ class AppBottomNav extends ConsumerWidget {
             borderRadius: BorderRadius.circular(28),
             boxShadow: <BoxShadow>[
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
+                color: scheme.shadow.withValues(alpha: 0.10),
                 blurRadius: 28,
                 offset: const Offset(0, 6),
               ),

@@ -81,6 +81,12 @@ class AppTypography {
         fontWeight: FontWeight.w600,
         color: scheme.onSurfaceVariant,
       ),
+      labelSmall: TextStyle(
+        fontFamily: 'Inter',
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: scheme.onSurfaceVariant,
+      ),
     );
   }
 }

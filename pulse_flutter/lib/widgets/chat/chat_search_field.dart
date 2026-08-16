@@ -66,11 +66,11 @@ class _ChatSearchFieldState extends ConsumerState<ChatSearchField> {
         
         final query = controller.text.trim();
         if (query.isEmpty) {
-          return const [
+          return [
             Padding(
-              padding: EdgeInsets.all(32),
+              padding: const EdgeInsets.all(32),
               child: Center(
-                child: Icon(Icons.search_rounded, size: 64, color: Colors.grey),
+                child: Icon(Icons.search_rounded, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
               ),
             )
           ];

@@ -288,9 +288,9 @@ class MessageBubble extends ConsumerWidget {
                   borderRadius: bubbleRadius,
                   boxShadow: [
                     BoxShadow(
-                      color: scheme.shadow.withValues(alpha: 0.06),
-                      blurRadius: 2,
-                      offset: const Offset(0, 1),
+                      color: scheme.shadow.withValues(alpha: 0.10),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
