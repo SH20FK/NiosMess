@@ -2911,6 +2911,30 @@ class AppLocalizationsRu extends AppLocalizations {
   String get e2eeHandshakeInitiated => 'Безопасное соединение устанавливается';
 
   @override
+  String get profileUsernameLabel => 'Юзернейм';
+
+  @override
+  String groupProfileMembersCount(int count) => '$count участников';
+
+  @override
+  String get chatReactionsPickerTitle => 'Реакция';
+
+  @override
+  String groupProfileSubscribersCount(int count) => '$count подписчиков';
+
+  @override
+  String get profileUsernameInvalid => '3–32 символа: буквы, цифры, подчёркивание';
+
+  @override
+  String get profileNameTooLong => 'Максимум 64 символа';
+
+  @override
+  String get profileLogoutConfirmTitle => 'Выйти из аккаунта?';
+
+  @override
+  String get profileLogoutConfirmBody => 'Чтобы пользоваться NiosMess, придётся войти снова.';
+
+  @override
   String get e2eeHandshakeNoPeerKey => 'Нет публичного ключа собеседника';
 
   @override

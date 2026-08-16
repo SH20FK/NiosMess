@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
+import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -91,7 +92,7 @@ class GroupProfileScreen extends ConsumerWidget {
                               icon: Icons.share_rounded,
                               onPressed: () {
                                 Clipboard.setData(ClipboardData(
-                                  text: chat.inviteLink ?? chat.shareLink ?? 'https://niosmess.com/chat/$chatId',
+                                  text: chat.inviteLink ?? chat.shareLink ?? AppConstants.chatShareUrl(chatId),
                                 ));
                                 AppToast.showInfo(context, context.l10n.groupProfileLinkCopied);
                               },
@@ -202,11 +203,13 @@ class GroupProfileScreen extends ConsumerWidget {
                   if (chat.membersCount > 0) ...[
                     const SizedBox(height: 6),
                     Text(
-                      '${chat.membersCount} ${isChannel ? 'subscribers' : 'members'}',
+                      isChannel
+                          ? context.l10n.groupProfileSubscribersCount(chat.membersCount)
+                          : context.l10n.groupProfileMembersCount(chat.membersCount),
                       style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 12),
-                    _MemberPreview(membersCount: chat.membersCount, isChannel: isChannel),
+                    _MemberPreview(chatId: chat.id),
                   ],
                 ],
               ),
@@ -303,30 +306,38 @@ class GroupProfileScreen extends ConsumerWidget {
   }
 }
 
-class _MemberPreview extends StatelessWidget {
-  const _MemberPreview({required this.membersCount, required this.isChannel});
+class _MemberPreview extends ConsumerWidget {
+  const _MemberPreview({required this.chatId});
 
-  final int membersCount;
-  final bool isChannel;
+  final int chatId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final members =
+        ref.watch(chatMembersProvider(chatId)).value ?? const <ApiChatMember>[];
 
-    final int previewCount = (membersCount < 5 ? membersCount : 5);
-    final List<Widget> avatars = List<Widget>.generate(previewCount, (index) {
-      return Padding(
-        padding: EdgeInsets.only(right: index == previewCount - 1 ? 0 : -8),
-        child: PulseAvatar(
-          name: 'Member ${index + 1}',
-          radius: 16,
-          fallbackColor: scheme.primaryContainer,
-          textColor: scheme.onPrimaryContainer,
+    final int previewCount = members.length < 5 ? members.length : 5;
+    final List<Widget> avatars = <Widget>[];
+    for (int index = 0; index < previewCount; index++) {
+      final ApiChatMember member = members[index];
+      avatars.add(
+        Padding(
+          padding: EdgeInsets.only(
+            right: index == previewCount - 1 && members.length <= previewCount ? 0 : -8,
+          ),
+          child: PulseAvatar(
+            name: member.displayName.isNotEmpty ? member.displayName : member.username,
+            avatarUrl: member.avatarUrl,
+            radius: 16,
+            fallbackColor: scheme.primaryContainer,
+            textColor: scheme.onPrimaryContainer,
+          ),
         ),
       );
-    });
+    }
 
-    if (membersCount > previewCount) {
+    if (members.length > previewCount) {
       avatars.add(
         Container(
           width: 32,
@@ -337,7 +348,7 @@ class _MemberPreview extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: Text(
-            '+${membersCount - previewCount}',
+            '+${members.length - previewCount}',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: scheme.onSurfaceVariant,
@@ -347,19 +358,13 @@ class _MemberPreview extends StatelessWidget {
       );
     }
 
+    if (avatars.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppConstants.screenHorizontalPadding),
-      child: Row(
-        children: <Widget>[
-          Expanded(child: Row(children: avatars)),
-          Text(
-            '+$membersCount',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+      child: Row(children: avatars),
     );
   }
 }

@@ -2887,6 +2887,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get e2eeHandshakeInitiated => 'Secure handshake initiated';
 
   @override
+  String get profileUsernameLabel => 'Username';
+
+  @override
+  String groupProfileMembersCount(int count) => '$count members';
+
+  @override
+  String get chatReactionsPickerTitle => 'React';
+
+  @override
+  String groupProfileSubscribersCount(int count) => '$count subscribers';
+
+  @override
+  String get profileUsernameInvalid => '3-32 characters: letters, digits, underscore';
+
+  @override
+  String get profileNameTooLong => 'Max 64 characters';
+
+  @override
+  String get profileLogoutConfirmTitle => 'Log out?';
+
+  @override
+  String get profileLogoutConfirmBody => 'You will need to sign in again to use NiosMess.';
+
+  @override
   String get e2eeHandshakeNoPeerKey => 'No peer public key available';
 
   @override

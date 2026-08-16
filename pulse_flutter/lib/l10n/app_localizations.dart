@@ -5276,6 +5276,54 @@ abstract class AppLocalizations {
   /// **'Secure handshake initiated'**
   String get e2eeHandshakeInitiated;
 
+  /// No description provided for @profileUsernameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get profileUsernameLabel;
+
+  /// No description provided for @groupProfileMembersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} members'**
+  String groupProfileMembersCount(int count);
+
+  /// No description provided for @chatReactionsPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'React'**
+  String get chatReactionsPickerTitle;
+
+  /// No description provided for @groupProfileSubscribersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} subscribers'**
+  String groupProfileSubscribersCount(int count);
+
+  /// No description provided for @profileUsernameInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'3-32 characters: letters, digits, underscore'**
+  String get profileUsernameInvalid;
+
+  /// No description provided for @profileNameTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Max 64 characters'**
+  String get profileNameTooLong;
+
+  /// No description provided for @profileLogoutConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Log out?'**
+  String get profileLogoutConfirmTitle;
+
+  /// No description provided for @profileLogoutConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You will need to sign in again to use NiosMess.'**
+  String get profileLogoutConfirmBody;
+
   /// No description provided for @e2eeHandshakeNoPeerKey.
   ///
   /// In en, this message translates to:

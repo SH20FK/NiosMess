@@ -4,7 +4,7 @@ import 'package:pulse_flutter/services/double_ratchet_service.dart';
 
 Future<List<int>> _seed(X25519 x) async {
   final pair = await x.newKeyPair();
-  final data = await pair.extract() as SimpleKeyPairData;
+  final data = await pair.extract();
   return List<int>.from(data.bytes);
 }
 
@@ -16,10 +16,10 @@ void main() {
     final List<int> aliceStaticSeed = await _seed(x25519);
     final List<int> bobStaticSeed = await _seed(x25519);
 
-    final SimpleKeyPairData bobStaticPair =
-        await x25519.newKeyPairFromSeed(bobStaticSeed) as SimpleKeyPairData;
+    final SimpleKeyPair bobStaticPair =
+        await x25519.newKeyPairFromSeed(bobStaticSeed);
     final SimplePublicKey bobStatic =
-        bobStaticPair.publicKey as SimplePublicKey;
+        await bobStaticPair.extractPublicKey();
 
     // Alice initiates with a fresh ephemeral (her handshake DH key).
     final alicePending = await dr.initiateSession(
@@ -29,16 +29,16 @@ void main() {
     );
 
     // Her HELO carries the pending session's ephemeral public key.
-    final SimpleKeyPairData aliceEphemeral =
-        await x25519.newKeyPairFromSeed(alicePending.dhsSeed!) as SimpleKeyPairData;
+    final SimpleKeyPair aliceEphemeral =
+        await x25519.newKeyPairFromSeed(alicePending.dhsSeed!);
 
     // Bob responds using Alice's static + ephemeral.
-    final SimpleKeyPairData aliceStaticPair =
-        await x25519.newKeyPairFromSeed(aliceStaticSeed) as SimpleKeyPairData;
+    final SimpleKeyPair aliceStaticPair =
+        await x25519.newKeyPairFromSeed(aliceStaticSeed);
     final bobSession = await dr.respondSession(
       ourStaticSeed: bobStaticSeed,
-      theirStaticPublic: aliceStaticPair.publicKey as SimplePublicKey,
-      theirEphemeralPublic: aliceEphemeral.publicKey as SimplePublicKey,
+      theirStaticPublic: await aliceStaticPair.extractPublicKey(),
+      theirEphemeralPublic: await aliceEphemeral.extractPublicKey(),
       peerStaticEdB64: 'alice-ed',
     );
 
@@ -107,21 +107,21 @@ void main() {
     final List<int> aliceStaticSeed = await _seed(x25519);
     final List<int> bobStaticSeed = await _seed(x25519);
 
-    final SimpleKeyPairData bobStaticPair =
-        await x25519.newKeyPairFromSeed(bobStaticSeed) as SimpleKeyPairData;
+    final SimpleKeyPair bobStaticPair =
+        await x25519.newKeyPairFromSeed(bobStaticSeed);
     final aliceSession = await dr.initiateSession(
       ourStaticSeed: aliceStaticSeed,
-      theirStaticPublic: bobStaticPair.publicKey as SimplePublicKey,
+      theirStaticPublic: await bobStaticPair.extractPublicKey(),
       peerStaticEdB64: 'peer-ed',
     );
-    final SimpleKeyPairData aliceEphemeral =
-        await x25519.newKeyPairFromSeed(aliceSession.dhsSeed!) as SimpleKeyPairData;
-    final SimpleKeyPairData aliceStaticPair =
-        await x25519.newKeyPairFromSeed(aliceStaticSeed) as SimpleKeyPairData;
+    final SimpleKeyPair aliceEphemeral =
+        await x25519.newKeyPairFromSeed(aliceSession.dhsSeed!);
+    final SimpleKeyPair aliceStaticPair =
+        await x25519.newKeyPairFromSeed(aliceStaticSeed);
     final bobSession = await dr.respondSession(
       ourStaticSeed: bobStaticSeed,
-      theirStaticPublic: aliceStaticPair.publicKey as SimplePublicKey,
-      theirEphemeralPublic: aliceEphemeral.publicKey as SimplePublicKey,
+      theirStaticPublic: await aliceStaticPair.extractPublicKey(),
+      theirEphemeralPublic: await aliceEphemeral.extractPublicKey(),
       peerStaticEdB64: 'alice-ed',
     );
 
@@ -139,21 +139,21 @@ void main() {
     final List<int> aliceStaticSeed = await _seed(x25519);
     final List<int> bobStaticSeed = await _seed(x25519);
 
-    final SimpleKeyPairData bobStaticPair =
-        await x25519.newKeyPairFromSeed(bobStaticSeed) as SimpleKeyPairData;
+    final SimpleKeyPair bobStaticPair =
+        await x25519.newKeyPairFromSeed(bobStaticSeed);
     final aliceSession = await dr.initiateSession(
       ourStaticSeed: aliceStaticSeed,
-      theirStaticPublic: bobStaticPair.publicKey as SimplePublicKey,
+      theirStaticPublic: await bobStaticPair.extractPublicKey(),
       peerStaticEdB64: 'peer-ed',
     );
-    final SimpleKeyPairData aliceEphemeral =
-        await x25519.newKeyPairFromSeed(aliceSession.dhsSeed!) as SimpleKeyPairData;
-    final SimpleKeyPairData aliceStaticPair =
-        await x25519.newKeyPairFromSeed(aliceStaticSeed) as SimpleKeyPairData;
+    final SimpleKeyPair aliceEphemeral =
+        await x25519.newKeyPairFromSeed(aliceSession.dhsSeed!);
+    final SimpleKeyPair aliceStaticPair =
+        await x25519.newKeyPairFromSeed(aliceStaticSeed);
     final bobSession = await dr.respondSession(
       ourStaticSeed: bobStaticSeed,
-      theirStaticPublic: aliceStaticPair.publicKey as SimplePublicKey,
-      theirEphemeralPublic: aliceEphemeral.publicKey as SimplePublicKey,
+      theirStaticPublic: await aliceStaticPair.extractPublicKey(),
+      theirEphemeralPublic: await aliceEphemeral.extractPublicKey(),
       peerStaticEdB64: 'alice-ed',
     );
 
@@ -180,11 +180,11 @@ void main() {
     final List<int> aliceStaticSeed = await _seed(x25519);
     final List<int> bobStaticSeed = await _seed(x25519);
 
-    final SimpleKeyPairData bobStaticPair =
-        await x25519.newKeyPairFromSeed(bobStaticSeed) as SimpleKeyPairData;
+    final SimpleKeyPair bobStaticPair =
+        await x25519.newKeyPairFromSeed(bobStaticSeed);
     final aliceSession = await dr.initiateSession(
       ourStaticSeed: aliceStaticSeed,
-      theirStaticPublic: bobStaticPair.publicKey as SimplePublicKey,
+      theirStaticPublic: await bobStaticPair.extractPublicKey(),
       peerStaticEdB64: 'peer-ed',
     );
 

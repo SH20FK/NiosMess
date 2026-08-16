@@ -1130,8 +1130,74 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
-  void _showAllReactionsPicker(ApiMessage message) {
-    // Implementation for showing all reactions picker
+  static const List<String> _allReactionEmojis = <String>[
+    '👍', '👎', '❤️', '🔥', '😂', '🎉', '😮', '😢', '😍', '🤔',
+    '😎', '🫡', '🙏', '👏', '💪', '🤝', '💯', '✨', '⭐', '⚡',
+    '☕', '🍕', '🎮', '❌', '✅',
+  ];
+
+  Future<void> _showAllReactionsPicker(ApiMessage message) async {
+    final int? chatId = _chatId;
+    if (chatId == null) return;
+
+    final String? emoji = await AppBottomSheets.show<String>(
+      context: context,
+      builder: (BuildContext ctx) {
+        final ColorScheme scheme = Theme.of(ctx).colorScheme;
+        final TextTheme tt = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 12),
+                  child: Text(
+                    ctx.l10n.chatReactionsPickerTitle,
+                    style: tt.titleMedium,
+                  ),
+                ),
+                GridView.count(
+                  crossAxisCount: 8,
+                  shrinkWrap: true,
+                  mainAxisSpacing: 4,
+                  crossAxisSpacing: 4,
+                  childAspectRatio: 1.1,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: _allReactionEmojis.map((String emoji) {
+                    return InkWell(
+                      onTap: () => Navigator.of(ctx).pop(emoji),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: (message.reactions[emoji] ?? 0) > 0
+                              ? scheme.primaryContainer.withValues(alpha: 0.6)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          emoji,
+                          style: const TextStyle(fontSize: 22),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (emoji == null) return;
+    if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+    await ref
+        .read(chatMessagesProvider(chatId).notifier)
+        .toggleReaction(message.id, emoji);
   }
 
   void _openMedia(ApiMessage message) {

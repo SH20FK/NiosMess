@@ -74,6 +74,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _logout() async {
+    final bool? confirmed = await showAppConfirmDialog(
+      context: context,
+      title: context.l10n.profileLogoutConfirmTitle,
+      subtitle: context.l10n.profileLogoutConfirmBody,
+      confirmLabel: context.l10n.profileLogout,
+      cancelLabel: context.l10n.commonCancel,
+      icon: Icons.logout_rounded,
+      destructive: true,
+    );
+    if (confirmed != true) return;
+
     final AuthNotifier notifier = ref.read(authProvider.notifier);
     await notifier.logout();
     if (mounted) context.go('/login');
@@ -114,7 +125,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   context: context,
                   builder: (ctx) => _EditProfileDialog(
                     initialName: displayName,
+                    initialUsername: auth.session?.username ?? '',
                     initialBio: bio,
+                    onUploadAvatar: _uploadAvatar,
                   ),
                 );
               },
@@ -249,33 +262,50 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 }
 
 class _EditProfileDialog extends ConsumerStatefulWidget {
-  const _EditProfileDialog({required this.initialName, required this.initialBio});
+  const _EditProfileDialog({
+    required this.initialName,
+    required this.initialUsername,
+    required this.initialBio,
+    this.onUploadAvatar,
+  });
+
   final String initialName;
+  final String initialUsername;
   final String initialBio;
+  final Future<void> Function()? onUploadAvatar;
 
   @override
   ConsumerState<_EditProfileDialog> createState() => _EditProfileDialogState();
 }
 
 class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
+  static final RegExp _usernameRegExp = RegExp(r'^[a-zA-Z0-9_]{3,32}$');
+
   late final TextEditingController nameController;
+  late final TextEditingController usernameController;
   late final TextEditingController bioController;
   bool _saving = false;
   String? _nameError;
+  String? _usernameError;
 
   @override
   void initState() {
     super.initState();
     nameController = TextEditingController(text: widget.initialName);
+    usernameController = TextEditingController(text: widget.initialUsername);
     bioController = TextEditingController(text: widget.initialBio);
     nameController.addListener(_validateName);
+    usernameController.addListener(_validateUsername);
     _validateName();
+    _validateUsername();
   }
 
   @override
   void dispose() {
     nameController.removeListener(_validateName);
+    usernameController.removeListener(_validateUsername);
     nameController.dispose();
+    usernameController.dispose();
     bioController.dispose();
     super.dispose();
   }
@@ -284,9 +314,9 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
     final String text = nameController.text.trim();
     final String? error;
     if (text.isEmpty) {
-      error = 'Name is required';
+      error = context.l10n.registerNameRequired;
     } else if (text.length > 64) {
-      error = 'Max 64 characters';
+      error = context.l10n.profileNameTooLong;
     } else {
       error = null;
     }
@@ -295,20 +325,44 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
     }
   }
 
+  void _validateUsername() {
+    final String text = usernameController.text.trim();
+    final String? error;
+    if (text.isEmpty || _usernameRegExp.hasMatch(text)) {
+      error = null;
+    } else {
+      error = context.l10n.profileUsernameInvalid;
+    }
+    if (error != _usernameError) {
+      setState(() => _usernameError = error);
+    }
+  }
+
   Future<void> _save() async {
-    if (_nameError != null) return;
+    if (_nameError != null || _usernameError != null) return;
     setState(() => _saving = true);
-    try {
-      await ref.read(authRepositoryProvider).updateProfile(
-            displayName: nameController.text.trim(),
-            bio: bioController.text.trim(),
-          );
-      await ref.read(authProvider.notifier).refreshProfile();
-      if (!mounted) return;
+
+    final String username = usernameController.text.trim();
+    final String? newUsername =
+        username.isNotEmpty && username != widget.initialUsername
+            ? username
+            : null;
+
+    final AuthActionResult result =
+        await ref.read(authProvider.notifier).updateProfile(
+              displayName: nameController.text.trim(),
+              username: newUsername,
+              bio: bioController.text.trim(),
+            );
+
+    if (!mounted) return;
+    if (result.success) {
       Navigator.of(context).pop();
-    } catch (e) {
-      if (!mounted) return;
-      AppToast.showError(context, context.l10n.profileError('$e'));
+    } else {
+      AppToast.showError(
+        context,
+        context.l10n.profileError(result.message ?? 'Failed'),
+      );
       setState(() => _saving = false);
     }
   }
@@ -332,7 +386,8 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
           icon: Icons.check_rounded,
           isPrimary: true,
           isLoading: _saving,
-          onPressed: _saving || _nameError != null ? null : _save,
+          onPressed:
+              _saving || _nameError != null || _usernameError != null ? null : _save,
         ),
       ],
       child: Column(
@@ -348,6 +403,27 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
                   fallbackColor: scheme.primaryContainer,
                   textColor: scheme.onPrimaryContainer,
                 ),
+                if (widget.onUploadAvatar != null)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Material(
+                      color: scheme.primary,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        onTap: () => widget.onUploadAvatar!(),
+                        customBorder: const CircleBorder(),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(
+                            Icons.photo_camera_rounded,
+                            size: 16,
+                            color: scheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -375,6 +451,31 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
               ),
               counterStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
+              ),
+            ),
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: usernameController,
+            decoration: InputDecoration(
+              labelText: context.l10n.profileUsernameLabel,
+              prefixIcon: const Icon(Icons.alternate_email_rounded),
+              prefixText: '@',
+              errorText: _usernameError,
+              filled: true,
+              fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.18)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.18)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: scheme.primary, width: 1.4),
               ),
             ),
             style: Theme.of(context).textTheme.bodyLarge,
