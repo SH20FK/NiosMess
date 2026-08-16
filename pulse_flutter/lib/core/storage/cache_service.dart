@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
-import 'package:pulse_flutter/models/api/message_model.dart';
 
 class CacheService {
   const CacheService();
@@ -56,36 +55,6 @@ class CacheService {
     } catch (e) {
       debugPrint('[CacheService] Error loading cached chats: $e');
       return <ApiChatSummary>[];
-    }
-  }
-
-  Future<void> saveMessages(int chatId, List<ApiMessage> messages) async {
-    try {
-      final Box<List<dynamic>> box = await _ensureBox(_messagesBoxName);
-      // Only keep the last 100 messages in cache to optimize local storage size
-      final List<ApiMessage> trimmed = messages.length > 100 
-          ? messages.sublist(messages.length - 100) 
-          : messages;
-      final List<Map<String, dynamic>> jsonList = trimmed.map((e) => e.toJson()).toList();
-      await box.put(chatId.toString(), jsonList);
-    } catch (e) {
-      debugPrint('[CacheService] Error saving messages: $e');
-    }
-  }
-
-  List<ApiMessage> getCachedMessages(int chatId) {
-    try {
-      if (!Hive.isBoxOpen(_messagesBoxName)) return <ApiMessage>[];
-      final Box<List<dynamic>> box = Hive.box<List<dynamic>>(_messagesBoxName);
-      final List<dynamic>? list = box.get(chatId.toString());
-      if (list == null) return <ApiMessage>[];
-      return list
-          .whereType<Map>()
-          .map((e) => ApiMessage.fromJson(Map<String, dynamic>.from(e)))
-          .toList(growable: false);
-    } catch (e) {
-      debugPrint('[CacheService] Error loading cached messages for $chatId: $e');
-      return <ApiMessage>[];
     }
   }
 

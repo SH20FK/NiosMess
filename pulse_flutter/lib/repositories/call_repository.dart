@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
-import 'package:pulse_flutter/models/api/call_models.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
 class CallRepository {
@@ -85,15 +84,6 @@ class CallRepository {
         );
   }
 
-  Future<ApiCallStatus> status(int callId) async {
-    final dynamic response = await _ref
-        .read(webSocketClientProvider)
-        .request(
-          'get_call',
-          payload: <String, dynamic>{'call_id': callId},
-        );
-    return ApiCallStatus.fromJson(asStringMap(response));
-  }
 }
 
 final Provider<CallRepository> callRepositoryProvider =
