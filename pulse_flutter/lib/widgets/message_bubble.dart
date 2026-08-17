@@ -1379,7 +1379,7 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
   String _formatDuration(int seconds) {
     final int m = seconds ~/ 60;
     final int s = seconds % 60;
-    return '${m}:${s.toString().padLeft(2, '0')}';
+    return '$m:${s.toString().padLeft(2, '0')}';
   }
 }
 

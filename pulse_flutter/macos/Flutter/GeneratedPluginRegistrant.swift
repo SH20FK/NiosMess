@@ -11,7 +11,7 @@ import audioplayers_darwin
 import connectivity_plus
 import dynamic_color
 import emoji_picker_flutter
-import file_picker
+import file_picker_darwin
 import firebase_core
 import firebase_messaging
 import flutter_image_compress_macos

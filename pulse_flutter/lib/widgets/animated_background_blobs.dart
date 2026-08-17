@@ -27,7 +27,7 @@ class _AnimatedBackgroundBlobsState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final bool active = TickerMode.of(context);
+    final bool active = TickerMode.valuesOf(context).enabled;
     if (active != _isActive) {
       _isActive = active;
       if (active) {

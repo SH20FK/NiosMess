@@ -39,14 +39,14 @@ class _CompactAttachmentMenu extends StatelessWidget {
     List<String>? allowedExtensions,
     required String mediaSubtype,
   }) async {
-    final FilePickerResult? result = await FilePicker.pickFiles(
+    final List<PlatformFile> result = await FilePicker.pickFiles(
       type: type,
       allowedExtensions: allowedExtensions,
     );
 
-    if (result == null || result.files.isEmpty || !context.mounted) return;
+    if (result.isEmpty || !context.mounted) return;
 
-    final PlatformFile file = result.files.first;
+    final PlatformFile file = result.first;
     final String? filePath = file.path;
 
     if (filePath == null) {
@@ -54,11 +54,14 @@ class _CompactAttachmentMenu extends StatelessWidget {
       return;
     }
 
+    final int fileSize = await file.length();
+    if (!context.mounted) return;
+
     Navigator.of(context).pop(<M3FilePickerResult>[
       M3FilePickerResult(
         filePath: filePath,
         fileName: file.name,
-        fileSize: file.size,
+        fileSize: fileSize,
         mediaSubtype: mediaSubtype,
       ),
     ]);

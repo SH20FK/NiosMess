@@ -19,8 +19,8 @@ import 'ws_transport.dart';
 import 'e2ee_key_manager.dart';
 
 /// Callback types.
-typedef void OnStateChanged(CallSessionData data);
-typedef void OnIncomingAudio(Uint8List opusData);
+typedef OnStateChanged = void Function(CallSessionData data);
+typedef OnIncomingAudio = void Function(Uint8List opusData);
 
 /// Main orchestrator for a NiosCalls call session.
 ///

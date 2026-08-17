@@ -77,16 +77,16 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
 
   Future<void> _uploadAvatar() async {
     if (_uploadingAvatar) return;
-    final FilePickerResult? picked = await FilePicker.pickFiles(
+    final List<PlatformFile> picked = await FilePicker.pickFiles(
       type: FileType.image,
     );
-    if (picked == null || picked.files.isEmpty || !mounted) return;
+    if (picked.isEmpty || !mounted) return;
 
-    final Uint8List? bytes = await picked.files.first.readAsBytes();
-    if (bytes == null || bytes.isEmpty) return;
+    final Uint8List bytes = await picked.first.readAsBytes();
+    if (bytes.isEmpty) return;
 
-    final String filename = picked.files.first.name.isNotEmpty
-        ? picked.files.first.name
+    final String filename = picked.first.name.isNotEmpty
+        ? picked.first.name
         : 'avatar.jpg';
 
     setState(() => _uploadingAvatar = true);
@@ -153,7 +153,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
           confirmLabel: context.l10n.commonDiscardChangesConfirm,
           cancelLabel: context.l10n.commonCancel,
         );
-        if (confirm == true && mounted) {
+        if (confirm == true && context.mounted) {
           context.pop();
         }
       },

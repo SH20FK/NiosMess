@@ -106,6 +106,7 @@ class BadgeResolver {
     return false;
   }
 
+  // ignore: library_private_types_in_public_api
   static _BadgeResolved resolve(String name, String icon) {
     final String cleanIcon = icon.trim();
 

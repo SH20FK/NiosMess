@@ -190,7 +190,7 @@ class _SparklesState extends State<_Sparkles>
       height: 140,
       child: AnimatedBuilder(
         animation: _sparkleController,
-        builder: (_, __) {
+        builder: (_, _) {
           return CustomPaint(
             painter: _SparklePainter(
               t: _sparkleController.value,

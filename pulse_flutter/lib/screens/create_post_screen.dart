@@ -33,12 +33,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   Future<void> _pickMedia() async {
-    final FilePickerResult? result = await FilePicker.pickFiles(
+    final List<PlatformFile> result = await FilePicker.pickFiles(
       type: FileType.media,
     );
-    if (result == null || result.files.isEmpty) return;
-    final PlatformFile file = result.files.first;
-    if ((file.size) > _maxFileBytes) {
+    if (result.isEmpty) return;
+    final PlatformFile file = result.first;
+    if ((await file.length()) > _maxFileBytes) {
       setState(() => _error = context.l10n.postFileTooLarge);
       return;
     }
@@ -76,14 +76,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         final String ext =
             file.name.contains('.') ? file.name.split('.').last : '';
         final String mediaSubtype = _mediaSubtype(ext);
-        final Uint8List? fileBytes = await file.readAsBytes();
+        final Uint8List fileBytes = await file.readAsBytes();
         final String uploadIdStr = await ref
             .read(chatRepositoryProvider)
             .uploadStreamInChunks(
               bytes: fileBytes,
               filename: file.name,
               mediaSubtype: mediaSubtype,
-              fileSize: file.size,
+              fileSize: fileBytes.length,
               onProgress: (_, _) {},
             );
         uploadId = int.tryParse(uploadIdStr);
@@ -132,7 +132,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           confirmLabel: context.l10n.commonDiscardChangesConfirm,
           cancelLabel: context.l10n.commonCancel,
         );
-        if (confirm == true && mounted) {
+        if (confirm == true && context.mounted) {
           context.pop();
         }
       },

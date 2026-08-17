@@ -57,7 +57,7 @@ class Ed25519IdentityService {
     try {
       final pubKey = SimplePublicKey(publicKeyBytes, type: KeyPairType.ed25519);
       final sig = Signature(signature, publicKey: pubKey);
-      return _ed25519.verify(message, signature: sig);
+      return await _ed25519.verify(message, signature: sig);
     } catch (e) {
       debugPrint('[Ed25519] Verify failed: $e');
       return false;

@@ -106,7 +106,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
           cancelLabel: context.l10n.commonNo,
           icon: Icons.close_rounded,
         );
-        if (confirm == true && mounted) {
+        if (confirm == true && context.mounted) {
           context.pop();
         }
       },
@@ -127,7 +127,7 @@ bottom: commentsAsync.when(
                 ),
               ),
             loading: () => null,
-            error: (_, __) => null,
+            error: (_, _) => null,
           ),
         ),
         body: Column(

@@ -352,7 +352,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     final int sec = d.inSeconds.clamp(0, 9999);
     final int m = sec ~/ 60;
     final int s = sec % 60;
-    return '${m}:${s.toString().padLeft(2, '0')}';
+    return '$m:${s.toString().padLeft(2, '0')}';
   }
 }
 

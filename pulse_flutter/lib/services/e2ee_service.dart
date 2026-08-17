@@ -78,7 +78,7 @@ class E2eeService {
     if (raw == null || raw.isEmpty) return null;
     try {
       final bytes = base64Decode(raw);
-      return _x25519.newKeyPairFromSeed(bytes);
+      return await _x25519.newKeyPairFromSeed(bytes);
     } catch (e) {
       debugPrint('[E2eeService] Failed to load key pair: $e');
       return null;
@@ -125,7 +125,7 @@ class E2eeService {
     }
     final theirBytes = base64Decode(theirPublicKeyBase64);
     final theirPublicKey = SimplePublicKey(theirBytes, type: KeyPairType.x25519);
-    return _x25519.sharedSecretKey(
+    return await _x25519.sharedSecretKey(
       keyPair: pair,
       remotePublicKey: theirPublicKey,
     );

@@ -169,7 +169,7 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
           cancelLabel: context.l10n.commonNo,
           icon: Icons.close_rounded,
         );
-        if (confirm == true && mounted) {
+        if (confirm == true && context.mounted) {
           context.pop();
         }
       },

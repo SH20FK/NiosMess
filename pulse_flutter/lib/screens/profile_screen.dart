@@ -44,16 +44,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _uploadAvatar() async {
-    final FilePickerResult? result = await FilePicker.pickFiles(
+    final List<PlatformFile> result = await FilePicker.pickFiles(
       type: FileType.image,
     );
-    if (result == null || result.files.isEmpty) return;
+    if (result.isEmpty) return;
 
     if (!mounted) return;
     setState(() => _uploadingAvatar = true);
 
     try {
-      final PlatformFile file = result.files.first;
+      final PlatformFile file = result.first;
       Uint8List bytes = await file.readAsBytes();
       if (bytes.isEmpty) return;
       final Uint8List? compressed = await ImageCompressor.compressImageBytes(

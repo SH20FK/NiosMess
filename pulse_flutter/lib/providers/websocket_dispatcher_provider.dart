@@ -32,13 +32,13 @@ ApiMessage _stub(int id, int chatId, {int senderId = 0, bool isDeleted = false})
 
 /// A realtime chat event routed to the open chat screen.
 class ChatPushEvent {
-  const ChatPushEvent.newMessage(ApiMessage this.message)
+  const ChatPushEvent.newMessage(this.message)
       : kind = ChatPushEventKind.newMessage,
         reactionEmoji = null,
         reactionAdded = false,
         userId = null;
 
-  const ChatPushEvent.edited(ApiMessage this.message)
+  const ChatPushEvent.edited(this.message)
       : kind = ChatPushEventKind.edited,
         reactionEmoji = null,
         reactionAdded = false,

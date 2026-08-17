@@ -66,11 +66,11 @@ class PulseAvatar extends StatelessWidget {
               httpHeaders: cachedAuthHeaders(),
               memCacheWidth: (radius * 2 * 2).toInt(),
               memCacheHeight: (radius * 2 * 2).toInt(),
-              placeholder: (_, __) => _ShimmerPlaceholder(
+              placeholder: (_, _) => _ShimmerPlaceholder(
                 radius: radius,
                 background: background,
               ),
-              errorWidget: (_, __, ___) => fallback,
+              errorWidget: (_, _, _) => fallback,
               fadeInDuration: const Duration(milliseconds: 300),
               width: radius * 2,
               height: radius * 2,
@@ -164,7 +164,7 @@ class _ShimmerPlaceholderState extends State<_ShimmerPlaceholder>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _controller,
-      builder: (_, __) {
+      builder: (_, _) {
         return Container(
           width: widget.radius * 2,
           height: widget.radius * 2,

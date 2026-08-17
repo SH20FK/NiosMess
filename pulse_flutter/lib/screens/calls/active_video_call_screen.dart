@@ -160,7 +160,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
               ),
               const SizedBox(height: 16),
               Text(
-                context.l10n.callE2eeSecurityCode + ' E2EE',
+                '${context.l10n.callE2eeSecurityCode} E2EE',
                 style: textTheme.titleMedium,
               ),
               const SizedBox(height: 16),
