@@ -1,25 +1,30 @@
+import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:universal_io/io.dart';
 
-class NativeFileViewerScreen extends StatefulWidget {
+class NativeFileViewerScreen extends ConsumerStatefulWidget {
   const NativeFileViewerScreen({
     required this.fileName,
     required this.fileType,
     this.url,
     this.localPath,
     this.bytes,
+    this.e2eeFileKey,
     super.key,
   });
 
@@ -29,11 +34,80 @@ class NativeFileViewerScreen extends StatefulWidget {
   final String? localPath;
   final Uint8List? bytes;
 
+  /// Base64 per-file AES key for E2EE media (secret chats).
+  final String? e2eeFileKey;
+
   @override
-  State<NativeFileViewerScreen> createState() => _NativeFileViewerScreenState();
+  ConsumerState<NativeFileViewerScreen> createState() =>
+      _NativeFileViewerScreenState();
 }
 
-class _NativeFileViewerScreenState extends State<NativeFileViewerScreen> {
+class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen> {
+  Uint8List? _fetchedBytes;
+  Object? _fetchError;
+  bool _fetching = false;
+
+  bool get _isE2ee =>
+      widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    _maybeFetch();
+  }
+
+  @override
+  void didUpdateWidget(covariant NativeFileViewerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url ||
+        oldWidget.e2eeFileKey != widget.e2eeFileKey) {
+      _fetchedBytes = null;
+      _fetchError = null;
+      _maybeFetch();
+    }
+  }
+
+  Future<void> _maybeFetch() async {
+    // Only fetch over the network when we only have a remote URL and no
+    // local bytes/path (the local optimistically-sent messages already have
+    // their bytes in hand).
+    final bool hasUrl =
+        widget.url != null && widget.url!.trim().isNotEmpty;
+    if (!hasUrl || widget.bytes != null || widget.localPath != null) {
+      return;
+    }
+
+    setState(() {
+      _fetching = true;
+      _fetchError = null;
+    });
+
+    try {
+      Uint8List? fileKey;
+      if (_isE2ee) {
+        try {
+          fileKey = base64Decode(widget.e2eeFileKey!);
+        } catch (_) {}
+      }
+      final Uint8List bytes = await WsMediaFetcher.fetchAndDecryptMedia(
+        filePath: widget.url!,
+        wsClient: ref.read(webSocketClientProvider),
+        e2eeFileKey: fileKey,
+      );
+      if (!mounted) return;
+      setState(() {
+        _fetchedBytes = bytes;
+        _fetching = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _fetchError = e;
+        _fetching = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -62,36 +136,55 @@ class _NativeFileViewerScreenState extends State<NativeFileViewerScreen> {
   }
 
   Widget _buildViewer() {
+    if (_fetching) {
+      return const Center(child: AppLoadingIndicator(size: 32));
+    }
+
+    if (_fetchError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            context.l10n.mediaViewerImageLoadFailed('$_fetchError'),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    final Uint8List? resolvedBytes = _fetchedBytes ?? widget.bytes;
+    final String? resolvedLocalPath = widget.localPath;
     final ft = widget.fileType;
 
     if (ft.isImage) {
       return _ImageViewer(
-        url: widget.url,
-        bytes: widget.bytes,
+        url: resolvedBytes == null ? widget.url : null,
+        bytes: resolvedBytes,
         isSvg: widget.fileName.toLowerCase().endsWith('.svg'),
       );
     }
 
     if (ft.isVideo) {
       return _VideoViewer(
-        url: widget.url,
-        localPath: widget.localPath,
+        url: resolvedBytes == null ? widget.url : null,
+        localPath: resolvedLocalPath,
       );
     }
 
     if (ft.isAudio) {
       return _MusicPlayer(
         fileName: widget.fileName,
-        url: widget.url,
-        localPath: widget.localPath,
+        url: resolvedBytes == null ? widget.url : null,
+        localPath: resolvedLocalPath,
+        bytes: resolvedBytes,
       );
     }
 
     if (ft.isPdf) {
       return _PdfViewer(
-        url: widget.url,
-        localPath: widget.localPath,
-        bytes: widget.bytes,
+        url: resolvedBytes == null ? widget.url : null,
+        localPath: resolvedLocalPath,
+        bytes: resolvedBytes,
       );
     }
 
@@ -100,7 +193,7 @@ class _NativeFileViewerScreenState extends State<NativeFileViewerScreen> {
       fileName: widget.fileName,
       fileType: ft,
       url: widget.url,
-      localPath: widget.localPath,
+      localPath: resolvedLocalPath,
     );
   }
 }
@@ -325,11 +418,12 @@ class _PdfViewerState extends State<_PdfViewer> {
 
 // ── Music Player ──────────────────────────────────────────────
 class _MusicPlayer extends StatefulWidget {
-  const _MusicPlayer({required this.fileName, this.url, this.localPath});
+  const _MusicPlayer({required this.fileName, this.url, this.localPath, this.bytes});
 
   final String fileName;
   final String? url;
   final String? localPath;
+  final Uint8List? bytes;
 
   @override
   State<_MusicPlayer> createState() => _MusicPlayerState();
@@ -371,6 +465,11 @@ class _MusicPlayerState extends State<_MusicPlayer> {
     try {
       if (widget.localPath != null) {
         await _player.setAudioSource(AudioSource.file(widget.localPath!));
+      } else if (widget.bytes != null) {
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File('$tempDir/${DateTime.now().millisecondsSinceEpoch}.audio');
+        await tempFile.writeAsBytes(widget.bytes!);
+        await _player.setAudioSource(AudioSource.file(tempFile.path));
       } else if (widget.url != null) {
         await _player.setAudioSource(AudioSource.uri(Uri.parse(widget.url!)));
       }

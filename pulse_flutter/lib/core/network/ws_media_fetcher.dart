@@ -165,6 +165,8 @@ class WsMediaFetcher {
     return <String, dynamic>{};
   }
 
+  static String cleanFilePath(String path) => _cleanFilePath(path);
+
   static String _cleanFilePath(String path) {
     String cleanPath = path;
     final int queryIdx = cleanPath.indexOf('?');

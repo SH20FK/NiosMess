@@ -6,6 +6,7 @@ import 'package:universal_io/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/network/api_constants.dart';
+import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/chat_actions_models.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
@@ -14,7 +15,6 @@ import 'package:pulse_flutter/models/api/invite_models.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/models/api/upload_models.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-import 'package:pulse_flutter/providers/api_provider.dart';
 
 class ChatRepository {
   const ChatRepository(this._ref);
@@ -838,10 +838,26 @@ class ChatRepository {
   }
 
   Future<List<int>> downloadMedia(String filePath) async {
-    return _ref.read(apiClientProvider).postBytes(
-      '/media/download',
-      body: <String, dynamic>{'file_path': filePath},
+    final token = _ref.read(webSocketClientProvider).readToken();
+    if (token == null) {
+      throw Exception('Unauthorized: No session token');
+    }
+
+    final String cleanPath = WsMediaFetcher.cleanFilePath(filePath);
+    final String downloadUrl = '${ApiConstants.origin}/api/files/download';
+    final http.Response response = await http.post(
+      Uri.parse(downloadUrl),
+      headers: const <String, String>{'Content-Type': 'application/json'},
+      body: '{"token":"$token","file_path":"${cleanPath.replaceAll('"', '\\"')}"',
     );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Download failed with status code ${response.statusCode}: ${response.body}',
+      );
+    }
+
+    return response.bodyBytes;
   }
 
   Future<String?> resolveShortLink(String slug) async {

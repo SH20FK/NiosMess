@@ -254,6 +254,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           final localPath = state.uri.queryParameters['path'];
           final fileName = state.uri.queryParameters['name'] ?? '';
           final fileType = FileTypeDetector.detect(fileName: fileName);
+          final Object? extra = state.extra;
           return _page(
             state,
             NativeFileViewerScreen(
@@ -261,6 +262,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
               fileType: fileType,
               url: url,
               localPath: localPath,
+              e2eeFileKey: extra is String && extra.isNotEmpty ? extra : null,
             ),
             pageKey: state.pageKey,
           );

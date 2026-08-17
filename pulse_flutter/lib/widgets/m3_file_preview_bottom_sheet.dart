@@ -221,6 +221,7 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
         '/file-viewer?name=${Uri.encodeComponent(fileName)}'
         '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}'
         '${hasLocalPath ? '&path=${Uri.encodeComponent(filePath!)}' : ''}',
+        extra: e2eeFileKey,
       );
       return;
     }
@@ -230,6 +231,7 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
       await context.push(
         '/file-viewer?name=${Uri.encodeComponent(fileName)}'
         '&url=${Uri.encodeComponent(mediaUrl!)}',
+        extra: e2eeFileKey,
       );
       return;
     }
@@ -240,6 +242,7 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
         '/file-viewer?name=${Uri.encodeComponent(fileName)}'
         '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}'
         '${hasLocalPath ? '&path=${Uri.encodeComponent(filePath!)}' : ''}',
+        extra: e2eeFileKey,
       );
       return;
     }
@@ -249,6 +252,7 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
       await context.push(
         '/file-viewer?name=${Uri.encodeComponent(fileName)}'
         '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}',
+        extra: e2eeFileKey,
       );
       return;
     }
@@ -259,6 +263,7 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
         '/file-viewer?name=${Uri.encodeComponent(fileName)}'
         '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}'
         '${hasLocalPath ? '&path=${Uri.encodeComponent(filePath!)}' : ''}',
+        extra: e2eeFileKey,
       );
       return;
     }
