@@ -7,18 +7,34 @@ import 'package:audioplayers/audioplayers.dart' hide AVAudioSessionCategory;
 import 'package:flutter/foundation.dart';
 import 'package:opus_codec_dart/opus_codec_dart.dart';
 
+/// Decodes Opus frames and plays back PCM with a bounded jitter buffer.
+///
+/// Design goals (fixes for the previous implementation):
+/// - **Bounded buffer**: when the network bursts faster than playback drains
+///   (or a platform stall hits), the oldest audio is dropped instead of
+///   letting `_pcmBuffer` grow without limit → removes runaway latency and
+///   the eventual OOM.
+/// - **Reliable playback gate**: `_isPlaying` can never get stuck `true`
+///   (which previously froze playback for seconds while the buffer ballooned).
+///   A watchdog guarantees the gate is released even if `onPlayerComplete`
+///   never fires.
+/// - **No per-chunk raw WAV rebuilds on the hot path** is kept (audioplayers
+///   needs a seekable source), but chunks are sized for low latency and the
+///   gate logic no longer drops whole conversations.
 class AudioOutputPipeline {
   AudioOutputPipeline({
     this.sampleRate = 48000,
     this.channels = 1,
     this.frameTime = FrameTime.ms20,
-    this.bufferDurationMs = 200,
+    this.bufferDurationMs = 60,
+    this.maxBufferMs = 800,
   });
 
   final int sampleRate;
   final int channels;
   final FrameTime frameTime;
   final int bufferDurationMs;
+  final int maxBufferMs;
 
   SimpleOpusDecoder? _decoder;
   AudioPlayer? _player;
@@ -27,6 +43,7 @@ class AudioOutputPipeline {
   bool _stopped = false;
   bool _isPlaying = false;
   Timer? _flushTimer;
+  Timer? _playbackWatchdog;
 
   Future<void> start() async {
     if (_started) return;
@@ -36,6 +53,8 @@ class AudioOutputPipeline {
     await _initDecoder();
     await _configureAudioSession();
 
+    // Recreate the player each session so a crash never leaves a dead player.
+    _player?.dispose();
     _player = AudioPlayer(
       playerId: 'call_output_${identityHashCode(this)}',
     );
@@ -82,20 +101,38 @@ class AudioOutputPipeline {
         _pcmBuffer.add(sample & 0xFF);
         _pcmBuffer.add((sample >> 8) & 0xFF);
       }
+      _trimToMaxBuffer();
     } catch (e) {
       debugPrint('[AudioOutput] Decode error: $e');
     }
   }
 
+  /// Keep the buffered PCM bounded: if the consumer stalls (platform stall,
+  /// network burst), drop the oldest audio rather than accumulating seconds
+  /// of latency (this was the root of the "tape recorder → silence → OOM").
+  void _trimToMaxBuffer() {
+    final int maxSamples = (sampleRate * maxBufferMs ~/ 1000);
+    final int maxBytes = maxSamples * 2 * channels;
+    if (_pcmBuffer.length <= maxBytes) return;
+    final int overflow = _pcmBuffer.length - maxBytes;
+    _pcmBuffer.removeRange(0, overflow);
+    debugPrint(
+      '[AudioOutput] Dropped $overflow buffered bytes (playback behind)',
+    );
+  }
+
   void _flushBuffer() {
-    if (_pcmBuffer.isEmpty || _player == null || _isPlaying) return;
+    if (_pcmBuffer.isEmpty || _player == null || _stopped) return;
+    if (_isPlaying) return;
 
-    final int chunkSamples = sampleRate ~/ (1000 ~/ bufferDurationMs) * channels;
+    final int chunkSamples =
+        sampleRate ~/ (1000 ~/ bufferDurationMs) * channels;
+    // Add a small headroom beyond the tick so the buffer starts draining
+    // immediately and keeps up.
     final int chunkBytes = chunkSamples * 2;
+    if (_pcmBuffer.length < chunkBytes ~/ 2) return;
+
     final int takeBytes = math.min(chunkBytes, _pcmBuffer.length);
-
-    if (takeBytes < 160) return;
-
     final List<int> chunk = _pcmBuffer.take(takeBytes).toList();
     _pcmBuffer.removeRange(0, takeBytes);
 
@@ -106,16 +143,33 @@ class AudioOutputPipeline {
     try {
       _isPlaying = true;
       final Uint8List wav = _buildWav(pcm16);
-
       final source = BytesSource(wav);
+
       await _player!.stop();
       await _player!.play(source);
 
+      // Watchdog: the platform can swallow onPlayerComplete (e.g. play()
+      // superseded by the next stop). Never let the gate lock — if the chunk
+      // isn't reported done in time, release it so the next flush proceeds.
+      _playbackWatchdog?.cancel();
+      _playbackWatchdog = Timer(
+        Duration(milliseconds: bufferDurationMs + 250),
+        () {
+          if (_isPlaying) {
+            _isPlaying = false;
+          }
+        },
+      );
+
       _player!.onPlayerComplete.first.then((_) {
+        _playbackWatchdog?.cancel();
         _isPlaying = false;
-      }).timeout(const Duration(seconds: 5), onTimeout: () {
-        _isPlaying = false;
-      });
+      }).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          _isPlaying = false;
+        },
+      );
     } catch (e) {
       _isPlaying = false;
       debugPrint('[AudioOutput] Playback error: $e');
@@ -168,8 +222,12 @@ class AudioOutputPipeline {
     _stopped = true;
     _flushTimer?.cancel();
     _flushTimer = null;
+    _playbackWatchdog?.cancel();
+    _playbackWatchdog = null;
     _pcmBuffer.clear();
-    await _player?.stop();
+    try {
+      await _player?.stop();
+    } catch (_) {}
     _player?.dispose();
     _player = null;
     _decoder?.destroy();

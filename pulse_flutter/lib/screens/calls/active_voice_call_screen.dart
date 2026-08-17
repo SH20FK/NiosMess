@@ -59,17 +59,31 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
       duration: const Duration(milliseconds: 3500),
     )..repeat();
 
-    _listenToState();
+    // Defer subscription to post-frame so Riverpod providers are settled.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _listenToState());
   }
 
   void _listenToState() {
     final session = ref.read(callSessionProvider)?.session;
-    if (session == null) return;
+    if (session == null) {
+      // Provider not ready yet — retry next frame (handles rare async race).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _listenToState();
+      });
+      return;
+    }
 
     _timerNotifier.value = session.currentData.durationSeconds;
     _stateSubscription = session.stateStream.listen((data) {
+      if (!mounted) return;
       if (data.state == CallSessionState.ended) {
-        if (mounted) Navigator.of(context).pop();
+        // Show error toast if the session ended due to a transport failure.
+        if (data.fatalError != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(data.fatalError!)),
+          );
+        }
+        Navigator.of(context).pop();
       }
       _timerNotifier.value = data.durationSeconds;
       // Triggers rebuild when remote participants or emojis change

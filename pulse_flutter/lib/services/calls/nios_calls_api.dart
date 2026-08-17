@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-const String kCallsBaseUrl = 'https://c.ni-os.ru';
+const String kCallsBaseUrl = 'https://c.ni-os.ru:4433';
 
 class NiosCallsApi {
   final http.Client _client;

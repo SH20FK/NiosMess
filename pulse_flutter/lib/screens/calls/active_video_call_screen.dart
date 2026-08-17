@@ -52,18 +52,32 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     _controlsFadeController.value = 1.0;
     _resetControlsTimer();
 
-    _listenToState();
-    _listenToVideo();
+    // Defer subscriptions to post-frame so Riverpod providers are settled.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _listenToState();
+      _listenToVideo();
+    });
   }
 
   void _listenToState() {
     final session = ref.read(callSessionProvider)?.session;
-    if (session == null) return;
+    if (session == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _listenToState();
+      });
+      return;
+    }
 
     _timerNotifier.value = session.currentData.durationSeconds;
     _stateSubscription = session.stateStream.listen((data) {
+      if (!mounted) return;
       if (data.state == CallSessionState.ended) {
-        if (mounted) Navigator.of(context).pop();
+        if (data.fatalError != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(data.fatalError!)),
+          );
+        }
+        Navigator.of(context).pop();
       }
       _timerNotifier.value = data.durationSeconds;
       setState(() {});
@@ -72,10 +86,22 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
 
   void _listenToVideo() {
     final session = ref.read(callSessionProvider)?.session;
-    if (session == null) return;
+    if (session == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _listenToVideo();
+      });
+      return;
+    }
 
     final videoOutput = session.videoOutput;
-    if (videoOutput == null) return;
+    if (videoOutput == null) {
+      // Video pipeline may not be ready yet if _setState(inCall) races with
+      // _startVideoPipeline. Retry next frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _listenToVideo();
+      });
+      return;
+    }
 
     _videoSubscription = videoOutput.frameStream.listen((frame) {
       ref.read(remoteVideoFrameProvider.notifier).set(frame);

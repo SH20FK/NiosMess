@@ -7,7 +7,8 @@ import 'call_transport.dart';
 
 /// WebSocket (TCP) implementation of [CallTransport].
 ///
-/// Connects to the NiosCalls SFU via WebSocket at wss://c.ni-os.ru/ws
+/// Connects to the NiosCalls SFU via WebSocket at wss://c.ni-os.ru:4433/ws
+/// (port matches the reference web client; the SFU accepts HTTP/WS on 4433).
 class WsCallTransport implements CallTransport {
   WsCallTransport();
 
@@ -29,6 +30,8 @@ class WsCallTransport implements CallTransport {
   @override
   Stream<Uint8List> get onPacketReceived => _packetController.stream;
 
+  /// Connect to the SFU with a timeout so a hung handshake can never leave
+  /// the call stuck on "Connecting…" forever.
   @override
   Future<TransportConnectResult> connect({
     required String roomId,
@@ -36,11 +39,11 @@ class WsCallTransport implements CallTransport {
   }) async {
     try {
       final Uri uri = Uri.parse(
-        'wss://c.ni-os.ru:8765/ws?room=$roomId&nick=${Uri.encodeComponent(nickname)}',
+        'wss://c.ni-os.ru:4433/ws?room=$roomId&nick=${Uri.encodeComponent(nickname)}',
       );
       _channel = WebSocketChannel.connect(uri);
 
-      await _channel!.ready;
+      await _channel!.ready.timeout(const Duration(seconds: 10));
       _connected = true;
 
       _subscription = _channel!.stream.listen(

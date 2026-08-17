@@ -73,6 +73,20 @@ class CallSession {
   final List<RemoteParticipant> _remoteParticipants = [];
   List<String> _verificationEmojis = [];
 
+  /// Serializes async media decryption so packets are dispatched in the order
+  /// they arrived. Without this, concurrent AES-GCM decrypts reorder audio
+  /// frames (garbled/robotic speech).
+  Future<void> _mediaChain = Future<void>.value();
+
+  /// Rate-limit for decrypt-fail log lines — at most one log every 2 seconds
+  /// to avoid flooding stdout at up to 50 packets/s on a format mismatch.
+  DateTime? _lastDecryptErrorLog;
+
+  /// Message shown when the call cannot be established (transport failed).
+  /// Kept on the session so the UI can display an error instead of silently
+  /// popping back to the chat.
+  String? _fatalError;
+
   CallSessionState _state = CallSessionState.idle;
   bool _isMuted = false;
   bool _isSpeakerOn = false;
@@ -97,7 +111,11 @@ class CallSession {
         isMuted: _isMuted,
         isSpeakerOn: _isSpeakerOn,
         isSelfVideoEnabled: _isSelfVideoEnabled,
+        fatalError: _fatalError,
       );
+
+  /// Non-null when the session ended due to a transport failure.
+  String? get fatalError => _fatalError;
 
   final StreamController<CallSessionData> _stateController =
       StreamController<CallSessionData>.broadcast();
@@ -159,6 +177,7 @@ class CallSession {
     );
 
     if (result == TransportConnectResult.failed) {
+      _fatalError = 'Could not connect to call server. Please try again.';
       _setState(CallSessionState.ended);
       return;
     }
@@ -212,7 +231,9 @@ class CallSession {
         _handlePeerKeyExchange(data);
         return;
       case kPacketTypeMedia:
-        _handleIncomingMedia(data);
+        // Chain onto _mediaChain so decryptions run sequentially —
+        // concurrent AES-GCM ops deliver frames out-of-order (garbled audio).
+        _mediaChain = _mediaChain.then((_) => _handleIncomingMedia(data));
         return;
       case kPacketTypeHeartbeat:
         _handlePeerHeartbeat(data);
@@ -341,7 +362,12 @@ class CallSession {
         onIncomingAudio?.call(plain);
       }
     } catch (e) {
-      debugPrint('[CallSession] Media decrypt failed: $e');
+      final now = DateTime.now();
+      if (_lastDecryptErrorLog == null ||
+          now.difference(_lastDecryptErrorLog!) > const Duration(seconds: 2)) {
+        _lastDecryptErrorLog = now;
+        debugPrint('[CallSession] Media decrypt failed: $e');
+      }
     }
   }
 
@@ -449,6 +475,7 @@ class CallSession {
     encryptedMedia.setRange(secretBox.cipherText.length, encryptedMedia.length, secretBox.mac.bytes);
 
     final Uint8List packet = packMediaPacket(
+      senderClientId: _localClientId!,
       iv: iv,
       encryptedData: encryptedMedia,
     );
@@ -598,6 +625,7 @@ class CallSession {
         encryptedMedia.setRange(secretBox.cipherText.length, encryptedMedia.length, secretBox.mac.bytes);
 
         final Uint8List packet = packMediaPacket(
+          senderClientId: _localClientId!,
           iv: iv,
           encryptedData: encryptedMedia,
         );

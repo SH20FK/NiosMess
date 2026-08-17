@@ -28,6 +28,7 @@ class CallSessionData {
     required this.durationSeconds,
     this.remoteParticipants = const [],
     this.verificationEmojis = const [],
+    this.fatalError,
   });
 
   final CallSessionState state;
@@ -43,6 +44,10 @@ class CallSessionData {
   final List<RemoteParticipant> remoteParticipants;
   final List<String> verificationEmojis;
 
+  /// Set when the session ends due to a transport failure, so the UI can
+  /// show an error message rather than silently popping back.
+  final String? fatalError;
+
   CallSessionData copyWith({
     CallSessionState? state,
     int? callId,
@@ -56,6 +61,7 @@ class CallSessionData {
     int? durationSeconds,
     List<RemoteParticipant>? remoteParticipants,
     List<String>? verificationEmojis,
+    String? fatalError,
   }) {
     return CallSessionData(
       state: state ?? this.state,
@@ -70,6 +76,7 @@ class CallSessionData {
       durationSeconds: durationSeconds ?? this.durationSeconds,
       remoteParticipants: remoteParticipants ?? this.remoteParticipants,
       verificationEmojis: verificationEmojis ?? this.verificationEmojis,
+      fatalError: fatalError ?? this.fatalError,
     );
   }
 }
