@@ -3,14 +3,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show DeviceOrientation;
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
-import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
@@ -140,24 +138,10 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   }
 
   Widget _buildImageViewer(ColorScheme scheme) {
-    return PhotoView(
-      imageProvider: CachedNetworkImageProvider(widget.url, headers: cachedAuthHeaders()),
-      minScale: PhotoViewComputedScale.contained,
-      maxScale: PhotoViewComputedScale.covered * 2.5,
-      backgroundDecoration: BoxDecoration(color: scheme.scrim),
-      loadingBuilder: (context, event) => Center(
-        child: AppLoadingIndicator(size: 32),
-      ),
-      errorBuilder: (context, error, stackTrace) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            context.l10n.mediaViewerImageLoadFailed('$error'),
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70),
-          ),
-        ),
-      ),
+    return _FullScreenImage(
+      url: widget.url,
+      e2eeFileKey: _fileKey(),
+      scheme: scheme,
     );
   }
 
@@ -239,5 +223,114 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
       if (!context.mounted) return;
       AppToast.showError(context, context.l10n.mediaDownloadFailed('$e'));
     }
+  }
+}
+
+/// Fetches fullscreen media through the authenticated `/api/files/download`
+/// endpoint (with optional E2EE decryption) instead of hitting the raw
+/// `/api/media/...` URL, which is not served publicly.
+class _FullScreenImage extends ConsumerStatefulWidget {
+  const _FullScreenImage({
+    required this.url,
+    required this.scheme,
+    this.e2eeFileKey,
+  });
+
+  final String url;
+  final ColorScheme scheme;
+  final Uint8List? e2eeFileKey;
+
+  @override
+  ConsumerState<_FullScreenImage> createState() => _FullScreenImageState();
+}
+
+class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
+  Uint8List? _bytes;
+  Object? _error;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _FullScreenImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final Uint8List bytes = await WsMediaFetcher.fetchAndDecryptMedia(
+        filePath: widget.url,
+        wsClient: ref.read(webSocketClientProvider),
+        e2eeFileKey: widget.e2eeFileKey,
+      );
+      if (mounted) {
+        setState(() {
+          _bytes = bytes;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: AppLoadingIndicator(size: 32));
+    }
+
+    if (_error != null || _bytes == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                Icons.broken_image_rounded,
+                size: 48,
+                color: Colors.white54,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                context.l10n.mediaViewerImageLoadFailed('$_error'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return PhotoView(
+      imageProvider: MemoryImage(_bytes!),
+      minScale: PhotoViewComputedScale.contained,
+      maxScale: PhotoViewComputedScale.covered * 2.5,
+      backgroundDecoration: BoxDecoration(color: widget.scheme.scrim),
+      loadingBuilder: (context, event) => const Center(
+        child: AppLoadingIndicator(size: 32),
+      ),
+      errorBuilder: (context, error, stackTrace) => const Center(
+        child: Icon(Icons.broken_image_rounded, color: Colors.white70),
+      ),
+    );
   }
 }
