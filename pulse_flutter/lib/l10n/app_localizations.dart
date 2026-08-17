@@ -4315,6 +4315,13 @@ abstract class AppLocalizations {
   String get callE2eeVerifyHint;
   String get callIncomingVoice;
   String get callIncomingVideo;
+  String get callStatusInCall;
+  String get callMute;
+  String get callUnmute;
+  String get callSpeakerOn;
+  String get callSpeakerOff;
+  String get callEnd;
+  String get callMinimize;
 
   /// No description provided for @adminUserBanned.
   ///

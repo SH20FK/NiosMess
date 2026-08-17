@@ -8,7 +8,6 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/call_video_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class ActiveVideoCallScreen extends ConsumerStatefulWidget {
   const ActiveVideoCallScreen({super.key});
@@ -24,7 +23,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
   bool _areControlsVisible = true;
   Timer? _controlsAutoHideTimer;
 
-  // Draggable PiP coordinates
+  // PiP position
   double _pipX = 0.0;
   double _pipY = 0.0;
   bool _pipInitialized = false;
@@ -48,11 +47,9 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
       parent: _controlsFadeController,
       curve: CallTokens.controlsFadeCurve,
     );
-
     _controlsFadeController.value = 1.0;
     _resetControlsTimer();
 
-    // Defer subscriptions to post-frame so Riverpod providers are settled.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _listenToState();
       _listenToVideo();
@@ -95,8 +92,6 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
 
     final videoOutput = session.videoOutput;
     if (videoOutput == null) {
-      // Video pipeline may not be ready yet if _setState(inCall) races with
-      // _startVideoPipeline. Retry next frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _listenToVideo();
       });
@@ -122,7 +117,8 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     _controlsAutoHideTimer?.cancel();
     _controlsAutoHideTimer = Timer(CallTokens.controlsAutoHideDuration, () {
       if (mounted && _areControlsVisible) {
-        _toggleControls();
+        setState(() => _areControlsVisible = false);
+        _controlsFadeController.reverse();
       }
     });
   }
@@ -139,87 +135,11 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     });
   }
 
-  void _endCall() async {
+  Future<void> _endCall() async {
     HapticFeedback.mediumImpact();
     final manager = ref.read(callSessionProvider);
     await manager?.end();
     if (mounted) Navigator.of(context).pop();
-  }
-
-  void _toggleMute(CallSession session, CallSessionData data) {
-    session.setMuted(!data.isMuted);
-  }
-
-  void _toggleSpeaker(CallSession session, CallSessionData data) {
-    session.setSpeakerOn(!data.isSpeakerOn);
-  }
-
-  void _toggleCamera() {
-    final session = ref.read(callSessionProvider)?.session;
-    if (session == null) return;
-    session.switchCamera();
-  }
-
-  void _showVerificationBottomSheet(BuildContext context, CallSessionData data) {
-    AppBottomSheets.show(
-      context: context,
-      builder: (context) {
-        final scheme = Theme.of(context).colorScheme;
-        final textTheme = Theme.of(context).textTheme;
-
-        return Container(
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '${context.l10n.callE2eeSecurityCode} E2EE',
-                style: textTheme.titleMedium,
-              ),
-              const SizedBox(height: 16),
-              if (data.verificationEmojis.isNotEmpty)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: data.verificationEmojis
-                      .map((emoji) => Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: Text(
-                              emoji,
-                              style: const TextStyle(fontSize: 40),
-                            ),
-                          ))
-                      .toList(),
-                )
-              else
-                Text(
-                  context.l10n.callE2eeGenerating,
-                  style: textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              const SizedBox(height: 12),
-              Text(
-                context.l10n.callE2eeVerifyHint,
-                style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   @override
@@ -229,345 +149,441 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     if (session == null) return const Scaffold(backgroundColor: Colors.black);
 
     final data = session.currentData;
-    final textTheme = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final remoteFrame = ref.watch(remoteVideoFrameProvider);
+    final size = MediaQuery.sizeOf(context);
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
 
-    final participants = data.remoteParticipants;
-    final participantLabel = participants.isNotEmpty
-        ? participants.map((p) => p.nickname).join(', ')
-        : context.l10n.callConnecting;
-
-    // 1 participant (fullscreen + PiP) or multi-party (grid)
-    final bool isMultiParty = participants.length >= 2;
-
-    // Initialize PiP position to bottom right once screen size is known
     if (!_pipInitialized) {
-      final size = MediaQuery.of(context).size;
       _pipX = size.width - CallTokens.videoPipWidth - 16;
-      _pipY = size.height - CallTokens.videoPipHeight - 140;
+      _pipY = size.height - CallTokens.videoPipHeight - 160;
       _pipInitialized = true;
     }
 
+    final participants = data.remoteParticipants;
+    final participantName = participants.isNotEmpty
+        ? participants.map((p) => p.nickname).join(', ')
+        : context.l10n.callConnecting;
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: GestureDetector(
-          onTap: _toggleControls,
-          behavior: HitTestBehavior.translucent,
-          child: Stack(
-            children: [
-              // Main content (fullscreen remote video or Grid)
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: isMultiParty
-                        ? _buildMultiPartyGrid(participants, remoteFrame)
-                        : _buildFullscreenFeed(context, remoteFrame, data),
-                  ),
-                ),
+      body: GestureDetector(
+        onTap: _toggleControls,
+        behavior: HitTestBehavior.translucent,
+        child: Stack(
+          children: [
+            // ── Remote video / placeholder ───────────────────────────────
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: remoteFrame != null && remoteFrame.isNotEmpty
+                    ? Image.memory(
+                        remoteFrame,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                        width: double.infinity,
+                        height: double.infinity,
+                      )
+                    : _NoVideoPlaceholder(
+                        name: participantName,
+                        scheme: scheme,
+                        textTheme: textTheme,
+                      ),
               ),
+            ),
 
-              // Local Camera preview PiP (Draggable)
-              if (!isMultiParty)
-                Positioned(
-                  left: _pipX,
-                  top: _pipY,
-                  child: GestureDetector(
-                    onPanUpdate: (details) {
-                      setState(() {
-                        _pipX += details.delta.dx;
-                        _pipY += details.delta.dy;
-                      });
-                    },
-                    onVerticalDragEnd: (details) {
-                      // Toggle camera on vertical swipe gesture on PiP
-                      if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 200) {
-                        _toggleCamera();
-                      }
-                    },
-                    child: RepaintBoundary(
-                      child: Container(
-                        width: CallTokens.videoPipWidth,
-                        height: CallTokens.videoPipHeight,
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            width: 2,
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black54,
-                              blurRadius: 8,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                            child: Stack(
-                          children: [
-                            const _LocalCameraPreview(),
-                            // Swipe line indicator
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              bottom: 6,
-                              child: Center(
-                                child: Container(
-                                  width: 24,
-                                  height: 3,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.5),
-                                    borderRadius: BorderRadius.circular(1.5),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-              // Overlay Information (visible by default, can be toggled)
-              Positioned(
-                top: 16,
-                left: 16,
-                right: 16,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      participantLabel,
-                      style: textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        shadows: [Shadow(color: Colors.black.withValues(alpha: 0.85), blurRadius: 8)],
-                      ),
-                    ),
-                    ValueListenableBuilder<int>(
-                      valueListenable: _timerNotifier,
-                      builder: (context, seconds, _) {
-                        final m = seconds ~/ 60;
-                        final s = seconds % 60;
-                        return Text(
-                          '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
-                          style: textTheme.labelLarge?.copyWith(
-                            fontFamily: 'monospace',
-                            color: Colors.white.withValues(alpha: 0.8),
-                            shadows: [Shadow(color: Colors.black.withValues(alpha: 0.85), blurRadius: 8)],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              // Controls Layout (Tap to show/hide)
-              Positioned(
-                bottom: 48,
-                left: 0,
-                right: 0,
-                child: AnimatedBuilder(
-                  animation: _controlsFadeAnimation,
-                  builder: (context, child) {
-                    return Opacity(
-                      opacity: _controlsFadeAnimation.value,
-                      child: IgnorePointer(
-                        ignoring: _controlsFadeAnimation.value < 0.1,
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // Minimize button
-                      IconButton(
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          Navigator.of(context).pop();
-                        },
-                        icon: const Icon(
-                          Icons.grid_view_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        style: IconButton.styleFrom(
-                          backgroundColor: scheme.surfaceContainerLow.withValues(alpha: 0.2),
-                          minimumSize: const Size(CallTokens.controlButtonSize, CallTokens.controlButtonSize),
-                        ),
-                      ),
-                      // Mute Button
-                      IconButton(
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          _toggleMute(session, data);
-                        },
-                        icon: Icon(
-                          data.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                          color: Colors.white,
-                          size: 26,
-                        ),
-                        style: IconButton.styleFrom(
-                          backgroundColor: data.isMuted
-                              ? scheme.error.withValues(alpha: 0.3)
-                              : scheme.surfaceContainerLow.withValues(alpha: 0.2),
-                          minimumSize: const Size(CallTokens.controlButtonSize, CallTokens.controlButtonSize),
-                        ),
-                      ),
-                      // Hangup Button
-                      IconButton(
-                        onPressed: _endCall,
-                        icon: const Icon(
-                          Icons.call_end_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        style: IconButton.styleFrom(
-                          backgroundColor: scheme.error,
-                          minimumSize: const Size(CallTokens.controlButtonSize, CallTokens.controlButtonSize),
-                        ),
-                      ),
-                      // Speaker Button
-                      IconButton(
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          _toggleSpeaker(session, data);
-                        },
-                        icon: Icon(
-                          data.isSpeakerOn
-                              ? Icons.volume_up_rounded
-                              : Icons.volume_off_rounded,
-                          color: Colors.white,
-                          size: 26,
-                        ),
-                        style: IconButton.styleFrom(
-                          backgroundColor: scheme.surfaceContainerLow.withValues(alpha: 0.2),
-                          minimumSize: const Size(CallTokens.controlButtonSize, CallTokens.controlButtonSize),
-                        ),
-                      ),
-                      // Camera Switch Button
-                      IconButton(
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          _toggleCamera();
-                        },
-                        icon: const Icon(
-                          Icons.flip_camera_ios_rounded,
-                          color: Colors.white,
-                          size: 26,
-                        ),
-                        style: IconButton.styleFrom(
-                          backgroundColor: scheme.surfaceContainerLow.withValues(alpha: 0.2),
-                          minimumSize: const Size(CallTokens.controlButtonSize, CallTokens.controlButtonSize),
-                        ),
-                      ),
-                      // Video On/Off Button
-                      IconButton(
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          session.setLocalVideoEnabled(!data.isSelfVideoEnabled);
-                        },
-                        icon: Icon(
-                          data.isSelfVideoEnabled
-                              ? Icons.videocam_rounded
-                              : Icons.videocam_off_rounded,
-                          color: Colors.white,
-                          size: 26,
-                        ),
-                        style: IconButton.styleFrom(
-                          backgroundColor: !data.isSelfVideoEnabled
-                              ? scheme.error.withValues(alpha: 0.3)
-                              : scheme.surfaceContainerLow.withValues(alpha: 0.2),
-                          minimumSize: const Size(CallTokens.controlButtonSize, CallTokens.controlButtonSize),
-                        ),
-                      ),
+            // ── Gradient scrim top (name + timer) ───────────────────────
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 120,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.65),
+                      Colors.transparent,
                     ],
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+            ),
 
-  Widget _buildFullscreenFeed(BuildContext context, Uint8List? remoteFrame, CallSessionData data) {
-    if (remoteFrame == null || remoteFrame.isEmpty) {
-      return Container(
-        color: Colors.black87,
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    return GestureDetector(
-      onTap: () => _showVerificationBottomSheet(context, data),
-      child: Image.memory(
-        remoteFrame,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        width: double.infinity,
-        height: double.infinity,
-      ),
-    );
-  }
-
-  Widget _buildMultiPartyGrid(List<dynamic> participants, Uint8List? remoteFrame) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.0,
-        ),
-        itemCount: participants.length + 1,
-        itemBuilder: (context, index) {
-          if (index == participants.length) {
-            // Local preview cell in grid
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                color: Colors.black,
-                child: const _LocalCameraPreview(),
-              ),
-            );
-          }
-
-          // Remote participant cell
-          if (remoteFrame == null || remoteFrame.isEmpty) {
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                color: Colors.grey[900],
-                child: const Center(
-                  child: Icon(Icons.person_rounded, size: 48, color: Colors.white54),
+            // ── Gradient scrim bottom (controls) ────────────────────────
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 200 + safeBottom,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.75),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
-            );
-          }
-
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.memory(
-              remoteFrame,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
             ),
-          );
-        },
+
+            // ── Top bar: name + timer ────────────────────────────────────
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + 12,
+              left: 16,
+              right: 16,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      participantName,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ValueListenableBuilder<int>(
+                    valueListenable: _timerNotifier,
+                    builder: (context, seconds, _) {
+                      final m = seconds ~/ 60;
+                      final s = seconds % 60;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
+                          style: textTheme.labelMedium?.copyWith(
+                            fontFamily: 'monospace',
+                            color: Colors.white,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Draggable PiP (self camera) ──────────────────────────────
+            Positioned(
+              left: _pipX,
+              top: _pipY,
+              child: GestureDetector(
+                onPanUpdate: (details) {
+                  setState(() {
+                    _pipX = (_pipX + details.delta.dx)
+                        .clamp(0, size.width - CallTokens.videoPipWidth);
+                    _pipY = (_pipY + details.delta.dy)
+                        .clamp(0, size.height - CallTokens.videoPipHeight);
+                  });
+                },
+                child: RepaintBoundary(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: SizedBox(
+                      width: CallTokens.videoPipWidth,
+                      height: CallTokens.videoPipHeight,
+                      child: Stack(
+                        children: [
+                          const _LocalCameraPreview(),
+                          // Thin border overlay
+                          Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Controls bar (fade in/out) ───────────────────────────────
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: AnimatedBuilder(
+                animation: _controlsFadeAnimation,
+                builder: (context, child) => Opacity(
+                  opacity: _controlsFadeAnimation.value,
+                  child: IgnorePointer(
+                    ignoring: _controlsFadeAnimation.value < 0.05,
+                    child: child,
+                  ),
+                ),
+                child: _VideoControlBar(
+                  session: session,
+                  data: data,
+                  scheme: scheme,
+                  onEnd: _endCall,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+
+// ── No video placeholder ──────────────────────────────────────────────────────
+
+class _NoVideoPlaceholder extends StatelessWidget {
+  const _NoVideoPlaceholder({
+    required this.name,
+    required this.scheme,
+    required this.textTheme,
+  });
+
+  final String name;
+  final ColorScheme scheme;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = Color.lerp(scheme.primaryContainer, scheme.tertiaryContainer, 0.4)!;
+    final dark = HSLColor.fromColor(bgColor)
+        .withLightness((HSLColor.fromColor(bgColor).lightness * 0.4).clamp(0.0, 1.0))
+        .toColor();
+
+    return Container(
+      color: dark,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: scheme.primaryContainer.withValues(alpha: 0.3),
+                border: Border.all(
+                  color: scheme.onPrimary.withValues(alpha: 0.2),
+                  width: 1.5,
+                ),
+              ),
+              child: Icon(
+                Icons.videocam_off_rounded,
+                size: 40,
+                color: scheme.onPrimary.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              name,
+              style: textTheme.titleLarge?.copyWith(color: scheme.onPrimary),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Камера выключена',
+              style: textTheme.bodyMedium?.copyWith(
+                color: scheme.onPrimary.withValues(alpha: 0.5),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Video control bar ─────────────────────────────────────────────────────────
+
+class _VideoControlBar extends StatelessWidget {
+  const _VideoControlBar({
+    required this.session,
+    required this.data,
+    required this.scheme,
+    required this.onEnd,
+  });
+
+  final CallSession session;
+  final CallSessionData data;
+  final ColorScheme scheme;
+  final VoidCallback onEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    final iconColor = Colors.white;
+    final baseBg = Colors.white.withValues(alpha: 0.15);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: safeBottom + 20,
+        top: 8,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // Minimize
+          _VideoButton(
+            icon: Icons.grid_view_rounded,
+            label: context.l10n.callMinimize,
+            bg: baseBg,
+            iconColor: iconColor,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.of(context).pop();
+            },
+          ),
+
+          // Mute
+          _VideoButton(
+            icon: data.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+            label: data.isMuted ? context.l10n.callUnmute : context.l10n.callMute,
+            bg: data.isMuted ? scheme.error.withValues(alpha: 0.8) : baseBg,
+            iconColor: iconColor,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              session.setMuted(!data.isMuted);
+            },
+          ),
+
+          // End call
+          _VideoEndButton(onTap: onEnd),
+
+          // Camera toggle
+          _VideoButton(
+            icon: data.isSelfVideoEnabled ? Icons.videocam_rounded : Icons.videocam_off_rounded,
+            label: data.isSelfVideoEnabled ? 'Камера' : 'Камера выкл.',
+            bg: !data.isSelfVideoEnabled ? scheme.error.withValues(alpha: 0.8) : baseBg,
+            iconColor: iconColor,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              session.setLocalVideoEnabled(!data.isSelfVideoEnabled);
+            },
+          ),
+
+          // Switch camera
+          _VideoButton(
+            icon: Icons.flip_camera_ios_rounded,
+            label: 'Камера',
+            bg: baseBg,
+            iconColor: iconColor,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              session.switchCamera();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VideoButton extends StatelessWidget {
+  const _VideoButton({
+    required this.icon,
+    required this.label,
+    required this.bg,
+    required this.iconColor,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color bg;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          color: bg,
+          borderRadius: BorderRadius.circular(20),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20),
+            child: SizedBox(
+              width: 56,
+              height: 56,
+              child: Icon(icon, color: iconColor, size: 24),
+            ),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.7),
+          ),
+          maxLines: 1,
+        ),
+      ],
+    );
+  }
+}
+
+class _VideoEndButton extends StatelessWidget {
+  const _VideoEndButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          color: Theme.of(context).colorScheme.error,
+          borderRadius: BorderRadius.circular(20),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20),
+            child: const SizedBox(
+              width: 64,
+              height: 56,
+              child: Icon(Icons.call_end_rounded, color: Colors.white, size: 28),
+            ),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          context.l10n.callEnd,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.error,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Local camera preview ──────────────────────────────────────────────────────
 
 class _LocalCameraPreview extends ConsumerWidget {
   const _LocalCameraPreview();
@@ -578,28 +594,27 @@ class _LocalCameraPreview extends ConsumerWidget {
     final controller = ref.watch(localCameraControllerProvider);
 
     if (!isEnabled) {
-      return const Center(
-        child: Icon(
-          Icons.videocam_off_rounded,
-          color: Colors.white54,
-          size: 32,
+      return Container(
+        color: Colors.black87,
+        child: const Center(
+          child: Icon(Icons.videocam_off_rounded, color: Colors.white38, size: 28),
         ),
       );
     }
 
     if (controller == null || !controller.value.isInitialized) {
-      return const Center(
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
+      return Container(
+        color: Colors.black87,
+        child: const Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
+          ),
         ),
       );
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: CameraPreview(controller),
-    );
+    return CameraPreview(controller);
   }
 }

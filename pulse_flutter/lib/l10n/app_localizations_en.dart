@@ -3963,6 +3963,20 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get callIncomingVideo => 'Video call...';
   @override
+  String get callStatusInCall => 'In call';
+  @override
+  String get callMute => 'Mute';
+  @override
+  String get callUnmute => 'Unmute';
+  @override
+  String get callSpeakerOn => 'Speaker';
+  @override
+  String get callSpeakerOff => 'Earpiece';
+  @override
+  String get callEnd => 'End';
+  @override
+  String get callMinimize => 'Minimize';
+  @override
   String get chatCallPermissionRequired => 'Permission required for calls';
   @override
   String chatCallFailed(Object error) => 'Call failed: $error';

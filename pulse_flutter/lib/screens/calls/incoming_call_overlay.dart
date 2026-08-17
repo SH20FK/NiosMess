@@ -23,10 +23,13 @@ class IncomingCallOverlay extends ConsumerStatefulWidget {
 class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     with TickerProviderStateMixin {
   late final AnimationController _slideController;
-  late final Animation<double> _slideAnimation;
+  late final Animation<Offset> _slideAnimation;
   late final Animation<double> _fadeAnimation;
 
+  // Pulse ring around the call-type icon
   late final AnimationController _pulseController;
+  late final Animation<double> _pulseScale;
+  late final Animation<double> _pulseOpacity;
 
   IncomingCallData? _lastIncoming;
 
@@ -38,11 +41,13 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
       vsync: this,
       duration: CallTokens.incomingOverlayAnimationDuration,
     );
-
-    _slideAnimation = Tween<double>(begin: -150.0, end: 0.0).animate(
-      CurvedAnimation(parent: _slideController, curve: CallTokens.incomingOverlayCurve),
-    );
-
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -1.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: CallTokens.incomingOverlayCurve,
+    ));
     _fadeAnimation = CurvedAnimation(
       parent: _slideController,
       curve: CallTokens.incomingOverlayCurve,
@@ -50,8 +55,15 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
 
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 1600),
     )..repeat();
+
+    _pulseScale = Tween<double>(begin: 1.0, end: 1.55).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
+    );
+    _pulseOpacity = Tween<double>(begin: 0.55, end: 0.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
+    );
   }
 
   @override
@@ -61,10 +73,6 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     super.dispose();
   }
 
-  void _triggerHaptic() {
-    HapticFeedback.vibrate();
-  }
-
   @override
   Widget build(BuildContext context) {
     final incoming = ref.watch(incomingCallProvider);
@@ -72,14 +80,10 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     if (incoming != null && _lastIncoming == null) {
       _lastIncoming = incoming;
       _slideController.forward();
-      Future.microtask(_triggerHaptic);
+      Future.microtask(() => HapticFeedback.vibrate());
     } else if (incoming == null && _lastIncoming != null) {
       _slideController.reverse().then((_) {
-        if (mounted) {
-          setState(() {
-            _lastIncoming = null;
-          });
-        }
+        if (mounted) setState(() => _lastIncoming = null);
       });
     }
 
@@ -88,117 +92,88 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
 
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final safeTop = MediaQuery.paddingOf(context).top;
 
-    return AnimatedBuilder(
-      animation: _slideController,
-      builder: (context, child) {
-        return Positioned(
-          top: 16 + _slideAnimation.value,
-          left: 16,
-          right: 16,
-          child: Opacity(
-            opacity: _fadeAnimation.value,
-            child: child,
-          ),
-        );
-      },
-      child: RepaintBoundary(
-        child: GestureDetector(
-          onVerticalDragUpdate: (details) {
-            if (details.primaryDelta! > 10) {
-              _acceptCall(context, ref, data);
-            } else if (details.primaryDelta! < -10) {
-              _declineCall(data);
-            }
-          },
-          child: Card(
-            elevation: CallTokens.cardElevation,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
-            ),
-            color: scheme.surfaceContainerHigh,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Stack(
-                    alignment: Alignment.center,
+    return SlideTransition(
+      position: _slideAnimation,
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Positioned(
+          top: safeTop + 8,
+          left: 12,
+          right: 12,
+          child: RepaintBoundary(
+            child: Material(
+              elevation: 6,
+              shadowColor: Colors.black.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(28),
+              color: scheme.surfaceContainerHigh,
+              child: GestureDetector(
+                onVerticalDragEnd: (details) {
+                  final v = details.primaryVelocity ?? 0;
+                  if (v > 120) _acceptCall(context, ref, data);
+                  if (v < -120) _declineCall(data);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
                     children: [
-                      AnimatedBuilder(
-                        animation: _pulseController,
-                        builder: (context, child) {
-                          return Container(
-                            width: CallTokens.avatarSmallSize + (24 * _pulseController.value),
-                            height: CallTokens.avatarSmallSize + (24 * _pulseController.value),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: scheme.primary.withValues(alpha: 0.2 * (1.0 - _pulseController.value)),
+                      // Pulsing icon
+                      _PulsingCallIcon(
+                        isVideo: data.isVideo,
+                        pulseScale: _pulseScale,
+                        pulseOpacity: _pulseOpacity,
+                        scheme: scheme,
+                      ),
+                      const SizedBox(width: 14),
+
+                      // Name + subtitle
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              data.initiatorName,
+                              style: textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          );
-                        },
-                      ),
-                      Container(
-                        width: CallTokens.avatarSmallSize,
-                        height: CallTokens.avatarSmallSize,
-                        decoration: BoxDecoration(
-                          color: scheme.primaryContainer,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          data.isVideo ? Icons.videocam_rounded : Icons.phone_rounded,
-                          color: scheme.onPrimaryContainer,
-                          size: 20,
+                            const SizedBox(height: 2),
+                            Text(
+                              data.isVideo
+                                  ? context.l10n.callIncomingVideo
+                                  : context.l10n.callIncomingVoice,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          data.initiatorName,
-                          style: textTheme.titleMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          data.isVideo ? context.l10n.callIncomingVideo : context.l10n.callIncomingVoice,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        onPressed: () => _declineCall(data),
-                        icon: const Icon(Icons.call_end_rounded, color: Colors.white, size: 22),
-                        style: IconButton.styleFrom(
-                          backgroundColor: scheme.error,
-                          minimumSize: const Size(CallTokens.incomingButtonSize, CallTokens.incomingButtonSize),
-                          maximumSize: const Size(CallTokens.incomingButtonSize, CallTokens.incomingButtonSize),
-                        ),
+                      const SizedBox(width: 10),
+
+                      // Decline
+                      _CallActionButton(
+                        icon: Icons.call_end_rounded,
+                        color: scheme.onError,
+                        bg: scheme.error,
+                        onTap: () => _declineCall(data),
                       ),
                       const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: () => _acceptCall(context, ref, data),
-                        icon: const Icon(Icons.phone_rounded, color: Colors.white, size: 22),
-                        style: IconButton.styleFrom(
-                          backgroundColor: scheme.primary,
-                          minimumSize: const Size(CallTokens.incomingButtonSize, CallTokens.incomingButtonSize),
-                          maximumSize: const Size(CallTokens.incomingButtonSize, CallTokens.incomingButtonSize),
-                        ),
+
+                      // Accept
+                      _CallActionButton(
+                        icon: data.isVideo ? Icons.videocam_rounded : Icons.phone_rounded,
+                        color: scheme.onPrimary,
+                        bg: scheme.primary,
+                        onTap: () => _acceptCall(context, ref, data),
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -211,10 +186,10 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     ref.read(incomingCallProvider.notifier).set(null);
     unawaited(
       ref.read(callRepositoryProvider).decline(
-            chatId: incoming.chatId,
-            roomId: incoming.roomId,
-            messageId: incoming.callId,
-          ).catchError((Object e) {
+        chatId: incoming.chatId,
+        roomId: incoming.roomId,
+        messageId: incoming.callId,
+      ).catchError((Object e) {
         debugPrint('[IncomingCallOverlay] decline signal failed: $e');
       }),
     );
@@ -258,5 +233,101 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
         AppToast.showError(context, 'Failed to join call: $e');
       }
     }
+  }
+}
+
+// ── Pulsing icon ──────────────────────────────────────────────────────────────
+
+class _PulsingCallIcon extends StatelessWidget {
+  const _PulsingCallIcon({
+    required this.isVideo,
+    required this.pulseScale,
+    required this.pulseOpacity,
+    required this.scheme,
+  });
+
+  final bool isVideo;
+  final Animation<double> pulseScale;
+  final Animation<double> pulseOpacity;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 46.0;
+    return SizedBox(
+      width: size + 20,
+      height: size + 20,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Pulse ring
+          AnimatedBuilder(
+            animation: pulseScale,
+            builder: (context, _) => Transform.scale(
+              scale: pulseScale.value,
+              child: Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: scheme.primary.withValues(alpha: pulseOpacity.value),
+                ),
+              ),
+            ),
+          ),
+          // Icon circle
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: scheme.primaryContainer,
+            ),
+            child: Icon(
+              isVideo ? Icons.videocam_rounded : Icons.phone_rounded,
+              color: scheme.onPrimaryContainer,
+              size: 22,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Call action button ────────────────────────────────────────────────────────
+
+class _CallActionButton extends StatelessWidget {
+  const _CallActionButton({
+    required this.icon,
+    required this.color,
+    required this.bg,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final Color bg;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = CallTokens.incomingButtonSize;
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Icon(icon, color: color, size: 22),
+        ),
+      ),
+    );
   }
 }

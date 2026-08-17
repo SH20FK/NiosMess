@@ -3987,6 +3987,20 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get callIncomingVideo => 'Видеовызов...';
   @override
+  String get callStatusInCall => 'Идёт звонок';
+  @override
+  String get callMute => 'Откл. микр.';
+  @override
+  String get callUnmute => 'Вкл. микр.';
+  @override
+  String get callSpeakerOn => 'Динамик';
+  @override
+  String get callSpeakerOff => 'Трубка';
+  @override
+  String get callEnd => 'Завершить';
+  @override
+  String get callMinimize => 'Свернуть';
+  @override
   String get chatCallPermissionRequired => 'Требуется разрешение для звонков';
   @override
   String chatCallFailed(Object error) => 'Ошибка звонка: $error';
