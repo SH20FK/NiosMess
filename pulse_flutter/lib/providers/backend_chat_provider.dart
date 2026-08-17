@@ -631,7 +631,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       String? uploadId,
       String msgType = 'text',
       String? localId,
-      String? e2eePlaintext}) async {
+      String? e2eePlaintext,
+      String? e2eeFileKey}) async {
     final String trimmed = content.trim();
     if (trimmed.isEmpty && (uploadId == null || uploadId.trim().isEmpty)) {
       return;
@@ -706,6 +707,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       isFailed: false,
       isE2ee: isE2ee,
       e2eeContent: e2eeContent,
+      e2eeFileKey: e2eeFileKey,
     );
 
     List<ApiMessage> current = state.value ?? const <ApiMessage>[];
@@ -728,7 +730,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           );
 
       if (isE2ee) {
-        sent = sent.copyWith(content: trimmed);
+        sent = sent.copyWith(content: trimmed, e2eeFileKey: e2eeFileKey);
       }
 
       current = state.value ?? const <ApiMessage>[];

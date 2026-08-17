@@ -32,6 +32,7 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/providers/typing_provider.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/widgets/m3_file_picker_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
@@ -1226,9 +1227,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return;
     }
 
-    context.push(
-      '/file-viewer?name=${Uri.encodeComponent(fileName)}'
-      '&url=${Uri.encodeComponent(mediaUrl)}',
+    showM3FilePreview(
+      context: context,
+      fileName: fileName,
+      fileSize: message.mediaSize ?? 0,
+      mediaUrl: mediaUrl,
+      e2eeFileKey: message.e2eeFileKey,
+      onForward: () async {
+        if (!context.mounted) return;
+        await _forwardMessage(message);
+      },
     );
   }
 
@@ -1286,6 +1294,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                       fileName: fileName,
                       fileSize: message.mediaSize ?? 0,
                       mediaUrl: mediaUrl,
+                      e2eeFileKey: message.e2eeFileKey,
+                      wsClient: ref.read(webSocketClientProvider),
                     );
                   },
                 ),

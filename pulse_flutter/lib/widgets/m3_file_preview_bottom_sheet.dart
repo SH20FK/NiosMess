@@ -1,10 +1,14 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/core/network/web_socket_client.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
-import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -21,6 +25,7 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
     this.fileBytes,
     this.filePath,
     this.mediaUrl,
+    this.e2eeFileKey,
     this.onForward,
   });
 
@@ -29,6 +34,7 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
   final int fileSize;
   final String? filePath;
   final String? mediaUrl;
+  final String? e2eeFileKey;
   final Future<void> Function()? onForward;
 
   FileTypeInfo get typeInfo =>
@@ -187,12 +193,17 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
 
   Future<void> _saveFile(BuildContext context) async {
     Navigator.of(context).pop();
+    final WebSocketClient wsClient = ProviderScope.containerOf(
+      context,
+    ).read(webSocketClientProvider);
     await saveM3File(
       context: context,
       fileName: fileName,
       fileSize: fileSize,
       fileBytes: fileBytes,
       mediaUrl: hasRemoteUrl ? mediaUrl : null,
+      e2eeFileKey: e2eeFileKey,
+      wsClient: wsClient,
     );
   }
 
@@ -327,6 +338,8 @@ Future<void> saveM3File({
   required int fileSize,
   Uint8List? fileBytes,
   String? mediaUrl,
+  String? e2eeFileKey,
+  WebSocketClient? wsClient,
 }) async {
   final bool hasBytes = fileBytes != null && fileBytes.isNotEmpty;
   final bool hasRemoteUrl = (mediaUrl ?? '').trim().isNotEmpty;
@@ -344,22 +357,25 @@ Future<void> saveM3File({
     if (hasBytes) {
       data = fileBytes;
     } else if (hasRemoteUrl) {
-      final http.Client client = http.Client();
-      try {
-        final http.StreamedResponse response = await client.send(
-          http.Request('GET', Uri.parse(mediaUrl!)),
-        ).timeout(const Duration(seconds: 60));
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-          throw Exception('Download failed (${response.statusCode})');
-        }
-        final List<int> chunks = <int>[];
-        await for (final List<int> chunk in response.stream) {
-          chunks.addAll(chunk);
-        }
-        data = Uint8List.fromList(chunks);
-      } finally {
-        client.close();
+      if (wsClient == null) {
+        throw Exception('No download client available');
       }
+      Uint8List? fileKey;
+      if (e2eeFileKey != null && e2eeFileKey.isNotEmpty) {
+        try {
+          final Uint8List decoded = base64Decode(e2eeFileKey);
+          fileKey = decoded;
+        } catch (_) {
+          fileKey = null;
+        }
+      } else {
+        fileKey = null;
+      }
+      data = await WsMediaFetcher.fetchAndDecryptMedia(
+        filePath: mediaUrl!,
+        wsClient: wsClient,
+        e2eeFileKey: fileKey,
+      );
     } else {
       throw Exception('Nothing to save');
     }
@@ -382,6 +398,7 @@ Future<void> showM3FilePreview({
   Uint8List? fileBytes,
   String? filePath,
   String? mediaUrl,
+  String? e2eeFileKey,
   Future<void> Function()? onForward,
 }) async {
   await AppBottomSheets.show<void>(
@@ -394,6 +411,7 @@ Future<void> showM3FilePreview({
       fileBytes: fileBytes,
       filePath: filePath,
       mediaUrl: mediaUrl,
+      e2eeFileKey: e2eeFileKey,
       onForward: onForward,
     ),
   );

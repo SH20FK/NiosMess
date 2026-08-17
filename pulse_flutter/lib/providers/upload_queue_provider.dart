@@ -174,6 +174,9 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
               : (task.mediaSubtype == 'circle' ? 'circle' : 'media'),
           localId: localId,
           e2eePlaintext: e2eePlaintext,
+          e2eeFileKey: task.e2eeFileKey != null
+              ? base64Encode(task.e2eeFileKey!)
+              : null,
         );
         // The server message replaced the optimistic one, so the task has
         // served its purpose — drop it to keep the map bounded.

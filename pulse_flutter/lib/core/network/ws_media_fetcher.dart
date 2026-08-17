@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:universal_io/io.dart';
 import 'package:http/http.dart' as http;
@@ -94,6 +95,18 @@ class WsMediaFetcher {
       throw Exception('Unauthorized: No session token');
     }
 
+    try {
+      return await _httpDownload(cleanPath, token);
+    } catch (e) {
+      debugPrint('WsMediaFetcher: HTTP download failed, trying WS fallback: $e');
+      return await _wsDownload(cleanPath, wsClient);
+    }
+  }
+
+  static Future<Uint8List> _httpDownload(
+    String cleanPath,
+    String token,
+  ) async {
     final String downloadUrl = '${ApiConstants.origin}/api/files/download';
 
     final http.Response response = await http.post(
@@ -109,14 +122,47 @@ class WsMediaFetcher {
       );
     }
 
-    // Cache the raw server bytes (ciphertext for E2EE files) so repeated
-    // reads do not re-download.
     await _cacheManager.putFile(
       'ws_media_$cleanPath',
       response.bodyBytes,
       fileExtension: _getFileExtension(cleanPath),
     );
     return response.bodyBytes;
+  }
+
+  static Future<Uint8List> _wsDownload(
+    String cleanPath,
+    WebSocketClient wsClient,
+  ) async {
+    final dynamic response = await wsClient.request(
+      'get_file',
+      payload: <String, dynamic>{'file_path': cleanPath},
+    );
+
+    final Map<String, dynamic> map = _asStringMap(response);
+    final String? dataBase64 = map['data_base64'] as String?;
+    if (dataBase64 == null || dataBase64.isEmpty) {
+      throw Exception('WS download returned no data for $cleanPath');
+    }
+
+    final Uint8List bytes = base64Decode(dataBase64);
+
+    await _cacheManager.putFile(
+      'ws_media_$cleanPath',
+      bytes,
+      fileExtension: _getFileExtension(cleanPath),
+    );
+    return bytes;
+  }
+
+  static Map<String, dynamic> _asStringMap(dynamic source) {
+    if (source is Map<String, dynamic>) return source;
+    if (source is Map) {
+      return source.map(
+        (dynamic key, dynamic value) => MapEntry(key.toString(), value),
+      );
+    }
+    return <String, dynamic>{};
   }
 
   static String _cleanFilePath(String path) {

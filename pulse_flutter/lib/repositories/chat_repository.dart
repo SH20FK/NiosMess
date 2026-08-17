@@ -381,6 +381,37 @@ class ChatRepository {
       throw Exception('Unauthorized: No session token');
     }
 
+    try {
+      return await _httpMultipartUpload(
+        bytes: bytes,
+        filePath: filePath,
+        filename: filename,
+        mediaSubtype: mediaSubtype,
+        fileSize: fileSize,
+        token: token,
+        onProgress: onProgress,
+      );
+    } catch (e) {
+      return await _wsChunkedUpload(
+        bytes: bytes,
+        filePath: filePath,
+        filename: filename,
+        mediaSubtype: mediaSubtype,
+        fileSize: fileSize,
+        onProgress: onProgress,
+      );
+    }
+  }
+
+  Future<String> _httpMultipartUpload({
+    Uint8List? bytes,
+    String? filePath,
+    required String filename,
+    required String mediaSubtype,
+    required int fileSize,
+    required String token,
+    required void Function(int sent, int total) onProgress,
+  }) async {
     final uploadUrl = '${ApiConstants.origin}/api/files/upload';
     final uri = Uri.parse(uploadUrl);
 
@@ -448,6 +479,50 @@ class ChatRepository {
 
     onProgress(fileSize, fileSize);
     return body['upload_id'] as String;
+  }
+
+  Future<String> _wsChunkedUpload({
+    Uint8List? bytes,
+    String? filePath,
+    required String filename,
+    required String mediaSubtype,
+    required int fileSize,
+    required void Function(int sent, int total) onProgress,
+  }) async {
+    final Uint8List fileBytes;
+    if (bytes != null) {
+      fileBytes = bytes;
+    } else if (filePath != null && filePath.isNotEmpty) {
+      fileBytes = await File(filePath).readAsBytes();
+    } else {
+      throw Exception('No file path or bytes provided for upload');
+    }
+
+    const int chunkSize = 256 * 1024; // 256 KiB
+    final int totalChunks = (fileSize / chunkSize).ceil();
+
+    final UploadInitResult init = await initUpload(
+      filename: filename,
+      totalChunks: totalChunks,
+      fileSize: fileSize,
+      mediaSubtype: mediaSubtype,
+    );
+
+    for (int i = 0; i < totalChunks; i++) {
+      final int start = i * chunkSize;
+      final int end = (start + chunkSize > fileSize) ? fileSize : start + chunkSize;
+      final List<int> chunk = fileBytes.sublist(start, end);
+      await uploadChunk(
+        uploadId: init.uploadId,
+        chunkIndex: i,
+        chunk: chunk,
+        filename: filename,
+      );
+      onProgress(end, fileSize);
+    }
+
+    onProgress(fileSize, fileSize);
+    return init.uploadId;
   }
 
   Future<ApiMessage?> editMessage(
