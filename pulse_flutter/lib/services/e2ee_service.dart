@@ -504,7 +504,7 @@ class E2eeService {
       final raw = await _storage.read(key: '$_sessionPrefix$chatId');
       if (raw == null) return null;
       final json = jsonDecode(raw) as Map<String, dynamic>;
-      return DoubleRatchetSession.fromJson(json);
+      return await DoubleRatchetSession.fromJson(json);
     } catch (e) {
       debugPrint('[E2eeService] Failed to load session: $e');
       return null;
