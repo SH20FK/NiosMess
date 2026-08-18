@@ -107,6 +107,25 @@ class WsMediaFetcher {
     String cleanPath,
     String token,
   ) async {
+    if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+      try {
+        final http.Response directResp = await http.get(
+          Uri.parse(cleanPath),
+          headers: <String, String>{
+            if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+          },
+        );
+        if (directResp.statusCode == 200 && directResp.bodyBytes.isNotEmpty) {
+          await _cacheManager.putFile(
+            'ws_media_$cleanPath',
+            directResp.bodyBytes,
+            fileExtension: _getFileExtension(cleanPath),
+          );
+          return directResp.bodyBytes;
+        }
+      } catch (_) {}
+    }
+
     final String downloadUrl = '${ApiConstants.origin}/api/files/download';
 
     final http.Response response = await http.post(
@@ -170,7 +189,9 @@ class WsMediaFetcher {
   static String cleanFilePath(String path) => _cleanFilePath(path);
 
   static String _cleanFilePath(String path) {
-    String cleanPath = path;
+    String cleanPath = path.trim();
+    if (cleanPath.isEmpty) return '';
+
     final int queryIdx = cleanPath.indexOf('?');
     if (queryIdx != -1) {
       cleanPath = cleanPath.substring(0, queryIdx);
@@ -195,16 +216,20 @@ class WsMediaFetcher {
           final List<String> segments = uri.pathSegments;
           final int idx = segments.indexWhere(
             (String s) =>
-                s == 'media' || s == 'voice' || s == 'circles' || s == 'avatars',
+                s == 'media' ||
+                s == 'voice' ||
+                s == 'circles' ||
+                s == 'avatars' ||
+                s == 'uploads' ||
+                s == 'files',
           );
           cleanPath = idx != -1
               ? segments.sublist(idx).join('/')
-              : segments.last;
+              : segments.join('/');
         }
       } catch (_) {}
     }
 
-    // Удаляем все ведущие слэши для точного совпадения в БД
     while (cleanPath.startsWith('/') || cleanPath.startsWith('\\')) {
       cleanPath = cleanPath.substring(1);
     }

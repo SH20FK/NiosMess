@@ -15,7 +15,9 @@ import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
+import 'package:universal_io/io.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 
 class ProfileSharedMediaTabView extends ConsumerStatefulWidget {
   const ProfileSharedMediaTabView({
@@ -82,33 +84,72 @@ class _ProfileSharedMediaTabViewState
     super.dispose();
   }
 
-  bool _isPhotoOrVideo(ApiMessage m) {
-    if ((m.mediaUrl ?? '').isEmpty) return false;
-    final type = (m.mediaType ?? '').toLowerCase();
-    final name = (m.mediaName ?? '').toLowerCase();
-    final msgType = m.msgType.toLowerCase();
+  List<_SharedMediaItem> _extractPhotosAndVideos(List<ApiMessage> messages) {
+    final List<_SharedMediaItem> list = <_SharedMediaItem>[];
+    for (final m in messages) {
+      final raw = (m.mediaUrl ?? '').trim();
+      if (raw.isEmpty) continue;
+      final msgType = m.msgType.toLowerCase();
+      if (msgType == 'voice' ||
+          msgType == 'circle_video' ||
+          msgType == 'video_note' ||
+          msgType == 'round_video') {
+        continue;
+      }
+      final urls = raw
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      for (final url in urls) {
+        final type = (m.mediaType ?? '').toLowerCase();
+        final name = (m.mediaName ?? '').toLowerCase();
+        final urlLower = url.toLowerCase();
 
-    if (msgType == 'voice' ||
-        msgType == 'circle_video' ||
-        msgType == 'video_note' ||
-        type.startsWith('audio/')) {
-      return false;
+        final isVideo = type.startsWith('video/') ||
+            msgType.contains('video') ||
+            name.endsWith('.mp4') ||
+            name.endsWith('.mov') ||
+            name.endsWith('.mkv') ||
+            name.endsWith('.webm') ||
+            urlLower.endsWith('.mp4') ||
+            urlLower.endsWith('.mov') ||
+            urlLower.endsWith('.webm') ||
+            urlLower.endsWith('.mkv');
+
+        final isPhoto = type.startsWith('image/') ||
+            msgType.contains('image') ||
+            msgType.contains('photo') ||
+            name.endsWith('.jpg') ||
+            name.endsWith('.jpeg') ||
+            name.endsWith('.png') ||
+            name.endsWith('.webp') ||
+            name.endsWith('.gif') ||
+            urlLower.endsWith('.jpg') ||
+            urlLower.endsWith('.jpeg') ||
+            urlLower.endsWith('.png') ||
+            urlLower.endsWith('.webp') ||
+            urlLower.endsWith('.gif') ||
+            (!isVideo &&
+                (msgType == 'media' ||
+                    msgType == 'file' ||
+                    msgType == 'document'));
+
+        if (isVideo || isPhoto) {
+          list.add(
+            _SharedMediaItem(
+              message: m,
+              mediaUrl: url,
+              isVideo: isVideo,
+              e2eeFileKey: m.e2eeFileKey,
+              duration: m.mediaDuration,
+              mediaName: m.mediaName,
+            ),
+          );
+        }
+      }
     }
-
-    return type.startsWith('image/') ||
-        type.startsWith('video/') ||
-        msgType.contains('image') ||
-        msgType.contains('photo') ||
-        msgType.contains('video') ||
-        name.endsWith('.jpg') ||
-        name.endsWith('.jpeg') ||
-        name.endsWith('.png') ||
-        name.endsWith('.webp') ||
-        name.endsWith('.gif') ||
-        name.endsWith('.mp4') ||
-        name.endsWith('.mov') ||
-        name.endsWith('.mkv') ||
-        name.endsWith('.webm');
+    return list;
   }
 
   bool _isVoiceOrVideoNote(ApiMessage m) {
@@ -129,8 +170,26 @@ class _ProfileSharedMediaTabViewState
 
   bool _isFile(ApiMessage m) {
     if ((m.mediaUrl ?? '').isEmpty) return false;
-    if (_isPhotoOrVideo(m)) return false;
     if (_isVoiceOrVideoNote(m)) return false;
+    final type = (m.mediaType ?? '').toLowerCase();
+    final name = (m.mediaName ?? '').toLowerCase();
+    final msgType = m.msgType.toLowerCase();
+    if (type.startsWith('image/') ||
+        type.startsWith('video/') ||
+        msgType.contains('image') ||
+        msgType.contains('photo') ||
+        msgType.contains('video') ||
+        name.endsWith('.jpg') ||
+        name.endsWith('.jpeg') ||
+        name.endsWith('.png') ||
+        name.endsWith('.webp') ||
+        name.endsWith('.gif') ||
+        name.endsWith('.mp4') ||
+        name.endsWith('.mov') ||
+        name.endsWith('.mkv') ||
+        name.endsWith('.webm')) {
+      return false;
+    }
     return true;
   }
 
@@ -164,8 +223,7 @@ class _ProfileSharedMediaTabViewState
         ),
       ),
       data: (messages) {
-        final photosAndVideos =
-            messages.where(_isPhotoOrVideo).toList(growable: false);
+        final photosAndVideos = _extractPhotosAndVideos(messages);
         final voiceAndVideoNotes =
             messages.where(_isVoiceOrVideoNote).toList(growable: false);
         final files = messages.where(_isFile).toList(growable: false);
@@ -195,40 +253,40 @@ class _ProfileSharedMediaTabViewState
                     ),
                   ],
                 ),
-                  labelColor: scheme.onPrimary,
-                  unselectedLabelColor: scheme.onSurfaceVariant,
-                  labelStyle: textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                  unselectedLabelStyle: textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                  tabs: [
-                    Tab(
-                      icon: const Icon(Icons.photo_library_rounded, size: 16),
-                      text: 'Медиа (${photosAndVideos.length})',
-                      iconMargin: const EdgeInsets.only(bottom: 2),
-                    ),
-                    Tab(
-                      icon: const Icon(Icons.mic_rounded, size: 16),
-                      text: 'Голос (${voiceAndVideoNotes.length})',
-                      iconMargin: const EdgeInsets.only(bottom: 2),
-                    ),
-                    Tab(
-                      icon: const Icon(Icons.insert_drive_file_rounded, size: 16),
-                      text: 'Файлы (${files.length})',
-                      iconMargin: const EdgeInsets.only(bottom: 2),
-                    ),
-                    Tab(
-                      icon: const Icon(Icons.link_rounded, size: 16),
-                      text: 'Ссылки (${links.length})',
-                      iconMargin: const EdgeInsets.only(bottom: 2),
-                    ),
-                  ],
+                labelColor: scheme.onPrimary,
+                unselectedLabelColor: scheme.onSurfaceVariant,
+                labelStyle: textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
                 ),
+                unselectedLabelStyle: textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+                tabs: [
+                  Tab(
+                    icon: const Icon(Icons.photo_library_rounded, size: 16),
+                    text: 'Медиа (${photosAndVideos.length})',
+                    iconMargin: const EdgeInsets.only(bottom: 2),
+                  ),
+                  Tab(
+                    icon: const Icon(Icons.mic_rounded, size: 16),
+                    text: 'Голос (${voiceAndVideoNotes.length})',
+                    iconMargin: const EdgeInsets.only(bottom: 2),
+                  ),
+                  Tab(
+                    icon: const Icon(Icons.insert_drive_file_rounded, size: 16),
+                    text: 'Файлы (${files.length})',
+                    iconMargin: const EdgeInsets.only(bottom: 2),
+                  ),
+                  Tab(
+                    icon: const Icon(Icons.link_rounded, size: 16),
+                    text: 'Ссылки (${links.length})',
+                    iconMargin: const EdgeInsets.only(bottom: 2),
+                  ),
+                ],
               ),
+            ),
             const SizedBox(height: 16),
 
             // ── Tab Bar Views ─────────────────────────────────────────
@@ -291,7 +349,7 @@ class _ProfileSharedMediaTabViewState
 
   // ── Tab 1: Photos & Videos Grid with Decryption & Caching ──────────
   Widget _buildMediaGrid(
-    List<ApiMessage> items,
+    List<_SharedMediaItem> items,
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
@@ -316,19 +374,20 @@ class _ProfileSharedMediaTabViewState
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
-        final m = items[index];
-        final isVideo = (m.mediaType ?? '').toLowerCase().startsWith('video/') ||
-            (m.mediaName ?? '').toLowerCase().endsWith('.mp4');
-        final url = m.mediaUrl ?? '';
+        final item = items[index];
+        final url = item.mediaUrl;
+        final isVideo = item.isVideo;
 
         return GestureDetector(
           onTap: () {
             HapticFeedback.lightImpact();
             final typeParam = isVideo ? 'video' : 'image';
-            final titleParam = Uri.encodeComponent(m.mediaName ?? 'Медиа');
+            final titleParam = Uri.encodeComponent(
+              item.mediaName ?? (isVideo ? 'Видео' : 'Фото'),
+            );
             context.push(
               '/media-viewer?url=${Uri.encodeComponent(url)}&type=$typeParam&title=$titleParam',
-              extra: m.e2eeFileKey,
+              extra: item.e2eeFileKey,
             );
           },
           child: ClipRRect(
@@ -336,55 +395,69 @@ class _ProfileSharedMediaTabViewState
             child: Stack(
               fit: StackFit.expand,
               children: [
-                WsCachedImage(
-                  mediaUrl: url,
-                  chatId: widget.chatId ?? 0,
-                  isE2ee: m.isE2ee,
-                  e2eeFileKey: m.e2eeFileKey,
-                  fit: BoxFit.cover,
-                  placeholder: (ctx) => Container(
-                    color: scheme.surfaceContainerHigh,
-                    child: const Center(child: AppLoadingIndicator(size: 24)),
-                  ),
-                  errorWidget: (ctx, err) => Container(
-                    color: scheme.surfaceContainerHigh,
-                    child: Icon(
-                      isVideo ? Icons.videocam_rounded : Icons.image_rounded,
-                      color: scheme.onSurfaceVariant,
-                      size: 28,
+                if (isVideo)
+                  _MediaGridVideoThumbnail(
+                    key: ValueKey('vid_$url'),
+                    mediaUrl: url,
+                    chatId: widget.chatId ?? 0,
+                    isE2ee: item.message.isE2ee,
+                    e2eeFileKey: item.e2eeFileKey,
+                  )
+                else
+                  WsCachedImage(
+                    key: ValueKey('img_$url'),
+                    mediaUrl: url,
+                    chatId: widget.chatId ?? 0,
+                    isE2ee: item.message.isE2ee,
+                    e2eeFileKey: item.e2eeFileKey,
+                    fit: BoxFit.cover,
+                    placeholder: (ctx) => Container(
+                      color: scheme.surfaceContainerHigh,
+                      child: const Center(child: AppLoadingIndicator(size: 20)),
+                    ),
+                    errorWidget: (ctx, err) => Container(
+                      color: scheme.surfaceContainerHigh,
+                      child: Icon(
+                        Icons.image_rounded,
+                        color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        size: 28,
+                      ),
                     ),
                   ),
-                ),
                 if (isVideo)
                   Positioned(
-                    left: 6,
-                    bottom: 6,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
                     child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.fromLTRB(6, 12, 6, 4),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.65),
-                        borderRadius: BorderRadius.circular(6),
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.75),
+                            Colors.transparent,
+                          ],
+                        ),
                       ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Icon(
-                            Icons.play_arrow_rounded,
+                            Icons.play_circle_fill_rounded,
                             color: Colors.white,
-                            size: 14,
+                            size: 16,
                           ),
-                          if (m.mediaDuration != null && m.mediaDuration! > 0) ...[
-                            const SizedBox(width: 2),
+                          if (item.duration != null && item.duration! > 0)
                             Text(
-                              _formatDuration(m.mediaDuration!),
+                              _formatDuration(item.duration!),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
                         ],
                       ),
                     ),
@@ -916,6 +989,145 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
               onPressed: _startDownload,
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _SharedMediaItem {
+  const _SharedMediaItem({
+    required this.message,
+    required this.mediaUrl,
+    required this.isVideo,
+    this.e2eeFileKey,
+    this.duration,
+    this.mediaName,
+  });
+
+  final ApiMessage message;
+  final String mediaUrl;
+  final bool isVideo;
+  final String? e2eeFileKey;
+  final int? duration;
+  final String? mediaName;
+}
+
+class _MediaGridVideoThumbnail extends ConsumerStatefulWidget {
+  const _MediaGridVideoThumbnail({
+    required this.mediaUrl,
+    required this.chatId,
+    required this.isE2ee,
+    this.e2eeFileKey,
+    super.key,
+  });
+
+  final String mediaUrl;
+  final int chatId;
+  final bool isE2ee;
+  final String? e2eeFileKey;
+
+  @override
+  ConsumerState<_MediaGridVideoThumbnail> createState() =>
+      _MediaGridVideoThumbnailState();
+}
+
+class _MediaGridVideoThumbnailState
+    extends ConsumerState<_MediaGridVideoThumbnail> {
+  VideoPlayerController? _controller;
+  bool _initialized = false;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initThumbnail();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MediaGridVideoThumbnail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.mediaUrl != widget.mediaUrl) {
+      _disposeController();
+      _initThumbnail();
+    }
+  }
+
+  Future<void> _initThumbnail() async {
+    try {
+      final wsClient = ref.read(webSocketClientProvider);
+      Uint8List? fileKey;
+      if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
+        fileKey = base64Decode(widget.e2eeFileKey!);
+      }
+      final String localPath = await WsMediaFetcher.fetchToLocalFile(
+        filePath: widget.mediaUrl,
+        wsClient: wsClient,
+        e2eeFileKey: fileKey,
+      );
+      final controller = VideoPlayerController.file(File(localPath));
+      await controller.initialize();
+      await controller.seekTo(const Duration(milliseconds: 100));
+      await controller.pause();
+      if (mounted) {
+        setState(() {
+          _controller = controller;
+          _initialized = true;
+        });
+      } else {
+        controller.dispose();
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = true);
+      }
+    }
+  }
+
+  void _disposeController() {
+    _controller?.dispose();
+    _controller = null;
+    _initialized = false;
+  }
+
+  @override
+  void dispose() {
+    _disposeController();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    if (_error) {
+      return Container(
+        color: scheme.surfaceContainerHigh,
+        child: Icon(
+          Icons.videocam_rounded,
+          color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+          size: 28,
+        ),
+      );
+    }
+
+    if (!_initialized || _controller == null) {
+      return Container(
+        color: scheme.surfaceContainerHigh,
+        child: const Center(child: AppLoadingIndicator(size: 20)),
+      );
+    }
+
+    return FittedBox(
+      fit: BoxFit.cover,
+      clipBehavior: Clip.hardEdge,
+      child: SizedBox(
+        width: _controller!.value.size.width > 0
+            ? _controller!.value.size.width
+            : 200,
+        height: _controller!.value.size.height > 0
+            ? _controller!.value.size.height
+            : 200,
+        child: VideoPlayer(_controller!),
       ),
     );
   }
