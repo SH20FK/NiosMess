@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
 import 'package:pulse_flutter/screens/circle_video_recorder_screen.dart';
+import 'package:pulse_flutter/widgets/chat/m3_emoji_search_view.dart';
 import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -678,8 +679,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
                         buttonIconColor: scheme.onSurfaceVariant,
                       ),
                       searchViewConfig: SearchViewConfig(
-                        backgroundColor: scheme.surfaceContainerHighest,
+                        backgroundColor: Colors.transparent,
                         buttonIconColor: scheme.onSurfaceVariant,
+                        customSearchView: (config, state, showEmojiView) {
+                          return M3EmojiSearchView(config, state, showEmojiView);
+                        },
                       ),
                     ),
                   )

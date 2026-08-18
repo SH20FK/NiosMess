@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/widgets/m3_auth_text_field.dart';
 import 'package:pulse_flutter/widgets/m3_organic_background.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -159,7 +160,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     const SizedBox(height: 32),
 
                     // ── Display Name ─────────────────────────────────────
-                    _M3AuthTextField(
+                    M3AuthTextField(
                       controller: _nameController,
                       label: context.l10n.registerDisplayNameLabel,
                       prefixIcon: Icons.badge_outlined,
@@ -177,7 +178,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     const SizedBox(height: 12),
 
                     // ── Username ─────────────────────────────────────────
-                    _M3AuthTextField(
+                    M3AuthTextField(
                       controller: _usernameController,
                       label: context.l10n.registerUsernameLabel,
                       prefixIcon: Icons.alternate_email_rounded,
@@ -195,7 +196,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     const SizedBox(height: 12),
 
                     // ── Email ────────────────────────────────────────────
-                    _M3AuthTextField(
+                    M3AuthTextField(
                       controller: _emailController,
                       label: context.l10n.registerEmailLabel,
                       prefixIcon: Icons.mail_outline_rounded,
@@ -211,7 +212,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     const SizedBox(height: 12),
 
                     // ── Password ─────────────────────────────────────────
-                    _M3AuthTextField(
+                    M3AuthTextField(
                       controller: _passwordController,
                       label: context.l10n.registerPasswordLabel,
                       prefixIcon: Icons.lock_outline_rounded,
@@ -296,95 +297,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _M3AuthTextField extends StatelessWidget {
-  const _M3AuthTextField({
-    required this.controller,
-    required this.label,
-    required this.prefixIcon,
-    this.obscureText = false,
-    this.keyboardType,
-    this.textInputAction,
-    this.validator,
-    this.suffixIcon,
-    this.onFieldSubmitted,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final IconData prefixIcon;
-  final bool obscureText;
-  final TextInputType? keyboardType;
-  final TextInputAction? textInputAction;
-  final FormFieldValidator<String>? validator;
-  final Widget? suffixIcon;
-  final ValueChanged<String>? onFieldSubmitted;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      onFieldSubmitted: onFieldSubmitted,
-      validator: validator,
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        color: scheme.onSurface,
-        fontWeight: FontWeight.w500,
-      ),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(
-          color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
-          fontSize: 14,
-        ),
-        filled: true,
-        fillColor: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
-        prefixIcon: Icon(prefixIcon, size: 20, color: scheme.primary),
-        suffixIcon: suffixIcon,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.25),
-            width: 1,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.25),
-            width: 1,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(
-            color: scheme.primary,
-            width: 1.5,
-          ),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(
-            color: scheme.error.withValues(alpha: 0.8),
-            width: 1,
-          ),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(
-            color: scheme.error,
-            width: 1.5,
-          ),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }

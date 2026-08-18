@@ -198,8 +198,8 @@ class AppTheme {
         textStyle: textTheme.labelSmall,
       ),
       inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
+        filled: false,
+        fillColor: Colors.transparent,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(

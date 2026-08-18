@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/code_preview.dart';
+import 'package:pulse_flutter/widgets/m3_auth_text_field.dart';
 import 'package:pulse_flutter/widgets/m3_organic_background.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -207,57 +208,23 @@ class _ResetPasswordConfirmScreenState
                     const SizedBox(height: 20),
 
                     // New Password input
-                    TextFormField(
+                    M3AuthTextField(
                       controller: _passwordController,
+                      label: context.l10n.resetPasswordConfirmPasswordLabel,
+                      prefixIcon: Icons.lock_outline_rounded,
                       obscureText: _hidePassword,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _submit(),
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurface,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: context.l10n.resetPasswordConfirmPasswordLabel,
-                        labelStyle: TextStyle(
-                          color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
-                          fontSize: 14,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _hidePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                          size: 20,
+                          color: scheme.onSurfaceVariant,
                         ),
-                        filled: true,
-                        fillColor: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
-                        prefixIcon: Icon(Icons.lock_outline_rounded, size: 20, color: scheme.primary),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _hidePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                            size: 20,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          onPressed: () {
-                            HapticFeedback.selectionClick();
-                            setState(() => _hidePassword = !_hidePassword);
-                          },
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide(
-                            color: scheme.outlineVariant.withValues(alpha: 0.25),
-                            width: 1,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide(
-                            color: scheme.outlineVariant.withValues(alpha: 0.25),
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide(
-                            color: scheme.primary,
-                            width: 1.5,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _hidePassword = !_hidePassword);
+                        },
                       ),
                       validator: (String? value) {
                         if ((value ?? '').length < 6) {

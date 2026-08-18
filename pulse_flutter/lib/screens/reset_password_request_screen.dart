@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/widgets/m3_auth_text_field.dart';
 import 'package:pulse_flutter/widgets/m3_organic_background.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -117,47 +118,13 @@ class _ResetPasswordRequestScreenState
                     const SizedBox(height: 32),
 
                     // Email input
-                    TextFormField(
+                    M3AuthTextField(
                       controller: _emailController,
+                      label: context.l10n.resetPasswordRequestEmailLabel,
+                      prefixIcon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _submit(),
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurface,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: context.l10n.resetPasswordRequestEmailLabel,
-                        labelStyle: TextStyle(
-                          color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
-                          fontSize: 14,
-                        ),
-                        filled: true,
-                        fillColor: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
-                        prefixIcon: Icon(Icons.email_outlined, size: 20, color: scheme.primary),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide(
-                            color: scheme.outlineVariant.withValues(alpha: 0.25),
-                            width: 1,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide(
-                            color: scheme.outlineVariant.withValues(alpha: 0.25),
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide(
-                            color: scheme.primary,
-                            width: 1.5,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      ),
                       validator: (String? value) {
                         if (!((value ?? '').contains('@'))) {
                           return context.l10n.registerEmailError;
