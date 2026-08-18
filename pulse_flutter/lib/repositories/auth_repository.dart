@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/chat_actions_models.dart';
@@ -112,7 +113,9 @@ class AuthRepository {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request('me_info', payload: <String, dynamic>{});
-    return ApiProfile.fromJson(asStringMap(response));
+    final ApiProfile profile = ApiProfile.fromJson(asStringMap(response));
+    await _ref.read(cacheServiceProvider).saveProfile(profile);
+    return profile;
   }
 
   Future<ApiProfile> updateProfile({
@@ -134,7 +137,9 @@ class AuthRepository {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request('update_profile', payload: payload);
-    return ApiProfile.fromJson(asStringMap(response));
+    final ApiProfile profile = ApiProfile.fromJson(asStringMap(response));
+    await _ref.read(cacheServiceProvider).saveProfile(profile);
+    return profile;
   }
 
   Future<ApiProfile> getPublicProfile(String username) async {
@@ -144,7 +149,9 @@ class AuthRepository {
           'get_profile',
           payload: <String, dynamic>{'username': username.trim()},
         );
-    return ApiProfile.fromJson(asStringMap(response));
+    final ApiProfile profile = ApiProfile.fromJson(asStringMap(response));
+    await _ref.read(cacheServiceProvider).saveProfile(profile);
+    return profile;
   }
 
   Future<ApiProfileEncrypted> getEncryptedProfile(String username) async {

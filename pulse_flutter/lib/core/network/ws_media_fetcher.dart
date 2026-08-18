@@ -112,8 +112,10 @@ class WsMediaFetcher {
     final http.Response response = await http.post(
       Uri.parse(downloadUrl),
       headers: <String, String>{'Content-Type': 'application/json'},
-      body:
-          '{"token":"$token","file_path":"${cleanPath.replaceAll('"', '\\"')}"',
+      body: jsonEncode(<String, dynamic>{
+        'token': token,
+        'file_path': cleanPath,
+      }),
     );
 
     if (response.statusCode != 200) {

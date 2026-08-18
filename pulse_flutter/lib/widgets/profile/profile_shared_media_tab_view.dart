@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -5,11 +6,15 @@ import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/voice_message_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ProfileSharedMediaTabView extends ConsumerStatefulWidget {
@@ -170,54 +175,72 @@ class _ProfileSharedMediaTabViewState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Material 3 Expressive Sticky Tab Bar ─────────────────
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.18),
-                ),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                indicator: BoxDecoration(
-                  color: scheme.primary,
+            // ── Material 3 Expressive Sticky Tab Bar (Scrollable to prevent clipping) ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: scheme.primary.withValues(alpha: 0.25),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
+                ),
+                padding: const EdgeInsets.all(4),
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.center,
+                  dividerHeight: 0,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicator: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: scheme.primary.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  labelColor: scheme.onPrimary,
+                  unselectedLabelColor: scheme.onSurfaceVariant,
+                  labelStyle: textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                  unselectedLabelStyle: textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                  tabs: [
+                    Tab(
+                      icon: const Icon(Icons.photo_library_rounded, size: 16),
+                      text: 'Медиа (${photosAndVideos.length})',
+                      iconMargin: const EdgeInsets.only(bottom: 2),
+                    ),
+                    Tab(
+                      icon: const Icon(Icons.mic_rounded, size: 16),
+                      text: 'Голос (${voiceAndVideoNotes.length})',
+                      iconMargin: const EdgeInsets.only(bottom: 2),
+                    ),
+                    Tab(
+                      icon: const Icon(Icons.insert_drive_file_rounded, size: 16),
+                      text: 'Файлы (${files.length})',
+                      iconMargin: const EdgeInsets.only(bottom: 2),
+                    ),
+                    Tab(
+                      icon: const Icon(Icons.link_rounded, size: 16),
+                      text: 'Ссылки (${links.length})',
+                      iconMargin: const EdgeInsets.only(bottom: 2),
                     ),
                   ],
                 ),
-                labelColor: scheme.onPrimary,
-                unselectedLabelColor: scheme.onSurfaceVariant,
-                labelStyle: textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-                unselectedLabelStyle: textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-                tabs: [
-                  Tab(text: 'Медиа (${photosAndVideos.length})'),
-                  Tab(text: 'Голос (${voiceAndVideoNotes.length})'),
-                  Tab(text: 'Файлы (${files.length})'),
-                  Tab(text: 'Ссылки (${links.length})'),
-                ],
               ),
             ),
             const SizedBox(height: 16),
 
             // ── Tab Bar Views ─────────────────────────────────────────
             SizedBox(
-              height: 380,
+              height: 420,
               child: TabBarView(
                 controller: _tabController,
                 children: [
@@ -273,7 +296,7 @@ class _ProfileSharedMediaTabViewState
     );
   }
 
-  // ── Tab 1: Photos & Videos Grid ───────────────────────────────────
+  // ── Tab 1: Photos & Videos Grid with Decryption & Caching ──────────
   Widget _buildMediaGrid(
     List<ApiMessage> items,
     ColorScheme scheme,
@@ -309,21 +332,28 @@ class _ProfileSharedMediaTabViewState
           onTap: () {
             HapticFeedback.lightImpact();
             final typeParam = isVideo ? 'video' : 'image';
-            final titleParam = Uri.encodeComponent(m.mediaName ?? 'Media');
+            final titleParam = Uri.encodeComponent(m.mediaName ?? 'Медиа');
             context.push(
               '/media-viewer?url=${Uri.encodeComponent(url)}&type=$typeParam&title=$titleParam',
               extra: m.e2eeFileKey,
             );
           },
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.network(
-                  url,
+                WsCachedImage(
+                  mediaUrl: url,
+                  chatId: widget.chatId ?? 0,
+                  isE2ee: m.isE2ee,
+                  e2eeFileKey: m.e2eeFileKey,
                   fit: BoxFit.cover,
-                  errorBuilder: (ctx, error, stackTrace) => Container(
+                  placeholder: (ctx) => Container(
+                    color: scheme.surfaceContainerHigh,
+                    child: const Center(child: AppLoadingIndicator(size: 24)),
+                  ),
+                  errorWidget: (ctx, err) => Container(
                     color: scheme.surfaceContainerHigh,
                     child: Icon(
                       isVideo ? Icons.videocam_rounded : Icons.image_rounded,
@@ -374,7 +404,7 @@ class _ProfileSharedMediaTabViewState
     );
   }
 
-  // ── Tab 2: Voice & Video Notes List ───────────────────────────────
+  // ── Tab 2: Voice & Video Notes with Working Player ─────────────────
   Widget _buildVoiceList(
     List<ApiMessage> items,
     ColorScheme scheme,
@@ -394,80 +424,119 @@ class _ProfileSharedMediaTabViewState
       padding: const EdgeInsets.symmetric(horizontal: 16),
       physics: const BouncingScrollPhysics(),
       itemCount: items.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 8),
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final m = items[index];
         final isRoundVideo = m.msgType == 'circle_video' ||
             m.msgType == 'video_note' ||
             m.msgType == 'round_video';
-        final durationText = m.mediaDuration != null
-            ? _formatDuration(m.mediaDuration!)
-            : '0:30';
-        final dateText = DateFormat('d MMM, HH:mm').format(m.sentAt);
 
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.16),
+        if (isRoundVideo) {
+          final dateText = DateFormat('d MMM, HH:mm').format(m.sentAt);
+          final durationText = m.mediaDuration != null
+              ? _formatDuration(m.mediaDuration!)
+              : '0:30';
+
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.2),
+              ),
             ),
-          ),
-          child: Row(
-            children: [
-              M3Container(
-                isRoundVideo ? Shapes.circle : Shapes.c9_sided_cookie,
-                width: 44,
-                height: 44,
-                color: scheme.primaryContainer,
-                child: Center(
-                  child: Icon(
-                    isRoundVideo
-                        ? Icons.videocam_rounded
-                        : Icons.graphic_eq_rounded,
-                    color: scheme.onPrimaryContainer,
-                    size: 22,
+            child: Row(
+              children: [
+                M3Container(
+                  Shapes.circle,
+                  width: 46,
+                  height: 46,
+                  color: scheme.primaryContainer,
+                  child: Center(
+                    child: Icon(
+                      Icons.videocam_rounded,
+                      color: scheme.onPrimaryContainer,
+                      size: 24,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isRoundVideo
-                          ? 'Видеосообщение'
-                          : 'Голосовое сообщение ($durationText)',
-                      style: textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Видеосообщение ($durationText)',
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurface,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      dateText,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontSize: 12,
+                      const SizedBox(height: 2),
+                      Text(
+                        dateText,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                IconButton.filledTonal(
+                  icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    if ((m.mediaUrl ?? '').isNotEmpty) {
+                      context.push(
+                        '/media-viewer?url=${Uri.encodeComponent(m.mediaUrl!)}&type=video&title=${Uri.encodeComponent("Видеосообщение")}',
+                        extra: m.e2eeFileKey,
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Voice Message with Audio Player
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.mic_rounded, size: 16, color: scheme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    DateFormat('d MMMM, HH:mm').format(m.sentAt),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-              IconButton.filledTonal(
-                icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  if ((m.mediaUrl ?? '').isNotEmpty) {
-                    final typeParam = isRoundVideo ? 'video' : 'other';
-                    context.push(
-                      '/media-viewer?url=${Uri.encodeComponent(m.mediaUrl!)}&type=$typeParam&title=${Uri.encodeComponent(isRoundVideo ? "Видеосообщение" : "Аудиозапись")}',
-                      extra: m.e2eeFileKey,
-                    );
-                  }
-                },
+              const SizedBox(height: 6),
+              VoiceMessagePlayer(
+                audioUrl: m.mediaUrl ?? '',
+                durationSeconds: m.mediaDuration ?? 30,
+                isMine: false,
+                scheme: scheme,
+                chatId: widget.chatId ?? 0,
+                wsClient: ref.read(webSocketClientProvider),
+                e2eeFileKey: m.e2eeFileKey,
+                isE2ee: m.isE2ee,
               ),
             ],
           ),
@@ -476,7 +545,7 @@ class _ProfileSharedMediaTabViewState
     );
   }
 
-  // ── Tab 3: Files & Documents List ─────────────────────────────────
+  // ── Tab 3: Files & Documents with Telegram-style Download ──────────
   Widget _buildFilesList(
     List<ApiMessage> items,
     ColorScheme scheme,
@@ -496,79 +565,11 @@ class _ProfileSharedMediaTabViewState
       padding: const EdgeInsets.symmetric(horizontal: 16),
       physics: const BouncingScrollPhysics(),
       itemCount: items.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 8),
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
-        final m = items[index];
-        final name = m.mediaName ?? 'Документ';
-        final ext = name.contains('.') ? name.split('.').last.toUpperCase() : 'FILE';
-        final sizeText = m.mediaSize != null
-            ? FileTypeDetector.formatFileSize(m.mediaSize!)
-            : '';
-        final dateText = DateFormat('d MMM, HH:mm').format(m.sentAt);
-
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.16),
-            ),
-          ),
-          child: Row(
-            children: [
-              M3Container(
-                Shapes.c4_sided_cookie,
-                width: 44,
-                height: 44,
-                color: scheme.secondaryContainer,
-                child: Center(
-                  child: Text(
-                    ext.length > 4 ? ext.substring(0, 4) : ext,
-                    style: TextStyle(
-                      color: scheme.onSecondaryContainer,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$sizeText • $dateText',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton.filledTonal(
-                icon: const Icon(Icons.download_rounded, size: 20),
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  if ((m.mediaUrl ?? '').isNotEmpty) {
-                    FileOpener.openUrl(context, m.mediaUrl!);
-                  }
-                },
-              ),
-            ],
-          ),
+        return _SharedFileTile(
+          message: items[index],
+          chatId: widget.chatId ?? 0,
         );
       },
     );
@@ -594,7 +595,7 @@ class _ProfileSharedMediaTabViewState
       padding: const EdgeInsets.symmetric(horizontal: 16),
       physics: const BouncingScrollPhysics(),
       itemCount: items.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 8),
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final m = items[index];
         final match = _urlRegExp.firstMatch(m.content);
@@ -610,14 +611,14 @@ class _ProfileSharedMediaTabViewState
               launchUrl(uri, mode: LaunchMode.externalApplication);
             }
           },
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(18),
+              color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.16),
+                color: scheme.outlineVariant.withValues(alpha: 0.2),
               ),
             ),
             child: Row(
@@ -635,7 +636,7 @@ class _ProfileSharedMediaTabViewState
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -659,7 +660,7 @@ class _ProfileSharedMediaTabViewState
                           fontSize: 12,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         dateText,
                         style: textTheme.bodySmall?.copyWith(
@@ -726,5 +727,203 @@ class _ProfileSharedMediaTabViewState
     final m = seconds ~/ 60;
     final s = seconds % 60;
     return '$m:${s.toString().padLeft(2, '0')}';
+  }
+}
+
+class _SharedFileTile extends ConsumerStatefulWidget {
+  const _SharedFileTile({
+    required this.message,
+    required this.chatId,
+  });
+
+  final ApiMessage message;
+  final int chatId;
+
+  @override
+  ConsumerState<_SharedFileTile> createState() => _SharedFileTileState();
+}
+
+class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
+  bool _isDownloading = false;
+  double _progress = 0.0;
+  String? _localPath;
+
+  Future<void> _startDownload() async {
+    if (_isDownloading) return;
+    final fileName = widget.message.mediaName ?? 'Документ';
+    if (_localPath != null) {
+      FileOpener.openFile(
+        context: context,
+        filePath: _localPath!,
+        fileName: fileName,
+      );
+      return;
+    }
+
+    final url = widget.message.mediaUrl ?? '';
+    if (url.isEmpty) return;
+
+    setState(() {
+      _isDownloading = true;
+      _progress = 0.05;
+    });
+
+    try {
+      final wsClient = ref.read(webSocketClientProvider);
+      Uint8List? fileKey;
+      if (widget.message.e2eeFileKey != null &&
+          widget.message.e2eeFileKey!.isNotEmpty) {
+        fileKey = base64Decode(widget.message.e2eeFileKey!);
+      }
+
+      // Smooth simulated progress while download stream progresses
+      for (double p = 0.15; p <= 0.85; p += 0.15) {
+        if (!mounted || !_isDownloading) break;
+        await Future.delayed(const Duration(milliseconds: 120));
+        if (mounted) setState(() => _progress = p);
+      }
+
+      final localPath = await WsMediaFetcher.fetchToLocalFile(
+        filePath: url,
+        wsClient: wsClient,
+        e2eeFileKey: fileKey,
+      );
+
+      if (mounted) {
+        setState(() {
+          _progress = 1.0;
+          _isDownloading = false;
+          _localPath = localPath;
+        });
+
+        HapticFeedback.mediumImpact();
+        FileOpener.openFile(
+          context: context,
+          filePath: localPath,
+          fileName: fileName,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+          _progress = 0.0;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка скачивания файла: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final m = widget.message;
+    final name = m.mediaName ?? 'Документ';
+    final ext = name.contains('.') ? name.split('.').last.toUpperCase() : 'FILE';
+    final sizeText = m.mediaSize != null
+        ? FileTypeDetector.formatFileSize(m.mediaSize!)
+        : '';
+    final dateText = DateFormat('d MMM, HH:mm').format(m.sentAt);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          M3Container(
+            Shapes.c4_sided_cookie,
+            width: 46,
+            height: 46,
+            color: scheme.secondaryContainer,
+            child: Center(
+              child: Text(
+                ext.length > 4 ? ext.substring(0, 4) : ext,
+                style: TextStyle(
+                  color: scheme.onSecondaryContainer,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$sizeText • $dateText',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (_isDownloading)
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    value: _progress > 0 ? _progress : null,
+                    strokeWidth: 3,
+                    color: scheme.primary,
+                    backgroundColor: scheme.primary.withValues(alpha: 0.2),
+                  ),
+                  Text(
+                    '${(_progress * 100).toInt()}%',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: scheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (_localPath != null)
+            IconButton.filledTonal(
+              icon: const Icon(Icons.folder_open_rounded, size: 20),
+              tooltip: 'Открыть файл',
+              onPressed: () => FileOpener.openFile(
+                context: context,
+                filePath: _localPath!,
+                fileName: name,
+              ),
+            )
+          else
+            IconButton.filledTonal(
+              icon: const Icon(Icons.download_rounded, size: 20),
+              tooltip: 'Скачать файл',
+              onPressed: _startDownload,
+            ),
+        ],
+      ),
+    );
   }
 }

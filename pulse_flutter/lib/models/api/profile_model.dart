@@ -54,6 +54,20 @@ class ApiProfile {
           : null,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'username': username,
+      'display_name': displayName,
+      'bio': bio,
+      'avatar_url': avatarUrl,
+      'two_fa_enabled': twoFaEnabled,
+      'spam_block': spamBlock,
+      'badges': badges.map((b) => b.toJson()).toList(),
+      if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
+    };
+  }
 }
 
 class ApiProfileEncrypted {

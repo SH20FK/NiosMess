@@ -16,6 +16,7 @@ import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
+import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/profile/profile_shared_media_tab_view.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
@@ -40,22 +41,60 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    _checkCacheAndLoad();
   }
 
   @override
   void didUpdateWidget(covariant PublicProfileScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.username != widget.username) {
-      _loadProfile();
+      _checkCacheAndLoad();
     }
   }
 
+  void _checkCacheAndLoad() {
+    // 1. Try local cache box
+    final cached = ref.read(cacheServiceProvider).getCachedProfile(widget.username);
+    if (cached != null) {
+      _profile = cached;
+      _resolveChatId(cached);
+    } else {
+      // 2. Try auth self profile
+      final myProfile = ref.read(authProvider).profile;
+      if (myProfile != null &&
+          myProfile.username.toLowerCase() == widget.username.toLowerCase()) {
+        _profile = myProfile;
+        _resolveChatId(myProfile);
+      } else {
+        // 3. Try finding in active chats
+        final chats = ref.read(chatsProvider).value ?? [];
+        for (final c in chats) {
+          if (c.username != null &&
+              c.username!.toLowerCase() == widget.username.toLowerCase()) {
+            _profile = ApiProfile(
+              id: c.id,
+              username: c.username!,
+              displayName: c.name,
+              bio: '',
+              avatarUrl: c.avatarUrl,
+            );
+            _resolvedChatId = c.id;
+            break;
+          }
+        }
+      }
+    }
+
+    _loadProfile();
+  }
+
   Future<void> _loadProfile() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (_profile == null) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     try {
       final ApiProfile profile = await ref
@@ -66,14 +105,22 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       setState(() {
         _profile = profile;
         _loading = false;
+        _error = null;
       });
 
       _resolveChatId(profile);
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
         _loading = false;
+        if (_profile == null) {
+          final errStr = e.toString();
+          if (errStr.contains('timed out') || errStr.contains('SocketException')) {
+            _error = 'Сервер временно недоступен. Проверьте соединение с интернетом.';
+          } else {
+            _error = 'Не удалось загрузить профиль. Попробуйте позже.';
+          }
+        }
       });
     }
   }
@@ -107,7 +154,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final AuthState auth = ref.watch(authProvider);
 
-    if (_loading) {
+    if (_loading && _profile == null) {
       return Scaffold(
         backgroundColor: scheme.surface,
         appBar: AppBar(
@@ -122,7 +169,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       );
     }
 
-    if (_error != null || _profile == null) {
+    if (_profile == null) {
       return Scaffold(
         backgroundColor: scheme.surface,
         appBar: AppBar(
@@ -139,14 +186,31 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.person_off_rounded, size: 56, color: scheme.error),
-                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: scheme.errorContainer.withValues(alpha: 0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.cloud_off_rounded, size: 48, color: scheme.error),
+                ),
+                const SizedBox(height: 20),
                 Text(
                   _error ?? context.l10n.contactDetailNotFound,
-                  style: textTheme.titleMedium,
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                Text(
+                  'Не удалось получить данные с сервера',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
                 FilledButton.icon(
                   onPressed: _loadProfile,
                   icon: const Icon(Icons.refresh_rounded),
