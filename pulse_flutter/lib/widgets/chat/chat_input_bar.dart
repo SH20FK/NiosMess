@@ -454,32 +454,24 @@ class _ChatInputBarState extends State<ChatInputBar> {
                               ),
 
                             // Attach Media Button
-                            if (widget.uploadingMedia)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                    right: 14, bottom: 14),
-                                child: AppLoadingIndicator(
-                                    size: 20, color: scheme.primary),
-                              )
-                            else
-                              Tooltip(
-                                message: context.l10n.chatAttachMedia,
-                                child: InkWell(
-                                  onTap: widget.onAttachMedia,
-                                  borderRadius:
-                                      BorderRadius.circular(20),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 12),
-                                    child: Icon(
-                                      Icons.attach_file_rounded,
-                                      size: 22,
-                                      color: scheme.onSurfaceVariant
-                                          .withValues(alpha: 0.7),
-                                    ),
+                            Tooltip(
+                              message: context.l10n.chatAttachMedia,
+                              child: InkWell(
+                                onTap: widget.onAttachMedia,
+                                borderRadius:
+                                    BorderRadius.circular(20),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 12),
+                                  child: Icon(
+                                    Icons.attach_file_rounded,
+                                    size: 22,
+                                    color: scheme.onSurfaceVariant
+                                        .withValues(alpha: 0.7),
                                   ),
                                 ),
                               ),
+                            ),
                           ],
                         ),
                       ),

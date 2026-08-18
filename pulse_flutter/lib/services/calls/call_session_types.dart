@@ -22,6 +22,7 @@ class CallSessionData {
     required this.isVideo,
     this.direction,
     this.localClientId,
+    this.peerName,
     this.isMuted = false,
     this.isSpeakerOn = false,
     this.isSelfVideoEnabled = false,
@@ -37,6 +38,7 @@ class CallSessionData {
   final bool isVideo;
   final CallDirection? direction;
   final int? localClientId;
+  final String? peerName;
   final bool isMuted;
   final bool isSpeakerOn;
   final bool isSelfVideoEnabled;
@@ -55,6 +57,7 @@ class CallSessionData {
     bool? isVideo,
     CallDirection? direction,
     int? localClientId,
+    String? peerName,
     bool? isMuted,
     bool? isSpeakerOn,
     bool? isSelfVideoEnabled,
@@ -70,6 +73,7 @@ class CallSessionData {
       isVideo: isVideo ?? this.isVideo,
       direction: direction ?? this.direction,
       localClientId: localClientId ?? this.localClientId,
+      peerName: peerName ?? this.peerName,
       isMuted: isMuted ?? this.isMuted,
       isSpeakerOn: isSpeakerOn ?? this.isSpeakerOn,
       isSelfVideoEnabled: isSelfVideoEnabled ?? this.isSelfVideoEnabled,

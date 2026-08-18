@@ -28,6 +28,7 @@ class CallSessionManager {
     required this.isVideo,
     required this.direction,
     required this.displayName,
+    this.peerName,
     required this.aesKeyBytes,
   });
 
@@ -38,13 +39,14 @@ class CallSessionManager {
   final bool isVideo;
   final CallDirection direction;
   final String displayName;
+  final String? peerName;
   final Uint8List aesKeyBytes;
 
   CallSession? _session;
 
   CallSession? get session => _session;
 
-  CallSession start() {
+  CallSession start({bool preferQuic = false}) {
     _session = CallSession(
       chatId: chatId,
       callId: callId,
@@ -52,6 +54,7 @@ class CallSessionManager {
       isVideo: isVideo,
       direction: direction,
       displayName: displayName,
+      peerName: peerName,
       aesKeyBytes: aesKeyBytes,
       onCameraReady: isVideo
           ? (controller) {
@@ -64,7 +67,7 @@ class CallSessionManager {
         ref.read(callSessionProvider.notifier).setSession(null);
       }
     });
-    _session!.start();
+    _session!.start(preferQuic: preferQuic);
     return _session!;
   }
 

@@ -171,7 +171,9 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     final participants = data.remoteParticipants;
     final participantName = participants.isNotEmpty
         ? participants.map((p) => p.nickname).join(', ')
-        : context.l10n.callConnecting;
+        : (data.peerName?.isNotEmpty == true
+            ? data.peerName!
+            : context.l10n.callsInProgress);
     const String? participantAvatar = null;
 
     return Scaffold(

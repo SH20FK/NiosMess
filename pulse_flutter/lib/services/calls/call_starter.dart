@@ -58,6 +58,7 @@ Future<int> startOutgoingCall({
   required WidgetRef ref,
   required int chatId,
   required bool isVideo,
+  String? peerName,
 }) async {
   final bool perm =
       await PermissionService().requestCallPermissions(video: isVideo);
@@ -105,8 +106,9 @@ Future<int> startOutgoingCall({
     isVideo: isVideo,
     direction: CallDirection.outgoing,
     displayName: nickname,
+    peerName: peerName ?? ref.read(chatByIdProvider(chatId))?.name,
     aesKeyBytes: aesKeyBytes,
-  )..start();
+  )..start(preferQuic: false);
 
   ref.read(callSessionProvider.notifier).setSession(manager);
   return callId;
@@ -119,11 +121,23 @@ Future<void> startIncomingCall({
   required int callId,
   required String roomId,
   required bool isVideo,
+  String? peerName,
 }) async {
   final bool perm =
       await PermissionService().requestCallPermissions(video: isVideo);
   if (!perm) {
     throw const CallStartException(CallStartFailure.permissions);
+  }
+
+  // Signal server that we accepted the call (mirrors web.html acceptCall join_call)
+  try {
+    await ref.read(callRepositoryProvider).join(
+      chatId: chatId,
+      roomId: roomId,
+      messageId: callId,
+    );
+  } catch (e) {
+    // If signaling fails, proceed to attempt connection
   }
 
   final String nickname =
@@ -143,8 +157,9 @@ Future<void> startIncomingCall({
     isVideo: isVideo,
     direction: CallDirection.incoming,
     displayName: nickname,
+    peerName: peerName,
     aesKeyBytes: aesKeyBytes,
-  )..start();
+  )..start(preferQuic: false);
 
   ref.read(callSessionProvider.notifier).setSession(manager);
 }

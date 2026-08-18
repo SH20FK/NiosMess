@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
+import 'package:pulse_flutter/router/app_router.dart';
 import 'package:pulse_flutter/services/calls/call_starter.dart';
 
 class IncomingCallOverlay extends ConsumerStatefulWidget {
@@ -242,11 +242,10 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
         callId: incoming.callId,
         roomId: incoming.roomId,
         isVideo: incoming.isVideo,
+        peerName: incoming.initiatorName,
       );
 
-      if (context.mounted) {
-        context.push('/call/${incoming.callId}');
-      }
+      ref.read(appRouterProvider).push('/call/${incoming.callId}');
     } on CallStartException catch (e) {
       if (context.mounted) {
         AppToast.showError(

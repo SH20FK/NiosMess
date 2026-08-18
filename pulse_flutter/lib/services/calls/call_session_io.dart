@@ -33,6 +33,7 @@ class CallSession {
     required this.isVideo,
     required this.direction,
     required this.displayName,
+    this.peerName,
     required Uint8List aesKeyBytes,
     this.onStateChanged,
     this.onIncomingAudio,
@@ -48,6 +49,7 @@ class CallSession {
   final bool isVideo;
   final CallDirection direction;
   final String displayName;
+  final String? peerName;
   final SecretKey aesKey;
 
   OnStateChanged? onStateChanged;
@@ -105,6 +107,7 @@ class CallSession {
         isVideo: isVideo,
         direction: direction,
         localClientId: _localClientId,
+        peerName: peerName,
         durationSeconds: _elapsedSeconds,
         remoteParticipants: List<RemoteParticipant>.unmodifiable(_remoteParticipants),
         verificationEmojis: _verificationEmojis,
@@ -124,10 +127,7 @@ class CallSession {
   Stream<CallSessionData> get stateStream => _stateController.stream;
 
   /// Start the call: connect transport, start heartbeat.
-  /// BUG FIX #3: Changed preferQuic default from false to true.
-  /// Server spec: "Client MUST try UDP first, fallback to TCP on failure."
-  /// This implements the correct transport priority with 2s timeout fallback.
-  Future<void> start({bool preferQuic = true}) async {
+  Future<void> start({bool preferQuic = false}) async {
     _setState(CallSessionState.connecting);
 
     try {

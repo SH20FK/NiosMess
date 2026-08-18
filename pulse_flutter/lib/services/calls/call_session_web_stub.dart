@@ -15,6 +15,7 @@ class CallSession {
     required this.isVideo,
     required this.direction,
     required this.displayName,
+    this.peerName,
     required this.aesKeyBytes,
     this.onCameraReady,
   });
@@ -25,6 +26,7 @@ class CallSession {
   final bool isVideo;
   final CallDirection direction;
   final String displayName;
+  final String? peerName;
   final Uint8List aesKeyBytes;
   final void Function(CameraController?)? onCameraReady;
   bool _isMuted = false;

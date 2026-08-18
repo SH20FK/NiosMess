@@ -260,12 +260,14 @@ class MessageBubble extends ConsumerWidget {
           children: <Widget>[
             if (isCircleVideo && hasMedia)
               _buildCircleVideoContent(context, scheme, textTheme,
+                ref: ref,
                 chatId: chatId,
                 wsClient: ref.read(webSocketClientProvider),
                 e2eeService: ref.read(e2eeServiceProvider),
               )
     else if (isVoice && hasMedia)
       _buildVoiceOnly(context, scheme, textTheme,
+        ref: ref,
         chatId: chatId,
         wsClient: ref.read(webSocketClientProvider),
         e2eeService: ref.read(e2eeServiceProvider),
@@ -564,6 +566,7 @@ if (onSwipeToReply != null) {
   }
 
   Widget _buildCircleVideoContent(BuildContext context, ColorScheme scheme, TextTheme textTheme, {
+    required WidgetRef ref,
     required int chatId,
     required WebSocketClient wsClient,
     required E2eeService e2eeService,
@@ -574,27 +577,49 @@ if (onSwipeToReply != null) {
       child: SizedBox(
         width: circleSize,
         height: circleSize,
-        child: _CircleVideoInlinePlayer(
-          videoUrl: mediaUrl!,
-          durationSeconds: mediaDuration ?? 0,
-          isMine: isMine,
-          isE2ee: isE2ee,
-          isEdited: isEdited,
-          isDeleted: isDeleted,
-          isRead: isRead,
-          formattedTime: formattedTime,
-          scheme: scheme,
-          textTheme: textTheme,
-          chatId: chatId,
-          wsClient: wsClient,
-          e2eeFileKey: e2eeFileKey,
-          onLongPress: onLongPressMedia,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            _CircleVideoInlinePlayer(
+              videoUrl: mediaUrl!,
+              durationSeconds: mediaDuration ?? 0,
+              isMine: isMine,
+              isE2ee: isE2ee,
+              isEdited: isEdited,
+              isDeleted: isDeleted,
+              isRead: isRead,
+              formattedTime: formattedTime,
+              scheme: scheme,
+              textTheme: textTheme,
+              chatId: chatId,
+              wsClient: wsClient,
+              e2eeFileKey: e2eeFileKey,
+              onLongPress: onLongPressMedia,
+            ),
+            if (isSending)
+              Positioned.fill(
+                child: ClipOval(
+                  child: _UploadProgressOverlay(
+                    progress: uploadProgress,
+                    isMine: isMine,
+                    scheme: scheme,
+                    onCancel: isMine && localId != null
+                        ? () {
+                            HapticService.destructive();
+                            ref.read(uploadQueueProvider.notifier).cancel(localId!);
+                          }
+                        : null,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildVoiceOnly(BuildContext context, ColorScheme scheme, TextTheme textTheme, {
+    required WidgetRef ref,
     required int chatId,
     required WebSocketClient wsClient,
     required E2eeService e2eeService,
@@ -628,22 +653,47 @@ if (onSwipeToReply != null) {
               ),
             ),
           ),
-        InkWell(
-          onLongPress: onLongPressMedia,
-          borderRadius: BorderRadius.circular(16),
-          child: VoiceMessagePlayer(
-            e2eeFileKey: e2eeFileKey,
-            audioUrl: mediaUrl!,
-            durationSeconds: mediaDuration ?? 0,
-            isMine: isMine,
-            scheme: scheme,
-            chatId: chatId,
-            wsClient: wsClient,
-            formattedTime: hideFooter ? null : formattedTime,
-            isRead: isRead,
-            isE2ee: isE2ee,
-            isEdited: isEdited,
-          ),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            InkWell(
+              onLongPress: onLongPressMedia,
+              borderRadius: BorderRadius.circular(16),
+              child: VoiceMessagePlayer(
+                e2eeFileKey: e2eeFileKey,
+                audioUrl: mediaUrl!,
+                durationSeconds: mediaDuration ?? 0,
+                isMine: isMine,
+                scheme: scheme,
+                chatId: chatId,
+                wsClient: wsClient,
+                formattedTime: hideFooter ? null : formattedTime,
+                isRead: isRead,
+                isE2ee: isE2ee,
+                isEdited: isEdited,
+              ),
+            ),
+            if (isSending)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.38),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: _UploadProgressOverlay(
+                    progress: uploadProgress,
+                    isMine: isMine,
+                    scheme: scheme,
+                    onCancel: isMine && localId != null
+                        ? () {
+                            HapticService.destructive();
+                            ref.read(uploadQueueProvider.notifier).cancel(localId!);
+                          }
+                        : null,
+                  ),
+                ),
+              ),
+          ],
         ),
       ],
     );

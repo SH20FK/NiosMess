@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
+import 'package:pulse_flutter/router/app_router.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
 
@@ -50,11 +50,11 @@ class CallOverlay extends ConsumerWidget {
             participantName: participantName,
             timerLabel: timerLabel,
             onTap: () {
-              final router = GoRouter.of(context);
+              final router = ref.read(appRouterProvider);
               final path =
                   router.routeInformationProvider.value.uri.path;
               if (!path.startsWith('/call/')) {
-                context.push('/call/${data.callId}');
+                router.push('/call/${data.callId}');
               }
             },
             onEnd: () async {
