@@ -156,25 +156,11 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
           subtitle: context.l10n.settingsAccountAccessDesc,
           children: <Widget>[
             SettingsTile(
-              icon: Icons.key_rounded,
-              title: context.l10n.settingsResetPassword,
-              subtitle: context.l10n.settingsResetPasswordSubtitle,
-              iconColor: scheme.primary,
-              onTap: () => context.push('/reset-password/request'),
-            ),
-            SettingsTile(
               icon: Icons.devices_rounded,
               title: context.l10n.settingsActiveSessions,
               subtitle: context.l10n.settingsActiveSessionsSubtitle,
-              iconColor: scheme.secondary,
+              iconColor: scheme.primary,
               onTap: () => context.push('/settings/sessions'),
-            ),
-            SettingsTile(
-              icon: Icons.enhanced_encryption_rounded,
-              title: context.l10n.settingsSecretChatsTitle,
-              subtitle: context.l10n.settingsSecretChatsSubtitle,
-              iconColor: scheme.tertiary,
-              onTap: () => context.push('/settings/e2ee'),
             ),
           ],
         ),

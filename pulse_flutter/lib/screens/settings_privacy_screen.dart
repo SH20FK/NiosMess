@@ -56,13 +56,6 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               iconColor: scheme.tertiary,
               onTap: () => context.push('/settings/e2ee'),
             ),
-            SettingsTile(
-              icon: Icons.devices_rounded,
-              title: context.l10n.settingsActiveSessions,
-              subtitle: context.l10n.settingsActiveSessionsSubtitle,
-              iconColor: scheme.secondary,
-              onTap: () => context.push('/settings/sessions'),
-            ),
           ],
         ),
         if (isAndroid)

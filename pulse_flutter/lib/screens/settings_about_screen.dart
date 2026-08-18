@@ -45,54 +45,95 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
       length: 4,
       child: Scaffold(
         backgroundColor: scheme.surface,
-        body: CustomScrollView(
-          slivers: <Widget>[
-            SliverAppBar(
-              pinned: true,
-              expandedHeight: 0,
-              backgroundColor: scheme.surface,
-              surfaceTintColor: Colors.transparent,
-              leading: Navigator.canPop(context)
-                  ? IconButton(
-                      icon: const Icon(Icons.arrow_back_rounded),
-                      onPressed: () => Navigator.of(context).pop(),
-                    )
-                  : null,
-              leadingWidth: 48,
-              title: Text(context.l10n.settingsAboutTitle),
-              centerTitle: true,
-              titleSpacing: 0,
-            ),
-            SliverToBoxAdapter(child: _HeroBlock(animation: _heroController, packageInfo: _packageInfo)),
-            SliverToBoxAdapter(
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: TabBar(
-                  isScrollable: true,
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  labelStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+        appBar: AppBar(
+          backgroundColor: scheme.surface,
+          surfaceTintColor: Colors.transparent,
+          leading: Navigator.canPop(context)
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  onPressed: () => Navigator.of(context).pop(),
+                )
+              : null,
+          title: Text(
+            context.l10n.settingsAboutTitle,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          centerTitle: true,
+        ),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: NestedScrollView(
+              headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+                return <Widget>[
+                  SliverToBoxAdapter(
+                    child: _HeroBlock(
+                      animation: _heroController,
+                      packageInfo: _packageInfo,
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        child: TabBar(
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.center,
+                          dividerHeight: 0,
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          indicator: BoxDecoration(
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: scheme.primary.withValues(alpha: 0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          labelColor: scheme.onPrimary,
+                          unselectedLabelColor: scheme.onSurfaceVariant,
+                          labelStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                          unselectedLabelStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                          tabs: <Tab>[
+                            Tab(
+                              icon: const Icon(Icons.code_rounded, size: 18),
+                              text: context.l10n.aboutTabDevelopers,
+                              iconMargin: const EdgeInsets.only(bottom: 2),
+                            ),
+                            Tab(
+                              icon: const Icon(Icons.help_outline_rounded, size: 18),
+                              text: context.l10n.aboutTabFaq,
+                              iconMargin: const EdgeInsets.only(bottom: 2),
+                            ),
+                            Tab(
+                              icon: const Icon(Icons.history_rounded, size: 18),
+                              text: context.l10n.aboutTabChangelog,
+                              iconMargin: const EdgeInsets.only(bottom: 2),
+                            ),
+                            Tab(
+                              icon: const Icon(Icons.gavel_rounded, size: 18),
+                              text: context.l10n.aboutTabLegal,
+                              iconMargin: const EdgeInsets.only(bottom: 2),
+                            ),
+                          ],
+                        ),
                       ),
-                  unselectedLabelStyle:
-                      Theme.of(context).textTheme.labelMedium,
-                  indicatorSize: TabBarIndicatorSize.label,
-                  dividerHeight: 0,
-                  tabs: <Tab>[
-                    Tab(icon: const Icon(Icons.code_rounded, size: 20), text: context.l10n.aboutTabDevelopers, iconMargin: EdgeInsets.zero),
-                    Tab(icon: const Icon(Icons.help_outline_rounded, size: 20), text: context.l10n.aboutTabFaq, iconMargin: EdgeInsets.zero),
-                    Tab(icon: const Icon(Icons.history_rounded, size: 20), text: context.l10n.aboutTabChangelog, iconMargin: EdgeInsets.zero),
-                    Tab(icon: const Icon(Icons.gavel_rounded, size: 20), text: context.l10n.aboutTabLegal, iconMargin: EdgeInsets.zero),
-                  ],
-                ),
-              ),
-            ),
-            SliverFillRemaining(
-              hasScrollBody: true,
-              child: TabBarView(
+                    ),
+                  ),
+                ];
+              },
+              body: TabBarView(
                 children: <Widget>[
                   _DevelopersTab(),
                   _FaqTab(),
@@ -101,161 +142,167 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
-
 
 class _HeroBlock extends StatelessWidget {
   const _HeroBlock({required this.animation, required this.packageInfo});
   final AnimationController animation;
   final Future<PackageInfo> packageInfo;
 
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return RepaintBoundary(
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          gradient: RadialGradient(
-            center: Alignment.topCenter,
-            radius: 1.4,
-            colors: <Color>[
-              scheme.primaryContainer.withValues(alpha: 0.4),
-              scheme.surfaceContainerHigh,
-              scheme.surfaceContainerLow,
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.25),
         ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Decorative floating M3 shapes
-            Positioned(
-              top: -20,
-              left: 20,
-              child: M3Container.c9SidedCookie(
-                width: 80,
-                height: 80,
-                color: scheme.primary.withValues(alpha: 0.1),
-                child: const SizedBox(),
-              ),
-            ),
-            Positioned(
-              bottom: 10,
-              right: -10,
-              child: M3Container.c9SidedCookie(
-                width: 120,
-                height: 120,
-                color: scheme.secondary.withValues(alpha: 0.08),
-                child: const SizedBox(),
-              ).animate(onPlay: (c) => c.repeat())
-               .rotate(begin: 0, end: 1, duration: 20.seconds),
-            ),
-            Positioned(
-              top: 40,
-              right: 20,
-              child: M3Container.c9SidedCookie(
-                width: 50,
-                height: 50,
-                color: scheme.tertiary.withValues(alpha: 0.15),
-                child: const SizedBox(),
-              ).animate(onPlay: (c) => c.repeat())
-               .rotate(begin: 0, end: 1, duration: 12.seconds),
-            ),
-            // Content
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+        gradient: RadialGradient(
+          center: Alignment.topCenter,
+          radius: 1.2,
+          colors: <Color>[
+            scheme.primaryContainer.withValues(alpha: 0.35),
+            scheme.surfaceContainerHigh.withValues(alpha: 0.6),
+          ],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            // Rotating M3 Logo Badge
+            SizedBox(
+              width: 76,
+              height: 76,
+              child: Stack(
+                alignment: Alignment.center,
                 children: <Widget>[
-                  SizedBox(
-                    width: 72,
-                    height: 72,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: <Widget>[
-                        M3Container.c9SidedCookie(
-                          width: 72,
-                          height: 72,
-                          color: scheme.primary,
-                          child: const SizedBox(),
-                        ).animate(onPlay: (c) => c.repeat())
-                         .rotate(duration: 10.seconds, curve: Curves.linear),
-                        SvgPicture.asset(
-                          'assets/svg/niosmess_logo_tintable.svg',
-                          width: 72 * 0.6,
-                          height: 72 * 0.6,
-                          colorFilter: ColorFilter.mode(
-                            scheme.onPrimary,
-                            BlendMode.srcIn,
-                          ),
-                        ),
-                      ],
+                  M3Container.c9SidedCookie(
+                    width: 76,
+                    height: 76,
+                    color: scheme.primary,
+                    child: const SizedBox(),
+                  ).animate(onPlay: (c) => c.repeat())
+                   .rotate(duration: 12.seconds, curve: Curves.linear),
+                  SvgPicture.asset(
+                    'assets/svg/niosmess_logo_tintable.svg',
+                    width: 44,
+                    height: 44,
+                    colorFilter: ColorFilter.mode(
+                      scheme.onPrimary,
+                      BlendMode.srcIn,
                     ),
-                  ).animate(controller: animation)
-                    .scale(
-                      begin: const Offset(0.6, 0.6),
-                      end: const Offset(1.0, 1.0),
-                      curve: Curves.easeOutBack,
-                      duration: 600.ms,
-                    )
-                    .fade(duration: 400.ms),
-                  const SizedBox(height: 12),
-                  Text(
-                    context.l10n.appName,
-                    textAlign: TextAlign.center,
-                    style: textTheme.displaySmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -1.5,
-                      color: scheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    context.l10n.aboutTagline,
-                    textAlign: TextAlign.center,
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  FutureBuilder<PackageInfo>(
-                    future: packageInfo,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Chip(
-                          label: Text('...'),
-                          avatar: Icon(Icons.new_releases_rounded, size: 16),
-                          side: BorderSide.none,
-                        );
-                      }
-                      if (snapshot.hasError || !snapshot.hasData) {
-                        return Chip(
-                          label: Text(context.l10n.commonUnknown),
-                          avatar: const Icon(Icons.error_outline_rounded, size: 16),
-                          side: BorderSide.none,
-                        );
-                      }
-                      return Chip(
-                        label: Text('v${snapshot.data!.version}'),
-                        avatar: const Icon(Icons.new_releases_rounded, size: 16),
-                        backgroundColor: scheme.primaryContainer.withValues(alpha: 0.5),
-                        side: BorderSide.none,
-                      );
-                    },
                   ),
                 ],
               ),
+            ).animate(controller: animation)
+              .scale(
+                begin: const Offset(0.7, 0.7),
+                end: const Offset(1.0, 1.0),
+                curve: Curves.easeOutBack,
+                duration: 500.ms,
+              )
+              .fade(duration: 350.ms),
+            const SizedBox(height: 14),
+
+            // App Name
+            Text(
+              context.l10n.appName,
+              textAlign: TextAlign.center,
+              style: textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.8,
+                color: scheme.primary,
+              ),
+            ),
+            const SizedBox(height: 4),
+
+            // Tagline
+            Text(
+              context.l10n.aboutTagline,
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Version Pill
+            FutureBuilder<PackageInfo>(
+              future: packageInfo,
+              builder: (context, snapshot) {
+                final String ver = snapshot.data != null
+                    ? 'v${snapshot.data!.version}'
+                    : 'v3.0.0';
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: scheme.primary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.verified_rounded, size: 14, color: scheme.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        ver,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: scheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Quick Actions
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Icons.bug_report_rounded, size: 16),
+                  label: const Text('Альфа-тест'),
+                  onPressed: () => AlphaTestDialog.showIfFirstLaunch(context),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.send_rounded, size: 16),
+                  label: const Text('Telegram'),
+                  onPressed: () => _openUrl('https://t.me/niosmess'),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.code_rounded, size: 16),
+                  label: const Text('GitHub'),
+                  onPressed: () => _openUrl('https://github.com'),
+                ),
+              ],
             ),
           ],
         ),
@@ -263,7 +310,6 @@ class _HeroBlock extends StatelessWidget {
     );
   }
 }
-
 
 class _DevelopersTab extends StatelessWidget {
   @override
@@ -275,12 +321,13 @@ class _DevelopersTab extends StatelessWidget {
         description: context.l10n.developersSanlsanDescription,
         assetPath: 'assets/developers/Sanlsan_clean.png',
         icon: Icons.dns_rounded,
-        accentColor: Colors.blue,
+        accentColor: Colors.blueAccent,
         tags: <String>[
           context.l10n.developersTagBackend,
           context.l10n.developersTagApi,
           context.l10n.developersTagAuth,
         ],
+        telegram: 'sanlsan',
       ),
       _Developer(
         name: 'SH20FK',
@@ -288,17 +335,18 @@ class _DevelopersTab extends StatelessWidget {
         description: context.l10n.developersSh20fkDescription,
         assetPath: 'assets/developers/SH20FK_clean.png',
         icon: Icons.phone_iphone_rounded,
-        accentColor: Colors.purple,
+        accentColor: Colors.deepPurpleAccent,
         tags: <String>[
           context.l10n.developersTagFlutter,
           context.l10n.developersTagUx,
           context.l10n.developersTagClient,
         ],
+        telegram: 'Door0S',
       ),
     ];
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: developers.length,
       itemBuilder: (BuildContext context, int index) {
         return _DeveloperCard(developer: developers[index]);
@@ -316,6 +364,7 @@ class _Developer {
     required this.icon,
     required this.accentColor,
     required this.tags,
+    this.telegram,
   });
   final String name;
   final String role;
@@ -324,11 +373,19 @@ class _Developer {
   final IconData icon;
   final Color accentColor;
   final List<String> tags;
+  final String? telegram;
 }
 
 class _DeveloperCard extends StatelessWidget {
   const _DeveloperCard({required this.developer});
   final _Developer developer;
+
+  Future<void> _openTelegram(String handle) async {
+    final uri = Uri.parse('https://t.me/$handle');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -337,58 +394,48 @@ class _DeveloperCard extends StatelessWidget {
     final Color accent = developer.accentColor;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(20),
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.25),
+        ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                width: 76,
-                height: 76,
-                color: accent.withValues(alpha: 0.08),
-                child: Stack(
-                  children: <Widget>[
-                    Positioned(
-                      right: -10,
-                      bottom: -10,
-                      child: Icon(
-                        developer.icon,
-                        size: 48,
-                        color: accent.withValues(alpha: 0.07),
-                      ),
+            // Avatar frame
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: accent.withValues(alpha: 0.3),
+                  width: 1.5,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Image.asset(
+                    developer.assetPath,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, trace) => Center(
+                      child: Icon(developer.icon, size: 32, color: accent),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Image.asset(
-                        developer.assetPath,
-                        fit: BoxFit.contain,
-                        errorBuilder: (
-                          BuildContext context,
-                          Object error,
-                          StackTrace? trace,
-                        ) {
-                          return Center(
-                            child: Icon(
-                              Icons.person_rounded,
-                              size: 32,
-                              color: accent.withValues(alpha: 0.5),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
+
+            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -406,31 +453,49 @@ class _DeveloperCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Icon(developer.icon, color: accent, size: 16),
+                      if (developer.telegram != null)
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: Icon(Icons.send_rounded, size: 16, color: accent),
+                          tooltip: '@${developer.telegram}',
+                          onPressed: () => _openTelegram(developer.telegram!),
+                        ),
                     ],
                   ),
-                  const SizedBox(height: 1),
-                  Text(
-                    developer.role,
-                    style: textTheme.labelMedium?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w700,
+                  const SizedBox(height: 2),
+
+                  // Role Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      developer.role,
+                      style: textTheme.labelSmall?.copyWith(
+                        color: accent,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
+
+                  // Description
                   Text(
                     developer.description,
                     style: textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                       height: 1.35,
-                      fontSize: 11,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 10),
+
+                  // Tags
                   Wrap(
                     spacing: 6,
-                    runSpacing: 4,
+                    runSpacing: 6,
                     children: developer.tags
                         .map(
                           (String tag) => Container(
@@ -439,15 +504,18 @@ class _DeveloperCard extends StatelessWidget {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: accent.withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(20),
+                              color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: scheme.outlineVariant.withValues(alpha: 0.2),
+                              ),
                             ),
                             child: Text(
                               tag,
                               style: textTheme.labelSmall?.copyWith(
-                                color: accent,
+                                color: scheme.onSurface,
                                 fontWeight: FontWeight.w600,
-                                fontSize: 9,
+                                fontSize: 10,
                               ),
                             ),
                           ),
@@ -463,7 +531,6 @@ class _DeveloperCard extends StatelessWidget {
     );
   }
 }
-
 
 class _FaqTab extends StatelessWidget {
   @override
@@ -485,26 +552,33 @@ class _FaqTab extends StatelessWidget {
     ];
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: faqs.length,
       itemBuilder: (BuildContext context, int index) {
         final (String q, String a) = faqs[index];
         return Container(
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
-            color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
+            color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.2),
+            ),
           ),
           child: ExpansionTile(
             shape: const Border(),
             collapsedShape: const Border(),
+            tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
             title: Text(
               q,
-              style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+              style: textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: scheme.onSurface,
+              ),
             ),
             children: <Widget>[
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
                 child: Text(
                   a,
                   style: textTheme.bodyMedium?.copyWith(
@@ -520,7 +594,6 @@ class _FaqTab extends StatelessWidget {
     );
   }
 }
-
 
 class _ChangelogTab extends StatelessWidget {
   const _ChangelogTab({required this.packageInfo});
@@ -580,7 +653,7 @@ class _ChangelogTab extends StatelessWidget {
     ];
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: <Widget>[
         for (int i = 0; i < releases.length; i++)
           _ReleaseCard(release: releases[i], isFirst: i == 0),
@@ -627,12 +700,19 @@ class _ReleaseCard extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isFirst ? scheme.primaryContainer.withValues(alpha: 0.3) : scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
+        color: isFirst
+            ? scheme.primaryContainer.withValues(alpha: 0.35)
+            : scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isFirst
+              ? scheme.primary.withValues(alpha: 0.3)
+              : scheme.outlineVariant.withValues(alpha: 0.2),
+        ),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -672,10 +752,10 @@ class _ReleaseCard extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           for (final String change in release.changes)
             Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -683,7 +763,7 @@ class _ReleaseCard extends StatelessWidget {
                     '• ',
                     style: TextStyle(
                       color: scheme.primary,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   Expanded(
@@ -691,6 +771,7 @@ class _ReleaseCard extends StatelessWidget {
                       change,
                       style: textTheme.bodyMedium?.copyWith(
                         color: scheme.onSurface,
+                        height: 1.35,
                       ),
                     ),
                   ),
@@ -710,7 +791,7 @@ class _LegalTab extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
       children: <Widget>[
         Text(
           context.l10n.legalSectionTitle,
@@ -719,7 +800,7 @@ class _LegalTab extends StatelessWidget {
             color: scheme.onSurface,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Text(
           context.l10n.legalSectionSubtitle,
           style: textTheme.bodySmall?.copyWith(
@@ -727,7 +808,7 @@ class _LegalTab extends StatelessWidget {
             height: 1.4,
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         _LegalCard(
           icon: Icons.privacy_tip_rounded,
           title: context.l10n.legalPrivacyTitle,
@@ -751,7 +832,7 @@ class _LegalTab extends StatelessWidget {
           iconColor: scheme.secondary,
           onTap: () => context.push('/legal/consent'),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 24),
         Text(
           context.l10n.alphaSectionTitle,
           style: textTheme.titleMedium?.copyWith(
@@ -761,11 +842,11 @@ class _LegalTab extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: scheme.errorContainer.withValues(alpha: 0.3),
+            color: scheme.errorContainer.withValues(alpha: 0.25),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: scheme.error.withValues(alpha: 0.2)),
+            border: Border.all(color: scheme.error.withValues(alpha: 0.25)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -783,30 +864,31 @@ class _LegalTab extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 context.l10n.alphaSectionBody,
                 style: textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
-                  height: 1.5,
+                  height: 1.45,
                 ),
               ),
               const SizedBox(height: 14),
               Text(
                 context.l10n.alphaDialogReportTo,
-                style: textTheme.labelLarge?.copyWith(
+                style: textTheme.labelMedium?.copyWith(
                   color: scheme.onSurface,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 8),
-              Row(
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
                 children: <Widget>[
                   _TelegramLink(
                     handle: 'Door0S',
                     onTap: () => _launchTelegram('Door0S'),
                   ),
-                  const SizedBox(width: 10),
                   _TelegramLink(
                     handle: 'sanlsan',
                     onTap: () => _launchTelegram('sanlsan'),
@@ -815,12 +897,6 @@ class _LegalTab extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        TextButton.icon(
-          onPressed: () => AlphaTestDialog.showIfFirstLaunch(context),
-          icon: const Icon(Icons.replay_rounded, size: 18),
-          label: Text(context.l10n.alphaShowAgain),
         ),
       ],
     );
@@ -855,12 +931,18 @@ class _LegalCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Material(
-      color: scheme.surfaceContainerLow,
+      color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.2),
+            ),
+          ),
           padding: const EdgeInsets.all(16),
           child: Row(
             children: <Widget>[
