@@ -345,22 +345,19 @@ class _M3CallActionButton extends StatelessWidget {
     return Semantics(
       button: true,
       label: label,
-      child: Tooltip(
-        message: label,
-        child: GestureDetector(
-          onTap: () {
-            HapticFeedback.mediumImpact();
-            onTap();
-          },
-          child: SizedBox(
-            width: CallTokens.incomingButtonSize,
-            height: CallTokens.incomingButtonSize,
-            child: M3Container(
-              shape,
-              color: bg,
-              child: Center(
-                child: Icon(icon, color: color, size: 24),
-              ),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.mediumImpact();
+          onTap();
+        },
+        child: SizedBox(
+          width: CallTokens.incomingButtonSize,
+          height: CallTokens.incomingButtonSize,
+          child: M3Container(
+            shape,
+            color: bg,
+            child: Center(
+              child: Icon(icon, color: color, size: 24),
             ),
           ),
         ),

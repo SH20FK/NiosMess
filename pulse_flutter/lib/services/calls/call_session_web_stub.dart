@@ -1,12 +1,14 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 
 import 'call_session_types.dart';
+import 'call_transport.dart';
 import 'video_output_pipeline.dart';
+import 'ws_transport.dart';
 
-// ignore: use_key_in_widget_constructors
 class CallSession {
   CallSession({
     required this.chatId,
@@ -29,35 +31,106 @@ class CallSession {
   final String? peerName;
   final Uint8List aesKeyBytes;
   final void Function(CameraController?)? onCameraReady;
+
+  final WsCallTransport _transport = WsCallTransport();
+  final StreamController<CallSessionData> _stateController =
+      StreamController<CallSessionData>.broadcast();
+
+  CallSessionState _state = CallSessionState.idle;
+  int _durationSeconds = 0;
+  Timer? _durationTimer;
+  StreamSubscription<void>? _connSub;
+  StreamSubscription<void>? _disconnSub;
   bool _isMuted = false;
   bool _isSpeakerOn = false;
-  final bool isSelfVideoEnabled = false;
+  bool _isSelfVideoEnabled = false;
 
   VideoOutputPipeline? get videoOutput => null;
+  bool get isSelfVideoEnabled => _isSelfVideoEnabled;
 
   CallSessionData get currentData => CallSessionData(
-    state: CallSessionState.idle,
-    callId: callId,
-    isVideo: isVideo,
-    durationSeconds: 0,
-    isMuted: _isMuted,
-    isSpeakerOn: _isSpeakerOn,
-  );
+        state: _state,
+        callId: callId,
+        roomId: roomId,
+        isVideo: isVideo,
+        direction: direction,
+        peerName: peerName,
+        isMuted: _isMuted,
+        isSpeakerOn: _isSpeakerOn,
+        isSelfVideoEnabled: _isSelfVideoEnabled,
+        durationSeconds: _durationSeconds,
+      );
 
-  Stream<CallSessionData> get stateStream => const Stream.empty();
+  Stream<CallSessionData> get stateStream => _stateController.stream;
+
+  void _emitState() {
+    if (!_stateController.isClosed) {
+      _stateController.add(currentData);
+    }
+  }
 
   Future<void> start({bool preferQuic = false}) async {
-    debugPrint('[CallSession] Web stub — calls not supported');
+    _state = CallSessionState.connecting;
+    _emitState();
+
+    _connSub = _transport.onConnected.listen((_) {
+      _state = CallSessionState.connected;
+      _durationTimer?.cancel();
+      _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        _durationSeconds++;
+        _emitState();
+      });
+      _emitState();
+    });
+
+    _disconnSub = _transport.onDisconnected.listen((_) {
+      _durationTimer?.cancel();
+      _state = CallSessionState.ended;
+      _emitState();
+    });
+
+    final result = await _transport.connect(
+      roomId: roomId,
+      nickname: displayName,
+    );
+
+    if (result == TransportConnectResult.failed) {
+      _state = CallSessionState.ended;
+      _emitState();
+    }
   }
 
   void setMuted(bool muted) {
     _isMuted = muted;
+    _emitState();
   }
+
   void setSpeakerOn(bool on) {
     _isSpeakerOn = on;
+    _emitState();
   }
-  Future<void> setLocalVideoEnabled(bool enabled) async {}
+
+  Future<void> setLocalVideoEnabled(bool enabled) async {
+    _isSelfVideoEnabled = enabled;
+    _emitState();
+  }
+
   Future<void> switchCamera() async {}
-  Future<void> end() async {}
-  void dispose() {}
+
+  Future<void> end() async {
+    _durationTimer?.cancel();
+    _state = CallSessionState.ended;
+    _emitState();
+    await _transport.disconnect();
+  }
+
+  void dispose() {
+    _durationTimer?.cancel();
+    _connSub?.cancel();
+    _disconnSub?.cancel();
+    _transport.dispose();
+    if (!_stateController.isClosed) {
+      _stateController.close();
+    }
+  }
 }
