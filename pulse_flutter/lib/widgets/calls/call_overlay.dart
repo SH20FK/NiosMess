@@ -17,10 +17,11 @@ class CallOverlay extends ConsumerWidget {
     final session = manager?.session;
     if (session == null) return const SizedBox.shrink();
 
-    return Positioned(
-      bottom: 96,
-      right: 14,
-      child: StreamBuilder<CallSessionData>(
+    return Align(
+      alignment: Alignment.bottomRight,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 96, right: 14),
+        child: StreamBuilder<CallSessionData>(
         stream: session.stateStream,
         initialData: session.currentData,
         builder: (context, snapshot) {
@@ -63,6 +64,7 @@ class CallOverlay extends ConsumerWidget {
             },
           );
         },
+      ),
       ),
     );
   }

@@ -15,22 +15,24 @@ class ChatDetailScrollToBottomFAB extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      right: 16,
-      bottom: 8,
-      child: RepaintBoundary(
-        child: AnimatedOpacity(
-          opacity: show ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 200),
-          child: AnimatedScale(
-            scale: show ? 1.0 : 0.7,
+    return Align(
+      alignment: Alignment.bottomRight,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 16, bottom: 8),
+        child: RepaintBoundary(
+          child: AnimatedOpacity(
+            opacity: show ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutBack,
-            child: FloatingActionButton.small(
-              onPressed: show ? onPressed : null,
-              heroTag: 'scroll_down_$chatId',
-              tooltip: context.l10n.chatScrollToBottom,
-              child: const Icon(Icons.keyboard_arrow_down_rounded),
+            child: AnimatedScale(
+              scale: show ? 1.0 : 0.7,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutBack,
+              child: FloatingActionButton.small(
+                onPressed: show ? onPressed : null,
+                heroTag: 'scroll_down_$chatId',
+                tooltip: context.l10n.chatScrollToBottom,
+                child: const Icon(Icons.keyboard_arrow_down_rounded),
+              ),
             ),
           ),
         ),
