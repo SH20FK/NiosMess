@@ -114,10 +114,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get loginSubtitle => 'Войдите по email или username.';
 
   @override
-  String get loginIdentifierLabel => 'Email';
+  String get loginIdentifierLabel => 'Имя пользователя или email';
 
   @override
-  String get loginIdentifierError => 'Введите email';
+  String get loginIdentifierError => 'Введите имя пользователя или email';
 
   @override
   String get loginPasswordLabel => 'Пароль';

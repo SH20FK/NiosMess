@@ -208,6 +208,15 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
     _pump();
   }
 
+  void cancel(String localId) {
+    final task = state[localId];
+    if (task == null) return;
+    state = {...state}..remove(localId);
+    final int tempId = int.tryParse(localId) ?? 0;
+    ref.read(chatMessagesProvider(task.chatId).notifier).removeOptimisticMessage(tempId);
+    _pump();
+  }
+
   void retryAllErrors() {
     for (final MapEntry<String, UploadTask> entry in state.entries) {
       if (entry.value.status == UploadStatus.error) {

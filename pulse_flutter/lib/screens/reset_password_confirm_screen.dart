@@ -206,44 +206,65 @@ class _ResetPasswordConfirmScreenState
                     ),
                     const SizedBox(height: 20),
 
-                    // New Password input container
-                    Container(
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: scheme.outlineVariant.withValues(alpha: 0.25),
-                        ),
+                    // New Password input
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _hidePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _submit(),
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w500,
                       ),
-                      child: TextFormField(
-                        controller: _passwordController,
-                        obscureText: _hidePassword,
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) => _submit(),
-                        decoration: InputDecoration(
-                          labelText: context.l10n.resetPasswordConfirmPasswordLabel,
-                          prefixIcon: Icon(Icons.lock_outline_rounded, size: 20, color: scheme.primary),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _hidePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                              size: 20,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            onPressed: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _hidePassword = !_hidePassword);
-                            },
+                      decoration: InputDecoration(
+                        labelText: context.l10n.resetPasswordConfirmPasswordLabel,
+                        labelStyle: TextStyle(
+                          color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                          fontSize: 14,
+                        ),
+                        filled: true,
+                        fillColor: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
+                        prefixIcon: Icon(Icons.lock_outline_rounded, size: 20, color: scheme.primary),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _hidePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                            size: 20,
+                            color: scheme.onSurfaceVariant,
                           ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          onPressed: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _hidePassword = !_hidePassword);
+                          },
                         ),
-                        validator: (String? value) {
-                          if ((value ?? '').length < 8) {
-                            return context.l10n.registerPasswordError;
-                          }
-                          return null;
-                        },
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide(
+                            color: scheme.outlineVariant.withValues(alpha: 0.25),
+                            width: 1,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide(
+                            color: scheme.outlineVariant.withValues(alpha: 0.25),
+                            width: 1,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide(
+                            color: scheme.primary,
+                            width: 1.5,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       ),
+                      validator: (String? value) {
+                        if ((value ?? '').length < 6) {
+                          return context.l10n.resetPasswordConfirmPasswordError;
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 28),
 

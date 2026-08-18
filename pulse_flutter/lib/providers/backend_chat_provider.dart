@@ -826,6 +826,15 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
   }
 
+  void removeOptimisticMessage(int tempId) {
+    if (tempId == 0) return;
+    List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    final List<ApiMessage> next = List<ApiMessage>.from(current)
+      ..removeWhere((m) => m.id == tempId);
+    state = AsyncData<List<ApiMessage>>(next);
+    _saveToCache(next);
+  }
+
   Future<void> editMessage(int messageId, String content) async {
     final String trimmed = content.trim();
     if (trimmed.isEmpty) return;

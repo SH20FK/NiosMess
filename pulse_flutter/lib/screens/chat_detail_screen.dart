@@ -21,7 +21,6 @@ import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
-import 'package:pulse_flutter/core/utils/image_compressor.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
@@ -792,44 +791,29 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return;
     }
 
+    final String initialText = _inputController.text;
+    if (mounted) _inputController.clear();
+
     for (int i = 0; i < results.length; i++) {
       final M3FilePickerResult result = results[i];
       final String filename = result.fileName;
       final String mediaSubtype = result.mediaSubtype;
 
-      String? uploadFilePath = result.filePath;
-      Uint8List? uploadBytes = result.fileBytes;
-      int uploadFileSize = result.fileSize;
+      final String? uploadFilePath = result.filePath;
+      final Uint8List? uploadBytes = result.fileBytes;
+      final int uploadFileSize = result.fileSize;
 
-      if (uploadFilePath != null) {
-        try {
-          final File originalFile = File(uploadFilePath);
-          final File? compressed = await ImageCompressor.compressImageFile(
-            file: originalFile,
-            fileName: filename,
-          );
-          if (compressed != null) {
-            uploadFilePath = compressed.path;
-            uploadFileSize = await compressed.length();
-          }
-        } catch (e, st) {
-          debugPrint('Image compression failed: $e\n$st');
-        }
-      }
-
-      await _uploadAndSend(
+      _uploadAndSend(
         chatId: chatId,
         filePath: uploadFilePath,
         bytes: uploadBytes,
         filename: filename,
         mediaSubtype: mediaSubtype,
         fileSize: uploadFileSize,
-        text: i == 0 ? _inputController.text : '',
-        showSentSnackBar: i == 0,
+        text: i == 0 ? initialText : '',
+        showSentSnackBar: false,
       );
     }
-
-    if (mounted) _inputController.clear();
   }
 
   Future<void> _editMessage(ApiMessage message) async {

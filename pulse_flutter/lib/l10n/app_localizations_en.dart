@@ -114,10 +114,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginSubtitle => 'Sign in with email or username.';
 
   @override
-  String get loginIdentifierLabel => 'Email';
+  String get loginIdentifierLabel => 'Username or email';
 
   @override
-  String get loginIdentifierError => 'Enter email';
+  String get loginIdentifierError => 'Enter username or email';
 
   @override
   String get loginPasswordLabel => 'Password';

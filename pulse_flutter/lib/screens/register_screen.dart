@@ -328,41 +328,63 @@ class _M3AuthTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.25),
-          width: 1,
-        ),
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      onFieldSubmitted: onFieldSubmitted,
+      validator: validator,
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        color: scheme.onSurface,
+        fontWeight: FontWeight.w500,
       ),
-      child: TextFormField(
-        controller: controller,
-        obscureText: obscureText,
-        keyboardType: keyboardType,
-        textInputAction: textInputAction,
-        onFieldSubmitted: onFieldSubmitted,
-        validator: validator,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: scheme.onSurface,
-          fontWeight: FontWeight.w500,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(
+          color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+          fontSize: 14,
         ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-            color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
-            fontSize: 14,
+        filled: true,
+        fillColor: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
+        prefixIcon: Icon(prefixIcon, size: 20, color: scheme.primary),
+        suffixIcon: suffixIcon,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.25),
+            width: 1,
           ),
-          prefixIcon: Icon(prefixIcon, size: 20, color: scheme.primary),
-          suffixIcon: suffixIcon,
-          border: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          errorBorder: InputBorder.none,
-          focusedErrorBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.25),
+            width: 1,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(
+            color: scheme.primary,
+            width: 1.5,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(
+            color: scheme.error.withValues(alpha: 0.8),
+            width: 1,
+          ),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(
+            color: scheme.error,
+            width: 1.5,
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }

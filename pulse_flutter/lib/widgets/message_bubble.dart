@@ -25,6 +25,7 @@ import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
+import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/utils/message_formatter.dart';
 
@@ -398,6 +399,7 @@ class MessageBubble extends ConsumerWidget {
                           if (hasMedia)
                             _mediaPreview(
                               context,
+                              ref: ref,
                               scheme: scheme,
                               textTheme: textTheme,
                               textColor: textColor,
@@ -649,6 +651,7 @@ if (onSwipeToReply != null) {
 
   Widget _mediaPreview(
     BuildContext context, {
+    required WidgetRef ref,
     required ColorScheme scheme,
     required TextTheme textTheme,
     required Color textColor,
@@ -734,11 +737,18 @@ if (onSwipeToReply != null) {
               ),
             ),
           ),
-          if (isSending) _UploadProgressOverlay(
-            progress: uploadProgress,
-            isMine: isMine,
-            scheme: scheme,
-          ),
+          if (isSending)
+            _UploadProgressOverlay(
+              progress: uploadProgress,
+              isMine: isMine,
+              scheme: scheme,
+              onCancel: isMine && localId != null
+                  ? () {
+                      HapticService.destructive();
+                      ref.read(uploadQueueProvider.notifier).cancel(localId!);
+                    }
+                  : null,
+            ),
         ],
       );
     }
@@ -823,13 +833,20 @@ if (onSwipeToReply != null) {
             ),
           ),
         ),
-        if (isSending) Positioned.fill(
-          child: _UploadProgressOverlay(
-            progress: uploadProgress,
-            isMine: isMine,
-            scheme: scheme,
+        if (isSending)
+          Positioned.fill(
+            child: _UploadProgressOverlay(
+              progress: uploadProgress,
+              isMine: isMine,
+              scheme: scheme,
+              onCancel: isMine && localId != null
+                  ? () {
+                      HapticService.destructive();
+                      ref.read(uploadQueueProvider.notifier).cancel(localId!);
+                    }
+                  : null,
+            ),
           ),
-        ),
       ],
     );
   }
@@ -1517,58 +1534,67 @@ class _UploadProgressOverlay extends StatelessWidget {
     required this.progress,
     required this.isMine,
     required this.scheme,
+    this.onCancel,
   });
 
   final double? progress;
   final bool isMine;
   final ColorScheme scheme;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
-    final double? p = progress?.clamp(0.0, 1.0);
-    final int percent = ((p ?? 0.0) * 100).toInt();
+    final double p = (progress ?? 0.0).clamp(0.0, 1.0);
+    final int percent = (p * 100).toInt();
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        color: scheme.scrim.withValues(alpha: 0.45),
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 36,
-              height: 36,
-              child: AppLoadingIndicator(
-                size: 32,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '$percent%',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (p != null) ...[
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: p,
-                    minHeight: 3,
-                    backgroundColor: Colors.white.withValues(alpha: 0.18),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
+    return Center(
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.62),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 10,
               ),
             ],
-          ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 44,
+                height: 44,
+                child: CircularProgressIndicator(
+                  value: p > 0.01 ? p : null,
+                  strokeWidth: 3.2,
+                  backgroundColor: Colors.white.withValues(alpha: 0.25),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              if (onCancel != null)
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
+                  onPressed: onCancel,
+                  tooltip: 'Отменить',
+                )
+              else
+                Text(
+                  '$percent%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
