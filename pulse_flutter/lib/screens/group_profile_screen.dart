@@ -7,6 +7,7 @@ import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/widgets/profile/profile_shared_media_tab_view.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -32,7 +33,7 @@ class GroupProfileScreen extends ConsumerWidget {
         scrolledUnderElevation: 0,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
+        leading: IconButton.filledTonal(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () {
             if (context.canPop()) {
@@ -41,6 +42,9 @@ class GroupProfileScreen extends ConsumerWidget {
               context.go('/main/chats');
             }
           },
+          style: IconButton.styleFrom(
+            backgroundColor: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
+          ),
         ),
       ),
       body: chat == null
@@ -54,14 +58,18 @@ class GroupProfileScreen extends ConsumerWidget {
                 width: 920,
                 child: ListView(
                   padding: EdgeInsets.fromLTRB(
-                    0, 0, 0,
+                    0,
+                    0,
+                    0,
                     28 + MediaQuery.viewPaddingOf(context).bottom,
                   ),
                   children: <Widget>[
                     _buildHeader(context, scheme, textTheme, chat),
                     if (chat.description.trim().isNotEmpty)
                       _buildInfoCard(
-                        context, scheme, textTheme,
+                        context,
+                        scheme,
+                        textTheme,
                         title: context.l10n.profileDescription,
                         child: Text(
                           chat.description,
@@ -71,18 +79,22 @@ class GroupProfileScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
-                    if (chat.username != null && chat.username!.trim().isNotEmpty)
+                    if (chat.username != null &&
+                        chat.username!.trim().isNotEmpty)
                       _buildPublicLink(context, scheme, textTheme, chat),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 24),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppConstants.screenHorizontalPadding),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppConstants.screenHorizontalPadding,
+                      ),
                       child: Row(
                         children: <Widget>[
                           Expanded(
                             child: PulseButton(
                               label: context.l10n.chatMembers,
                               icon: Icons.people_rounded,
-                              onPressed: () => context.push('/chat/$chatId/members'),
+                              onPressed: () =>
+                                  context.push('/chat/$chatId/members'),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -92,16 +104,24 @@ class GroupProfileScreen extends ConsumerWidget {
                               icon: Icons.share_rounded,
                               onPressed: () {
                                 Clipboard.setData(ClipboardData(
-                                  text: chat.inviteLink ?? chat.shareLink ?? AppConstants.chatShareUrl(chatId),
+                                  text: chat.inviteLink ??
+                                      chat.shareLink ??
+                                      AppConstants.chatShareUrl(chatId),
                                 ));
-                                AppToast.showInfo(context, context.l10n.groupProfileLinkCopied);
+                                AppToast.showInfo(
+                                  context,
+                                  context.l10n.groupProfileLinkCopied,
+                                );
                               },
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 24),
+
+                    // ── Telegram-style Shared Media Tabs ────────────────
+                    ProfileSharedMediaTabView(chatId: chat.id),
                   ],
                 ),
               ),
@@ -109,10 +129,17 @@ class GroupProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, ColorScheme scheme, TextTheme textTheme, ApiChatSummary chat) {
+  Widget _buildHeader(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+    ApiChatSummary chat,
+  ) {
     final bool isChannel = chat.chatType == 'channel';
-    final IconData typeIcon = isChannel ? Icons.campaign_rounded : Icons.groups_rounded;
-    final String typeLabel = isChannel ? context.l10n.groupTypeChannel : context.l10n.groupTypeGroup;
+    final IconData typeIcon =
+        isChannel ? Icons.campaign_rounded : Icons.groups_rounded;
+    final String typeLabel =
+        isChannel ? context.l10n.groupTypeChannel : context.l10n.groupTypeGroup;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -129,13 +156,16 @@ class GroupProfileScreen extends ConsumerWidget {
                 scheme.tertiary.withValues(alpha: 0.6),
               ],
             ),
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
+            borderRadius:
+                const BorderRadius.vertical(bottom: Radius.circular(28)),
           ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppConstants.screenHorizontalPadding, 110,
-            AppConstants.screenHorizontalPadding, 0,
+            AppConstants.screenHorizontalPadding,
+            110,
+            AppConstants.screenHorizontalPadding,
+            0,
           ),
           child: Material(
             color: scheme.surfaceContainerLow.withValues(alpha: 0.85),
@@ -145,7 +175,9 @@ class GroupProfileScreen extends ConsumerWidget {
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.16)),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.16),
+                ),
                 boxShadow: <BoxShadow>[
                   BoxShadow(
                     color: scheme.shadow.withValues(alpha: 0.06),
@@ -180,7 +212,8 @@ class GroupProfileScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
                       color: scheme.primaryContainer.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(20),
@@ -188,7 +221,8 @@ class GroupProfileScreen extends ConsumerWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        Icon(typeIcon, size: 16, color: scheme.onPrimaryContainer),
+                        Icon(typeIcon,
+                            size: 16, color: scheme.onPrimaryContainer),
                         const SizedBox(width: 4),
                         Text(
                           typeLabel,
@@ -204,9 +238,12 @@ class GroupProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 6),
                     Text(
                       isChannel
-                          ? context.l10n.groupProfileSubscribersCount(chat.membersCount)
-                          : context.l10n.groupProfileMembersCount(chat.membersCount),
-                      style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                          ? context.l10n
+                              .groupProfileSubscribersCount(chat.membersCount)
+                          : context.l10n
+                              .groupProfileMembersCount(chat.membersCount),
+                      style: textTheme.bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 12),
                     _MemberPreview(chatId: chat.id),
@@ -220,12 +257,15 @@ class GroupProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildInfoCard(BuildContext context, ColorScheme scheme, TextTheme textTheme, {
+  Widget _buildInfoCard(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme, {
     required String title,
     required Widget child,
   }) {
     return Padding(
-      padding: EdgeInsets.only(
+      padding: const EdgeInsets.only(
         top: 20,
         left: AppConstants.screenHorizontalPadding,
         right: AppConstants.screenHorizontalPadding,
@@ -235,7 +275,9 @@ class GroupProfileScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           color: scheme.surfaceContainerLow.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.10)),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.10),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,9 +297,14 @@ class GroupProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPublicLink(BuildContext context, ColorScheme scheme, TextTheme textTheme, ApiChatSummary chat) {
+  Widget _buildPublicLink(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+    ApiChatSummary chat,
+  ) {
     return Padding(
-      padding: EdgeInsets.only(
+      padding: const EdgeInsets.only(
         top: 12,
         left: AppConstants.screenHorizontalPadding,
         right: AppConstants.screenHorizontalPadding,
@@ -267,7 +314,9 @@ class GroupProfileScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           color: scheme.surfaceContainerLow.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.10)),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.10),
+          ),
         ),
         child: Row(
           children: <Widget>[
@@ -287,7 +336,8 @@ class GroupProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     '@${chat.username}',
-                    style: textTheme.bodyMedium?.copyWith(color: scheme.primary),
+                    style: textTheme.bodyMedium
+                        ?.copyWith(color: scheme.primary),
                   ),
                 ],
               ),
@@ -324,10 +374,14 @@ class _MemberPreview extends ConsumerWidget {
       avatars.add(
         Padding(
           padding: EdgeInsets.only(
-            right: index == previewCount - 1 && members.length <= previewCount ? 0 : -8,
+            right: index == previewCount - 1 && members.length <= previewCount
+                ? 0
+                : -8,
           ),
           child: PulseAvatar(
-            name: member.displayName.isNotEmpty ? member.displayName : member.username,
+            name: member.displayName.isNotEmpty
+                ? member.displayName
+                : member.username,
             avatarUrl: member.avatarUrl,
             radius: 16,
             fallbackColor: scheme.primaryContainer,
@@ -350,9 +404,9 @@ class _MemberPreview extends ConsumerWidget {
           child: Text(
             '+${members.length - previewCount}',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: scheme.onSurfaceVariant,
-            ),
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurfaceVariant,
+                ),
           ),
         ),
       );
@@ -363,7 +417,9 @@ class _MemberPreview extends ConsumerWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppConstants.screenHorizontalPadding),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppConstants.screenHorizontalPadding,
+      ),
       child: Row(children: avatars),
     );
   }
