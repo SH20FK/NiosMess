@@ -119,16 +119,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   // Brand Name with M3 decorative element
                   Row(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        'Nios',
+                        'Ni',
                         style: textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w900,
                           letterSpacing: -0.5,
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
                         child: M3Container(
                           Shapes.c9_sided_cookie,
                           width: 22,
@@ -144,7 +145,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ),
                       ),
                       Text(
-                        'Mess',
+                        's Mess',
                         style: textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w900,
                           letterSpacing: -0.5,
