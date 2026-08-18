@@ -306,6 +306,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     bool isMe,
   ) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Stack(
           clipBehavior: Clip.none,
@@ -332,10 +333,11 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             ),
 
             // Avatar overlapping the banner bottom
-            Transform.translate(
-              offset: const Offset(0, 54),
+            Positioned(
+              bottom: -54,
               child: Stack(
                 clipBehavior: Clip.none,
+                alignment: Alignment.center,
                 children: [
                   Container(
                     decoration: BoxDecoration(
@@ -375,22 +377,27 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 64),
+        const SizedBox(height: 62),
 
         // Display Name + Badges
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            alignment: WrapAlignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                profile.displayName,
-                style: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
+              Flexible(
+                child: Text(
+                  profile.displayName,
+                  style: textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
               ),
               if (profile.badges.where(BadgeResolver.isStatusBadge).isNotEmpty) ...[
                 const SizedBox(width: 6),
@@ -398,7 +405,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                     .where(BadgeResolver.isStatusBadge)
                     .map(
                       (b) => Padding(
-                        padding: const EdgeInsets.only(left: 4),
+                        padding: const EdgeInsets.only(left: 2),
                         child: BadgeChip(
                           id: b.id,
                           name: b.name,
@@ -412,7 +419,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
 
         // Username tag
         if (profile.username.isNotEmpty)
@@ -422,6 +429,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               color: scheme.primary,
               fontWeight: FontWeight.w700,
             ),
+            textAlign: TextAlign.center,
           ),
       ],
     );
@@ -437,7 +445,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
         decoration: BoxDecoration(
           color: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(24),
@@ -453,43 +461,50 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           ],
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _QuickActionButton(
-              icon: Icons.chat_bubble_rounded,
-              label: 'Чат',
-              color: scheme.primary,
-              onTap: () {
-                HapticService.tap();
-                context.go('/chat/dm/${profile.username}');
-              },
+            Expanded(
+              child: _QuickActionButton(
+                icon: Icons.chat_bubble_rounded,
+                label: 'Чат',
+                color: scheme.primary,
+                onTap: () {
+                  HapticService.tap();
+                  context.go('/chat/dm/${profile.username}');
+                },
+              ),
             ),
-            _QuickActionButton(
-              icon: Icons.call_rounded,
-              label: 'Звонок',
-              color: scheme.tertiary,
-              onTap: () {
-                HapticService.tap();
-                context.go('/call/dm/${profile.username}?isVideo=0');
-              },
+            Expanded(
+              child: _QuickActionButton(
+                icon: Icons.call_rounded,
+                label: 'Звонок',
+                color: scheme.tertiary,
+                onTap: () {
+                  HapticService.tap();
+                  context.go('/call/dm/${profile.username}?isVideo=0');
+                },
+              ),
             ),
-            _QuickActionButton(
-              icon: Icons.videocam_rounded,
-              label: 'Видео',
-              color: scheme.secondary,
-              onTap: () {
-                HapticService.tap();
-                context.go('/call/dm/${profile.username}?isVideo=1');
-              },
+            Expanded(
+              child: _QuickActionButton(
+                icon: Icons.videocam_rounded,
+                label: 'Видео',
+                color: scheme.secondary,
+                onTap: () {
+                  HapticService.tap();
+                  context.go('/call/dm/${profile.username}?isVideo=1');
+                },
+              ),
             ),
-            _QuickActionButton(
-              icon: Icons.lock_rounded,
-              label: 'Секретный',
-              color: scheme.primary,
-              onTap: () {
-                HapticService.tap();
-                context.go('/chat/dm/${profile.username}?isSecret=1');
-              },
+            Expanded(
+              child: _QuickActionButton(
+                icon: Icons.lock_rounded,
+                label: 'Секретный',
+                color: scheme.primary,
+                onTap: () {
+                  HapticService.tap();
+                  context.go('/chat/dm/${profile.username}?isSecret=1');
+                },
+              ),
             ),
           ],
         ),
@@ -850,32 +865,39 @@ class _QuickActionButton extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            M3Container(
-              Shapes.c9_sided_cookie,
-              width: 48,
-              height: 48,
-              color: color.withValues(alpha: 0.15),
-              child: Center(
-                child: Icon(icon, size: 22, color: color),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              M3Container(
+                Shapes.c9_sided_cookie,
+                width: 48,
+                height: 48,
+                color: color.withValues(alpha: 0.15),
+                child: Center(
+                  child: Icon(icon, size: 22, color: color),
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: scheme.onSurface,
+              const SizedBox(height: 6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurface,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
