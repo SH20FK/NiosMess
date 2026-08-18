@@ -1,6 +1,6 @@
 import 'dart:collection';
-
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
@@ -18,7 +18,8 @@ class PulseAvatar extends StatelessWidget {
     super.key,
   });
 
-  static final LinkedHashMap<String, Color> _colorCache = LinkedHashMap<String, Color>();
+  static final LinkedHashMap<String, Color> _colorCache =
+      LinkedHashMap<String, Color>();
 
   static Color _colorFromName(String name) {
     if (_colorCache.containsKey(name)) return _colorCache[name]!;
@@ -58,25 +59,47 @@ class PulseAvatar extends StatelessWidget {
       textTheme: textTheme,
     );
 
-    final Widget child = url.isEmpty
-        ? fallback
-        : ClipOval(
-            child: CachedNetworkImage(
-              imageUrl: url,
-              httpHeaders: cachedAuthHeaders(),
-              memCacheWidth: (radius * 2 * 2).toInt(),
-              memCacheHeight: (radius * 2 * 2).toInt(),
-              placeholder: (_, _) => _ShimmerPlaceholder(
-                radius: radius,
-                background: background,
-              ),
-              errorWidget: (_, _, _) => fallback,
-              fadeInDuration: const Duration(milliseconds: 300),
-              width: radius * 2,
-              height: radius * 2,
-              fit: BoxFit.cover,
-            ),
-          );
+    final Widget child;
+    if (url.isEmpty) {
+      child = fallback;
+    } else if (kIsWeb) {
+      // In Flutter Web, Image.network avoids CanvasKit black texture rendering bugs
+      child = ClipOval(
+        child: Image.network(
+          url,
+          headers: cachedAuthHeaders(),
+          width: radius * 2,
+          height: radius * 2,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => fallback,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return _ShimmerPlaceholder(
+              radius: radius,
+              background: background,
+            );
+          },
+        ),
+      );
+    } else {
+      child = ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: url,
+          httpHeaders: cachedAuthHeaders(),
+          memCacheWidth: (radius * 2 * 2).toInt(),
+          memCacheHeight: (radius * 2 * 2).toInt(),
+          placeholder: (context, url) => _ShimmerPlaceholder(
+            radius: radius,
+            background: background,
+          ),
+          errorWidget: (context, url, error) => fallback,
+          fadeInDuration: const Duration(milliseconds: 300),
+          width: radius * 2,
+          height: radius * 2,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
 
     final Widget avatar = borderWidth <= 0
         ? SizedBox(width: radius * 2, height: radius * 2, child: child)
@@ -151,7 +174,7 @@ class _ShimmerPlaceholderState extends State<_ShimmerPlaceholder>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    )..repeat();
+    )..repeat(reverse: true);
   }
 
   @override
@@ -164,29 +187,11 @@ class _ShimmerPlaceholderState extends State<_ShimmerPlaceholder>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _controller,
-      builder: (_, _) {
-        return Container(
-          width: widget.radius * 2,
-          height: widget.radius * 2,
-          decoration: BoxDecoration(
-            color: widget.background,
-            shape: BoxShape.circle,
-          ),
-          child: Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: ClipOval(
-                  child: LinearProgressIndicator(
-                    value: null,
-                    backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).colorScheme.surface.withValues(alpha: 0.15),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+      builder: (context, _) {
+        final double opacity = 0.5 + (_controller.value * 0.4);
+        return CircleAvatar(
+          radius: widget.radius,
+          backgroundColor: widget.background.withValues(alpha: opacity),
         );
       },
     );

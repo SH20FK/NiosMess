@@ -1,8 +1,9 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
-import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/widgets/media_grid_picker.dart';
 
@@ -12,12 +13,14 @@ class M3FilePickerResult {
     required this.fileSize,
     required this.mediaSubtype,
     this.filePath,
+    this.fileBytes,
   });
 
   final String fileName;
   final int fileSize;
   final String mediaSubtype;
   final String? filePath;
+  final Uint8List? fileBytes;
 
   FileTypeInfo get typeInfo => FileTypeDetector.detect(fileName: fileName);
   String get formattedSize => FileTypeDetector.formatFileSize(fileSize);
@@ -26,7 +29,7 @@ class M3FilePickerResult {
 Future<List<M3FilePickerResult>?> showM3FilePicker(BuildContext context) async {
   return AppBottomSheets.show<List<M3FilePickerResult>>(
     context: context,
-    builder: (BuildContext ctx) => _CompactAttachmentMenu(),
+    builder: (BuildContext ctx) => const _CompactAttachmentMenu(),
   );
 }
 
@@ -48,18 +51,26 @@ class _CompactAttachmentMenu extends StatelessWidget {
 
     final PlatformFile file = result.first;
     final String? filePath = file.path;
+    Uint8List? fileBytes;
+    try {
+      fileBytes = await file.readAsBytes();
+    } catch (_) {}
 
-    if (filePath == null) {
-      AppToast.showError(context, context.l10n.filePickerReadError);
+    if (filePath == null && fileBytes == null) {
+      if (context.mounted) {
+        AppToast.showError(context, context.l10n.filePickerReadError);
+      }
       return;
     }
 
-    final int fileSize = await file.length();
+    final int fileSize = fileBytes?.length ??
+        (filePath != null ? await file.length() : 0);
     if (!context.mounted) return;
 
     Navigator.of(context).pop(<M3FilePickerResult>[
       M3FilePickerResult(
         filePath: filePath,
+        fileBytes: fileBytes,
         fileName: file.name,
         fileSize: fileSize,
         mediaSubtype: mediaSubtype,
@@ -68,7 +79,18 @@ class _CompactAttachmentMenu extends StatelessWidget {
   }
 
   Future<void> _openMediaGrid(BuildContext context) async {
-    final List<MediaGridPickerResult>? results = await showModalBottomSheet<List<MediaGridPickerResult>?>(
+    if (kIsWeb) {
+      // On Web, media gallery picker is not supported via photo_manager, so we open system file picker
+      await _pickFile(
+        context,
+        type: FileType.media,
+        mediaSubtype: 'media',
+      );
+      return;
+    }
+
+    final List<MediaGridPickerResult>? results =
+        await showModalBottomSheet<List<MediaGridPickerResult>?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -112,7 +134,16 @@ class _CompactAttachmentMenu extends StatelessWidget {
         onTap: () => _pickFile(
           context,
           type: FileType.custom,
-          allowedExtensions: const <String>['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt'],
+          allowedExtensions: const <String>[
+            'pdf',
+            'doc',
+            'docx',
+            'xls',
+            'xlsx',
+            'txt',
+            'zip',
+            'apk',
+          ],
           mediaSubtype: 'media',
         ),
       ),
@@ -121,67 +152,91 @@ class _CompactAttachmentMenu extends StatelessWidget {
         label: context.l10n.filePickerAudio,
         containerColor: scheme.tertiaryContainer,
         iconColor: scheme.onTertiaryContainer,
-        onTap: () => _pickFile(context, type: FileType.audio, mediaSubtype: 'voice'),
-      ),
-      _AttachItem(
-        icon: Icons.folder_rounded,
-        label: context.l10n.filePickerFile,
-        containerColor: scheme.surfaceContainerHighest,
-        iconColor: scheme.onSurfaceVariant,
-        onTap: () => _pickFile(context, type: FileType.any, mediaSubtype: 'media'),
+        onTap: () => _pickFile(
+          context,
+          type: FileType.audio,
+          mediaSubtype: 'media',
+        ),
       ),
     ];
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
-        child: GridView.count(
-          crossAxisCount: 4,
-          shrinkWrap: true,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          physics: const NeverScrollableScrollPhysics(),
-          children: items.map(_buildGridItem).toList(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                context.l10n.filePickerFile,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: items.map((_AttachItem item) {
+                return InkWell(
+                  onTap: () => item.onTap(),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: item.containerColor,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(
+                            item.icon,
+                            color: item.iconColor,
+                            size: 26,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          item.label,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
-    );
-  }
-
-  Widget _buildGridItem(_AttachItem item) {
-    return Builder(
-      builder: (BuildContext ctx) {
-        final TextTheme textTheme = Theme.of(ctx).textTheme;
-        return InkWell(
-          onTap: item.onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: item.containerColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(item.icon, color: item.iconColor, size: 26),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                item.label,
-                style: textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w500),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }
 
 class _AttachItem {
-  _AttachItem({
+  const _AttachItem({
     required this.icon,
     required this.label,
     required this.containerColor,

@@ -798,7 +798,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       final String mediaSubtype = result.mediaSubtype;
 
       String? uploadFilePath = result.filePath;
-      Uint8List? uploadBytes;
+      Uint8List? uploadBytes = result.fileBytes;
       int uploadFileSize = result.fileSize;
 
       if (uploadFilePath != null) {
@@ -1661,23 +1661,50 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     loading: () => const MessageListSkeleton(),
                     error: (Object error, StackTrace trace) {
                       return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Text(
-                                context.l10n.chatFailedLoadMessages('$error'),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: scheme.primaryContainer.withValues(alpha: 0.6),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.sync_rounded,
+                                    color: scheme.primary,
+                                    size: 28,
+                                  ),
+                                ),
                               ),
-                            ),
-                            TextButton.icon(
-                              onPressed: () => ref.invalidate(
-                                chatMessagesProvider(chatId),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Подключение к серверу...',
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                              icon: const Icon(Icons.refresh_rounded),
-                              label: Text(context.l10n.commonRetry),
-                            ),
-                          ],
+                              const SizedBox(height: 4),
+                              Text(
+                                'Восстанавливаем соединение с чатом',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              FilledButton.tonalIcon(
+                                onPressed: () => ref.invalidate(
+                                  chatMessagesProvider(chatId),
+                                ),
+                                icon: const Icon(Icons.refresh_rounded, size: 18),
+                                label: const Text('Обновить'),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },

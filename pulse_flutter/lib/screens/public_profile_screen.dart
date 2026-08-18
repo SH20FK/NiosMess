@@ -241,33 +241,36 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     TextTheme textTheme,
     bool isMe,
   ) {
-    return Stack(
-      alignment: Alignment.center,
+    return Column(
       children: [
-        // Ambient tonal gradient banner
-        Container(
-          height: 220,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                scheme.primary.withValues(alpha: 0.35),
-                scheme.tertiary.withValues(alpha: 0.25),
-                scheme.surface,
-              ],
+        Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.bottomCenter,
+          children: [
+            // Ambient tonal gradient banner
+            Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    scheme.primary.withValues(alpha: 0.35),
+                    scheme.tertiary.withValues(alpha: 0.25),
+                    scheme.surface,
+                  ],
+                ),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(32),
+                ),
+              ),
             ),
-          ),
-        ),
 
-        // Centered Avatar and Name
-        Positioned(
-          top: 80,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // M3 Shape Hero Avatar with Status Badge
-              Stack(
+            // Avatar overlapping the banner bottom
+            Transform.translate(
+              offset: const Offset(0, 54),
+              child: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   Container(
@@ -275,9 +278,9 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: scheme.primary.withValues(alpha: 0.2),
-                          blurRadius: 28,
-                          offset: const Offset(0, 10),
+                          color: scheme.shadow.withValues(alpha: 0.12),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
@@ -288,7 +291,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                       fallbackColor: scheme.primaryContainer,
                       textColor: scheme.onPrimaryContainer,
                       borderColor: scheme.surface,
-                      borderWidth: 3,
+                      borderWidth: 4,
                     ),
                   ),
                   if (profile.badges.isNotEmpty)
@@ -305,51 +308,57 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: 14),
+            ),
+          ],
+        ),
+        const SizedBox(height: 64),
 
-              // Display Name + Badges
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    profile.displayName,
-                    style: textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                  if (profile.badges.where(BadgeResolver.isStatusBadge).isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    ...profile.badges
-                        .where(BadgeResolver.isStatusBadge)
-                        .map(
-                          (b) => Padding(
-                            padding: const EdgeInsets.only(right: 4),
-                            child: BadgeChip(
-                              id: b.id,
-                              name: b.name,
-                              icon: b.icon,
-                              color: b.color,
-                              mode: BadgeDisplayMode.statusIcon,
-                            ),
-                          ),
-                        ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 4),
-
-              // Username tag
+        // Display Name + Badges
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            alignment: WrapAlignment.center,
+            children: [
               Text(
-                profile.username.isEmpty ? '' : '@${profile.username}',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: scheme.primary,
-                  fontWeight: FontWeight.w600,
+                profile.displayName,
+                style: textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
                 ),
+                textAlign: TextAlign.center,
               ),
+              if (profile.badges.where(BadgeResolver.isStatusBadge).isNotEmpty) ...[
+                const SizedBox(width: 6),
+                ...profile.badges
+                    .where(BadgeResolver.isStatusBadge)
+                    .map(
+                      (b) => Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: BadgeChip(
+                          id: b.id,
+                          name: b.name,
+                          icon: b.icon,
+                          color: b.color,
+                          mode: BadgeDisplayMode.statusIcon,
+                        ),
+                      ),
+                    ),
+              ],
             ],
           ),
         ),
+        const SizedBox(height: 6),
+
+        // Username tag
+        if (profile.username.isNotEmpty)
+          Text(
+            '@${profile.username}',
+            style: textTheme.titleSmall?.copyWith(
+              color: scheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
       ],
     );
   }

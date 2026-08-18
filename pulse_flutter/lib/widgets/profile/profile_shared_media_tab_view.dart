@@ -39,6 +39,36 @@ class _ProfileSharedMediaTabViewState
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAllChatMedia();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfileSharedMediaTabView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.chatId != widget.chatId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadAllChatMedia();
+      });
+    }
+  }
+
+  Future<void> _loadAllChatMedia() async {
+    final int? cid = widget.chatId;
+    if (cid == null || cid <= 0) return;
+    int added = 1;
+    int iterations = 0;
+    while (added > 0 && iterations < 15 && mounted) {
+      iterations++;
+      try {
+        added = await ref
+            .read(chatMessagesProvider(cid).notifier)
+            .loadOlder(pageSize: 100);
+      } catch (_) {
+        break;
+      }
+    }
   }
 
   @override
