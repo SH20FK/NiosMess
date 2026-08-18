@@ -8,7 +8,6 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
-import 'package:pulse_flutter/services/calls/nios_calls_api.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/services/permission_service.dart';
 
@@ -83,14 +82,6 @@ Future<int> startOutgoingCall({
 
   final int callId =
       (result['payload']?['message_id'] ?? result['message_id'] ?? 0) as int;
-
-  // SFU room creation is best-effort: the transport falls back to WS when the
-  // SFU is unreachable.
-  try {
-    final NiosCallsApi api = NiosCallsApi();
-    await api.createRoom(roomId: roomId);
-    api.dispose();
-  } catch (_) {}
 
   final Uint8List aesKeyBytes = await deriveCallMediaKey(
     ref,
