@@ -94,14 +94,14 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     final textTheme = Theme.of(context).textTheme;
     final safeTop = MediaQuery.paddingOf(context).top;
 
-    return SlideTransition(
-      position: _slideAnimation,
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Positioned(
-          top: safeTop + 10,
-          left: 14,
-          right: 14,
+    return Positioned(
+      top: safeTop + 10,
+      left: 14,
+      right: 14,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: FadeTransition(
+          opacity: _fadeAnimation,
           child: RepaintBoundary(
             child: Container(
               decoration: BoxDecoration(

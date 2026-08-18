@@ -17,32 +17,32 @@ class CallOverlay extends ConsumerWidget {
     final session = manager?.session;
     if (session == null) return const SizedBox.shrink();
 
-    return StreamBuilder<CallSessionData>(
-      stream: session.stateStream,
-      initialData: session.currentData,
-      builder: (context, snapshot) {
-        final data = snapshot.data ?? session.currentData;
-        if (data.state == CallSessionState.ended ||
-            data.state == CallSessionState.idle) {
-          return const SizedBox.shrink();
-        }
+    return Positioned(
+      bottom: 96,
+      right: 14,
+      child: StreamBuilder<CallSessionData>(
+        stream: session.stateStream,
+        initialData: session.currentData,
+        builder: (context, snapshot) {
+          final data = snapshot.data ?? session.currentData;
+          if (data.state == CallSessionState.ended ||
+              data.state == CallSessionState.idle) {
+            return const SizedBox.shrink();
+          }
 
-        final scheme = Theme.of(context).colorScheme;
-        final textTheme = Theme.of(context).textTheme;
+          final scheme = Theme.of(context).colorScheme;
+          final textTheme = Theme.of(context).textTheme;
 
-        final participantName = data.remoteParticipants.isNotEmpty
-            ? data.remoteParticipants.first.nickname
-            : null;
+          final participantName = data.remoteParticipants.isNotEmpty
+              ? data.remoteParticipants.first.nickname
+              : null;
 
-        final m = data.durationSeconds ~/ 60;
-        final s = data.durationSeconds % 60;
-        final timerLabel =
-            '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+          final m = data.durationSeconds ~/ 60;
+          final s = data.durationSeconds % 60;
+          final timerLabel =
+              '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
 
-        return Positioned(
-          bottom: 96,
-          right: 14,
-          child: _CallPill(
+          return _CallPill(
             scheme: scheme,
             textTheme: textTheme,
             isVideo: data.isVideo,
@@ -61,9 +61,9 @@ class CallOverlay extends ConsumerWidget {
               HapticFeedback.mediumImpact();
               await manager?.end();
             },
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

@@ -46,6 +46,9 @@ class _ProfileSharedMediaTabViewState
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAllChatMedia();
     });
@@ -233,61 +236,16 @@ class _ProfileSharedMediaTabViewState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Material 3 Expressive Sticky Tab Bar (Scrollable to prevent clipping) ──
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                tabAlignment: TabAlignment.center,
-                dividerHeight: 0,
-                indicatorSize: TabBarIndicatorSize.tab,
-                indicator: BoxDecoration(
-                  color: scheme.primary,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: scheme.primary.withValues(alpha: 0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                labelColor: scheme.onPrimary,
-                unselectedLabelColor: scheme.onSurfaceVariant,
-                labelStyle: textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-                unselectedLabelStyle: textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-                tabs: [
-                  Tab(
-                    icon: const Icon(Icons.photo_library_rounded, size: 16),
-                    text: 'Медиа (${photosAndVideos.length})',
-                    iconMargin: const EdgeInsets.only(bottom: 2),
-                  ),
-                  Tab(
-                    icon: const Icon(Icons.mic_rounded, size: 16),
-                    text: 'Голос (${voiceAndVideoNotes.length})',
-                    iconMargin: const EdgeInsets.only(bottom: 2),
-                  ),
-                  Tab(
-                    icon: const Icon(Icons.insert_drive_file_rounded, size: 16),
-                    text: 'Файлы (${files.length})',
-                    iconMargin: const EdgeInsets.only(bottom: 2),
-                  ),
-                  Tab(
-                    icon: const Icon(Icons.link_rounded, size: 16),
-                    text: 'Ссылки (${links.length})',
-                    iconMargin: const EdgeInsets.only(bottom: 2),
-                  ),
-                ],
-              ),
+            // ── Material 3 Expressive Horizontal Pill Bar ──
+            _buildPillBar(
+              scheme: scheme,
+              textTheme: textTheme,
+              mediaCount: photosAndVideos.length,
+              voiceCount: voiceAndVideoNotes.length,
+              filesCount: files.length,
+              linksCount: links.length,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // ── Tab Bar Views ─────────────────────────────────────────
             SizedBox(
@@ -305,6 +263,111 @@ class _ProfileSharedMediaTabViewState
           ],
         );
       },
+    );
+  }
+
+  Widget _buildPillBar({
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+    required int mediaCount,
+    required int voiceCount,
+    required int filesCount,
+    required int linksCount,
+  }) {
+    final tabs = [
+      (icon: Icons.photo_library_rounded, label: 'Медиа', count: mediaCount),
+      (icon: Icons.mic_rounded, label: 'Голосовые', count: voiceCount),
+      (icon: Icons.insert_drive_file_rounded, label: 'Файлы', count: filesCount),
+      (icon: Icons.link_rounded, label: 'Ссылки', count: linksCount),
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(tabs.length, (index) {
+          final isSelected = _tabController.index == index;
+          final tab = tabs[index];
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _tabController.animateTo(index);
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? scheme.primaryContainer
+                        : scheme.surfaceContainerHigh.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? scheme.primary.withValues(alpha: 0.28)
+                          : scheme.outlineVariant.withValues(alpha: 0.12),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        tab.icon,
+                        size: 17,
+                        color: isSelected
+                            ? scheme.onPrimaryContainer
+                            : scheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        tab.label,
+                        style: textTheme.labelLarge?.copyWith(
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          fontSize: 13,
+                          color: isSelected
+                              ? scheme.onPrimaryContainer
+                              : scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      if (tab.count > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? scheme.primary.withValues(alpha: 0.18)
+                                : scheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${tab.count}',
+                            style: textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
+                              color: isSelected
+                                  ? scheme.onPrimaryContainer
+                                  : scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
     );
   }
 

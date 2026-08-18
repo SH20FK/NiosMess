@@ -18,24 +18,40 @@ class CallPushHandler extends Notifier<void> {
     if (event is! Map) return;
     final Map<String, dynamic> msg = asStringMap(event);
     final String action = msg['action'] as String? ?? '';
-    if (action == 'end_call') {
+    if (action == 'end_call' || action == 'call_ended' || action == 'decline_call') {
       _handleEndCall(msg);
       return;
     }
-    if (action != 'new_call') return;
+    if (action != 'new_call' &&
+        action != 'incoming_call' &&
+        action != 'incoming_call_push' &&
+        action != 'start_call') {
+      return;
+    }
 
     final Map<String, dynamic> payload = msg['payload'] is Map
         ? asStringMap(msg['payload'] as Map)
         : msg;
 
-    final messageId = payload['message_id'] as int?;
-    final chatId = payload['chat_id'] as int?;
-    final roomId = payload['room_id'] as String?;
-    final initiatorId = payload['caller_id'] as int?;
-    final isVideo = payload['is_video'] as bool? ?? false;
-    final initiatorName = payload['caller_nickname'] as String? ?? 'Someone';
+    final int messageId = int.tryParse(payload['message_id']?.toString() ?? '') ??
+        int.tryParse(payload['call_id']?.toString() ?? '') ??
+        int.tryParse(payload['id']?.toString() ?? '') ??
+        0;
+    final int? chatId = int.tryParse(payload['chat_id']?.toString() ?? '');
+    final String? roomId = payload['room_id']?.toString();
+    final int initiatorId = int.tryParse(payload['caller_id']?.toString() ?? '') ??
+        int.tryParse(payload['initiator_id']?.toString() ?? '') ??
+        0;
+    final bool isVideo = payload['is_video'] == true ||
+        payload['is_video'] == 'true' ||
+        payload['is_video'] == 1 ||
+        payload['is_video'] == '1';
+    final String initiatorName = payload['caller_nickname']?.toString() ??
+        payload['caller_name']?.toString() ??
+        payload['initiator_name']?.toString() ??
+        'Собеседник';
 
-    if (messageId == null || chatId == null || roomId == null || initiatorId == null) return;
+    if (chatId == null || roomId == null || roomId.trim().isEmpty) return;
 
     ref.read(incomingCallProvider.notifier).set(IncomingCallData(
       callId: messageId,
