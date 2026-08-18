@@ -363,7 +363,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                                         fontSize: 15,
                                         color: scheme.onSurfaceVariant.withValues(alpha: 0.50),
                                       ),
-                                      filled: true,
+                                      filled: false,
                                       fillColor: Colors.transparent,
                                       border: InputBorder.none,
                                       enabledBorder: InputBorder.none,

@@ -353,7 +353,7 @@ class _ActionsCompact extends StatelessWidget {
       },
     ));
 
-    if (message.msgType == 'text' && !message.isDeleted) {
+    if (message.content.trim().isNotEmpty && !message.isDeleted) {
       list.add(_CompactAction(
         icon: Icons.copy_rounded,
         label: context.l10n.chatCopyText,
@@ -389,7 +389,7 @@ class _ActionsCompact extends StatelessWidget {
       ));
     }
 
-    if (isMine && message.msgType == 'text' && !message.isDeleted) {
+    if (isMine && !message.isDeleted && (message.msgType == 'text' || message.content.trim().isNotEmpty)) {
       list.add(_CompactAction(
         icon: Icons.edit_rounded,
         label: context.l10n.chatEdit,

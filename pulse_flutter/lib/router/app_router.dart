@@ -276,7 +276,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: '/niosgram/post/:postId/comments',
         pageBuilder: (context, state) => _page(state, PostCommentsScreen(
           channelId: 0,
-          postId: int.parse(state.pathParameters['postId']!),
+          postId: int.tryParse(state.pathParameters['postId'] ?? '') ?? 0,
         )),
       ),
       GoRoute(

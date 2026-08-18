@@ -143,14 +143,16 @@ class PulseAvatar extends StatelessWidget {
   }
 
   String _initials(String raw) {
-    final List<String> parts = raw.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts.first.isEmpty) {
+    final List<String> parts =
+        raw.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    if (parts.isEmpty) {
       return '?';
     }
     if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
+      return parts.first.characters.take(1).toString().toUpperCase();
     }
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+    return (parts.first.characters.take(1).toString() +
+            parts.last.characters.take(1).toString())
         .toUpperCase();
   }
 }

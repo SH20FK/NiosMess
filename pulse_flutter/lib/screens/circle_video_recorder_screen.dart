@@ -42,13 +42,13 @@ class _CircleVideoRecorderScreenState
       return;
     }
 
-    final CameraDescription back = cameras.firstWhere(
-      (CameraDescription c) => c.lensDirection == CameraLensDirection.back,
+    final CameraDescription defaultCam = cameras.firstWhere(
+      (CameraDescription c) => c.lensDirection == CameraLensDirection.front,
       orElse: () => cameras.first,
     );
 
     _controller = CameraController(
-      back,
+      defaultCam,
       ResolutionPreset.high,
       enableAudio: true,
       imageFormatGroup: ImageFormatGroup.jpeg,

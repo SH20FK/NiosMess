@@ -141,7 +141,7 @@ class _AppearanceScreen extends ConsumerWidget {
                     Icon(Icons.text_fields_rounded, color: scheme.onSurfaceVariant, size: 20),
                     const SizedBox(width: 12),
                     Text(
-                      'Размер шрифта',
+                      context.l10n.appearanceFontSize,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),

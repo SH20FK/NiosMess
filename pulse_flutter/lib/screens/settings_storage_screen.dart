@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:pulse_flutter/core/storage/local_storage_service.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -46,6 +47,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     await _runStorageAction(() async {
       await ref.read(localStorageServiceProvider).clearTemporaryFiles();
       await EncryptedMessageCache.clearAll();
+      await ref.read(cacheServiceProvider).clearAll();
     });
   }
 

@@ -206,8 +206,12 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
         final String? mediaLabel =
             hasMedia ? widget.mediaLabelBuilder(message, mediaUrl) : null;
 
-        final bool isVoice = message.msgType == 'voice';
-        final bool isCircleVideo = message.msgType == 'circle';
+        final bool isVoice = message.msgType == 'voice' ||
+            (message.mediaType ?? '').toLowerCase().startsWith('audio/');
+        final bool isCircleVideo = message.msgType == 'circle' ||
+            message.msgType == 'circle_video' ||
+            message.msgType == 'video_note' ||
+            message.msgType == 'round_video';
         final int? mediaDuration = message.mediaDuration;
         final bool isLocalSending = message.isSending && message.id < 0;
         final UploadTask? uploadTask = isLocalSending

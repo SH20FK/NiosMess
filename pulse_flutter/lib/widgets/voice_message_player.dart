@@ -61,6 +61,14 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     _setupPlayer();
   }
 
+  @override
+  void didUpdateWidget(covariant VoiceMessagePlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.audioUrl != widget.audioUrl) {
+      _setupPlayer();
+    }
+  }
+
   List<double> _generateWaveform(int seed) {
     final math.Random rng = math.Random(seed);
     final List<double> bars = List<double>.generate(50, (i) {
