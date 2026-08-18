@@ -124,7 +124,9 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
       if (!mounted) return;
       AppToast.showSuccess(
         context,
-        currentlyEnabled ? context.l10n.settings2faDisabled : context.l10n.settings2faEnabled,
+        currentlyEnabled
+            ? context.l10n.settings2faDisabled
+            : context.l10n.settings2faEnabled,
       );
     } catch (e) {
       if (!mounted) return;
@@ -154,17 +156,10 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
           subtitle: context.l10n.settingsAccountAccessDesc,
           children: <Widget>[
             SettingsTile(
-              icon: Icons.verified_user_rounded,
-              title: context.l10n.settingsVerifyEmail,
-              subtitle: context.l10n.settingsVerifyEmailSubtitle,
-              iconColor: scheme.primary,
-              onTap: () => context.push('/verify-email'),
-            ),
-            SettingsTile(
               icon: Icons.key_rounded,
               title: context.l10n.settingsResetPassword,
               subtitle: context.l10n.settingsResetPasswordSubtitle,
-              iconColor: scheme.tertiary,
+              iconColor: scheme.primary,
               onTap: () => context.push('/reset-password/request'),
             ),
             SettingsTile(
@@ -174,6 +169,13 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
               iconColor: scheme.secondary,
               onTap: () => context.push('/settings/sessions'),
             ),
+            SettingsTile(
+              icon: Icons.enhanced_encryption_rounded,
+              title: context.l10n.settingsSecretChatsTitle,
+              subtitle: context.l10n.settingsSecretChatsSubtitle,
+              iconColor: scheme.tertiary,
+              onTap: () => context.push('/settings/e2ee'),
+            ),
           ],
         ),
         SettingsSection(
@@ -181,23 +183,27 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
           subtitle: context.l10n.settingsProtectionSubtitle,
           children: <Widget>[
             if (_biometricSupported)
-            SettingsSwitchTile(
-              icon: _biometricEnabled ? Icons.fingerprint : Icons.fingerprint_outlined,
-              title: context.l10n.biometricTitle,
-              subtitle: _biometricEnabled
-                  ? context.l10n.biometricEnabled
-                  : context.l10n.biometricDisabled,
-              iconColor: _biometricEnabled ? scheme.primary : scheme.onSurfaceVariant,
-              value: _biometricEnabled,
-              onChanged: (_) => _toggleBiometric(),
-            ),
+              SettingsSwitchTile(
+                icon: _biometricEnabled
+                    ? Icons.fingerprint
+                    : Icons.fingerprint_outlined,
+                title: context.l10n.biometricTitle,
+                subtitle: _biometricEnabled
+                    ? context.l10n.biometricEnabled
+                    : context.l10n.biometricDisabled,
+                iconColor:
+                    _biometricEnabled ? scheme.primary : scheme.onSurfaceVariant,
+                value: _biometricEnabled,
+                onChanged: (_) => _toggleBiometric(),
+              ),
             SettingsSwitchTile(
               icon: twoFaEnabled ? Icons.shield_rounded : Icons.shield_outlined,
               title: context.l10n.settingsTwoFactor,
               subtitle: twoFaEnabled
                   ? context.l10n.settingsTwoFactorEnabledShort
                   : context.l10n.settingsTwoFactorDisabledShort,
-              iconColor: twoFaEnabled ? scheme.primary : scheme.onSurfaceVariant,
+              iconColor:
+                  twoFaEnabled ? scheme.primary : scheme.onSurfaceVariant,
               value: twoFaEnabled,
               onChanged: _toggling2fa ? null : (_) => _toggle2fa(),
             ),

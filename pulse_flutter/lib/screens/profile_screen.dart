@@ -142,33 +142,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
               child: Column(
                 children: [
-                  // Appearance
+                  // 1. Account & Security
                   SettingsSection(
-                    title: context.l10n.profileAppearance,
+                    title: context.l10n.profileSectionAccount,
                     children: <Widget>[
                       SettingsTile(
-                        icon: Icons.color_lens_rounded,
-                        title: context.l10n.profileAppearance,
-                        subtitle: context.l10n.profileAppearanceDesc,
-                        onTap: () => context.push('/settings/appearance'),
+                        icon: Icons.manage_accounts_rounded,
+                        title: context.l10n.settingsAccountTitle,
+                        subtitle: context.l10n.settingsAccountSubtitle,
+                        iconColor: scheme.primary,
+                        onTap: () => context.push('/settings/account'),
                       ),
                       SettingsTile(
-                        icon: Icons.language_rounded,
-                        title: context.l10n.profileLanguage,
-                        subtitle: context.l10n.profileLanguageDesc,
-                        onTap: () => context.push('/settings/language-region'),
-                      ),
-                    ],
-                  ),
-                  // Privacy & Security
-                  SettingsSection(
-                    title: context.l10n.profileSectionPrivacySecurity,
-                    children: <Widget>[
-                      SettingsTile(
-                        icon: Icons.lock_outline_rounded,
-                        title: context.l10n.settingsPrivacyTitle,
-                        subtitle: context.l10n.settingsPrivacySubtitle,
-                        onTap: () => context.push('/settings/privacy'),
+                        icon: Icons.devices_rounded,
+                        title: context.l10n.settingsActiveSessions,
+                        subtitle: context.l10n.settingsActiveSessionsSubtitle,
+                        iconColor: scheme.secondary,
+                        onTap: () => context.push('/settings/sessions'),
                       ),
                       SettingsTile(
                         icon: Icons.enhanced_encryption_rounded,
@@ -177,47 +167,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         iconColor: scheme.tertiary,
                         onTap: () => context.push('/settings/e2ee'),
                       ),
+                    ],
+                  ),
+
+                  // 2. Appearance & Interface
+                  SettingsSection(
+                    title: context.l10n.profileAppearance,
+                    children: <Widget>[
                       SettingsTile(
-                        icon: Icons.devices_rounded,
-                        title: context.l10n.settingsActiveSessions,
-                        subtitle: context.l10n.settingsActiveSessionsSubtitle,
-                        onTap: () => context.push('/settings/sessions'),
+                        icon: Icons.palette_rounded,
+                        title: context.l10n.profileAppearance,
+                        subtitle: context.l10n.profileAppearanceDesc,
+                        iconColor: scheme.primary,
+                        onTap: () => context.push('/settings/appearance'),
+                      ),
+                      SettingsTile(
+                        icon: Icons.language_rounded,
+                        title: context.l10n.profileLanguage,
+                        subtitle: context.l10n.profileLanguageDesc,
+                        iconColor: scheme.tertiary,
+                        onTap: () => context.push('/settings/language-region'),
                       ),
                     ],
                   ),
-                  // Account
+
+                  // 3. Notifications & Sounds
                   SettingsSection(
-                    title: context.l10n.profileSectionAccount,
+                    title: context.l10n.settingsPreferencesTitle,
                     children: <Widget>[
                       SettingsTile(
-                        icon: Icons.manage_accounts_rounded,
-                        title: context.l10n.settingsAccountTitle,
-                        subtitle: context.l10n.settingsAccountSubtitle,
-                        onTap: () => context.push('/settings/account'),
+                        icon: Icons.notifications_active_rounded,
+                        title: context.l10n.settingsPreferencesTitle,
+                        subtitle: context.l10n.settingsPreferencesBannerSubtitle,
+                        iconColor: scheme.primary,
+                        onTap: () => context.push('/settings/preferences'),
                       ),
+                    ],
+                  ),
+
+                  // 4. Data & Privacy
+                  SettingsSection(
+                    title: context.l10n.profileSectionPrivacy,
+                    children: <Widget>[
                       SettingsTile(
                         icon: Icons.sd_storage_rounded,
                         title: context.l10n.settingsStorageTitle,
                         subtitle: storageUsed.isNotEmpty
                             ? storageUsed
                             : context.l10n.settingsStorageSubtitle,
+                        iconColor: scheme.secondary,
                         onTap: () => context.push('/settings/storage'),
                       ),
-                    ],
-                  ),
-                  // System
-                  SettingsSection(
-                    title: context.l10n.commonSystem,
-                    children: <Widget>[
                       SettingsTile(
-                        icon: Icons.tune_rounded,
-                        title: context.l10n.profilePreferences,
-                        subtitle: context.l10n.settingsPreferencesBannerSubtitle,
-                        onTap: () => context.push('/settings/preferences'),
+                        icon: Icons.privacy_tip_rounded,
+                        title: context.l10n.settingsPrivacyTitle,
+                        subtitle: context.l10n.settingsPrivacySubtitle,
+                        iconColor: scheme.tertiary,
+                        onTap: () => context.push('/settings/privacy'),
                       ),
                     ],
                   ),
-                  // About
+
+                  // 5. About
                   SettingsSection(
                     title: context.l10n.profileSectionAbout,
                     children: <Widget>[
@@ -225,6 +236,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         icon: Icons.info_outline_rounded,
                         title: context.l10n.settingsAboutTitle,
                         subtitle: context.l10n.settingsSupportAboutSubtitle,
+                        iconColor: scheme.onSurfaceVariant,
                         onTap: () => context.push('/settings/about'),
                       ),
                     ],

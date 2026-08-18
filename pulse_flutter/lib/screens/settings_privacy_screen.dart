@@ -2,6 +2,7 @@ import 'package:universal_io/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
@@ -30,22 +31,6 @@ class SettingsPrivacyScreen extends ConsumerWidget {
           iconColor: scheme.primary,
         ),
         SettingsSection(
-          title: context.l10n.settingsPrivacyNotificationsTitle,
-          subtitle: context.l10n.settingsPrivacyNotificationsManage,
-          children: <Widget>[
-            SettingsSwitchTile(
-              icon: Icons.notifications_active_rounded,
-              title: context.l10n.settingsPushNotifications,
-              subtitle: context.l10n.settingsPushNotificationsSubtitle,
-              iconColor: scheme.tertiary,
-              value: settings.notifications,
-              onChanged: (bool value) {
-                ref.read(uiSettingsProvider.notifier).setNotifications(value);
-              },
-            ),
-          ],
-        ),
-        SettingsSection(
           title: context.l10n.settingsPrivacyVisibilityTitle,
           subtitle: context.l10n.settingsPrivacyVisibilityDesc,
           children: <Widget>[
@@ -58,6 +43,25 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               onChanged: (bool value) {
                 ref.read(uiSettingsProvider.notifier).setHideOnline(value);
               },
+            ),
+          ],
+        ),
+        SettingsSection(
+          title: context.l10n.profileSectionPrivacySecurity,
+          children: <Widget>[
+            SettingsTile(
+              icon: Icons.enhanced_encryption_rounded,
+              title: context.l10n.settingsSecretChatsTitle,
+              subtitle: context.l10n.settingsSecretChatsSubtitle,
+              iconColor: scheme.tertiary,
+              onTap: () => context.push('/settings/e2ee'),
+            ),
+            SettingsTile(
+              icon: Icons.devices_rounded,
+              title: context.l10n.settingsActiveSessions,
+              subtitle: context.l10n.settingsActiveSessionsSubtitle,
+              iconColor: scheme.secondary,
+              onTap: () => context.push('/settings/sessions'),
             ),
           ],
         ),

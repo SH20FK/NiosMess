@@ -134,6 +134,48 @@ class _AppearanceScreen extends ConsumerWidget {
                   ref.read(uiSettingsProvider.notifier).setNavBarFloating(v);
                 },
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                child: Row(
+                  children: <Widget>[
+                    Icon(Icons.text_fields_rounded, color: scheme.onSurfaceVariant, size: 20),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Размер шрифта',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: SegmentedButton<AppFontScale>(
+                  segments: const <ButtonSegment<AppFontScale>>[
+                    ButtonSegment<AppFontScale>(
+                      value: AppFontScale.small,
+                      label: Text('A', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    ),
+                    ButtonSegment<AppFontScale>(
+                      value: AppFontScale.normal,
+                      label: Text('A', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                    ButtonSegment<AppFontScale>(
+                      value: AppFontScale.large,
+                      label: Text('A', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+                    ),
+                    ButtonSegment<AppFontScale>(
+                      value: AppFontScale.extraLarge,
+                      label: Text('A', style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                  selected: {settings.fontScale},
+                  onSelectionChanged: (Set<AppFontScale> selection) {
+                    ref.read(uiSettingsProvider.notifier).setFontScale(selection.first);
+                  },
+                ),
+              ),
             ],
           ),
 

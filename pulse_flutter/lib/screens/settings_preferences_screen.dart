@@ -18,10 +18,25 @@ class SettingsPreferencesScreen extends ConsumerWidget {
       title: context.l10n.settingsPreferencesTitle,
       children: <Widget>[
         SettingsNavBanner(
-          icon: Icons.tune_rounded,
+          icon: Icons.notifications_active_rounded,
           title: context.l10n.settingsPreferencesTitle,
           subtitle: context.l10n.settingsPreferencesBannerSubtitle,
-          iconColor: scheme.tertiary,
+          iconColor: scheme.primary,
+        ),
+        SettingsSection(
+          title: context.l10n.settingsPrivacyNotificationsTitle,
+          children: <Widget>[
+            SettingsSwitchTile(
+              icon: Icons.notifications_rounded,
+              title: context.l10n.settingsPushNotifications,
+              subtitle: context.l10n.settingsPushNotificationsSubtitle,
+              iconColor: scheme.primary,
+              value: settings.notifications,
+              onChanged: (bool value) {
+                ref.read(uiSettingsProvider.notifier).setNotifications(value);
+              },
+            ),
+          ],
         ),
         SettingsSection(
           title: context.l10n.settingsPreferencesSoundHaptics,
@@ -30,6 +45,7 @@ class SettingsPreferencesScreen extends ConsumerWidget {
               icon: Icons.volume_up_rounded,
               title: context.l10n.appearanceSoundEffects,
               subtitle: context.l10n.settingsSoundEffectsSubtitle,
+              iconColor: scheme.secondary,
               value: settings.soundEffects,
               onChanged: (bool value) {
                 ref.read(uiSettingsProvider.notifier).setSoundEffects(value);
@@ -64,6 +80,7 @@ class SettingsPreferencesScreen extends ConsumerWidget {
               icon: Icons.vibration_rounded,
               title: context.l10n.settingsHapticFeedback,
               subtitle: context.l10n.settingsHapticFeedbackSubtitle,
+              iconColor: scheme.tertiary,
               value: settings.haptics,
               onChanged: (bool value) {
                 ref.read(uiSettingsProvider.notifier).setHaptics(value);
@@ -78,6 +95,7 @@ class SettingsPreferencesScreen extends ConsumerWidget {
               icon: Icons.density_small_rounded,
               title: context.l10n.appearanceCompactMode,
               subtitle: context.l10n.settingsCompactModeSubtitle,
+              iconColor: scheme.primary,
               value: settings.compactMode,
               onChanged: (bool value) {
                 ref.read(uiSettingsProvider.notifier).setCompactMode(value);
@@ -87,57 +105,11 @@ class SettingsPreferencesScreen extends ConsumerWidget {
               icon: Icons.energy_savings_leaf_rounded,
               title: context.l10n.appearanceOptimizeWeakDevices,
               subtitle: context.l10n.appearanceOptimizeWeakDevicesSubtitle,
+              iconColor: scheme.secondary,
               value: settings.optimizeForWeakDevices,
               onChanged: (bool value) {
                 ref.read(uiSettingsProvider.notifier).setOptimizeForWeakDevices(value);
               },
-            ),
-          ],
-        ),
-        SettingsSection(
-          title: context.l10n.appearanceAccentPalette,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Row(
-                children: <Widget>[
-                  Icon(Icons.text_fields_rounded, color: scheme.onSurfaceVariant, size: 20),
-                  const SizedBox(width: 12),
-                  Text(
-                    context.l10n.appearanceAccentPalette,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: SegmentedButton<AppFontScale>(
-                segments: <ButtonSegment<AppFontScale>>[
-                  ButtonSegment<AppFontScale>(
-                    value: AppFontScale.small,
-                    label: Text('A'),
-                  ),
-                  ButtonSegment<AppFontScale>(
-                    value: AppFontScale.normal,
-                    label: Text('A', style: TextStyle(fontSize: 18)),
-                  ),
-                  ButtonSegment<AppFontScale>(
-                    value: AppFontScale.large,
-                    label: Text('A', style: TextStyle(fontSize: 22)),
-                  ),
-                  ButtonSegment<AppFontScale>(
-                    value: AppFontScale.extraLarge,
-                    label: Text('A', style: TextStyle(fontSize: 28)),
-                  ),
-                ],
-                selected: {settings.fontScale},
-                onSelectionChanged: (Set<AppFontScale> selection) {
-                  ref.read(uiSettingsProvider.notifier).setFontScale(selection.first);
-                },
-              ),
             ),
           ],
         ),
