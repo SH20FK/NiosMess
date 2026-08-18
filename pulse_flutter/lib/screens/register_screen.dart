@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
-import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
-import 'package:pulse_flutter/widgets/animated_mesh_background.dart';
+import 'package:pulse_flutter/widgets/m3_organic_background.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -18,9 +21,9 @@ class RegisterScreen extends ConsumerStatefulWidget {
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _hidePassword = true;
@@ -29,9 +32,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _usernameController.dispose();
     _nameController.dispose();
+    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -43,16 +46,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
 
     if (!_consentPrivacy || !_consentToS) {
+      HapticService.destructive();
       AppToast.showError(context, context.l10n.registerConsentRequired);
       return;
     }
 
+    HapticFeedback.lightImpact();
     final AuthActionResult result = await ref
         .read(authProvider.notifier)
         .register(
-          email: _emailController.text.trim(),
-          username: _usernameController.text.trim(),
           displayName: _nameController.text.trim(),
+          username: _usernameController.text.trim(),
+          email: _emailController.text.trim(),
           password: _passwordController.text,
         );
 
@@ -61,285 +66,430 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
 
     if (result.success) {
+      HapticService.confirm();
       context.go(
         '/verify-email?email=${Uri.encodeComponent(_emailController.text.trim())}',
       );
       return;
     }
 
+    HapticService.destructive();
     AppToast.showError(context, result.message ?? context.l10n.registerFailed);
   }
 
   @override
   Widget build(BuildContext context) {
     final AuthState auth = ref.watch(authProvider);
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return PopScope(
-      canPop: true,
-      child: AnimatedMeshBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: Text(context.l10n.registerTitle),
-          centerTitle: true,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-        ),
-        body: SafeArea(
-          child: Center(
+    return M3OrganicBackground(
+      showBackButton: true,
+      showThemeToggle: true,
+      onBack: () {
+        if (Navigator.canPop(context)) {
+          context.pop();
+        } else {
+          context.go('/onboarding');
+        }
+      },
+      child: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppConstants.screenHorizontalPadding,
+              vertical: 24,
+            ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.screenHorizontalPadding,
-                  vertical: 24,
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Container(
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerLow.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(32),
-                      border: Border.all(
-                        color: scheme.outlineVariant.withValues(alpha: 0.18),
-                      ),
-                      boxShadow: <BoxShadow>[
-                        BoxShadow(
-                          color: scheme.shadow.withValues(alpha: 0.08),
-                          blurRadius: 24,
-                          offset: const Offset(0, 12),
-                        ),
-                      ],
-                    ),
-                    child: Column(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 16),
+
+                    // ── Stylized Title: "Создать" with M3 Cookie Glyphs ─
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.center,
-                      children: <Widget>[
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            color: scheme.primaryContainer,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.person_add_rounded,
-                            color: scheme.onPrimaryContainer,
-                            size: 38,
-                          ),
-                        ).animate().fade(duration: 400.ms).scale(
-                        begin: const Offset(0.8, 0.8),
-                        end: const Offset(1, 1),
-                        duration: 400.ms,
-                        curve: Curves.easeOutBack,
-                      ),
-                        const SizedBox(height: 24),
+                      children: [
                         Text(
-                          context.l10n.registerTitle,
-                          textAlign: TextAlign.center,
-                          style: textTheme.headlineSmall?.copyWith(
+                          'С',
+                          style: textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.w900,
-                            letterSpacing: -0.6,
+                            letterSpacing: -0.5,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          context.l10n.registerSubtitle,
-                          textAlign: TextAlign.center,
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-                        TextFormField(
-                          controller: _nameController,
-                          readOnly: auth.busy,
-                          textInputAction: TextInputAction.next,
-                          decoration: InputDecoration(
-                            labelText: context.l10n.profileDisplayName,
-                            prefixIcon: const Icon(Icons.person_rounded),
-                          ),
-                          validator: (String? value) {
-                            if ((value ?? '').trim().isEmpty) {
-                              return context.l10n.registerNameRequired;
-                            }
-                            return null;
-                          },
-                        ).animate().fade(duration: 400.ms),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _usernameController,
-                          readOnly: auth.busy,
-                          textInputAction: TextInputAction.next,
-                          decoration: InputDecoration(
-                            labelText: context.l10n.profileUsername,
-                            prefixIcon: const Icon(Icons.alternate_email_rounded),
-                          ),
-                          validator: (String? value) {
-                            if ((value ?? '').trim().length < 3) {
-                              return context.l10n.registerUsernameTooShort;
-                            }
-                            return null;
-                          },
-                        ).animate().fade(duration: 400.ms, delay: 100.ms),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _emailController,
-                          readOnly: auth.busy,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          decoration: InputDecoration(
-                            labelText: context.l10n.loginIdentifierLabel,
-                            prefixIcon: const Icon(Icons.email_rounded),
-                          ),
-                          validator: (String? value) {
-                            final String val = (value ?? '').trim();
-                            if (val.isEmpty || !val.contains('@')) {
-                              return context.l10n.loginIdentifierError;
-                            }
-                            return null;
-                          },
-                        ).animate().fade(duration: 400.ms, delay: 150.ms),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _passwordController,
-                          readOnly: auth.busy,
-                          obscureText: _hidePassword,
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) {
-                            if (!auth.busy) _submit();
-                          },
-                          decoration: InputDecoration(
-                            labelText: context.l10n.registerPasswordLabel,
-                            prefixIcon: const Icon(Icons.lock_rounded),
-                            suffixIcon: IconButton(
-                              onPressed: () {
-                                setState(() => _hidePassword = !_hidePassword);
-                              },
-                              icon: Icon(
-                                _hidePassword
-                                    ? Icons.visibility_rounded
-                                    : Icons.visibility_off_rounded,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: M3Container(
+                            Shapes.c9_sided_cookie,
+                            width: 26,
+                            height: 26,
+                            color: scheme.primary,
+                            child: Center(
+                              child: Icon(
+                                Icons.person_add_rounded,
+                                size: 16,
+                                color: scheme.onPrimary,
                               ),
                             ),
                           ),
-                          validator: (String? value) {
-                            if ((value ?? '').length < 8) {
-                              return context.l10n.registerPasswordError;
-                            }
-                            return null;
-                          },
-                        ).animate().fade(duration: 400.ms, delay: 200.ms),
-                        const SizedBox(height: 20),
-                        _ConsentCheckbox(
-                          value: _consentPrivacy,
-                          onChanged: (v) => setState(() => _consentPrivacy = v!),
-                          label: context.l10n.registerConsentPrivacy,
-                          onReadMore: () => context.push('/legal/privacy'),
                         ),
-                        const SizedBox(height: 8),
-                        _ConsentCheckbox(
-                          value: _consentToS,
-                          onChanged: (v) => setState(() => _consentToS = v!),
-                          label: context.l10n.registerConsentToS,
-                          onReadMore: () => context.push('/legal/tos'),
-                        ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          height: 58,
-                          child: FilledButton(
-                            onPressed: auth.busy ? null : _submit,
-                            style: FilledButton.styleFrom(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            ),
-                            child: auth.busy
-                                ? AppLoadingIndicator(size: 22, color: Theme.of(context).colorScheme.onPrimary)
-                                : Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: <Widget>[
-                                      const Icon(Icons.app_registration_rounded),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        context.l10n.registerSubmit,
-                                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-                                      ),
-                                    ],
-                                  ),
+                        Text(
+                          'здать',
+                          style: textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
                           ),
-                        ).animate().fade(duration: 400.ms, delay: 300.ms).slideY(begin: 0.1, end: 0, delay: 300.ms),
+                        ),
+                      ],
+                    ).animate().fade(duration: 350.ms).slideY(begin: -0.1, end: 0),
+                    const SizedBox(height: 8),
+
+                    Text(
+                      context.l10n.registerSubtitle,
+                      textAlign: TextAlign.center,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ).animate().fade(delay: 100.ms, duration: 350.ms),
+                    const SizedBox(height: 32),
+
+                    // ── Display Name ─────────────────────────────────────
+                    _M3AuthTextField(
+                      controller: _nameController,
+                      label: context.l10n.registerDisplayNameLabel,
+                      prefixIcon: Icons.badge_outlined,
+                      textInputAction: TextInputAction.next,
+                      validator: (String? value) {
+                        if ((value ?? '').trim().isEmpty) {
+                          return context.l10n.registerNameRequired;
+                        }
+                        if (value!.trim().length < 2) {
+                          return context.l10n.registerDisplayNameError;
+                        }
+                        return null;
+                      },
+                    ).animate().fade(delay: 140.ms, duration: 350.ms),
+                    const SizedBox(height: 12),
+
+                    // ── Username ─────────────────────────────────────────
+                    _M3AuthTextField(
+                      controller: _usernameController,
+                      label: context.l10n.registerUsernameLabel,
+                      prefixIcon: Icons.alternate_email_rounded,
+                      textInputAction: TextInputAction.next,
+                      validator: (String? value) {
+                        if ((value ?? '').trim().isEmpty) {
+                          return context.l10n.registerUsernameError;
+                        }
+                        if (value!.trim().length < 3) {
+                          return context.l10n.registerUsernameTooShort;
+                        }
+                        return null;
+                      },
+                    ).animate().fade(delay: 180.ms, duration: 350.ms),
+                    const SizedBox(height: 12),
+
+                    // ── Email ────────────────────────────────────────────
+                    _M3AuthTextField(
+                      controller: _emailController,
+                      label: context.l10n.registerEmailLabel,
+                      prefixIcon: Icons.mail_outline_rounded,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      validator: (String? value) {
+                        if ((value ?? '').trim().isEmpty || !value!.contains('@')) {
+                          return context.l10n.registerEmailError;
+                        }
+                        return null;
+                      },
+                    ).animate().fade(delay: 220.ms, duration: 350.ms),
+                    const SizedBox(height: 12),
+
+                    // ── Password ─────────────────────────────────────────
+                    _M3AuthTextField(
+                      controller: _passwordController,
+                      label: context.l10n.registerPasswordLabel,
+                      prefixIcon: Icons.lock_outline_rounded,
+                      obscureText: _hidePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _submit(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _hidePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                          size: 20,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _hidePassword = !_hidePassword);
+                        },
+                      ),
+                      validator: (String? value) {
+                        if ((value ?? '').length < 8) {
+                          return context.l10n.registerPasswordError;
+                        }
+                        return null;
+                      },
+                    ).animate().fade(delay: 260.ms, duration: 350.ms),
+                    const SizedBox(height: 20),
+
+                    // ── Consent Checkboxes ───────────────────────────────
+                    _ConsentRow(
+                      value: _consentToS,
+                      onChanged: (val) => setState(() => _consentToS = val ?? false),
+                      text: context.l10n.registerConsentToS,
+                      linkText: context.l10n.registerConsentReadMore,
+                      onLinkTap: () => context.push('/legal/terms'),
+                    ),
+                    const SizedBox(height: 6),
+                    _ConsentRow(
+                      value: _consentPrivacy,
+                      onChanged: (val) => setState(() => _consentPrivacy = val ?? false),
+                      text: context.l10n.registerConsentPrivacy,
+                      linkText: context.l10n.registerConsentReadMore,
+                      onLinkTap: () => context.push('/legal/privacy'),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // ── Submit Pill Button: "→ Далее" ────────────────────
+                    _M3AuthSubmitButton(
+                      label: context.l10n.registerSubmit,
+                      isLoading: auth.busy,
+                      onTap: _submit,
+                    ).animate().fade(delay: 300.ms, duration: 350.ms),
+                    const SizedBox(height: 20),
+
+                    // ── Secondary Link ───────────────────────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Уже есть аккаунт?',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            context.push('/login');
+                          },
+                          child: Text(
+                            context.l10n.loginTitle,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _M3AuthTextField extends StatelessWidget {
+  const _M3AuthTextField({
+    required this.controller,
+    required this.label,
+    required this.prefixIcon,
+    this.obscureText = false,
+    this.keyboardType,
+    this.textInputAction,
+    this.validator,
+    this.suffixIcon,
+    this.onFieldSubmitted,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final IconData prefixIcon;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final FormFieldValidator<String>? validator;
+  final Widget? suffixIcon;
+  final ValueChanged<String>? onFieldSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      child: TextFormField(
+        controller: controller,
+        obscureText: obscureText,
+        keyboardType: keyboardType,
+        textInputAction: textInputAction,
+        onFieldSubmitted: onFieldSubmitted,
+        validator: validator,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: scheme.onSurface,
+          fontWeight: FontWeight.w500,
+        ),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(
+            color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+            fontSize: 14,
+          ),
+          prefixIcon: Icon(prefixIcon, size: 20, color: scheme.primary),
+          suffixIcon: suffixIcon,
+          border: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
       ),
     );
   }
 }
 
-class _ConsentCheckbox extends StatelessWidget {
-  const _ConsentCheckbox({
-    required this.value,
-    required this.onChanged,
+class _M3AuthSubmitButton extends StatelessWidget {
+  const _M3AuthSubmitButton({
     required this.label,
-    required this.onReadMore,
+    required this.isLoading,
+    required this.onTap,
   });
 
-  final bool value;
-  final ValueChanged<bool?> onChanged;
   final String label;
-  final VoidCallback onReadMore;
+  final bool isLoading;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Checkbox(
-          value: value,
-          onChanged: onChanged,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        Expanded(
-          child: GestureDetector(
-            onTap: () => onChanged(!value),
-            child: Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 4,
-                runSpacing: 2,
-                children: <Widget>[
-                  Text(
-                    label,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
+    return Material(
+      color: scheme.primary,
+      borderRadius: BorderRadius.circular(28),
+      elevation: 0,
+      child: InkWell(
+        onTap: isLoading ? null : onTap,
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          width: double.infinity,
+          height: 54,
+          alignment: Alignment.center,
+          child: isLoading
+              ? AppLoadingIndicator(
+                  size: 24,
+                  color: scheme.onPrimary,
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 20,
+                      color: scheme.onPrimary,
                     ),
-                  ),
-                  InkWell(
-                    onTap: onReadMore,
-                    child: Text(
-                      context.l10n.registerConsentReadMore,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.underline,
+                    const SizedBox(width: 8),
+                    Text(
+                      label,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: scheme.onPrimary,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ConsentRow extends StatelessWidget {
+  const _ConsentRow({
+    required this.value,
+    required this.onChanged,
+    required this.text,
+    required this.linkText,
+    required this.onLinkTap,
+  });
+
+  final bool value;
+  final ValueChanged<bool?> onChanged;
+  final String text;
+  final String linkText;
+  final VoidCallback onLinkTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 28,
+          height: 28,
+          child: Checkbox(
+            value: value,
+            onChanged: (v) {
+              HapticFeedback.selectionClick();
+              onChanged(v);
+            },
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
             ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                '$text ',
+                style: textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  onLinkTap();
+                },
+                child: Text(
+                  linkText,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],

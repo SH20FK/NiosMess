@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/utils/app_curves.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/code_preview.dart';
-import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/widgets/m3_organic_background.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class VerifyEmailScreen extends ConsumerStatefulWidget {
@@ -42,6 +44,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     final FormState? form = _formKey.currentState;
     if (form == null || !form.validate()) return;
 
+    HapticFeedback.lightImpact();
     final AuthActionResult result = await ref
         .read(authProvider.notifier)
         .verifyEmail(
@@ -52,6 +55,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     if (!mounted) return;
 
     if (result.success) {
+      HapticService.confirm();
       AppToast.showSuccess(context, result.message ?? context.l10n.verifyEmailDone);
       if (ref.read(authProvider).isAuthenticated) {
         context.go('/setup');
@@ -59,6 +63,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
         context.go('/login');
       }
     } else {
+      HapticService.destructive();
       AppToast.showError(context, result.message ?? context.l10n.verifyEmailDone);
     }
   }
@@ -73,17 +78,14 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final String code = _normalizedCode;
 
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.verifyEmailTitle),
-        centerTitle: true,
-      ),
-      body: SafeArea(
+    return M3OrganicBackground(
+      showBackButton: true,
+      showThemeToggle: true,
+      onBack: () => context.go('/login'),
+      child: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
+            constraints: const BoxConstraints(maxWidth: 420),
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppConstants.screenHorizontalPadding,
@@ -93,80 +95,71 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                 key: _formKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
-                    Container(
-                      padding: const EdgeInsets.all(28),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(36),
-                        border: Border.all(
-                          color: scheme.outlineVariant.withValues(alpha: 0.18),
+                    M3Container(
+                      Shapes.c9_sided_cookie,
+                      width: 64,
+                      height: 64,
+                      color: scheme.primaryContainer,
+                      child: Center(
+                        child: Icon(
+                          Icons.mark_email_read_rounded,
+                          color: scheme.onPrimaryContainer,
+                          size: 32,
                         ),
-                        boxShadow: <BoxShadow>[
-                          BoxShadow(
-                            color: scheme.primary.withValues(alpha: 0.04),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
+                      ),
+                    ).animate().scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), curve: Curves.easeOutBack, duration: 400.ms),
+                    const SizedBox(height: 20),
+
+                    Text(
+                      context.l10n.verifyEmailTitle,
+                      textAlign: TextAlign.center,
+                      style: textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    Text(
+                      context.l10n.verifyEmailCodeLabel,
+                      textAlign: TextAlign.center,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Read-only email container
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: scheme.outlineVariant.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.email_outlined, size: 20, color: scheme.primary),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _emailController.text,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: scheme.onSurface,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: <Widget>[
-                          Container(
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              color: scheme.primaryContainer,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.mark_email_read_rounded,
-                              color: scheme.onPrimaryContainer,
-                              size: 38,
-                            ),
-                          ).animate(onPlay: (c) => c.repeat(reverse: true))
-                            .shimmer(duration: 2000.ms, color: scheme.primaryContainer)
-                            .scale(begin: const Offset(1, 1), end: const Offset(1.05, 1.05), duration: 2000.ms, curve: Curves.easeInOut),
-                          const SizedBox(height: 24),
-                          Text(
-                            context.l10n.verifyEmailTitle,
-                            textAlign: TextAlign.center,
-                            style: textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.6,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            context.l10n.verifyEmailCodeLabel, // Using as subtitle
-                            textAlign: TextAlign.center,
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              height: 1.45,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ).animate().fade(duration: 400.ms).slideY(begin: 0.05, end: 0, curve: AppCurves.easeOutSmooth),
-                    const SizedBox(height: 36),
-                    TextFormField(
-                      controller: _emailController,
-                      readOnly: true,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.registerEmailLabel,
-                        prefixIcon: const Icon(Icons.email_rounded),
-                      ),
-                      validator: (String? value) {
-                        if (!((value ?? '').contains('@'))) {
-                          return context.l10n.registerEmailError;
-                        }
-                        return null;
-                      },
-                    ).animate().fade(duration: 400.ms, delay: 50.ms),
+                    ),
                     const SizedBox(height: 24),
+
+                    // Code preview & hidden text input
                     Stack(
                       alignment: Alignment.center,
                       children: <Widget>[
@@ -206,30 +199,40 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                           },
                         ),
                       ],
-                    ).animate().fade(duration: 400.ms, delay: 100.ms).scale(begin: const Offset(0.98, 0.98), end: const Offset(1, 1), delay: 100.ms),
+                    ),
                     const SizedBox(height: 32),
-                    SizedBox(
-                      height: 58,
-                      child: FilledButton(
-                        onPressed: auth.busy ? null : _submit,
-                        style: FilledButton.styleFrom(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+
+                    // Submit Pill Button
+                    Material(
+                      color: scheme.primary,
+                      borderRadius: BorderRadius.circular(28),
+                      elevation: 0,
+                      child: InkWell(
+                        onTap: auth.busy ? null : _submit,
+                        borderRadius: BorderRadius.circular(28),
+                        child: Container(
+                          width: double.infinity,
+                          height: 54,
+                          alignment: Alignment.center,
+                          child: auth.busy
+                              ? AppLoadingIndicator(size: 22, color: scheme.onPrimary)
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: <Widget>[
+                                    Icon(Icons.check_circle_outline_rounded, color: scheme.onPrimary, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      context.l10n.verifyEmailSubmit,
+                                      style: textTheme.titleSmall?.copyWith(
+                                        color: scheme.onPrimary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                         ),
-                        child: auth.busy
-                            ? AppLoadingIndicator(size: 22, color: Theme.of(context).colorScheme.onPrimary)
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: <Widget>[
-                                  const Icon(Icons.check_circle_outline_rounded),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    context.l10n.verifyEmailSubmit,
-                                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-                                  ),
-                                ],
-                              ),
                       ),
-                    ).animate().fade(duration: 400.ms, delay: 300.ms).slideY(begin: 0.1, end: 0, delay: 300.ms),
+                    ),
                   ],
                 ),
               ),
@@ -237,7 +240,6 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
           ),
         ),
       ),
-    ),
     );
   }
 }

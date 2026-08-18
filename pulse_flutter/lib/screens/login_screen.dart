@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
-import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/widgets/m3_organic_background.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
-import 'package:pulse_flutter/widgets/animated_mesh_background.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -36,6 +39,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    HapticFeedback.lightImpact();
     final String identifier = _identifierController.text.trim();
     final String password = _passwordController.text;
 
@@ -48,15 +52,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     if (result.success) {
+      HapticService.confirm();
       context.go('/main/chats');
       return;
     }
 
     if (result.requiresTwoFa) {
+      HapticService.tap();
       context.go('/2fa?identifier=${Uri.encodeComponent(identifier)}');
       return;
     }
 
+    HapticService.destructive();
     AppToast.showError(context, result.message ?? context.l10n.loginFailed);
   }
 
@@ -66,178 +73,305 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return AnimatedMeshBackground(
+    return M3OrganicBackground(
+      showBackButton: true,
+      showThemeToggle: true,
+      onBack: () {
+        if (Navigator.canPop(context)) {
+          context.pop();
+        } else {
+          context.go('/onboarding');
+        }
+      },
       child: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
               horizontal: AppConstants.screenHorizontalPadding,
-              vertical: 16,
+              vertical: 24,
             ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Container(
-                padding: const EdgeInsets.all(28),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerLow.withValues(alpha: 0.65),
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: scheme.shadow.withValues(alpha: 0.08),
-                      blurRadius: 24,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      // Branding
-                      Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          color: scheme.primaryContainer,
-                          shape: BoxShape.circle,
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 20),
+
+                    // ── Stylized Title: "Войти" with M3 Cookie Glyphs ──
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          'В',
+                          style: textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                          ),
                         ),
-                        child: Icon(
-                          Icons.lock_open_rounded,
-                          color: scheme.onPrimaryContainer,
-                          size: 36,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: M3Container(
+                            Shapes.c9_sided_cookie,
+                            width: 26,
+                            height: 26,
+                            color: scheme.primary,
+                            child: Center(
+                              child: Icon(
+                                Icons.person_rounded,
+                                size: 16,
+                                color: scheme.onPrimary,
+                              ),
+                            ),
+                          ),
                         ),
-                      ).animate().fade(duration: 400.ms).scale(
-                        begin: const Offset(0.8, 0.8),
-                        end: const Offset(1, 1),
-                        duration: 400.ms,
-                        curve: Curves.easeOutBack,
+                        Text(
+                          'йти',
+                          style: textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ],
+                    ).animate().fade(duration: 350.ms).slideY(begin: -0.1, end: 0),
+                    const SizedBox(height: 8),
+
+                    Text(
+                      context.l10n.loginSubtitle,
+                      textAlign: TextAlign.center,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
                       ),
-                      const SizedBox(height: 20),
-                      Text(
-                        context.l10n.loginTitle,
-                        textAlign: TextAlign.center,
-                        style: textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                        ),
-                      ).animate().fade(duration: 400.ms, delay: 100.ms),
-                      const SizedBox(height: 8),
-                      Text(
-                        context.l10n.loginSubtitle,
-                        textAlign: TextAlign.center,
-                        style: textTheme.bodyMedium?.copyWith(
+                    ).animate().fade(delay: 100.ms, duration: 350.ms),
+                    const SizedBox(height: 36),
+
+                    // ── M3 Input: Username / Email ───────────────────────
+                    _M3AuthTextField(
+                      controller: _identifierController,
+                      label: context.l10n.loginIdentifierLabel,
+                      prefixIcon: Icons.alternate_email_rounded,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      validator: (String? value) {
+                        if ((value ?? '').trim().isEmpty) {
+                          return context.l10n.loginIdentifierError;
+                        }
+                        return null;
+                      },
+                    ).animate().fade(delay: 150.ms, duration: 350.ms),
+                    const SizedBox(height: 14),
+
+                    // ── M3 Input: Password ───────────────────────────────
+                    _M3AuthTextField(
+                      controller: _passwordController,
+                      label: context.l10n.loginPasswordLabel,
+                      prefixIcon: Icons.lock_outline_rounded,
+                      obscureText: _hidePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _submit(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _hidePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                          size: 20,
                           color: scheme.onSurfaceVariant,
                         ),
-                      ).animate().fade(duration: 400.ms, delay: 150.ms),
-                      const SizedBox(height: 28),
-
-                      // Email/username field
-                      TextFormField(
-                        controller: _identifierController,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        decoration: InputDecoration(
-                          labelText: context.l10n.loginIdentifierLabel,
-                          prefixIcon: const Icon(Icons.email_rounded),
-                        ),
-                        validator: (String? value) {
-                          if ((value ?? '').trim().isEmpty) {
-                            return context.l10n.loginIdentifierError;
-                          }
-                          return null;
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _hidePassword = !_hidePassword);
                         },
-                      ).animate().fade(duration: 400.ms, delay: 200.ms),
-
-                      const SizedBox(height: 16),
-
-                      // Password field
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _hidePassword,
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) {
-                          if (!auth.busy) _submit();
-                        },
-                        decoration: InputDecoration(
-                          labelText: context.l10n.loginPasswordLabel,
-                          prefixIcon: const Icon(Icons.lock_rounded),
-                          suffixIcon: IconButton(
-                            onPressed: () {
-                              setState(() => _hidePassword = !_hidePassword);
-                            },
-                            icon: Icon(
-                              _hidePassword
-                                  ? Icons.visibility_rounded
-                                  : Icons.visibility_off_rounded,
-                            ),
-                          ),
-                        ),
-                        validator: (String? value) {
-                          if ((value ?? '').length < 6) {
-                            return context.l10n.loginPasswordError;
-                          }
-                          return null;
-                        },
-                      ).animate().fade(duration: 400.ms, delay: 250.ms),
-
-                      const SizedBox(height: 10),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () => context.push('/reset-password/request'),
-                          child: Text(context.l10n.loginForgotPassword),
-                        ),
-                      ).animate().fade(duration: 400.ms, delay: 300.ms),
-
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 56,
-                        child: FilledButton(
-                          onPressed: auth.busy ? null : _submit,
-                          style: FilledButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                          child: auth.busy
-                              ? AppLoadingIndicator(size: 22, color: scheme.onPrimary)
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: <Widget>[
-                                    const Icon(Icons.login_rounded),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      context.l10n.loginSubmit,
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ).animate().fade(duration: 400.ms, delay: 350.ms).slideY(
-                        begin: 0.1,
-                        end: 0,
-                        duration: 400.ms,
-                        delay: 350.ms,
-                        curve: Curves.easeOutCubic,
                       ),
+                      validator: (String? value) {
+                        if ((value ?? '').isEmpty) {
+                          return context.l10n.loginPasswordError;
+                        }
+                        return null;
+                      },
+                    ).animate().fade(delay: 200.ms, duration: 350.ms),
+                    const SizedBox(height: 28),
 
-                      const SizedBox(height: 12),
-                      Center(
-                        child: TextButton(
-                          onPressed: () => context.push('/register'),
-                          child: Text(context.l10n.loginCreateAccount),
+                    // ── Submit Pill Button: "→ Продолжить" ───────────────
+                    _M3AuthSubmitButton(
+                      label: context.l10n.loginSubmit,
+                      isLoading: auth.busy,
+                      onTap: _submit,
+                    ).animate().fade(delay: 250.ms, duration: 350.ms),
+                    const SizedBox(height: 20),
+
+                    // ── Secondary Links ──────────────────────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Нет аккаунта?',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
                         ),
-                      ).animate().fade(duration: 400.ms, delay: 400.ms),
-                    ],
-                  ),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            context.push('/register');
+                          },
+                          child: Text(
+                            context.l10n.registerTitle,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextButton(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        context.push('/reset-password/request');
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: scheme.onSurfaceVariant,
+                      ),
+                      child: Text(
+                        context.l10n.loginForgotPassword,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _M3AuthTextField extends StatelessWidget {
+  const _M3AuthTextField({
+    required this.controller,
+    required this.label,
+    required this.prefixIcon,
+    this.obscureText = false,
+    this.keyboardType,
+    this.textInputAction,
+    this.validator,
+    this.suffixIcon,
+    this.onFieldSubmitted,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final IconData prefixIcon;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final FormFieldValidator<String>? validator;
+  final Widget? suffixIcon;
+  final ValueChanged<String>? onFieldSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      child: TextFormField(
+        controller: controller,
+        obscureText: obscureText,
+        keyboardType: keyboardType,
+        textInputAction: textInputAction,
+        onFieldSubmitted: onFieldSubmitted,
+        validator: validator,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: scheme.onSurface,
+          fontWeight: FontWeight.w500,
+        ),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(
+            color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+            fontSize: 14,
+          ),
+          prefixIcon: Icon(prefixIcon, size: 20, color: scheme.primary),
+          suffixIcon: suffixIcon,
+          border: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
+    );
+  }
+}
+
+class _M3AuthSubmitButton extends StatelessWidget {
+  const _M3AuthSubmitButton({
+    required this.label,
+    required this.isLoading,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: scheme.primary,
+      borderRadius: BorderRadius.circular(28),
+      elevation: 0,
+      child: InkWell(
+        onTap: isLoading ? null : onTap,
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          width: double.infinity,
+          height: 54,
+          alignment: Alignment.center,
+          child: isLoading
+              ? AppLoadingIndicator(
+                  size: 24,
+                  color: scheme.onPrimary,
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 20,
+                      color: scheme.onPrimary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      label,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: scheme.onPrimary,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

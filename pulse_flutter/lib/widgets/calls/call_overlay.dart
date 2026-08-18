@@ -1,4 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
@@ -38,7 +41,7 @@ class CallOverlay extends ConsumerWidget {
 
         return Positioned(
           bottom: 96,
-          right: 12,
+          right: 14,
           child: _CallPill(
             scheme: scheme,
             textTheme: textTheme,
@@ -55,6 +58,7 @@ class CallOverlay extends ConsumerWidget {
               }
             },
             onEnd: () async {
+              HapticFeedback.mediumImpact();
               await manager?.end();
             },
           ),
@@ -87,90 +91,98 @@ class _CallPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      elevation: 6,
-      shadowColor: Colors.black.withValues(alpha: 0.3),
-      borderRadius: BorderRadius.circular(32),
-      color: scheme.primaryContainer,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(32),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Call type icon with green dot when active
-              Stack(
-                children: [
-                  Icon(
-                    isVideo ? Icons.videocam_rounded : Icons.phone_rounded,
-                    color: scheme.onPrimaryContainer,
-                    size: 22,
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Material(
+            color: scheme.surfaceContainerHigh.withValues(alpha: 0.9),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.35),
+                    width: 1.0,
                   ),
-                  if (isActive)
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: scheme.tertiary,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: scheme.primaryContainer,
-                            width: 1,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // M3 Expressive shape call icon
+                    M3Container.c9SidedCookie(
+                      width: 28,
+                      height: 28,
+                      color: isActive ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+                      child: Center(
+                        child: Icon(
+                          isVideo ? Icons.videocam_rounded : Icons.phone_rounded,
+                          color: isActive ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                    if (participantName != null) ...[
+                      const SizedBox(width: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 110),
+                        child: Text(
+                          participantName!,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: scheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                    if (isActive) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        timerLabel,
+                        style: textTheme.labelSmall?.copyWith(
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 10),
+                    // End call button in M3 shape
+                    GestureDetector(
+                      onTap: onEnd,
+                      child: M3Container.c9SidedCookie(
+                        width: 28,
+                        height: 28,
+                        color: scheme.error,
+                        child: Center(
+                          child: Icon(
+                            Icons.call_end_rounded,
+                            color: scheme.onError,
+                            size: 14,
                           ),
                         ),
                       ),
                     ),
-                ],
-              ),
-              if (participantName != null) ...[
-                const SizedBox(width: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 100),
-                  child: Text(
-                    participantName!,
-                    style: textTheme.labelMedium?.copyWith(
-                      color: scheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-              if (isActive) ...[
-                const SizedBox(width: 6),
-                Text(
-                  timerLabel,
-                  style: textTheme.labelSmall?.copyWith(
-                    fontFamily: 'monospace',
-                    color: scheme.onPrimaryContainer.withValues(alpha: 0.65),
-                  ),
-                ),
-              ],
-              const SizedBox(width: 8),
-              // End call button
-              GestureDetector(
-                onTap: onEnd,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: scheme.error.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.call_end_rounded,
-                    color: scheme.error,
-                    size: 16,
-                  ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

@@ -12,7 +12,7 @@ import 'package:pulse_flutter/services/calls/nios_calls_api.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/services/permission_service.dart';
 
-/// Why [startOutgoingCall] refused to start.
+/// Why [startOutgoingCall] or [startIncomingCall] refused to start.
 enum CallStartFailure { permissions }
 
 class CallStartException implements Exception {
@@ -110,4 +110,41 @@ Future<int> startOutgoingCall({
 
   ref.read(callSessionProvider.notifier).setSession(manager);
   return callId;
+}
+
+/// Shared bootstrap for accepting and joining incoming calls.
+Future<void> startIncomingCall({
+  required WidgetRef ref,
+  required int chatId,
+  required int callId,
+  required String roomId,
+  required bool isVideo,
+}) async {
+  final bool perm =
+      await PermissionService().requestCallPermissions(video: isVideo);
+  if (!perm) {
+    throw const CallStartException(CallStartFailure.permissions);
+  }
+
+  final String nickname =
+      ref.read(authProvider).session?.displayName ?? 'User';
+
+  final Uint8List aesKeyBytes = await deriveCallMediaKey(
+    ref,
+    chatId: chatId,
+    callId: callId,
+  );
+
+  final CallSessionManager manager = CallSessionManager(
+    ref: ref,
+    chatId: chatId,
+    callId: callId,
+    roomId: roomId,
+    isVideo: isVideo,
+    direction: CallDirection.incoming,
+    displayName: nickname,
+    aesKeyBytes: aesKeyBytes,
+  )..start();
+
+  ref.read(callSessionProvider.notifier).setSession(manager);
 }

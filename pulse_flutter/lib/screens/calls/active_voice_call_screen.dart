@@ -2,11 +2,16 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
+import 'package:pulse_flutter/services/calls/call_session_types.dart';
+import 'package:pulse_flutter/widgets/calls/call_audio_ripple.dart';
+import 'package:pulse_flutter/widgets/calls/call_control_dock.dart';
+import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
 class ActiveVoiceCallScreen extends ConsumerStatefulWidget {
   const ActiveVoiceCallScreen({super.key});
@@ -17,10 +22,9 @@ class ActiveVoiceCallScreen extends ConsumerStatefulWidget {
 
 class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
-
-  // Breathing ring around avatar
+  // Breathing/ripple animation for avatar & soundwaves
   late final AnimationController _breathController;
-  // Controls fade for bottom bar
+  // Controls fade animation for bottom dock
   late final AnimationController _controlsFadeController;
   late final Animation<double> _controlsFadeAnimation;
   bool _areControlsVisible = true;
@@ -38,8 +42,8 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
 
     _breathController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2800),
-    )..repeat(reverse: true);
+      duration: CallTokens.rippleAnimationDuration,
+    )..repeat();
 
     _controlsFadeController = AnimationController(
       vsync: this,
@@ -129,7 +133,10 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final session = ref.watch(callSessionProvider)?.session;
-    if (session == null) return const Scaffold(backgroundColor: Colors.black);
+    if (session == null) {
+      final scheme = Theme.of(context).colorScheme;
+      return Scaffold(backgroundColor: scheme.surface);
+    }
 
     final data = session.currentData;
     final scheme = Theme.of(context).colorScheme;
@@ -139,13 +146,12 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     final participantName = participants.isNotEmpty
         ? participants.map((p) => p.nickname).join(', ')
         : context.l10n.callConnecting;
+    const String? participantAvatar = null;
 
-    // Tonal background: primary + tertiary blended
-    final bgColor = Color.lerp(scheme.primaryContainer, scheme.tertiaryContainer, 0.45)!
-        .withValues(alpha: 1.0);
-    // Darken for a deeper feel
-    final bgDark = HSLColor.fromColor(bgColor)
-        .withLightness((HSLColor.fromColor(bgColor).lightness * 0.45).clamp(0.0, 1.0))
+    // Dark tonal background for expressive calls
+    final baseBg = Color.lerp(scheme.surfaceContainerLowest, scheme.surface, 0.4)!;
+    final bgDark = HSLColor.fromColor(baseBg)
+        .withLightness((HSLColor.fromColor(baseBg).lightness * 0.55).clamp(0.04, 0.2))
         .toColor();
 
     return Scaffold(
@@ -154,8 +160,9 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
         onTap: _toggleControls,
         behavior: HitTestBehavior.translucent,
         child: Stack(
+          alignment: Alignment.center,
           children: [
-            // ── Animated tonal mesh background ──────────────────────────
+            // ── Animated Tonal Mesh Background ──────────────────────────
             Positioned.fill(
               child: RepaintBoundary(
                 child: AnimatedBuilder(
@@ -165,8 +172,8 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                     return CustomPaint(
                       painter: _TonalBlobPainter(
                         t: t,
-                        primary: scheme.primary.withValues(alpha: 0.25),
-                        tertiary: scheme.tertiary.withValues(alpha: 0.18),
+                        primary: scheme.primary.withValues(alpha: 0.18),
+                        tertiary: scheme.tertiary.withValues(alpha: 0.14),
                       ),
                     );
                   },
@@ -174,76 +181,162 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
               ),
             ),
 
-            // ── Center content ───────────────────────────────────────────
-            SafeArea(
-              child: Column(
+            // ── Top Bar (Minimize & E2EE Info) ───────────────────────────
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + 8,
+              left: 16,
+              right: 16,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Spacer(flex: 2),
-
-                  // Status label (connecting / in call)
-                  Text(
-                    _statusLabel(data.state, context),
-                    style: textTheme.labelMedium?.copyWith(
-                      color: scheme.onPrimary.withValues(alpha: 0.7),
-                      letterSpacing: 1.2,
+                  IconButton(
+                    icon: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: scheme.onSurface.withValues(alpha: 0.8),
+                      size: 32,
                     ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Avatar with breathing ring
-                  _BreathingAvatar(
-                    controller: _breathController,
-                    isMuted: data.isMuted,
-                    scheme: scheme,
-                    inCall: data.state == CallSessionState.inCall,
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Participant name
-                  Text(
-                    participantName,
-                    style: textTheme.headlineMedium?.copyWith(
-                      color: scheme.onPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Timer
-                  ValueListenableBuilder<int>(
-                    valueListenable: _timerNotifier,
-                    builder: (context, seconds, _) {
-                      if (data.state != CallSessionState.inCall) {
-                        return const SizedBox.shrink();
-                      }
-                      final m = seconds ~/ 60;
-                      final s = seconds % 60;
-                      return Text(
-                        '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
-                        style: textTheme.titleLarge?.copyWith(
-                          fontFamily: 'monospace',
-                          color: scheme.onPrimary.withValues(alpha: 0.65),
-                          fontWeight: FontWeight.w400,
-                        ),
-                      );
+                    tooltip: context.l10n.callMinimize,
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.of(context).pop();
                     },
                   ),
-
-                  // E2EE verification emojis
-                  if (data.verificationEmojis.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _VerificationRow(emojis: data.verificationEmojis, scheme: scheme, textTheme: textTheme),
-                  ],
-
-                  const Spacer(flex: 3),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: scheme.surface.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: scheme.onSurface.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.lock_rounded,
+                          size: 13,
+                          color: scheme.tertiary,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'E2EE PROTECTED',
+                          style: textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurface.withValues(alpha: 0.75),
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.8,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 48), // Balancing spacer
                 ],
               ),
             ),
 
-            // ── Bottom control bar ────────────────────────────────────────
+            // ── Strictly Centered Content ────────────────────────────────
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Spacer(flex: 2),
+
+                    // Status Badge with icon
+                    _StatusPill(
+                      state: data.state,
+                      scheme: scheme,
+                      textTheme: textTheme,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Centered M3 Shape Hero Avatar with Audio Ripple
+                    CallAudioRipple(
+                      animation: _breathController,
+                      scheme: scheme,
+                      isActive: data.state == CallSessionState.inCall && !data.isMuted,
+                      size: CallTokens.avatarLargeSize,
+                      child: ClipPath(
+                        clipper: M3Clipper(Shapes.c9_sided_cookie),
+                        child: Container(
+                          width: CallTokens.avatarLargeSize,
+                          height: CallTokens.avatarLargeSize,
+                          color: scheme.primaryContainer,
+                          child: PulseAvatar(
+                            name: participantName,
+                            avatarUrl: participantAvatar,
+                            radius: CallTokens.avatarLargeSize / 2,
+                            fallbackColor: scheme.primaryContainer,
+                            textColor: scheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Participant Name
+                    Text(
+                      participantName,
+                      style: textTheme.headlineMedium?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Monospace Timer
+                    ValueListenableBuilder<int>(
+                      valueListenable: _timerNotifier,
+                      builder: (context, seconds, _) {
+                        if (data.state != CallSessionState.inCall) {
+                          return const SizedBox(height: 28);
+                        }
+                        final m = seconds ~/ 60;
+                        final s = seconds % 60;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: scheme.surface.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
+                            style: textTheme.titleMedium?.copyWith(
+                              fontFamily: 'monospace',
+                              color: scheme.onSurface.withValues(alpha: 0.85),
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                    // E2EE verification emojis row
+                    if (data.verificationEmojis.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      _VerificationRow(
+                        emojis: data.verificationEmojis,
+                        scheme: scheme,
+                        textTheme: textTheme,
+                      ),
+                    ],
+
+                    const Spacer(flex: 3),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Floating Glassmorphic Control Dock ───────────────────────
             Positioned(
               bottom: 0,
               left: 0,
@@ -257,11 +350,15 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                     child: child,
                   ),
                 ),
-                child: _VoiceControlBar(
+                child: CallControlDock(
                   session: session,
                   data: data,
                   scheme: scheme,
                   onEnd: _endCall,
+                  onMinimize: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.of(context).pop();
+                  },
                 ),
               ),
             ),
@@ -270,106 +367,73 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
       ),
     );
   }
-
-  String _statusLabel(CallSessionState state, BuildContext ctx) {
-    return switch (state) {
-      CallSessionState.connecting || CallSessionState.connected => ctx.l10n.callConnecting.toUpperCase(),
-      CallSessionState.inCall => ctx.l10n.callStatusInCall.toUpperCase(),
-      CallSessionState.reconnecting => 'RECONNECTING...',
-      _ => '',
-    };
-  }
 }
 
-// ── Breathing avatar ──────────────────────────────────────────────────────────
+// ── Status Pill Badge ─────────────────────────────────────────────────────────
 
-class _BreathingAvatar extends StatelessWidget {
-  const _BreathingAvatar({
-    required this.controller,
-    required this.isMuted,
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({
+    required this.state,
     required this.scheme,
-    required this.inCall,
+    required this.textTheme,
   });
 
-  final AnimationController controller;
-  final bool isMuted;
+  final CallSessionState state;
   final ColorScheme scheme;
-  final bool inCall;
+  final TextTheme textTheme;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) {
-        final t = controller.value;
-        final ringScale = 1.0 + 0.12 * t;
-        final ringOpacity = (0.35 * (1.0 - t)).clamp(0.0, 1.0);
+    final (label, icon, color) = switch (state) {
+      CallSessionState.connecting || CallSessionState.connected => (
+          context.l10n.callConnecting,
+          Icons.sync_rounded,
+          scheme.primary,
+        ),
+      CallSessionState.inCall => (
+          context.l10n.callStatusInCall,
+          Icons.phone_in_talk_rounded,
+          scheme.tertiary,
+        ),
+      CallSessionState.reconnecting => (
+          'RECONNECTING...',
+          Icons.cloud_sync_rounded,
+          scheme.error,
+        ),
+      _ => ('', Icons.phone_rounded, scheme.onSurface),
+    };
 
-        return SizedBox(
-          width: 140,
-          height: 140,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Outer glow ring (only while in call)
-              if (inCall && !isMuted)
-                Transform.scale(
-                  scale: ringScale,
-                  child: Container(
-                    width: 128,
-                    height: 128,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: scheme.onPrimary.withValues(alpha: ringOpacity),
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                ),
+    if (label.isEmpty) return const SizedBox.shrink();
 
-              // Avatar circle
-              Container(
-                width: 108,
-                height: 108,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: scheme.primaryContainer.withValues(alpha: 0.35),
-                  border: Border.all(
-                    color: scheme.onPrimary.withValues(alpha: 0.25),
-                    width: 1.5,
-                  ),
-                ),
-                child: Icon(
-                  isMuted ? Icons.mic_off_rounded : Icons.person_rounded,
-                  size: 48,
-                  color: scheme.onPrimary.withValues(alpha: isMuted ? 0.5 : 0.9),
-                ),
-              ),
-
-              // Muted badge
-              if (isMuted)
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: scheme.error,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.mic_off_rounded, size: 14, color: scheme.onError),
-                  ),
-                ),
-            ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label.toUpperCase(),
+            style: textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
 
-// ── Verification row ──────────────────────────────────────────────────────────
+// ── Verification Row (E2EE) ──────────────────────────────────────────────────
 
 class _VerificationRow extends StatelessWidget {
   const _VerificationRow({
@@ -390,24 +454,28 @@ class _VerificationRow extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: scheme.onPrimary.withValues(alpha: 0.1),
+            color: scheme.surface.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: scheme.onSurface.withValues(alpha: 0.1),
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: emojis
                 .map((e) => Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(e, style: const TextStyle(fontSize: 22)),
+                      child: Text(e, style: const TextStyle(fontSize: 20)),
                     ))
                 .toList(),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           context.l10n.callE2eeSecurityCode,
           style: textTheme.labelSmall?.copyWith(
-            color: scheme.onPrimary.withValues(alpha: 0.4),
+            color: scheme.onSurface.withValues(alpha: 0.45),
+            fontSize: 11,
           ),
         ),
       ],
@@ -415,197 +483,7 @@ class _VerificationRow extends StatelessWidget {
   }
 }
 
-// ── Bottom control bar ────────────────────────────────────────────────────────
-
-class _VoiceControlBar extends StatelessWidget {
-  const _VoiceControlBar({
-    required this.session,
-    required this.data,
-    required this.scheme,
-    required this.onEnd,
-  });
-
-  final CallSession session;
-  final CallSessionData data;
-  final ColorScheme scheme;
-  final VoidCallback onEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    final surfaceColor = scheme.surface.withValues(alpha: 0.12);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.35),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      padding: EdgeInsets.only(
-        top: 20,
-        left: 24,
-        right: 24,
-        bottom: MediaQuery.paddingOf(context).bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle
-          Container(
-            width: 36,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: scheme.onSurface.withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              // Mute
-              _ControlButton(
-                icon: data.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                label: data.isMuted ? context.l10n.callUnmute : context.l10n.callMute,
-                active: data.isMuted,
-                activeColor: scheme.error,
-                baseColor: surfaceColor,
-                iconColor: scheme.onSurface,
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  session.setMuted(!data.isMuted);
-                },
-              ),
-
-              // End call (larger)
-              _EndCallButton(onTap: onEnd, scheme: scheme),
-
-              // Speaker
-              _ControlButton(
-                icon: data.isSpeakerOn ? Icons.volume_up_rounded : Icons.volume_down_rounded,
-                label: data.isSpeakerOn ? context.l10n.callSpeakerOff : context.l10n.callSpeakerOn,
-                active: data.isSpeakerOn,
-                activeColor: scheme.tertiary,
-                baseColor: surfaceColor,
-                iconColor: scheme.onSurface,
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  session.setSpeakerOn(!data.isSpeakerOn);
-                },
-              ),
-            ],
-          ),
-
-          // Minimize hint
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).pop();
-            },
-            child: Text(
-              context.l10n.callMinimize,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: scheme.onSurface.withValues(alpha: 0.4),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ControlButton extends StatelessWidget {
-  const _ControlButton({
-    required this.icon,
-    required this.label,
-    required this.active,
-    required this.activeColor,
-    required this.baseColor,
-    required this.iconColor,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool active;
-  final Color activeColor;
-  final Color baseColor;
-  final Color iconColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Material(
-          color: active ? activeColor.withValues(alpha: 0.25) : baseColor,
-          borderRadius: BorderRadius.circular(20),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                border: active
-                    ? Border.all(color: activeColor.withValues(alpha: 0.6), width: 1.5)
-                    : null,
-              ),
-              child: Icon(icon, color: active ? activeColor : iconColor, size: 26),
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: active ? activeColor : iconColor.withValues(alpha: 0.6),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _EndCallButton extends StatelessWidget {
-  const _EndCallButton({required this.onTap, required this.scheme});
-
-  final VoidCallback onTap;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Material(
-          color: scheme.error,
-          borderRadius: BorderRadius.circular(24),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(24),
-            child: const SizedBox(
-              width: 72,
-              height: 72,
-              child: Icon(Icons.call_end_rounded, color: Colors.white, size: 30),
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          context.l10n.callEnd,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: scheme.error,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Tonal blob background painter ────────────────────────────────────────────
+// ── Tonal Blob Background Painter ────────────────────────────────────────────
 
 class _TonalBlobPainter extends CustomPainter {
   _TonalBlobPainter({
@@ -623,21 +501,21 @@ class _TonalBlobPainter extends CustomPainter {
     final cx = size.width / 2;
     final cy = size.height / 2;
 
-    // Blob 1 — upper left area
+    // Blob 1 — upper floating glow
     final paint1 = Paint()
       ..color = primary
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 90);
-    final b1x = cx - 80 + 40 * sin(t * pi);
-    final b1y = cy * 0.55 + 30 * sin(t * pi * 0.7);
-    canvas.drawCircle(Offset(b1x, b1y), 160, paint1);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 110);
+    final b1x = cx - 70 + 40 * sin(t * 2 * pi);
+    final b1y = cy * 0.65 + 30 * cos(t * 2 * pi);
+    canvas.drawCircle(Offset(b1x, b1y), 170, paint1);
 
-    // Blob 2 — lower right area
+    // Blob 2 — lower floating glow
     final paint2 = Paint()
       ..color = tertiary
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 100);
-    final b2x = cx + 70 + 30 * sin(t * pi * 1.3);
-    final b2y = cy * 1.45 + 20 * sin(t * pi);
-    canvas.drawCircle(Offset(b2x, b2y), 140, paint2);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 120);
+    final b2x = cx + 60 + 35 * cos(t * 2 * pi);
+    final b2y = cy * 1.35 + 25 * sin(t * 2 * pi);
+    canvas.drawCircle(Offset(b2x, b2y), 150, paint2);
   }
 
   @override
