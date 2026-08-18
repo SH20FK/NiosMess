@@ -1,12 +1,15 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 
-class EmptyFeedWidget extends StatefulWidget {
+class EmptyFeedWidget extends StatelessWidget {
   const EmptyFeedWidget({
     required this.title,
     required this.description,
     this.actionLabel,
     this.onAction,
+    this.icon,
+    this.features,
     super.key,
   });
 
@@ -14,85 +17,146 @@ class EmptyFeedWidget extends StatefulWidget {
   final String description;
   final String? actionLabel;
   final VoidCallback? onAction;
-
-  @override
-  State<EmptyFeedWidget> createState() => _EmptyFeedWidgetState();
-}
-
-class _EmptyFeedWidgetState extends State<EmptyFeedWidget>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _floatController;
-
-  @override
-  void initState() {
-    super.initState();
-    _floatController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _floatController.dispose();
-    super.dispose();
-  }
+  final IconData? icon;
+  final List<String>? features;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
+    final IconData effectiveIcon = icon ?? Icons.chat_bubble_outline_rounded;
+
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              RepaintBoundary(
-                child: AnimatedBuilder(
-                  animation: _floatController,
-                  builder: (_, Widget? child) {
-                    return Transform.translate(
-                      offset: Offset(0, _floatController.value * -8),
-                      child: child,
-                    );
-                  },
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: <Widget>[
-                      CustomPaint(
-                        size: const Size(140, 140),
-                        painter: _EmptyFeedPainter(scheme: scheme),
-                      ),
-                      _Sparkles(scheme: scheme),
-                    ],
+              // M3 Expressive Shape Container with Icon
+              M3Container(
+                Shapes.c9_sided_cookie,
+                width: 84,
+                height: 84,
+                color: scheme.primaryContainer.withValues(alpha: 0.7),
+                child: Center(
+                  child: Icon(
+                    effectiveIcon,
+                    size: 38,
+                    color: scheme.onPrimaryContainer,
                   ),
                 ),
-              ),
+              )
+                  .animate()
+                  .scale(
+                    begin: const Offset(0.85, 0.85),
+                    end: const Offset(1.0, 1.0),
+                    duration: 350.ms,
+                    curve: Curves.easeOutBack,
+                  )
+                  .fade(duration: 250.ms),
+
               const SizedBox(height: 20),
+
+              // Title
               Text(
-                widget.title,
-                style: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
+                title,
+                style: textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 10),
-              Text(
-                widget.description,
-                style: textTheme.bodyLarge?.copyWith(
-                  color: scheme.onSurfaceVariant,
+
+              const SizedBox(height: 8),
+
+              // Description
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: Text(
+                  description,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
               ),
-              if (widget.actionLabel != null && widget.onAction != null) ...[
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: widget.onAction,
-                  icon: const Icon(Icons.add_rounded),
-                  label: Text(widget.actionLabel!),
+
+              // Optional Features List (e.g. for Secret Chats)
+              if (features != null && features!.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 340),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHigh.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: scheme.outlineVariant.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: features!.map((feature) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Icon(
+                                  Icons.check_circle_outline_rounded,
+                                  size: 16,
+                                  color: scheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  feature,
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                    height: 1.35,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ],
+
+              // Action Button
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: 22),
+                FilledButton.tonalIcon(
+                  onPressed: onAction,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: Text(
+                    actionLabel!,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -101,134 +165,4 @@ class _EmptyFeedWidgetState extends State<EmptyFeedWidget>
       ),
     );
   }
-}
-
-class _EmptyFeedPainter extends CustomPainter {
-  _EmptyFeedPainter({required this.scheme});
-
-  final ColorScheme scheme;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double cx = size.width / 2;
-    final double cy = size.height / 2;
-
-    final Paint outerCircle = Paint()
-      ..color = scheme.primaryContainer.withValues(alpha: 0.5)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(cx, cy), 52, outerCircle);
-
-    final Paint innerCircle = Paint()
-      ..color = scheme.primaryContainer.withValues(alpha: 0.8)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(cx, cy), 36, innerCircle);
-
-    final Paint pen = Paint()
-      ..color = scheme.primary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-
-    final Path penPath = Path()
-      ..moveTo(cx - 14, cy - 2)
-      ..quadraticBezierTo(cx - 2, cy - 10, cx + 10, cy - 8)
-      ..moveTo(cx - 6, cy + 4)
-      ..quadraticBezierTo(cx, cy + 14, cx + 12, cy + 6);
-
-    canvas.drawPath(penPath, pen);
-
-    final Paint dot = Paint()
-      ..color = scheme.primary
-      ..style = PaintingStyle.fill;
-    for (final Offset p in <Offset>[
-      Offset(cx - 13, cy - 10),
-      Offset(cx + 6, cy - 14),
-      Offset(cx + 16, cy - 6),
-      Offset(cx - 16, cy + 4),
-      Offset(cx, cy + 14),
-    ]) {
-      canvas.drawCircle(p, 2.5, dot);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_EmptyFeedPainter old) => scheme != old.scheme;
-}
-
-class _Sparkles extends StatefulWidget {
-  const _Sparkles({required this.scheme});
-
-  final ColorScheme scheme;
-
-  @override
-  State<_Sparkles> createState() => _SparklesState();
-}
-
-class _SparklesState extends State<_Sparkles>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _sparkleController;
-
-  @override
-  void initState() {
-    super.initState();
-    _sparkleController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _sparkleController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 140,
-      height: 140,
-      child: AnimatedBuilder(
-        animation: _sparkleController,
-        builder: (_, _) {
-          return CustomPaint(
-            painter: _SparklePainter(
-              t: _sparkleController.value,
-              scheme: widget.scheme,
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _SparklePainter extends CustomPainter {
-  _SparklePainter({required this.t, required this.scheme});
-
-  final double t;
-  final ColorScheme scheme;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double cx = size.width / 2;
-    final double cy = size.height / 2;
-
-    final Paint sparkle = Paint()
-      ..color = scheme.tertiary.withValues(alpha: 0.6)
-      ..style = PaintingStyle.fill;
-
-    final double angle = t * 2 * math.pi;
-    for (int i = 0; i < 5; i++) {
-      final double a = angle + i * 1.256;
-      final double r = 62 + math.sin(a * 2) * 8;
-      final double sx = cx + math.cos(a) * r;
-      final double sy = cy + math.sin(a) * r;
-      final double s = 1.5 + math.sin(a * 3) * 1.0;
-      canvas.drawCircle(Offset(sx, sy), s.clamp(1.0, 3.0), sparkle);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_SparklePainter old) => t != old.t || scheme != old.scheme;
 }

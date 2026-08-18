@@ -1602,7 +1602,25 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   messagesAsync.when(
                     data: (List<ApiMessage> messages) {
                       if (messages.isEmpty) {
+                        final bool isSecretChat = chat?.isSecret == true || _isSecret;
+                        if (isSecretChat) {
+                          return EmptyFeedWidget(
+                            icon: Icons.lock_rounded,
+                            title: 'Секретный чат',
+                            description: 'Переписка в этом чате защищена сквозным шифрованием',
+                            features: const [
+                              'Сквозное шифрование (Double Ratchet)',
+                              'Сообщения не сохраняются на сервере',
+                              'Ключи хранятся только на ваших устройствах',
+                              'Никто третий не может прочитать переписку',
+                            ],
+                            actionLabel: context.l10n.chatSendFirst,
+                            onAction: () => _inputFocusNode.requestFocus(),
+                          );
+                        }
+
                         return EmptyFeedWidget(
+                          icon: Icons.chat_bubble_outline_rounded,
                           title: context.l10n.chatNoMessages,
                           description: context.l10n.chatSendFirst,
                           actionLabel: context.l10n.chatSendFirst,
