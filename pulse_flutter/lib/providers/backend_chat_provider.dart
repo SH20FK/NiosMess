@@ -19,6 +19,29 @@ import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/services/double_ratchet_service.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 
+ApiMessage _stubMessage(int id, int chatId, {int senderId = 0, bool isDeleted = false}) =>
+    ApiMessage(
+      id: id,
+      chatId: chatId,
+      senderId: senderId,
+      senderUsername: '',
+      senderDisplayName: '',
+      senderBadges: const [],
+      content: '',
+      msgType: 'text',
+      replyToId: null,
+      mediaUrl: null,
+      mediaType: null,
+      mediaName: null,
+      mediaSize: null,
+      mediaDuration: null,
+      commentsCount: 0,
+      reactions: const {},
+      sentAt: DateTime.now(),
+      editedAt: null,
+      isDeleted: isDeleted,
+    );
+
 /// Parsed E2EE handshake (HELO) message: a plain text message whose content
 /// is JSON `{"dh": ..., "ed": ..., "sig": ...}`.
 class _E2eeHelo {
@@ -88,10 +111,98 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       case ChatPushEventKind.edited:
         _handleEditedPush(event.message);
       case ChatPushEventKind.deleted:
+        _handleDeletedPush(event.message);
       case ChatPushEventKind.reaction:
+        _handleReactionPush(
+          event.message,
+          event.reactionEmoji ?? '',
+          added: event.reactionAdded,
+        );
       case ChatPushEventKind.read:
-        break;
+        _handleReadPush(event.message.chatId, event.userId ?? 0);
     }
+  }
+
+  void _handleReadPush(int chatId, int userId) {
+    final List<ApiChatSummary>? currentChats = state.value;
+    if (currentChats == null) return;
+
+    final int index =
+        currentChats.indexWhere((ApiChatSummary c) => c.id == chatId);
+    if (index == -1) return;
+    final ApiChatSummary chat = currentChats[index];
+
+    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(currentChats);
+
+    if (userId == myUserId) {
+      // Current user read the chat
+      if (chat.unreadCount != 0) {
+        updated[index] = chat.copyWith(unreadCount: 0);
+        state = AsyncData<List<ApiChatSummary>>(updated);
+        ref.read(cacheServiceProvider).saveChats(updated);
+      }
+    } else {
+      // Peer read the chat: mark our last message as read
+      if (chat.lastMessage != null &&
+          chat.lastMessage!.senderId == myUserId &&
+          !chat.lastMessage!.isRead) {
+        updated[index] = chat.copyWith(
+          lastMessage: chat.lastMessage!.copyWith(isRead: true),
+        );
+        state = AsyncData<List<ApiChatSummary>>(updated);
+        ref.read(cacheServiceProvider).saveChats(updated);
+      }
+    }
+  }
+
+  void _handleDeletedPush(ApiMessage message) {
+    final List<ApiChatSummary>? currentChats = state.value;
+    if (currentChats == null) return;
+
+    final int index =
+        currentChats.indexWhere((ApiChatSummary c) => c.id == message.chatId);
+    if (index == -1) return;
+    final ApiChatSummary chat = currentChats[index];
+    if (chat.lastMessage?.id != message.id) return;
+
+    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(currentChats);
+    updated[index] = chat.copyWith(
+      lastMessage: chat.lastMessage?.copyWith(
+        content: 'Сообщение удалено',
+        isDeleted: true,
+      ),
+    );
+    state = AsyncData<List<ApiChatSummary>>(updated);
+    ref.read(cacheServiceProvider).saveChats(updated);
+  }
+
+  void _handleReactionPush(ApiMessage message, String emoji, {required bool added}) {
+    if (emoji.isEmpty) return;
+    final List<ApiChatSummary>? currentChats = state.value;
+    if (currentChats == null) return;
+
+    final int index =
+        currentChats.indexWhere((ApiChatSummary c) => c.id == message.chatId);
+    if (index == -1) return;
+    final ApiChatSummary chat = currentChats[index];
+    if (chat.lastMessage?.id != message.id) return;
+
+    final Map<String, int> reactions =
+        Map<String, int>.from(chat.lastMessage!.reactions);
+    final int count = (reactions[emoji] ?? 0) + (added ? 1 : -1);
+    if (count > 0) {
+      reactions[emoji] = count;
+    } else {
+      reactions.remove(emoji);
+    }
+
+    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(currentChats);
+    updated[index] = chat.copyWith(
+      lastMessage: chat.lastMessage!.copyWith(reactions: reactions),
+    );
+    state = AsyncData<List<ApiChatSummary>>(updated);
+    ref.read(cacheServiceProvider).saveChats(updated);
   }
 
   void _handleEditedPush(ApiMessage message) {
@@ -293,7 +404,6 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   Future<void> _handleEditedIncomingMessage(ApiMessage message) async {
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
     final int index = current.indexWhere((ApiMessage m) => m.id == message.id);
-    if (index == -1) return;
 
     ApiMessage next = message;
     // Secret chats: re-decrypt the edited payload.
@@ -303,8 +413,13 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       if (decrypted.isNotEmpty) next = decrypted.first;
     }
 
-    final List<ApiMessage> updated = List<ApiMessage>.from(current)
-      ..[index] = next;
+    final List<ApiMessage> updated;
+    if (index != -1) {
+      updated = List<ApiMessage>.from(current)..[index] = next;
+    } else {
+      updated = List<ApiMessage>.from(current)..add(next);
+      updated.sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+    }
     state = AsyncData<List<ApiMessage>>(updated);
     await _saveToCache(updated);
   }
@@ -622,7 +737,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   Future<void> markRead() async {
     try {
       await ref.read(chatRepositoryProvider).markRead(_chatId);
-      await ref.read(chatsProvider.notifier).refresh();
+      final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+      ref.read(chatsProvider.notifier)._handleReadPush(_chatId, myUserId);
     } catch (e) { debugPrint('[backend_chat_provider.dart] Error: $e'); }
   }
 
@@ -742,7 +858,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
       state = AsyncData<List<ApiMessage>>(next);
       await _saveToCache(next);
-      await ref.read(chatsProvider.notifier).refresh();
+      ref.read(chatsProvider.notifier)._handleNewMessagePush(sent);
       await _playNotificationSound(volume: 0.65);
     } catch (e) {
       current = state.value ?? const <ApiMessage>[];
@@ -875,8 +991,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           ..sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
         state = AsyncData<List<ApiMessage>>(confirmed);
         await _saveToCache(confirmed);
+        ref.read(chatsProvider.notifier)._handleEditedPush(edited);
       }
-      await ref.read(chatsProvider.notifier).refresh();
     } catch (e) {
       state = AsyncData<List<ApiMessage>>(current);
     }
@@ -891,7 +1007,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     try {
       await ref.read(chatRepositoryProvider).deleteMessage(_chatId, messageId);
       await _saveToCache(optimisticNext);
-      await ref.read(chatsProvider.notifier).refresh();
+      final ApiMessage deletedStub = _stubMessage(messageId, _chatId, isDeleted: true);
+      ref.read(chatsProvider.notifier)._handleDeletedPush(deletedStub);
     } catch (e) {
       state = AsyncData<List<ApiMessage>>(current);
     }
@@ -938,7 +1055,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     try {
       await ref.read(chatRepositoryProvider).toggleReaction(_chatId, messageId, emoji: emoji);
       await _saveToCache(optimisticNext);
-      await ref.read(chatsProvider.notifier).refresh();
+      final ApiMessage? updatedMsg = optimisticNext.where((m) => m.id == messageId).firstOrNull;
+      if (updatedMsg != null) {
+        ref.read(chatsProvider.notifier)._handleEditedPush(updatedMsg);
+      }
     } catch (e) {
       state = AsyncData<List<ApiMessage>>(current);
     }

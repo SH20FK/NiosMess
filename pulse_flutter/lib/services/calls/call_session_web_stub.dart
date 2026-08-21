@@ -74,7 +74,7 @@ class CallSession {
     _emitState();
 
     _connSub = _transport.onConnected.listen((_) {
-      _state = CallSessionState.connected;
+      _state = CallSessionState.inCall;
       _durationTimer?.cancel();
       _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         _durationSeconds++;

@@ -433,20 +433,13 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> logout() async {
     try {
       if (state.isAuthenticated) {
-        // Revoke push routing for this device before the session dies,
-        // otherwise FCM keeps delivering to a logged-out client.
-        if (!kIsWeb) {
-          try {
-            final String? fcmToken = await PushNotificationService.getToken();
-            if (fcmToken != null) {
-              await ref.read(webSocketClientProvider).request(
-                    'unregister_fcm_token',
-                    payload: {'fcm_token': fcmToken},
-                  );
-            }
-          } catch (e) {
-            debugPrint('[auth_provider.dart] FCM unregister failed: $e');
+        try {
+          final String? fcmToken = await PushNotificationService.getToken();
+          if (fcmToken != null && fcmToken.isNotEmpty) {
+            await ref.read(authRepositoryProvider).unregisterFcmToken(fcmToken);
           }
+        } catch (e) {
+          debugPrint('[auth_provider.dart] FCM unregister failed: $e');
         }
         await ref.read(authRepositoryProvider).logout();
       }

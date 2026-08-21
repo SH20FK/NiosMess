@@ -796,7 +796,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     switch (action) {
       case 'read':
         await ref.read(chatMessagesProvider(chat.id).notifier).markRead();
-        await ref.read(chatsProvider.notifier).refresh();
         return;
       case 'leave':
         await _leaveChat(context, chat);

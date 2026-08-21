@@ -233,7 +233,9 @@ class WebSocketClient {
 
       // Server error
       final String? error = msg['error'] as String?;
-      final int? requestId = msg['request_id'] as int?;
+      final int? requestId = msg['request_id'] is int
+          ? msg['request_id'] as int
+          : int.tryParse(msg['request_id']?.toString() ?? '');
 
       if (requestId != null) {
         final Completer<Map<String, dynamic>>? completer =

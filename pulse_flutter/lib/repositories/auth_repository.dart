@@ -75,6 +75,13 @@ class AuthRepository {
     return AuthLoginResult.fromJson(asStringMap(response));
   }
 
+  Future<void> unregisterFcmToken(String fcmToken) async {
+    await _ref.read(webSocketClientProvider).request(
+      'unregister_fcm_token',
+      payload: <String, dynamic>{'fcm_token': fcmToken},
+    );
+  }
+
   Future<void> logout() async {
     await _ref.read(webSocketClientProvider).request('logout', payload: <String, dynamic>{});
   }

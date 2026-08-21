@@ -99,44 +99,44 @@ class WebSocketPushDispatcher {
     _chatListListeners.remove(-1);
   }
 
-  static void _emit(ApiMessage stub, ChatPushEvent event) {
+  static void emit(ApiMessage stub, ChatPushEvent event) {
     _chatListeners[stub.chatId]?.call(event);
     _chatListListeners[-1]?.call(event);
   }
 
   static void _handlePushEvent(Map<String, dynamic> event) {
     final String? action = event['action'] as String?;
-    final dynamic payload = event['payload'];
-    if (payload is! Map<String, dynamic>) return;
+    final dynamic rawPayload = event['payload'];
+    if (rawPayload is! Map) return;
+    final Map<String, dynamic> payload =
+        rawPayload.map((k, v) => MapEntry(k.toString(), v));
 
     try {
       switch (action) {
         case 'new_message':
-          _emit(
-            ApiMessage.fromJson(payload),
-            ChatPushEvent.newMessage(ApiMessage.fromJson(payload)),
-          );
+          final ApiMessage msg = ApiMessage.fromJson(payload);
+          emit(msg, ChatPushEvent.newMessage(msg));
           break;
         case 'edit_message':
         case 'message_edited':
           final ApiMessage msg = ApiMessage.fromJson(payload);
-          _emit(msg, ChatPushEvent.edited(msg));
+          emit(msg, ChatPushEvent.edited(msg));
           break;
         case 'message_deleted':
-          final int chatId = payload['chat_id'] as int? ?? 0;
-          final int messageId = payload['message_id'] as int? ?? 0;
+          final int chatId = int.tryParse(payload['chat_id']?.toString() ?? '') ?? 0;
+          final int messageId = int.tryParse(payload['message_id']?.toString() ?? '') ?? 0;
           if (chatId > 0 && messageId > 0) {
             final ApiMessage stub = _stub(messageId, chatId, isDeleted: true);
-            _emit(stub, ChatPushEvent.deleted(stub));
+            emit(stub, ChatPushEvent.deleted(stub));
           }
           break;
         case 'message_reaction':
-          final int chatId = payload['chat_id'] as int? ?? 0;
-          final int messageId = payload['message_id'] as int? ?? 0;
-          final String? emoji = payload['emoji'] as String?;
+          final int chatId = int.tryParse(payload['chat_id']?.toString() ?? '') ?? 0;
+          final int messageId = int.tryParse(payload['message_id']?.toString() ?? '') ?? 0;
+          final String? emoji = payload['emoji']?.toString();
           if (chatId > 0 && messageId > 0 && emoji != null && emoji.isNotEmpty) {
             final ApiMessage stub = _stub(messageId, chatId);
-            _emit(
+            emit(
               stub,
               ChatPushEvent.reaction(
                 stub,
@@ -147,11 +147,21 @@ class WebSocketPushDispatcher {
           }
           break;
         case 'chat_read':
-          final int chatId = payload['chat_id'] as int? ?? 0;
-          final int userId = payload['user_id'] as int? ?? 0;
+          final int chatId = int.tryParse(payload['chat_id']?.toString() ?? '') ?? 0;
+          final int userId = int.tryParse(payload['user_id']?.toString() ?? '') ?? 0;
           if (chatId > 0 && userId > 0) {
             final ApiMessage stub = _stub(0, chatId, senderId: userId);
-            _emit(stub, ChatPushEvent.read(stub, userId: userId));
+            emit(stub, ChatPushEvent.read(stub, userId: userId));
+          }
+          break;
+        case 'end_call':
+        case 'call_ended':
+          final dynamic callMsg = payload['message'];
+          if (callMsg is Map) {
+            final Map<String, dynamic> callMsgMap =
+                callMsg.map((k, v) => MapEntry(k.toString(), v));
+            final ApiMessage msg = ApiMessage.fromJson(callMsgMap);
+            emit(msg, ChatPushEvent.edited(msg));
           }
           break;
       }

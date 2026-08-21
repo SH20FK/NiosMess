@@ -992,7 +992,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       await ref
           .read(chatMessagesProvider(target.id).notifier)
           .send(forwardText);
-      await ref.read(chatsProvider.notifier).refresh();
       if (!mounted) return;
       AppToast.showSuccess(context, context.l10n.chatMessageForwarded);
     } catch (e) {
