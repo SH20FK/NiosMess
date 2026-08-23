@@ -49,7 +49,7 @@ class _AppearanceScreen extends ConsumerWidget {
         final dynamicScheme = brightness == Brightness.light
             ? lightDynamic
             : darkDynamic;
-        final targetTheme = AppTheme.themed(settings, brightness,
+        final targetTheme = AppTheme.themed(settings.visualTheme, brightness,
             dynamicScheme: settings.useSystemDynamic
                 ? dynamicScheme
                 : null);

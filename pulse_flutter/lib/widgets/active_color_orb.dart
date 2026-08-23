@@ -36,14 +36,18 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
       duration: const Duration(milliseconds: 300),
     );
 
+    if (widget.selected) {
+      _pulseController.value = 1.0;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     _previewScheme = ColorScheme.fromSeed(
       seedColor: widget.color,
       brightness: Theme.of(context).brightness,
     );
-
-    if (widget.selected) {
-      _pulseController.value = 1.0;
-    }
   }
 
   @override

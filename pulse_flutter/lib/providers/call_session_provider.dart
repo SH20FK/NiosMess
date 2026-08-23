@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/call_video_provider.dart';
@@ -43,6 +44,7 @@ class CallSessionManager {
   final Uint8List aesKeyBytes;
 
   CallSession? _session;
+  StreamSubscription<CallSessionData>? _stateSub;
 
   CallSession? get session => _session;
 
@@ -62,7 +64,8 @@ class CallSessionManager {
             }
           : null,
     );
-    _session!.stateStream.listen((data) {
+    _stateSub?.cancel();
+    _stateSub = _session!.stateStream.listen((data) {
       if (data.state == CallSessionState.ended) {
         ref.read(callSessionProvider.notifier).setSession(null);
       }
@@ -85,6 +88,8 @@ class CallSessionManager {
     } catch (e) {
       debugPrint('[call_session_provider] Send call log error: $e');
     }
+    _stateSub?.cancel();
+    _stateSub = null;
     await _session?.end();
     _session?.dispose();
     _session = null;
@@ -92,6 +97,8 @@ class CallSessionManager {
   }
 
   void dispose() {
+    _stateSub?.cancel();
+    _stateSub = null;
     _session?.dispose();
     _session = null;
   }
@@ -99,6 +106,8 @@ class CallSessionManager {
   /// The remote side ended the call (end_call push): tear down locally
   /// without echoing end signaling back to the server.
   Future<void> remoteEnd() async {
+    _stateSub?.cancel();
+    _stateSub = null;
     await _session?.end();
     _session?.dispose();
     _session = null;

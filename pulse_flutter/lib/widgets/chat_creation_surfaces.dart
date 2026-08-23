@@ -5,10 +5,10 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 Future<void> showStartDirectChatDialog(BuildContext context) {
+  final TextEditingController usernameController = TextEditingController();
   return showAppDialog<void>(
     context: context,
     builder: (BuildContext ctx) {
-      final TextEditingController usernameController = TextEditingController();
       return StatefulBuilder(
         builder: (BuildContext context, StateSetter setState) {
           String? errorText;
@@ -69,7 +69,7 @@ Future<void> showStartDirectChatDialog(BuildContext context) {
         },
       );
     },
-  );
+  ).whenComplete(() => usernameController.dispose());
 }
 
 Future<String?> showCreateChatMenu(BuildContext context) {

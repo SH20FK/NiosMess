@@ -238,6 +238,14 @@ class CallSession {
       case kPacketTypeHeartbeat:
         _handlePeerHeartbeat(data);
         return;
+      case kPacketTypePeerLeave:
+        if (data.length >= 5) {
+          final int peerId = ByteData.view(data.buffer, data.offsetInBytes, data.length).getUint32(1);
+          _remoteParticipants.removeWhere((p) => p.clientId == peerId);
+          onRemoteParticipantLeft?.call(peerId);
+          _triggerStateUpdate();
+        }
+        return;
     }
   }
 
@@ -290,6 +298,12 @@ class CallSession {
       );
       await _transport?.send(keyExchangePacket);
       debugPrint('[CallSession] Sent key exchange packet (0x06) to peer $peerId');
+
+      // Ensure peer has our public key (0x05) to derive the shared secret
+      if (_keyManager.myPubKeyRaw != null) {
+        final pubKeyPacket = packPublicKeyPacket(myPubKeyRaw: _keyManager.myPubKeyRaw!);
+        await _transport?.send(pubKeyPacket);
+      }
 
       if (!_remoteParticipants.any((p) => p.clientId == peerId)) {
         final participant = RemoteParticipant(
@@ -475,7 +489,6 @@ class CallSession {
     encryptedMedia.setRange(secretBox.cipherText.length, encryptedMedia.length, secretBox.mac.bytes);
 
     final Uint8List packet = packMediaPacket(
-      senderClientId: _localClientId!,
       iv: iv,
       encryptedData: encryptedMedia,
     );
@@ -625,7 +638,6 @@ class CallSession {
         encryptedMedia.setRange(secretBox.cipherText.length, encryptedMedia.length, secretBox.mac.bytes);
 
         final Uint8List packet = packMediaPacket(
-          senderClientId: _localClientId!,
           iv: iv,
           encryptedData: encryptedMedia,
         );

@@ -38,7 +38,20 @@ class E2eeFileCrypto {
     return out;
   }
 
-  static Future<Uint8List> decrypt(Uint8List blob, Uint8List key) async {
+  static Future<Uint8List> decrypt(Uint8List blob, Uint8List key, {Uint8List? iv}) async {
+    if (iv != null && iv.length == nonceBytes) {
+      if (blob.length < macBytes) {
+        throw const FormatException('E2EE file blob too short');
+      }
+      final Uint8List ct = Uint8List.sublistView(blob, 0, blob.length - macBytes);
+      final Uint8List mac = Uint8List.sublistView(blob, blob.length - macBytes);
+      final List<int> clear = await AesGcm.with256bits().decrypt(
+        SecretBox(ct, nonce: iv, mac: Mac(mac)),
+        secretKey: SecretKey(key),
+      );
+      return Uint8List.fromList(clear);
+    }
+
     if (blob.length <= nonceBytes + macBytes) {
       throw const FormatException('E2EE file blob too short');
     }

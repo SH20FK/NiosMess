@@ -449,6 +449,7 @@ class AuthNotifier extends Notifier<AuthState> {
     await _fcmTokenRefreshSubscription?.cancel();
     _fcmTokenRefreshSubscription = null;
 
+    ref.read(webSocketClientProvider).close();
     await _clearSessionStorage();
     try {
       await ref.read(cacheServiceProvider).clearAll();

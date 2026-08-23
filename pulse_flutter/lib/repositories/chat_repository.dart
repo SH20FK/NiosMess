@@ -848,7 +848,7 @@ class ChatRepository {
     final http.Response response = await http.post(
       Uri.parse(downloadUrl),
       headers: const <String, String>{'Content-Type': 'application/json'},
-      body: '{"token":"$token","file_path":"${cleanPath.replaceAll('"', '\\"')}"',
+      body: jsonEncode({'token': token, 'file_path': cleanPath}),
     );
 
     if (response.statusCode != 200) {

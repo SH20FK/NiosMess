@@ -11,14 +11,15 @@ class ActiveCallScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(callSessionProvider)?.session;
+    final scheme = Theme.of(context).colorScheme;
     if (session == null) {
       return Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: scheme.surface,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            icon: Icon(Icons.arrow_back_rounded, color: scheme.onSurface),
             onPressed: () {
               if (Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
@@ -28,8 +29,8 @@ class ActiveCallScreen extends ConsumerWidget {
             },
           ),
         ),
-        body: const Center(
-          child: CircularProgressIndicator(color: Colors.white),
+        body: Center(
+          child: CircularProgressIndicator(color: scheme.primary),
         ),
       );
     }

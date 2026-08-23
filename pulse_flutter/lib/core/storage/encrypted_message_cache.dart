@@ -58,6 +58,13 @@ class EncryptedMessageCache {
     }
   }
 
+  static Future<T> _runCompute<T>(FutureOr<T> Function() computation) {
+    if (kIsWeb) {
+      return Future<T>.sync(computation);
+    }
+    return Isolate.run(computation);
+  }
+
   static Future<void> saveMessages(
     int chatId,
     List<ApiMessage> messages,
@@ -69,7 +76,7 @@ class EncryptedMessageCache {
           ? messages.sublist(messages.length - 100).map((m) => m.toJson()).toList()
           : messages.map((m) => m.toJson()).toList();
 
-      final String encoded = await Isolate.run(() async {
+      final String encoded = await _runCompute(() async {
         final AesGcm isolateAes = AesGcm.with256bits();
         final SecretKey isolateKey = SecretKey(keyBytes);
         final String json = jsonEncode(messagesJson);
@@ -102,7 +109,7 @@ class EncryptedMessageCache {
       final SecretKey key = await _getOrCreateKey();
       final List<int> keyBytes = await key.extractBytes();
 
-      final List<Map<String, dynamic>>? messagesJson = await Isolate.run(() async {
+      final List<Map<String, dynamic>>? messagesJson = await _runCompute(() async {
         final AesGcm isolateAes = AesGcm.with256bits();
         final SecretKey isolateKey = SecretKey(keyBytes);
         final List<int> combined = base64.decode(encoded);
@@ -124,13 +131,16 @@ class EncryptedMessageCache {
           nonce: nonce,
           mac: Mac(mac),
         );
-        final List<int> plaintext = await isolateAes.decrypt(
+        final List<int> decrypted = await isolateAes.decrypt(
           box,
           secretKey: isolateKey,
         );
-        final String json = utf8.decode(plaintext);
-        final List<dynamic> list = jsonDecode(json) as List<dynamic>;
-        return list.whereType<Map<String, dynamic>>().toList();
+        final String json = utf8.decode(decrypted);
+        final dynamic decoded = jsonDecode(json);
+        if (decoded is List) {
+          return decoded.cast<Map<String, dynamic>>();
+        }
+        return null;
       });
 
       if (messagesJson == null) {

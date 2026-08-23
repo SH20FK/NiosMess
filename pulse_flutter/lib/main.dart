@@ -86,7 +86,8 @@ class PulseApp extends ConsumerWidget {
         ref.watch(uiSettingsProvider.select((s) => s.timeZoneId));
     final AppFontScale fontScale =
         ref.watch(uiSettingsProvider.select((s) => s.fontScale));
-    final UiSettingsState themeSettings = ref.watch(uiSettingsProvider);
+    final VisualThemeSettings visualTheme =
+        ref.watch(uiSettingsProvider.select((s) => s.visualTheme));
     final GoRouter router = ref.watch(appRouterProvider);
     ref.watch(callPushHandlerProvider);
     final String systemLanguageCode =
@@ -115,8 +116,8 @@ class PulseApp extends ConsumerWidget {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           locale: appLocale,
-          theme: AppTheme.themed(themeSettings, Brightness.light, dynamicScheme: lightDynamic),
-          darkTheme: AppTheme.themed(themeSettings, Brightness.dark, dynamicScheme: darkDynamic),
+          theme: AppTheme.themed(visualTheme, Brightness.light, dynamicScheme: lightDynamic),
+          darkTheme: AppTheme.themed(visualTheme, Brightness.dark, dynamicScheme: darkDynamic),
           themeMode: themeMode,
           routerConfig: router,
           builder: (BuildContext context, Widget? child) {

@@ -72,7 +72,7 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     if (event is! Map) return;
     final Map<String, dynamic> msg = asStringMap(event);
     if (msg['action'] != 'new_ng_post') return;
-    final dynamic data = msg['data'];
+    final dynamic data = msg['payload'] ?? msg['data'];
     if (data is! Map) return;
     final NgPost post = NgPost.fromJson(
       data.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),

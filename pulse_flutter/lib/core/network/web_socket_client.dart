@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:uuid/uuid.dart';
@@ -101,8 +102,29 @@ class WebSocketClient {
     await _connectionReadyCompleter!.future;
   }
 
+  int _reconnectAttempts = 0;
+  Timer? _heartbeatTimer;
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+      if (isConnected) {
+        sendRaw(jsonEncode(<String, dynamic>{
+          'action': 'ping',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        }));
+      }
+    });
+  }
+
+  void _stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+  }
+
   void _onError(Object error) {
     debugPrint('[WebSocketClient] Socket error: $error');
+    _stopHeartbeat();
     _channelSubscription?.cancel();
     _channelSubscription = null;
     _failPendingRequests('Connection to server lost');
@@ -116,6 +138,7 @@ class WebSocketClient {
 
   void _onDone() {
     debugPrint('[WebSocketClient] Socket closed by server.');
+    _stopHeartbeat();
     _channelSubscription?.cancel();
     _channelSubscription = null;
     _failPendingRequests('Connection to server closed');
@@ -128,8 +151,15 @@ class WebSocketClient {
   }
 
   void _scheduleReconnect() {
+    _stopHeartbeat();
     _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(const Duration(seconds: 3), () {
+    _reconnectAttempts++;
+    final int backoffMs =
+        (1200 * math.pow(1.8, math.min(_reconnectAttempts, 6))).toInt();
+    final int jitterMs = math.Random().nextInt(400);
+    final int totalDelay = math.min(25000, backoffMs + jitterMs);
+
+    _reconnectTimer = Timer(Duration(milliseconds: totalDelay), () {
       if (!_closed && !isConnected && !_isConnecting) {
         connect().catchError((e) {
           debugPrint('[WebSocketClient] Reconnect error: $e');
@@ -222,6 +252,8 @@ class WebSocketClient {
           }
           _secretKey = SecretKey(keyBytes);
           _isConnecting = false;
+          _reconnectAttempts = 0;
+          _startHeartbeat();
           debugPrint('[WebSocketClient] Key exchange complete ✓');
           if (_connectionReadyCompleter != null &&
               !_connectionReadyCompleter!.isCompleted) {
@@ -392,8 +424,15 @@ class WebSocketClient {
     }
   }
 
+  void sendRaw(String data) {
+    if (_isSocketOpen && _channel != null) {
+      _channel!.sink.add(data);
+    }
+  }
+
   void close() {
     _closed = true;
+    _stopHeartbeat();
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _channelSubscription?.cancel();

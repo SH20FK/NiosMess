@@ -17,6 +17,37 @@ enum AppFontScale {
   final double scale;
 }
 
+class VisualThemeSettings {
+  const VisualThemeSettings({
+    required this.seedColor,
+    required this.themeMode,
+    required this.useSystemDynamic,
+    required this.predictiveBackEnabled,
+  });
+
+  final Color seedColor;
+  final ThemeMode themeMode;
+  final bool useSystemDynamic;
+  final bool predictiveBackEnabled;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VisualThemeSettings &&
+          runtimeType == other.runtimeType &&
+          seedColor == other.seedColor &&
+          themeMode == other.themeMode &&
+          useSystemDynamic == other.useSystemDynamic &&
+          predictiveBackEnabled == other.predictiveBackEnabled;
+
+  @override
+  int get hashCode =>
+      seedColor.hashCode ^
+      themeMode.hashCode ^
+      useSystemDynamic.hashCode ^
+      predictiveBackEnabled.hashCode;
+}
+
 class UiSettingsState {
   const UiSettingsState({
     required this.themeMode,
@@ -37,6 +68,13 @@ class UiSettingsState {
     required this.fontScale,
     required this.navBarFloating,
   });
+
+  VisualThemeSettings get visualTheme => VisualThemeSettings(
+        seedColor: seedColor,
+        themeMode: themeMode,
+        useSystemDynamic: useSystemDynamic,
+        predictiveBackEnabled: predictiveBackEnabled,
+      );
 
   const UiSettingsState.defaults()
     : themeMode = ThemeMode.system,

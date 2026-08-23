@@ -8,18 +8,15 @@ void main() {
     test('packs and parses header fields', () {
       final iv = Uint8List.fromList(List<int>.generate(12, (i) => i));
       final data = Uint8List.fromList(<int>[1, 2, 3, 4, 5]);
-      const int senderId = 0x01020304;
       final packet = packMediaPacket(
-        senderClientId: senderId,
         iv: iv,
         encryptedData: data,
       );
 
       expect(packet[0], kPacketTypeMedia);
-      expect(packet.length, 1 + 4 + 12 + data.length);
-      expect(ByteData.view(packet.buffer).getUint32(1), senderId);
-      expect(packet.sublist(5, 17), iv);
-      expect(packet.sublist(17), data);
+      expect(packet.length, 1 + 12 + data.length);
+      expect(packet.sublist(1, 13), iv);
+      expect(packet.sublist(13), data);
     });
   });
 

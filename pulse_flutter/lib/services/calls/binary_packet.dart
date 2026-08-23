@@ -9,6 +9,7 @@ const int kPacketTypeServerClientId = 0x03;
 const int kPacketTypeServerEndCall = 0x04;
 const int kPacketTypePublicKey = 0x05;
 const int kPacketTypeKeyExchange = 0x06;
+const int kPacketTypePeerLeave = 0x07;
 
 const int kClientIdBytes = 4;
 const int kAesGcmIvBytes = 12;
@@ -93,22 +94,17 @@ ParsedPacket unpackPacket(Uint8List data) {
 
 /// Build a media packet to send (Type 1).
 ///
-/// Wire format (matches the NiosCalls relay spec and the reference web
-/// client): `[0x01][senderId 4][iv 12][encrypted data]`. The relay passes
-/// packets through verbatim, so the sender must embed its own client id;
-/// the receiver reads `senderId` at bytes 1..5, `iv` at 5..17.
+/// Wire format (matches calls.html:1064-1068): `[0x01][iv 12B][encrypted data]`.
+/// The SFU server injects the sender client ID at bytes 1..5 when relaying.
 Uint8List packMediaPacket({
-  required int senderClientId,
   required Uint8List iv,
   required Uint8List encryptedData,
 }) {
-  final int totalLen = 1 + 4 + 12 + encryptedData.length;
+  final int totalLen = 1 + 12 + encryptedData.length;
   final Uint8List packet = Uint8List(totalLen);
-  final ByteData bd = ByteData.view(packet.buffer, packet.offsetInBytes, totalLen);
-  bd.setUint8(0, kPacketTypeMedia);
-  bd.setUint32(1, senderClientId);
-  packet.setRange(5, 17, iv);
-  packet.setRange(17, totalLen, encryptedData);
+  packet[0] = kPacketTypeMedia;
+  packet.setRange(1, 13, iv);
+  packet.setRange(13, totalLen, encryptedData);
   return packet;
 }
 

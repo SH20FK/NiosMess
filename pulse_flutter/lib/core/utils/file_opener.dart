@@ -91,6 +91,18 @@ class FileOpener {
     String filePath,
     FileTypeInfo typeInfo,
   ) async {
+    if (kIsWeb) {
+      final Uri? uri = Uri.tryParse(filePath);
+      if (uri != null) {
+        await launchUrl(uri);
+        return;
+      }
+      if (context.mounted) {
+        _showError(context, context.l10n.fileOpenerNoAppFound(typeInfo.label));
+      }
+      return;
+    }
+
     final OpenResult result = await OpenFile.open(filePath);
 
     if (result.type != ResultType.done && context.mounted) {

@@ -121,47 +121,47 @@ class MessageBubble extends ConsumerWidget {
   }
 
   static const BorderRadius _mineRadiusNoneSame = BorderRadius.all(
-    Radius.circular(16),
+    Radius.circular(20),
   );
   static const BorderRadius _mineRadiusPrevSame = BorderRadius.only(
-    topLeft: Radius.circular(16),
-    bottomLeft: Radius.circular(16),
-    topRight: Radius.circular(4),
-    bottomRight: Radius.circular(16),
+    topLeft: Radius.circular(20),
+    bottomLeft: Radius.circular(20),
+    topRight: Radius.circular(6),
+    bottomRight: Radius.circular(20),
   );
   static const BorderRadius _mineRadiusNextSame = BorderRadius.only(
-    topLeft: Radius.circular(16),
-    bottomLeft: Radius.circular(16),
-    topRight: Radius.circular(16),
-    bottomRight: Radius.circular(4),
+    topLeft: Radius.circular(20),
+    bottomLeft: Radius.circular(20),
+    topRight: Radius.circular(20),
+    bottomRight: Radius.circular(6),
   );
   static const BorderRadius _mineRadiusPrevSameNextSame = BorderRadius.only(
-    topLeft: Radius.circular(16),
-    bottomLeft: Radius.circular(16),
-    topRight: Radius.circular(4),
-    bottomRight: Radius.circular(4),
+    topLeft: Radius.circular(20),
+    bottomLeft: Radius.circular(20),
+    topRight: Radius.circular(6),
+    bottomRight: Radius.circular(6),
   );
 
   static const BorderRadius _theirsRadiusNoneSame = BorderRadius.all(
-    Radius.circular(16),
+    Radius.circular(20),
   );
   static const BorderRadius _theirsRadiusPrevSame = BorderRadius.only(
-    topRight: Radius.circular(16),
-    bottomRight: Radius.circular(16),
-    topLeft: Radius.circular(4),
-    bottomLeft: Radius.circular(16),
+    topRight: Radius.circular(20),
+    bottomRight: Radius.circular(20),
+    topLeft: Radius.circular(6),
+    bottomLeft: Radius.circular(20),
   );
   static const BorderRadius _theirsRadiusNextSame = BorderRadius.only(
-    topRight: Radius.circular(16),
-    bottomRight: Radius.circular(16),
-    topLeft: Radius.circular(16),
-    bottomLeft: Radius.circular(4),
+    topRight: Radius.circular(20),
+    bottomRight: Radius.circular(20),
+    topLeft: Radius.circular(20),
+    bottomLeft: Radius.circular(6),
   );
   static const BorderRadius _theirsRadiusPrevSameNextSame = BorderRadius.only(
-    topRight: Radius.circular(16),
-    bottomRight: Radius.circular(16),
-    topLeft: Radius.circular(4),
-    bottomLeft: Radius.circular(4),
+    topRight: Radius.circular(20),
+    bottomRight: Radius.circular(20),
+    topLeft: Radius.circular(6),
+    bottomLeft: Radius.circular(6),
   );
 
   static BorderRadius _getBubbleRadius(
@@ -289,7 +289,9 @@ class MessageBubble extends ConsumerWidget {
               },
               child: Container(
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width * 0.75,
+                  maxWidth: MediaQuery.sizeOf(context).width > 600
+                      ? 460.0
+                      : MediaQuery.sizeOf(context).width * 0.78,
                 ),
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
                 decoration: BoxDecoration(

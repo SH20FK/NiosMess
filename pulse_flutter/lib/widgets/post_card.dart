@@ -216,8 +216,11 @@ class _PostCardState extends ConsumerState<PostCard>
                 onTap: () => _openFullScreen(context, ApiConstants.resolve(post.mediaUrl), post.id),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: AspectRatio(
-                    aspectRatio: 16 / 10,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxHeight: 480,
+                      minHeight: 200,
+                    ),
                     child: Stack(
                       alignment: Alignment.center,
                       children: <Widget>[
@@ -228,16 +231,23 @@ class _PostCardState extends ConsumerState<PostCard>
                             child: CachedNetworkImage(
                               imageUrl: ApiConstants.resolve(post.mediaUrl),
                               httpHeaders: cachedAuthHeaders(),
-                              fit: BoxFit.contain,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
                               memCacheWidth: 800,
-                              placeholder: (_, _) => Center(
-                                child: AppLoadingIndicator(size: 28, color: scheme.onSurfaceVariant),
+                              placeholder: (_, _) => SizedBox(
+                                height: 260,
+                                child: Center(
+                                  child: AppLoadingIndicator(size: 28, color: scheme.onSurfaceVariant),
+                                ),
                               ),
-                              errorWidget: (_, _, _) => Center(
-                                child: Icon(
-                                  Icons.broken_image_rounded,
-                                  color: scheme.outline,
-                                  size: 32,
+                              errorWidget: (_, _, _) => SizedBox(
+                                height: 200,
+                                child: Center(
+                                  child: Icon(
+                                    Icons.broken_image_rounded,
+                                    color: scheme.outline,
+                                    size: 32,
+                                  ),
                                 ),
                               ),
                             ),
@@ -695,6 +705,6 @@ class _PostMenu extends ConsumerWidget {
           ],
         ),
       ),
-    );
+    ).whenComplete(() => ctrl.dispose());
   }
 }

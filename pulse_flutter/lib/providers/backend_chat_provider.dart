@@ -555,14 +555,18 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         );
 
         // Media envelope: carries the per-file AES key for local decryption.
-        if (decrypted.startsWith('{"e2ee_file"')) {
+        if (decrypted.startsWith('{"e2ee_file"') ||
+            decrypted.startsWith('{"type":"nios_file_key"') ||
+            decrypted.contains('"nios_file_key"')) {
           try {
             final Map<String, dynamic> envelope =
                 jsonDecode(decrypted) as Map<String, dynamic>;
-            if (envelope['e2ee_file'] == true && envelope['fk'] is String) {
+            final String? fk =
+                (envelope['fk'] as String?) ?? (envelope['keyB64'] as String?);
+            if (fk != null && fk.isNotEmpty) {
               result.add(msg.copyWith(
                 content: '',
-                e2eeFileKey: envelope['fk'] as String,
+                e2eeFileKey: fk,
                 mediaName: (envelope['name'] as String?) ?? msg.mediaName,
                 mediaSize: msg.mediaSize ?? (envelope['size'] as int?),
               ));
@@ -994,12 +998,15 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         ref.read(chatsProvider.notifier)._handleEditedPush(edited);
       }
     } catch (e) {
-      state = AsyncData<List<ApiMessage>>(current);
+      final List<ApiMessage> latest = state.value ?? const <ApiMessage>[];
+      final List<ApiMessage> reverted = latest.map((m) => m.id == messageId ? target : m).toList();
+      state = AsyncData<List<ApiMessage>>(reverted);
     }
   }
 
   Future<void> deleteMessage(int messageId) async {
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    final ApiMessage? target = current.where((m) => m.id == messageId).firstOrNull;
     final List<ApiMessage> optimisticNext = List<ApiMessage>.from(current)
       ..removeWhere((ApiMessage m) => m.id == messageId);
     state = AsyncData<List<ApiMessage>>(optimisticNext);
@@ -1010,7 +1017,14 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       final ApiMessage deletedStub = _stubMessage(messageId, _chatId, isDeleted: true);
       ref.read(chatsProvider.notifier)._handleDeletedPush(deletedStub);
     } catch (e) {
-      state = AsyncData<List<ApiMessage>>(current);
+      if (target != null) {
+        final List<ApiMessage> latest = List<ApiMessage>.from(state.value ?? const <ApiMessage>[]);
+        if (!latest.any((m) => m.id == messageId)) {
+          latest.add(target);
+          latest.sort((a, b) => a.id.compareTo(b.id));
+          state = AsyncData<List<ApiMessage>>(latest);
+        }
+      }
     }
   }
 
@@ -1034,6 +1048,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     if (emoji.trim().isEmpty) return;
 
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    final ApiMessage? original = current.where((m) => m.id == messageId).firstOrNull;
 
     final List<ApiMessage> optimisticNext = current.map((ApiMessage m) {
       if (m.id != messageId) return m;
@@ -1060,7 +1075,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         ref.read(chatsProvider.notifier)._handleEditedPush(updatedMsg);
       }
     } catch (e) {
-      state = AsyncData<List<ApiMessage>>(current);
+      if (original != null) {
+        final List<ApiMessage> latest = state.value ?? const <ApiMessage>[];
+        final List<ApiMessage> reverted = latest.map((m) => m.id == messageId ? original : m).toList();
+        state = AsyncData<List<ApiMessage>>(reverted);
+      }
     }
   }
 }

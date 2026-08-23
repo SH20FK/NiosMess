@@ -11,7 +11,7 @@ class AppTheme {
   static final LinkedHashMap<int, ThemeData> _themeCache =
       LinkedHashMap<int, ThemeData>();
 
-  static ColorScheme _scheme(UiSettingsState settings, Brightness brightness) {
+  static ColorScheme _scheme(VisualThemeSettings settings, Brightness brightness) {
     return ColorScheme.fromSeed(
       seedColor: settings.seedColor,
       brightness: brightness,
@@ -39,7 +39,7 @@ class AppTheme {
     );
   }
 
-  static ThemeData themed(UiSettingsState settings, Brightness brightness, {ColorScheme? dynamicScheme}) {
+  static ThemeData themed(VisualThemeSettings settings, Brightness brightness, {ColorScheme? dynamicScheme}) {
     final int cacheKey = settings.seedColor.toARGB32() ^ 
                          brightness.index ^ 
                          (settings.themeMode.index << 8) ^ 

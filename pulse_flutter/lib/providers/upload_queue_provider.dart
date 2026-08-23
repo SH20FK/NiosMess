@@ -158,9 +158,12 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
       if (currentTask != null) {
         String? e2eePlaintext;
         if (task.e2eeFileKey != null) {
+          final String keyB64 = base64Encode(task.e2eeFileKey!);
           e2eePlaintext = jsonEncode(<String, dynamic>{
+            'type': 'nios_file_key',
+            'keyB64': keyB64,
             'e2ee_file': true,
-            'fk': base64Encode(task.e2eeFileKey!),
+            'fk': keyB64,
             'name': task.filename,
             'size': task.fileSize,
           });

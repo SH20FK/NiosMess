@@ -465,44 +465,44 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             Expanded(
               child: _QuickActionButton(
                 icon: Icons.chat_bubble_rounded,
-                label: 'Чат',
+                label: context.l10n.tabChats,
                 color: scheme.primary,
                 onTap: () {
                   HapticService.tap();
-                  context.go('/chat/dm/${profile.username}');
+                  context.push('/chat/dm/${profile.username}');
                 },
               ),
             ),
             Expanded(
               child: _QuickActionButton(
                 icon: Icons.call_rounded,
-                label: 'Звонок',
+                label: context.l10n.callsQuickPeople,
                 color: scheme.tertiary,
                 onTap: () {
                   HapticService.tap();
-                  context.go('/call/dm/${profile.username}?isVideo=0');
+                  context.push('/call/dm/${profile.username}?isVideo=0');
                 },
               ),
             ),
             Expanded(
               child: _QuickActionButton(
                 icon: Icons.videocam_rounded,
-                label: 'Видео',
+                label: context.l10n.callsFilterVideo,
                 color: scheme.secondary,
                 onTap: () {
                   HapticService.tap();
-                  context.go('/call/dm/${profile.username}?isVideo=1');
+                  context.push('/call/dm/${profile.username}?isVideo=1');
                 },
               ),
             ),
             Expanded(
               child: _QuickActionButton(
                 icon: Icons.lock_rounded,
-                label: 'Секретный',
+                label: context.l10n.settingsSecretChatsButton,
                 color: scheme.primary,
                 onTap: () {
                   HapticService.tap();
-                  context.go('/chat/dm/${profile.username}?isSecret=1');
+                  context.push('/chat/dm/${profile.username}?isSecret=1');
                 },
               ),
             ),
