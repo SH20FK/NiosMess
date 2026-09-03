@@ -8,7 +8,12 @@ import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class SettingsLanguageRegionScreen extends ConsumerWidget {
-  const SettingsLanguageRegionScreen({super.key});
+  const SettingsLanguageRegionScreen({
+    this.isEmbedded = false,
+    super.key,
+  });
+
+  final bool isEmbedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,9 +29,10 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: context.l10n.languageRegionTitle,
+      isEmbedded: isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
-          icon: Icons.language_rounded,
+          illustrationCategory: SettingsIllustrationCategory.languageRegion,
           title: context.l10n.languageRegionTitle,
           subtitle: context.l10n.languageRegionSubtitle,
           iconColor: scheme.primary,

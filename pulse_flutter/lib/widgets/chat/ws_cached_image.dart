@@ -5,7 +5,7 @@ import 'package:universal_io/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/vector_illustrations.dart';
 
 class WsCachedImage extends ConsumerStatefulWidget {
   const WsCachedImage({
@@ -125,20 +125,18 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return widget.placeholder?.call(context) ??
-          SizedBox(
-            width: widget.width,
-            height: widget.height,
-            child: const Center(child: AppLoadingIndicator()),
+          MediaPlaceholderIllustration(
+            width: widget.width ?? double.infinity,
+            height: widget.height ?? 200,
           );
     }
 
     if (_error != null || _bytes == null) {
       return widget.errorWidget?.call(context, _error ?? 'Unknown error') ??
-          Container(
-            width: widget.width,
-            height: widget.height,
-            color: Theme.of(context).colorScheme.surfaceContainerHigh,
-            child: const Center(child: Icon(Icons.broken_image_rounded)),
+          MediaErrorIllustration(
+            width: widget.width ?? double.infinity,
+            height: widget.height ?? 160,
+            message: _error != null ? 'Ошибка загрузки' : 'Изображение недоступно',
           );
     }
 

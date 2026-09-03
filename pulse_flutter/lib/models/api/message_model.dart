@@ -193,8 +193,12 @@ class ApiMessage {
       sentAt: parseApiDateTime(json['sent_at'] as String?),
       editedAt: parseApiDateTimeNullable(json['edited_at'] as String?),
       isDeleted: _parseBool(json['is_deleted']),
-      replyMarkup: json['reply_markup'] != null
-          ? InlineKeyboardMarkup.fromJson(json['reply_markup'] as Map<String, dynamic>)
+      replyMarkup: json['reply_markup'] is Map
+          ? InlineKeyboardMarkup.fromJson(
+              (json['reply_markup'] as Map).map(
+                (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+              ),
+            )
           : null,
       isE2ee: isE2ee,
       e2eeContent: e2eeContentRaw,

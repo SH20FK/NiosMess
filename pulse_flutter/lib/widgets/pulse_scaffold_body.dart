@@ -14,6 +14,8 @@ class PulseScaffoldBody extends StatelessWidget {
     this.bottomSafe = true,
     this.bottomPadding = 0,
     this.animatedBackdrop = true,
+    this.expand = false,
+    this.alignment = Alignment.topCenter,
     super.key,
   });
 
@@ -23,6 +25,8 @@ class PulseScaffoldBody extends StatelessWidget {
   final bool bottomSafe;
   final double bottomPadding;
   final bool animatedBackdrop;
+  final bool expand;
+  final AlignmentGeometry alignment;
 
   bool get _isDesktop {
     if (kIsWeb) return false;
@@ -41,13 +45,16 @@ class PulseScaffoldBody extends StatelessWidget {
           bottom: bottomSafe,
           child: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
+              if (expand) {
+                return SizedBox.expand(child: child);
+              }
               final double width = constraints.maxWidth < maxWidth
                   ? constraints.maxWidth
                   : maxWidth;
               final double height = constraints.maxHeight - bottomPadding;
 
               return Align(
-                alignment: Alignment.topCenter,
+                alignment: alignment,
                 child: SizedBox(
                   width: width,
                   height: height > 0 ? height : 0,
@@ -74,9 +81,6 @@ class _PulseBackdrop extends ConsumerStatefulWidget {
 class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  Shader? _bgShader;
-  ColorScheme? _bgShaderScheme;
-  Size? _bgShaderSize;
 
   @override
   void initState() {
@@ -120,14 +124,12 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
     }
 
     if (!shouldAnimate) {
-      _updateShaderCache(scheme, Size.infinite);
       return RepaintBoundary(
         child: CustomPaint(
           painter: _BackdropPainter(
             t: 0.5,
             scheme: scheme,
             brightness: brightness,
-            bgShader: _bgShader,
           ),
           size: Size.infinite,
         ),
@@ -138,28 +140,17 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (BuildContext context, Widget? child) {
-          _updateShaderCache(scheme, Size.infinite);
           return CustomPaint(
             painter: _BackdropPainter(
               t: _controller.value,
               scheme: scheme,
               brightness: brightness,
-              bgShader: _bgShader,
             ),
             size: Size.infinite,
           );
         },
       ),
     );
-  }
-
-  void _updateShaderCache(ColorScheme scheme, Size size) {
-    if (!identical(_bgShaderScheme, scheme) || _bgShaderSize != size) {
-      final Gradient gradient = AppTheme.heroGradient(scheme);
-      _bgShader = gradient.createShader(Offset.zero & size);
-      _bgShaderScheme = scheme;
-      _bgShaderSize = size;
-    }
   }
 }
 
@@ -168,27 +159,27 @@ class _BackdropPainter extends CustomPainter {
     required this.t,
     required this.scheme,
     required this.brightness,
-    this.bgShader,
   });
 
   final double t;
   final ColorScheme scheme;
   final Brightness brightness;
-  final Shader? bgShader;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.isEmpty) return;
+    if (size.isEmpty || !size.width.isFinite || !size.height.isFinite) return;
 
     final Rect rect = Offset.zero & size;
-    final Paint gradientPaint = Paint()..shader = bgShader ?? AppTheme.heroGradient(scheme).createShader(rect);
+    final Paint gradientPaint = Paint()
+      ..shader = AppTheme.heroGradient(scheme).createShader(rect);
     canvas.drawRect(rect, gradientPaint);
 
     final double tw = t * math.pi * 2;
 
-    final Color primaryShape = scheme.primary.withValues(alpha: 0.15);
-    final Color secondaryShape = scheme.secondary.withValues(alpha: 0.15);
-    final Color tertiaryShape = scheme.tertiary.withValues(alpha: 0.15);
+    final bool isDark = brightness == Brightness.dark;
+    final Color primaryShape = scheme.primary.withValues(alpha: isDark ? 0.18 : 0.08);
+    final Color secondaryShape = scheme.secondary.withValues(alpha: isDark ? 0.15 : 0.06);
+    final Color tertiaryShape = scheme.tertiary.withValues(alpha: isDark ? 0.15 : 0.06);
 
     _drawPolygon(
       canvas,
@@ -252,13 +243,18 @@ class _BackdropPainter extends CustomPainter {
       width: polygonSize,
       height: polygonSize,
     );
+    if (!pathBounds.isFinite || pathBounds.isEmpty) {
+      canvas.restore();
+      return;
+    }
     final Paint paint = Paint()
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 56)
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: <Color>[
           color,
-          color.withValues(alpha: color.a * 0.68),
+          color.withValues(alpha: color.a * 0.4),
         ],
       ).createShader(pathBounds);
 

@@ -861,16 +861,20 @@ class ChatRepository {
   }
 
   Future<String?> resolveShortLink(String slug) async {
-    final dynamic response = await _ref
-        .read(webSocketClientProvider)
-        .request('resolve_short_link', payload: <String, dynamic>{'slug': slug});
-    if (response is Map && response['path'] != null) {
-      return response['path'] as String;
+    try {
+      final dynamic response = await _ref
+          .read(webSocketClientProvider)
+          .request('get_invite_info', payload: <String, dynamic>{'slug': slug});
+      if (response is Map && response['slug'] != null) {
+        return '/join/${response['slug']}';
+      }
+      if (response is Map && response['path'] != null) {
+        return response['path'] as String;
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
-    if (response is String && response.isNotEmpty) {
-      return response;
-    }
-    return null;
   }
 }
 

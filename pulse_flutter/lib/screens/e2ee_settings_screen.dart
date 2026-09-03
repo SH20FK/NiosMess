@@ -8,7 +8,12 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class E2eeSettingsScreen extends ConsumerStatefulWidget {
-  const E2eeSettingsScreen({super.key});
+  const E2eeSettingsScreen({
+    this.isEmbedded = false,
+    super.key,
+  });
+
+  final bool isEmbedded;
 
   @override
   ConsumerState<E2eeSettingsScreen> createState() => _E2eeSettingsScreenState();
@@ -113,9 +118,10 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
 
     return SettingsScaffold(
       title: context.l10n.e2eeScreenTitle,
+      isEmbedded: widget.isEmbedded,
       children: [
         SettingsNavBanner(
-          icon: Icons.lock_rounded,
+          illustrationCategory: SettingsIllustrationCategory.e2ee,
           title: context.l10n.e2eeBannerTitle,
           subtitle: context.l10n.e2eeBannerSubtitle,
           iconColor: scheme.tertiary,

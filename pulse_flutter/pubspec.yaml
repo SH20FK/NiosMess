@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 3.0.0+1
+version: 3.13.1+34
 
 environment:
   sdk: ^3.10.7
@@ -41,6 +41,7 @@ dependencies:
   shared_preferences: ^2.5.3
   http: ^1.5.0
   intl: ^0.20.2
+  google_fonts: ^6.2.1
   timezone: ^0.11.0
   file_picker: ^12.0.0
   cached_network_image: ^3.4.1
@@ -67,6 +68,7 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   cryptography: ^2.9.0
+  crypto: ^3.0.6
   loading_indicator_m3e: ^0.1.1
   uuid: ^4.5.1
   flutter_m3shapes: ^1.0.0+2
@@ -117,11 +119,14 @@ flutter:
 
   assets:
     - assets/fonts/
+    - assets/fonts/material_symbols/
     - assets/sounds/
     - assets/developers/
     - assets/lottie/
     - assets/icons/
     - assets/svg/
+    - assets/svg/pattern_icons/lucide/
+    - assets/svg/pattern_icons/tabler/
     - assets/legal/
     - assets/NiosMess_icon.png
 
@@ -148,6 +153,15 @@ flutter:
           weight: 600
         - asset: assets/fonts/inter/Inter-Variable.ttf
           weight: 700
+    - family: MaterialSymbolsOutlined
+      fonts:
+        - asset: assets/fonts/material_symbols/MaterialSymbolsOutlined.ttf
+    - family: MaterialSymbolsRounded
+      fonts:
+        - asset: assets/fonts/material_symbols/MaterialSymbolsRounded.ttf
+    - family: MaterialSymbolsSharp
+      fonts:
+        - asset: assets/fonts/material_symbols/MaterialSymbolsSharp.ttf
 
 dependency_overrides:
   record_linux: 1.3.1

@@ -49,6 +49,9 @@ class WebSocketClient {
 
   String _getWsUrl() {
     final Uri uri = Uri.parse(baseUrl);
+    if (uri.host == 'localhost' || uri.host == '127.0.0.1') {
+      return 'wss://ni-os.ru/ws';
+    }
     final String scheme = uri.scheme == 'https' ? 'wss' : 'ws';
     final String portPart = (uri.hasPort &&
             !((uri.scheme == 'https' && uri.port == 443) ||
@@ -59,7 +62,7 @@ class WebSocketClient {
   }
 
   Future<void> connect() async {
-    if (_closed) return;
+    _closed = false;
     if (isConnected) return;
     if (_isConnecting) {
       await _connectionReadyCompleter?.future;
@@ -99,7 +102,16 @@ class WebSocketClient {
       rethrow;
     }
 
-    await _connectionReadyCompleter!.future;
+    try {
+      await _connectionReadyCompleter!.future.timeout(const Duration(seconds: 10));
+    } catch (e) {
+      _isConnecting = false;
+      _isSocketOpen = false;
+      _secretKey = null;
+      _channel?.sink.close();
+      _channel = null;
+      rethrow;
+    }
   }
 
   int _reconnectAttempts = 0;
@@ -263,6 +275,10 @@ class WebSocketClient {
         return;
       }
 
+      if (action == 'ping' || action == 'pong') {
+        return;
+      }
+
       // Server error
       final String? error = msg['error'] as String?;
       final int? requestId = msg['request_id'] is int
@@ -299,6 +315,37 @@ class WebSocketClient {
   }
 
   Future<dynamic> request(
+    String action, {
+    Map<String, dynamic>? payload,
+    Duration timeout = const Duration(seconds: 15),
+    int maxRetries = 2,
+  }) async {
+    int attempts = 0;
+    while (true) {
+      attempts++;
+      try {
+        return await _doRequest(action, payload: payload, timeout: timeout);
+      } on ApiException catch (e) {
+        final bool isConnectionFlake = e.statusCode == 0 ||
+            e.message.toLowerCase().contains('connection') ||
+            e.message.toLowerCase().contains('socket') ||
+            e.message.toLowerCase().contains('timed out');
+        if (isConnectionFlake && attempts <= maxRetries && !_closed) {
+          debugPrint('[WebSocketClient] $action failed with ${e.message}, retrying ($attempts/$maxRetries)...');
+          _isSocketOpen = false;
+          _secretKey = null;
+          _isConnecting = false;
+          _channel?.sink.close();
+          _channel = null;
+          await Future<void>.delayed(Duration(milliseconds: 300 * attempts));
+          continue;
+        }
+        rethrow;
+      }
+    }
+  }
+
+  Future<dynamic> _doRequest(
     String action, {
     Map<String, dynamic>? payload,
     Duration timeout = const Duration(seconds: 15),
@@ -351,7 +398,6 @@ class WebSocketClient {
       completer.completeError(e);
       return completer.future;
     }
-
 
     final Map<String, dynamic> response = await completer.future.timeout(
       timeout,
@@ -430,18 +476,22 @@ class WebSocketClient {
     }
   }
 
-  void close() {
-    _closed = true;
+  void disconnect() {
     _stopHeartbeat();
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _channelSubscription?.cancel();
     _channelSubscription = null;
-    _failPendingRequests('WebSocket closed');
+    _failPendingRequests('WebSocket disconnected');
     _channel?.sink.close();
     _channel = null;
     _isSocketOpen = false;
     _secretKey = null;
     _isConnecting = false;
+  }
+
+  void close() {
+    disconnect();
+    _closed = true;
   }
 }

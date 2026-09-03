@@ -68,6 +68,30 @@ class ApiProfile {
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
     };
   }
+
+  ApiProfile copyWith({
+    int? id,
+    String? username,
+    String? displayName,
+    String? bio,
+    String? avatarUrl,
+    bool? twoFaEnabled,
+    bool? spamBlock,
+    List<ApiBadge>? badges,
+    DateTime? createdAt,
+  }) {
+    return ApiProfile(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      displayName: displayName ?? this.displayName,
+      bio: bio ?? this.bio,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      twoFaEnabled: twoFaEnabled ?? this.twoFaEnabled,
+      spamBlock: spamBlock ?? this.spamBlock,
+      badges: badges ?? this.badges,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }
 
 class ApiProfileEncrypted {

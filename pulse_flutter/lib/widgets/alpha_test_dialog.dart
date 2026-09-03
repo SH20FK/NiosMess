@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -91,8 +92,8 @@ class _AlphaTestDialogWidget extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _TelegramButton(
-                      handle: 'sanlsan',
-                      onTap: () => _launchTelegram(context, 'sanlsan'),
+                      handle: 'hello_sanlsan',
+                      onTap: () => _launchTelegram(context, 'hello_sanlsan'),
                     ),
                     const SizedBox(width: 10),
                     _TelegramButton(
@@ -140,7 +141,12 @@ class _TelegramButton extends StatelessWidget {
 
     return FilledButton.tonalIcon(
       onPressed: onTap,
-      icon: Icon(Icons.send_rounded, size: 16, color: scheme.primary),
+      icon: SvgPicture.asset(
+        'assets/svg/telegram_logo.svg',
+        width: 16,
+        height: 16,
+        colorFilter: ColorFilter.mode(scheme.primary, BlendMode.srcIn),
+      ),
       label: Text('@$handle'),
       style: FilledButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

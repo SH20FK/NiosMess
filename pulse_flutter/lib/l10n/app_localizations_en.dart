@@ -175,6 +175,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get twoFaFailed => '2FA verification failed';
 
   @override
+  String get authResendCode => 'Resend code';
+
+  @override
+  String authResendCountdown(Object seconds) {
+    return 'Resend in ${seconds}s';
+  }
+
+  @override
+  String get authCodeSent => 'Verification code resent';
+
+  @override
+  String get authPasteCode => 'Paste code';
+
+  @override
   String get registerTitle => 'Create account';
 
   @override

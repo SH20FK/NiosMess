@@ -1,0 +1,27 @@
+﻿{
+  "$schema": "https://raw.githubusercontent.com/yamadashy/repomix/main/repomix.schema.json",
+  "include": [
+    "pulse_flutter/lib/**/*.dart",
+    "server_core/app/**/*.py",
+    "nios_admin_flutter/lib/**/*.dart",
+    "AGENTS.md"
+  ],
+  "ignore": {
+    "customPatterns": [
+      "**/build/**",
+      "**/.dart_tool/**",
+      "**/__pycache__/**",
+      "**/*.pyc",
+      "**/*.g.dart",
+      "**/*.freezed.dart",
+      "**/app_localizations*.dart"
+    ]
+  },
+  "output": {
+    "filePath": ".codegraph/codebase_compressed_map.md",
+    "style": "markdown",
+    "compress": true,
+    "showLineNumbers": true,
+    "topFilesLen": 10
+  }
+}

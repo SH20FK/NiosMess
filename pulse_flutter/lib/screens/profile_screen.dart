@@ -9,7 +9,17 @@ import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/utils/image_compressor.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
+import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
+import 'package:pulse_flutter/screens/sessions_screen.dart';
+import 'package:pulse_flutter/screens/settings_about_screen.dart';
+import 'package:pulse_flutter/screens/settings_account_screen.dart';
+import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
+import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
+import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
+import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
+import 'package:pulse_flutter/screens/settings_storage_screen.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -110,6 +120,438 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? FileTypeDetector.formatFileSize(snapshot.totalBytes)
         : '';
 
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool isWide = constraints.maxWidth >= 760;
+
+        if (isWide) {
+          return _buildDesktopMasterDetail(
+            context,
+            auth,
+            scheme,
+            displayName,
+            username,
+            bio,
+            storageUsed,
+          );
+        }
+
+        return _buildMobileProfile(
+          context,
+          auth,
+          scheme,
+          displayName,
+          username,
+          bio,
+          storageUsed,
+        );
+      },
+    );
+  }
+
+  Widget _buildDesktopMasterDetail(
+    BuildContext context,
+    AuthState auth,
+    ColorScheme scheme,
+    String displayName,
+    String username,
+    String bio,
+    String storageUsed,
+  ) {
+    final SettingsSectionId selectedSection =
+        ref.watch(desktopSelectedSettingsSectionProvider);
+
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // 1. Left Master Pane (Sidebar docked to the left navigation rail)
+          Container(
+            width: 320,
+            decoration: BoxDecoration(
+              color: isDark
+                  ? scheme.surfaceContainerLowest
+                  : scheme.surface.withValues(alpha: 0.65),
+            ),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
+              children: <Widget>[
+                _buildMasterProfileHeader(
+                  context,
+                  auth,
+                  scheme,
+                  displayName,
+                  username,
+                  bio,
+                ),
+                const SizedBox(height: 14),
+
+                // 1. Account & Security
+                SettingsSection(
+                  isCard: false,
+                  title: context.l10n.profileSectionAccount,
+                  children: <Widget>[
+                    SettingsTile(
+                      icon: Icons.manage_accounts_rounded,
+                      title: context.l10n.settingsAccountTitle,
+                      iconColor: scheme.primary,
+                      isSelected: selectedSection == SettingsSectionId.account,
+                      onTap: () => ref
+                          .read(desktopSelectedSettingsSectionProvider.notifier)
+                          .setSelectedSection(SettingsSectionId.account),
+                    ),
+                    SettingsTile(
+                      icon: Icons.devices_rounded,
+                      title: context.l10n.settingsActiveSessions,
+                      iconColor: scheme.primary,
+                      isSelected: selectedSection == SettingsSectionId.sessions,
+                      onTap: () => ref
+                          .read(desktopSelectedSettingsSectionProvider.notifier)
+                          .setSelectedSection(SettingsSectionId.sessions),
+                    ),
+                  ],
+                ),
+
+                // 2. Interface & Personalization
+                SettingsSection(
+                  isCard: false,
+                  title: context.l10n.profileAppearance,
+                  children: <Widget>[
+                    SettingsTile(
+                      icon: Icons.palette_rounded,
+                      title: context.l10n.profileAppearance,
+                      iconColor: scheme.primary,
+                      isSelected:
+                          selectedSection == SettingsSectionId.appearance,
+                      onTap: () => ref
+                          .read(desktopSelectedSettingsSectionProvider.notifier)
+                          .setSelectedSection(SettingsSectionId.appearance),
+                    ),
+                    SettingsTile(
+                      icon: Icons.notifications_active_rounded,
+                      title: context.l10n.settingsPreferencesTitle,
+                      iconColor: scheme.secondary,
+                      isSelected:
+                          selectedSection == SettingsSectionId.preferences,
+                      onTap: () => ref
+                          .read(desktopSelectedSettingsSectionProvider.notifier)
+                          .setSelectedSection(SettingsSectionId.preferences),
+                    ),
+                    SettingsTile(
+                      icon: Icons.language_rounded,
+                      title: context.l10n.profileLanguage,
+                      iconColor: scheme.secondary,
+                      isSelected:
+                          selectedSection == SettingsSectionId.languageRegion,
+                      onTap: () => ref
+                          .read(desktopSelectedSettingsSectionProvider.notifier)
+                          .setSelectedSection(
+                            SettingsSectionId.languageRegion,
+                          ),
+                    ),
+                  ],
+                ),
+
+                // 3. Privacy & Security
+                SettingsSection(
+                  isCard: false,
+                  title: context.l10n.profileSectionPrivacySecurity,
+                  children: <Widget>[
+                    SettingsTile(
+                      icon: Icons.lock_rounded,
+                      title: context.l10n.settingsPrivacyTitle,
+                      iconColor: scheme.primary,
+                      isSelected: selectedSection == SettingsSectionId.privacy,
+                      onTap: () => ref
+                          .read(desktopSelectedSettingsSectionProvider.notifier)
+                          .setSelectedSection(SettingsSectionId.privacy),
+                    ),
+                    SettingsTile(
+                      icon: Icons.enhanced_encryption_rounded,
+                      title: context.l10n.settingsSecretChatsTitle,
+                      iconColor: scheme.tertiary,
+                      isSelected: selectedSection == SettingsSectionId.e2ee,
+                      onTap: () => ref
+                          .read(desktopSelectedSettingsSectionProvider.notifier)
+                          .setSelectedSection(SettingsSectionId.e2ee),
+                    ),
+                  ],
+                ),
+
+                // 4. Notifications & Storage
+                SettingsSection(
+                  isCard: false,
+                  title: context.l10n.settingsStorageTitle,
+                  children: <Widget>[
+                    SettingsTile(
+                      icon: Icons.sd_storage_rounded,
+                      title: context.l10n.settingsStorageTitle,
+                      iconColor: scheme.tertiary,
+                      isSelected: selectedSection == SettingsSectionId.storage,
+                      onTap: () => ref
+                          .read(desktopSelectedSettingsSectionProvider.notifier)
+                          .setSelectedSection(SettingsSectionId.storage),
+                    ),
+                    SettingsTile(
+                      icon: Icons.info_outline_rounded,
+                      title: context.l10n.settingsAboutTitle,
+                      iconColor: scheme.onSurfaceVariant,
+                      isSelected: selectedSection == SettingsSectionId.about,
+                      onTap: () => ref
+                          .read(desktopSelectedSettingsSectionProvider.notifier)
+                          .setSelectedSection(SettingsSectionId.about),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 8),
+                Divider(
+                  height: 1,
+                  color: scheme.outlineVariant.withValues(alpha: 0.15),
+                ),
+                const SizedBox(height: 12),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: scheme.error,
+                      side: BorderSide(
+                        color: scheme.error.withValues(alpha: 0.35),
+                      ),
+                      minimumSize: const Size.fromHeight(44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: _logout,
+                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    label: Text(
+                      context.l10n.profileLogout,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 2. Divider
+          VerticalDivider(
+            thickness: 1,
+            width: 1,
+            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.3),
+          ),
+
+          // 3. Right Detail Pane
+          Expanded(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 740),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: KeyedSubtree(
+                    key: ValueKey<SettingsSectionId>(selectedSection),
+                    child: _buildDetailPane(selectedSection),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMasterProfileHeader(
+    BuildContext context,
+    AuthState auth,
+    ColorScheme scheme,
+    String displayName,
+    String username,
+    String bio,
+  ) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.25 : 0.40),
+          width: 1,
+        ),
+        boxShadow: isDark
+            ? null
+            : <BoxShadow>[
+                BoxShadow(
+                  color: scheme.shadow.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+      ),
+      child: Column(
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Stack(
+                children: <Widget>[
+                  PulseAvatar(
+                    name: displayName,
+                    avatarUrl: auth.profile?.avatarUrl,
+                    radius: 26,
+                    fallbackColor: scheme.primaryContainer,
+                    textColor: scheme.onPrimaryContainer,
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Material(
+                      color: scheme.primary,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        onTap: _uploadingAvatar ? null : _uploadAvatar,
+                        customBorder: const CircleBorder(),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: _uploadingAvatar
+                              ? SizedBox(
+                                  width: 10,
+                                  height: 10,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: scheme.onPrimary,
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.photo_camera_rounded,
+                                  size: 11,
+                                  color: scheme.onPrimary,
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      displayName,
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '@$username',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (bio.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                bio,
+                style: textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontSize: 12,
+                  height: 1.25,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () {
+                showDialog<void>(
+                  context: context,
+                  builder: (BuildContext ctx) => _EditProfileDialog(
+                    initialName: displayName,
+                    initialUsername: auth.session?.username ?? '',
+                    initialBio: bio,
+                    onUploadAvatar: _uploadAvatar,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.edit_rounded, size: 15),
+              label: Text(context.l10n.profileEdit, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailPane(SettingsSectionId section) {
+    switch (section) {
+      case SettingsSectionId.account:
+        return const SettingsAccountScreen(isEmbedded: true);
+      case SettingsSectionId.appearance:
+        return const SettingsAppearanceScreen(isEmbedded: true);
+      case SettingsSectionId.privacy:
+        return const SettingsPrivacyScreen(isEmbedded: true);
+      case SettingsSectionId.storage:
+        return const SettingsStorageScreen(isEmbedded: true);
+      case SettingsSectionId.languageRegion:
+        return const SettingsLanguageRegionScreen(isEmbedded: true);
+      case SettingsSectionId.preferences:
+        return const SettingsPreferencesScreen(isEmbedded: true);
+      case SettingsSectionId.about:
+        return const SettingsAboutScreen(isEmbedded: true);
+      case SettingsSectionId.e2ee:
+        return const E2eeSettingsScreen(isEmbedded: true);
+      case SettingsSectionId.sessions:
+        return const SessionsScreen(isEmbedded: true);
+    }
+  }
+
+  Widget _buildMobileProfile(
+    BuildContext context,
+    AuthState auth,
+    ColorScheme scheme,
+    String displayName,
+    String username,
+    String bio,
+    String storageUsed,
+  ) {
     return Scaffold(
       backgroundColor: scheme.surface,
       body: CustomScrollView(
@@ -139,106 +581,109 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             top: false,
             sliver: SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-              child: Column(
-                children: [
-                  // 1. Account & Privacy
-                  SettingsSection(
-                    title: context.l10n.profileSectionAccount,
-                    children: <Widget>[
-                      SettingsTile(
-                        icon: Icons.manage_accounts_rounded,
-                        title: context.l10n.settingsAccountTitle,
-                        subtitle: context.l10n.settingsAccountSubtitle,
-                        iconColor: scheme.primary,
-                        onTap: () => context.push('/settings/account'),
-                      ),
-                      SettingsTile(
-                        icon: Icons.privacy_tip_rounded,
-                        title: context.l10n.settingsPrivacyTitle,
-                        subtitle: context.l10n.settingsPrivacySubtitle,
-                        iconColor: scheme.secondary,
-                        onTap: () => context.push('/settings/privacy'),
-                      ),
-                    ],
-                  ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                child: Column(
+                  children: [
+                    // 1. Account & Privacy
+                    SettingsSection(
+                      title: context.l10n.profileSectionAccount,
+                      children: <Widget>[
+                        SettingsTile(
+                          icon: Icons.manage_accounts_rounded,
+                          title: context.l10n.settingsAccountTitle,
+                          subtitle: context.l10n.settingsAccountSubtitle,
+                          iconColor: scheme.primary,
+                          onTap: () => context.push('/settings/account'),
+                        ),
+                        SettingsTile(
+                          icon: Icons.privacy_tip_rounded,
+                          title: context.l10n.settingsPrivacyTitle,
+                          subtitle: context.l10n.settingsPrivacySubtitle,
+                          iconColor: scheme.secondary,
+                          onTap: () => context.push('/settings/privacy'),
+                        ),
+                      ],
+                    ),
 
-                  // 2. Interface & Notifications
-                  SettingsSection(
-                    title: context.l10n.profileAppearance,
-                    children: <Widget>[
-                      SettingsTile(
-                        icon: Icons.palette_rounded,
-                        title: context.l10n.profileAppearance,
-                        subtitle: context.l10n.profileAppearanceDesc,
-                        iconColor: scheme.primary,
-                        onTap: () => context.push('/settings/appearance'),
-                      ),
-                      SettingsTile(
-                        icon: Icons.notifications_active_rounded,
-                        title: context.l10n.settingsPreferencesTitle,
-                        subtitle: context.l10n.settingsPreferencesBannerSubtitle,
-                        iconColor: scheme.secondary,
-                        onTap: () => context.push('/settings/preferences'),
-                      ),
-                      SettingsTile(
-                        icon: Icons.sd_storage_rounded,
-                        title: context.l10n.settingsStorageTitle,
-                        subtitle: storageUsed.isNotEmpty
-                            ? storageUsed
-                            : context.l10n.settingsStorageSubtitle,
-                        iconColor: scheme.tertiary,
-                        onTap: () => context.push('/settings/storage'),
-                      ),
-                      SettingsTile(
-                        icon: Icons.language_rounded,
-                        title: context.l10n.profileLanguage,
-                        subtitle: context.l10n.profileLanguageDesc,
-                        iconColor: scheme.onSurfaceVariant,
-                        onTap: () => context.push('/settings/language-region'),
-                      ),
-                    ],
-                  ),
+                    // 2. Interface & Notifications
+                    SettingsSection(
+                      title: context.l10n.profileAppearance,
+                      children: <Widget>[
+                        SettingsTile(
+                          icon: Icons.palette_rounded,
+                          title: context.l10n.profileAppearance,
+                          subtitle: context.l10n.profileAppearanceDesc,
+                          iconColor: scheme.primary,
+                          onTap: () => context.push('/settings/appearance'),
+                        ),
+                        SettingsTile(
+                          icon: Icons.notifications_active_rounded,
+                          title: context.l10n.settingsPreferencesTitle,
+                          subtitle:
+                              context.l10n.settingsPreferencesBannerSubtitle,
+                          iconColor: scheme.secondary,
+                          onTap: () => context.push('/settings/preferences'),
+                        ),
+                        SettingsTile(
+                          icon: Icons.sd_storage_rounded,
+                          title: context.l10n.settingsStorageTitle,
+                          subtitle: storageUsed.isNotEmpty
+                              ? storageUsed
+                              : context.l10n.settingsStorageSubtitle,
+                          iconColor: scheme.tertiary,
+                          onTap: () => context.push('/settings/storage'),
+                        ),
+                        SettingsTile(
+                          icon: Icons.language_rounded,
+                          title: context.l10n.profileLanguage,
+                          subtitle: context.l10n.profileLanguageDesc,
+                          iconColor: scheme.onSurfaceVariant,
+                          onTap: () => context.push('/settings/language-region'),
+                        ),
+                      ],
+                    ),
 
-                  // 3. About
-                  SettingsSection(
-                    title: context.l10n.profileSectionAbout,
-                    children: <Widget>[
-                      SettingsTile(
-                        icon: Icons.info_outline_rounded,
-                        title: context.l10n.settingsAboutTitle,
-                        subtitle: context.l10n.settingsSupportAboutSubtitle,
-                        iconColor: scheme.onSurfaceVariant,
-                        onTap: () => context.push('/settings/about'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: scheme.errorContainer,
-                        foregroundColor: scheme.onErrorContainer,
-                        minimumSize: const Size.fromHeight(56),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                    // 3. About
+                    SettingsSection(
+                      title: context.l10n.profileSectionAbout,
+                      children: <Widget>[
+                        SettingsTile(
+                          icon: Icons.info_outline_rounded,
+                          title: context.l10n.settingsAboutTitle,
+                          subtitle: context.l10n.settingsSupportAboutSubtitle,
+                          iconColor: scheme.onSurfaceVariant,
+                          onTap: () => context.push('/settings/about'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: scheme.errorContainer,
+                          foregroundColor: scheme.onErrorContainer,
+                          minimumSize: const Size.fromHeight(56),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: _logout,
+                        icon: const Icon(Icons.logout_rounded),
+                        label: Text(
+                          context.l10n.profileLogout,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                       ),
-                      onPressed: _logout,
-                      icon: const Icon(Icons.logout_rounded),
-                      label: Text(
-                        context.l10n.profileLogout,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
                     ),
-                  ),
-                  const SizedBox(height: 40),
-                ],
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
         ],
       ),
     );

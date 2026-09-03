@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="currentColor">
+  <!-- Subtle Background Squircle -->
+  <rect x="4" y="4" width="40" height="40" rx="14" fill="currentColor" fill-opacity="0.12"/>
+
+  <!-- Desktop Monitor -->
+  <rect x="8" y="11" width="24" height="17" rx="3" fill="currentColor" fill-opacity="0.22" stroke="currentColor" stroke-width="2"/>
+  <path d="M20 28 V33 M15 33 H25" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Mobile Phone in Foreground -->
+  <g transform="translate(25, 17)">
+    <rect x="0" y="0" width="15" height="23" rx="3.5" fill="currentColor" stroke="currentColor" stroke-width="1.8"/>
+    <!-- Phone Screen -->
+    <rect x="2.5" y="3.5" width="10" height="14" rx="1.5" fill="#ffffff" fill-opacity="0.95"/>
+    <!-- Home Bar -->
+    <line x1="5.5" y1="19.5" x2="9.5" y2="19.5" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round"/>
+  </g>
+
+  <!-- Wireless Sync Waves at Top -->
+  <path d="M20 7 C23 5 27 5 30 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+</svg>

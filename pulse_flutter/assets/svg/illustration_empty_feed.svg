@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="currentColor">
+  <defs>
+    <linearGradient id="feedBgGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="currentColor" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="cardGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="currentColor" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0.06"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ambient Backdrop Circles -->
+  <circle cx="120" cy="120" r="105" fill="url(#feedBgGlow)"/>
+  <circle cx="120" cy="120" r="88" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.15" stroke-dasharray="6 6"/>
+  <circle cx="120" cy="120" r="68" fill="none" stroke="currentColor" stroke-width="1" stroke-opacity="0.12"/>
+
+  <!-- Background Tilted Card -->
+  <g transform="rotate(-7 120 120)">
+    <rect x="52" y="48" width="136" height="144" rx="20" fill="currentColor" fill-opacity="0.08" stroke="currentColor" stroke-width="1.8" stroke-opacity="0.25"/>
+    <rect x="68" y="66" width="34" height="6" rx="3" fill="currentColor" fill-opacity="0.3"/>
+    <rect x="68" y="78" width="104" height="60" rx="12" fill="currentColor" fill-opacity="0.07"/>
+  </g>
+
+  <!-- Foreground Main Post Card -->
+  <g transform="translate(0, 0)">
+    <!-- Card Base -->
+    <rect x="46" y="42" width="148" height="154" rx="22" fill="url(#cardGlow)" stroke="currentColor" stroke-width="2.5" stroke-opacity="0.6"/>
+
+    <!-- Post Header: Avatar + User Info -->
+    <circle cx="68" cy="64" r="11" fill="currentColor" fill-opacity="0.55"/>
+    <rect x="86" y="58" width="58" height="6" rx="3" fill="currentColor" fill-opacity="0.7"/>
+    <rect x="86" y="68" width="36" height="4" rx="2" fill="currentColor" fill-opacity="0.35"/>
+
+    <!-- Post Header: Options dots -->
+    <circle cx="174" cy="64" r="2" fill="currentColor" fill-opacity="0.4"/>
+    <circle cx="180" cy="64" r="2" fill="currentColor" fill-opacity="0.4"/>
+
+    <!-- Post Media Viewport -->
+    <rect x="58" y="82" width="124" height="68" rx="14" fill="currentColor" fill-opacity="0.12" stroke="currentColor" stroke-width="1.2" stroke-opacity="0.2"/>
+    
+    <!-- Mountains & Sun inside Media Viewport -->
+    <circle cx="152" cy="100" r="8" fill="currentColor" fill-opacity="0.45"/>
+    <path d="M58 142 L94 108 L122 132 L148 112 L182 142 Z" fill="currentColor" fill-opacity="0.28"/>
+    <path d="M86 142 L116 120 L144 142 Z" fill="currentColor" fill-opacity="0.4"/>
+
+    <!-- Post Caption / Text Lines -->
+    <rect x="58" y="160" width="100" height="5" rx="2.5" fill="currentColor" fill-opacity="0.55"/>
+    <rect x="58" y="170" width="68" height="4" rx="2" fill="currentColor" fill-opacity="0.3"/>
+
+    <!-- Interactive Actions: Like & Comment icons outline -->
+    <path d="M166 164 C164 162 161 162 159 164 C157 166 157 169 159 171 L166 177 L173 171 C175 169 175 166 173 164 C171 162 168 162 166 164 Z" fill="currentColor" fill-opacity="0.65"/>
+  </g>
+
+  <!-- Floating Heart Chat Bubble (Top Right) -->
+  <g transform="translate(162, 28)">
+    <rect x="0" y="0" width="46" height="38" rx="14" fill="currentColor" fill-opacity="0.95"/>
+    <path d="M14 38 L22 46 L26 38 Z" fill="currentColor" fill-opacity="0.95"/>
+    <!-- Heart Cutout / Path -->
+    <path d="M23 14 C20.5 11.5 16.5 11.5 14 14 C11.5 16.5 11.5 20.5 14 23 L23 31 L32 23 C34.5 20.5 34.5 16.5 32 14 C29.5 11.5 25.5 11.5 23 14 Z" fill="#ffffff" fill-opacity="0.95"/>
+  </g>
+
+  <!-- Floating Sparkle Stars -->
+  <!-- Top Left Sparkle -->
+  <path d="M36 44 Q36 56 48 56 Q36 56 36 68 Q36 56 24 56 Q36 56 36 44 Z" fill="currentColor" fill-opacity="0.75"/>
+  <!-- Middle Right Sparkle -->
+  <path d="M208 116 Q208 124 216 124 Q208 124 208 132 Q208 124 200 124 Q208 124 208 116 Z" fill="currentColor" fill-opacity="0.7"/>
+  <!-- Bottom Left Small Sparkle -->
+  <path d="M30 166 Q30 172 36 172 Q30 172 30 178 Q30 172 24 172 Q30 172 30 166 Z" fill="currentColor" fill-opacity="0.6"/>
+  <!-- Accent Dots -->
+  <circle cx="28" cy="108" r="3" fill="currentColor" fill-opacity="0.4"/>
+  <circle cx="214" cy="74" r="2.5" fill="currentColor" fill-opacity="0.5"/>
+  <circle cx="196" cy="186" r="3.5" fill="currentColor" fill-opacity="0.45"/>
+  <circle cx="48" cy="204" r="2.5" fill="currentColor" fill-opacity="0.35"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="currentColor">
+  <!-- Subtle Background Squircle -->
+  <rect x="4" y="4" width="40" height="40" rx="14" fill="currentColor" fill-opacity="0.12"/>
+
+  <!-- Crypto Shield Outline -->
+  <path d="M24 7 L37 12 V22 C37 30.5 31.5 38 24 41 C16.5 38 11 30.5 11 22 V12 L24 7 Z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Padlock Shackle -->
+  <path d="M19.5 21 V17 C19.5 14.5 21.5 12.5 24 12.5 C26.5 12.5 28.5 14.5 28.5 17 V21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+
+  <!-- Padlock Body -->
+  <rect x="16" y="21" width="16" height="13" rx="3.5" fill="currentColor"/>
+
+  <!-- Electronic Key Bit / Cipher Core -->
+  <circle cx="24" cy="26" r="1.6" fill="#ffffff"/>
+  <path d="M24 27.6 V31 M21.5 26 H19 M26.5 26 H29" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round"/>
+</svg>

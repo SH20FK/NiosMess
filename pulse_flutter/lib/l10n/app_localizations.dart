@@ -422,6 +422,30 @@ abstract class AppLocalizations {
   /// **'2FA verification failed'**
   String get twoFaFailed;
 
+  /// No description provided for @authResendCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend code'**
+  String get authResendCode;
+
+  /// No description provided for @authResendCountdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend in {seconds}s'**
+  String authResendCountdown(Object seconds);
+
+  /// No description provided for @authCodeSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification code resent'**
+  String get authCodeSent;
+
+  /// No description provided for @authPasteCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste code'**
+  String get authPasteCode;
+
   /// No description provided for @registerTitle.
   ///
   /// In en, this message translates to:

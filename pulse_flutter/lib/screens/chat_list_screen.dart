@@ -98,6 +98,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     );
     final AsyncValue<ApiSearchResult> searchAsync = ref.watch(chatListSearchProvider);
     final filter = ref.watch(chatFilterProvider);
+    final int? desktopChatId = ref.watch(desktopSelectedChatProvider);
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
@@ -146,6 +147,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 textTheme,
                 searchAsync.asData?.value,
                 filter,
+                desktopChatId,
               ),
               SliverPadding(
                 padding: EdgeInsets.only(
@@ -171,6 +173,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     TextTheme textTheme,
     ApiSearchResult? searchResult,
     ChatFilter filter,
+    int? desktopChatId,
   ) {
     if (!auth.isAuthenticated) {
       return <Widget>[
@@ -252,6 +255,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           isSecret: chat.isSecret,
                           partnerBadges: chat.partnerBadges,
                           chatId: chat.id,
+                          isSelected: desktopChatId == chat.id,
                           onTap: () {
                             if (MediaQuery.sizeOf(context).width >= 760) {
                               ref
@@ -306,6 +310,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             textTheme,
             searchResult,
             filter,
+            desktopChatId,
           );
         }
         return <Widget>[
@@ -327,6 +332,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             textTheme,
             searchResult,
             filter,
+            desktopChatId,
           );
         }
         return <Widget>[

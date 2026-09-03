@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+/// A Material 3 Expressive authentication input field with 20dp squircle styling,
+/// tonal surfaceContainerHighest background, and dynamic state-reactive borders and icons.
 class M3AuthTextField extends StatefulWidget {
   const M3AuthTextField({
     required this.controller,
@@ -14,6 +16,7 @@ class M3AuthTextField extends StatefulWidget {
     this.onFieldSubmitted,
     this.focusNode,
     this.autofillHints,
+    this.enabled = true,
     super.key,
   });
 
@@ -29,6 +32,7 @@ class M3AuthTextField extends StatefulWidget {
   final ValueChanged<String>? onFieldSubmitted;
   final FocusNode? focusNode;
   final Iterable<String>? autofillHints;
+  final bool enabled;
 
   @override
   State<M3AuthTextField> createState() => _M3AuthTextFieldState();
@@ -66,8 +70,8 @@ class _M3AuthTextFieldState extends State<M3AuthTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
 
     return FormField<String>(
       initialValue: widget.controller.text,
@@ -75,13 +79,29 @@ class _M3AuthTextFieldState extends State<M3AuthTextField> {
         final err = widget.validator?.call(widget.controller.text);
         if (_errorText != err) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() => _errorText = err);
+            if (mounted) {
+              setState(() => _errorText = err);
+            }
           });
         }
         return err;
       },
       builder: (fieldState) {
-        final hasError = _errorText != null && _errorText!.isNotEmpty;
+        final bool hasError = _errorText != null && _errorText!.isNotEmpty;
+
+        final Color borderColor = hasError
+            ? scheme.error
+            : (_isFocused
+                ? scheme.primary
+                : scheme.outlineVariant.withValues(alpha: 0.25));
+
+        final double borderWidth = _isFocused || hasError ? 1.6 : 1.0;
+
+        final Color prefixIconColor = hasError
+            ? scheme.error
+            : (_isFocused
+                ? scheme.primary
+                : scheme.onSurfaceVariant);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,15 +109,11 @@ class _M3AuthTextFieldState extends State<M3AuthTextField> {
           children: [
             Container(
               decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: hasError
-                      ? scheme.error
-                      : (_isFocused
-                          ? scheme.primary
-                          : scheme.outlineVariant.withValues(alpha: 0.25)),
-                  width: _isFocused || hasError ? 1.5 : 1.0,
+                  color: borderColor,
+                  width: borderWidth,
                 ),
               ),
               child: TextField(
@@ -108,6 +124,7 @@ class _M3AuthTextFieldState extends State<M3AuthTextField> {
                 textInputAction: widget.textInputAction,
                 onSubmitted: widget.onFieldSubmitted,
                 autofillHints: widget.autofillHints,
+                enabled: widget.enabled,
                 onChanged: (val) {
                   fieldState.didChange(val);
                   if (_errorText != null) {
@@ -138,13 +155,10 @@ class _M3AuthTextFieldState extends State<M3AuthTextField> {
                   prefixIcon: Icon(
                     widget.prefixIcon,
                     size: 20,
-                    color: hasError
-                        ? scheme.error
-                        : (_isFocused ? scheme.primary : scheme.primary),
+                    color: prefixIconColor,
                   ),
                   suffixIcon: widget.suffixIcon,
                   filled: false,
-                  fillColor: Colors.transparent,
                   isDense: true,
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -166,6 +180,7 @@ class _M3AuthTextFieldState extends State<M3AuthTextField> {
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.error,
                     fontSize: 12,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),

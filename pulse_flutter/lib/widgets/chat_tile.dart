@@ -5,6 +5,8 @@ import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
+/// Google Messages / M3 Expressive Chat List Tile with unread pills,
+/// dynamic online indicator cutout, and refined typography.
 class ChatTile extends StatefulWidget {
   const ChatTile({
     required this.title,
@@ -26,6 +28,7 @@ class ChatTile extends StatefulWidget {
     this.actions = const <Widget>[],
     this.draftLabel,
     this.chatId,
+    this.isSelected = false,
     super.key,
   });
 
@@ -48,6 +51,7 @@ class ChatTile extends StatefulWidget {
   final List<Widget> actions;
   final String? draftLabel;
   final int? chatId;
+  final bool isSelected;
 
   @override
   State<ChatTile> createState() => _ChatTileState();
@@ -108,12 +112,19 @@ class _ChatTileState extends State<ChatTile>
     final int hiddenBadgeCount =
         widget.partnerBadges.length - visibleBadges.length;
 
-    final double vertical = widget.compact ? 9 : 12;
-    final double titleGap = widget.compact ? 4 : 6;
+    final double vertical = widget.compact ? 8 : 11;
+    final double titleGap = widget.compact ? 3 : 5;
+    final bool hasUnread = widget.unreadCount > 0;
 
     final String semanticsLabel =
         '${widget.title}${widget.draftLabel != null ? ', draft: ${widget.draftLabel}' : ''}'
-        '${widget.unreadCount > 0 ? ', ${widget.unreadCount} unread' : ''}';
+        '${hasUnread ? ', ${widget.unreadCount} unread' : ''}';
+
+    final Color tileBg = widget.isSelected
+        ? scheme.primaryContainer.withValues(alpha: 0.55)
+        : (_isHovered || _isExpanded
+            ? scheme.primaryContainer.withValues(alpha: 0.28)
+            : scheme.surfaceContainerLow.withValues(alpha: 0.82));
 
     final Widget content = RepaintBoundary(
       child: MouseRegion(
@@ -129,20 +140,21 @@ class _ChatTileState extends State<ChatTile>
               widget.onTap();
             },
             onLongPress: _handleLongPress,
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(24),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               curve: Curves.easeOutCubic,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: vertical),
+              padding: EdgeInsets.symmetric(horizontal: 14, vertical: vertical),
               decoration: BoxDecoration(
-                color: _isHovered || _isExpanded
-                    ? scheme.primaryContainer.withValues(alpha: 0.28)
-                    : scheme.surfaceContainerLow.withValues(alpha: 0.82),
-                borderRadius: BorderRadius.circular(28),
+                color: tileBg,
+                borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: _isHovered || _isExpanded
-                      ? scheme.primary.withValues(alpha: 0.24)
-                      : scheme.outlineVariant.withValues(alpha: 0.20),
+                  color: widget.isSelected
+                      ? scheme.primary.withValues(alpha: 0.65)
+                      : (_isHovered || _isExpanded
+                          ? scheme.primary.withValues(alpha: 0.24)
+                          : scheme.outlineVariant.withValues(alpha: 0.18)),
+                  width: widget.isSelected ? 1.5 : 1.0,
                 ),
               ),
               child: Column(
@@ -159,7 +171,7 @@ class _ChatTileState extends State<ChatTile>
                               key: ValueKey<String>(
                                 '${widget.avatarText}_${widget.avatarUrl ?? ''}',
                               ),
-                              radius: 26,
+                              radius: 25,
                               name: widget.avatarText,
                               avatarUrl: widget.avatarUrl,
                               fallbackColor: widget.avatarColor,
@@ -168,8 +180,8 @@ class _ChatTileState extends State<ChatTile>
                           ),
                           if (widget.isOnline)
                             Positioned(
-                              right: -1,
-                              bottom: -1,
+                              right: 0,
+                              bottom: 0,
                               child: Container(
                                 width: 13,
                                 height: 13,
@@ -177,8 +189,8 @@ class _ChatTileState extends State<ChatTile>
                                   color: scheme.primary,
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: scheme.surface,
-                                    width: 2,
+                                    color: scheme.surfaceContainerLow,
+                                    width: 2.2,
                                   ),
                                 ),
                               ),
@@ -200,10 +212,15 @@ class _ChatTileState extends State<ChatTile>
                                           widget.title,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: textTheme.titleMedium,
+                                          style: textTheme.titleMedium?.copyWith(
+                                            fontWeight: hasUnread
+                                                ? FontWeight.w700
+                                                : FontWeight.w600,
+                                            color: scheme.onSurface,
+                                          ),
                                         ),
                                       ),
-                                       if (widget.isSecret) ...<Widget>[
+                                      if (widget.isSecret) ...<Widget>[
                                         const SizedBox(width: 4),
                                         Icon(
                                           Icons.lock_rounded,
@@ -215,7 +232,7 @@ class _ChatTileState extends State<ChatTile>
                                         const SizedBox(width: 4),
                                         Icon(
                                           Icons.push_pin_rounded,
-                                          size: 15,
+                                          size: 14,
                                           color: scheme.primary,
                                         ),
                                       ],
@@ -230,7 +247,14 @@ class _ChatTileState extends State<ChatTile>
                                 const SizedBox(width: 8),
                                 Text(
                                   widget.formattedTime,
-                                  style: textTheme.bodySmall,
+                                  style: textTheme.labelSmall?.copyWith(
+                                    color: hasUnread
+                                        ? scheme.primary
+                                        : scheme.onSurfaceVariant,
+                                    fontWeight: hasUnread
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                  ),
                                 ),
                               ],
                             ),
@@ -263,11 +287,16 @@ class _ChatTileState extends State<ChatTile>
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: textTheme.bodyMedium?.copyWith(
-                                      color: scheme.onSurfaceVariant,
+                                      color: hasUnread
+                                          ? scheme.onSurface
+                                          : scheme.onSurfaceVariant,
+                                      fontWeight: hasUnread
+                                          ? FontWeight.w500
+                                          : FontWeight.w400,
                                     ),
                                   ),
                                 ),
-                                if (widget.unreadCount > 0) ...<Widget>[
+                                if (hasUnread) ...<Widget>[
                                   const SizedBox(width: 8),
                                   _AnimatedBadge(count: widget.unreadCount),
                                 ],
@@ -329,8 +358,8 @@ class _AnimatedBadge extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 150),
-      switchInCurve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 180),
+      switchInCurve: Curves.easeOutBack,
       switchOutCurve: Curves.easeInCubic,
       transitionBuilder: (Widget child, Animation<double> animation) {
         return FadeTransition(
@@ -345,14 +374,15 @@ class _AnimatedBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 7),
         decoration: BoxDecoration(
           color: scheme.primary,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(12),
         ),
         alignment: Alignment.center,
         child: Text(
-          '$count',
+          count > 99 ? '99+' : '$count',
           style: textTheme.labelSmall?.copyWith(
             color: scheme.onPrimary,
             fontWeight: FontWeight.w700,
+            fontSize: 11,
           ),
         ),
       ),

@@ -41,6 +41,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   late final PageController _pageController;
 
   bool _biometricLocked = false;
+  double _desktopChatListWidth = 360.0;
 
   @override
   void initState() {
@@ -152,16 +153,34 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
       builder: (BuildContext context, BoxConstraints constraints) {
         final bool isWide = constraints.maxWidth >= 760;
 
+        final double minChatListWidth = 260.0;
+        final double maxChatListWidth =
+            (constraints.maxWidth - 340.0).clamp(minChatListWidth, 640.0);
+        final double effectiveChatListWidth =
+            _desktopChatListWidth.clamp(minChatListWidth, maxChatListWidth);
+
         final List<Widget> pages = <Widget>[
           if (isWide)
             Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Container(
-                  constraints: const BoxConstraints(minWidth: 320, maxWidth: 460),
-                  width: constraints.maxWidth * 0.35,
-                  child: ChatListScreen(),
+                SizedBox(
+                  width: effectiveChatListWidth,
+                  child: const ChatListScreen(),
                 ),
-                const VerticalDivider(thickness: 1, width: 1),
+                _DraggableSidebarDivider(
+                  onDragUpdate: (double delta) {
+                    setState(() {
+                      _desktopChatListWidth = (_desktopChatListWidth + delta)
+                          .clamp(minChatListWidth, maxChatListWidth);
+                    });
+                  },
+                  onReset: () {
+                    setState(() {
+                      _desktopChatListWidth = 360.0;
+                    });
+                  },
+                ),
                 Expanded(
                   child: desktopChatId != null
                       ? ChatDetailScreen(
@@ -169,21 +188,18 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                           chatId: desktopChatId.toString(),
                           isDesktopSplit: true,
                         )
-                      : Center(
-                          child: Text(
-                            context.l10n.chatNoMessages,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
-                          ),
-                        ),
+                      : _buildDesktopEmptyChatPlaceholder(context),
                 ),
               ],
             )
           else
-            ChatListScreen(),
-          const ContactsScreen(),
-          const NiosgramScreen(),
+            const ChatListScreen(),
+          isWide
+              ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 780), child: const ContactsScreen()))
+              : const ContactsScreen(),
+          isWide
+              ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 820), child: const NiosgramScreen()))
+              : const NiosgramScreen(),
           const ProfileScreen(),
         ];
         final Widget body = PageTransitionSwitcher(
@@ -261,7 +277,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                       const VerticalDivider(thickness: 1, width: 1),
                       Expanded(
                         child: PulseScaffoldBody(
-                          maxWidth: 1440,
+                          expand: true,
                           topSafe: false,
                           bottomSafe: true,
                           child: body,
@@ -282,7 +298,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               OfflineBanner(isOffline: isOffline),
               Expanded(
                 child: PulseScaffoldBody(
-                  maxWidth: 1440,
+                  expand: true,
                   topSafe: false,
                   bottomSafe: false,
                   child: body,
@@ -301,6 +317,71 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         );
       },
     ),
+    );
+  }
+
+  Widget _buildDesktopEmptyChatPlaceholder(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.25),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: scheme.shadow.withValues(alpha: 0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 40,
+                color: scheme.primary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLow.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Text(
+                'Выберите чат для начала общения',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Сообщения и звонки защищены сквозным шифрованием E2EE',
+              style: TextStyle(
+                fontSize: 12.5,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -328,3 +409,57 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     }
   }
 }
+
+class _DraggableSidebarDivider extends StatefulWidget {
+  const _DraggableSidebarDivider({
+    required this.onDragUpdate,
+    this.onReset,
+  });
+
+  final ValueChanged<double> onDragUpdate;
+  final VoidCallback? onReset;
+
+  @override
+  State<_DraggableSidebarDivider> createState() =>
+      _DraggableSidebarDividerState();
+}
+
+class _DraggableSidebarDividerState extends State<_DraggableSidebarDivider> {
+  bool _isHovered = false;
+  bool _isDragging = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool isHighlighted = _isHovered || _isDragging;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeColumn,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onDoubleTap: widget.onReset,
+        onHorizontalDragStart: (_) => setState(() => _isDragging = true),
+        onHorizontalDragUpdate: (DragUpdateDetails details) {
+          widget.onDragUpdate(details.delta.dx);
+        },
+        onHorizontalDragEnd: (_) => setState(() => _isDragging = false),
+        onHorizontalDragCancel: () => setState(() => _isDragging = false),
+        child: Container(
+          width: 8,
+          color: Colors.transparent,
+          alignment: Alignment.center,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: isHighlighted ? 2.5 : 1.0,
+            color: isHighlighted
+                ? scheme.primary
+                : scheme.outlineVariant.withValues(alpha: 0.25),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

@@ -110,8 +110,9 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: List<Widget>.generate(barCount, (int i) {
-          final double amp = i < history.length
-              ? history[history.length - barCount + i]
+          final int index = history.length - barCount + i;
+          final double amp = (index >= 0 && index < history.length)
+              ? history[index]
               : 0.0;
           final double barHeight =
               (amp * height * 0.85).clamp(3.0, height);
@@ -191,7 +192,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
                   )
                 : showLock
                     ? Icon(
-                        Icons.lock_outline_rounded,
+                        Icons.lock_rounded,
                         key: const ValueKey<String>('lock'),
                         color: scheme.primary,
                         size: 20,

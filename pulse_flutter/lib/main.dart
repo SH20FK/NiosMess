@@ -24,6 +24,7 @@ import 'package:pulse_flutter/firebase_options.dart';
 import 'package:pulse_flutter/providers/call_push_handler.dart';
 import 'package:pulse_flutter/widgets/calls/call_overlay.dart';
 import 'package:pulse_flutter/screens/calls/incoming_call_overlay.dart';
+import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 
 Future<void> main() async {
   await runZonedGuarded<Future<void>>(
@@ -35,12 +36,15 @@ Future<void> main() async {
       FlutterError.onError = (FlutterErrorDetails details) {
         FlutterError.presentError(details);
         logger.flutterError(details);
+        debugPrint('FLUTTER_ERROR_EXCEPTION: ${details.exception}');
+        debugPrint('FLUTTER_ERROR_STACK: ${details.stack}');
       };
       PlatformDispatcher.instance.onError = (
         Object error,
         StackTrace stack,
       ) {
         logger.error(error, stack, source: 'platform');
+        debugPrint('PLATFORM_ERROR: $error\n$stack');
         return true;
       };
 
@@ -113,6 +117,7 @@ class PulseApp extends ConsumerWidget {
         return MaterialApp.router(
           title: 'NiosMess',
           debugShowCheckedModeBanner: false,
+          scrollBehavior: const AppScrollBehavior(),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           locale: appLocale,
@@ -124,19 +129,58 @@ class PulseApp extends ConsumerWidget {
             final mediaQuery = MediaQuery.of(context).copyWith(
               textScaler: TextScaler.linear(fontScale.scale),
             );
-            return MediaQuery(
-              data: mediaQuery,
-              child: Stack(
-                children: [
-                  child ?? const SizedBox.shrink(),
-                  const IncomingCallOverlay(),
-                  const CallOverlay(),
-                ],
+            return CircularThemeSwitcher(
+              child: MediaQuery(
+                data: mediaQuery,
+                child: Stack(
+                  children: [
+                    child ?? const SizedBox.shrink(),
+                    const IncomingCallOverlay(),
+                    const CallOverlay(),
+                  ],
+                ),
               ),
             );
           },
         );
       },
     );
+  }
+}
+
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => const <PointerDeviceKind>{
+        PointerDeviceKind.touch,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      };
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    if (kIsWeb) {
+      return const ClampingScrollPhysics(
+        parent: RangeMaintainingScrollPhysics(),
+      );
+    }
+    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+  }
+
+  @override
+  Widget buildScrollbar(BuildContext context, Widget child, ScrollableDetails details) {
+    if (kIsWeb && details.controller != null) {
+      return RawScrollbar(
+        controller: details.controller,
+        thumbVisibility: false,
+        thickness: 5,
+        radius: const Radius.circular(3),
+        fadeDuration: const Duration(milliseconds: 300),
+        timeToFade: const Duration(milliseconds: 900),
+        child: child,
+      );
+    }
+    return child;
   }
 }

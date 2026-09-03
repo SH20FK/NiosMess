@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NiosCalls Audio HD E2EE</title>
+    <style>
+        :root {
+            --bg-color: #08080a;
+            --card-bg: rgba(20, 20, 27, 0.85);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent-blue: #2481cc;
+            --accent-green: #31b73c;
+            --accent-red: #e53935;
+            --text-primary: #f5f5f7;
+            --text-secondary: #7f8c99;
+            --island-bg: #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 120%, rgba(36, 129, 204, 0.15), transparent 60%);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .dynamic-island {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--island-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 30px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            min-width: 180px;
+            max-width: 90vw;
+            justify-content: space-between;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .dynamic-island.expanded {
+            border-radius: 20px;
+            padding: 14px 20px;
+            min-width: 280px;
+        }
+
+        .island-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-secondary);
+            transition: background-color 0.3s;
+        }
+
+        .island-indicator.active {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        .island-text {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: -0.2px;
+        }
+
+        .island-icons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 440px;
+            width: 100%;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            transform: translateY(20px);
+            animation: cardEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            margin-top: 60px;
+        }
+
+        @keyframes cardEntrance {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            text-align: center;
+            letter-spacing: -0.5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 14px 16px;
+            background-color: rgba(0, 0, 0, 0.3);
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.25s ease;
+        }
+
+        input[type="text"]:focus, select:focus {
+            border-color: var(--accent-blue);
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .voice-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+            min-height: 180px;
+        }
+
+        .voice-member {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .voice-member.speaking {
+            border-color: var(--accent-green);
+            background: rgba(49, 183, 60, 0.05);
+            transform: scale(1.03);
+        }
+
+        .avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1d2733, #0f141c);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .avatar-fallback {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .voice-member.speaking .avatar {
+            box-shadow: 0 0 0 4px rgba(49, 183, 60, 0.3), 0 0 15px rgba(49, 183, 60, 0.2);
+            animation: pulse-avatar 1.5s infinite alternate;
+        }
+
+        @keyframes pulse-avatar {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
+
+        .member-name {
+            font-size: 14px;
+            font-weight: 600;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .member-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .member-meta::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--accent-blue);
+            display: inline-block;
+        }
+
+        .member-meta.udp::before {
+            background-color: #a200ff;
+        }
+
+        .empty-grid-msg {
+            grid-column: span 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+            border: 1px dashed var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .gate-control {
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            margin: 12px 0;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .visualizer-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .volume-bar {
+            width: 0%;
+            height: 100%;
+            background: var(--accent-green);
+            border-radius: 3px;
+            transition: width 0.05s;
+        }
+
+        .threshold-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--accent-red);
+        }
+
+        .control-dock {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .dock-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            height: 54px;
+            border-radius: 16px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .dock-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .dock-btn:active {
+            transform: translateY(0);
+        }
+
+        .dock-btn.btn-active {
+            background-color: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .dock-btn.btn-danger {
+            background-color: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+
+        .dock-btn.btn-danger:hover {
+            background-color: #b71c1c;
+        }
+
+        .dock-btn.btn-green {
+            background-color: var(--accent-green);
+            border-color: var(--accent-green);
+            color: #000;
+        }
+
+        .primary-btn {
+            width: 100%;
+            background-color: var(--accent-blue);
+            color: #fff;
+            border: none;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .primary-btn:hover {
+            background-color: #1a6fae;
+        }
+
+        .primary-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .secondary-btn {
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .secondary-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background-color: #121216;
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 380px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+        }
+
+        .qr-placeholder {
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            background: white;
+            padding: 10px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qr-placeholder img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .modal-close {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        #qr-reader {
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--card-border);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body>
+
+<div class="dynamic-island" id="dynamic-island">
+    <span class="island-indicator" id="island-indicator"></span>
+    <span class="island-text" id="island-text">Безопасное соединение</span>
+    <div class="island-icons" id="island-icons"></div>
+</div>
+
+<div class="container">
+    <h2 id="app-title">NiosCalls HD</h2>
+    
+    <div id="setup-screen" class="screen active">
+        <div class="form-group">
+            <label for="nickname-input">Ваше имя (никнейм)</label>
+            <input type="text" id="nickname-input" placeholder="Введите имя..." maxlength="20">
+        </div>
+
+        <div class="form-group">
+            <label for="mic-select-setup">Выберите микрофон</label>
+            <select id="mic-select-setup">
+                <option value="">По умолчанию (ожидание...)</option>
+            </select>
+        </div>
+
+        <button class="primary-btn" id="start-btn">Войти в защищенный звонок</button>
+        <button class="secondary-btn" id="scan-qr-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Сканировать QR-код
+        </button>
+
+        <div id="setup-error"></div>
+    </div>
+
+    <div id="call-screen" class="screen">
+        <div class="form-group" style="margin-bottom: 16px;">
+            <label for="mic-select-active">Сменить микрофон</label>
+            <select id="mic-select-active">
+                <option value="">По умолчанию</option>
+            </select>
+        </div>
+
+        <div class="voice-grid" id="voice-grid">
+            <div class="empty-grid-msg" id="empty-msg">
+                <p>Никого нет в сети</p>
+                <span style="font-size: 11px; margin-top: 4px; color: var(--text-secondary);">Ожидание других участников...</span>
+            </div>
+        </div>
+
+        <div class="gate-control">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label style="margin-bottom: 0;">Шумоподавление</label>
+                <span id="gate-value" style="color: var(--accent-blue); font-weight: bold; font-size: 12px;">0.0090</span>
+            </div>
+            <input type="range" id="gate-slider" min="0" max="0.1" step="0.0005" value="0.0090">
+            <div class="visualizer-container">
+                <div class="volume-bar" id="volume-bar"></div>
+                <div class="threshold-marker" id="threshold-marker" style="left: 9%;"></div>
+            </div>
+        </div>
+        
+        <div class="control-dock">
+            <button class="dock-btn" id="mute-btn" title="Выключить микрофон"></button>
+            <button class="dock-btn" id="invite-btn" title="Показать QR-код"></button>
+            <button class="dock-btn" id="change-btn" title="Сменить комнату"></button>
+            <button class="dock-btn btn-danger" id="leave-btn" title="Выйти"></button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="qr-modal">
+    <div class="modal-content">
+        <h3>Пригласить участников</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-top: 8px;">Отсканируйте этот QR-код для быстрого входа в комнату</p>
+        <div class="qr-placeholder" id="qrcode"></div>
+        <button class="primary-btn" id="copy-btn">Копировать ссылку</button>
+        <button class="secondary-btn modal-close" id="close-modal-btn">Закрыть</button>
+    </div>
+</div>
+
+<div class="modal" id="scanner-modal">
+    <div class="modal-content" style="max-width: 400px; padding: 24px;">
+        <h3>Сканирование QR-кода</h3>
+        <div id="qr-reader"></div>
+        <button class="secondary-btn modal-close" id="close-scanner-btn">Отмена</button>
+    </div>
+</div>
+
+<script>
+    const shapes = [
+        "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z",
+        "M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z",
+        "M12.65 10C11.83 7.59 9.11 6 6 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c3.11 0 5.83-1.59 6.65-4H18v4h4v-4h2v-4H12.65zM6 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z",
+        "M5 16L3 5l5.5 3L12 4l3.5 4L21 5l-2 11H5zm14 3H5v-2h14v2z",
+        "M11.5 2L2 13h9v9l9.5-11h-9V2z",
+        "M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z",
+        "M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z",
+        "M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"
+    ];
+    const colors = ["#ff3b30", "#34c759", "#007aff", "#ffcc00", "#af52de", "#ff9500", "#ff2d55", "#5ac8fa"];
+
+    const lockSVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#7f8c99" style="display:inline-block;vertical-align:middle;"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>`;
+    
+    const micOnIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" x2="12" y1="19" y2="22"/></svg>`;
+    const micOffIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" x2="23" y1="1" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 11v-1M19 10v1a6.93 6.93 0 0 1-.46 2.5"/><line x1="12" x2="12" y1="19" y2="22"/></svg>`;
+    const inviteIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+    const changeRoomIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M16 3h5v5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 21H3v-5"/></svg>`;
+    const hangupIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10a12 12 0 0 1 20 0l-3 3a8 8 0 0 0-14 0l-3-3z"/></svg>`;
+
+    document.getElementById('mute-btn').innerHTML = micOnIcon;
+    document.getElementById('invite-btn').innerHTML = inviteIcon;
+    document.getElementById('change-btn').innerHTML = changeRoomIcon;
+    document.getElementById('leave-btn').innerHTML = hangupIcon;
+
+    function resetFingerprintDisplay() {
+        const container = document.getElementById('island-icons');
+        container.innerHTML = lockSVG + lockSVG + lockSVG + lockSVG;
+    }
+
+    function generateRandomString(length) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+        return result;
+    }
+
+    let roomId = window.location.pathname.substring(1);
+    if (!roomId || roomId.length !== 32) {
+        roomId = generateRandomString(32);
+        window.history.replaceState(null, '', `/${roomId}`);
+    }
+
+    function getInviteUrl() {
+        return window.location.origin + `/${roomId}`;
+    }
+
+    let qrCodeInstance = null;
+    function updateQrCode() {
+        const qrelem = document.getElementById('qrcode');
+        qrelem.innerHTML = '';
+        qrCodeInstance = new QRCode(qrelem, {
+            text: getInviteUrl(),
+            width: 180,
+            height: 180,
+            colorDark: "#121216",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    }
+
+    document.getElementById('invite-btn').addEventListener('click', () => {
+        updateQrCode();
+        document.getElementById('qr-modal').style.display = 'flex';
+    });
+
+    document.getElementById('close-modal-btn').addEventListener('click', () => {
+        document.getElementById('qr-modal').style.display = 'none';
+    });
+
+    function showToast(message) {
+        let toast = document.createElement('div');
+        toast.style.position = 'fixed';
+        toast.style.bottom = '30px';
+        toast.style.left = '50%';
+        toast.style.transform = 'translateX(-50%)';
+        toast.style.backgroundColor = 'var(--accent-green)';
+        toast.style.color = '#000000';
+        toast.style.padding = '12px 24px';
+        toast.style.borderRadius = '12px';
+        toast.style.fontSize = '14px';
+        toast.style.fontWeight = 'bold';
+        toast.style.zIndex = '9999';
+        toast.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
+        document.body.appendChild(toast);
+        toast.innerText = message;
+        setTimeout(() => toast.style.opacity = '1', 50);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 2500);
+    }
+
+    document.getElementById('copy-btn').addEventListener('click', async () => {
+        const copyBtn = document.getElementById('copy-btn');
+        try {
+            await navigator.clipboard.writeText(getInviteUrl());
+            copyBtn.innerText = "Скопировано!";
+            copyBtn.style.backgroundColor = "var(--accent-green)";
+            copyBtn.style.color = "#000";
+            setTimeout(() => {
+                copyBtn.innerText = "Копировать ссылку";
+                copyBtn.style.backgroundColor = "";
+                copyBtn.style.color = "";
+            }, 1500);
+        } catch (err) {}
+    });
+
+    let html5QrScanner = null;
+    document.getElementById('scan-qr-btn').addEventListener('click', () => {
+        const modal = document.getElementById('scanner-modal');
+        modal.style.display = 'flex';
+        html5QrScanner = new Html5Qrcode("qr-reader");
+        html5QrScanner.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: 220 },
+            (decodedText) => {
+                try {
+                    const url = new URL(decodedText);
+                    const possibleRoom = url.pathname.substring(1);
+                    if (possibleRoom && possibleRoom.length === 32) {
+                        roomId = possibleRoom;
+                        window.history.replaceState(null, '', `/${roomId}`);
+                        showToast("Успешно отсканировано!");
+                        stopScanner();
+                    }
+                } catch (e) {}
+            },
+            () => {}
+        ).catch(() => {
+            stopScanner();
+        });
+    });
+
+    document.getElementById('close-scanner-btn').addEventListener('click', () => {
+        stopScanner();
+    });
+
+    function stopScanner() {
+        const modal = document.getElementById('scanner-modal');
+        modal.style.display = 'none';
+        if (html5QrScanner) {
+            html5QrScanner.stop().catch(()=>{});
+            html5QrScanner = null;
+        }
+    }
+
+    let myKeyPair, mySenderKey, myPubKeyRaw, mySenderKeyRaw;
+
+    async function initE2EE() {
+        myKeyPair = await window.crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey", "deriveBits"]);
+        const pubKeyBuffer = await window.crypto.subtle.exportKey("raw", myKeyPair.publicKey);
+        myPubKeyRaw = new Uint8Array(pubKeyBuffer);
+
+        mySenderKey = await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+        const senderKeyBuffer = await window.crypto.subtle.exportKey("raw", mySenderKey);
+        mySenderKeyRaw = new Uint8Array(senderKeyBuffer);
+    }
+
+    async function deriveSharedSecret(peerPubKeyRaw) {
+        const peerPubKey = await window.crypto.subtle.importKey(
+            "raw", peerPubKeyRaw, { name: "ECDH", namedCurve: "P-256" }, true, []
+        );
+        return await window.crypto.subtle.deriveKey(
+            { name: "ECDH", public: peerPubKey },
+            myKeyPair.privateKey,
+            { name: "AES-GCM", length: 256 },
+            false, ["encrypt", "decrypt"]
+        );
+    }
+
+    async function updateEmojiFingerprint() {
+        if (!myClientId || !myPubKeyRaw) return;
+        
+        let participants = [{ id: myClientId, key: myPubKeyRaw }];
+        for (let [id, peer] of peers.entries()) {
+            if (peer.pubKeyRaw) participants.push({ id, key: peer.pubKeyRaw });
+        }
+        
+        participants.sort((a, b) => a.id - b.id);
+        
+        const combined = new Uint8Array(participants.length * 69);
+        let offset = 0;
+        const view = new DataView(combined.buffer);
+        for (let p of participants) {
+            view.setUint32(offset, p.id, false);
+            combined.set(p.key, offset + 4);
+            offset += 69;
+        }
+        
+        const hash = await window.crypto.subtle.digest("SHA-256", combined);
+        const hashArray = new Uint8Array(hash);
+        
+        const container = document.getElementById('island-icons');
+        container.innerHTML = "";
+        for (let i = 0; i < 4; i++) {
+            const val = hashArray[i] % 64;
+            const color = colors[val % 8];
+            const shape = shapes[Math.floor(val / 8)];
+            container.innerHTML += `<svg width="18" height="18" viewBox="0 0 24 24" fill="${color}" style="display:inline-block;vertical-align:middle;"><path d="${shape}"/></svg>`;
+        }
+    }
+
+    let transport = null, ws = null, wt = null, datagramWriter = null;
+    let myClientId = null, myNickname = "Аноним";
+    let heartbeatInterval = null; 
+    
+    let audioEncoder = null, myAudioTrack = null, currentReader = null, currentCaptureSession = 0; 
+    let isMuted = false, audioContext = null, analyser = null, dataArray = null;
+    let noiseGateThreshold = 0.009; 
+
+    const peers = new Map(); 
+
+    const setupScreen = document.getElementById('setup-screen');
+    const callScreen = document.getElementById('call-screen');
+    const nicknameInput = document.getElementById('nickname-input');
+    const micSelectSetup = document.getElementById('mic-select-setup');
+    const micSelectActive = document.getElementById('mic-select-active');
+    const setupError = document.getElementById('setup-error');
+    const startBtn = document.getElementById('start-btn');
+
+    const gateSlider = document.getElementById('gate-slider');
+    const gateValue = document.getElementById('gate-value');
+    const thresholdMarker = document.getElementById('threshold-marker');
+    const volumeBar = document.getElementById('volume-bar');
+
+    gateSlider.addEventListener('input', (e) => {
+        noiseGateThreshold = parseFloat(e.target.value);
+        gateValue.innerText = noiseGateThreshold.toFixed(4);
+        thresholdMarker.style.left = `${(noiseGateThreshold / 0.1) * 100}%`;
+    });
+
+    if (localStorage.getItem('user_nickname')) nicknameInput.value = localStorage.getItem('user_nickname');
+
+    micSelectActive.addEventListener('change', (e) => { micSelectSetup.value = e.target.value; startAudioCapture(e.target.value); });
+    micSelectSetup.addEventListener('change', (e) => { micSelectActive.value = e.target.value; });
+
+    async function updateMicList() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioInputs = devices.filter(d => d.kind === 'audioinput');
+            const currentSelection = micSelectSetup.value || micSelectActive.value;
+            
+            [micSelectSetup, micSelectActive].forEach(select => {
+                select.innerHTML = '';
+                audioInputs.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Микрофон ${index + 1}`;
+                    if (device.deviceId === currentSelection) option.selected = true;
+                    select.appendChild(option);
+                });
+            });
+        } catch (err) {}
+    }
+
+    window.addEventListener('load', async () => {
+        resetFingerprintDisplay();
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getAudioTracks().forEach(t => t.stop());
+            await updateMicList();
+        } catch (err) {}
+    });
+
+    navigator.mediaDevices.addEventListener('devicechange', updateMicList);
+
+    async function sendPacket(payload, reliable = false) {
+        if (transport === "UDP" && wt) {
+            if (reliable) {
+                try {
+                    const stream = await wt.createUnidirectionalStream();
+                    const writer = stream.getWriter();
+                    const prefixed = new Uint8Array(4 + payload.byteLength);
+                    new DataView(prefixed.buffer).setUint32(0, payload.byteLength, false);
+                    prefixed.set(payload, 4);
+                    await writer.write(prefixed);
+                    await writer.close();
+                } catch(e) {}
+            } else {
+                if (datagramWriter) datagramWriter.write(payload).catch(()=>{});
+            }
+        } else if (transport === "TCP" && ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(payload);
+        }
+    }
+
+    function readWebTransportStreams(wtConnection) {
+        async function processStream(stream) {
+            try {
+                const reader = stream.getReader();
+                let buffer = new Uint8Array(0);
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (value) {
+                        const newBuf = new Uint8Array(buffer.length + value.length);
+                        newBuf.set(buffer, 0); newBuf.set(value, buffer.length);
+                        buffer = newBuf;
+
+                        while (buffer.length >= 4) {
+                            const packetLength = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength).getUint32(0, false);
+                            if (buffer.length >= 4 + packetLength) {
+                                const packet = buffer.slice(4, 4 + packetLength);
+                                buffer = buffer.slice(4 + packetLength); 
+                                handleIncomingPacket(packet);
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    if (done) break;
+                }
+            } catch(e) {}
+        }
+        
+        (async () => {
+            try {
+                const streamReader = wtConnection.incomingUnidirectionalStreams.getReader();
+                while (true) {
+                    const { value: stream, done } = await streamReader.read();
+                    if (done) break;
+                    processStream(stream);
+                }
+            } catch(e) {}
+        })();
+    }
+
+    async function connectServer() {
+        const host = window.location.host;
+        const hostname = window.location.hostname;
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        
+        const wsUrl = `${wsProtocol}//${host}/ws?room=${roomId}&nick=${encodeURIComponent(myNickname)}`;
+        const wtUrl = `https://${hostname}:4433/wt?room=${roomId}&nick=${encodeURIComponent(myNickname)}`;
+
+        try {
+            if (typeof WebTransport !== 'undefined') {
+                wt = new WebTransport(wtUrl);
+                await wt.ready;
+                
+                transport = "UDP";
+                datagramWriter = wt.datagrams.writable.getWriter();
+                readWebTransportStreams(wt);
+                
+                (async () => {
+                    const reader = wt.datagrams.readable.getReader();
+                    try {
+                        while (true) {
+                            const { value, done } = await reader.read();
+                            if (done) break;
+                            handleIncomingPacket(value);
+                        }
+                    } catch (e) { handleDisconnect(); }
+                })();
+                
+                finalizeConnection();
+                return;
+            }
+        } catch (e) {}
+
+        return new Promise((resolve, reject) => {
+            transport = "TCP";
+            ws = new WebSocket(wsUrl);
+            ws.binaryType = "arraybuffer";
+
+            ws.onopen = () => {
+                finalizeConnection();
+                resolve();
+            };
+            ws.onmessage = async (e) => {
+                if (typeof e.data === "string") return;
+                handleIncomingPacket(new Uint8Array(e.data));
+            };
+            ws.onerror = (err) => {
+                reject(new Error("Не удалось подключиться по протоколу WebSocket"));
+            };
+            ws.onclose = () => { if (ws) handleDisconnect(); };
+        });
+    }
+
+    function finalizeConnection() {
+        setupError.style.display = "none";
+        setupScreen.classList.remove('active');
+        callScreen.classList.add('active');
+        startAudioCapture(micSelectSetup.value || micSelectActive.value);
+        
+        heartbeatInterval = setInterval(sendNicknameHeartbeat, 2000);
+        
+        const island = document.getElementById('dynamic-island');
+        const indicator = document.getElementById('island-indicator');
+        const text = document.getElementById('island-text');
+        island.classList.add('expanded');
+        indicator.classList.add('active');
+        text.innerText = "Активен (" + transport + ")";
+    }
+
+    function sendNicknameHeartbeat() {
+        if (!myClientId) return;
+        const nickBytes = new TextEncoder().encode(myNickname);
+        const packet = new Uint8Array(1 + nickBytes.length);
+        packet[0] = 0x02;
+        packet.set(nickBytes, 1); 
+        sendPacket(packet, true);
+    }
+
+    function showSetupError(msg) {
+        setupError.innerText = msg;
+        setupError.style.display = "block";
+        startBtn.disabled = false;
+        startBtn.innerText = "Войти в защищенный звонок";
+    }
+
+    startBtn.addEventListener('click', async () => {
+        try {
+            setupError.style.display = "none";
+            startBtn.disabled = true;
+            
+            if (!window.crypto || !window.crypto.subtle) {
+                throw new Error("Защищенное соединение (HTTPS) необходимо для криптографии.");
+            }
+            if (typeof AudioEncoder === 'undefined') {
+                throw new Error("Ваш браузер не поддерживает WebCodecs API.");
+            }
+
+            myNickname = nicknameInput.value.trim() || "Аноним";
+            localStorage.setItem('user_nickname', myNickname);
+
+            startBtn.innerText = "Генерация E2EE...";
+            await initE2EE();
+            
+            stopScanner();
+            
+            startBtn.innerText = "Соединение...";
+            await connectServer();
+
+        } catch (err) {
+            showSetupError(err.message);
+        }
+    });
+
+    document.getElementById('mute-btn').addEventListener('click', (e) => {
+        isMuted = !isMuted;
+        e.currentTarget.innerHTML = isMuted ? micOffIcon : micOnIcon;
+        if (isMuted) {
+            e.currentTarget.classList.add('btn-danger');
+        } else {
+            e.currentTarget.classList.remove('btn-danger');
+        }
+    });
+
+    async function startAudioCapture(deviceId = null) {
+        const thisSessionId = ++currentCaptureSession; 
+        if (currentReader) { try { await currentReader.cancel(); } catch(e){} currentReader = null; }
+        if (myAudioTrack) { myAudioTrack.stop(); myAudioTrack = null; }
+        if (audioEncoder) { try { audioEncoder.close(); } catch(e){} audioEncoder = null; }
+        if (audioContext) { try { audioContext.close(); } catch(e){} audioContext = null; }
+
+        await new Promise(resolve => setTimeout(resolve, 150));
+        if (thisSessionId !== currentCaptureSession) return;
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(deviceId ? { audio: { deviceId: { exact: deviceId } } } : { audio: true });
+            await updateMicList();
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioContext.createMediaStreamSource(stream);
+            analyser = audioContext.createAnalyser(); analyser.fftSize = 256;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            source.connect(analyser);
+
+            myAudioTrack = stream.getAudioTracks()[0];
+            const processor = new MediaStreamTrackProcessor({ track: myAudioTrack });
+            currentReader = processor.readable.getReader();
+
+            audioEncoder = new AudioEncoder({
+                output: async (chunk) => {
+                    if (thisSessionId !== currentCaptureSession || !mySenderKey || !myClientId || isMuted) return;
+                    const chunkData = new Uint8Array(chunk.byteLength); chunk.copyTo(chunkData);
+                    
+                    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                    const encryptedBuffer = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, mySenderKey, chunkData);
+                    const encryptedBytes = new Uint8Array(encryptedBuffer);
+
+                    const packet = new Uint8Array(1 + 12 + encryptedBytes.length);
+                    packet[0] = 0x01; 
+                    packet.set(iv, 1); 
+                    packet.set(encryptedBytes, 13); 
+                    
+                    sendPacket(packet, false);
+                },
+                error: (e) => console.error(e)
+            });
+            audioEncoder.configure({ codec: 'opus', sampleRate: 48000, numberOfChannels: 1, bitrate: 32000 });
+
+            let hangoverFrames = 0;
+            while (thisSessionId === currentCaptureSession) {
+                const { done, value } = await currentReader.read();
+                if (done || thisSessionId !== currentCaptureSession) {
+                    if (value) value.close(); break;
+                }
+
+                analyser.getByteTimeDomainData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const val = (dataArray[i] - 128) / 128; sum += val * val;
+                }
+                const rmsVolume = Math.sqrt(sum / dataArray.length); 
+
+                volumeBar.style.width = `${Math.min((rmsVolume / 0.1) * 100, 100)}%`;
+                const isSpeaking = rmsVolume > noiseGateThreshold;
+
+                if (isSpeaking && !isMuted) {
+                    hangoverFrames = 35; 
+                } else {
+                    if (hangoverFrames > 0) hangoverFrames--;
+                }
+
+                if (hangoverFrames > 0 && !isMuted) audioEncoder.encode(value);
+                value.close();
+            }
+        } catch (err) {
+            document.getElementById('mute-btn').style.display = "none";
+        }
+    }
+
+    async function handleIncomingPacket(buf) {
+        if (!buf || buf.byteLength < 1) return;
+        const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+        const type = view.getUint8(0); 
+
+        if (type === 0x03) {
+            if (!myClientId) {
+                myClientId = view.getUint32(1, false);
+                
+                const pubPkt = new Uint8Array(1 + 65);
+                pubPkt[0] = 0x05;
+                pubPkt.set(myPubKeyRaw, 1);
+                sendPacket(pubPkt, true);
+                
+                sendNicknameHeartbeat();
+                updateEmojiFingerprint();
+                updatePeersUI();
+            }
+            return;
+        }
+
+        if (type === 0x04) return handleDisconnect();
+
+        if (buf.byteLength < 5) return;
+        const senderId = view.getUint32(1, false);
+        if (senderId === myClientId) return; 
+
+        if (type === 0x07) return removePeer(senderId);
+
+        let peer = peers.get(senderId);
+        if (!peer) {
+            peer = createPeer(senderId);
+            peers.set(senderId, peer);
+        }
+        peer.lastActive = Date.now();
+
+        if (type === 0x05) {
+            const peerPubKeyRaw = new Uint8Array(buf.buffer, buf.byteOffset + 5, 65);
+            peer.pubKeyRaw = peerPubKeyRaw;
+            peer.sharedSecret = await deriveSharedSecret(peerPubKeyRaw);
+            
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const encryptedKey = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, peer.sharedSecret, mySenderKeyRaw);
+            
+            const directPkt = new Uint8Array(1 + 4 + 12 + encryptedKey.byteLength);
+            directPkt[0] = 0x06;
+            new DataView(directPkt.buffer).setUint32(1, senderId, false);
+            directPkt.set(iv, 5);
+            directPkt.set(new Uint8Array(encryptedKey), 17);
+            
+            sendPacket(directPkt, true);
+            updateEmojiFingerprint();
+            updatePeersUI();
+        }
+        else if (type === 0x06) {
+            if (!peer.sharedSecret) return;
+            const iv = new Uint8Array(buf.buffer, buf.byteOffset + 5, 12);
+            const encKey = new Uint8Array(buf.buffer, buf.byteOffset + 17, buf.byteLength - 17);
+            try {
+                const decryptedRaw = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, peer.sharedSecret, encKey);
+                peer.senderKey = await window.crypto.subtle.importKey("raw", decryptedRaw, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+            } catch(e) {}
+        }
+        else if (type === 0x02) {
+            const nickname = new TextDecoder().decode(new Uint8Array(buf.buffer, buf.byteOffset + 5, buf.byteLength - 5));
+            if (peer.nickname !== nickname) { peer.nickname = nickname; updatePeersUI(); }
+        }
+        else if (type === 0x01) {
+            if (!peer.senderKey) return; 
+            const iv = new Uint8Array(buf.buffer, buf.byteOffset + 5, 12);
+            const ciphertext = new Uint8Array(buf.buffer, buf.byteOffset + 17, buf.byteLength - 17);
+
+            try {
+                const decryptedBuffer = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, peer.senderKey, ciphertext);
+
+                if (!peer.isSpeaking) { peer.isSpeaking = true; updatePeersUI(); }
+                if (peer.speakingTimeout) clearTimeout(peer.speakingTimeout);
+                peer.speakingTimeout = setTimeout(() => { peer.isSpeaking = false; updatePeersUI(); }, 500);
+
+                if (!peer.nextTimestamp) peer.nextTimestamp = performance.now() * 1000;
+                peer.audioDecoder.decode(new EncodedAudioChunk({
+                    type: 'key', timestamp: peer.nextTimestamp, duration: 20000, data: decryptedBuffer
+                }));
+                peer.nextTimestamp += 20000; 
+            } catch(e) {}
+        }
+    }
+
+    function createPeer(id) {
+        const generator = new MediaStreamTrackGenerator({ kind: 'audio' });
+        const writer = generator.writable.getWriter();
+        const audioDecoder = new AudioDecoder({
+            output: async (audioData) => { await writer.write(audioData); audioData.close(); },
+            error: (e) => console.error(e)
+        });
+        audioDecoder.configure({ codec: 'opus', sampleRate: 48000, numberOfChannels: 1 });
+
+        const audioEl = document.createElement('audio');
+        audioEl.srcObject = new MediaStream([generator]);
+        audioEl.play().catch(()=>{});
+
+        return { audioDecoder, audioEl, lastActive: Date.now(), nickname: `Участник #${id}`, isSpeaking: false };
+    }
+
+    function removePeer(id) {
+        const peer = peers.get(id);
+        if (peer) {
+            peer.audioEl.remove();
+            try { peer.audioDecoder.close(); } catch(e){}
+            if (peer.speakingTimeout) clearTimeout(peer.speakingTimeout);
+            peers.delete(id);
+            updateEmojiFingerprint();
+            updatePeersUI();
+        }
+    }
+
+    function getInitials(name) {
+        return name.slice(0, 2).toUpperCase();
+    }
+
+    function updatePeersUI() {
+        const grid = document.getElementById('voice-grid');
+        grid.innerHTML = "";
+
+        if (peers.size === 0) {
+            grid.innerHTML = `
+                <div class="empty-grid-msg" id="empty-msg">
+                    <p>Никого нет в сети</p>
+                    <span style="font-size: 11px; margin-top: 4px; color: var(--text-secondary);">Ожидание других участников...</span>
+                </div>
+            `;
+            return;
+        }
+
+        for (const [id, peer] of peers.entries()) {
+            const memberDiv = document.createElement('div');
+            memberDiv.className = `voice-member ${peer.isSpeaking ? 'speaking' : ''}`;
+
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'avatar';
+
+            const fallback = document.createElement('div');
+            fallback.className = 'avatar-fallback';
+            fallback.innerText = getInitials(peer.nickname);
+
+            const img = document.createElement('img');
+            img.className = 'avatar-img';
+            img.onload = () => {
+                img.style.display = 'block';
+                fallback.style.display = 'none';
+            };
+            img.src = `https://ni-os.ru/avatar?name=${encodeURIComponent(peer.nickname)}&id=${id}`;
+
+            avatarDiv.appendChild(img);
+            avatarDiv.appendChild(fallback);
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'member-name';
+            nameDiv.innerText = peer.nickname;
+
+            const metaDiv = document.createElement('div');
+            metaDiv.className = `member-meta ${transport === 'UDP' ? 'udp' : ''}`;
+            metaDiv.innerText = transport;
+
+            memberDiv.appendChild(avatarDiv);
+            memberDiv.appendChild(nameDiv);
+            memberDiv.appendChild(metaDiv);
+            grid.appendChild(memberDiv);
+        }
+    }
+
+    function handleDisconnect() {
+        currentCaptureSession++; 
+        if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+        if (currentReader) { try { currentReader.cancel(); } catch(e){} currentReader = null; }
+        if (myAudioTrack) { myAudioTrack.stop(); myAudioTrack = null; }
+        if (audioEncoder) { try { audioEncoder.close(); } catch(e){} audioEncoder = null; }
+        if (audioContext) { try { audioContext.close(); } catch(e){} audioContext = null; }
+
+        if (ws) { ws.close(); ws = null; }
+        if (wt) { wt.close(); wt = null; }
+        datagramWriter = null; transport = null; myClientId = null;
+        
+        const island = document.getElementById('dynamic-island');
+        const indicator = document.getElementById('island-indicator');
+        const text = document.getElementById('island-text');
+        island.classList.remove('expanded');
+        indicator.classList.remove('active');
+        text.innerText = "Ожидание подключения";
+        resetFingerprintDisplay();
+
+        const peerIds = Array.from(peers.keys());
+        for (const id of peerIds) {
+            removePeer(id);
+        }
+        peers.clear();
+
+        callScreen.classList.remove('active');
+        setupScreen.classList.add('active');
+
+        startBtn.disabled = false;
+        startBtn.innerText = "Войти в защищенный звонок";
+        updatePeersUI();
+    }
+
+    document.getElementById('leave-btn').addEventListener('click', () => handleDisconnect());
+
+    document.getElementById('change-btn').addEventListener('click', () => {
+        handleDisconnect();
+        roomId = generateRandomString(32);
+        window.history.pushState({}, '', `/${roomId}`);
+    });
+
+    setInterval(() => {
+        const now = Date.now();
+        const toRemove = [];
+        for (const [id, peer] of peers.entries()) {
+            if (now - peer.lastActive > 15000) {
+                toRemove.push(id);
+            }
+        }
+        for (const id of toRemove) {
+            removePeer(id);
+        }
+    }, 5000);
+</script>
+</body>
+</html>

@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -68,18 +69,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (authenticated) {
       context.go('/main/chats');
     } else {
-      context.push('/register');
-    }
-  }
-
-  Future<void> _handleLogin() async {
-    HapticService.tap();
-    await ref.read(sessionProvider.notifier).completeOnboarding();
-    if (!mounted) return;
-    final bool authenticated = ref.read(authProvider).isAuthenticated;
-    if (authenticated) {
-      context.go('/main/chats');
-    } else {
       context.push('/login');
     }
   }
@@ -95,148 +84,165 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       showBackButton: false,
       showThemeToggle: true,
       child: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final bool bounded = constraints.hasBoundedHeight;
 
-            // ── Hero Branding Header ─────────────────────────────────
-            Expanded(
-              flex: 5,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const AppLogoMark(size: 88)
-                      .animate()
-                      .scale(
-                        begin: const Offset(0.7, 0.7),
-                        end: const Offset(1, 1),
-                        curve: Curves.easeOutBack,
-                        duration: 480.ms,
-                      )
-                      .fade(duration: 400.ms),
-                  const SizedBox(height: 18),
-
-                  // Brand Name with M3 decorative element
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Ni',
-                        style: textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: M3Container(
-                          Shapes.c9_sided_cookie,
-                          width: 22,
-                          height: 22,
-                          color: scheme.primary,
-                          child: Center(
-                            child: Icon(
-                              Icons.bolt_rounded,
-                              size: 14,
-                              color: scheme.onPrimary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Text(
-                        's Mess',
-                        style: textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ],
-                  ).animate().fade(delay: 150.ms, duration: 400.ms),
-                ],
-              ),
-            ),
-
-            // ── Features PageView Carousel ───────────────────────────
-            Expanded(
-              flex: 6,
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: (int index) {
-                  if (ref.read(uiSettingsProvider).haptics) {
-                    HapticService.tap();
-                  }
-                  setState(() => _index = index);
-                },
-                itemCount: slides.length,
-                itemBuilder: (BuildContext context, int index) {
-                  final _SlideData slide = slides[index];
-
-                  return Center(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Lottie Animated Illustration
-                          Lottie.asset(
-                            slide.lottiePath,
-                            width: 130,
-                            height: 130,
-                            fit: BoxFit.contain,
-                            repeat: true,
-                          ),
-                          const SizedBox(height: 16),
-
-                          Text(
-                            slide.title,
-                            textAlign: TextAlign.center,
-                            style: textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            slide.description,
-                            textAlign: TextAlign.center,
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
+            final Widget headerSection = Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const AppLogoMark(size: 80)
+                    .animate()
+                    .scale(
+                      begin: const Offset(0.7, 0.7),
+                      end: const Offset(1, 1),
+                      curve: Curves.easeOutBack,
+                      duration: 480.ms,
+                    )
+                    .fade(duration: 400.ms),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      context.l10n.appName,
+                      style: GoogleFonts.unbounded(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: scheme.onSurface,
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
+                    const SizedBox(width: 8),
+                    M3Container(
+                      Shapes.c9_sided_cookie,
+                      width: 22,
+                      height: 22,
+                      color: scheme.primaryContainer,
+                      child: Center(
+                        child: Icon(
+                          Icons.bolt_rounded,
+                          size: 14,
+                          color: scheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ).animate().fade(delay: 150.ms, duration: 400.ms),
+              ],
+            );
 
-            // ── Slide Indicator Dots ─────────────────────────────────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List<Widget>.generate(slides.length, (int dotIndex) {
-                final bool active = dotIndex == _index;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: active ? 24 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: active
-                        ? scheme.primary
-                        : scheme.outlineVariant.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(4),
+            final Widget carouselSection = PageView.builder(
+              controller: _pageController,
+              onPageChanged: (int index) {
+                if (ref.read(uiSettingsProvider).haptics) {
+                  HapticService.tap();
+                }
+                setState(() => _index = index);
+              },
+              itemCount: slides.length,
+              itemBuilder: (BuildContext context, int index) {
+                final _SlideData slide = slides[index];
+                return Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Lottie.asset(
+                          slide.lottiePath,
+                          width: 140,
+                          height: 140,
+                          fit: BoxFit.contain,
+                          repeat: true,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          slide.title,
+                          textAlign: TextAlign.center,
+                          style: textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          slide.description,
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
-              }),
-            ),
-            const SizedBox(height: 28),
+              },
+            );
 
-            // ── Bottom Action Buttons ────────────────────────────────
-            Padding(
+            final Widget indicatorSection = Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                  onPressed: _index > 0
+                      ? () {
+                          HapticFeedback.selectionClick();
+                          _pageController.previousPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOutCubic,
+                          );
+                        }
+                      : null,
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List<Widget>.generate(slides.length, (int dotIndex) {
+                    final bool active = dotIndex == _index;
+                    return GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        _pageController.animateToPage(
+                          dotIndex,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOutCubic,
+                        );
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: active ? 24 : 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: active
+                              ? scheme.primary
+                              : scheme.outlineVariant.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                  onPressed: _index < slides.length - 1
+                      ? () {
+                          HapticFeedback.selectionClick();
+                          _pageController.nextPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOutCubic,
+                          );
+                        }
+                      : null,
+                ),
+              ],
+            );
+
+            final Widget actionButtonsSection = Padding(
               padding: EdgeInsets.only(
                 left: 24,
                 right: 24,
@@ -244,97 +250,59 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Primary Action: "Создать аккаунт"
-                    _M3AuthPillButton(
-                      label: context.l10n.registerTitle,
-                      icon: Icons.arrow_forward_rounded,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: FilledButton.icon(
+                    onPressed: _handleGetStarted,
+                    icon: Icon(Icons.arrow_forward_rounded, size: 20, color: scheme.onPrimary),
+                    label: Text(
+                      context.l10n.onboardingGetStarted,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: scheme.onPrimary,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    style: FilledButton.styleFrom(
                       backgroundColor: scheme.primary,
                       foregroundColor: scheme.onPrimary,
-                      onTap: _handleGetStarted,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      elevation: 0,
                     ),
-                    const SizedBox(height: 12),
-
-                    // Secondary Action: "У меня уже есть аккаунт"
-                    _M3AuthPillButton(
-                      label: context.l10n.loginTitle,
-                      backgroundColor: scheme.surfaceContainerHigh.withValues(alpha: 0.9),
-                      foregroundColor: scheme.onSurface,
-                      isOutlined: false,
-                      onTap: _handleLogin,
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+            );
 
-class _M3AuthPillButton extends StatelessWidget {
-  const _M3AuthPillButton({
-    required this.label,
-    required this.backgroundColor,
-    required this.foregroundColor,
-    required this.onTap,
-    this.icon,
-    this.isOutlined = false,
-  });
+            if (bounded) {
+              return Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Expanded(flex: 5, child: headerSection),
+                  Expanded(flex: 6, child: carouselSection),
+                  indicatorSection,
+                  const SizedBox(height: 24),
+                  actionButtonsSection,
+                ],
+              );
+            }
 
-  final String label;
-  final Color backgroundColor;
-  final Color foregroundColor;
-  final VoidCallback onTap;
-  final IconData? icon;
-  final bool isOutlined;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: backgroundColor,
-      borderRadius: BorderRadius.circular(28),
-      elevation: 0,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
-        borderRadius: BorderRadius.circular(28),
-        child: Container(
-          width: double.infinity,
-          height: 54,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            border: isOutlined
-                ? Border.all(
-                    color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
-                  )
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 20, color: foregroundColor),
-                const SizedBox(width: 8),
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 24),
+                headerSection,
+                const SizedBox(height: 24),
+                SizedBox(height: 280, child: carouselSection),
+                indicatorSection,
+                const SizedBox(height: 24),
+                actionButtonsSection,
               ],
-              Text(
-                label,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: foregroundColor,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

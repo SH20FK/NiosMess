@@ -96,11 +96,11 @@ class AppLogger {
   }
 
   void _add(AppLogEntry entry) {
+    debugPrint(entry.toLogLine());
     _entries.add(entry);
     if (_entries.length > _maxEntries) {
-      _entries.removeRange(0, _entries.length - _maxEntries);
+      _entries.removeAt(0);
     }
-    debugPrint(entry.toLogLine());
   }
 
   String exportLogs() {

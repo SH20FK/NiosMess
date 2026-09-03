@@ -97,8 +97,12 @@ class ApiChatSummary {
       shareLink: json['share_link'] as String?,
       isSecret: _parseBool(json['is_secret']),
       partnerPublicKey: _parsePartnerPublicKey(json),
-      lastMessage: last is Map<String, dynamic>
-          ? ApiMessage.fromJson(last)
+      lastMessage: last is Map
+          ? ApiMessage.fromJson(
+              last.map(
+                (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+              ),
+            )
           : null,
     );
   }

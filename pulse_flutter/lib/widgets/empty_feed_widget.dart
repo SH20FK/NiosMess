@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
+import 'package:pulse_flutter/widgets/vector_illustrations.dart';
 
 class EmptyFeedWidget extends StatelessWidget {
   const EmptyFeedWidget({
@@ -9,6 +10,7 @@ class EmptyFeedWidget extends StatelessWidget {
     this.actionLabel,
     this.onAction,
     this.icon,
+    this.illustration,
     this.features,
     super.key,
   });
@@ -18,14 +20,13 @@ class EmptyFeedWidget extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
   final IconData? icon;
+  final Widget? illustration;
   final List<String>? features;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-
-    final IconData effectiveIcon = icon ?? Icons.chat_bubble_outline_rounded;
 
     return Center(
       child: Padding(
@@ -35,28 +36,33 @@ class EmptyFeedWidget extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              // M3 Expressive Shape Container with Icon
-              M3Container(
-                Shapes.c9_sided_cookie,
-                width: 84,
-                height: 84,
-                color: scheme.primaryContainer.withValues(alpha: 0.7),
-                child: Center(
-                  child: Icon(
-                    effectiveIcon,
-                    size: 38,
-                    color: scheme.onPrimaryContainer,
+              // Vector Illustration or Icon Badge
+              if (illustration != null)
+                illustration!
+              else if (icon != null)
+                M3Container(
+                  Shapes.c9_sided_cookie,
+                  width: 84,
+                  height: 84,
+                  color: scheme.primaryContainer.withValues(alpha: 0.7),
+                  child: Center(
+                    child: Icon(
+                      icon,
+                      size: 38,
+                      color: scheme.onPrimaryContainer,
+                    ),
                   ),
-                ),
-              )
-                  .animate()
-                  .scale(
-                    begin: const Offset(0.85, 0.85),
-                    end: const Offset(1.0, 1.0),
-                    duration: 350.ms,
-                    curve: Curves.easeOutBack,
-                  )
-                  .fade(duration: 250.ms),
+                )
+                    .animate()
+                    .scale(
+                      begin: const Offset(0.85, 0.85),
+                      end: const Offset(1.0, 1.0),
+                      duration: 350.ms,
+                      curve: Curves.easeOutBack,
+                    )
+                    .fade(duration: 250.ms)
+              else
+                const EmptyFeedIllustration(size: 160),
 
               const SizedBox(height: 20),
 

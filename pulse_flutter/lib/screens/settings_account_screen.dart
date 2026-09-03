@@ -10,9 +10,15 @@ import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 
 class SettingsAccountScreen extends ConsumerStatefulWidget {
-  const SettingsAccountScreen({super.key});
+  const SettingsAccountScreen({
+    this.isEmbedded = false,
+    super.key,
+  });
+
+  final bool isEmbedded;
 
   @override
   ConsumerState<SettingsAccountScreen> createState() =>
@@ -141,15 +147,44 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
     final AuthState auth = ref.watch(authProvider);
     final bool twoFaEnabled = auth.profile?.twoFaEnabled ?? false;
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final String displayName = auth.profile?.displayName ??
+        auth.session?.displayName ??
+        context.l10n.profileGuestName;
+    final String username =
+        auth.session?.username ?? auth.profile?.username ?? '';
+    final String? niosId = auth.session?.niosId;
 
     return SettingsScaffold(
       title: context.l10n.settingsAccountTitle,
+      isEmbedded: widget.isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
-          icon: Icons.admin_panel_settings_rounded,
+          illustrationCategory: SettingsIllustrationCategory.account,
           title: context.l10n.settingsAccountTitle,
           subtitle: context.l10n.settingsAccountBannerSubtitle,
           iconColor: scheme.primary,
+        ),
+        SettingsSection(
+          title: context.l10n.profileSectionAccount,
+          children: <Widget>[
+            SettingsInfoTile(
+              icon: Icons.person_outline_rounded,
+              title: context.l10n.profileDisplayName,
+              value: displayName,
+            ),
+            if (username.isNotEmpty)
+              SettingsInfoTile(
+                icon: Icons.alternate_email_rounded,
+                title: context.l10n.profileUsername,
+                value: '@$username',
+              ),
+            if (niosId != null && niosId.isNotEmpty)
+              SettingsInfoTile(
+                icon: Icons.badge_outlined,
+                title: 'Nios ID',
+                value: niosId,
+              ),
+          ],
         ),
         SettingsSection(
           title: context.l10n.settingsAccountAccessTitle,
@@ -160,7 +195,15 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
               title: context.l10n.settingsActiveSessions,
               subtitle: context.l10n.settingsActiveSessionsSubtitle,
               iconColor: scheme.primary,
-              onTap: () => context.push('/settings/sessions'),
+              onTap: () {
+                if (widget.isEmbedded) {
+                  ref
+                      .read(desktopSelectedSettingsSectionProvider.notifier)
+                      .setSelectedSection(SettingsSectionId.sessions);
+                } else {
+                  context.push('/settings/sessions');
+                }
+              },
             ),
           ],
         ),

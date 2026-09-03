@@ -220,11 +220,34 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
         final double? uploadProgress =
             isLocalSending ? (uploadTask?.progress ?? 0.0) : null;
 
+        final String rawText = widget.displayTextBuilder(message);
+        final bool isCallMessage = message.msgType == 'call' ||
+            rawText.startsWith('📹') ||
+            rawText.startsWith('📞') ||
+            rawText.contains('Видеозвонок') ||
+            rawText.contains('Голосовой звонок');
+
+        if (isCallMessage) {
+          final Widget callPill = _CallEventPill(
+            text: rawText,
+            formattedTime: formatMessageTime(message.sentAt),
+            isMine: isMine,
+          );
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (data.showDateSep)
+                widget.dateSeparatorBuilder(message.resolvedSentAt, now),
+              callPill,
+            ],
+          );
+        }
+
         final Widget bubble = RepaintBoundary(
           child: MessageBubble(
             key: ValueKey<int>(message.id),
             chatId: message.chatId,
-            text: widget.displayTextBuilder(message),
+            text: rawText,
             isMine: isMine,
             isE2ee: message.isE2ee,
             e2eeFileKey: message.e2eeFileKey,
@@ -386,3 +409,89 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
     );
   }
 }
+
+class _CallEventPill extends StatelessWidget {
+  const _CallEventPill({
+    required this.text,
+    required this.formattedTime,
+    required this.isMine,
+  });
+
+  final String text;
+  final String formattedTime;
+  final bool isMine;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bool isVideo = text.contains('Видеозвонок') || text.startsWith('📹');
+    final bool isMissed =
+        text.toLowerCase().contains('пропущен') || text.toLowerCase().contains('отклон');
+
+    final IconData icon = isVideo
+        ? Icons.videocam_rounded
+        : (isMissed ? Icons.phone_missed_rounded : Icons.phone_rounded);
+    final Color iconColor = isMissed ? scheme.error : scheme.primary;
+
+    String cleanText = text;
+    if (cleanText.startsWith('📹') || cleanText.startsWith('📞')) {
+      cleanText = cleanText.substring(2).trim();
+    }
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isMissed
+              ? scheme.errorContainer.withValues(alpha: isDark ? 0.40 : 0.60)
+              : (isDark
+                  ? scheme.surfaceContainerHighest.withValues(alpha: 0.60)
+                  : scheme.surfaceContainerHigh.withValues(alpha: 0.80)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isMissed
+                ? scheme.error.withValues(alpha: 0.25)
+                : scheme.outlineVariant.withValues(alpha: 0.25),
+            width: 0.8,
+          ),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: scheme.shadow.withValues(alpha: 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: 16, color: iconColor),
+            const SizedBox(width: 8),
+            Text(
+              cleanText,
+              style: textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isMissed ? scheme.onErrorContainer : scheme.onSurface,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              formattedTime,
+              style: textTheme.labelSmall?.copyWith(
+                fontSize: 11,
+                color: isMissed
+                    ? scheme.onErrorContainer.withValues(alpha: 0.70)
+                    : scheme.onSurfaceVariant.withValues(alpha: 0.75),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

@@ -108,6 +108,13 @@ flutter analyze                # Static analysis
 - CI builds APK & runs tests on push/PR to `main`
 - Never commit secrets (google-services.json, certs, keys)
 
+## Automated Semantic Versioning (SemVer) Protocol
+At the conclusion of EVERY task or feature implementation, inspect all completed changes (`git status`, `git diff`) and automatically bump the version in `pulse_flutter/pubspec.yaml` (`version: X.Y.Z+build`):
+- **MAJOR (X.0.0+N)**: Global architectural changes, fundamental protocol breaks, major multi-module rewrites, or breaking database/API changes.
+- **MINOR (X.Y.0+N)**: New user-facing features, new screens, significant visual redesigns of core modules, or substantial new functionality added without breaking existing APIs.
+- **PATCH / Micro-minor (X.Y.Z+N)**: Small bug fixes, micro styling tweaks, padding/radius polishes, typo fixes, linter/test corrections, and documentation updates.
+Always increment the build number (`+N`) and report the new version in the final task summary.
+
 ## Files to Avoid Editing
 - Generated files: `lib/l10n/app_localizations.dart`, `*.g.dart`, `*.freezed.dart`
 - `pubspec.lock` (updated via `flutter pub get`)

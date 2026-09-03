@@ -49,7 +49,12 @@ String _deviceOs(String deviceInfo) {
 }
 
 class SessionsScreen extends ConsumerStatefulWidget {
-  const SessionsScreen({super.key});
+  const SessionsScreen({
+    this.isEmbedded = false,
+    super.key,
+  });
+
+  final bool isEmbedded;
 
   @override
   ConsumerState<SessionsScreen> createState() => _SessionsScreenState();
@@ -165,9 +170,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     return SettingsScaffold(
       title: context.l10n.sessionsTitle,
       onRefresh: _loadSessions,
+      isEmbedded: widget.isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
-          icon: Icons.devices_rounded,
+          illustrationCategory: SettingsIllustrationCategory.sessions,
           title: context.l10n.sessionsTitle,
           subtitle: context.l10n.sessionsBannerSubtitle,
           iconColor: scheme.primary,

@@ -15,9 +15,9 @@ class AppLoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final LoadingIndicatorM3E indicator = color != null
-        ? LoadingIndicatorM3E(color: color!)
-        : LoadingIndicatorM3E(variant: variant);
+    final Color effectiveColor = color ?? Theme.of(context).colorScheme.primary;
+    final LoadingIndicatorM3E indicator =
+        LoadingIndicatorM3E(color: effectiveColor, variant: variant);
 
     if (size != null) {
       return Center(
@@ -31,3 +31,6 @@ class AppLoadingIndicator extends StatelessWidget {
     return Center(child: indicator);
   }
 }
+
+typedef PulseLoadingIndicator = AppLoadingIndicator;
+

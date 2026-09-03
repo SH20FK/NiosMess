@@ -7,15 +7,22 @@ import 'package:mesh_gradient/mesh_gradient.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/active_color_orb.dart';
+import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 
 class SettingsAppearanceScreen extends StatelessWidget {
-  const SettingsAppearanceScreen({super.key});
+  const SettingsAppearanceScreen({
+    this.isEmbedded = false,
+    super.key,
+  });
+
+  final bool isEmbedded;
 
   @override
   Widget build(BuildContext context) {
-    return const _AppearanceScreen();
+    return _AppearanceScreen(isEmbedded: isEmbedded);
   }
 }
 
@@ -37,7 +44,9 @@ const _palettes = <_PaletteEntry>[
 ];
 
 class _AppearanceScreen extends ConsumerWidget {
-  const _AppearanceScreen();
+  const _AppearanceScreen({this.isEmbedded = false});
+
+  final bool isEmbedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -91,6 +100,7 @@ class _AppearanceScreen extends ConsumerWidget {
       ),
       child: SettingsScaffold(
         title: context.l10n.appearanceTitle,
+        isEmbedded: isEmbedded,
         children: [
           const SizedBox(height: 16),
 
@@ -104,10 +114,26 @@ class _AppearanceScreen extends ConsumerWidget {
 
           const SizedBox(height: 24),
 
-          _ThemeModeSelector(
-            settings: settings,
-            onThemeModeChanged: (mode) {
-              ref.read(uiSettingsProvider.notifier).setThemeMode(mode);
+          Builder(
+            builder: (BuildContext selectorContext) {
+              return _ThemeModeSelector(
+                settings: settings,
+                onThemeModeChanged: (mode) {
+                  final switcher = CircularThemeSwitcher.maybeOf(selectorContext);
+                  if (switcher != null) {
+                    final RenderBox? box = selectorContext.findRenderObject() as RenderBox?;
+                    final Offset? offset = box != null && box.hasSize
+                        ? box.localToGlobal(box.size.center(Offset.zero))
+                        : null;
+                    switcher.toggleTheme(
+                      () => ref.read(uiSettingsProvider.notifier).setThemeMode(mode),
+                      tapOffset: offset,
+                    );
+                  } else {
+                    ref.read(uiSettingsProvider.notifier).setThemeMode(mode);
+                  }
+                },
+              );
             },
           ),
 
@@ -175,6 +201,28 @@ class _AppearanceScreen extends ConsumerWidget {
                     ref.read(uiSettingsProvider.notifier).setFontScale(selection.first);
                   },
                 ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          SettingsSection(
+            title: 'Обои чатов',
+            subtitle: 'Живой генератор узоров на основе векторных иконок и цветов темы',
+            children: <Widget>[
+              SettingsTile(
+                icon: Icons.texture_rounded,
+                title: 'Генератор фона чатов',
+                subtitle: 'Выбор глифа, раскладки сетки, плотности и анимации',
+                iconColor: scheme.primary,
+                trailing: Icon(
+                  Icons.chevron_right_rounded,
+                  color: scheme.onSurfaceVariant,
+                ),
+                onTap: () {
+                  context.push('/settings/wallpaper');
+                },
               ),
             ],
           ),

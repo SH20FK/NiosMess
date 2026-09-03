@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="currentColor">
+  <!-- Subtle Background Squircle -->
+  <rect x="4" y="4" width="40" height="40" rx="14" fill="currentColor" fill-opacity="0.12"/>
+
+  <!-- Top Bell Hanger -->
+  <path d="M24 7 V9.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+
+  <!-- Bell Flare Contour -->
+  <path d="M24 9.5 C18.8 9.5 15.5 13.5 15.5 19 V27.5 L12 31.5 V33.5 H36 V31.5 L32.5 27.5 V19 C32.5 13.5 29.2 9.5 24 9.5 Z" fill="currentColor" fill-opacity="0.25" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Bell Clapper Base -->
+  <path d="M20.5 34.5 C20.5 36.5 22 38 24 38 C26 38 27.5 36.5 27.5 34.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+
+  <!-- Acoustic Haptic Waves Left and Right -->
+  <path d="M7.5 18 C6.2 21 6.2 24.5 7.5 27.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M40.5 18 C41.8 21 41.8 24.5 40.5 27.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</svg>

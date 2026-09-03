@@ -347,6 +347,26 @@ final Provider<int> totalUnreadCountProvider = Provider<int>((Ref ref) {
   );
 });
 
+int _compareMessages(ApiMessage a, ApiMessage b) {
+  final bool aPending = a.id < 0 || a.isSending;
+  final bool bPending = b.id < 0 || b.isSending;
+
+  if (aPending != bPending) {
+    final int timeCmp = a.resolvedSentAt.compareTo(b.resolvedSentAt);
+    if (timeCmp != 0) return timeCmp;
+    return aPending ? 1 : -1;
+  }
+
+  final int timeCmp = a.resolvedSentAt.compareTo(b.resolvedSentAt);
+  if (timeCmp != 0) return timeCmp;
+
+  if (!aPending && !bPending) {
+    return a.id.compareTo(b.id);
+  }
+
+  return a.id.abs().compareTo(b.id.abs());
+}
+
 class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   ChatMessagesNotifier(this._chatId);
 
@@ -418,7 +438,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       updated = List<ApiMessage>.from(current)..[index] = next;
     } else {
       updated = List<ApiMessage>.from(current)..add(next);
-      updated.sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+      updated.sort(_compareMessages);
     }
     state = AsyncData<List<ApiMessage>>(updated);
     await _saveToCache(updated);
@@ -485,14 +505,17 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       return;
     }
     final ApiMessage finalMessage = decrypted.first;
-
-    final List<ApiMessage> next = List<ApiMessage>.from(current)..add(finalMessage);
-    next.sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+    final List<ApiMessage> next = List<ApiMessage>.from(current);
+    if (finalMessage.senderId == myUserId) {
+      next.removeWhere((m) => m.id < 0 && m.content == finalMessage.content);
+    }
+    next.add(finalMessage);
+    next.sort(_compareMessages);
 
     state = AsyncData<List<ApiMessage>>(next);
     await _saveToCache(next);
 
-    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     if (message.senderId != myUserId) {
       await _playNotificationSound();
     }
@@ -731,7 +754,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       }
     }
 
-    merged.sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+    merged.sort(_compareMessages);
     final List<ApiMessage> decrypted = await _decryptE2eeMessages(merged);
     state = AsyncData<List<ApiMessage>>(decrypted);
     await _saveToCache(decrypted);
@@ -834,7 +857,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     // Avoid duplicates if we already added it in optimistic UI from outside
     if (!current.any((m) => m.id == tempId)) {
       List<ApiMessage> next = List<ApiMessage>.from(current)..add(optimisticMessage);
-      next.sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+      next.sort(_compareMessages);
       state = AsyncData<List<ApiMessage>>(next);
     }
 
@@ -858,7 +881,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         ..removeWhere((ApiMessage message) => message.id == tempId)
         ..removeWhere((ApiMessage message) => message.id == sent.id)
         ..add(sent)
-        ..sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+        ..sort(_compareMessages);
 
       state = AsyncData<List<ApiMessage>>(next);
       await _saveToCache(next);
@@ -929,7 +952,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     List<ApiMessage> current = state.value ?? const <ApiMessage>[];
     if (!current.any((m) => m.id == msg.id)) {
       List<ApiMessage> next = List<ApiMessage>.from(current)..add(msg);
-      next.sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+      next.sort(_compareMessages);
       state = AsyncData<List<ApiMessage>>(next);
     }
   }
@@ -980,7 +1003,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final List<ApiMessage> optimisticNext = List<ApiMessage>.from(current)
       ..removeWhere((ApiMessage m) => m.id == messageId)
       ..add(optimisticEdited)
-      ..sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+      ..sort(_compareMessages);
     state = AsyncData<List<ApiMessage>>(optimisticNext);
 
     try {
@@ -992,7 +1015,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         final List<ApiMessage> confirmed = List<ApiMessage>.from(state.value ?? const <ApiMessage>[])
           ..removeWhere((ApiMessage m) => m.id == edited.id)
           ..add(edited)
-          ..sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+          ..sort(_compareMessages);
         state = AsyncData<List<ApiMessage>>(confirmed);
         await _saveToCache(confirmed);
         ref.read(chatsProvider.notifier)._handleEditedPush(edited);
@@ -1161,7 +1184,7 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
     final List<ApiMessage> next = List<ApiMessage>.from(current)
       ..removeWhere((ApiMessage message) => message.id == created.id)
       ..add(created)
-      ..sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
+      ..sort(_compareMessages);
 
     state = AsyncData<List<ApiMessage>>(next);
 

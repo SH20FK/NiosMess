@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" fill="currentColor">
+  <defs>
+    <linearGradient id="errorBgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="currentColor" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0.02"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Dashed Broken Frame -->
+  <rect x="14" y="14" width="172" height="132" rx="20" fill="url(#errorBgGrad)" stroke="currentColor" stroke-width="2" stroke-opacity="0.35" stroke-dasharray="6 6"/>
+
+  <!-- Broken Left Landscape Piece -->
+  <path d="M26 132 L26 42 C26 34 32 28 40 28 L92 28 L86 64 L104 88 L90 114 L98 132 Z" fill="currentColor" fill-opacity="0.16"/>
+
+  <!-- Broken Right Landscape Piece -->
+  <path d="M106 28 L160 28 C168 28 174 34 174 42 L174 132 L106 132 L98 114 L112 88 L94 64 Z" fill="currentColor" fill-opacity="0.16"/>
+
+  <!-- Zig-Zag Lightning / Crack Line in Center -->
+  <path d="M99 24 L93 62 L111 87 L97 113 L105 136" fill="none" stroke="currentColor" stroke-width="2.2" stroke-opacity="0.65" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Broken Mountain Hills Contours -->
+  <path d="M30 128 L60 90 L82 112" fill="none" stroke="currentColor" stroke-width="2" stroke-opacity="0.3" stroke-linecap="round"/>
+  <path d="M118 108 L142 80 L170 128" fill="none" stroke="currentColor" stroke-width="2" stroke-opacity="0.3" stroke-linecap="round"/>
+
+  <!-- Centered Alert Badge Overlay -->
+  <g transform="translate(100, 80)">
+    <!-- Squircle / Pill Badge with Drop Tint -->
+    <rect x="-22" y="-22" width="44" height="44" rx="14" fill="currentColor" fill-opacity="0.9"/>
+    
+    <!-- Exclamation Icon Cutout -->
+    <path d="M0 -11 L0 2" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/>
+    <circle cx="0" cy="9" r="2.2" fill="#ffffff"/>
+  </g>
+</svg>

@@ -250,22 +250,27 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     final AsyncData<NiosgramState>? current = state.asData;
     if (current == null) return;
 
+    final NgPost? targetPost = current.value.posts
+        .where((NgPost p) => p.author.username == username)
+        .firstOrNull;
+    if (targetPost == null) return;
+
+    final bool wasFollowing = targetPost.isFollowing;
+    final int userId = targetPost.author.id;
+
     final List<NgPost> updated = current.value.posts.map((NgPost p) {
       if (p.author.username != username) return p;
-      return p.copyWith(isFollowing: !p.isFollowing);
+      return p.copyWith(isFollowing: !wasFollowing);
     }).toList(growable: false);
     state = AsyncData<NiosgramState>(current.value.copyWith(posts: updated));
 
-    final int userId = current.value.posts
-        .firstWhere((NgPost p) => p.author.username == username)
-        .author.id;
     try {
       await ref.read(webSocketClientProvider).request(
-        'follow_user',
+        wasFollowing ? 'unfollow_user' : 'follow_user',
         payload: <String, dynamic>{'user_id': userId},
       );
     } catch (e) {
-      debugPrint('[niosgram_provider] Follow error: $e');
+      debugPrint('[niosgram_provider] Follow/unfollow error: $e');
       state = AsyncData<NiosgramState>(current.value);
     }
   }

@@ -10,8 +10,10 @@ import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
+import 'package:pulse_flutter/services/oauth_service.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:universal_io/io.dart';
 
 class AuthState {
@@ -102,6 +104,24 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> _load() async {
+    if (kIsWeb) {
+      try {
+        final http.Response resp = await http
+            .get(Uri.parse('/mock_reset.json'))
+            .timeout(const Duration(seconds: 2));
+        if (resp.statusCode == 200) {
+          final dynamic data = jsonDecode(resp.body);
+          if (data is Map && data['reset'] == true) {
+            debugPrint('[auth_provider] Mock reset flag detected! Clearing mock data...');
+            await _clearSessionStorage();
+            await ref.read(cacheServiceProvider).clearAll();
+            state = const AuthState.initial().copyWith(hydrated: true);
+            return;
+          }
+        }
+      } catch (_) {}
+    }
+
     final String? raw = await _storage.read(key: _sessionKey);
     AuthSession? session;
 
@@ -117,6 +137,12 @@ class AuthNotifier extends Notifier<AuthState> {
       }
     }
 
+    if (session != null && session.accessToken.startsWith('demo_')) {
+      await _storage.delete(key: _sessionKey);
+      await ref.read(cacheServiceProvider).clearAll();
+      session = null;
+    }
+
     if (session != null && session.accessToken.isNotEmpty) {
       ref.read(authTokenProvider.notifier).setToken(session.accessToken);
     }
@@ -124,7 +150,11 @@ class AuthNotifier extends Notifier<AuthState> {
     state = state.copyWith(hydrated: true, session: session);
 
     if (state.isAuthenticated) {
-      await refreshProfile();
+      try {
+        await refreshProfile();
+      } catch (e) {
+        debugPrint('[auth_provider] Refresh profile error on load: $e');
+      }
     }
   }
 
@@ -137,6 +167,62 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> _clearSessionStorage() async {
     await _storage.delete(key: _sessionKey);
     ref.read(authTokenProvider.notifier).clear();
+  }
+
+  Future<AuthActionResult> loginWithOAuth({
+    required String oauthAccessToken,
+  }) async {
+    state = state.copyWith(busy: true, clearError: true);
+    try {
+      final String deviceInfo = kIsWeb
+          ? 'Web Browser'
+          : '${Platform.operatingSystem} ${Platform.operatingSystemVersion}'.trim();
+
+      final AuthLoginResult result = await ref
+          .read(authRepositoryProvider)
+          .loginNiosId(
+            oauthAccessToken: oauthAccessToken,
+            deviceInfo: deviceInfo,
+          );
+
+      if (!result.isSuccess ||
+          result.userId == null ||
+          result.username == null) {
+        state = state.copyWith(
+          busy: false,
+          error: result.message ?? 'OAuth login failed',
+        );
+        return AuthActionResult(success: false, message: result.message);
+      }
+
+      final int userId = result.userId ?? 0;
+      final String username = result.username ?? result.displayName ?? 'user';
+      final String displayName = result.displayName ?? username;
+      final String accessToken = result.accessToken ?? '';
+
+      final AuthSession session = AuthSession(
+        accessToken: accessToken,
+        userId: userId,
+        username: username,
+        displayName: displayName,
+        niosId: username,
+      );
+
+      await _saveSession(session);
+      state = state.copyWith(
+        busy: false,
+        session: session,
+        clearPendingIdentifier: true,
+        clearError: true,
+      );
+      await refreshProfile();
+      _registerFcmToken();
+      _updateBackgroundService();
+      return const AuthActionResult(success: true);
+    } catch (error) {
+      state = state.copyWith(busy: false, error: '$error');
+      return AuthActionResult(success: false, message: '$error');
+    }
   }
 
   Future<AuthActionResult> login({
@@ -442,6 +528,9 @@ class AuthNotifier extends Notifier<AuthState> {
           debugPrint('[auth_provider.dart] FCM unregister failed: $e');
         }
         await ref.read(authRepositoryProvider).logout();
+        try {
+          await ref.read(oauthServiceProvider).logoutCentralNiosId();
+        } catch (_) {}
       }
     } catch (e) { debugPrint('[auth_provider.dart] Error: $e'); }
 
@@ -449,7 +538,7 @@ class AuthNotifier extends Notifier<AuthState> {
     await _fcmTokenRefreshSubscription?.cancel();
     _fcmTokenRefreshSubscription = null;
 
-    ref.read(webSocketClientProvider).close();
+    ref.read(webSocketClientProvider).disconnect();
     await _clearSessionStorage();
     try {
       await ref.read(cacheServiceProvider).clearAll();
@@ -487,19 +576,19 @@ class AuthNotifier extends Notifier<AuthState> {
               },
             );
       }
+
+      _fcmTokenRefreshSubscription = PushNotificationService.onTokenRefresh.listen((newToken) {
+        ref.read(webSocketClientProvider).request(
+              'register_fcm_token',
+              payload: {
+                'fcm_token': newToken,
+                'platform': Platform.isAndroid ? 'android' : 'ios',
+              },
+            );
+      });
     } catch (e) {
       debugPrint('[AuthNotifier] Failed to register FCM token: $e');
     }
-
-    _fcmTokenRefreshSubscription = PushNotificationService.onTokenRefresh.listen((newToken) {
-      ref.read(webSocketClientProvider).request(
-            'register_fcm_token',
-            payload: {
-              'fcm_token': newToken,
-              'platform': Platform.isAndroid ? 'android' : 'ios',
-            },
-          );
-    });
   }
 
   void _updateBackgroundService() {

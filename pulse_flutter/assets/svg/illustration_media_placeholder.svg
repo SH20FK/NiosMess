@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" fill="currentColor">
+  <defs>
+    <linearGradient id="mediaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="currentColor" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0.03"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Container Outline -->
+  <rect x="12" y="12" width="176" height="136" rx="20" fill="url(#mediaGrad)" stroke="currentColor" stroke-width="2" stroke-opacity="0.3"/>
+
+  <!-- Sun / Radiant Orb -->
+  <circle cx="146" cy="50" r="16" fill="currentColor" fill-opacity="0.4"/>
+  <circle cx="146" cy="50" r="23" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.2" stroke-dasharray="4 4"/>
+
+  <!-- Back Mountain Wave -->
+  <path d="M22 136 L68 84 L108 120 L146 76 L178 136 Z" fill="currentColor" fill-opacity="0.25"/>
+
+  <!-- Front Mountain / Rolling Dune Wave -->
+  <path d="M22 136 L48 114 C70 96 85 110 102 124 C118 136 136 106 156 106 C166 106 172 120 178 136 Z" fill="currentColor" fill-opacity="0.42"/>
+
+  <!-- Subtle Camera Glyph Accent in Center -->
+  <g transform="translate(90, 42)" opacity="0.35">
+    <rect x="0" y="4" width="20" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    <circle cx="10" cy="11" r="3.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M6 4 L8 1 L12 1 L14 4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+  </g>
+</svg>

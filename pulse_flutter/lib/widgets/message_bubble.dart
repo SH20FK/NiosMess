@@ -231,12 +231,26 @@ class MessageBubble extends ConsumerWidget {
         .toList(growable: false);
     final int hiddenBadgeCount = senderBadges.length - visibleBadges.length;
 
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     final Color bubbleColor = isDeleted
         ? scheme.surfaceContainerHighest
-        : (isMine ? scheme.primaryContainer : scheme.surfaceContainerHigh);
+        : (isMine
+            ? (isDark
+                ? scheme.primaryContainer
+                : Color.alphaBlend(scheme.primary.withValues(alpha: 0.16), scheme.surface))
+            : (isDark ? scheme.surfaceContainerHigh : scheme.surface));
     final Color textColor = isDeleted
         ? scheme.onSurfaceVariant
-        : (isMine ? scheme.onPrimaryContainer : scheme.onSurface);
+        : (isMine
+            ? (isDark ? scheme.onPrimaryContainer : scheme.onSurface)
+            : scheme.onSurface);
+    final Border? bubbleBorder = (!isMine && !isDark)
+        ? Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.35),
+            width: 0.8,
+          )
+        : null;
     final bool hasMedia = (mediaUrl ?? '').trim().isNotEmpty;
     final String displayText = MessageFormatter.displayText(text);
     final bool hasText = displayText.trim().isNotEmpty;
@@ -289,19 +303,21 @@ class MessageBubble extends ConsumerWidget {
               },
               child: Container(
                 constraints: BoxConstraints(
+                  minWidth: 76,
                   maxWidth: MediaQuery.sizeOf(context).width > 600
-                      ? 460.0
+                      ? 520.0
                       : MediaQuery.sizeOf(context).width * 0.78,
                 ),
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+                padding: const EdgeInsets.fromLTRB(14, 9, 14, 7),
                 decoration: BoxDecoration(
                   color: bubbleColor,
                   borderRadius: bubbleRadius,
+                  border: bubbleBorder,
                   boxShadow: [
                     BoxShadow(
-                      color: scheme.shadow.withValues(alpha: 0.10),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
+                      color: scheme.shadow.withValues(alpha: isDark ? 0.20 : 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1.5),
                     ),
                   ],
                 ),
@@ -309,148 +325,146 @@ class MessageBubble extends ConsumerWidget {
                   label: isMine
                       ? context.l10n.messageSentByMe
                       : (senderDisplayName ?? context.l10n.messageSemantics),
-                  child: Stack(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          _MessageBubbleHeader(
-                            isMine: isMine,
-                            senderDisplayName: senderDisplayName,
-                            senderAvatarUrl: senderAvatarUrl,
-                            visibleBadges: visibleBadges,
-                            hiddenBadgeCount: hiddenBadgeCount,
-                            scheme: scheme,
-                            textTheme: textTheme,
-                          ),
-                          if ((replyPreview ?? '').trim().isNotEmpty)
-                            GestureDetector(
-                              onTap: onReplyTap,
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 6),
-                                padding: const EdgeInsets.only(left: 8),
-                                decoration: BoxDecoration(
-                                  border: Border(
-                                    left: BorderSide(
-                                      color: isMine
-                                          ? scheme.primary
-                                          : scheme.secondary,
-                                      width: 2.5,
-                                    ),
-                                  ),
-                                ),
-                                child: Text(
-                                  replyPreview!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: textTheme.labelSmall?.copyWith(
-                                    color: isMine
-                                        ? scheme.primary
-                                        : scheme.onSurfaceVariant,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      _MessageBubbleHeader(
+                        isMine: isMine,
+                        senderDisplayName: senderDisplayName,
+                        senderAvatarUrl: senderAvatarUrl,
+                        visibleBadges: visibleBadges,
+                        hiddenBadgeCount: hiddenBadgeCount,
+                        scheme: scheme,
+                        textTheme: textTheme,
+                      ),
+                      if ((replyPreview ?? '').trim().isNotEmpty)
+                        GestureDetector(
+                          onTap: onReplyTap,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.only(left: 8),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                left: BorderSide(
+                                  color: isMine
+                                      ? scheme.primary
+                                      : scheme.secondary,
+                                  width: 2.5,
                                 ),
                               ),
                             ),
-                          if (forwarded != null) ...<Widget>[
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.4),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border(
-                                  left: BorderSide(
-                                    color: scheme.outlineVariant,
-                                    width: 2.5,
-                                  ),
-                                ),
+                            child: Text(
+                              replyPreview!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.labelSmall?.copyWith(
+                                color: isMine
+                                    ? scheme.primary
+                                    : scheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                            ),
+                          ),
+                        ),
+                      if (forwarded != null) ...<Widget>[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHighest
+                                .withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border(
+                              left: BorderSide(
+                                color: scheme.outlineVariant,
+                                width: 2.5,
+                              ),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Row(
                                 children: <Widget>[
-                                  Row(
-                                    children: <Widget>[
-                                      Icon(
-                                        Icons.forward_rounded,
-                                        size: 14,
-                                        color: scheme.primary,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        context.l10n.chatForwardedCard,
-                                        style: textTheme.labelSmall?.copyWith(
-                                          color: scheme.primary,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ],
+                                  Icon(
+                                    Icons.forward_rounded,
+                                    size: 14,
+                                    color: scheme.primary,
                                   ),
-                                  const SizedBox(height: 2),
+                                  const SizedBox(width: 4),
                                   Text(
-                                    context.l10n.chatForwardedFrom(
-                                      forwarded.sender,
-                                    ),
+                                    context.l10n.chatForwardedCard,
                                     style: textTheme.labelSmall?.copyWith(
-                                      color: scheme.onSurfaceVariant,
+                                      color: scheme.primary,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                          if (hasMedia)
-                            _mediaPreview(
-                              context,
-                              ref: ref,
-                              scheme: scheme,
-                              textTheme: textTheme,
-                              textColor: textColor,
-                              headers: headers,
-                              chatId: chatId,
-                              wsClient: ref.read(webSocketClientProvider),
-                              e2eeService: ref.read(e2eeServiceProvider),
-                            ),
-                          if (hasMedia && hasText) const SizedBox(height: 6),
-                          if (hasText)
-                            Padding(
-                              padding: EdgeInsets.only(
-                                bottom: 12,
-                                right: hasMedia ? 0 : 36,
-                              ),
-                              child: Text.rich(
-                                _parseTextWithMentions(
-                                  context,
-                                  displayText,
-                                  textTheme.bodyMedium?.copyWith(
-                                    color: textColor,
-                                    fontStyle: isDeleted
-                                        ? FontStyle.italic
-                                        : null,
-                                  ) ?? const TextStyle(),
-                                  isMine,
-                                  scheme,
+                              const SizedBox(height: 2),
+                              Text(
+                                context.l10n.chatForwardedFrom(
+                                  forwarded.sender,
+                                ),
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
                                 ),
                               ),
-                            ),
-                        ],
-                      ),
-                      if (!hideFooter)
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: _MessageBubbleFooter(
-                          isMine: isMine,
-                          isE2ee: isE2ee,
-                          isEdited: isEdited,
-                          isDeleted: isDeleted,
-                          isRead: isRead,
-                          formattedTime: formattedTime,
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (hasMedia)
+                        _mediaPreview(
+                          context,
+                          ref: ref,
                           scheme: scheme,
                           textTheme: textTheme,
+                          textColor: textColor,
+                          headers: headers,
+                          chatId: chatId,
+                          wsClient: ref.read(webSocketClientProvider),
+                          e2eeService: ref.read(e2eeServiceProvider),
                         ),
-                      ),
+                      if (hasMedia && hasText) const SizedBox(height: 6),
+                      if (hasText)
+                        _buildMessageTextAndFooter(
+                          context: context,
+                          text: displayText,
+                          textColor: textColor,
+                          isDeleted: isDeleted,
+                          isMine: isMine,
+                          scheme: scheme,
+                          textTheme: textTheme,
+                          hideFooter: hideFooter,
+                          footer: _MessageBubbleFooter(
+                            isMine: isMine,
+                            isE2ee: isE2ee,
+                            isEdited: isEdited,
+                            isDeleted: isDeleted,
+                            isRead: isRead,
+                            isSending: isSending,
+                            formattedTime: formattedTime,
+                            scheme: scheme,
+                            textTheme: textTheme,
+                          ),
+                        )
+                      else if (!hideFooter)
+                        Align(
+                          alignment: Alignment.bottomRight,
+                          child: _MessageBubbleFooter(
+                            isMine: isMine,
+                            isE2ee: isE2ee,
+                            isEdited: isEdited,
+                            isDeleted: isDeleted,
+                            isRead: isRead,
+                            isSending: isSending,
+                            formattedTime: formattedTime,
+                            scheme: scheme,
+                            textTheme: textTheme,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -979,6 +993,66 @@ if (onSwipeToReply != null) {
       ),
     );
   }
+  Widget _buildMessageTextAndFooter({
+    required BuildContext context,
+    required String text,
+    required Color textColor,
+    required bool isDeleted,
+    required bool isMine,
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+    required bool hideFooter,
+    required Widget footer,
+  }) {
+    final Widget textWidget = Text.rich(
+      _parseTextWithMentions(
+        context,
+        text,
+        textTheme.bodyMedium?.copyWith(
+          color: textColor,
+          fontSize: 15,
+          height: 1.35,
+          fontStyle: isDeleted ? FontStyle.italic : null,
+        ) ?? const TextStyle(fontSize: 15, height: 1.35),
+        isMine,
+        scheme,
+      ),
+    );
+
+    if (hideFooter) {
+      return textWidget;
+    }
+
+    final bool isSingleLineShort = !text.contains('\n') && text.trim().length <= 26;
+
+    if (isSingleLineShort) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: <Widget>[
+          Flexible(child: textWidget),
+          const SizedBox(width: 8),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 1),
+            child: footer,
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Align(
+          alignment: Alignment.topLeft,
+          child: textWidget,
+        ),
+        const SizedBox(height: 3),
+        footer,
+      ],
+    );
+  }
 }
 
 class _ForwardedPayload {
@@ -1067,6 +1141,7 @@ class _MessageBubbleFooter extends StatelessWidget {
     required this.formattedTime,
     required this.scheme,
     required this.textTheme,
+    this.isSending = false,
   });
 
   final bool isMine;
@@ -1077,9 +1152,26 @@ class _MessageBubbleFooter extends StatelessWidget {
   final String formattedTime;
   final ColorScheme scheme;
   final TextTheme textTheme;
+  final bool isSending;
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final Color footerTextColor = isMine
+        ? (isDark
+            ? scheme.onPrimaryContainer.withValues(alpha: 0.70)
+            : scheme.onSurfaceVariant.withValues(alpha: 0.75))
+        : scheme.onSurfaceVariant.withValues(alpha: 0.75);
+
+    final Color statusIconColor = isMine
+        ? (isSending
+            ? (isDark
+                ? scheme.onPrimaryContainer.withValues(alpha: 0.60)
+                : scheme.onSurfaceVariant.withValues(alpha: 0.60))
+            : scheme.primary)
+        : scheme.onSurfaceVariant;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -1096,7 +1188,7 @@ class _MessageBubbleFooter extends StatelessWidget {
             context.l10n.chatEdited,
             style: textTheme.labelSmall?.copyWith(
               fontSize: 11,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+              color: footerTextColor,
             ),
           ),
         if (isEdited) const SizedBox(width: 4),
@@ -1104,16 +1196,23 @@ class _MessageBubbleFooter extends StatelessWidget {
           formattedTime,
           style: textTheme.labelSmall?.copyWith(
             fontSize: 11,
-            color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+            color: footerTextColor,
           ),
         ),
         if (isMine && !isDeleted) ...<Widget>[
           const SizedBox(width: 3),
-          Icon(
-            isRead ? Icons.done_all_rounded : Icons.check_rounded,
-            size: 13,
-            color: scheme.primary.withValues(alpha: 0.8),
-          ),
+          if (isSending)
+            Icon(
+              Icons.access_time_rounded,
+              size: 12,
+              color: statusIconColor,
+            )
+          else
+            Icon(
+              isRead ? Icons.done_all_rounded : Icons.check_rounded,
+              size: 13,
+              color: statusIconColor,
+            ),
         ],
       ],
     );

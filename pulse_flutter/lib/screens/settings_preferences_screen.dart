@@ -7,7 +7,12 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class SettingsPreferencesScreen extends ConsumerWidget {
-  const SettingsPreferencesScreen({super.key});
+  const SettingsPreferencesScreen({
+    this.isEmbedded = false,
+    super.key,
+  });
+
+  final bool isEmbedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -16,9 +21,10 @@ class SettingsPreferencesScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: context.l10n.settingsPreferencesTitle,
+      isEmbedded: isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
-          icon: Icons.notifications_active_rounded,
+          illustrationCategory: SettingsIllustrationCategory.preferences,
           title: context.l10n.settingsPreferencesTitle,
           subtitle: context.l10n.settingsPreferencesBannerSubtitle,
           iconColor: scheme.primary,

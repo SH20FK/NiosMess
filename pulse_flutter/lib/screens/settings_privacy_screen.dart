@@ -7,11 +7,17 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class SettingsPrivacyScreen extends ConsumerWidget {
-  const SettingsPrivacyScreen({super.key});
+  const SettingsPrivacyScreen({
+    this.isEmbedded = false,
+    super.key,
+  });
+
+  final bool isEmbedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,9 +29,10 @@ class SettingsPrivacyScreen extends ConsumerWidget {
 
     return SettingsScaffold(
       title: context.l10n.settingsPrivacyTitle,
+      isEmbedded: isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
-          icon: Icons.privacy_tip_rounded,
+          illustrationCategory: SettingsIllustrationCategory.privacy,
           title: context.l10n.settingsPrivacyTitle,
           subtitle: context.l10n.settingsPrivacyBannerSubtitle,
           iconColor: scheme.primary,
@@ -54,7 +61,15 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               title: context.l10n.settingsSecretChatsTitle,
               subtitle: context.l10n.settingsSecretChatsSubtitle,
               iconColor: scheme.tertiary,
-              onTap: () => context.push('/settings/e2ee'),
+              onTap: () {
+                if (isEmbedded) {
+                  ref
+                      .read(desktopSelectedSettingsSectionProvider.notifier)
+                      .setSelectedSection(SettingsSectionId.e2ee);
+                } else {
+                  context.push('/settings/e2ee');
+                }
+              },
             ),
           ],
         ),

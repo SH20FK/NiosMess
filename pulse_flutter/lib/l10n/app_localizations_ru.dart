@@ -175,6 +175,20 @@ class AppLocalizationsRu extends AppLocalizations {
   String get twoFaFailed => 'Не удалось подтвердить 2FA';
 
   @override
+  String get authResendCode => 'Отправить код повторно';
+
+  @override
+  String authResendCountdown(Object seconds) {
+    return 'Повтор через $seconds с';
+  }
+
+  @override
+  String get authCodeSent => 'Код подтверждения отправлен повторно';
+
+  @override
+  String get authPasteCode => 'Вставить код';
+
+  @override
   String get registerTitle => 'Создать аккаунт';
 
   @override

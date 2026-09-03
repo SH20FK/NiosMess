@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/profile/responsive_profile_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
 class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -38,7 +39,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onSecurityTap;
 
   bool get _showCallButtons => !isChannel && (onVoiceCall != null || onVideoCall != null);
-  bool get _showOverflowMenu => isGroup || isChannel;
+  bool get _showOverflowMenu => true;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -66,9 +67,9 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: InkWell(
         onTap: () {
           if (directUsername != null) {
-            context.push('/profile/$directUsername');
+            openResponsiveProfile(context, username: directUsername!);
           } else if (isGroup || isChannel) {
-            context.push('/chat/$chatId/profile');
+            openResponsiveGroupProfile(context, chatId: chatId);
           }
         },
         borderRadius: BorderRadius.circular(16),
@@ -91,11 +92,15 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                     right: -2,
                     bottom: -2,
                     child: Container(
-                      width: 18,
-                      height: 18,
+                      width: 15,
+                      height: 15,
                       decoration: BoxDecoration(
                         color: scheme.surface,
-                        borderRadius: BorderRadius.circular(999),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: scheme.surface,
+                          width: 1.5,
+                        ),
                       ),
                       alignment: Alignment.center,
                       child: Icon(
@@ -157,28 +162,47 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
               switch (action) {
                 case 'members':
                   context.push('/chat/$chatId/members');
+                  break;
                 case 'manage':
                   context.push('/chat/$chatId/manage');
+                  break;
+                case 'wallpaper':
+                  context.push(
+                    '/settings/wallpaper?chatId=$chatId&chatTitle=${Uri.encodeComponent(title)}',
+                  );
+                  break;
               }
             },
             itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
-              PopupMenuItem<String>(
-                value: 'members',
-                child: Row(
-                  children: <Widget>[
-                    Icon(Icons.people_rounded),
-                    SizedBox(width: 8),
-                    Text(context.l10n.chatMembers),
-                  ],
+              if (isGroup || isChannel) ...<PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  value: 'members',
+                  child: Row(
+                    children: <Widget>[
+                      const Icon(Icons.people_rounded),
+                      const SizedBox(width: 8),
+                      Text(context.l10n.chatMembers),
+                    ],
+                  ),
                 ),
-              ),
-              PopupMenuItem<String>(
-                value: 'manage',
+                PopupMenuItem<String>(
+                  value: 'manage',
+                  child: Row(
+                    children: <Widget>[
+                      const Icon(Icons.settings_rounded),
+                      const SizedBox(width: 8),
+                      Text(context.l10n.chatManage),
+                    ],
+                  ),
+                ),
+              ],
+              const PopupMenuItem<String>(
+                value: 'wallpaper',
                 child: Row(
                   children: <Widget>[
-                    Icon(Icons.settings_rounded),
+                    Icon(Icons.texture_rounded),
                     SizedBox(width: 8),
-                    Text(context.l10n.chatManage),
+                    Text('Обои чата'),
                   ],
                 ),
               ),

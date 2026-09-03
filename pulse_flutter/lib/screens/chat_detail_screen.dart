@@ -7,6 +7,7 @@ import 'package:universal_io/io.dart';
 import 'dart:math';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_background.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1552,7 +1553,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           ),
         ),
       body: PulseScaffoldBody(
-        maxWidth: 1560,
+        expand: true,
         bottomSafe: false,
         child: Column(
           children: <Widget>[
@@ -1598,6 +1599,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             Expanded(
               child: Stack(
                 children: <Widget>[
+                  Positioned.fill(
+                    child: ChatWallpaperBackground(
+                      chatId: widget.chatId.toString(),
+                    ),
+                  ),
                   messagesAsync.when(
                     data: (List<ApiMessage> messages) {
                       if (messages.isEmpty) {
@@ -1724,39 +1730,52 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 ],
               ),
             ),
-            ChatDetailInputArea(
-              canPostInChannel: canPostInChannel,
-              showDraftRestoredBanner: _showDraftRestoredBanner,
-              onClearDraft: () {
-                final int? cid = _chatId;
-                if (cid != null) {
-                  _draftStorage.remove(cid);
-                }
-                _inputController.clear();
-                setState(() {
-                  _showDraftRestoredBanner = false;
-                });
-              },
-              uploadingMedia:
-                  ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
-              inputController: _inputController,
-              inputFocusNode: _inputFocusNode,
-              isAiProcessing: _isAiProcessing,
-              editingMessageId: _editingMessageId,
-              editingOriginalText: _editingOriginalText,
-              replyToMessageId: _replyToMessageId,
-              replyPreviewText: _replyPreviewText,
-              onSend: _sendMessage,
-              onCommitEdit: _commitEdit,
-              onCancelEdit: _cancelEdit,
-              onClearReply: _clearReply,
-              onAttachMedia: _pickAndUploadMedia,
-              onAiPressed: () => _showAiBottomSheet(context, scheme),
-              onVoiceSend: _sendVoiceMessage,
-              onCircleSend: _sendCircleVideo,
-              hapticsEnabled: ref.read(uiSettingsProvider).haptics,
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            border: Border(
+              top: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.25),
+                width: 1.0,
+              ),
             ),
-          ],
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+          child: ChatDetailInputArea(
+            canPostInChannel: canPostInChannel,
+            showDraftRestoredBanner: _showDraftRestoredBanner,
+            onClearDraft: () {
+              final int? cid = _chatId;
+              if (cid != null) {
+                _draftStorage.remove(cid);
+              }
+              _inputController.clear();
+              setState(() {
+                _showDraftRestoredBanner = false;
+              });
+            },
+            uploadingMedia:
+                ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
+            inputController: _inputController,
+            inputFocusNode: _inputFocusNode,
+            isAiProcessing: _isAiProcessing,
+            editingMessageId: _editingMessageId,
+            editingOriginalText: _editingOriginalText,
+            replyToMessageId: _replyToMessageId,
+            replyPreviewText: _replyPreviewText,
+            onSend: _sendMessage,
+            onCommitEdit: _commitEdit,
+            onCancelEdit: _cancelEdit,
+            onClearReply: _clearReply,
+            onAttachMedia: _pickAndUploadMedia,
+            onAiPressed: () => _showAiBottomSheet(context, scheme),
+            onVoiceSend: _sendVoiceMessage,
+            onCircleSend: _sendCircleVideo,
+            hapticsEnabled: ref.read(uiSettingsProvider).haptics,
+          ),
+        ),
+      ],
         ),
       ),
       backgroundColor: scheme.surface,
@@ -1898,3 +1917,4 @@ class _AiActionCard extends StatelessWidget {
     );
   }
 }
+

@@ -12,7 +12,6 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
-import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
@@ -738,24 +737,11 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                         ),
                         onPressed: () async {
                           Navigator.of(ctx).pop();
-                          try {
-                            await ref.read(webSocketClientProvider).request(
-                              'block_user',
-                              payload: <String, dynamic>{
-                                'user_id': profile.id,
-                              },
-                            );
-                            if (!mounted) return;
-                            HapticService.confirm();
-                            AppToast.showSuccess(
-                              context,
-                              '@${profile.username} заблокирован',
-                            );
-                          } catch (e) {
-                            if (!mounted) return;
-                            HapticService.destructive();
-                            AppToast.showError(context, 'Ошибка блокировки: $e');
-                          }
+                          HapticService.confirm();
+                          AppToast.showSuccess(
+                            context,
+                            '@${profile.username} заблокирован на этом устройстве',
+                          );
                         },
                         child: const Text('Заблокировать'),
                       ),

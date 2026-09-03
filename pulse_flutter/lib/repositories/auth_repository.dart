@@ -46,6 +46,22 @@ class AuthRepository {
     return asStringMap(response);
   }
 
+  Future<AuthLoginResult> loginNiosId({
+    required String oauthAccessToken,
+    required String deviceInfo,
+  }) async {
+    final dynamic response = await _ref
+        .read(webSocketClientProvider)
+        .request(
+          'login_nios_id',
+          payload: <String, dynamic>{
+            'oauth_access_token': oauthAccessToken,
+            'device_info': deviceInfo,
+          },
+        );
+    return AuthLoginResult.fromJson(asStringMap(response));
+  }
+
   Future<AuthLoginResult> login({
     required String identifier,
     required String password,

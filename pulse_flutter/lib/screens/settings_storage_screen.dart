@@ -10,7 +10,12 @@ import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 class SettingsStorageScreen extends ConsumerStatefulWidget {
-  const SettingsStorageScreen({super.key});
+  const SettingsStorageScreen({
+    this.isEmbedded = false,
+    super.key,
+  });
+
+  final bool isEmbedded;
 
   @override
   ConsumerState<SettingsStorageScreen> createState() =>
@@ -96,9 +101,10 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
 
     return SettingsScaffold(
       title: context.l10n.settingsStorageTitle,
+      isEmbedded: widget.isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
-          icon: Icons.storage_rounded,
+          illustrationCategory: SettingsIllustrationCategory.storage,
           title: context.l10n.settingsStorageTitle,
           subtitle: context.l10n.settingsStorageBannerSubtitle,
           iconColor: scheme.primary,
@@ -131,7 +137,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                 Container(
                   decoration: BoxDecoration(
                     color: scheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(28),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: scheme.outlineVariant.withValues(alpha: 0.14),
                     ),
@@ -349,7 +355,7 @@ class _StorageCategoryCard extends StatelessWidget {
     return Expanded(
       child: Material(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: <Widget>[
             Padding(
@@ -365,7 +371,7 @@ class _StorageCategoryCard extends StatelessWidget {
                       height: 42,
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(icon, color: color, size: 20),
                     ),

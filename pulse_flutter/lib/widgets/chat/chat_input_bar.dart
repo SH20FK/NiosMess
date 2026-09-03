@@ -325,16 +325,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
                         decoration: BoxDecoration(
-                          color: scheme.surfaceContainerLow
-                              .withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
-                            color: widget.inputFocusNode.hasFocus
-                                ? scheme.primary.withValues(alpha: 0.45)
-                                : scheme.outlineVariant
-                                    .withValues(alpha: 0.30),
-                            width: 1.0,
-                          ),
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(28),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
@@ -464,8 +456,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 12),
                                   child: Icon(
-                                    Icons.attach_file_rounded,
-                                    size: 22,
+                                    Icons.add_rounded,
+                                    size: 24,
                                     color: scheme.onSurfaceVariant
                                         .withValues(alpha: 0.7),
                                   ),
@@ -477,13 +469,28 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
-
-                  // ── Mic/Video or Send button ──
-                  if (_isInputEmpty && widget.editingMessageId == null)
-                    _buildRecordButton(scheme)
-                  else
-                    _buildSendButton(scheme),
+                  const SizedBox(width: 8),
+                  // ── Mic/Video or Send button (Animated Morph) ──
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    switchInCurve: Curves.easeOutBack,
+                    switchOutCurve: Curves.easeInBack,
+                    transitionBuilder: (Widget child, Animation<double> anim) {
+                      return ScaleTransition(
+                        scale: anim,
+                        child: child,
+                      );
+                    },
+                    child: (_isInputEmpty && widget.editingMessageId == null)
+                        ? KeyedSubtree(
+                            key: const ValueKey<String>('record_action'),
+                            child: _buildRecordButton(scheme),
+                          )
+                        : KeyedSubtree(
+                            key: const ValueKey<String>('send_action'),
+                            child: _buildSendButton(scheme),
+                          ),
+                  ),
                 ],
               ),
             ],
@@ -671,7 +678,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             child: Icon(
               widget.editingMessageId != null
                   ? Icons.check_rounded
-                  : Icons.send_rounded,
+                  : Icons.arrow_upward_rounded,
               key: ValueKey<bool>(widget.editingMessageId != null),
               color: scheme.onPrimary,
               size: 22,

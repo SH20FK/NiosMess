@@ -21,15 +21,12 @@ class AppTheme {
 
   static LinearGradient heroGradient(ColorScheme scheme) {
     final Color top = Color.alphaBlend(
-      scheme.primary.withValues(alpha: 0.20),
+      scheme.primary.withValues(alpha: 0.06),
       scheme.surface,
     );
-    final Color mid = Color.alphaBlend(
-      scheme.secondary.withValues(alpha: 0.09),
-      scheme.surface,
-    );
+    final Color mid = scheme.surface;
     final Color end = Color.alphaBlend(
-      scheme.tertiary.withValues(alpha: 0.08),
+      scheme.tertiary.withValues(alpha: 0.04),
       scheme.surface,
     );
     return LinearGradient(

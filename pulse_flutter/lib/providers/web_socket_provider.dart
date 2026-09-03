@@ -7,7 +7,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 final Provider<WebSocketClient> webSocketClientProvider = Provider<WebSocketClient>((Ref ref) {
   const String fromDefine = String.fromEnvironment('API_BASE_URL');
   final String selectedBase = fromDefine.trim().isEmpty
-      ? ApiConstants.baseUrl
+      ? ApiConstants.origin
       : fromDefine.trim();
 
   final String normalizedBase = selectedBase.endsWith('/')

@@ -18,10 +18,7 @@ import 'package:pulse_flutter/screens/group_profile_screen.dart';
 import 'package:pulse_flutter/screens/onboarding_screen.dart';
 import 'package:pulse_flutter/screens/post_comments_screen.dart';
 import 'package:pulse_flutter/screens/public_profile_screen.dart';
-import 'package:pulse_flutter/screens/register_screen.dart';
 import 'package:pulse_flutter/screens/setup_onboarding_screen.dart';
-import 'package:pulse_flutter/screens/reset_password_confirm_screen.dart';
-import 'package:pulse_flutter/screens/reset_password_request_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
@@ -35,9 +32,8 @@ import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/settings_storage_screen.dart';
 import 'package:pulse_flutter/screens/splash_screen.dart';
-import 'package:pulse_flutter/screens/two_fa_screen.dart';
-import 'package:pulse_flutter/screens/verify_email_screen.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/screens/settings_wallpaper_screen.dart';
 import 'package:pulse_flutter/screens/call_redirect_screen.dart';
 import 'package:pulse_flutter/screens/calls/active_call_screen.dart';
 
@@ -73,10 +69,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       final bool isAuth = authState.isAuthenticated;
       final String path = state.uri.path;
 
-      final bool isPublic = path == '/' || path == '/login' || path == '/register' || path == '/onboarding' || path.startsWith('/reset-password') || path.startsWith('/verify-email') || path.startsWith('/2fa') || path.startsWith('/setup') || path.startsWith('/legal');
+      final bool isPublic = path == '/' || path == '/web' || path == '/login' || path == '/register' || path == '/onboarding' || path.startsWith('/reset-password') || path.startsWith('/verify-email') || path.startsWith('/2fa') || path.startsWith('/setup') || path.startsWith('/legal');
 
       if (!isAuth && !isPublic) return '/login';
-      if (isAuth && (path == '/login' || path == '/onboarding' || path == '/register' || path.startsWith('/setup') || path.startsWith('/2fa'))) return '/main/chats';
+      if (isAuth && (path == '/login' || path == '/web' || path == '/onboarding' || path == '/register' || path.startsWith('/setup') || path.startsWith('/2fa'))) return '/main/chats';
       return null;
     },
     routes: <RouteBase>[
@@ -85,16 +81,44 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         pageBuilder: (context, state) => _page(state, const SplashScreen()),
       ),
       GoRoute(
+        path: '/web',
+        pageBuilder: (context, state) => _page(
+          state,
+          LoginScreen(
+            initialCode: state.uri.queryParameters['code'],
+            initialState: state.uri.queryParameters['state'],
+            initialError: state.uri.queryParameters['error'],
+            initialErrorDescription: state.uri.queryParameters['error_description'],
+          ),
+        ),
+      ),
+      GoRoute(
         path: '/onboarding',
         pageBuilder: (context, state) => _page(state, const OnboardingScreen()),
       ),
       GoRoute(
         path: '/login',
-        pageBuilder: (context, state) => _page(state, const LoginScreen()),
+        pageBuilder: (context, state) => _page(
+          state,
+          LoginScreen(
+            initialCode: state.uri.queryParameters['code'],
+            initialState: state.uri.queryParameters['state'],
+            initialError: state.uri.queryParameters['error'],
+            initialErrorDescription: state.uri.queryParameters['error_description'],
+          ),
+        ),
       ),
       GoRoute(
         path: '/register',
-        pageBuilder: (context, state) => _page(state, const RegisterScreen()),
+        pageBuilder: (context, state) => _page(
+          state,
+          LoginScreen(
+            initialCode: state.uri.queryParameters['code'],
+            initialState: state.uri.queryParameters['state'],
+            initialError: state.uri.queryParameters['error'],
+            initialErrorDescription: state.uri.queryParameters['error_description'],
+          ),
+        ),
       ),
       GoRoute(
         path: '/setup',
@@ -102,19 +126,19 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/verify-email',
-        pageBuilder: (context, state) => _page(state, VerifyEmailScreen(initialEmail: state.uri.queryParameters['email'])),
+        redirect: (context, state) => '/login',
       ),
       GoRoute(
         path: '/2fa',
-        pageBuilder: (context, state) => _page(state, TwoFaScreen(initialIdentifier: state.uri.queryParameters['identifier'])),
+        redirect: (context, state) => '/login',
       ),
       GoRoute(
         path: '/reset-password/request',
-        pageBuilder: (context, state) => _page(state, const ResetPasswordRequestScreen()),
+        redirect: (context, state) => '/login',
       ),
       GoRoute(
         path: '/reset-password/confirm',
-        pageBuilder: (context, state) => _page(state, ResetPasswordConfirmScreen(initialEmail: state.uri.queryParameters['email'])),
+        redirect: (context, state) => '/login',
       ),
       GoRoute(
         path: '/main/:tab',
@@ -204,6 +228,17 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         pageBuilder: (context, state) => _page(state, const SettingsAppearanceScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
+        path: '/settings/wallpaper',
+        pageBuilder: (context, state) => _page(
+          state,
+          SettingsWallpaperScreen(
+            chatId: state.uri.queryParameters['chatId'],
+            chatTitle: state.uri.queryParameters['chatTitle'],
+          ),
+          pageKey: state.pageKey,
+        ),
+      ),
+      GoRoute(
         path: '/settings/language-region',
         pageBuilder: (context, state) => _page(state, const SettingsLanguageRegionScreen(), pageKey: state.pageKey),
       ),
@@ -244,6 +279,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         pageBuilder: (context, state) => _page(state, const LegalViewerScreen(docType: LegalDocType.tos), pageKey: state.pageKey),
       ),
       GoRoute(
+        path: '/legal/terms',
+        pageBuilder: (context, state) => _page(state, const LegalViewerScreen(docType: LegalDocType.tos), pageKey: state.pageKey),
+      ),
+      GoRoute(
         path: '/legal/consent',
         pageBuilder: (context, state) => _page(state, const LegalViewerScreen(docType: LegalDocType.consent), pageKey: state.pageKey),
       ),
@@ -270,7 +309,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/niosgram/create',
-        pageBuilder: (context, state) => _page(state, const CreatePostScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) {
+          final bool autoPick = state.extra is bool ? state.extra as bool : false;
+          return _page(state, CreatePostScreen(autoPickMedia: autoPick), pageKey: state.pageKey);
+        },
       ),
       GoRoute(
         path: '/niosgram/post/:postId/comments',

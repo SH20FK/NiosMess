@@ -49,7 +49,11 @@ class _TwoFaScreenState extends ConsumerState<TwoFaScreen> {
     super.initState();
     final String? identifier = widget.initialIdentifier;
     if (identifier != null && identifier.isNotEmpty) {
-      ref.read(authProvider.notifier).setPendingIdentifier(identifier);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(authProvider.notifier).setPendingIdentifier(identifier);
+        }
+      });
     }
   }
 

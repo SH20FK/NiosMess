@@ -161,3 +161,234 @@ class MessageListSkeleton extends StatelessWidget {
     );
   }
 }
+
+// ── PostCard & PostFeed Skeletons for NiosGram ─────────────────────────
+
+/// Skeleton representation of an M3 Expressive NiosGram PostCard.
+class PostCardSkeleton extends StatelessWidget {
+  const PostCardSkeleton({
+    this.hasMedia = true,
+    this.aspectRatio = 16 / 9,
+    this.linesCount = 2,
+    super.key,
+  });
+
+  final bool hasMedia;
+  final double aspectRatio;
+  final int linesCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          // Header: Avatar + Title/Subtitle + Trailing menu placeholder
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Container(
+                        width: 130,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: 85,
+                        height: 11,
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(5.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Content body text lines
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  width: double.infinity,
+                  height: 13,
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6.5),
+                  ),
+                ),
+                if (linesCount > 1) ...<Widget>[
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 220,
+                    height: 13,
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(6.5),
+                    ),
+                  ),
+                ],
+                if (linesCount > 2) ...<Widget>[
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 140,
+                    height: 13,
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(6.5),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // Media Viewport Box placeholder
+          if (hasMedia)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: AspectRatio(
+                  aspectRatio: aspectRatio,
+                  child: Container(
+                    color: scheme.surfaceContainerHighest,
+                    child: Center(
+                      child: Icon(
+                        Icons.image_outlined,
+                        size: 36,
+                        color: scheme.onSurfaceVariant.withValues(alpha: 0.25),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Action Bar placeholder strip
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: <Widget>[
+                  _ActionChipPlaceholder(scheme: scheme, width: 44),
+                  const SizedBox(width: 4),
+                  _ActionChipPlaceholder(scheme: scheme, width: 44),
+                  const SizedBox(width: 4),
+                  _ActionChipPlaceholder(scheme: scheme, width: 44),
+                  const Spacer(),
+                  _ActionChipPlaceholder(scheme: scheme, width: 32),
+                  const SizedBox(width: 4),
+                  _ActionChipPlaceholder(scheme: scheme, width: 32),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionChipPlaceholder extends StatelessWidget {
+  const _ActionChipPlaceholder({required this.scheme, required this.width});
+  final ColorScheme scheme;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: 24,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+  }
+}
+
+/// Unified feed loading skeleton with coordinated shimmer sweep.
+class PostFeedSkeleton extends StatelessWidget {
+  const PostFeedSkeleton({this.count = 4, super.key});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+
+    return Shimmer.fromColors(
+      baseColor: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      highlightColor: scheme.surfaceContainerLow.withValues(alpha: 0.85),
+      child: ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(top: 4, bottom: 80),
+        itemCount: count,
+        itemBuilder: (BuildContext context, int index) {
+          final bool hasMedia = index % 2 == 0;
+          final double aspectRatio = index % 4 == 0 ? (16 / 9) : (4 / 3);
+          final int lines = (index % 3) + 1;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 6,
+            ),
+            child: PostCardSkeleton(
+              hasMedia: hasMedia,
+              aspectRatio: aspectRatio,
+              linesCount: lines,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
