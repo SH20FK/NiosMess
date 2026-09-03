@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
+import 'package:universal_io/io.dart' show SocketException;
 
 /// Service managing OAuth 2.0 PKCE token exchanges and central Nios ID session checks.
 class OAuthService {
@@ -164,6 +165,12 @@ class OAuthService {
   /// Polls `POST /oauth/token` for completion of the RFC 8628 device authorization.
   ///
   /// Returns `null` if [isCancelled] returns true, or throws [ApiException] on fatal error/timeout.
+  ///
+  /// Automatically retries on transient [SocketException] (e.g. `Failed host lookup` right after
+  /// the app goes to background when opening the browser on Android). Up to [_kMaxNetworkRetries]
+  /// consecutive network-level failures are tolerated before giving up.
+  static const int _kMaxNetworkRetries = 5;
+
   Future<NiosOAuthTokenResponse?> pollDeviceToken({
     required String deviceCode,
     int intervalSeconds = 5,
@@ -174,6 +181,11 @@ class OAuthService {
     final http.Client httpClient = client ?? http.Client();
     final DateTime deadline = DateTime.now().add(Duration(seconds: maxDurationSeconds));
     Duration delay = Duration(seconds: intervalSeconds < 1 ? 5 : intervalSeconds);
+    int networkFailures = 0;
+
+    // Initial delay: gives Android time to restore network context after the app
+    // transitions to the background when the browser is opened for device auth.
+    await Future<void>.delayed(delay);
 
     try {
       while (DateTime.now().isBefore(deadline)) {
@@ -181,18 +193,42 @@ class OAuthService {
           return null;
         }
 
-        final http.Response response = await httpClient.post(
-          Uri.parse(ApiConstants.oauthTokenUrl),
-          headers: const <String, String>{
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
-          },
-          body: <String, String>{
-            'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
-            'client_id': ApiConstants.clientId,
-            'device_code': deviceCode,
-          },
-        );
+        http.Response response;
+        try {
+          response = await httpClient.post(
+            Uri.parse(ApiConstants.oauthTokenUrl),
+            headers: const <String, String>{
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Accept': 'application/json',
+            },
+            body: <String, String>{
+              'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
+              'client_id': ApiConstants.clientId,
+              'device_code': deviceCode,
+            },
+          );
+          networkFailures = 0; // reset on successful connection
+        } on SocketException {
+          // Transient network error (e.g. DNS lookup failure while app is backgrounded).
+          // Retry up to _kMaxNetworkRetries times before giving up.
+          networkFailures++;
+          if (networkFailures > _kMaxNetworkRetries) {
+            throw ApiException(
+              statusCode: 0,
+              message: 'Нет соединения с Nios ID. Проверьте интернет и попробуйте снова.',
+            );
+          }
+          await Future<void>.delayed(delay);
+          continue;
+        } catch (e) {
+          // Other transient errors (e.g. http.ClientException wrapping SocketException).
+          networkFailures++;
+          if (networkFailures > _kMaxNetworkRetries) {
+            throw ApiException(statusCode: 0, message: 'Ошибка сети: $e');
+          }
+          await Future<void>.delayed(delay);
+          continue;
+        }
 
         Map<String, dynamic> data;
         try {
