@@ -461,6 +461,16 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
+      // The Font Scale section is beyond the initial 900px viewport of the detail pane.
+      // Scroll until the SegmentedButton is visible before asserting.
+      await tester.scrollUntilVisible(
+        find.byType(SegmentedButton<AppFontScale>),
+        100.0,
+        scrollable: find.descendant(
+          of: find.byType(SettingsAppearanceScreen),
+          matching: find.byType(Scrollable),
+        ).first,
+      );
       expect(find.byType(SegmentedButton<AppFontScale>), findsOneWidget);
 
       // 2. Switch to Preferences & adjust volume slider

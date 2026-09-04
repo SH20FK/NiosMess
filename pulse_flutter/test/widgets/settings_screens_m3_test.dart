@@ -285,8 +285,14 @@ void main() {
 
     testWidgets('1.8 SettingsAppearanceScreen instantiates with SegmentedButton & switches',
         (WidgetTester tester) async {
+      // Use a tall viewport so the Font Scale section (SegmentedButton<AppFontScale>)
+      // is well within the lazy ListView's rendered range. Default 1000px puts it
+      // right at the edge given the mesh preview + 2 switch sections above it.
       await tester.pumpWidget(
-        _wrapWithApp(const SettingsAppearanceScreen(isEmbedded: true)),
+        _wrapWithApp(
+          const SettingsAppearanceScreen(isEmbedded: true),
+          surfaceSize: const Size(800, 1500),
+        ),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
