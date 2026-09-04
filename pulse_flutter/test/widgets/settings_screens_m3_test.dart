@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
@@ -20,6 +21,21 @@ import 'package:pulse_flutter/models/api/session_model.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Stub adaptive performance notifier: always reports Tier B (balanced).
+/// This prevents AnimatedMeshGradient from being built in headless CI tests.
+class _StubAdaptivePerformanceNotifier extends AdaptivePerformanceNotifier {
+  @override
+  AdaptivePerformanceState build() {
+    return const AdaptivePerformanceState(
+      mode: PerformanceMode.balanced,
+      targetFps: 60.0,
+      targetFrameBudgetMs: 16.67,
+      recentJankRatio: 0.0,
+      isDegraded: false,
+    );
+  }
+}
 
 class _FakeAuthNotifier extends AuthNotifier {
   @override
@@ -69,6 +85,7 @@ Widget _wrapWithApp(Widget child, {Size surfaceSize = const Size(800, 1000)}) {
     overrides: [
       authProvider.overrideWith(() => _FakeAuthNotifier()),
       authRepositoryProvider.overrideWith((ref) => _MockAuthRepository(ref)),
+      adaptivePerformanceProvider.overrideWith(_StubAdaptivePerformanceNotifier.new),
     ],
     child: MediaQuery(
       data: MediaQueryData(

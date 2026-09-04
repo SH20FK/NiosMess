@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
@@ -23,6 +24,22 @@ import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/widgets/post_card.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Stub adaptive performance notifier: always Tier B (balanced).
+/// Prevents AnimatedMeshGradient from building in headless CI.
+class _StubAdaptivePerformanceNotifier extends AdaptivePerformanceNotifier {
+  @override
+  AdaptivePerformanceState build() {
+    return const AdaptivePerformanceState(
+      mode: PerformanceMode.balanced,
+      targetFps: 60.0,
+      targetFrameBudgetMs: 16.67,
+      recentJankRatio: 0.0,
+      isDegraded: false,
+    );
+  }
+}
+
 
 // ── Mock Notifiers for E2E Integration ──────────────────────────────────────
 
@@ -159,6 +176,7 @@ Widget _buildE2eApp({
       authProvider.overrideWith(() => MockE2eAuthNotifier()),
       niosgramProvider.overrideWith(() => niosgramNotifier),
       notificationsProvider.overrideWith(MockE2eNotificationsNotifier.new),
+      adaptivePerformanceProvider.overrideWith(_StubAdaptivePerformanceNotifier.new),
     ],
     child: Consumer(
       builder: (context, ref, _) {
