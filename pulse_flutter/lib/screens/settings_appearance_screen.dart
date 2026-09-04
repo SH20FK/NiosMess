@@ -52,6 +52,9 @@ class _AppearanceScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(uiSettingsProvider);
+    // Must be watched here at build() top-level — NOT inside DynamicColorBuilder
+    // or TweenAnimationBuilder closures (ref.watch is invalid outside build scope).
+    final tier = ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
     final brightness = Theme.of(context).brightness;
 
     return DynamicColorBuilder(
@@ -72,7 +75,7 @@ class _AppearanceScreen extends ConsumerWidget {
             return Theme(
               data: animatedTheme,
               child: _buildContent(
-                  context, ref, settings, animatedTheme.colorScheme),
+                  context, ref, settings, animatedTheme.colorScheme, tier),
             );
           },
         );
@@ -85,11 +88,8 @@ class _AppearanceScreen extends ConsumerWidget {
     WidgetRef ref,
     UiSettingsState settings,
     ColorScheme scheme,
+    PerformanceTier tier,
   ) {
-    // Watch performance tier here (ConsumerWidget scope) so _MeshWithOrbs
-    // stays a plain StatefulWidget — avoids Riverpod init timing in CI tests.
-    final tier = ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
-
     return AnimatedContainer(
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeInOutCubic,
