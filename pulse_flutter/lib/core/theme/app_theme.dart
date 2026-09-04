@@ -65,6 +65,7 @@ class AppTheme {
 
     final ThemeData theme = ThemeData(
       useMaterial3: true,
+      splashFactory: InkRipple.splashFactory,
       colorScheme: scheme,
       scaffoldBackgroundColor: isOled ? const Color(0xFF000000) : scheme.surface,
       textTheme: textTheme,
