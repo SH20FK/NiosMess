@@ -86,6 +86,10 @@ class _AppearanceScreen extends ConsumerWidget {
     UiSettingsState settings,
     ColorScheme scheme,
   ) {
+    // Watch performance tier here (ConsumerWidget scope) so _MeshWithOrbs
+    // stays a plain StatefulWidget — avoids Riverpod init timing in CI tests.
+    final tier = ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeInOutCubic,
@@ -108,6 +112,7 @@ class _AppearanceScreen extends ConsumerWidget {
           _MeshWithOrbs(
             scheme: scheme,
             settings: settings,
+            tier: tier,
             onColorSelected: (color) {
               ref.read(uiSettingsProvider.notifier).setSeedColor(color);
             },
@@ -317,22 +322,24 @@ class _AppearanceScreen extends ConsumerWidget {
   }
 }
 
-class _MeshWithOrbs extends ConsumerStatefulWidget {
+class _MeshWithOrbs extends StatefulWidget {
   const _MeshWithOrbs({
     required this.scheme,
     required this.settings,
+    required this.tier,
     required this.onColorSelected,
   });
 
   final ColorScheme scheme;
   final UiSettingsState settings;
+  final PerformanceTier tier;
   final ValueChanged<Color> onColorSelected;
 
   @override
-  ConsumerState<_MeshWithOrbs> createState() => _MeshWithOrbsState();
+  State<_MeshWithOrbs> createState() => _MeshWithOrbsState();
 }
 
-class _MeshWithOrbsState extends ConsumerState<_MeshWithOrbs> {
+class _MeshWithOrbsState extends State<_MeshWithOrbs> {
   Offset _touchPos = Offset.zero;
   bool _isTouching = false;
 
@@ -355,7 +362,7 @@ class _MeshWithOrbsState extends ConsumerState<_MeshWithOrbs> {
   Widget build(BuildContext context) {
     final scheme = widget.scheme;
     final settings = widget.settings;
-    final tier = ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
+    final tier = widget.tier;
     final optimize = settings.optimizeForWeakDevices || tier == PerformanceTier.tierC;
     final radius = 80.0;
 

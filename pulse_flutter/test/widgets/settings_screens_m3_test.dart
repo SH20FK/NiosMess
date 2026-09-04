@@ -22,17 +22,17 @@ import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Stub adaptive performance notifier: always reports Tier B (balanced).
-/// This prevents AnimatedMeshGradient from being built in headless CI tests.
+/// Stub adaptive performance notifier: always reports Tier C (powerSaver).
+/// Ensures optimize=true → AnimatedMeshGradient is skipped in headless CI tests.
 class _StubAdaptivePerformanceNotifier extends AdaptivePerformanceNotifier {
   @override
   AdaptivePerformanceState build() {
     return const AdaptivePerformanceState(
-      mode: PerformanceMode.balanced,
+      mode: PerformanceMode.powerSaver,
       targetFps: 60.0,
       targetFrameBudgetMs: 16.67,
       recentJankRatio: 0.0,
-      isDegraded: false,
+      isDegraded: true,
     );
   }
 }
