@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mesh_gradient/mesh_gradient.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
+import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
@@ -316,7 +317,7 @@ class _AppearanceScreen extends ConsumerWidget {
   }
 }
 
-class _MeshWithOrbs extends StatefulWidget {
+class _MeshWithOrbs extends ConsumerStatefulWidget {
   const _MeshWithOrbs({
     required this.scheme,
     required this.settings,
@@ -328,10 +329,10 @@ class _MeshWithOrbs extends StatefulWidget {
   final ValueChanged<Color> onColorSelected;
 
   @override
-  State<_MeshWithOrbs> createState() => _MeshWithOrbsState();
+  ConsumerState<_MeshWithOrbs> createState() => _MeshWithOrbsState();
 }
 
-class _MeshWithOrbsState extends State<_MeshWithOrbs> {
+class _MeshWithOrbsState extends ConsumerState<_MeshWithOrbs> {
   Offset _touchPos = Offset.zero;
   bool _isTouching = false;
 
@@ -354,6 +355,8 @@ class _MeshWithOrbsState extends State<_MeshWithOrbs> {
   Widget build(BuildContext context) {
     final scheme = widget.scheme;
     final settings = widget.settings;
+    final tier = ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
+    final optimize = settings.optimizeForWeakDevices || tier == PerformanceTier.tierC;
     final radius = 80.0;
 
     return Padding(
@@ -394,46 +397,48 @@ class _MeshWithOrbsState extends State<_MeshWithOrbs> {
                       ),
                     ),
 
-                    // Base mesh layer (4 main colors)
-                    ExcludeSemantics(
-                      child: AnimatedMeshGradient(
-                        colors: [
-                          scheme.primary,
-                          scheme.tertiary,
-                          scheme.secondary,
-                          scheme.surfaceContainerHighest,
-                        ],
-                        options: AnimatedMeshGradientOptions(
-                          frequency: 3,
-                          amplitude: 20,
-                          speed: 1.5,
-                          grain: 0.1,
-                        ),
-                        child: const SizedBox.expand(),
-                      ),
-                    ),
-
-                    // Depth mesh layer (container colors, slower, translucent)
-                    ExcludeSemantics(
-                      child: Opacity(
-                        opacity: 0.35,
+                    // Base mesh layer (4 main colors) - only on Tier A or Tier B
+                    if (!optimize)
+                      ExcludeSemantics(
                         child: AnimatedMeshGradient(
                           colors: [
-                            scheme.primaryContainer,
-                            scheme.secondaryContainer,
-                            scheme.tertiaryContainer,
-                            scheme.surface,
+                            scheme.primary,
+                            scheme.tertiary,
+                            scheme.secondary,
+                            scheme.surfaceContainerHighest,
                           ],
                           options: AnimatedMeshGradientOptions(
-                            frequency: 4,
-                            amplitude: 12,
-                            speed: 0.8,
-                            grain: 0.0,
+                            frequency: 3,
+                            amplitude: 20,
+                            speed: 1.5,
+                            grain: 0.1,
                           ),
                           child: const SizedBox.expand(),
                         ),
                       ),
-                    ),
+
+                    // Depth mesh layer (container colors, slower, translucent) - Tier A only
+                    if (!optimize && tier == PerformanceTier.tierA)
+                      ExcludeSemantics(
+                        child: Opacity(
+                          opacity: 0.35,
+                          child: AnimatedMeshGradient(
+                            colors: [
+                              scheme.primaryContainer,
+                              scheme.secondaryContainer,
+                              scheme.tertiaryContainer,
+                              scheme.surface,
+                            ],
+                            options: AnimatedMeshGradientOptions(
+                              frequency: 4,
+                              amplitude: 12,
+                              speed: 0.8,
+                              grain: 0.0,
+                            ),
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                      ),
 
                     // Vignette (edge darkening)
                     IgnorePointer(

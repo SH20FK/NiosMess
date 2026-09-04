@@ -1,5 +1,5 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/widgets/adaptive/adaptive_glass.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
@@ -43,30 +43,23 @@ class CallControlDock extends StatelessWidget {
           borderRadius: BorderRadius.circular(CallTokens.dockBorderRadius),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
+              color: scheme.shadow.withValues(alpha: 0.35),
               blurRadius: 28,
               offset: const Offset(0, 10),
             ),
           ],
         ),
-        child: ClipRRect(
+        child: AdaptiveGlass(
           borderRadius: BorderRadius.circular(CallTokens.dockBorderRadius),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: CallTokens.glassBlur,
-              sigmaY: CallTokens.glassBlur,
-            ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: scheme.surface.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(CallTokens.dockBorderRadius),
-                border: Border.all(
-                  color: scheme.onSurface.withValues(alpha: 0.12),
-                  width: CallTokens.glassBorderWidth,
-                ),
-              ),
-              child: Row(
+          tierASigma: CallTokens.glassBlur,
+          tierBSigma: 8.0,
+          tintColor: scheme.surface.withValues(alpha: 0.16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          border: Border.all(
+            color: scheme.onSurface.withValues(alpha: 0.12),
+            width: CallTokens.glassBorderWidth,
+          ),
+          child: Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -183,9 +176,7 @@ class CallControlDock extends StatelessWidget {
               ),
             ),
           ),
-        ),
-      ),
-    );
+        );
   }
 }
 

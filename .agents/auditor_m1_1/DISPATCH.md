@@ -1,15 +1,25 @@
-## 2026-09-01T11:44:29Z
+# DISPATCH — Forensic Auditor for Milestone M1 (Smart Adaptive Performance Engine)
 
-You are the Forensic Auditor for Milestone M1.
-Your working directory is: f:\Niosmess V2\.agents\auditor_m1_1
-Your parent is the Project Orchestrator (conversation ID: 65ff2a5d-b51f-4b8f-9b41-07119b4e87c7).
+## Mission
+Conduct rigorous forensic integrity audit of Milestone M1 implementation in `f:\Niosmess V2\pulse_flutter`.
 
-Task:
-Perform a strict forensic integrity audit on the Milestone M1 implementation in `f:\Niosmess V2\pulse_flutter`:
-1. Check `lib/core/network/pkce_helper.dart` — Verify real CSPRNG (`Random.secure()`) and real SHA-256 (`crypto.sha256`), no hardcoded strings, fake digests, or mock values in production code.
-2. Check `lib/core/storage/ephemeral_storage.dart` — Verify verifier/state are strictly ephemeral and NEVER written to persistent storage (`SharedPreferences`, `FlutterSecureStorage`, SQLite, Hive, localStorage).
-3. Check `lib/services/oauth_service.dart` — Verify genuine HTTP request creation, URL encoding, correct endpoint URLs, no bypasses.
-4. Check `lib/models/api/auth_models.dart` — Verify genuine model deserialization.
-5. Check `test/unit/` — Verify tests test real logic and assert real computations (not tautological asserts like `expect(true, true)`).
+## Authoritative Inputs
+- Worker Handoff: `f:\Niosmess V2\.agents\worker_m1\handoff.md`
+- Project Blueprint: `f:\Niosmess V2\.agents\orchestrator_5\PROJECT.md`
+- Codebase Rules: `f:\Niosmess V2\AGENTS.md`
 
-Deliver your forensic audit verdict (**CLEAN** or **INTEGRITY VIOLATION**) with itemized evidence in `f:\Niosmess V2\.agents\auditor_m1_1\handoff.md` and send a message back to parent.
+## Forensic Checkpoints
+1. **Authenticity Check**:
+   - Verify that `FrameTimingMonitor` actually processes `FrameTiming` data and implements real mathematical rolling ring buffer calculations (not mock or hardcoded returns).
+   - Verify that `AdaptivePerformanceNotifier` actually toggles tiers dynamically based on frame metrics and user settings.
+   - Verify that `AdaptiveGlass`, `AdaptiveMeshBackground`, and `AdaptiveOrganicBackground` implement genuine multi-tier rendering branches (BackdropFilter in Tier A/B, tonal Container in Tier C).
+2. **Cheat & Bypass Detection**:
+   - Check for hardcoded test results, mock shortcuts, bypass switches that skip core logic during verification, or dummy implementations.
+3. **Verdict**:
+   - Write `handoff.md` with explicit verdict: `CLEAN` or `INTEGRITY VIOLATION` (with exhaustive evidence).
+   
+## 2026-09-04T10:46:42Z
+You are the Forensic Auditor for Milestone M1. Working directory: f:\Niosmess V2\.agents\auditor_m1_1.
+Read f:\Niosmess V2\.agents\auditor_m1_1\DISPATCH.md and f:\Niosmess V2\.agents\worker_m1\handoff.md.
+Perform a strict forensic integrity audit of Milestone M1 code in f:\Niosmess V2\pulse_flutter. Verify all logic is genuine with zero hardcoded outputs, fake mocks, or bypasses.
+Write handoff.md with verdict: CLEAN or INTEGRITY VIOLATION. Send message to parent.

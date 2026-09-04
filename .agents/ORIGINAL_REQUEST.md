@@ -123,3 +123,18 @@ Integrity mode: development
 - [ ] flutter analyze reports 0 issues (zero warnings, zero errors).
 - [ ] Application compiles and runs cleanly in web (flutter build web --profile).
 
+## 2026-09-04T09:54:05Z
+
+Execute the complete end-to-end multi-agent performance optimization of the graphics pipeline, message lists, and media caching for NiosMess (pulse_flutter) for stable and smooth 60/120 FPS adaptive frame rate performance across both budget and flagship devices.
+
+Requirements:
+- R1. Smart Adaptive Performance Engine (jank detection, adaptive degradation/enhancement of shaders, MeshGradient, BackdropFilter, M3 Expressive)
+- R2. List Virtualization Optimization & Dynamic Memory Management (smooth 60/120 FPS scroll in chat_detail_screen, chat_list_screen, NiosGram post_card, adaptive image decoding with memCacheWidth/Height, RepaintBoundary, viewport eviction, Riverpod select rebuild prevention)
+- R3. Background Energy Efficiency & Resource Leak Elimination (controllers, websockets, timers audit and cleanup)
+
+Strictly adhere to f:\Niosmess V2\AGENTS.md, maintain your plan.md, progress.md, and BRIEFING.md in f:\Niosmess V2\.agents\orchestrator_5.
+Dispatch specialized subagents (explorers, workers, reviewers, challengers, etc.). NOTE: when invoking subagents, specify Model: 'flash' to preserve quota.
+Ensure all tests pass and flutter analyze reports 0 issues. Update pubspec.yaml following SemVer protocol.
+When work is complete and verified by your team, report completion to the Sentinel via send_message.
+
+

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -17,6 +16,7 @@ import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/widgets/adaptive/adaptive_glass.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/centered_note.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
@@ -106,7 +106,6 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     final AuthState auth = ref.watch(authProvider);
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final bool compact = settings.compactMode;
-    final bool optimize = settings.optimizeForWeakDevices;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.watch(
@@ -125,22 +124,13 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         backgroundColor: Colors.transparent,
         extendBodyBehindAppBar: true,
         appBar: AppBar(
-          title: ClipRRect(
+          title: AdaptiveGlass(
             borderRadius: BorderRadius.circular(20),
-            child: optimize
-                ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    color: scheme.surface.withValues(alpha: 0.95),
-                    child: Text(context.l10n.tabContacts),
-                  )
-                : BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      color: scheme.surface.withValues(alpha: 0.6),
-                      child: Text(context.l10n.tabContacts),
-                    ),
-                  ),
+            tierASigma: 10.0,
+            tierBSigma: 6.0,
+            tintColor: scheme.surface.withValues(alpha: 0.75),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(context.l10n.tabContacts),
           ),
           centerTitle: false,
           scrolledUnderElevation: 0,

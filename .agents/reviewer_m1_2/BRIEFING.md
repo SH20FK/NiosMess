@@ -1,7 +1,7 @@
-﻿# BRIEFING — 2026-09-01T11:45:00Z
+# BRIEFING — 2026-09-04T10:46:42Z
 
 ## Mission
-Conduct independent adversarial and quality review of Milestone M1 (Core PKCE & OAuth Services) in pulse_flutter.
+Conduct independent adversarial and quality review of Milestone M1 (Smart Adaptive Performance Engine & Component Migrations) in pulse_flutter.
 
 ## 🔒 My Identity
 - Archetype: reviewer_and_critic
@@ -19,38 +19,46 @@ Conduct independent adversarial and quality review of Milestone M1 (Core PKCE & 
 - checkCentralNiosIdSession contract (only HTTP 401 returns false; network errors/5xx return true to allow fallback).
 - exchangeAuthCode form-urlencoded body encoding and accurate ApiException parsing.
 - Riverpod 3.x NotifierProvider conventions, no raw dart:io.
+- Milestone M1 Smart Adaptive Performance Engine constraints:
+  - AdaptiveGlass graceful fallback (Tier A: BackdropFilter+blur+specular, Tier B: semi-transparent solid, Tier C: opaque surface).
+  - AdaptiveMeshBackground ticker management (Tier A: continuous animation, Tier B/C: static rendered canvas/fallback, zero ticker overhead).
+  - Component migrations: call overlays, docks, appearance preview, login loading overlay, profile header fog painter.
+  - Zero `dart:io` imports; strictly use `package:universal_io/io.dart`.
+  - Zero hardcoded colors; strictly use `ColorScheme` and `withValues(alpha:)`.
 
 ## Current Parent
-- Conversation ID: 65ff2a5d-b51f-4b8f-9b41-07119b4e87c7
-- Updated: not yet
+- Conversation ID: 41d58982-ce33-4e15-ade6-9381e5914a85
+- Updated: 2026-09-04T10:46:42Z
 
 ## Review Scope
 - **Files to review**:
-  - pulse_flutter/lib/core/services/pkce_service.dart
-  - pulse_flutter/lib/core/services/oauth_service.dart
-  - pulse_flutter/lib/core/services/ephemeral_auth_storage.dart
-  - pulse_flutter/lib/models/auth/oauth_state.dart
-  - pulse_flutter/lib/models/auth/oauth_tokens.dart
-  - pulse_flutter/lib/core/providers/auth_providers.dart
-  - pulse_flutter/test/unit/services/pkce_service_test.dart
-  - pulse_flutter/test/unit/services/oauth_service_test.dart
-  - pulse_flutter/test/unit/services/ephemeral_auth_storage_test.dart
-- **Interface contracts**: PROJECT.md, NIOSMESS_FRONTEND_LOGIN.md, ORIGINAL_REQUEST.md
-- **Review criteria**: correctness, RFC compliance, security, error handling, style, test validity, adversarial resilience.
+  - `pulse_flutter/lib/core/performance/adaptive_performance_engine.dart`
+  - `pulse_flutter/lib/widgets/adaptive/adaptive_glass.dart`
+  - `pulse_flutter/lib/widgets/adaptive/adaptive_mesh_background.dart`
+  - `pulse_flutter/lib/screens/calls/active_voice_call_screen.dart`
+  - `pulse_flutter/lib/widgets/call_overlay.dart`
+  - `pulse_flutter/lib/widgets/call_control_dock.dart`
+  - `pulse_flutter/lib/widgets/incoming_call_overlay.dart`
+  - `pulse_flutter/lib/screens/settings/settings_appearance_screen.dart`
+  - `pulse_flutter/lib/screens/auth/login_screen.dart`
+  - `pulse_flutter/lib/screens/profile/profile_screen.dart` (or profile header fog painter)
+  - Unit & widget test files
+- **Interface contracts**: `PROJECT.md`, `worker_m1/handoff.md`, `AGENTS.md`
+- **Review criteria**: Correctness, integrity, visual parity across tiers, ticker disposal / lifecycle leaks, test validity, static analysis.
 
 ## Review Checklist
-- **Items reviewed**: none yet
-- **Verdict**: pending
-- **Unverified claims**: all worker claims from worker_m1_1/handoff.md
+- **Items reviewed**: Pending reading worker handoff and inspecting components
+- **Verdict**: PENDING
+- **Unverified claims**: All worker claims in worker_m1/handoff.md
 
 ## Attack Surface
-- **Hypotheses tested**: none yet
-- **Vulnerabilities found**: none yet
-- **Untested angles**: RFC 7636 compliance, entropy generation, character set validity, padding removal, error path handling in oauth_service, session check fallback behavior, form encoding vs JSON encoding in exchangeAuthCode, state isolation across parallel or repeated auth flows.
+- **Hypotheses tested**: Pending
+- **Vulnerabilities found**: None yet
+- **Untested angles**: BackdropFilter removal on Tier B/C, ticker leak in AdaptiveMeshBackground, profile header fog painter tier degradation, login loading overlay glass degradation, edge case inputs to performance engine.
 
 ## Key Decisions Made
-- Initializing review workflow.
+- Initialized M1 Reviewer 2 briefing and dispatch.
 
 ## Artifact Index
-- :\Niosmess V2\.agents\reviewer_m1_2\handoff.md — Final review and challenge report
-- :\Niosmess V2\.agents\reviewer_m1_2\progress.md — Progress tracker and heartbeat
+- `f:\Niosmess V2\.agents\reviewer_m1_2\handoff.md` — Final review report
+- `f:\Niosmess V2\.agents\reviewer_m1_2\progress.md` — Progress tracker and heartbeat

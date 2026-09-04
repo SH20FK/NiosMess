@@ -185,15 +185,17 @@ class _PostCardState extends ConsumerState<PostCard>
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final AuthState auth = ref.watch(authProvider);
-    final bool isOwn = auth.profile?.id == widget.post.author.id;
+    final bool isOwn = ref.watch(
+      authProvider.select((a) => a.profile?.id == widget.post.author.id),
+    );
     final NgPost post = widget.post;
 
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return GestureDetector(
-      onDoubleTap: _onDoubleTapLike,
-      child: Card(
+    return RepaintBoundary(
+      child: GestureDetector(
+        onDoubleTap: _onDoubleTapLike,
+        child: Card(
         margin: EdgeInsets.zero,
         elevation: 0,
         color: isDark ? scheme.surfaceContainerLow : scheme.surface,
@@ -551,8 +553,9 @@ class _PostCardState extends ConsumerState<PostCard>
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   static void _openFullScreen(BuildContext context, String url, int postId) {
     Navigator.of(context).push(

@@ -58,8 +58,13 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      ref.read(webSocketClientProvider).reconnectNow();
+      ref.read(webSocketClientProvider).resumeFromBackground();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      ref.read(webSocketClientProvider).pauseForBackground();
     }
+
     // Re-lock when leaving the foreground; unlock (or exit) on return.
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {

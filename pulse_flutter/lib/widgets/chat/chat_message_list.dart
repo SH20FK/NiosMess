@@ -189,6 +189,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
     return ListView.builder(
       controller: widget.scrollController,
       reverse: true,
+      // ignore: deprecated_member_use
+      cacheExtent: 600,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       addAutomaticKeepAlives: false,
       itemCount: messages.length,
@@ -214,11 +216,6 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             message.msgType == 'round_video';
         final int? mediaDuration = message.mediaDuration;
         final bool isLocalSending = message.isSending && message.id < 0;
-        final UploadTask? uploadTask = isLocalSending
-            ? ref.watch(uploadTaskProvider(message.id.toString()))
-            : null;
-        final double? uploadProgress =
-            isLocalSending ? (uploadTask?.progress ?? 0.0) : null;
 
         final String rawText = widget.displayTextBuilder(message);
         final bool isCallMessage = message.msgType == 'call' ||
@@ -243,8 +240,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
           );
         }
 
-        final Widget bubble = RepaintBoundary(
-          child: MessageBubble(
+        Widget buildBubble({double? progress}) {
+          return MessageBubble(
             key: ValueKey<int>(message.id),
             chatId: message.chatId,
             text: rawText,
@@ -259,9 +256,11 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             isRead: message.isRead,
             replyPreview: widget.replyPreviewBuilder(message, byId),
             replyToId: message.replyToId,
-            onReplyTap: message.replyToId != null ? () {
-              _scrollToMessage(message.replyToId!);
-            } : null,
+            onReplyTap: message.replyToId != null
+                ? () {
+                    _scrollToMessage(message.replyToId!);
+                  }
+                : null,
             reactions: message.reactions,
             mediaUrl: mediaUrl,
             mediaIsImage: isImageMedia,
@@ -275,7 +274,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             isSending: isLocalSending,
             isFailed: message.isFailed,
             onRetrySend: () => widget.onRetrySend(message),
-            uploadProgress: uploadProgress,
+            uploadProgress: progress,
             localId: isLocalSending ? message.id.toString() : null,
             onOpenMedia: hasMedia ? () => widget.onOpenMedia(message) : null,
             onLongPressMedia: hasMedia
@@ -289,7 +288,20 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             onCallbackQuery: (String data) =>
                 widget.onCallbackQuery(message, data),
             animateHighlight: message.id == _highlightedMessageId,
-          ),
+          );
+        }
+
+        final Widget bubble = RepaintBoundary(
+          child: isLocalSending
+              ? Consumer(
+                  builder: (context, ref, _) {
+                    final uploadTask = ref.watch(
+                      uploadTaskProvider(message.id.toString()),
+                    );
+                    return buildBubble(progress: uploadTask?.progress ?? 0.0);
+                  },
+                )
+              : buildBubble(progress: null),
         );
 
         final bool isNewest = index == 0;

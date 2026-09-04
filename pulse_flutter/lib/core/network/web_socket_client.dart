@@ -491,6 +491,36 @@ class WebSocketClient {
     }
   }
 
+  bool _isBackgroundPaused = false;
+  bool get isBackgroundPaused => _isBackgroundPaused;
+
+  /// Pauses periodic heartbeat pings and auto-reconnect backoff while the application is in the background.
+  void pauseForBackground() {
+    if (_isBackgroundPaused) return;
+    _isBackgroundPaused = true;
+    _stopHeartbeat();
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    debugPrint('[WebSocketClient] Paused for background energy saving.');
+  }
+
+  /// Resumes normal WebSocket activity when the application returns to the foreground.
+  void resumeFromBackground() {
+    if (!_isBackgroundPaused) return;
+    _isBackgroundPaused = false;
+    debugPrint('[WebSocketClient] Resumed from background.');
+    if (isConnected) {
+      _startHeartbeat();
+      // Send an immediate keepalive ping to confirm connection viability
+      sendRaw(jsonEncode(<String, dynamic>{
+        'action': 'ping',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      }));
+    } else if (!_closed && !_isConnecting) {
+      connect();
+    }
+  }
+
   void disconnect() {
     _stopHeartbeat();
     _reconnectTimer?.cancel();

@@ -49,6 +49,7 @@ credentials.json
 server_core/
 
 # === Agent / Tool artifacts ===
+.agents/
 .antigravitycli/
 .codegraph/
 .cursor/

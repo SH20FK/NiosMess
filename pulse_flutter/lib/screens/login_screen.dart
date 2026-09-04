@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -13,6 +12,7 @@ import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/services/oauth_service.dart';
+import 'package:pulse_flutter/widgets/adaptive/adaptive_glass.dart';
 import 'package:pulse_flutter/widgets/m3_organic_background.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -758,43 +758,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildLoadingOverlay(ColorScheme scheme, TextTheme textTheme) {
     return Positioned.fill(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          color: scheme.surface.withValues(alpha: 0.85),
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.3),
-                  width: 1,
+      child: AdaptiveGlass(
+        tierASigma: 8.0,
+        tierBSigma: 4.0,
+        tintColor: scheme.surface.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.zero,
+        border: const Border.fromBorderSide(BorderSide.none),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.3),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: scheme.shadow.withValues(alpha: 0.1),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.1),
-                    blurRadius: 30,
-                    offset: const Offset(0, 10),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const PulseLoadingIndicator(size: 48),
+                const SizedBox(height: 20),
+                Text(
+                  _statusText ?? 'Авторизация...',
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurface,
                   ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const PulseLoadingIndicator(size: 48),
-                  const SizedBox(height: 20),
-                  Text(
-                    _statusText ?? 'Авторизация...',
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

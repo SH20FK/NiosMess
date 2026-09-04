@@ -6,8 +6,13 @@ import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dar
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 
-class M3OrganicBackground extends ConsumerWidget {
-  const M3OrganicBackground({
+/// Drop-in adaptive organic background scaling GPU raster load across 3 tiers.
+///
+/// - Tier A (Flagship): Full cubic-bezier organic shapes with MaskFilter.blur(BlurStyle.normal, 54).
+/// - Tier B (Balanced): Reduced MaskFilter.blur(BlurStyle.normal, 16) with simplified shapes.
+/// - Tier C (PowerSaver / Weak Devices): Zero MaskFilter passes; single-draw-call tonal linear gradient.
+class AdaptiveOrganicBackground extends ConsumerWidget {
+  const AdaptiveOrganicBackground({
     super.key,
     required this.child,
     this.showBackButton = false,
@@ -24,7 +29,7 @@ class M3OrganicBackground extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final topPadding = MediaQuery.paddingOf(context).top;
+    final double topPadding = MediaQuery.paddingOf(context).top;
 
     final PerformanceTier tier = ref.watch(
       adaptivePerformanceProvider.select((s) => s.tier),
@@ -37,60 +42,42 @@ class M3OrganicBackground extends ConsumerWidget {
       backgroundColor: scheme.surface,
       body: Stack(
         children: [
-          // ── Organic Geometric Blobs Background ───────────────────────
+          // ── Adaptive Background Layer ─────────────────────────────
           Positioned.fill(
-            child: (tier == PerformanceTier.tierC || optimize)
-                ? Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          scheme.surface,
-                          Color.alphaBlend(
-                            scheme.primary.withValues(alpha: isDark ? 0.08 : 0.04),
-                            scheme.surface,
-                          ),
-                          Color.alphaBlend(
-                            scheme.tertiary.withValues(alpha: isDark ? 0.06 : 0.03),
-                            scheme.surfaceContainerLowest,
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : RepaintBoundary(
-                    child: CustomPaint(
-                      painter: _OrganicBlobsPainter(
-                        scheme: scheme,
-                        isDark: isDark,
-                        blurSigma: (tier == PerformanceTier.tierA) ? 54.0 : 16.0,
-                        isTierB: tier == PerformanceTier.tierB,
-                      ),
-                    ),
-                  ),
+            child: _buildBackground(
+              tier: tier,
+              optimize: optimize,
+              scheme: scheme,
+              isDark: isDark,
+            ),
           ),
 
-          // ── Child Content ────────────────────────────────────────────
+          // ── Child Content ──────────────────────────────────────────
           Positioned.fill(
             child: LayoutBuilder(
               builder: (BuildContext context, BoxConstraints constraints) {
-                final bool isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
-                final bool isDesktopPlatform = !isTest && (kIsWeb ||
-                    defaultTargetPlatform == TargetPlatform.macOS ||
-                    defaultTargetPlatform == TargetPlatform.windows ||
-                    defaultTargetPlatform == TargetPlatform.linux);
-                final bool isDesktop = isDesktopPlatform && constraints.maxWidth >= 840;
+                final bool isTest = WidgetsBinding.instance.runtimeType
+                    .toString()
+                    .contains('Test');
+                final bool isDesktopPlatform = !isTest &&
+                    (kIsWeb ||
+                        defaultTargetPlatform == TargetPlatform.macOS ||
+                        defaultTargetPlatform == TargetPlatform.windows ||
+                        defaultTargetPlatform == TargetPlatform.linux);
+                final bool isDesktop =
+                    isDesktopPlatform && constraints.maxWidth >= 840;
                 if (!isDesktop) {
                   return child;
                 }
                 return Center(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 32),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 520),
                       child: Material(
-                        color: scheme.surfaceContainerHigh.withValues(alpha: isDark ? 0.92 : 0.98),
+                        color: scheme.surfaceContainerHigh
+                            .withValues(alpha: isDark ? 0.92 : 0.98),
                         borderRadius: BorderRadius.circular(32),
                         elevation: 8,
                         shadowColor: scheme.shadow.withValues(alpha: 0.2),
@@ -99,7 +86,8 @@ class M3OrganicBackground extends ConsumerWidget {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(32),
                             border: Border.all(
-                              color: scheme.outlineVariant.withValues(alpha: 0.45),
+                              color: scheme.outlineVariant
+                                  .withValues(alpha: 0.45),
                               width: 1.5,
                             ),
                           ),
@@ -137,28 +125,37 @@ class M3OrganicBackground extends ConsumerWidget {
                     )
                   else
                     const SizedBox(width: 44),
-
                   if (showThemeToggle)
                     Builder(
                       builder: (BuildContext btnContext) {
                         return _TopIconButton(
-                          icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                          icon: isDark
+                              ? Icons.light_mode_rounded
+                              : Icons.dark_mode_rounded,
                           scheme: scheme,
                           onTap: () {
-                            final newMode = isDark ? ThemeMode.light : ThemeMode.dark;
-                            final switcher = CircularThemeSwitcher.maybeOf(btnContext);
+                            final newMode =
+                                isDark ? ThemeMode.light : ThemeMode.dark;
+                            final switcher =
+                                CircularThemeSwitcher.maybeOf(btnContext);
                             if (switcher != null) {
-                              final RenderBox? box = btnContext.findRenderObject() as RenderBox?;
+                              final RenderBox? box = btnContext
+                                  .findRenderObject() as RenderBox?;
                               final Offset? offset = box != null && box.hasSize
-                                  ? box.localToGlobal(box.size.center(Offset.zero))
+                                  ? box.localToGlobal(
+                                      box.size.center(Offset.zero))
                                   : null;
                               switcher.toggleTheme(
-                                () => ref.read(uiSettingsProvider.notifier).setThemeMode(newMode),
+                                () => ref
+                                    .read(uiSettingsProvider.notifier)
+                                    .setThemeMode(newMode),
                                 tapOffset: offset,
                               );
                             } else {
                               HapticFeedback.lightImpact();
-                              ref.read(uiSettingsProvider.notifier).setThemeMode(newMode);
+                              ref
+                                  .read(uiSettingsProvider.notifier)
+                                  .setThemeMode(newMode);
                             }
                           },
                         );
@@ -170,6 +167,49 @@ class M3OrganicBackground extends ConsumerWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBackground({
+    required PerformanceTier tier,
+    required bool optimize,
+    required ColorScheme scheme,
+    required bool isDark,
+  }) {
+    if (tier == PerformanceTier.tierC || optimize) {
+      // Tier C: Zero blur passes, single-draw-call tonal gradient
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              scheme.surface,
+              Color.alphaBlend(
+                scheme.primary.withValues(alpha: isDark ? 0.08 : 0.04),
+                scheme.surface,
+              ),
+              Color.alphaBlend(
+                scheme.tertiary.withValues(alpha: isDark ? 0.06 : 0.03),
+                scheme.surfaceContainerLowest,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final double blurSigma = (tier == PerformanceTier.tierA) ? 54.0 : 16.0;
+
+    return RepaintBoundary(
+      child: CustomPaint(
+        painter: AdaptiveOrganicBlobsPainter(
+          scheme: scheme,
+          isDark: isDark,
+          blurSigma: blurSigma,
+          isTierB: tier == PerformanceTier.tierB,
+        ),
       ),
     );
   }
@@ -216,12 +256,12 @@ class _TopIconButton extends StatelessWidget {
   }
 }
 
-class _OrganicBlobsPainter extends CustomPainter {
-  const _OrganicBlobsPainter({
+class AdaptiveOrganicBlobsPainter extends CustomPainter {
+  const AdaptiveOrganicBlobsPainter({
     required this.scheme,
     required this.isDark,
-    this.blurSigma = 54.0,
-    this.isTierB = false,
+    required this.blurSigma,
+    required this.isTierB,
   });
 
   final ColorScheme scheme;
@@ -234,15 +274,18 @@ class _OrganicBlobsPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // Palette calibrated from references
-    final Color blueBlob = scheme.primary.withValues(alpha: isDark ? 0.20 : 0.08);
-    final Color cyanBlob = scheme.tertiary.withValues(alpha: isDark ? 0.16 : 0.07);
-    final Color pinkBlob = scheme.secondary.withValues(alpha: isDark ? 0.15 : 0.06);
-    final Color deepIndigo = scheme.primaryContainer.withValues(alpha: isDark ? 0.18 : 0.06);
+    final Color blueBlob =
+        scheme.primary.withValues(alpha: isDark ? 0.20 : 0.08);
+    final Color cyanBlob =
+        scheme.tertiary.withValues(alpha: isDark ? 0.16 : 0.07);
+    final Color pinkBlob =
+        scheme.secondary.withValues(alpha: isDark ? 0.15 : 0.06);
+    final Color deepIndigo =
+        scheme.primaryContainer.withValues(alpha: isDark ? 0.18 : 0.06);
 
     final maskBlur = MaskFilter.blur(BlurStyle.normal, blurSigma);
 
-    // Top-left organic shape
+    // Shape 1 — Top-left organic shape
     final path1 = Path()
       ..moveTo(0, 0)
       ..lineTo(w * 0.42, 0)
@@ -255,7 +298,7 @@ class _OrganicBlobsPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawPath(path1, paint1);
 
-    // Top-right soft shape
+    // Shape 2 — Top-right soft shape
     final path2 = Path()
       ..moveTo(w * 0.65, 0)
       ..lineTo(w, 0)
@@ -269,7 +312,7 @@ class _OrganicBlobsPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawPath(path2, paint2);
 
-    // Bottom-center cyan wave
+    // Shape 3 — Bottom-center wave
     final path5 = Path()
       ..moveTo(w * 0.22, h)
       ..cubicTo(w * 0.26, h * 0.88, w * 0.45, h * 0.86, w * 0.65, h * 0.90)
@@ -281,6 +324,7 @@ class _OrganicBlobsPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawPath(path5, paint5);
 
+    // If Tier A, paint additional layers
     if (!isTierB) {
       // Middle-right organic shape (blob)
       final path3 = Path()
@@ -309,7 +353,7 @@ class _OrganicBlobsPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_OrganicBlobsPainter oldDelegate) {
+  bool shouldRepaint(AdaptiveOrganicBlobsPainter oldDelegate) {
     return oldDelegate.scheme != scheme ||
         oldDelegate.isDark != isDark ||
         oldDelegate.blurSigma != blurSigma ||

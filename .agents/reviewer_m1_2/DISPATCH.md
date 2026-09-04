@@ -1,29 +1,29 @@
-﻿## 2026-09-01T11:44:29Z
-You are Reviewer 2 for Milestone M1 (Core PKCE & OAuth Services).
-Your working directory is: f:\Niosmess V2\.agents\reviewer_m1_2
-Your parent is the Project Orchestrator (conversation ID: 65ff2a5d-b51f-4b8f-9b41-07119b4e87c7).
+# DISPATCH — Reviewer 2 for Milestone M1 (Smart Adaptive Performance Engine)
 
-Task:
-Perform an independent, critical review of Milestone M1 in :\Niosmess V2\pulse_flutter.
-Reference files:
-- f:\Niosmess V2\PROJECT.md
-- f:\Niosmess V2\NIOSMESS_FRONTEND_LOGIN.md
-- f:\Niosmess V2\.agents\ORIGINAL_REQUEST.md
-- f:\Niosmess V2\AGENTS.md
-- f:\Niosmess V2\.agents\worker_m1_1\handoff.md
+## Mission
+Independently review Milestone M1 (Smart Adaptive Performance Engine, Features F1-F7) implemented by `worker_m1` in `f:\Niosmess V2\pulse_flutter`.
 
-Focus specifically on:
-- RFC 7636 PKCE S256 exact compliance, entropy, stripping padding =.
-- Ephemeral storage isolation (never writes to persistent disk or secure storage).
-- checkCentralNiosIdSession contract (only 401 returns false, network errors return true).
-- exchangeAuthCode form-urlencoded encoding, error parsing (ApiException).
-- Code style, Riverpod 3.x compliance, no raw dart:io.
+## Authoritative Inputs
+- Worker Handoff: `f:\Niosmess V2\.agents\worker_m1\handoff.md`
+- Project Blueprint: `f:\Niosmess V2\.agents\orchestrator_5\PROJECT.md`
+- User Request: `f:\Niosmess V2\.agents\ORIGINAL_REQUEST.md`
+- Codebase Rules: `f:\Niosmess V2\AGENTS.md`
 
-Run verification commands:
-`ash
-cd f:\Niosmess V2\pulse_flutter
-flutter test test/unit/
-flutter analyze
-`
+## Review Objectives
+1. **Component Migrations & Visual Integrity**:
+   - Inspect migrated call overlays (`IncomingCallOverlay`, `CallOverlay`, `CallControlDock`), `ActiveVoiceCallScreen`, `SettingsAppearanceScreen`, and `LoginScreen`.
+   - Verify that `AdaptiveGlass` gracefully transitions without visual artifacting between Tier A, Tier B, and Tier C.
+   - Verify that `AdaptiveMeshBackground` avoids continuous ticker load on Tier B/C while preserving M3 Expressive colors.
+2. **Static Analysis & Test Verification**:
+   - Run `flutter analyze` from `f:\Niosmess V2\pulse_flutter` (0 issues required).
+   - Run `flutter test test/unit/adaptive_performance_engine_test.dart test/widgets/adaptive_glass_test.dart test/widgets/adaptive_mesh_background_test.dart --no-pub`.
+3. **Deliverables**:
+   - Write `handoff.md` with explicit verdict: `APPROVE` or `REQUEST_CHANGES`.
+   - Send completion message to parent.
 
-Deliver your verdict (APPROVE or REQUEST_CHANGES) in :\Niosmess V2\.agents\reviewer_m1_2\handoff.md and send a message back to parent.
+## 2026-09-04T10:46:42Z
+You are Reviewer 2 for Milestone M1. Working directory: f:\Niosmess V2\.agents\reviewer_m1_2.
+Read f:\Niosmess V2\.agents\reviewer_m1_2\DISPATCH.md, f:\Niosmess V2\.agents\worker_m1\handoff.md, and f:\Niosmess V2\AGENTS.md.
+Independently review M1 component migrations (call overlays, docks, appearance preview, login loading overlay, profile header fog painter) and adaptive widget behavior.
+Run `flutter analyze` and tests to verify.
+Write handoff.md with verdict: APPROVE or REQUEST_CHANGES. Send message to parent.

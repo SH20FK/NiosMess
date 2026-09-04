@@ -140,10 +140,22 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
           );
     }
 
+    final double dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0;
+    final int? cacheWidth = widget.width != null && widget.width!.isFinite
+        ? (widget.width! * dpr).round()
+        : (MediaQuery.maybeSizeOf(context)?.width != null
+            ? (MediaQuery.sizeOf(context).width * dpr).round()
+            : null);
+    final int? cacheHeight = widget.height != null && widget.height!.isFinite
+        ? (widget.height! * dpr).round()
+        : null;
+
     return Image.memory(
       _bytes!,
       width: widget.width,
       height: widget.height,
+      cacheWidth: cacheWidth,
+      cacheHeight: cacheHeight,
       fit: widget.fit,
     );
   }

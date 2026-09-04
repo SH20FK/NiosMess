@@ -268,13 +268,15 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                         onHorizontalDragEnd: (_) => _seeking = false,
                         child: Padding(
                           padding: const EdgeInsets.only(top: 6),
-                          child: CustomPaint(
-                            size: Size(constraints.maxWidth, 34),
-                            painter: _WaveformPainter(
-                              bars: _waveformBars,
-                              progress: progress,
-                              playedColor: fg,
-                              unplayedColor: fg.withValues(alpha: 0.30),
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              size: Size(constraints.maxWidth, 34),
+                              painter: _WaveformPainter(
+                                bars: _waveformBars,
+                                progress: progress,
+                                playedColor: fg,
+                                unplayedColor: fg.withValues(alpha: 0.30),
+                              ),
                             ),
                           ),
                         ),

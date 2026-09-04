@@ -2,37 +2,31 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
-import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
-class AnimatedMeshBackground extends ConsumerStatefulWidget {
-  const AnimatedMeshBackground({required this.child, super.key});
+/// An adaptive mesh background that scales its visual complexity based on [PerformanceTier].
+///
+/// - Tier A (Flagship): Full animated rotating radial gradient blobs.
+/// - Tier B (Balanced): Static multi-point radial gradient composite with zero ticker rebuilds.
+/// - Tier C (PowerSaver / Weak Devices): Ultrafast static linear hero gradient with 0 CustomPaint.
+class AdaptiveMeshBackground extends ConsumerStatefulWidget {
+  const AdaptiveMeshBackground({
+    super.key,
+    required this.child,
+  });
 
   final Widget child;
 
   @override
-  ConsumerState<AnimatedMeshBackground> createState() =>
-      _AnimatedMeshBackgroundState();
+  ConsumerState<AdaptiveMeshBackground> createState() =>
+      _AdaptiveMeshBackgroundState();
 }
 
-class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
+class _AdaptiveMeshBackgroundState extends ConsumerState<AdaptiveMeshBackground>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   bool _isActive = true;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final bool active = TickerMode.valuesOf(context).enabled;
-    if (active != _isActive) {
-      _isActive = active;
-      if (active) {
-        _controller.repeat();
-      } else {
-        _controller.stop();
-      }
-    }
-  }
 
   @override
   void initState() {
@@ -41,6 +35,30 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
       vsync: this,
       duration: const Duration(seconds: 15),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bool active = TickerMode.valuesOf(context).enabled;
+    if (active != _isActive) {
+      _isActive = active;
+      if (active) {
+        _syncAnimation();
+      } else {
+        _controller.stop();
+      }
+    }
+  }
+
+  void _syncAnimation() {
+    final tier = ref.read(adaptivePerformanceProvider.select((s) => s.tier));
+    final optimize = ref.read(uiSettingsProvider.select((s) => s.optimizeForWeakDevices));
+    if (tier == PerformanceTier.tierA && !optimize) {
+      if (!_controller.isAnimating) _controller.repeat();
+    } else {
+      if (_controller.isAnimating) _controller.stop();
+    }
   }
 
   @override
@@ -59,7 +77,8 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
       uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
     );
 
-    if (optimize || tier == PerformanceTier.tierC) {
+    // Tier C or manual weak device override: Zero tickers, zero stacks of blobs, single draw call
+    if (tier == PerformanceTier.tierC || optimize) {
       if (_controller.isAnimating) _controller.stop();
       return Scaffold(
         backgroundColor: scheme.surface,
@@ -74,9 +93,9 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
       );
     }
 
+    // Tier B: Static radial gradient composite (zero continuous ticker ticks)
     if (tier == PerformanceTier.tierB) {
       if (_controller.isAnimating) _controller.stop();
-      const double t = math.pi;
       return Scaffold(
         backgroundColor: scheme.surface,
         body: Stack(
@@ -84,29 +103,29 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
             RepaintBoundary(
               child: Stack(
                 children: <Widget>[
-                  _Blob(
+                  _AdaptiveBlob(
                     cx: 0.3,
                     cy: 0.3,
                     radius: 0.35,
                     color: scheme.primary.withValues(alpha: 0.10),
-                    t: t,
-                    speed: 1.0,
+                    dx: 0,
+                    dy: 0,
                   ),
-                  _Blob(
+                  _AdaptiveBlob(
                     cx: 0.7,
                     cy: 0.55,
                     radius: 0.30,
                     color: scheme.tertiaryContainer.withValues(alpha: 0.12),
-                    t: t * 0.7,
-                    speed: 0.7,
+                    dx: 0,
+                    dy: 0,
                   ),
-                  _Blob(
+                  _AdaptiveBlob(
                     cx: 0.45,
                     cy: 0.8,
                     radius: 0.32,
                     color: scheme.secondaryContainer.withValues(alpha: 0.08),
-                    t: t * 0.5,
-                    speed: 0.5,
+                    dx: 0,
+                    dy: 0,
                   ),
                 ],
               ),
@@ -131,6 +150,11 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
       );
     }
 
+    // Tier A: Full animated mesh gradient
+    if (!_controller.isAnimating && _isActive) {
+      _controller.repeat();
+    }
+
     return Scaffold(
       backgroundColor: scheme.surface,
       body: Stack(
@@ -142,29 +166,29 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
                 final double t = _controller.value * 2 * math.pi;
                 return Stack(
                   children: <Widget>[
-                    _Blob(
+                    _AdaptiveBlob(
                       cx: 0.3,
                       cy: 0.3,
                       radius: 0.35,
                       color: scheme.primary.withValues(alpha: 0.10),
-                      t: t,
-                      speed: 1.0,
+                      dx: math.sin(t) * 40,
+                      dy: math.cos(t * 0.7) * 30,
                     ),
-                    _Blob(
+                    _AdaptiveBlob(
                       cx: 0.7,
                       cy: 0.55,
                       radius: 0.30,
                       color: scheme.tertiaryContainer.withValues(alpha: 0.12),
-                      t: t * 0.7,
-                      speed: 0.7,
+                      dx: math.sin(t * 0.7) * 40,
+                      dy: math.cos(t * 0.7 * 0.7) * 30,
                     ),
-                    _Blob(
+                    _AdaptiveBlob(
                       cx: 0.45,
                       cy: 0.8,
                       radius: 0.32,
                       color: scheme.secondaryContainer.withValues(alpha: 0.08),
-                      t: t * 0.5,
-                      speed: 0.5,
+                      dx: math.sin(t * 0.5) * 40,
+                      dy: math.cos(t * 0.5 * 0.7) * 30,
                     ),
                   ],
                 );
@@ -192,24 +216,22 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
   }
 }
 
-class _Blob extends StatelessWidget {
-  const _Blob({
+class _AdaptiveBlob extends StatelessWidget {
+  const _AdaptiveBlob({
     required this.cx,
     required this.cy,
     required this.radius,
     required this.color,
-    required this.t,
-    required this.speed,
+    required this.dx,
+    required this.dy,
   });
 
-  final double cx, cy, radius, t, speed;
+  final double cx, cy, radius, dx, dy;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     final Size size = MediaQuery.sizeOf(context);
-    final double dx = math.sin(t * speed) * 40;
-    final double dy = math.cos(t * speed * 0.7) * 30;
 
     return Positioned(
       left: size.width * cx - size.width * radius + dx,

@@ -6,7 +6,9 @@ import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
 import 'package:pulse_flutter/widgets/calls/call_audio_ripple.dart';
@@ -156,6 +158,9 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
         .withLightness((HSLColor.fromColor(baseBg).lightness * 0.55).clamp(0.04, 0.2))
         .toColor();
 
+    final tier = ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
+    final optimize = ref.watch(uiSettingsProvider.select((s) => s.optimizeForWeakDevices));
+
     return Scaffold(
       backgroundColor: bgDark,
       body: GestureDetector(
@@ -176,6 +181,8 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                         t: t,
                         primary: scheme.primary.withValues(alpha: 0.18),
                         tertiary: scheme.tertiary.withValues(alpha: 0.14),
+                        tier: tier,
+                        optimizeForWeakDevices: optimize,
                       ),
                     );
                   },
@@ -492,35 +499,64 @@ class _TonalBlobPainter extends CustomPainter {
     required this.t,
     required this.primary,
     required this.tertiary,
+    this.tier = PerformanceTier.tierB,
+    this.optimizeForWeakDevices = false,
   });
 
   final double t;
   final Color primary;
   final Color tertiary;
+  final PerformanceTier tier;
+  final bool optimizeForWeakDevices;
 
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final cy = size.height / 2;
 
+    final b1x = cx - 70 + 40 * sin(t * 2 * pi);
+    final b1y = cy * 0.65 + 30 * cos(t * 2 * pi);
+
+    final b2x = cx + 60 + 35 * cos(t * 2 * pi);
+    final b2y = cy * 1.35 + 25 * sin(t * 2 * pi);
+
+    if (tier == PerformanceTier.tierC || optimizeForWeakDevices) {
+      // Fast tonal radial gradient fill — zero blur passes
+      final paint1 = Paint()
+        ..shader = RadialGradient(
+          colors: [primary, primary.withValues(alpha: 0)],
+        ).createShader(Rect.fromCircle(center: Offset(b1x, b1y), radius: 170));
+      canvas.drawCircle(Offset(b1x, b1y), 170, paint1);
+
+      final paint2 = Paint()
+        ..shader = RadialGradient(
+          colors: [tertiary, tertiary.withValues(alpha: 0)],
+        ).createShader(Rect.fromCircle(center: Offset(b2x, b2y), radius: 150));
+      canvas.drawCircle(Offset(b2x, b2y), 150, paint2);
+      return;
+    }
+
+    final double blur1 = (tier == PerformanceTier.tierA) ? 80.0 : 24.0;
+    final double blur2 = (tier == PerformanceTier.tierA) ? 90.0 : 28.0;
+
     // Blob 1 — upper floating glow
     final paint1 = Paint()
       ..color = primary
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 110);
-    final b1x = cx - 70 + 40 * sin(t * 2 * pi);
-    final b1y = cy * 0.65 + 30 * cos(t * 2 * pi);
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur1);
     canvas.drawCircle(Offset(b1x, b1y), 170, paint1);
 
     // Blob 2 — lower floating glow
     final paint2 = Paint()
       ..color = tertiary
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 120);
-    final b2x = cx + 60 + 35 * cos(t * 2 * pi);
-    final b2y = cy * 1.35 + 25 * sin(t * 2 * pi);
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur2);
     canvas.drawCircle(Offset(b2x, b2y), 150, paint2);
   }
 
   @override
   bool shouldRepaint(_TonalBlobPainter old) =>
-      old.t != t || old.primary != primary || old.tertiary != tertiary;
+      old.t != t ||
+      old.primary != primary ||
+      old.tertiary != tertiary ||
+      old.tier != tier ||
+      old.optimizeForWeakDevices != optimizeForWeakDevices;
 }

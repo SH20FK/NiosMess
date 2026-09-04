@@ -1,5 +1,5 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/widgets/adaptive/adaptive_glass.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -98,31 +98,29 @@ class _CallPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
+            color: scheme.shadow.withValues(alpha: 0.3),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: ClipRRect(
+      child: AdaptiveGlass(
         borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Material(
-            color: scheme.surfaceContainerHigh.withValues(alpha: 0.9),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(24),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.35),
-                    width: 1.0,
-                  ),
-                ),
-                child: Row(
+        tierASigma: 18.0,
+        tierBSigma: 6.0,
+        tintColor: scheme.surfaceContainerHigh.withValues(alpha: 0.9),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
+          width: 1.0,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(24),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // M3 Expressive shape call icon
@@ -187,7 +185,6 @@ class _CallPill extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }

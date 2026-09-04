@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/widgets/adaptive/adaptive_glass.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -108,30 +108,23 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                 borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.35),
+                    color: scheme.shadow.withValues(alpha: 0.35),
                     blurRadius: 24,
                     offset: const Offset(0, 8),
                   ),
                 ],
               ),
-              child: ClipRRect(
+              child: AdaptiveGlass(
                 borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: CallTokens.glassBlur,
-                    sigmaY: CallTokens.glassBlur,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHigh.withValues(alpha: 0.88),
-                      borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
-                      border: Border.all(
-                        color: scheme.outlineVariant.withValues(alpha: 0.3),
-                        width: CallTokens.glassBorderWidth,
-                      ),
-                    ),
-                    child: GestureDetector(
+                tierASigma: CallTokens.glassBlur,
+                tierBSigma: 8.0,
+                tintColor: scheme.surfaceContainerHigh.withValues(alpha: 0.88),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.3),
+                  width: CallTokens.glassBorderWidth,
+                ),
+                child: GestureDetector(
                       onVerticalDragEnd: (details) {
                         final v = details.primaryVelocity ?? 0;
                         if (v > 120) _acceptCall(context, ref, data);
@@ -207,9 +200,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
             ),
           ),
         ),
-      ),
-    ),
-    );
+      );
   }
 
   void _declineCall(IncomingCallData incoming) {

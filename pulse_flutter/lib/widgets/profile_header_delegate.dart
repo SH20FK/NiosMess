@@ -2,7 +2,10 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -106,11 +109,23 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
           Positioned.fill(
             child: _ProfileHeaderFadeTransition(
               opacity: fogOpacity,
-              child: CustomPaint(
-                painter: _ExpressiveProfileFogPainter(
-                  progress: progress,
-                  scheme: scheme,
-                ),
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final tier = ref.watch(
+                    adaptivePerformanceProvider.select((s) => s.tier),
+                  );
+                  final optimize = ref.watch(
+                    uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
+                  );
+                  return CustomPaint(
+                    painter: _ExpressiveProfileFogPainter(
+                      progress: progress,
+                      scheme: scheme,
+                      tier: tier,
+                      optimizeForWeakDevices: optimize,
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -362,10 +377,14 @@ class _ExpressiveProfileFogPainter extends CustomPainter {
   const _ExpressiveProfileFogPainter({
     required this.progress,
     required this.scheme,
+    this.tier = PerformanceTier.tierA,
+    this.optimizeForWeakDevices = false,
   });
 
   final double progress;
   final ColorScheme scheme;
+  final PerformanceTier tier;
+  final bool optimizeForWeakDevices;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -387,10 +406,17 @@ class _ExpressiveProfileFogPainter extends CustomPainter {
       ).createShader(rect);
     canvas.drawRect(rect, base);
 
+    // If Tier C or weak devices: Zero MaskFilter.blur passes during scroll
+    if (tier == PerformanceTier.tierC || optimizeForWeakDevices) {
+      return;
+    }
+
     final double drift = (1.0 - progress) * 8;
     final double phase = progress * math.pi * 2;
     canvas.save();
     canvas.clipRect(rect.inflate(48));
+
+    final double blurFactor = (tier == PerformanceTier.tierB) ? 0.45 : 1.0;
 
     _drawFogCluster(
       canvas,
@@ -401,7 +427,7 @@ class _ExpressiveProfileFogPainter extends CustomPainter {
       radiusX: size.width * 0.22,
       radiusY: 34,
       color: scheme.primary.withValues(alpha: 0.12),
-      blurSigma: 32,
+      blurSigma: 32 * blurFactor,
       lobeScale: 0.94,
     );
     _drawFogCluster(
@@ -413,7 +439,7 @@ class _ExpressiveProfileFogPainter extends CustomPainter {
       radiusX: size.width * 0.16,
       radiusY: 26,
       color: scheme.primaryContainer.withValues(alpha: 0.14),
-      blurSigma: 28,
+      blurSigma: 28 * blurFactor,
       lobeScale: 0.88,
     );
     _drawFogCluster(
@@ -425,33 +451,37 @@ class _ExpressiveProfileFogPainter extends CustomPainter {
       radiusX: size.width * 0.24,
       radiusY: 38,
       color: scheme.tertiary.withValues(alpha: 0.08),
-      blurSigma: 32,
+      blurSigma: 32 * blurFactor,
       lobeScale: 1.0,
     );
-    _drawFogCluster(
-      canvas,
-      center: Offset(
-        size.width * 0.34 + math.cos(phase + 1.7) * drift,
-        size.height * 0.58,
-      ),
-      radiusX: size.width * 0.28,
-      radiusY: 42,
-      color: scheme.secondary.withValues(alpha: 0.06),
-      blurSigma: 32,
-      lobeScale: 1.06,
-    );
-    _drawFogCluster(
-      canvas,
-      center: Offset(
-        size.width * 0.76 + math.sin(phase + 2.4) * drift,
-        size.height * 0.62,
-      ),
-      radiusX: size.width * 0.18,
-      radiusY: 30,
-      color: scheme.primaryContainer.withValues(alpha: 0.10),
-      blurSigma: 26,
-      lobeScale: 0.90,
-    );
+
+    // Render remaining clusters on flagship Tier A only
+    if (tier == PerformanceTier.tierA) {
+      _drawFogCluster(
+        canvas,
+        center: Offset(
+          size.width * 0.34 + math.cos(phase + 1.7) * drift,
+          size.height * 0.58,
+        ),
+        radiusX: size.width * 0.28,
+        radiusY: 42,
+        color: scheme.secondary.withValues(alpha: 0.06),
+        blurSigma: 32,
+        lobeScale: 1.06,
+      );
+      _drawFogCluster(
+        canvas,
+        center: Offset(
+          size.width * 0.76 + math.sin(phase + 2.4) * drift,
+          size.height * 0.62,
+        ),
+        radiusX: size.width * 0.18,
+        radiusY: 30,
+        color: scheme.primaryContainer.withValues(alpha: 0.10),
+        blurSigma: 26,
+        lobeScale: 0.90,
+      );
+    }
     canvas.restore();
   }
 
@@ -494,6 +524,9 @@ class _ExpressiveProfileFogPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ExpressiveProfileFogPainter oldDelegate) {
-    return progress != oldDelegate.progress || scheme != oldDelegate.scheme;
+    return progress != oldDelegate.progress ||
+        scheme != oldDelegate.scheme ||
+        tier != oldDelegate.tier ||
+        optimizeForWeakDevices != oldDelegate.optimizeForWeakDevices;
   }
 }
