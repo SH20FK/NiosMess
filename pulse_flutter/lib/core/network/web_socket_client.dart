@@ -180,6 +180,21 @@ class WebSocketClient {
     });
   }
 
+  /// Immediately force a reconnection attempt without waiting for backoff.
+  /// Used when the application resumes from background or network connectivity is restored.
+  void reconnectNow() {
+    if (_closed) return;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _reconnectAttempts = 0;
+    if (!isConnected && !_isConnecting) {
+      debugPrint('[WebSocketClient] Immediate reconnect triggered');
+      connect().catchError((e) {
+        debugPrint('[WebSocketClient] reconnectNow error: $e');
+      });
+    }
+  }
+
   void _failPendingRequests(String reason) {
     final List<Completer<Map<String, dynamic>>> pending =
         _pendingRequests.values.toList();

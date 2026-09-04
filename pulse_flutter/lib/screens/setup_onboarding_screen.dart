@@ -12,6 +12,7 @@ import 'package:pulse_flutter/providers/session_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/utils/system_utils.dart';
 
 class SetupOnboardingScreen extends ConsumerStatefulWidget {
   const SetupOnboardingScreen({super.key});
@@ -129,6 +130,17 @@ class _SetupOnboardingScreenState extends ConsumerState<SetupOnboardingScreen> {
 
     return PopScope(
       canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        if (_index > 0) {
+          _pageController.previousPage(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+          );
+        } else {
+          SystemUtils.minimizeApp();
+        }
+      },
       child: Scaffold(
       body: Container(
         width: double.infinity,

@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
@@ -69,7 +68,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
       context.pop();
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, e is ApiException ? e.message : '$e');
+      AppToast.showError(context, e);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -99,7 +98,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
       AppToast.showSuccess(context, context.l10n.groupManageAvatarUpdated);
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, e is ApiException ? e.message : '$e');
+      AppToast.showError(context, e);
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
@@ -124,7 +123,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
       context.go('/main/chats');
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, e is ApiException ? e.message : '$e');
+      AppToast.showError(context, e);
     }
   }
 

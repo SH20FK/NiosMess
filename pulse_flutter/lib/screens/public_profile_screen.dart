@@ -828,7 +828,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       HapticService.destructive();
-      AppToast.showError(context, 'Ошибка: $e');
+      AppToast.showError(context, e);
     }
   }
 }

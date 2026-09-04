@@ -18,7 +18,9 @@ import 'package:pulse_flutter/widgets/chat_creation_surfaces.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/core/services/biometric_service.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 class MainShellScreen extends ConsumerStatefulWidget {
   const MainShellScreen({required this.tab, super.key});
@@ -42,6 +44,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
   bool _biometricLocked = false;
   double _desktopChatListWidth = 360.0;
+  DateTime? _lastBackPressTime;
 
   @override
   void initState() {
@@ -54,6 +57,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(webSocketClientProvider).reconnectNow();
+    }
     // Re-lock when leaving the foreground; unlock (or exit) on return.
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
@@ -142,12 +148,34 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     final int currentIndex = _tabIndex(widget.tab);
     final bool isOffline = !(ref.watch(connectivityProvider).value ?? true);
 
+    ref.listen<AsyncValue<bool>>(connectivityProvider, (previous, next) {
+      if (next.value == true && previous?.value == false) {
+        ref.read(webSocketClientProvider).reconnectNow();
+      }
+    });
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (!didPop) {
-          SystemUtils.minimizeApp();
+        if (didPop) return;
+        final int currentIndex = _tabIndex(widget.tab);
+        if (currentIndex != 0) {
+          // Secondary tab (Contacts, NiosGram, Profile) -> return to primary Chats tab
+          context.go('/main/chats');
+          return;
         }
+
+        // Primary Chats tab -> require confirmation within 2 seconds before minimizing
+        final DateTime now = DateTime.now();
+        if (_lastBackPressTime == null ||
+            now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          AppToast.showInfo(context, 'Нажмите ещё раз для выхода');
+          return;
+        }
+
+        // Second press within 2 seconds -> minimize app cleanly without process kill
+        SystemUtils.minimizeApp();
       },
       child: LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {

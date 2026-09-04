@@ -10,6 +10,8 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
+import 'package:flutter/foundation.dart';
+import 'package:universal_io/io.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsAboutScreen extends StatefulWidget {
@@ -71,7 +73,11 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
         _buildHeroCard(context, scheme, textTheme),
         const SizedBox(height: 12),
 
-        // 2. Material 3 Expressive Pill Tab Selector
+        // 2. Hardware & Device Specs Badge (Google M3 Expressive "About Device")
+        _buildDeviceInfoCard(context, scheme, textTheme),
+        const SizedBox(height: 14),
+
+        // 3. Material 3 Expressive Pill Tab Selector
         _buildPillTabSelector(context, scheme, textTheme),
         const SizedBox(height: 16),
 
@@ -290,6 +296,207 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 1.5 Hardware & Device Specs Badge (Google M3 Expressive "About Device")
+  // ---------------------------------------------------------------------------
+  Widget _buildDeviceInfoCard(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+  ) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Size size = MediaQuery.sizeOf(context);
+    final double dpr = MediaQuery.devicePixelRatioOf(context);
+
+    final String osName;
+    final IconData osIcon;
+    if (kIsWeb) {
+      osName = 'Web / Браузер';
+      osIcon = Icons.language_rounded;
+    } else if (Platform.isAndroid) {
+      final String ver = Platform.operatingSystemVersion.split(' ').first;
+      osName = 'Android $ver';
+      osIcon = Icons.android_rounded;
+    } else if (Platform.isIOS) {
+      osName = 'Apple iOS';
+      osIcon = Icons.phone_iphone_rounded;
+    } else if (Platform.isWindows) {
+      osName = 'Windows';
+      osIcon = Icons.desktop_windows_rounded;
+    } else if (Platform.isMacOS) {
+      osName = 'macOS';
+      osIcon = Icons.laptop_mac_rounded;
+    } else if (Platform.isLinux) {
+      osName = 'Linux';
+      osIcon = Icons.terminal_rounded;
+    } else {
+      osName = Platform.operatingSystem;
+      osIcon = Icons.devices_rounded;
+    }
+
+    final String hostname = kIsWeb ? 'Web Client' : Platform.localHostname;
+    final String cores =
+        kIsWeb ? 'Web VM' : '${Platform.numberOfProcessors} ядер';
+    final String screenRes =
+        '${size.width.toInt()}×${size.height.toInt()} dp (${dpr.toStringAsFixed(1)}x)';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.25 : 0.35),
+          width: 1,
+        ),
+        boxShadow: isDark
+            ? null
+            : <BoxShadow>[
+                BoxShadow(
+                  color: scheme.shadow.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  osIcon,
+                  color: scheme.onPrimaryContainer,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Об устройстве',
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: scheme.onSurface,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    Text(
+                      '$osName • $hostname',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Divider(
+            height: 1,
+            color: scheme.outlineVariant.withValues(alpha: 0.2),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              _buildDeviceChip(
+                scheme,
+                textTheme,
+                icon: Icons.monitor_rounded,
+                label: 'Экран',
+                value: screenRes,
+              ),
+              _buildDeviceChip(
+                scheme,
+                textTheme,
+                icon: Icons.memory_rounded,
+                label: 'Процессор',
+                value: cores,
+              ),
+              _buildDeviceChip(
+                scheme,
+                textTheme,
+                icon: Icons.layers_rounded,
+                label: 'Рендеринг',
+                value: 'Material 3',
+              ),
+              _buildDeviceChip(
+                scheme,
+                textTheme,
+                icon: Icons.security_rounded,
+                label: 'Шифрование',
+                value: 'E2EE MLS',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeviceChip(
+    ColorScheme scheme,
+    TextTheme textTheme, {
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 14, color: scheme.primary),
+          const SizedBox(width: 6),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                label,
+                style: textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                value,
+                style: textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -10,6 +10,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
@@ -112,26 +113,37 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      appBar: AppBar(
-        title: Text(
-          widget.fileName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/main/chats');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: scheme.surface,
+        appBar: AppBar(
+          title: Text(
+            widget.fileName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/main/chats');
+              }
+            },
+          ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              Navigator.of(context).pop();
-            }
-          },
-        ),
+        body: _buildViewer(),
       ),
-      body: _buildViewer(),
     );
   }
 
@@ -145,7 +157,7 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            context.l10n.mediaViewerImageLoadFailed('$_fetchError'),
+            AppErrorFormatter.format(_fetchError).toString(),
             textAlign: TextAlign.center,
           ),
         ),

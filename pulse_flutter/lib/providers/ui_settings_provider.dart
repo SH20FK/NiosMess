@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum AppTimeZoneMode { auto, manual }
@@ -23,12 +24,14 @@ class VisualThemeSettings {
     required this.themeMode,
     required this.useSystemDynamic,
     required this.predictiveBackEnabled,
+    this.pureBlackOled = false,
   });
 
   final Color seedColor;
   final ThemeMode themeMode;
   final bool useSystemDynamic;
   final bool predictiveBackEnabled;
+  final bool pureBlackOled;
 
   @override
   bool operator ==(Object other) =>
@@ -38,14 +41,16 @@ class VisualThemeSettings {
           seedColor == other.seedColor &&
           themeMode == other.themeMode &&
           useSystemDynamic == other.useSystemDynamic &&
-          predictiveBackEnabled == other.predictiveBackEnabled;
+          predictiveBackEnabled == other.predictiveBackEnabled &&
+          pureBlackOled == other.pureBlackOled;
 
   @override
   int get hashCode =>
       seedColor.hashCode ^
       themeMode.hashCode ^
       useSystemDynamic.hashCode ^
-      predictiveBackEnabled.hashCode;
+      predictiveBackEnabled.hashCode ^
+      pureBlackOled.hashCode;
 }
 
 class UiSettingsState {
@@ -67,6 +72,11 @@ class UiSettingsState {
     required this.useSystemDynamic,
     required this.fontScale,
     required this.navBarFloating,
+    this.pureBlackOled = false,
+    this.sendOnEnter = true,
+    this.doubleTapReactionEmoji = '❤️',
+    this.autoDownloadWifi = true,
+    this.autoDownloadCellular = false,
   });
 
   VisualThemeSettings get visualTheme => VisualThemeSettings(
@@ -74,6 +84,7 @@ class UiSettingsState {
         themeMode: themeMode,
         useSystemDynamic: useSystemDynamic,
         predictiveBackEnabled: predictiveBackEnabled,
+        pureBlackOled: pureBlackOled,
       );
 
   const UiSettingsState.defaults()
@@ -90,10 +101,15 @@ class UiSettingsState {
       timeZoneId = null,
       optimizeForWeakDevices = false,
       predictiveBackEnabled = true,
-      backgroundMode = BackgroundMode.off,
+      backgroundMode = BackgroundMode.reliable,
       useSystemDynamic = false,
       fontScale = AppFontScale.normal,
-      navBarFloating = true;
+      navBarFloating = true,
+      pureBlackOled = false,
+      sendOnEnter = true,
+      doubleTapReactionEmoji = '❤️',
+      autoDownloadWifi = true,
+      autoDownloadCellular = false;
 
   final ThemeMode themeMode;
   final Color seedColor;
@@ -112,6 +128,11 @@ class UiSettingsState {
   final bool useSystemDynamic;
   final AppFontScale fontScale;
   final bool navBarFloating;
+  final bool pureBlackOled;
+  final bool sendOnEnter;
+  final String doubleTapReactionEmoji;
+  final bool autoDownloadWifi;
+  final bool autoDownloadCellular;
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
@@ -133,6 +154,11 @@ class UiSettingsState {
     bool? useSystemDynamic,
     AppFontScale? fontScale,
     bool? navBarFloating,
+    bool? pureBlackOled,
+    bool? sendOnEnter,
+    String? doubleTapReactionEmoji,
+    bool? autoDownloadWifi,
+    bool? autoDownloadCellular,
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -154,6 +180,13 @@ class UiSettingsState {
       useSystemDynamic: useSystemDynamic ?? this.useSystemDynamic,
       fontScale: fontScale ?? this.fontScale,
       navBarFloating: navBarFloating ?? this.navBarFloating,
+      pureBlackOled: pureBlackOled ?? this.pureBlackOled,
+      sendOnEnter: sendOnEnter ?? this.sendOnEnter,
+      doubleTapReactionEmoji:
+          doubleTapReactionEmoji ?? this.doubleTapReactionEmoji,
+      autoDownloadWifi: autoDownloadWifi ?? this.autoDownloadWifi,
+      autoDownloadCellular:
+          autoDownloadCellular ?? this.autoDownloadCellular,
     );
   }
 
@@ -182,6 +215,11 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _useSystemDynamicKey = 'ui.useSystemDynamic';
   static const String _fontScaleKey = 'ui.fontScale';
   static const String _navBarFloatingKey = 'ui.navBarFloating';
+  static const String _pureBlackOledKey = 'ui.pureBlackOled';
+  static const String _sendOnEnterKey = 'ui.sendOnEnter';
+  static const String _doubleTapReactionEmojiKey = 'ui.doubleTapReactionEmoji';
+  static const String _autoDownloadWifiKey = 'ui.autoDownloadWifi';
+  static const String _autoDownloadCellularKey = 'ui.autoDownloadCellular';
 
   bool _loaded = false;
 
@@ -228,7 +266,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       backgroundMode: BackgroundMode.values.firstWhere(
         (BackgroundMode mode) =>
             mode.name == prefs.getString(_backgroundModeKey),
-        orElse: () => BackgroundMode.off,
+        orElse: () => BackgroundMode.reliable,
       ),
       useSystemDynamic:
           prefs.getBool(_useSystemDynamicKey) ?? state.useSystemDynamic,
@@ -237,6 +275,14 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
         orElse: () => AppFontScale.normal,
       ),
       navBarFloating: prefs.getBool(_navBarFloatingKey) ?? true,
+      pureBlackOled: prefs.getBool(_pureBlackOledKey) ?? state.pureBlackOled,
+      sendOnEnter: prefs.getBool(_sendOnEnterKey) ?? state.sendOnEnter,
+      doubleTapReactionEmoji:
+          prefs.getString(_doubleTapReactionEmojiKey) ?? state.doubleTapReactionEmoji,
+      autoDownloadWifi:
+          prefs.getBool(_autoDownloadWifiKey) ?? state.autoDownloadWifi,
+      autoDownloadCellular:
+          prefs.getBool(_autoDownloadCellularKey) ?? state.autoDownloadCellular,
     );
     } catch (e) {
       debugPrint('[UiSettingsNotifier] Failed to load settings: $e');
@@ -269,6 +315,11 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.setBool(_useSystemDynamicKey, nextState.useSystemDynamic),
       prefs.setString(_fontScaleKey, nextState.fontScale.name),
       prefs.setBool(_navBarFloatingKey, nextState.navBarFloating),
+      prefs.setBool(_pureBlackOledKey, nextState.pureBlackOled),
+      prefs.setBool(_sendOnEnterKey, nextState.sendOnEnter),
+      prefs.setString(_doubleTapReactionEmojiKey, nextState.doubleTapReactionEmoji),
+      prefs.setBool(_autoDownloadWifiKey, nextState.autoDownloadWifi),
+      prefs.setBool(_autoDownloadCellularKey, nextState.autoDownloadCellular),
     ]);
   }
 
@@ -331,8 +382,14 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     _set(state.copyWith(predictiveBackEnabled: value));
   }
 
-  void setBackgroundMode(BackgroundMode value) =>
-      _set(state.copyWith(backgroundMode: value));
+  void setBackgroundMode(BackgroundMode value) {
+    _set(state.copyWith(backgroundMode: value));
+    if (value == BackgroundMode.reliable) {
+      BackgroundService.startReliable();
+    } else {
+      BackgroundService.stop();
+    }
+  }
 
   void setUseSystemDynamic(bool value) =>
       _set(state.copyWith(useSystemDynamic: value));
@@ -342,6 +399,21 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
 
   void setNavBarFloating(bool value) =>
       _set(state.copyWith(navBarFloating: value));
+
+  void setPureBlackOled(bool value) =>
+      _set(state.copyWith(pureBlackOled: value));
+
+  void setSendOnEnter(bool value) =>
+      _set(state.copyWith(sendOnEnter: value));
+
+  void setDoubleTapReactionEmoji(String value) =>
+      _set(state.copyWith(doubleTapReactionEmoji: value));
+
+  void setAutoDownloadWifi(bool value) =>
+      _set(state.copyWith(autoDownloadWifi: value));
+
+  void setAutoDownloadCellular(bool value) =>
+      _set(state.copyWith(autoDownloadCellular: value));
 }
 
 final NotifierProvider<UiSettingsNotifier, UiSettingsState> uiSettingsProvider =

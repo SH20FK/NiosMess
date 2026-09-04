@@ -72,10 +72,7 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
       }
     } catch (error) {
       if (!mounted) return;
-      final String message = error is ApiException
-          ? error.message
-          : context.l10n.groupInviteFailedLoad('$error');
-      AppToast.showError(context, message);
+      AppToast.showError(context, error);
     } finally {
       if (mounted) setState(() => _loadingPreview = false);
     }
@@ -106,10 +103,7 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
       AppToast.showSuccess(context, result.message);
     } catch (error) {
       if (!mounted) return;
-      final String message = error is ApiException
-          ? error.message
-          : context.l10n.groupJoinFailed('$error');
-      AppToast.showError(context, message);
+      AppToast.showError(context, error);
     } finally {
       if (mounted) setState(() => _joining = false);
     }
@@ -120,8 +114,30 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.groupJoinTitle)),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/main/chats');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(context.l10n.groupJoinTitle),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/main/chats');
+              }
+            },
+          ),
+        ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(
@@ -198,8 +214,9 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _previewCard(BuildContext context, ApiInvitePreview preview) {
     final TextTheme textTheme = Theme.of(context).textTheme;

@@ -25,6 +25,7 @@ class ChatDetailInputArea extends StatelessWidget {
     required this.onVoiceSend,
     this.onCircleSend,
     required this.hapticsEnabled,
+    this.sendOnEnter = true,
   });
 
   final bool canPostInChannel;
@@ -53,6 +54,7 @@ class ChatDetailInputArea extends StatelessWidget {
   final void Function(String) onVoiceSend;
   final void Function(String)? onCircleSend;
   final bool hapticsEnabled;
+  final bool sendOnEnter;
 
   @override
   Widget build(BuildContext context) {
@@ -131,6 +133,7 @@ class ChatDetailInputArea extends StatelessWidget {
                         onVoiceSend: onVoiceSend,
                         onCircleSend: onCircleSend,
                         hapticsEnabled: hapticsEnabled,
+                        sendOnEnter: sendOnEnter,
                       ),
                     ],
                   ),

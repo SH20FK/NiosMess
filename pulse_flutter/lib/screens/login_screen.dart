@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/network/oauth_navigation_helper.dart';
 import 'package:pulse_flutter/core/storage/ephemeral_storage.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/services/oauth_service.dart';
@@ -40,6 +41,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _statusText;
   NiosDeviceCodeResponse? _deviceCodeResponse;
   bool _isDevicePollingCancelled = false;
+  DateTime? _lastBackPressTime;
 
   @override
   void initState() {
@@ -263,49 +265,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return M3OrganicBackground(
-      showBackButton: false,
-      showThemeToggle: true,
-      child: Stack(
-        children: [
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // ── Hero Header ──────────────────────────────
-                      _buildHeroHeader(scheme, textTheme),
-                      const SizedBox(height: 28),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        if (_deviceCodeResponse != null) {
+          _cancelDeviceAuth();
+          return;
+        }
+        final DateTime now = DateTime.now();
+        if (_lastBackPressTime == null ||
+            now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          AppToast.showInfo(context, 'Нажмите ещё раз для выхода');
+          return;
+        }
+        SystemUtils.minimizeApp();
+      },
+      child: M3OrganicBackground(
+        showBackButton: false,
+        showThemeToggle: true,
+        child: Stack(
+          children: [
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // ── Hero Header ──────────────────────────────
+                        _buildHeroHeader(scheme, textTheme),
+                        const SizedBox(height: 28),
 
-                      // ── Ecosystem Benefits Card ───────────────────
-                      _buildBenefitsCard(scheme, textTheme),
-                      const SizedBox(height: 32),
+                        // ── Ecosystem Benefits Card ───────────────────
+                        _buildBenefitsCard(scheme, textTheme),
+                        const SizedBox(height: 32),
 
-                      // ── Primary Action Block ──────────────────────
-                      _buildPrimaryAction(scheme, textTheme),
-                      const SizedBox(height: 16),
+                        // ── Primary Action Block ──────────────────────
+                        _buildPrimaryAction(scheme, textTheme),
+                        const SizedBox(height: 16),
 
-                      // ── Secondary Action (Register) ───────────────
-                      _buildSecondaryAction(scheme, textTheme),
-                      const SizedBox(height: 28),
+                        // ── Secondary Action (Register) ───────────────
+                        _buildSecondaryAction(scheme, textTheme),
+                        const SizedBox(height: 28),
 
-                      // ── Legal Footer ──────────────────────────────
-                      _buildLegalFooter(scheme, textTheme),
-                    ],
+                        // ── Legal Footer ──────────────────────────────
+                        _buildLegalFooter(scheme, textTheme),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          // ── Loading Overlay during OAuth Exchange ────────────────
-          if (_isExchanging) _buildLoadingOverlay(scheme, textTheme),
-        ],
+            // ── Loading Overlay during OAuth Exchange ────────────────
+            if (_isExchanging) _buildLoadingOverlay(scheme, textTheme),
+          ],
+        ),
       ),
     );
   }

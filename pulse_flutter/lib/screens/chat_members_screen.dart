@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
@@ -59,7 +59,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : '$e';
+        _error = AppErrorFormatter.format(e).toString();
         _loading = false;
       });
     }
@@ -174,7 +174,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
       AppToast.showSuccess(context, context.l10n.chatMembersInvited(picked.username));
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, e is ApiException ? e.message : context.l10n.chatMembersActionFailed(e.toString()));
+      AppToast.showError(context, e);
     } finally {
       if (mounted) setState(() => _actionBusy = false);
     }
@@ -199,7 +199,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
       await _loadMembers();
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, e is ApiException ? e.message : '$e');
+      AppToast.showError(context, e);
     } finally {
       if (mounted) setState(() => _actionBusy = false);
     }
@@ -224,7 +224,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
       await _loadMembers();
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, e is ApiException ? e.message : '$e');
+      AppToast.showError(context, e);
     } finally {
       if (mounted) setState(() => _actionBusy = false);
     }
@@ -239,7 +239,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
       await _loadMembers();
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, e is ApiException ? e.message : '$e');
+      AppToast.showError(context, e);
     } finally {
       if (mounted) setState(() => _actionBusy = false);
     }

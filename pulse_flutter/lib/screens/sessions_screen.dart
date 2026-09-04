@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/session_model.dart';
@@ -90,7 +90,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException ? e.message : '$e';
+        _error = AppErrorFormatter.format(e).toString();
         _loading = false;
       });
     }
@@ -116,7 +116,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       AppToast.showSuccess(context, context.l10n.sessionsRevokedSuccess);
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, e is ApiException ? e.message : '$e');
+      AppToast.showError(context, e);
     } finally {
       if (mounted) setState(() => _revokingId = null);
     }
@@ -149,7 +149,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       AppToast.showSuccess(context, context.l10n.sessionsRevokedSuccess);
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, e is ApiException ? e.message : '$e');
+      AppToast.showError(context, e);
     } finally {
       if (mounted) setState(() => _terminatingAll = false);
     }

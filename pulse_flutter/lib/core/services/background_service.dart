@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 class BackgroundService {
@@ -72,6 +73,17 @@ class BackgroundService {
       await FlutterForegroundTask.stopService();
     } catch (e) {
       debugPrint('[BackgroundService] stop error: $e');
+    }
+  }
+
+  /// Prompts the user to exclude NiosMess from Android battery optimization / Doze mode
+  /// to ensure timely push notifications and uninterrupted WebSocket delivery.
+  static Future<void> requestDisableBatteryOptimization() async {
+    if (kIsWeb) return;
+    try {
+      await SystemUtils.requestIgnoreBatteryOptimizations();
+    } catch (e) {
+      debugPrint('[BackgroundService] requestDisableBatteryOptimization error: $e');
     }
   }
 

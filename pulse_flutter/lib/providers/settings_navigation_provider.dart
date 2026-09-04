@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 enum SettingsSectionId {
   account,
   appearance,
+  chats,
   privacy,
   storage,
   languageRegion,

@@ -258,7 +258,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.showError(context, context.l10n.chatCallFailed(e));
+        AppToast.showError(context, e);
       }
     }
   }

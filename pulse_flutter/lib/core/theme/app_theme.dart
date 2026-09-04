@@ -37,24 +37,36 @@ class AppTheme {
   }
 
   static ThemeData themed(VisualThemeSettings settings, Brightness brightness, {ColorScheme? dynamicScheme}) {
+    final bool isOled = settings.pureBlackOled && brightness == Brightness.dark;
     final int cacheKey = settings.seedColor.toARGB32() ^ 
                          brightness.index ^ 
                          (settings.themeMode.index << 8) ^ 
                          (settings.useSystemDynamic ? 1 : 0) ^
                          (settings.predictiveBackEnabled ? 2 : 0) ^
+                         (settings.pureBlackOled ? 4 : 0) ^
                          (dynamicScheme?.primary.toARGB32() ?? 0);
     final ThemeData? cached = _themeCache[cacheKey];
     if (cached != null) return cached;
 
-    final ColorScheme scheme = (settings.useSystemDynamic && dynamicScheme != null)
+    final ColorScheme baseScheme = (settings.useSystemDynamic && dynamicScheme != null)
         ? dynamicScheme
         : _scheme(settings, brightness);
+    final ColorScheme scheme = isOled
+        ? baseScheme.copyWith(
+            surface: const Color(0xFF000000),
+            surfaceContainerLowest: const Color(0xFF000000),
+            surfaceContainerLow: const Color(0xFF080808),
+            surfaceContainer: const Color(0xFF101010),
+            surfaceContainerHigh: const Color(0xFF161616),
+            surfaceContainerHighest: const Color(0xFF202020),
+          )
+        : baseScheme;
     final TextTheme textTheme = AppTypography.build(scheme);
 
     final ThemeData theme = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surface,
+      scaffoldBackgroundColor: isOled ? const Color(0xFF000000) : scheme.surface,
       textTheme: textTheme,
       appBarTheme: AppBarTheme(
         elevation: 0,

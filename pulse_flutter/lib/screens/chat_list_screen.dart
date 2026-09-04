@@ -628,7 +628,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       AppToast.showSuccess(context, context.l10n.chatListLeft);
     } catch (e) {
       if (!context.mounted) return;
-      AppToast.showError(context, context.l10n.commonFailed('$e'));
+      AppToast.showError(context, e);
     }
   }
 

@@ -10,6 +10,8 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
@@ -114,7 +116,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       }
     } catch (e) {
       if (ref.read(uiSettingsProvider).haptics) HapticService.destructive();
-      setState(() => _error = e.toString());
+      final String formatted = AppErrorFormatter.format(e).toString();
+      setState(() => _error = formatted);
+      if (mounted) {
+        AppToast.showError(context, e);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -134,9 +140,17 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         context.l10n.profileGuestName;
 
     return PopScope(
-      canPop: _textController.text.trim().isEmpty && _selectedFile == null,
-      onPopInvokedWithResult: (didPop, result) async {
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (didPop) return;
+        if (_textController.text.trim().isEmpty && _selectedFile == null) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/main/niosgram');
+          }
+          return;
+        }
         final bool? confirm = await showAppConfirmDialog(
           context: context,
           title: context.l10n.commonDiscardChanges,
@@ -145,7 +159,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           cancelLabel: context.l10n.commonCancel,
         );
         if (confirm == true && context.mounted) {
-          context.pop();
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/main/niosgram');
+          }
         }
       },
       child: Scaffold(
@@ -154,6 +172,33 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           centerTitle: isWide,
           scrolledUnderElevation: 0,
           backgroundColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () async {
+              if (_textController.text.trim().isEmpty && _selectedFile == null) {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/main/niosgram');
+                }
+                return;
+              }
+              final bool? confirm = await showAppConfirmDialog(
+                context: context,
+                title: context.l10n.commonDiscardChanges,
+                subtitle: context.l10n.commonDiscardChangesDesc,
+                confirmLabel: context.l10n.commonDiscardChangesConfirm,
+                cancelLabel: context.l10n.commonCancel,
+              );
+              if (confirm == true && context.mounted) {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/main/niosgram');
+                }
+              }
+            },
+          ),
           actions: <Widget>[
             Padding(
               padding: const EdgeInsets.only(right: 12),

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
@@ -84,10 +85,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       context.push('/chat/${result.chatId}');
     } catch (error) {
       if (!mounted) return;
-      final String message = error is ApiException
-          ? error.message
-          : context.l10n.contactsFailedToOpenChat('$error');
-      AppToast.showError(context, message);
+      AppToast.showError(context, error);
     } finally {
       if (mounted) setState(() => _openingUsername = null);
     }
@@ -531,7 +529,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       error: (Object error, StackTrace _) => <Widget>[
         SliverFillRemaining(
           child: CenteredNote(
-            error is ApiException ? error.message : context.l10n.contactsFailedToSearch('$error'),
+            AppErrorFormatter.format(error).toString(),
           ),
         ),
       ],

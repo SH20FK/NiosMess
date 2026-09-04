@@ -139,32 +139,83 @@ class _AppearanceScreen extends ConsumerWidget {
 
           const SizedBox(height: 24),
 
+          // 1. Theme and OLED Contrast
           SettingsSection(
-            title: context.l10n.appearanceAccentPalette,
+            title: 'Контраст и цвета',
+            subtitle: 'Настройки палитры и отображения поверхностей',
             children: [
               SettingsSwitchTile(
-                icon: Icons.wallpaper_rounded,
+                icon: Icons.contrast_rounded,
+                title: 'Глубокий черный (OLED)',
+                subtitle:
+                    'Использовать абсолютно черный цвет (#000000) для поверхностей в темном режиме',
+                iconColor: scheme.primary,
+                value: settings.pureBlackOled,
+                onChanged: (bool v) {
+                  ref.read(uiSettingsProvider.notifier).setPureBlackOled(v);
+                },
+              ),
+              SettingsSwitchTile(
+                icon: Icons.auto_awesome_rounded,
                 title: context.l10n.appearanceSystemColors,
                 subtitle: context.l10n.appearanceSystemColorsSubtitle,
+                iconColor: scheme.secondary,
                 value: settings.useSystemDynamic,
-                onChanged: (v) {
+                onChanged: (bool v) {
                   ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(v);
                 },
               ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // 2. Navigation and Interaction
+          SettingsSection(
+            title: 'Интерфейс и навигация',
+            subtitle: 'Стиль панелей и системные анимации',
+            children: [
               SettingsSwitchTile(
                 icon: Icons.dock_rounded,
                 title: context.l10n.appearanceFloatingNav,
                 subtitle: context.l10n.appearanceFloatingNavSubtitle,
+                iconColor: scheme.primary,
                 value: settings.navBarFloating,
-                onChanged: (v) {
+                onChanged: (bool v) {
                   ref.read(uiSettingsProvider.notifier).setNavBarFloating(v);
                 },
               ),
+              SettingsSwitchTile(
+                icon: Icons.swipe_left_rounded,
+                title: 'Предиктивный жест «Назад»',
+                subtitle: 'Плавная системная M3 анимация возврата на предыдущий экран',
+                iconColor: scheme.secondary,
+                value: settings.predictiveBackEnabled,
+                onChanged: (bool v) {
+                  ref
+                      .read(uiSettingsProvider.notifier)
+                      .setPredictiveBackEnabled(v);
+                },
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // 3. Font Scale
+          SettingsSection(
+            title: 'Размер текста',
+            subtitle: 'Масштабирование элементов интерфейса',
+            children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
                 child: Row(
                   children: <Widget>[
-                    Icon(Icons.text_fields_rounded, color: scheme.onSurfaceVariant, size: 20),
+                    Icon(
+                      Icons.format_size_rounded,
+                      color: scheme.onSurfaceVariant,
+                      size: 20,
+                    ),
                     const SizedBox(width: 12),
                     Text(
                       context.l10n.appearanceFontSize,
@@ -181,32 +232,63 @@ class _AppearanceScreen extends ConsumerWidget {
                   segments: const <ButtonSegment<AppFontScale>>[
                     ButtonSegment<AppFontScale>(
                       value: AppFontScale.small,
-                      label: Text('A', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                      label: Text(
+                        'A',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      tooltip: 'Мелкий',
                     ),
                     ButtonSegment<AppFontScale>(
                       value: AppFontScale.normal,
-                      label: Text('A', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      label: Text(
+                        'A',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      tooltip: 'Стандартный',
                     ),
                     ButtonSegment<AppFontScale>(
                       value: AppFontScale.large,
-                      label: Text('A', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+                      label: Text(
+                        'A',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      tooltip: 'Крупный',
                     ),
                     ButtonSegment<AppFontScale>(
                       value: AppFontScale.extraLarge,
-                      label: Text('A', style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold)),
+                      label: Text(
+                        'A',
+                        style: TextStyle(
+                          fontSize: 23,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      tooltip: 'Очень крупный',
                     ),
                   ],
-                  selected: {settings.fontScale},
+                  selected: <AppFontScale>{settings.fontScale},
                   onSelectionChanged: (Set<AppFontScale> selection) {
-                    ref.read(uiSettingsProvider.notifier).setFontScale(selection.first);
+                    ref
+                        .read(uiSettingsProvider.notifier)
+                        .setFontScale(selection.first);
                   },
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
+          // 4. Chat Wallpaper Shortcut
           SettingsSection(
             title: 'Обои чатов',
             subtitle: 'Живой генератор узоров на основе векторных иконок и цветов темы',

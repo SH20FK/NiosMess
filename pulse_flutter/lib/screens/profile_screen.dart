@@ -16,6 +16,7 @@ import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
+import 'package:pulse_flutter/screens/settings_chats_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
@@ -77,7 +78,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       AppToast.showSuccess(context, context.l10n.profileAvatarUpdated);
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, context.l10n.profileError(e));
+      AppToast.showError(context, e);
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
@@ -229,6 +230,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onTap: () => ref
                           .read(desktopSelectedSettingsSectionProvider.notifier)
                           .setSelectedSection(SettingsSectionId.appearance),
+                    ),
+                    SettingsTile(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      title: 'Чаты и медиа',
+                      iconColor: scheme.primary,
+                      isSelected:
+                          selectedSection == SettingsSectionId.chats,
+                      onTap: () => ref
+                          .read(desktopSelectedSettingsSectionProvider.notifier)
+                          .setSelectedSection(SettingsSectionId.chats),
                     ),
                     SettingsTile(
                       icon: Icons.notifications_active_rounded,
@@ -526,6 +537,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         return const SettingsAccountScreen(isEmbedded: true);
       case SettingsSectionId.appearance:
         return const SettingsAppearanceScreen(isEmbedded: true);
+      case SettingsSectionId.chats:
+        return const SettingsChatsScreen(isEmbedded: true);
       case SettingsSectionId.privacy:
         return const SettingsPrivacyScreen(isEmbedded: true);
       case SettingsSectionId.storage:
@@ -616,6 +629,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           subtitle: context.l10n.profileAppearanceDesc,
                           iconColor: scheme.primary,
                           onTap: () => context.push('/settings/appearance'),
+                        ),
+                        SettingsTile(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          title: 'Чаты и медиа',
+                          subtitle: 'Отправка по Enter, реакции, автозагрузка',
+                          iconColor: scheme.primary,
+                          onTap: () => context.push('/settings/chats'),
                         ),
                         SettingsTile(
                           icon: Icons.notifications_active_rounded,

@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
@@ -107,21 +109,42 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         ? context.l10n.mediaViewerTitle
         : widget.title!.trim();
 
-    return Scaffold(
-      backgroundColor: scheme.scrim,
-      appBar: AppBar(
-        backgroundColor: Colors.black87,
-        foregroundColor: Colors.white,
-        title: Text(displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download_rounded),
-            tooltip: context.l10n.mediaViewerDownload,
-            onPressed: () => _downloadMedia(context, ref),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/main/chats');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: scheme.scrim,
+        appBar: AppBar(
+          backgroundColor: scheme.surface.withValues(alpha: 0.85),
+          foregroundColor: scheme.onSurface,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/main/chats');
+              }
+            },
           ),
-        ],
+          title: Text(displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.download_rounded),
+              tooltip: context.l10n.mediaViewerDownload,
+              onPressed: () => _downloadMedia(context, ref),
+            ),
+          ],
+        ),
+        body: _buildBody(scheme),
       ),
-      body: _buildBody(scheme),
     );
   }
 
@@ -221,7 +244,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
       }
     } catch (e) {
       if (!context.mounted) return;
-      AppToast.showError(context, context.l10n.mediaDownloadFailed('$e'));
+      AppToast.showError(context, e);
     }
   }
 }
@@ -310,7 +333,7 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
               ),
               const SizedBox(height: 16),
               Text(
-                context.l10n.mediaViewerImageLoadFailed('$_error'),
+                AppErrorFormatter.format(_error).toString(),
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white70),
               ),

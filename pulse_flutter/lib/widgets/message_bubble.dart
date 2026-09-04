@@ -300,6 +300,16 @@ class MessageBubble extends ConsumerWidget {
             else
             InkWell(
               borderRadius: bubbleRadius,
+              onDoubleTap: onReactionTap != null
+                  ? () {
+                      final String emoji =
+                          ref.read(uiSettingsProvider).doubleTapReactionEmoji;
+                      if (emoji.isNotEmpty) {
+                        HapticService.reaction();
+                        onReactionTap!(emoji);
+                      }
+                    }
+                  : null,
               onLongPress: onLongPress != null
                   ? () {
                       HapticService.confirm();

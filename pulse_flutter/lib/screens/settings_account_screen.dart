@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/services/biometric_service.dart';
-import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
-import 'package:pulse_flutter/repositories/auth_repository.dart';
-import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsAccountScreen extends ConsumerStatefulWidget {
   const SettingsAccountScreen({
@@ -26,7 +23,6 @@ class SettingsAccountScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
-  bool _toggling2fa = false;
   bool _biometricEnabled = false;
   bool _biometricSupported = false;
 
@@ -64,88 +60,26 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
         }
       }
     } catch (e) {
-      if (mounted) AppToast.showError(context, '$e');
+      if (mounted) AppToast.showError(context, e);
     }
   }
 
-  Future<void> _toggle2fa() async {
-    if (_toggling2fa) return;
-    final ApiProfile? profile = ref.read(authProvider).profile;
-    final bool currentlyEnabled = profile?.twoFaEnabled ?? false;
-
-    if (currentlyEnabled) {
-      final bool? confirmed = await showDialog<bool>(
-        context: context,
-        builder: (BuildContext ctx) => SettingsConfirmDialog(
-          title: context.l10n.settingsDisable2faTitle,
-          body: context.l10n.settingsDisable2faBody,
-          confirmLabel: context.l10n.settingsDisable,
-          cancelLabel: context.l10n.commonCancel,
-          destructive: true,
-        ),
-      );
-      if (confirmed != true) return;
-    }
-
-    if (!mounted) return;
-
-    final TextEditingController passwordController = TextEditingController();
-    final String? password = await showDialog<String>(
-      context: context,
-      builder: (BuildContext ctx) => AppDialog(
-        title: currentlyEnabled
-            ? context.l10n.settingsDisable2fa
-            : context.l10n.settingsEnable2fa,
-        subtitle: context.l10n.settingsConfirmPassword,
-        icon: Icons.password_rounded,
-        actions: <AppDialogAction>[
-          AppDialogAction(
-            label: context.l10n.commonCancel,
-            onPressed: () => Navigator.of(ctx).pop(),
-          ),
-          AppDialogAction(
-            label: context.l10n.settingsConfirm,
-            icon: Icons.check_rounded,
-            isPrimary: true,
-            onPressed: () => Navigator.of(ctx).pop(passwordController.text),
-          ),
-        ],
-        child: AppTextFieldDialogContent(
-          controller: passwordController,
-          obscureText: true,
-          label: context.l10n.settingsConfirmPassword,
-          prefixIcon: Icons.lock_rounded,
-        ),
-      ),
-    );
-    passwordController.dispose();
-    if (password == null || password.isEmpty) return;
-
-    setState(() => _toggling2fa = true);
+  Future<void> _openNiosIdSecurity() async {
+    final Uri uri = Uri.parse('https://ni-os.ru/id/account');
     try {
-      await ref
-          .read(authRepositoryProvider)
-          .toggle2fa(enabled: !currentlyEnabled, password: password);
-      await ref.read(authProvider.notifier).refreshProfile();
-      if (!mounted) return;
-      AppToast.showSuccess(
-        context,
-        currentlyEnabled
-            ? context.l10n.settings2faDisabled
-            : context.l10n.settings2faEnabled,
-      );
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) AppToast.showError(context, 'Не удалось открыть страницу Nios ID');
+      }
     } catch (e) {
-      if (!mounted) return;
-      AppToast.showError(context, e is ApiException ? e.message : '$e');
-    } finally {
-      if (mounted) setState(() => _toggling2fa = false);
+      if (mounted) AppToast.showError(context, e);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final AuthState auth = ref.watch(authProvider);
-    final bool twoFaEnabled = auth.profile?.twoFaEnabled ?? false;
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final String displayName = auth.profile?.displayName ??
         auth.session?.displayName ??
@@ -225,16 +159,18 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
                 value: _biometricEnabled,
                 onChanged: (_) => _toggleBiometric(),
               ),
-            SettingsSwitchTile(
-              icon: twoFaEnabled ? Icons.shield_rounded : Icons.shield_outlined,
-              title: context.l10n.settingsTwoFactor,
-              subtitle: twoFaEnabled
-                  ? context.l10n.settingsTwoFactorEnabledShort
-                  : context.l10n.settingsTwoFactorDisabledShort,
-              iconColor:
-                  twoFaEnabled ? scheme.primary : scheme.onSurfaceVariant,
-              value: twoFaEnabled,
-              onChanged: _toggling2fa ? null : (_) => _toggle2fa(),
+            SettingsTile(
+              icon: Icons.shield_outlined,
+              title: 'Безопасность и 2FA в Nios ID',
+              subtitle:
+                  'Двухфакторная аутентификация и управление паролем на портале ni-os.ru',
+              iconColor: scheme.primary,
+              trailing: Icon(
+                Icons.open_in_new_rounded,
+                size: 20,
+                color: scheme.onSurfaceVariant,
+              ),
+              onTap: _openNiosIdSecurity,
             ),
           ],
         ),

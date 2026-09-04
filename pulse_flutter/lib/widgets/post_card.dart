@@ -615,6 +615,7 @@ class _FullScreenImageState extends State<_FullScreenImage> {
                       imageUrl: widget.url,
                       httpHeaders: cachedAuthHeaders(),
                       fit: BoxFit.contain,
+                      memCacheWidth: 1600,
                       placeholder: (_, _) => const Center(
                         child: MediaPlaceholderIllustration(
                           width: 220,

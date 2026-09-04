@@ -17,7 +17,6 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
@@ -86,6 +85,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   // Scroll-to-bottom FAB
   final ValueNotifier<bool> _showScrollToBottomNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<int> _unreadWhileScrolledNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> _loadingOlderNotifier = ValueNotifier<bool>(false);
 
   bool _isInputEmpty = true;
@@ -303,6 +303,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (shouldShow != _showScrollToBottomNotifier.value) {
       _showScrollToBottomNotifier.value = shouldShow;
     }
+    if (offset <= 60 && _unreadWhileScrolledNotifier.value != 0) {
+      _unreadWhileScrolledNotifier.value = 0;
+    }
     // Auto-load older messages when near the top (end of reversed list)
     if (offset > maxExtent - 400 && !_loadingOlderNotifier.value) {
       _autoLoadOlderMessages();
@@ -320,6 +323,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   }
 
   void _scrollToBottom() {
+    if (ref.read(uiSettingsProvider).haptics) {
+      HapticService.tap();
+    }
+    _unreadWhileScrolledNotifier.value = 0;
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
         0,
@@ -336,6 +343,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _secretPollTimer?.cancel();
     _removeScreenshotOverlay();
     _showScrollToBottomNotifier.dispose();
+    _unreadWhileScrolledNotifier.dispose();
     _loadingOlderNotifier.dispose();
     _draftSaveTimer?.cancel();
     _saveDraft();
@@ -465,7 +473,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, context.l10n.chatAiError('$e'));
+        AppToast.showError(context, e);
       }
     } finally {
       if (mounted) {
@@ -651,10 +659,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             _replyPreviewText = originalReplyPreview;
           });
         }
-        final String message = error is ApiException
-            ? error.message
-            : context.l10n.commonFailed('$error');
-        AppToast.showError(context, message);
+        AppToast.showError(context, error);
       }),
     );
   }
@@ -786,10 +791,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return added > 0;
     } catch (error) {
       if (!mounted) return false;
-      final String text = error is ApiException
-          ? error.message
-          : context.l10n.commonFailed('$error');
-      AppToast.showError(context, text);
+      AppToast.showError(context, error);
       return false;
     }
   }
@@ -872,10 +874,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           TextPosition(offset: originalDraft.length),
         );
       });
-      final String text = error is ApiException
-          ? error.message
-          : context.l10n.commonFailed('$error');
-      AppToast.showError(context, text);
+      AppToast.showError(context, error);
     }
   }
 
@@ -918,10 +917,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (!mounted) {
         return;
       }
-      final String text = error is ApiException
-          ? error.message
-          : context.l10n.commonFailed('$error');
-      AppToast.showError(context, text);
+      AppToast.showError(context, error);
     }
   }
 
@@ -938,10 +934,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (!mounted) {
         return;
       }
-      final String text = error is ApiException
-          ? error.message
-          : context.l10n.commonFailed('$error');
-      AppToast.showError(context, text);
+      AppToast.showError(context, error);
     }
   }
 
@@ -1010,7 +1003,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       AppToast.showSuccess(context, context.l10n.chatMessageForwarded);
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, e is ApiException ? e.message : '$e');
+      AppToast.showError(context, e);
     }
   }
 
@@ -1124,7 +1117,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       AppToast.showSuccess(context, context.l10n.reportSent);
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, context.l10n.chatReportFailed('$e'));
+      AppToast.showError(context, e);
     }
   }
 
@@ -1458,7 +1451,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, context.l10n.chatCallFailed('$e'));
+        AppToast.showError(context, e);
       }
     }
   }
@@ -1507,6 +1500,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final AsyncValue<List<ApiMessage>> messagesAsync = ref.watch(
       chatMessagesProvider(chatId),
     );
+    ref.listen<AsyncValue<List<ApiMessage>>>(chatMessagesProvider(chatId), (previous, next) {
+      final List<ApiMessage>? prevList = previous?.value;
+      final List<ApiMessage>? nextList = next.value;
+      if (prevList != null && nextList != null && nextList.length > prevList.length) {
+        if (_showScrollToBottomNotifier.value) {
+          final int added = nextList.length - prevList.length;
+          _unreadWhileScrolledNotifier.value += added;
+        }
+      }
+    });
     final List<ApiMessage> currentMessages =
         messagesAsync.value ?? const <ApiMessage>[];
     final List<ApiChatMember> members =
@@ -1534,20 +1537,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               : context.l10n.chatTitleFallback(chatId));
 
     return PopScope(
-      canPop: true,
-      onPopInvokedWithResult: (bool didPop, Object? result) async {
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) return;
-        final bool? confirm = await showAppConfirmDialog(
-          context: context,
-          title: context.l10n.dialogCancelChatCreationTitle,
-          subtitle: context.l10n.dialogCancelChatCreationBody,
-          confirmLabel: context.l10n.commonYes,
-          cancelLabel: context.l10n.commonNo,
-          icon: Icons.close_rounded,
-        );
-        if (confirm == true && context.mounted) {
-          context.pop();
-        }
+        _goBack();
       },
       child: Scaffold(
         appBar: ChatDetailAppBar(
@@ -1745,10 +1738,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   ValueListenableBuilder<bool>(
                     valueListenable: _showScrollToBottomNotifier,
                     builder: (context, showScroll, child) {
-                      return ChatDetailScrollToBottomFAB(
-                        show: showScroll,
-                        chatId: chatId,
-                        onPressed: _scrollToBottom,
+                      return ValueListenableBuilder<int>(
+                        valueListenable: _unreadWhileScrolledNotifier,
+                        builder: (context, unreadCount, _) {
+                          return ChatDetailScrollToBottomFAB(
+                            show: showScroll,
+                            chatId: chatId,
+                            unreadCount: unreadCount,
+                            onPressed: _scrollToBottom,
+                          );
+                        },
                       );
                     },
                   ),
@@ -1797,7 +1796,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             onAiPressed: () => _showAiBottomSheet(context, scheme),
             onVoiceSend: _sendVoiceMessage,
             onCircleSend: _sendCircleVideo,
-            hapticsEnabled: ref.read(uiSettingsProvider).haptics,
+            hapticsEnabled: ref.watch(uiSettingsProvider).haptics,
+            sendOnEnter: ref.watch(uiSettingsProvider).sendOnEnter,
           ),
         ),
       ],

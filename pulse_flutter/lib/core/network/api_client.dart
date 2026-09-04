@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:pulse_flutter/core/exceptions/api_exception.dart';
+import 'package:pulse_flutter/core/network/api_exception.dart';
 
 class ApiClient {
   ApiClient({

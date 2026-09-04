@@ -28,6 +28,7 @@ class ChatInputBar extends StatefulWidget {
     required this.onVoiceSend,
     this.onCircleSend,
     this.hapticsEnabled = true,
+    this.sendOnEnter = true,
     super.key,
   });
 
@@ -48,6 +49,7 @@ class ChatInputBar extends StatefulWidget {
   final void Function(String filePath) onVoiceSend;
   final void Function(String filePath)? onCircleSend;
   final bool hapticsEnabled;
+  final bool sendOnEnter;
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -382,8 +384,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
                                   if (event is KeyDownEvent &&
                                       event.logicalKey ==
                                           LogicalKeyboardKey.enter) {
-                                    if (HardwareKeyboard
-                                        .instance.isShiftPressed) {
+                                    if (!widget.sendOnEnter ||
+                                        HardwareKeyboard
+                                            .instance.isShiftPressed) {
                                       return KeyEventResult.ignored;
                                     } else {
                                       if (widget.editingMessageId !=
@@ -401,8 +404,19 @@ class _ChatInputBarState extends State<ChatInputBar> {
                                   controller: widget.inputController,
                                   focusNode: widget.inputFocusNode,
                                   readOnly: widget.isAiProcessing,
-                                  textInputAction:
-                                      TextInputAction.newline,
+                                  textInputAction: widget.sendOnEnter
+                                      ? TextInputAction.send
+                                      : TextInputAction.newline,
+                                  onSubmitted: widget.sendOnEnter
+                                      ? (_) {
+                                          if (widget.editingMessageId !=
+                                              null) {
+                                            widget.onCommitEdit();
+                                          } else if (!_isInputEmpty) {
+                                            widget.onSend();
+                                          }
+                                        }
+                                      : null,
                                   maxLines: 5,
                                   minLines: 1,
                                   keyboardType:

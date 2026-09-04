@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -65,10 +64,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
       if (!mounted) {
         return;
       }
-      final String message = error is ApiException
-          ? error.message
-          : context.l10n.commentsFailedSend('$error');
-      AppToast.showError(context, message);
+      AppToast.showError(context, error);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -95,9 +91,17 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return PopScope(
-      canPop: !_busy,
+      canPop: false,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (didPop) return;
+        if (_inputController.text.trim().isEmpty) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/main/niosgram');
+          }
+          return;
+        }
         final bool? confirm = await showAppConfirmDialog(
           context: context,
           title: context.l10n.dialogCancelCommentTitle,
@@ -107,12 +111,26 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
           icon: Icons.close_rounded,
         );
         if (confirm == true && context.mounted) {
-          context.pop();
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/main/niosgram');
+          }
         }
       },
       child: Scaffold(
         appBar: AppBar(
           title: Text(context.l10n.commentsTitle),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/main/niosgram');
+              }
+            },
+          ),
 bottom: commentsAsync.when(
               data: (List<ApiMessage> comments) => PreferredSize(
                 preferredSize: const Size.fromHeight(24),

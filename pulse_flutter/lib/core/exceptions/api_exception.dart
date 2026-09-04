@@ -1,14 +1,1 @@
-class ApiException implements Exception {
-  const ApiException({
-    required this.statusCode,
-    required this.message,
-    this.payload,
-  });
-
-  final int statusCode;
-  final String message;
-  final Object? payload;
-
-  @override
-  String toString() => 'ApiException($statusCode): $message';
-}
+export 'package:pulse_flutter/core/network/api_exception.dart';

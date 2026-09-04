@@ -73,23 +73,6 @@ class SettingsPrivacyScreen extends ConsumerWidget {
             ),
           ],
         ),
-        if (isAndroid)
-          SettingsSection(
-            title: context.l10n.settingsPredictiveBackTitle,
-            subtitle: context.l10n.settingsPredictiveBackSubtitle,
-            children: <Widget>[
-              SettingsSwitchTile(
-                icon: Icons.swipe_left_rounded,
-                title: context.l10n.settingsPredictiveBackToggle,
-                subtitle: context.l10n.settingsPredictiveBackDesc,
-                iconColor: scheme.primary,
-                value: settings.predictiveBackEnabled,
-                onChanged: (bool value) {
-                  ref.read(uiSettingsProvider.notifier).setPredictiveBackEnabled(value);
-                },
-              ),
-            ],
-          ),
         SettingsSection(
           title: context.l10n.settingsBackgroundTitle,
           subtitle: context.l10n.settingsBackgroundSubtitle,
@@ -125,9 +108,21 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                   ref.read(uiSettingsProvider.notifier).setBackgroundMode(newMode);
                   if (value) {
                     await BackgroundService.startReliable();
+                    await BackgroundService.requestDisableBatteryOptimization();
                   } else {
                     await BackgroundService.stop();
                   }
+                },
+              ),
+            if (isAndroid)
+              SettingsTile(
+                icon: Icons.battery_charging_full_rounded,
+                title: 'Работа без ограничений батареи',
+                subtitle: 'Исключить NiosMess из ограничений энергопотребления Android для стабильной доставки пушей',
+                iconColor: scheme.secondary,
+                trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                onTap: () async {
+                  await BackgroundService.requestDisableBatteryOptimization();
                 },
               ),
             if (!isAndroid)

@@ -112,10 +112,7 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
       }
     } catch (error) {
       if (!mounted) return;
-      final String message = error is ApiException
-          ? error.message
-          : context.l10n.groupCreateFailed('$error');
-      AppToast.showError(context, message);
+      AppToast.showError(context, error);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -152,15 +149,28 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
     }
   }
 
+  bool get _hasChanges =>
+      _nameController.text.trim().isNotEmpty ||
+      _descriptionController.text.trim().isNotEmpty ||
+      _usernameController.text.trim().isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return PopScope(
-      canPop: !_busy,
+      canPop: false,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (didPop) return;
+        if (!_hasChanges) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/main/chats');
+          }
+          return;
+        }
         final bool? confirm = await showAppConfirmDialog(
           context: context,
           title: context.l10n.dialogCancelChatCreationTitle,
@@ -170,7 +180,11 @@ class _CreateChatScreenState extends ConsumerState<CreateChatScreen> {
           icon: Icons.close_rounded,
         );
         if (confirm == true && context.mounted) {
-          context.pop();
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/main/chats');
+          }
         }
       },
       child: Scaffold(
