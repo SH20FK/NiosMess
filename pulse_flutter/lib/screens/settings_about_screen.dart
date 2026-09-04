@@ -10,8 +10,6 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
-import 'package:flutter/foundation.dart';
-import 'package:universal_io/io.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsAboutScreen extends StatefulWidget {
@@ -71,13 +69,9 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
       children: <Widget>[
         // 1. Compact Hero Header
         _buildHeroCard(context, scheme, textTheme),
-        const SizedBox(height: 12),
-
-        // 2. Hardware & Device Specs Badge (Google M3 Expressive "About Device")
-        _buildDeviceInfoCard(context, scheme, textTheme),
         const SizedBox(height: 14),
 
-        // 3. Material 3 Expressive Pill Tab Selector
+        // 2. Material 3 Expressive Pill Tab Selector
         _buildPillTabSelector(context, scheme, textTheme),
         const SizedBox(height: 16),
 
@@ -275,10 +269,16 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
               alignment: WrapAlignment.center,
               children: <Widget>[
                 _QuickHeroButton(
+                  icon: Icons.memory_rounded,
+                  label: 'Устройство',
+                  color: scheme.primary,
+                  onTap: () => context.push('/settings/system-device'),
+                ),
+                _QuickHeroButton(
                   icon: Icons.science_rounded,
                   label: 'Альфа-тест',
                   color: const Color(0xFFFF9800),
-                  onTap: () => AlphaTestDialog.showIfFirstLaunch(context),
+                  onTap: () => AlphaTestDialog.show(context),
                 ),
                 _QuickHeroButton(
                   svgAsset: 'assets/svg/telegram_logo.svg',
@@ -300,206 +300,6 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // 1.5 Hardware & Device Specs Badge (Google M3 Expressive "About Device")
-  // ---------------------------------------------------------------------------
-  Widget _buildDeviceInfoCard(
-    BuildContext context,
-    ColorScheme scheme,
-    TextTheme textTheme,
-  ) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final Size size = MediaQuery.sizeOf(context);
-    final double dpr = MediaQuery.devicePixelRatioOf(context);
-
-    final String osName;
-    final IconData osIcon;
-    if (kIsWeb) {
-      osName = 'Web / Браузер';
-      osIcon = Icons.language_rounded;
-    } else if (Platform.isAndroid) {
-      final String ver = Platform.operatingSystemVersion.split(' ').first;
-      osName = 'Android $ver';
-      osIcon = Icons.android_rounded;
-    } else if (Platform.isIOS) {
-      osName = 'Apple iOS';
-      osIcon = Icons.phone_iphone_rounded;
-    } else if (Platform.isWindows) {
-      osName = 'Windows';
-      osIcon = Icons.desktop_windows_rounded;
-    } else if (Platform.isMacOS) {
-      osName = 'macOS';
-      osIcon = Icons.laptop_mac_rounded;
-    } else if (Platform.isLinux) {
-      osName = 'Linux';
-      osIcon = Icons.terminal_rounded;
-    } else {
-      osName = Platform.operatingSystem;
-      osIcon = Icons.devices_rounded;
-    }
-
-    final String hostname = kIsWeb ? 'Web Client' : Platform.localHostname;
-    final String cores =
-        kIsWeb ? 'Web VM' : '${Platform.numberOfProcessors} ядер';
-    final String screenRes =
-        '${size.width.toInt()}×${size.height.toInt()} dp (${dpr.toStringAsFixed(1)}x)';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.25 : 0.35),
-          width: 1,
-        ),
-        boxShadow: isDark
-            ? null
-            : <BoxShadow>[
-                BoxShadow(
-                  color: scheme.shadow.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-      ),
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  osIcon,
-                  color: scheme.onPrimaryContainer,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Об устройстве',
-                      style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: scheme.onSurface,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                    Text(
-                      '$osName • $hostname',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Divider(
-            height: 1,
-            color: scheme.outlineVariant.withValues(alpha: 0.2),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: <Widget>[
-              _buildDeviceChip(
-                scheme,
-                textTheme,
-                icon: Icons.monitor_rounded,
-                label: 'Экран',
-                value: screenRes,
-              ),
-              _buildDeviceChip(
-                scheme,
-                textTheme,
-                icon: Icons.memory_rounded,
-                label: 'Процессор',
-                value: cores,
-              ),
-              _buildDeviceChip(
-                scheme,
-                textTheme,
-                icon: Icons.layers_rounded,
-                label: 'Рендеринг',
-                value: 'Material 3',
-              ),
-              _buildDeviceChip(
-                scheme,
-                textTheme,
-                icon: Icons.security_rounded,
-                label: 'Шифрование',
-                value: 'E2EE MLS',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDeviceChip(
-    ColorScheme scheme,
-    TextTheme textTheme, {
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, size: 14, color: scheme.primary),
-          const SizedBox(width: 6),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(
-                label,
-                style: textTheme.labelSmall?.copyWith(
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                value,
-                style: textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11,
-                  color: scheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   // ---------------------------------------------------------------------------
   // 2. Material 3 Expressive Pill Tab Selector
@@ -1090,201 +890,187 @@ class _DeveloperTile extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isWide = constraints.maxWidth > 500;
+    final Color avatarBg = isDark
+        ? Color.alphaBlend(
+            accentColor.withValues(alpha: 0.16),
+            scheme.surfaceContainerHighest,
+          )
+        : Color.alphaBlend(
+            accentColor.withValues(alpha: 0.08),
+            scheme.surfaceContainerHighest,
+          );
 
-        final Color avatarBg = isDark
-            ? Color.alphaBlend(
-                accentColor.withValues(alpha: 0.16),
-                scheme.surfaceContainerHighest,
-              )
-            : Color.alphaBlend(
-                accentColor.withValues(alpha: 0.08),
-                scheme.surfaceContainerHighest,
-              );
-
-        final Widget avatarWidget = Container(
-          width: isWide ? 160 : 140,
-          height: isWide ? 160 : 140,
-          decoration: BoxDecoration(
-            color: avatarBg,
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(
-              color: accentColor.withValues(alpha: isDark ? 0.40 : 0.25),
-              width: 1.5,
-            ),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: accentColor.withValues(alpha: isDark ? 0.20 : 0.08),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    final Widget avatarWidget = Container(
+      width: 76,
+      height: 76,
+      decoration: BoxDecoration(
+        color: avatarBg,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: accentColor.withValues(alpha: isDark ? 0.40 : 0.25),
+          width: 1.5,
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: accentColor.withValues(alpha: isDark ? 0.20 : 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
-          padding: const EdgeInsets.all(8),
-          child: svgAssetPath != null
-              ? SvgPicture.asset(
-                  svgAssetPath!,
-                  fit: BoxFit.contain,
-                  colorFilter: ColorFilter.mode(accentColor, BlendMode.srcIn),
-                  placeholderBuilder: (BuildContext context) => Image.asset(
-                    assetPath,
-                    fit: BoxFit.contain,
-                    color: accentColor,
-                    colorBlendMode: BlendMode.srcIn,
-                    errorBuilder: (_, _, _) =>
-                        Center(child: Icon(fallbackIcon, size: 56, color: accentColor)),
-                  ),
-                )
-              : Image.asset(
-                  assetPath,
-                  fit: BoxFit.contain,
-                  color: accentColor,
-                  colorBlendMode: BlendMode.srcIn,
-                  errorBuilder: (BuildContext context, Object error, StackTrace? trace) =>
-                      Center(child: Icon(fallbackIcon, size: 56, color: accentColor)),
-                ),
-        );
+        ],
+      ),
+      padding: const EdgeInsets.all(7),
+      child: svgAssetPath != null
+          ? SvgPicture.asset(
+              svgAssetPath!,
+              fit: BoxFit.contain,
+              colorFilter: ColorFilter.mode(accentColor, BlendMode.srcIn),
+              placeholderBuilder: (BuildContext context) => Image.asset(
+                assetPath,
+                fit: BoxFit.contain,
+                color: accentColor,
+                colorBlendMode: BlendMode.srcIn,
+                errorBuilder: (_, _, _) =>
+                    Center(child: Icon(fallbackIcon, size: 36, color: accentColor)),
+              ),
+            )
+          : Image.asset(
+              assetPath,
+              fit: BoxFit.contain,
+              color: accentColor,
+              colorBlendMode: BlendMode.srcIn,
+              errorBuilder: (BuildContext context, Object error, StackTrace? trace) =>
+                  Center(child: Icon(fallbackIcon, size: 36, color: accentColor)),
+            ),
+    );
 
-        final Widget infoAndButtonWidget = Column(
-          crossAxisAlignment: isWide ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            // Name + Verified Badge
-            Row(
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: accentColor.withValues(alpha: isDark ? 0.35 : 0.22),
+          width: 1.2,
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: accentColor.withValues(alpha: isDark ? 0.08 : 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          avatarWidget,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Flexible(
-                  child: Text(
-                    name,
-                    style: textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 22,
-                      letterSpacing: -0.4,
-                      color: scheme.onSurface,
+                // Name + Verified Badge
+                Row(
+                  children: <Widget>[
+                    Flexible(
+                      child: Text(
+                        name,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 17,
+                          letterSpacing: -0.3,
+                          color: scheme.onSurface,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  Icons.verified_rounded,
-                  size: 20,
-                  color: accentColor,
-                ),
-              ],
-            ),
-            if (telegramHandle != null) ...<Widget>[
-              const SizedBox(height: 3),
-              Text(
-                '@$telegramHandle',
-                style: textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-            const SizedBox(height: 8),
-
-            // Role pill
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: isDark ? 0.18 : 0.10),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: accentColor.withValues(alpha: isDark ? 0.35 : 0.25),
-                ),
-              ),
-              child: Text(
-                role,
-                style: textTheme.labelMedium?.copyWith(
-                  color: accentColor,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Official Telegram SVG Contact Button
-            FilledButton.tonal(
-              onPressed: onOpenTelegram,
-              style: FilledButton.styleFrom(
-                backgroundColor: accentColor.withValues(alpha: isDark ? 0.20 : 0.12),
-                foregroundColor: accentColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: accentColor.withValues(alpha: isDark ? 0.35 : 0.28),
-                    width: 1.2,
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  SvgPicture.asset(
-                    'assets/svg/telegram_logo.svg',
-                    width: 18,
-                    height: 18,
-                    colorFilter: ColorFilter.mode(accentColor, BlendMode.srcIn),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    telegramHandle != null
-                        ? 'Связаться (@$telegramHandle)'
-                        : 'Связаться в Telegram',
-                    style: TextStyle(
+                    const SizedBox(width: 6),
+                    Icon(
+                      Icons.verified_rounded,
+                      size: 18,
                       color: accentColor,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13.5,
+                    ),
+                  ],
+                ),
+                if (telegramHandle != null) ...<Widget>[
+                  const SizedBox(height: 2),
+                  Text(
+                    '@$telegramHandle',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
                     ),
                   ),
                 ],
-              ),
-            ),
-          ],
-        );
-
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? scheme.surfaceContainerLow : scheme.surface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: accentColor.withValues(alpha: isDark ? 0.35 : 0.22),
-              width: 1.2,
-            ),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: accentColor.withValues(alpha: isDark ? 0.08 : 0.04),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(20),
-          child: isWide
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    avatarWidget,
-                    const SizedBox(width: 24),
-                    Expanded(child: infoAndButtonWidget),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    avatarWidget,
-                    const SizedBox(height: 16),
-                    infoAndButtonWidget,
-                  ],
+                const SizedBox(height: 6),
+                // Role pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: isDark ? 0.18 : 0.10),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: isDark ? 0.35 : 0.25),
+                    ),
+                  ),
+                  child: Text(
+                    role,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: accentColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
                 ),
-        );
-      },
+                const SizedBox(height: 10),
+                // Telegram Action Button
+                FilledButton.tonal(
+                  onPressed: onOpenTelegram,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: accentColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                    foregroundColor: accentColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: accentColor.withValues(alpha: isDark ? 0.35 : 0.28),
+                        width: 1.2,
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    minimumSize: const Size(0, 36),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      SvgPicture.asset(
+                        'assets/svg/telegram_logo.svg',
+                        width: 15,
+                        height: 15,
+                        colorFilter: ColorFilter.mode(accentColor, BlendMode.srcIn),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          telegramHandle != null
+                              ? 'Написать (@$telegramHandle)'
+                              : 'Связаться в Telegram',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: accentColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1573,56 +1573,58 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       body: PulseScaffoldBody(
         expand: true,
         bottomSafe: false,
-        child: Column(
+        child: Stack(
           children: <Widget>[
-            OfflineBanner(isOffline: !(ref.watch(connectivityProvider).value ?? true)),
-            if (chat?.isSecret == true)
-              GestureDetector(
-                onTap: _showE2eeVerification,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  color: scheme.primaryContainer.withValues(alpha: 0.35),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Icon(Icons.lock_rounded, size: 14, color: scheme.primary),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          context.l10n.chatE2eeBanner,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Icon(Icons.chevron_right_rounded, size: 14, color: scheme.onSurfaceVariant),
-                    ],
-                  ),
-                ),
-              ),
-            // Loading older messages indicator at top
-            ValueListenableBuilder<bool>(
-              valueListenable: _loadingOlderNotifier,
-              builder: (context, isLoading, _) => AnimatedSize(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                child: isLoading
-                    ? const AppLoadingIndicator(size: 24)
-                    : const SizedBox.shrink(),
+            Positioned.fill(
+              child: ChatWallpaperBackground(
+                chatId: widget.chatId.toString(),
               ),
             ),
-            Expanded(
-              child: Stack(
-                children: <Widget>[
-                  Positioned.fill(
-                    child: ChatWallpaperBackground(
-                      chatId: widget.chatId.toString(),
+            Column(
+              children: <Widget>[
+                OfflineBanner(isOffline: !(ref.watch(connectivityProvider).value ?? true)),
+                if (chat?.isSecret == true)
+                  GestureDetector(
+                    onTap: _showE2eeVerification,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      color: scheme.primaryContainer.withValues(alpha: 0.35),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Icon(Icons.lock_rounded, size: 14, color: scheme.primary),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              context.l10n.chatE2eeBanner,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(Icons.chevron_right_rounded, size: 14, color: scheme.onSurfaceVariant),
+                        ],
+                      ),
                     ),
                   ),
-                  messagesAsync.when(
+                // Loading older messages indicator at top
+                ValueListenableBuilder<bool>(
+                  valueListenable: _loadingOlderNotifier,
+                  builder: (context, isLoading, _) => AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    child: isLoading
+                        ? const AppLoadingIndicator(size: 24)
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+                Expanded(
+                  child: Stack(
+                    children: <Widget>[
+                      messagesAsync.when(
                     data: (List<ApiMessage> messages) {
                       if (messages.isEmpty) {
                         final bool isSecretChat = chat?.isSecret == true || _isSecret;
@@ -1754,53 +1756,48 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 ],
               ),
             ),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: scheme.surface,
-            border: Border(
-              top: BorderSide(
-                color: scheme.outlineVariant.withValues(alpha: 0.25),
-                width: 1.0,
-              ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            child: ChatDetailInputArea(
+              canPostInChannel: canPostInChannel,
+              showDraftRestoredBanner: _showDraftRestoredBanner,
+              onClearDraft: () {
+                final int? cid = _chatId;
+                if (cid != null) {
+                  _draftStorage.remove(cid);
+                }
+                _inputController.clear();
+                setState(() {
+                  _showDraftRestoredBanner = false;
+                });
+              },
+              uploadingMedia:
+                  ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
+              inputController: _inputController,
+              inputFocusNode: _inputFocusNode,
+              isAiProcessing: _isAiProcessing,
+              editingMessageId: _editingMessageId,
+              editingOriginalText: _editingOriginalText,
+              replyToMessageId: _replyToMessageId,
+              replyPreviewText: _replyPreviewText,
+              onSend: _sendMessage,
+              onCommitEdit: _commitEdit,
+              onCancelEdit: _cancelEdit,
+              onClearReply: _clearReply,
+              onAttachMedia: _pickAndUploadMedia,
+              onAiPressed: () => _showAiBottomSheet(context, scheme),
+              onVoiceSend: _sendVoiceMessage,
+              onCircleSend: _sendCircleVideo,
+              hapticsEnabled: ref.watch(uiSettingsProvider).haptics,
+              sendOnEnter: ref.watch(uiSettingsProvider).sendOnEnter,
             ),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-          child: ChatDetailInputArea(
-            canPostInChannel: canPostInChannel,
-            showDraftRestoredBanner: _showDraftRestoredBanner,
-            onClearDraft: () {
-              final int? cid = _chatId;
-              if (cid != null) {
-                _draftStorage.remove(cid);
-              }
-              _inputController.clear();
-              setState(() {
-                _showDraftRestoredBanner = false;
-              });
-            },
-            uploadingMedia:
-                ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
-            inputController: _inputController,
-            inputFocusNode: _inputFocusNode,
-            isAiProcessing: _isAiProcessing,
-            editingMessageId: _editingMessageId,
-            editingOriginalText: _editingOriginalText,
-            replyToMessageId: _replyToMessageId,
-            replyPreviewText: _replyPreviewText,
-            onSend: _sendMessage,
-            onCommitEdit: _commitEdit,
-            onCancelEdit: _cancelEdit,
-            onClearReply: _clearReply,
-            onAttachMedia: _pickAndUploadMedia,
-            onAiPressed: () => _showAiBottomSheet(context, scheme),
-            onVoiceSend: _sendVoiceMessage,
-            onCircleSend: _sendCircleVideo,
-            hapticsEnabled: ref.watch(uiSettingsProvider).haptics,
-            sendOnEnter: ref.watch(uiSettingsProvider).sendOnEnter,
           ),
         ),
       ],
+            ),
+          ],
         ),
       ),
       backgroundColor: scheme.surface,

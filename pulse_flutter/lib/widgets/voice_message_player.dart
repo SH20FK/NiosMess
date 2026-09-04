@@ -161,8 +161,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     final Color fg = widget.isMine ? widget.scheme.onPrimary : widget.scheme.primary;
     final Color onFg = widget.isMine ? widget.scheme.primary : widget.scheme.onPrimary;
     final Color bg = widget.isMine
-        ? widget.scheme.primary.withValues(alpha: 0.6)
-        : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.8);
+        ? widget.scheme.onPrimary.withValues(alpha: 0.12)
+        : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.50);
 
     return Container(
       constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),

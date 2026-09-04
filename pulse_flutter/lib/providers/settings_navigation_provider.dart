@@ -9,6 +9,7 @@ enum SettingsSectionId {
   storage,
   languageRegion,
   preferences,
+  systemDevice,
   about,
   e2ee,
   sessions,

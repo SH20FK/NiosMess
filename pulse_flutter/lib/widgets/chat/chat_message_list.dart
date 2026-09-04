@@ -230,13 +230,16 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             formattedTime: formatMessageTime(message.sentAt),
             isMine: isMine,
           );
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              if (data.showDateSep)
-                widget.dateSeparatorBuilder(message.resolvedSentAt, now),
-              callPill,
-            ],
+          return RepaintBoundary(
+            key: ValueKey<int>(message.id),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (data.showDateSep)
+                  widget.dateSeparatorBuilder(message.resolvedSentAt, now),
+                callPill,
+              ],
+            ),
           );
         }
 
@@ -323,94 +326,100 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
         );
 
         if (isMine) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          return RepaintBoundary(
+            key: ValueKey<int>(message.id),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                if (data.showDateSep)
+                  widget.dateSeparatorBuilder(message.resolvedSentAt, now),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    if (message.isSending)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 8, bottom: 12),
+                        child: SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: AppLoadingIndicator(size: 14),
+                        ),
+                      ),
+                    if (message.isFailed)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4, bottom: 4),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.refresh_rounded,
+                            color: Theme.of(context).colorScheme.error,
+                            size: 22,
+                          ),
+                          onPressed: () => widget.onRetrySend(message),
+                        ),
+                      ),
+                    Flexible(child: animatedBubble),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RepaintBoundary(
+          key: ValueKey<int>(message.id),
+          child: Column(
             children: <Widget>[
               if (data.showDateSep)
                 widget.dateSeparatorBuilder(message.resolvedSentAt, now),
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: <Widget>[
-                  if (message.isSending)
-                    const Padding(
-                      padding: EdgeInsets.only(right: 8, bottom: 12),
-                      child: SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: AppLoadingIndicator(size: 14),
+                  if (!data.isNextSame) ...[
+                    Hero(
+                      tag: 'sender-avatar-${message.senderId}',
+                      child: GestureDetector(
+                        onTap: () {},
+                        child: message.senderAvatarUrl != null
+                            ? ClipOval(
+                                child: CachedNetworkImage(
+                                  imageUrl: ApiConstants.resolve(message.senderAvatarUrl),
+                                  httpHeaders: cachedAuthHeaders(),
+                                  memCacheWidth: 56,
+                                  width: 28,
+                                  height: 28,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    child: const Icon(Icons.person, size: 16),
+                                  ),
+                                  errorWidget: (context, url, error) => CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    child: const Icon(Icons.person, size: 16),
+                                  ),
+                                ),
+                              )
+                            : CircleAvatar(
+                                radius: 14,
+                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                child: Text(
+                                  message.senderDisplayName.isNotEmpty
+                                      ? message.senderDisplayName[0]
+                                      : '?',
+                                ),
+                              ),
                       ),
                     ),
-                    if (message.isFailed)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 4, bottom: 4),
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.refresh_rounded,
-                          color: Theme.of(context).colorScheme.error,
-                          size: 22,
-                        ),
-                        onPressed: () => widget.onRetrySend(message),
-                      ),
-                    ),
+                    const SizedBox(width: 8),
+                  ] else
+                    const SizedBox(width: 36),
                   Flexible(child: animatedBubble),
                 ],
               ),
             ],
-          );
-        }
-
-        return Column(
-          children: <Widget>[
-            if (data.showDateSep)
-              widget.dateSeparatorBuilder(message.resolvedSentAt, now),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                if (!data.isNextSame) ...[
-                  Hero(
-                    tag: 'sender-avatar-${message.senderId}',
-                    child: GestureDetector(
-                    onTap: () {},
-                    child: message.senderAvatarUrl != null
-                        ? ClipOval(
-                            child: CachedNetworkImage(
-                              imageUrl: ApiConstants.resolve(message.senderAvatarUrl),
-                              httpHeaders: cachedAuthHeaders(),
-                              memCacheWidth: 56,
-                              width: 28,
-                              height: 28,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => CircleAvatar(
-                                radius: 14,
-                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                child: const Icon(Icons.person, size: 16),
-                              ),
-                              errorWidget: (context, url, error) => CircleAvatar(
-                                radius: 14,
-                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                child: const Icon(Icons.person, size: 16),
-                              ),
-                            ),
-                          )
-                        : CircleAvatar(
-                            radius: 14,
-                            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                            child: Text(
-                              message.senderDisplayName.isNotEmpty
-                                  ? message.senderDisplayName[0]
-                                  : '?',
-                            ),
-                          ),
-                  ),
-                  ),
-                  const SizedBox(width: 8),
-                ] else
-                  const SizedBox(width: 36),
-                Flexible(child: animatedBubble),
-              ],
-            ),
-          ],
+          ),
         );
       },
       findChildIndexCallback: (Key key) {

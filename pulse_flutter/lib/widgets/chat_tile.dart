@@ -59,37 +59,36 @@ class ChatTile extends StatefulWidget {
 
 class _ChatTileState extends State<ChatTile>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _fadeAnim;
-  late final Animation<Offset> _slideAnim;
+  AnimationController? _controller;
+  Animation<double>? _fadeAnim;
+  Animation<Offset>? _slideAnim;
   bool _isHovered = false;
   bool _isExpanded = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-    _fadeAnim = CurvedAnimation(
-      parent: _controller,
-      curve: AppCurves.easeOutSmooth,
-    );
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(
-          CurvedAnimation(parent: _controller, curve: AppCurves.springGentle),
-        );
     if (widget.animateEntrance) {
-      _controller.forward();
-    } else {
-      _controller.value = 1;
+      final AnimationController controller = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 200),
+      );
+      _controller = controller;
+      _fadeAnim = CurvedAnimation(
+        parent: controller,
+        curve: AppCurves.easeOutSmooth,
+      );
+      _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+          .animate(
+            CurvedAnimation(parent: controller, curve: AppCurves.springGentle),
+          );
+      controller.forward();
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -338,11 +337,13 @@ class _ChatTileState extends State<ChatTile>
       ),
     );
 
-    if (!widget.animateEntrance) return content;
+    if (!widget.animateEntrance || _fadeAnim == null || _slideAnim == null) {
+      return content;
+    }
 
     return FadeTransition(
-      opacity: _fadeAnim,
-      child: SlideTransition(position: _slideAnim, child: content),
+      opacity: _fadeAnim!,
+      child: SlideTransition(position: _slideAnim!, child: content),
     );
   }
 }

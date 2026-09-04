@@ -46,14 +46,13 @@ class _ChatWallpaperBackgroundState extends ConsumerState<ChatWallpaperBackgroun
         height: double.infinity,
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
+            final Size screenSize = MediaQuery.sizeOf(context);
             final double width = constraints.maxWidth.isFinite && constraints.maxWidth > 0
                 ? constraints.maxWidth
-                : MediaQuery.of(context).size.width;
-            final double height = constraints.maxHeight.isFinite && constraints.maxHeight > 0
-                ? constraints.maxHeight
-                : MediaQuery.of(context).size.height;
+                : screenSize.width;
+            final double height = screenSize.height;
             final Size size = Size(width, height);
-            final double pixelRatio = MediaQuery.of(context).devicePixelRatio.clamp(1.0, 2.0);
+            final double pixelRatio = MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0);
 
             // Check if we can get a synchronous cached image
             final ui.Image? syncImage = WallpaperImageCache.getSyncCachedImage(
@@ -77,6 +76,7 @@ class _ChatWallpaperBackgroundState extends ConsumerState<ChatWallpaperBackgroun
               return RawImage(
                 image: _renderedImage,
                 fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
                 width: double.infinity,
                 height: double.infinity,
               );

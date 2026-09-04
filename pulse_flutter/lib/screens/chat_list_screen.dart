@@ -24,8 +24,8 @@ import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/providers/chat_filter_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_filter_bar.dart';
-import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:pulse_flutter/widgets/chat/chat_search_field.dart';
+import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 
@@ -90,8 +90,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   @override
   Widget build(BuildContext context) {
-    final UiSettingsState settings = ref.watch(uiSettingsProvider);
-    final bool compact = settings.compactMode;
+    final bool compact = ref.watch(
+      uiSettingsProvider.select((s) => s.compactMode),
+    );
     final AuthState auth = ref.watch(authProvider);
     final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.watch(
       chatsProvider,
@@ -103,9 +104,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
       appBar: const ChatListHeader(),
+      backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         onRefresh: () async {
           HapticService.confirm();
@@ -117,11 +117,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: <Widget>[
-              SliverPadding(
-                padding: EdgeInsets.only(
-                  top: MediaQuery.viewPaddingOf(context).top + kToolbarHeight,
-                ),
-              ),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -129,12 +124,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      const SizedBox(height: 10),
-                      const ChatSearchField(),
-                      const SizedBox(height: 10),
-                      const ChatListFilterBar(),
-                      const SizedBox(height: 12),
+                    children: const <Widget>[
+                      SizedBox(height: 4),
+                      RepaintBoundary(child: ChatSearchField()),
+                      SizedBox(height: 10),
+                      RepaintBoundary(child: ChatListFilterBar()),
+                      SizedBox(height: 12),
                     ],
                   ),
                 ),
@@ -271,11 +266,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     ),
                   );
 
-                  if (_isInitialLoaded) {
+                  if (_isInitialLoaded || index >= 6) {
                     return RepaintBoundary(child: item);
                   }
 
-                  final int delayMs = (index < 6) ? index * 35 : 0;
+                  final int delayMs = index * 35;
                   return RepaintBoundary(child: item)
                       .animate()
                       .fade(duration: 250.ms, delay: delayMs.ms, curve: Curves.easeOutCubic)
@@ -287,6 +282,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                         curve: Curves.easeOutCubic,
                       );
                 },
+                addAutomaticKeepAlives: false,
+                addRepaintBoundaries: false,
                 findChildIndexCallback: (Key key) {
                   final ValueKey<String> valueKey = key as ValueKey<String>;
                   final String idStr = valueKey.value.replaceFirst('chat_', '');

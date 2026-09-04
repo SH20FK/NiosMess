@@ -21,6 +21,7 @@ import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/settings_storage_screen.dart';
+import 'package:pulse_flutter/screens/settings_system_device_screen.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -307,6 +308,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           .setSelectedSection(SettingsSectionId.storage),
                     ),
                     SettingsTile(
+                      icon: Icons.memory_rounded,
+                      title: 'Система и устройство',
+                      iconColor: scheme.primary,
+                      isSelected:
+                          selectedSection == SettingsSectionId.systemDevice,
+                      onTap: () => ref
+                          .read(desktopSelectedSettingsSectionProvider.notifier)
+                          .setSelectedSection(SettingsSectionId.systemDevice),
+                    ),
+                    SettingsTile(
                       icon: Icons.info_outline_rounded,
                       title: context.l10n.settingsAboutTitle,
                       iconColor: scheme.onSurfaceVariant,
@@ -547,6 +558,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         return const SettingsLanguageRegionScreen(isEmbedded: true);
       case SettingsSectionId.preferences:
         return const SettingsPreferencesScreen(isEmbedded: true);
+      case SettingsSectionId.systemDevice:
+        return const SettingsSystemDeviceScreen(isEmbedded: true);
       case SettingsSectionId.about:
         return const SettingsAboutScreen(isEmbedded: true);
       case SettingsSectionId.e2ee:
@@ -664,10 +677,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ],
                     ),
 
-                    // 3. About
+                    // 3. About & System
                     SettingsSection(
                       title: context.l10n.profileSectionAbout,
                       children: <Widget>[
+                        SettingsTile(
+                          icon: Icons.memory_rounded,
+                          title: 'Система и устройство',
+                          subtitle: 'Характеристики смартфона, экран, процессор и память',
+                          iconColor: scheme.primary,
+                          onTap: () => context.push('/settings/system-device'),
+                        ),
                         SettingsTile(
                           icon: Icons.info_outline_rounded,
                           title: context.l10n.settingsAboutTitle,
