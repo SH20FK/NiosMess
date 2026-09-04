@@ -273,6 +273,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             senderDisplayName: message.senderDisplayName,
             animate: now.difference(message.resolvedSentAt).inSeconds < 4,
             isSending: isLocalSending,
+            isFailed: message.isFailed,
+            onRetrySend: () => widget.onRetrySend(message),
             uploadProgress: uploadProgress,
             localId: isLocalSending ? message.id.toString() : null,
             onOpenMedia: hasMedia ? () => widget.onOpenMedia(message) : null,

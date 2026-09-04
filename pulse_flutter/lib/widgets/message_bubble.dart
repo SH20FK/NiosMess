@@ -66,6 +66,8 @@ class MessageBubble extends ConsumerWidget {
     this.animateHighlight = false,
     this.hideFooter = false,
     this.isSending = false,
+    this.isFailed = false,
+    this.onRetrySend,
     this.uploadProgress,
     this.localId,
     super.key,
@@ -108,6 +110,8 @@ class MessageBubble extends ConsumerWidget {
   final bool animateHighlight;
   final bool hideFooter;
   final bool isSending;
+  final bool isFailed;
+  final VoidCallback? onRetrySend;
   final double? uploadProgress;
   final String? localId;
 
@@ -120,46 +124,55 @@ class MessageBubble extends ConsumerWidget {
         .toList();
   }
 
-  static const BorderRadius _mineRadiusNoneSame = BorderRadius.all(
-    Radius.circular(20),
+  // Google Messages / Android 15 M3 Expressive signature radii:
+  // Outgoing: anchor on bottom-right (6dp). Consecutive bubbles link with 6dp inner corners.
+  static const BorderRadius _mineRadiusNoneSame = BorderRadius.only(
+    topLeft: Radius.circular(22),
+    bottomLeft: Radius.circular(22),
+    topRight: Radius.circular(22),
+    bottomRight: Radius.circular(6),
   );
   static const BorderRadius _mineRadiusPrevSame = BorderRadius.only(
-    topLeft: Radius.circular(20),
-    bottomLeft: Radius.circular(20),
+    topLeft: Radius.circular(22),
+    bottomLeft: Radius.circular(22),
     topRight: Radius.circular(6),
-    bottomRight: Radius.circular(20),
+    bottomRight: Radius.circular(6),
   );
   static const BorderRadius _mineRadiusNextSame = BorderRadius.only(
-    topLeft: Radius.circular(20),
-    bottomLeft: Radius.circular(20),
-    topRight: Radius.circular(20),
+    topLeft: Radius.circular(22),
+    bottomLeft: Radius.circular(22),
+    topRight: Radius.circular(22),
     bottomRight: Radius.circular(6),
   );
   static const BorderRadius _mineRadiusPrevSameNextSame = BorderRadius.only(
-    topLeft: Radius.circular(20),
-    bottomLeft: Radius.circular(20),
+    topLeft: Radius.circular(22),
+    bottomLeft: Radius.circular(22),
     topRight: Radius.circular(6),
     bottomRight: Radius.circular(6),
   );
 
-  static const BorderRadius _theirsRadiusNoneSame = BorderRadius.all(
-    Radius.circular(20),
+  // Incoming: anchor on bottom-left (6dp). Consecutive bubbles link with 6dp inner corners.
+  static const BorderRadius _theirsRadiusNoneSame = BorderRadius.only(
+    topRight: Radius.circular(22),
+    bottomRight: Radius.circular(22),
+    topLeft: Radius.circular(22),
+    bottomLeft: Radius.circular(6),
   );
   static const BorderRadius _theirsRadiusPrevSame = BorderRadius.only(
-    topRight: Radius.circular(20),
-    bottomRight: Radius.circular(20),
+    topRight: Radius.circular(22),
+    bottomRight: Radius.circular(22),
     topLeft: Radius.circular(6),
-    bottomLeft: Radius.circular(20),
+    bottomLeft: Radius.circular(6),
   );
   static const BorderRadius _theirsRadiusNextSame = BorderRadius.only(
-    topRight: Radius.circular(20),
-    bottomRight: Radius.circular(20),
-    topLeft: Radius.circular(20),
+    topRight: Radius.circular(22),
+    bottomRight: Radius.circular(22),
+    topLeft: Radius.circular(22),
     bottomLeft: Radius.circular(6),
   );
   static const BorderRadius _theirsRadiusPrevSameNextSame = BorderRadius.only(
-    topRight: Radius.circular(20),
-    bottomRight: Radius.circular(20),
+    topRight: Radius.circular(22),
+    bottomRight: Radius.circular(22),
     topLeft: Radius.circular(6),
     bottomLeft: Radius.circular(6),
   );
@@ -236,18 +249,16 @@ class MessageBubble extends ConsumerWidget {
     final Color bubbleColor = isDeleted
         ? scheme.surfaceContainerHighest
         : (isMine
-            ? (isDark
-                ? scheme.primaryContainer
-                : Color.alphaBlend(scheme.primary.withValues(alpha: 0.16), scheme.surface))
-            : (isDark ? scheme.surfaceContainerHigh : scheme.surface));
+            ? scheme.primaryContainer
+            : scheme.surfaceContainerHigh);
     final Color textColor = isDeleted
         ? scheme.onSurfaceVariant
         : (isMine
-            ? (isDark ? scheme.onPrimaryContainer : scheme.onSurface)
+            ? scheme.onPrimaryContainer
             : scheme.onSurface);
     final Border? bubbleBorder = (!isMine && !isDark)
         ? Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.35),
+            color: scheme.outlineVariant.withValues(alpha: 0.25),
             width: 0.8,
           )
         : null;
@@ -445,6 +456,8 @@ class MessageBubble extends ConsumerWidget {
                             isDeleted: isDeleted,
                             isRead: isRead,
                             isSending: isSending,
+                            isFailed: isFailed,
+                            onRetrySend: onRetrySend,
                             formattedTime: formattedTime,
                             scheme: scheme,
                             textTheme: textTheme,
@@ -460,6 +473,8 @@ class MessageBubble extends ConsumerWidget {
                             isDeleted: isDeleted,
                             isRead: isRead,
                             isSending: isSending,
+                            isFailed: isFailed,
+                            onRetrySend: onRetrySend,
                             formattedTime: formattedTime,
                             scheme: scheme,
                             textTheme: textTheme,
@@ -1142,6 +1157,8 @@ class _MessageBubbleFooter extends StatelessWidget {
     required this.scheme,
     required this.textTheme,
     this.isSending = false,
+    this.isFailed = false,
+    this.onRetrySend,
   });
 
   final bool isMine;
@@ -1153,23 +1170,21 @@ class _MessageBubbleFooter extends StatelessWidget {
   final ColorScheme scheme;
   final TextTheme textTheme;
   final bool isSending;
+  final bool isFailed;
+  final VoidCallback? onRetrySend;
 
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     final Color footerTextColor = isMine
-        ? (isDark
-            ? scheme.onPrimaryContainer.withValues(alpha: 0.70)
-            : scheme.onSurfaceVariant.withValues(alpha: 0.75))
+        ? scheme.onPrimaryContainer.withValues(alpha: 0.70)
         : scheme.onSurfaceVariant.withValues(alpha: 0.75);
 
     final Color statusIconColor = isMine
         ? (isSending
-            ? (isDark
-                ? scheme.onPrimaryContainer.withValues(alpha: 0.60)
-                : scheme.onSurfaceVariant.withValues(alpha: 0.60))
-            : scheme.primary)
+            ? scheme.onPrimaryContainer.withValues(alpha: 0.60)
+            : (isDark ? scheme.primary : scheme.onPrimaryContainer.withValues(alpha: 0.85)))
         : scheme.onSurfaceVariant;
 
     return Row(
@@ -1201,7 +1216,20 @@ class _MessageBubbleFooter extends StatelessWidget {
         ),
         if (isMine && !isDeleted) ...<Widget>[
           const SizedBox(width: 3),
-          if (isSending)
+          if (isFailed)
+            GestureDetector(
+              onTap: onRetrySend,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Icon(
+                  Icons.error_outline_rounded,
+                  size: 14,
+                  color: scheme.error,
+                ),
+              ),
+            )
+          else if (isSending)
             Icon(
               Icons.access_time_rounded,
               size: 12,

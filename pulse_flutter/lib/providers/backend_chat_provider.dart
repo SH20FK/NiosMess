@@ -969,6 +969,17 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
   }
 
+  void markLocalMessageSending(int messageId) {
+    if (messageId == 0) return;
+    List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    final int index = current.indexWhere((m) => m.id == messageId);
+    if (index != -1) {
+      List<ApiMessage> next = List<ApiMessage>.from(current);
+      next[index] = next[index].copyWith(isSending: true, isFailed: false);
+      state = AsyncData<List<ApiMessage>>(next);
+    }
+  }
+
   void removeOptimisticMessage(int tempId) {
     if (tempId == 0) return;
     List<ApiMessage> current = state.value ?? const <ApiMessage>[];

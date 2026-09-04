@@ -218,15 +218,28 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Center(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.72),
-            borderRadius: BorderRadius.circular(16),
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.25),
+              width: 0.8,
+            ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: scheme.shadow.withValues(alpha: 0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
           child: Text(
             _dateSeparatorLabel(resolvedDate, now),
             style: textTheme.labelSmall?.copyWith(
               color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
             ),
           ),
         ),
@@ -1404,6 +1417,18 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
     final int? chatId = _chatId;
     if (chatId == null) return;
+
+    final String localId = message.id.toString();
+    final Map<String, UploadTask> uploadTasks = ref.read(uploadQueueProvider);
+    if (uploadTasks.containsKey(localId)) {
+      // It was an upload task (media/voice/circle/document).
+      // Mark local message as sending again and trigger upload retry.
+      ref.read(chatMessagesProvider(chatId).notifier).markLocalMessageSending(message.id);
+      ref.read(uploadQueueProvider.notifier).retry(localId);
+      return;
+    }
+
+    // Text message retry: remove optimistic message and resend
     ref.read(chatMessagesProvider(chatId).notifier).removeLocalMessage(message.id);
     await ref.read(chatMessagesProvider(chatId).notifier).send(message.content, replyToId: message.replyToId);
   }
