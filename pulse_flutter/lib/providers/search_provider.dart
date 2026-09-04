@@ -29,64 +29,115 @@ class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
     final chatsAsync = ref.read(chatsProvider);
     final List<ApiChatSummary> localChats = chatsAsync.value ?? [];
     final String lowerQuery = trimmed.toLowerCase();
-    
-    final List<ApiSearchUser> localUsers = [];
-    
-    for (final chat in localChats) {
-      if (chat.chatType == 'direct' && chat.username != null) {
-        final String username = chat.username!;
-        final String name = chat.name;
-        final bool isMatch = username.toLowerCase().contains(lowerQuery) || name.toLowerCase().contains(lowerQuery);
-            
-        if (isMatch) {
-          localUsers.add(ApiSearchUser(
-            id: chat.id,
-            username: username,
-            displayName: name,
-            avatarUrl: chat.avatarUrl,
-            bio: chat.description,
-            badges: chat.partnerBadges,
-          ));
-        }
+
+    final List<ApiSearchChat> localMatchingChats = <ApiSearchChat>[];
+    final List<ApiSearchUser> localMatchingUsers = <ApiSearchUser>[];
+    final List<ApiSearchMessage> localMatchingMessages = <ApiSearchMessage>[];
+
+    for (final ApiChatSummary chat in localChats) {
+      final String name = chat.name;
+      final String? username = chat.username;
+      final String? lastMsg = chat.lastMessage?.content;
+
+      final bool nameMatch = name.toLowerCase().contains(lowerQuery);
+      final bool userMatch =
+          username != null && username.toLowerCase().contains(lowerQuery);
+      final bool msgMatch =
+          lastMsg != null && lastMsg.toLowerCase().contains(lowerQuery);
+
+      if (nameMatch || userMatch) {
+        localMatchingChats.add(ApiSearchChat(
+          id: chat.id,
+          chatType: chat.chatType,
+          name: chat.name,
+          username: chat.username,
+          avatarUrl: chat.avatarUrl,
+          membersCount: chat.membersCount,
+        ));
+      }
+
+      if (chat.chatType == 'direct' && (nameMatch || userMatch)) {
+        localMatchingUsers.add(ApiSearchUser(
+          id: chat.id,
+          username: username ?? '',
+          displayName: name,
+          avatarUrl: chat.avatarUrl,
+          bio: chat.description,
+          badges: chat.partnerBadges,
+        ));
+      }
+
+      if (msgMatch && chat.lastMessage != null) {
+        localMatchingMessages.add(ApiSearchMessage(
+          id: chat.lastMessage!.id,
+          chatId: chat.id,
+          content: chat.lastMessage!.content,
+          senderDisplayName: chat.name,
+          senderUsername: chat.username,
+        ));
       }
     }
 
     // Update state instantly with local matches so the user sees results immediately
     state = AsyncData<ApiSearchResult>(ApiSearchResult(
-      users: localUsers,
-      chats: [],
-      messages: [],
+      users: localMatchingUsers,
+      chats: localMatchingChats,
+      messages: localMatchingMessages,
     ));
 
     // Debounce the backend request
     _debounce = Timer(const Duration(milliseconds: 300), () {
-      _executeSearch(trimmed, localUsers);
+      _executeSearch(
+        trimmed,
+        localMatchingChats,
+        localMatchingUsers,
+        localMatchingMessages,
+      );
     });
   }
 
-  Future<void> _executeSearch(String query, List<ApiSearchUser> localUsers) async {
+  Future<void> _executeSearch(
+    String query,
+    List<ApiSearchChat> localChats,
+    List<ApiSearchUser> localUsers,
+    List<ApiSearchMessage> localMessages,
+  ) async {
     final int seq = ++_seq;
-    // We do not emit AsyncLoading here to preserve the instant local results on the UI.
     try {
       final ApiSearchResult backendResult = await ref
           .read(searchRepositoryProvider)
           .search(query);
 
-      final Map<String, ApiSearchUser> mergedUsers = {
-        for (final u in localUsers) u.username.toLowerCase(): u,
+      final Map<int, ApiSearchChat> mergedChats = <int, ApiSearchChat>{
+        for (final c in localChats) c.id: c,
       };
-      for (final u in backendResult.users) {
-        mergedUsers[u.username.toLowerCase()] = u;
+      for (final c in backendResult.chats) {
+        mergedChats[c.id] = c;
       }
 
-      List<ApiSearchUser> finalUsers = mergedUsers.values.toList();
+      final Map<String, ApiSearchUser> mergedUsers = <String, ApiSearchUser>{
+        for (final u in localUsers)
+          if (u.username.isNotEmpty) u.username.toLowerCase(): u,
+      };
+      for (final u in backendResult.users) {
+        if (u.username.isNotEmpty) {
+          mergedUsers[u.username.toLowerCase()] = u;
+        } else {
+          mergedUsers['id_${u.id}'] = u;
+        }
+      }
 
-      List<ApiSearchChat> finalChats = backendResult.chats;
+      final Map<int, ApiSearchMessage> mergedMessages = <int, ApiSearchMessage>{
+        for (final m in localMessages) m.id: m,
+      };
+      for (final m in backendResult.messages) {
+        mergedMessages[m.id] = m;
+      }
 
       final ApiSearchResult finalResult = ApiSearchResult(
-        users: finalUsers,
-        chats: finalChats,
-        messages: backendResult.messages,
+        users: mergedUsers.values.toList(),
+        chats: mergedChats.values.toList(),
+        messages: mergedMessages.values.toList(),
       );
 
       if (seq == _seq) {
@@ -96,8 +147,8 @@ class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
       if (seq == _seq) {
         state = AsyncData<ApiSearchResult>(ApiSearchResult(
           users: localUsers,
-          chats: [],
-          messages: [],
+          chats: localChats,
+          messages: localMessages,
         ));
       }
     }

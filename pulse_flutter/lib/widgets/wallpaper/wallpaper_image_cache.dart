@@ -168,8 +168,12 @@ class WallpaperImageCache {
     final ui.PictureRecorder recorder = ui.PictureRecorder();
     final Canvas canvas = Canvas(
       recorder,
-      Rect.fromLTWH(0, 0, logicalSize.width, logicalSize.height),
+      Rect.fromLTWH(0, 0, targetWidth.toDouble(), targetHeight.toDouble()),
     );
+
+    final double scaleX = targetWidth / logicalSize.width;
+    final double scaleY = targetHeight / logicalSize.height;
+    canvas.scale(scaleX, scaleY);
 
     ChatWallpaperPainter.paintToCanvas(
       canvas: canvas,

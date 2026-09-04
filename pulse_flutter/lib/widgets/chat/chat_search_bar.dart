@@ -138,10 +138,10 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
         ),
       ],
       suggestionsBuilder:
-          (BuildContext context, SearchController controller) async {
+          (BuildContext context, SearchController controller) {
         _onSearchChanged(controller.text);
 
-        final query = controller.text.trim();
+        final String query = controller.text.trim();
         if (query.isEmpty) {
           return <Widget>[
             Padding(
@@ -170,160 +170,229 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
           ];
         }
 
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-        final searchAsync = ref.read(chatListSearchProvider);
+        return <Widget>[
+          Consumer(
+            builder: (BuildContext context, WidgetRef ref, Widget? child) {
+              final AsyncValue<ApiSearchResult> searchAsync =
+                  ref.watch(chatListSearchProvider);
 
-        return searchAsync.when(
-          data: (ApiSearchResult result) {
-            if (result.messages.isEmpty && result.chats.isEmpty) {
-              return <Widget>[
-                Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Center(
-                    child: Text(
-                      context.l10n.emptyStateNoItems,
-                      style: textTheme.bodyLarge?.copyWith(
-                        color: scheme.onSurfaceVariant,
+              return searchAsync.when(
+                data: (ApiSearchResult result) {
+                  if (result.messages.isEmpty &&
+                      result.chats.isEmpty &&
+                      result.users.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Center(
+                        child: Text(
+                          context.l10n.emptyStateNoItems,
+                          style: textTheme.bodyLarge?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-              ];
-            }
+                    );
+                  }
 
-            final List<Widget> resultsList = <Widget>[];
+                  final List<Widget> resultsList = <Widget>[];
 
-            if (result.chats.isNotEmpty) {
-              resultsList.add(
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: Text(
-                    context.l10n.tabChats,
-                    style: textTheme.labelMedium?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              );
-
-              for (final ApiSearchChat chat in result.chats) {
-                resultsList.add(
-                  ListTile(
-                    leading: PulseAvatar(
-                      radius: 20,
-                      name: chat.name,
-                      avatarUrl: chat.avatarUrl,
-                      fallbackColor: scheme.secondary,
-                      textColor: scheme.onSecondary,
-                    ),
-                    title: Text(
-                      chat.name,
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
+                  if (result.chats.isNotEmpty) {
+                    resultsList.add(
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Text(
+                          context.l10n.tabChats,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: chat.username != null
-                        ? Text(
-                            '@${chat.username}',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
+                    );
+
+                    for (final ApiSearchChat chat in result.chats) {
+                      resultsList.add(
+                        ListTile(
+                          leading: PulseAvatar(
+                            radius: 20,
+                            name: chat.name,
+                            avatarUrl: chat.avatarUrl,
+                            fallbackColor: scheme.secondary,
+                            textColor: scheme.onSecondary,
+                          ),
+                          title: Text(
+                            chat.name,
+                            style: textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                          )
-                        : null,
-                    onTap: () {
-                      controller.closeView('');
-                      ref
-                          .read(desktopSelectedChatProvider.notifier)
-                          .setSelectedChat(chat.id);
-                      final router = GoRouter.of(context);
-                      final currentPath =
-                          router.routeInformationProvider.value.uri.path;
-                      if (!currentPath.startsWith('/chat/${chat.id}')) {
-                        context.push('/chat/${chat.id}');
-                      }
-                    },
-                  ),
-                );
-              }
-            }
+                          ),
+                          subtitle: chat.username != null
+                              ? Text(
+                                  '@${chat.username}',
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                )
+                              : null,
+                          onTap: () {
+                            controller.closeView('');
+                            ref
+                                .read(desktopSelectedChatProvider.notifier)
+                                .setSelectedChat(chat.id);
+                            final GoRouter router = GoRouter.of(context);
+                            final String currentPath =
+                                router.routeInformationProvider.value.uri.path;
+                            if (!currentPath.startsWith('/chat/${chat.id}')) {
+                              context.push('/chat/${chat.id}');
+                            }
+                          },
+                        ),
+                      );
+                    }
+                  }
 
-            if (result.messages.isNotEmpty) {
-              resultsList.add(
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: Text(
-                    context.l10n.chatListMessageMatches,
-                    style: textTheme.labelMedium?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w700,
+                  if (result.users.isNotEmpty) {
+                    resultsList.add(
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Text(
+                          context.l10n.tabContacts,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    );
+
+                    for (final ApiSearchUser user in result.users) {
+                      resultsList.add(
+                        ListTile(
+                          leading: PulseAvatar(
+                            radius: 20,
+                            name: user.displayName.isNotEmpty
+                                ? user.displayName
+                                : user.username,
+                            avatarUrl: user.avatarUrl,
+                            fallbackColor: scheme.tertiary,
+                            textColor: scheme.onTertiary,
+                          ),
+                          title: Text(
+                            user.displayName.isNotEmpty
+                                ? user.displayName
+                                : user.username,
+                            style: textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: user.username.isNotEmpty
+                              ? Text(
+                                  '@${user.username}',
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                )
+                              : null,
+                          onTap: () {
+                            controller.closeView('');
+                            ref
+                                .read(desktopSelectedChatProvider.notifier)
+                                .setSelectedChat(user.id);
+                            final GoRouter router = GoRouter.of(context);
+                            final String currentPath =
+                                router.routeInformationProvider.value.uri.path;
+                            if (!currentPath.startsWith('/chat/${user.id}')) {
+                              context.push('/chat/${user.id}');
+                            }
+                          },
+                        ),
+                      );
+                    }
+                  }
+
+                  if (result.messages.isNotEmpty) {
+                    resultsList.add(
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Text(
+                          context.l10n.chatListMessageMatches,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    );
+
+                    for (final ApiSearchMessage msg in result.messages) {
+                      resultsList.add(
+                        ListTile(
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: scheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.message_rounded,
+                              color: scheme.onPrimaryContainer,
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            msg.senderDisplayName,
+                            style: textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            msg.content,
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => _openMessage(msg),
+                        ),
+                      );
+                    }
+                  }
+
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: resultsList,
+                  );
+                },
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(child: AppLoadingIndicator(size: 32)),
+                ),
+                error: (Object e, _) => Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Center(
+                    child: Text(
+                      context.l10n.commonFailed(e),
+                      style: TextStyle(color: scheme.error),
                     ),
                   ),
                 ),
               );
-
-              for (final ApiSearchMessage msg in result.messages) {
-                resultsList.add(
-                  ListTile(
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: scheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.message_rounded,
-                        color: scheme.onPrimaryContainer,
-                        size: 20,
-                      ),
-                    ),
-                    title: Text(
-                      msg.senderDisplayName,
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      msg.content,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onTap: () => _openMessage(msg),
-                  ),
-                );
-              }
-            }
-
-            return resultsList;
-          },
-          loading: () => <Widget>[
-            const Padding(
-              padding: EdgeInsets.all(32),
-              child: Center(child: AppLoadingIndicator(size: 32)),
-            ),
-          ],
-          error: (e, _) => <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(32),
-              child: Center(
-                child: Text(
-                  context.l10n.commonFailed(e),
-                  style: TextStyle(color: scheme.error),
-                ),
-              ),
-            ),
-          ],
-        );
+            },
+          ),
+        ];
       },
     );
   }

@@ -1456,7 +1456,18 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
                 child: SizedBox(
                   width: circleSize,
                   height: circleSize,
-                  child: VideoPlayer(_videoController!),
+                  child: FittedBox(
+                    fit: BoxFit.cover,
+                    child: SizedBox(
+                      width: _videoController!.value.size.width > 0
+                          ? _videoController!.value.size.width
+                          : circleSize,
+                      height: _videoController!.value.size.height > 0
+                          ? _videoController!.value.size.height
+                          : circleSize,
+                      child: VideoPlayer(_videoController!),
+                    ),
+                  ),
                 ),
               ),
             // Play/pause overlay

@@ -62,6 +62,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
   bool _isRecordingLocked = false;
   Duration _recordingElapsed = Duration.zero;
   List<double> _amplitudeHistory = <double>[];
+  bool _isStartingRecording = false;
+  bool _sendOnStart = false;
+  bool _cancelOnStart = false;
 
   @override
   void initState() {
@@ -131,6 +134,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
   Future<void> _startVoiceRecording() async {
     HapticService.tap();
     _amplitudeHistory = <double>[];
+    _isStartingRecording = true;
+    _sendOnStart = false;
+    _cancelOnStart = false;
+
     final bool started = await VoiceRecorderService.startRecording(
       onTick: (Duration d) {
         if (mounted) {
@@ -150,7 +157,22 @@ class _ChatInputBarState extends State<ChatInputBar> {
         }
       },
     );
+
+    _isStartingRecording = false;
+
     if (started && mounted) {
+      if (_cancelOnStart) {
+        _cancelOnStart = false;
+        await _cancelVoiceRecording();
+        return;
+      }
+      if (_sendOnStart) {
+        _sendOnStart = false;
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await _sendVoiceRecording();
+        return;
+      }
+
       setState(() {
         _isRecording = true;
         _recordingDragOffset = Offset.zero;
@@ -594,7 +616,24 @@ class _ChatInputBarState extends State<ChatInputBar> {
           setState(() => _isRecordingLocked = true);
         }
       },
+      onLongPressCancel: () async {
+        if (_isStartingRecording) {
+          _cancelOnStart = true;
+          return;
+        }
+        if (_isRecording && !_isRecordingLocked) {
+          await _sendVoiceRecording();
+        }
+      },
       onLongPressEnd: (LongPressEndDetails details) async {
+        if (_isStartingRecording) {
+          if (_recordingDragOffset.dx < -120) {
+            _cancelOnStart = true;
+          } else {
+            _sendOnStart = true;
+          }
+          return;
+        }
         if (!_isRecording || _isRecordingLocked) return;
 
         final double dx = _recordingDragOffset.dx;

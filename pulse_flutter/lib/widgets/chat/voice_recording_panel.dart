@@ -168,43 +168,80 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
             child: _buildWaveform(scheme),
           ),
           const SizedBox(width: 12),
-          // Cancel / Lock hints
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: cancelOpacity > 0.2
-                ? Row(
-                    key: const ValueKey<String>('cancel'),
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Icon(
-                        Icons.chevron_left_rounded,
-                        color: scheme.error,
-                        size: 18,
-                      ),
-                      Text(
-                        context.l10n.chatSlideToCancel,
-                        style: textTheme.labelSmall?.copyWith(
-                          color: scheme.error,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  )
-                : showLock
-                    ? Icon(
-                        Icons.lock_rounded,
-                        key: const ValueKey<String>('lock'),
-                        color: scheme.primary,
-                        size: 20,
-                      )
-                    : Icon(
-                        Icons.chevron_left_rounded,
-                        key: const ValueKey<String>('chevron'),
-                        color: scheme.onSurfaceVariant
-                            .withValues(alpha: 0.4),
-                        size: 20,
-                      ),
-          ),
+          // Cancel / Lock hints or action buttons
+          if (cancelOpacity > 0.2)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  Icons.chevron_left_rounded,
+                  color: scheme.error,
+                  size: 18,
+                ),
+                Text(
+                  context.l10n.chatSlideToCancel,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: scheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            )
+          else ...<Widget>[
+            if (showLock)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Icon(
+                  Icons.lock_rounded,
+                  color: scheme.primary,
+                  size: 18,
+                ),
+              ),
+            // Cancel button
+            Material(
+              color: scheme.errorContainer.withValues(alpha: 0.7),
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  widget.onCancel();
+                },
+                customBorder: const CircleBorder(),
+                child: Padding(
+                  padding: const EdgeInsets.all(7),
+                  child: Icon(
+                    Icons.delete_outline_rounded,
+                    color: scheme.error,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Send button
+            Material(
+              color: scheme.primary,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              elevation: 2,
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  widget.onSend();
+                },
+                customBorder: const CircleBorder(),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(
+                    Icons.send_rounded,
+                    color: scheme.onPrimary,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

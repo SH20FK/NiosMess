@@ -204,170 +204,180 @@ class _CircleVideoRecorderScreenState
     final String formatted =
         '${(_elapsedSec ~/ 60).toString().padLeft(2, '0')}:${(_elapsedSec % 60).toString().padLeft(2, '0')}';
 
+    final double previewW;
+    final double previewH;
+    if (_initialized && _controller != null && _controller!.value.isInitialized) {
+      final Size pSize = _controller!.value.previewSize!;
+      // On mobile camera preview is usually reported landscape (width > height)
+      if (pSize.width > pSize.height) {
+        previewW = pSize.height;
+        previewH = pSize.width;
+      } else {
+        previewW = pSize.width;
+        previewH = pSize.height;
+      }
+    } else {
+      previewW = circleSize;
+      previewH = circleSize;
+    }
+
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: FadeTransition(
-        opacity: _scrimAnim,
-        child: GestureDetector(
-          onTap: () {
-            if (_isRecording) {
-              _stopRecording();
-            }
-          },
+      body: SizedBox.expand(
+        child: FadeTransition(
+          opacity: _scrimAnim,
           child: Container(
-            color: scheme.scrim.withValues(alpha: 0.88),
+            width: double.infinity,
+            height: double.infinity,
+            color: scheme.scrim.withValues(alpha: 0.90),
             child: Stack(
+              fit: StackFit.expand,
               alignment: Alignment.center,
               children: <Widget>[
-                // ── Camera circle with progress ring ──
-                SizedBox(
-                  width: circleSize + 12,
-                  height: circleSize + 12,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: <Widget>[
-                      // Circular progress indicator
-                      if (_isRecording)
-                        AnimatedBuilder(
-                          animation: _progressController,
-                          builder: (BuildContext context, Widget? child) {
-                            return CustomPaint(
-                              size: Size(circleSize + 12, circleSize + 12),
-                              painter: _CircleProgressPainter(
-                                progress: _progressController.value,
-                                strokeWidth: 4.0,
-                                activeColor: scheme.error,
-                                trackColor:
-                                    scheme.onSurface.withValues(alpha: 0.15),
-                              ),
-                            );
-                          },
-                        )
-                      else
-                        // Idle ring
-                        Container(
-                          width: circleSize + 8,
-                          height: circleSize + 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: scheme.onSurface.withValues(alpha: 0.25),
-                              width: 3.0,
-                            ),
-                          ),
-                        ),
-
-                      // Camera preview
-                      SizedBox(
-                        width: circleSize,
-                        height: circleSize,
-                        child: ClipOval(
-                          child: _initialized &&
-                                  _controller != null &&
-                                  _controller!.value.isInitialized
-                              ? FittedBox(
-                                  fit: BoxFit.cover,
-                                  child: SizedBox(
-                                    width: _controller!
-                                        .value.previewSize!.height,
-                                    height:
-                                        _controller!.value.previewSize!.width,
-                                    child: CameraPreview(_controller!),
-                                  ),
-                                )
-                              : Container(
-                                  color: scheme.surfaceContainerHighest,
-                                  child: Center(
-                                    child: AppLoadingIndicator(
-                                      color: scheme.onSurface,
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ── Top bar ──
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 8,
-                  left: 0,
-                  right: 0,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
+                // ── Camera circle with progress ring (True Screen Center) ──
+                Center(
+                  child: SizedBox(
+                    width: circleSize + 16,
+                    height: circleSize + 16,
+                    child: Stack(
+                      alignment: Alignment.center,
                       children: <Widget>[
-                        // Close button
-                        _CircleButton(
-                          icon: Icons.close_rounded,
-                          onTap: _cancelAndPop,
-                          scheme: scheme,
-                        ),
-                        const Spacer(),
-                        // Timer badge
+                        // Circular progress indicator
                         if (_isRecording)
                           AnimatedBuilder(
-                            animation: _pulseAnim,
-                            builder:
-                                (BuildContext context, Widget? child) {
-                              return Transform.scale(
-                                scale: _pulseAnim.value,
-                                child: child,
+                            animation: _progressController,
+                            builder: (BuildContext context, Widget? child) {
+                              return CustomPaint(
+                                size: Size(circleSize + 16, circleSize + 16),
+                                painter: _CircleProgressPainter(
+                                  progress: _progressController.value,
+                                  strokeWidth: 4.5,
+                                  activeColor: scheme.error,
+                                  trackColor:
+                                      scheme.onSurface.withValues(alpha: 0.20),
+                                ),
                               );
                             },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 7,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.surface
-                                    .withValues(alpha: 0.55),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: <Widget>[
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: scheme.error,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    formatted,
-                                    style: textTheme.labelLarge?.copyWith(
-                                      color: scheme.onSurface,
-                                      fontWeight: FontWeight.w600,
-                                      fontFeatures: const <FontFeature>[
-                                        FontFeature.tabularFigures(),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                          )
+                        else
+                          // Idle ring
+                          Container(
+                            width: circleSize + 10,
+                            height: circleSize + 10,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: scheme.onSurface.withValues(alpha: 0.25),
+                                width: 3.0,
                               ),
                             ),
                           ),
-                        const Spacer(),
-                        // Flip camera button (hidden during recording)
-                        if (!_isRecording)
-                          _CircleButton(
-                            icon: Icons.flip_camera_ios_rounded,
-                            onTap: _switchCamera,
-                            scheme: scheme,
-                          )
-                        else
-                          const SizedBox(width: 48),
+
+                        // Camera preview clipped strictly into circle
+                        ClipOval(
+                          child: SizedBox(
+                            width: circleSize,
+                            height: circleSize,
+                            child: _initialized &&
+                                    _controller != null &&
+                                    _controller!.value.isInitialized
+                                ? FittedBox(
+                                    fit: BoxFit.cover,
+                                    child: SizedBox(
+                                      width: previewW,
+                                      height: previewH,
+                                      child: CameraPreview(_controller!),
+                                    ),
+                                  )
+                                : Container(
+                                    color: scheme.surfaceContainerHighest,
+                                    child: Center(
+                                      child: AppLoadingIndicator(
+                                        color: scheme.onSurface,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
 
-                // ── Bottom controls ──
+                // ── Top bar (Screen Top with SafeArea) ──
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  left: 16,
+                  right: 16,
+                  child: Row(
+                    children: <Widget>[
+                      // Close button
+                      _CircleButton(
+                        icon: Icons.close_rounded,
+                        onTap: _cancelAndPop,
+                        scheme: scheme,
+                      ),
+                      const Spacer(),
+                      // Timer badge
+                      if (_isRecording)
+                        AnimatedBuilder(
+                          animation: _pulseAnim,
+                          builder: (BuildContext context, Widget? child) {
+                            return Transform.scale(
+                              scale: _pulseAnim.value,
+                              child: child,
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: scheme.surface.withValues(alpha: 0.65),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: scheme.error,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  formatted,
+                                  style: textTheme.labelLarge?.copyWith(
+                                    color: scheme.onSurface,
+                                    fontWeight: FontWeight.w600,
+                                    fontFeatures: const <FontFeature>[
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      const Spacer(),
+                      // Flip camera button (hidden during recording)
+                      if (!_isRecording)
+                        _CircleButton(
+                          icon: Icons.flip_camera_ios_rounded,
+                          onTap: _switchCamera,
+                          scheme: scheme,
+                        )
+                      else
+                        const SizedBox(width: 48),
+                    ],
+                  ),
+                ),
+
+                // ── Bottom controls (Screen Bottom with SafeArea) ──
                 Positioned(
                   bottom: MediaQuery.of(context).padding.bottom + 32,
                   left: 0,
@@ -386,8 +396,7 @@ class _CircleVideoRecorderScreenState
                         },
                         child: AnimatedBuilder(
                           animation: _pulseAnim,
-                          builder:
-                              (BuildContext context, Widget? child) {
+                          builder: (BuildContext context, Widget? child) {
                             final double outerSize =
                                 _isRecording ? 72 * _pulseAnim.value : 80;
                             return Container(
@@ -398,15 +407,13 @@ class _CircleVideoRecorderScreenState
                                 border: Border.all(
                                   color: _isRecording
                                       ? scheme.error
-                                      : scheme.onSurface
-                                          .withValues(alpha: 0.6),
+                                      : scheme.onSurface.withValues(alpha: 0.6),
                                   width: 4,
                                 ),
                               ),
                               child: Center(
                                 child: AnimatedContainer(
-                                  duration:
-                                      const Duration(milliseconds: 200),
+                                  duration: const Duration(milliseconds: 200),
                                   curve: Curves.easeInOutCubic,
                                   width: _isRecording ? 24 : 36,
                                   height: _isRecording ? 24 : 36,
@@ -431,8 +438,7 @@ class _CircleVideoRecorderScreenState
                             ? context.l10n.mediaViewerRecording
                             : context.l10n.chatCircleVideoHoldHint,
                         style: textTheme.bodySmall?.copyWith(
-                          color:
-                              scheme.onSurface.withValues(alpha: 0.55),
+                          color: scheme.onSurface.withValues(alpha: 0.70),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
