@@ -31,6 +31,9 @@ class ApiChatSummary {
     this.shareLink,
     this.isSecret = false,
     this.partnerPublicKey,
+    this.isPrivate = false,
+    this.inviteToken,
+    this.autoDeleteSeconds,
   });
 
   final int id;
@@ -49,6 +52,34 @@ class ApiChatSummary {
   final String? shareLink;
   final bool isSecret;
   final String? partnerPublicKey;
+  final bool isPrivate;
+  final String? inviteToken;
+  final int? autoDeleteSeconds;
+
+  String? get formattedAutoDeleteDuration {
+    if (autoDeleteSeconds == null || autoDeleteSeconds! <= 0) return null;
+    final int sec = autoDeleteSeconds!;
+    if (sec < 3600) {
+      final int m = (sec / 60).round();
+      return '$m мин.';
+    } else if (sec < 86400) {
+      final int h = (sec / 3600).round();
+      return '$h ч.';
+    } else if (sec < 2592000) {
+      final int d = (sec / 86400).round();
+      return '$d дн.';
+    } else {
+      final int mo = (sec / 2592000).round();
+      return '$mo мес.';
+    }
+  }
+
+  String? get privateInviteUrl {
+    if (inviteToken != null && inviteToken!.isNotEmpty) {
+      return '/u/+$inviteToken';
+    }
+    return inviteLink;
+  }
 
   DateTime get lastActivity =>
       lastMessage?.sentAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -81,6 +112,8 @@ class ApiChatSummary {
       partnerBadges = const <ApiBadge>[];
     }
 
+    final int? autoDelete = json['auto_delete_seconds'] as int?;
+
     return ApiChatSummary(
       id: json['id'] as int? ?? 0,
       chatType: json['chat_type'] as String? ?? 'direct',
@@ -97,6 +130,9 @@ class ApiChatSummary {
       shareLink: json['share_link'] as String?,
       isSecret: _parseBool(json['is_secret']),
       partnerPublicKey: _parsePartnerPublicKey(json),
+      isPrivate: _parseBool(json['is_private']),
+      inviteToken: json['invite_token'] as String?,
+      autoDeleteSeconds: autoDelete,
       lastMessage: last is Map
           ? ApiMessage.fromJson(
               last.map(
@@ -124,6 +160,9 @@ class ApiChatSummary {
     String? shareLink,
     bool? isSecret,
     String? partnerPublicKey,
+    bool? isPrivate,
+    String? inviteToken,
+    int? autoDeleteSeconds,
   }) {
     return ApiChatSummary(
       id: id ?? this.id,
@@ -142,6 +181,9 @@ class ApiChatSummary {
       shareLink: shareLink ?? this.shareLink,
       isSecret: isSecret ?? this.isSecret,
       partnerPublicKey: partnerPublicKey ?? this.partnerPublicKey,
+      isPrivate: isPrivate ?? this.isPrivate,
+      inviteToken: inviteToken ?? this.inviteToken,
+      autoDeleteSeconds: autoDeleteSeconds ?? this.autoDeleteSeconds,
     );
   }
 
@@ -162,6 +204,9 @@ class ApiChatSummary {
       'share_link': shareLink,
       'is_secret': isSecret,
       if (partnerPublicKey != null) 'partner_public_key': partnerPublicKey,
+      'is_private': isPrivate,
+      if (inviteToken != null) 'invite_token': inviteToken,
+      if (autoDeleteSeconds != null) 'auto_delete_seconds': autoDeleteSeconds,
       'last_message': lastMessage?.toJson(),
     };
   }

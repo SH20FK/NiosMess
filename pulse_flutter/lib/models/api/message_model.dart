@@ -1,5 +1,6 @@
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
+import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 
 bool _parseBool(dynamic value) {
@@ -32,6 +33,7 @@ class ApiMessage {
     required this.isDeleted,
     this.senderAvatarUrl,
     this.replyMarkup,
+    this.sticker,
     this.isSending = false,
     this.isFailed = false,
     this.isE2ee = false,
@@ -70,10 +72,13 @@ class ApiMessage {
   /// the decrypted message envelope, never sent to the server).
   final String? e2eeFileKey;
   final bool isRead;
+  final ApiSticker? sticker;
 
   bool get isEdited => editedAt != null;
 
   bool get hasMedia => (mediaUrl ?? '').isNotEmpty;
+
+  bool get isSticker => msgType == 'sticker' || sticker != null;
 
   DateTime get resolvedSentAt => AppTimeSettings.resolve(sentAt);
 
@@ -99,6 +104,7 @@ class ApiMessage {
     DateTime? editedAt,
     bool? isDeleted,
     InlineKeyboardMarkup? replyMarkup,
+    ApiSticker? sticker,
     bool? isSending,
     bool? isFailed,
     bool? isE2ee,
@@ -128,6 +134,7 @@ class ApiMessage {
       editedAt: editedAt ?? this.editedAt,
       isDeleted: isDeleted ?? this.isDeleted,
       replyMarkup: replyMarkup ?? this.replyMarkup,
+      sticker: sticker ?? this.sticker,
       isSending: isSending ?? this.isSending,
       isFailed: isFailed ?? this.isFailed,
       isE2ee: isE2ee ?? this.isE2ee,
@@ -204,6 +211,13 @@ class ApiMessage {
       e2eeContent: e2eeContentRaw,
       e2eeFileKey: json['e2ee_file_key'] as String?,
       isRead: _parseBool(json['is_read']),
+      sticker: json['sticker'] is Map
+          ? ApiSticker.fromJson(
+              (json['sticker'] as Map).map(
+                (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+              ),
+            )
+          : null,
     );
   }
 
@@ -231,6 +245,7 @@ class ApiMessage {
       'is_deleted': isDeleted,
       'is_e2ee': isE2ee,
       'is_read': isRead,
+      if (sticker != null) 'sticker': sticker!.toJson(),
       if (e2eeContent != null) 'e2ee_content': e2eeContent,
       if (e2eeFileKey != null) 'e2ee_file_key': e2eeFileKey,
       if (replyMarkup != null) 'reply_markup': replyMarkup!.toJson(),

@@ -25,6 +25,7 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
+import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
@@ -33,6 +34,7 @@ import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/providers/typing_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
+import 'package:pulse_flutter/repositories/support_repository.dart';
 import 'package:pulse_flutter/widgets/m3_file_picker_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/message_context_menu_sheet.dart';
@@ -628,9 +630,30 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return;
     }
 
+    final myProfile = ref.read(authProvider).profile;
+    if (myProfile?.isRestrictedBySpamBlock == true) {
+      AppToast.showError(context, 'Ваш аккаунт временно ограничен');
+      return;
+    }
+
     final String text = _inputController.text.trim();
     if (text.isEmpty) {
       return;
+    }
+
+    final ApiChatSummary? currentChat = ref.read(chatByIdProvider(chatId));
+    final bool isSupportChat =
+        currentChat?.username?.toLowerCase() == 'support' ||
+        currentChat?.name.toLowerCase() == 'support';
+    if (isSupportChat && text.startsWith('/copyright')) {
+      final String body = text.substring('/copyright'.length).trim();
+      unawaited(
+        ref.read(supportRepositoryProvider).createTicket(
+          ticketType: 'copyright',
+          subject: 'Авторская жалоба',
+          body: body.isNotEmpty ? body : 'Обращение по авторскому праву',
+        ),
+      );
     }
 
     final int? replyId = _replyToMessageId;
@@ -777,6 +800,21 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       mediaSubtype: 'circle',
       fileSize: fileSize,
     );
+  }
+
+  Future<void> _sendSticker(ApiSticker sticker) async {
+    final int? cid = _chatId;
+    if (cid == null) return;
+    try {
+      await ref
+          .read(chatMessagesProvider(cid).notifier)
+          .sendSticker(sticker.id, replyToId: _replyToMessageId);
+      _clearReply();
+    } catch (e) {
+      if (mounted) {
+        AppToast.showError(context, 'Не удалось отправить стикер: $e');
+      }
+    }
   }
 
   Future<bool> _loadOlderMessages() async {
@@ -1095,6 +1133,30 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 onTap: () {
                   Navigator.of(ctx).pop();
                   _submitReport(message, 'illegal');
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.copyright_rounded, color: scheme.error),
+                title: const Text('Нарушение авторских прав (copyright)'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _submitReport(message, 'copyright');
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.privacy_tip_rounded, color: scheme.error),
+                title: const Text('Доксинг (личные данные)'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _submitReport(message, 'doxing');
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.warning_amber_rounded, color: scheme.error),
+                title: const Text('Сваттинг / угрозы безопасности'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _submitReport(message, 'swatting');
                 },
               ),
               const SizedBox(height: 16),
@@ -1553,6 +1615,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           isChannel: isChannel,
           isSecret: chat?.isSecret == true,
           directUsername: directUsername,
+          autoDeleteDuration: chat?.formattedAutoDeleteDuration,
+          isVerified: chat?.username?.toLowerCase() == 'support' ||
+              directUsername?.toLowerCase() == 'support',
           onBack: () {
             if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
             _goBack();
@@ -1761,6 +1826,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
             child: ChatDetailInputArea(
+              chatId: chatId,
+              onSendSticker: _sendSticker,
               canPostInChannel: canPostInChannel,
               showDraftRestoredBanner: _showDraftRestoredBanner,
               onClearDraft: () {
@@ -1792,6 +1859,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               onCircleSend: _sendCircleVideo,
               hapticsEnabled: ref.watch(uiSettingsProvider).haptics,
               sendOnEnter: ref.watch(uiSettingsProvider).sendOnEnter,
+              isSpamBlocked:
+                  ref.watch(authProvider).profile?.isRestrictedBySpamBlock ?? false,
+              spamBlockUntil: ref.watch(authProvider).profile?.spamBlockUntil,
+              spamBlockReason: ref.watch(authProvider).profile?.spamBlockReason,
+              onContactSupport: () => context.push('/chat/direct/support'),
             ),
           ),
         ),

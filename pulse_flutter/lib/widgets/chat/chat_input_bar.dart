@@ -4,8 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
+import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/screens/circle_video_recorder_screen.dart';
 import 'package:pulse_flutter/widgets/chat/m3_emoji_search_view.dart';
+import 'package:pulse_flutter/widgets/chat/sticker_picker_view.dart';
 import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -27,6 +29,8 @@ class ChatInputBar extends StatefulWidget {
     required this.onAiPressed,
     required this.onVoiceSend,
     this.onCircleSend,
+    this.chatId,
+    this.onSendSticker,
     this.hapticsEnabled = true,
     this.sendOnEnter = true,
     super.key,
@@ -48,6 +52,8 @@ class ChatInputBar extends StatefulWidget {
   final VoidCallback onAiPressed;
   final void Function(String filePath) onVoiceSend;
   final void Function(String filePath)? onCircleSend;
+  final int? chatId;
+  final void Function(ApiSticker sticker)? onSendSticker;
   final bool hapticsEnabled;
   final bool sendOnEnter;
 
@@ -57,6 +63,7 @@ class ChatInputBar extends StatefulWidget {
 
 class _ChatInputBarState extends State<ChatInputBar> {
   bool _showEmojiPicker = false;
+  int _pickerTabIndex = 0;
   bool _isInputEmpty = true;
   bool _isRecording = false;
   bool _isVideoMode = false;
@@ -550,49 +557,146 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 ],
               ),
               child: _showEmojiPicker
-                  ? EmojiPicker(
-                      textEditingController: widget.inputController,
-                      config: Config(
-                        height: 380,
-                        checkPlatformCompatibility: true,
-                        emojiViewConfig: EmojiViewConfig(
-                          backgroundColor: Colors.transparent,
-                          columns: 8,
-                          emojiSizeMax: 26,
-                          verticalSpacing: 2,
-                          horizontalSpacing: 2,
-                          gridPadding:
-                              const EdgeInsets.symmetric(horizontal: 8),
-                          buttonMode: ButtonMode.NONE,
+                  ? Column(
+                      children: <Widget>[
+                        // Tab Selector: [Emoji | Stickers]
+                        Container(
+                          height: 42,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+                            border: Border(
+                              bottom: BorderSide(
+                                color: scheme.outlineVariant.withValues(alpha: 0.2),
+                                width: 0.5,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              _buildPickerTab(
+                                index: 0,
+                                label: 'Эмодзи',
+                                icon: Icons.emoji_emotions_outlined,
+                                scheme: scheme,
+                              ),
+                              const SizedBox(width: 8),
+                              _buildPickerTab(
+                                index: 1,
+                                label: 'Стикеры',
+                                icon: Icons.sticky_note_2_outlined,
+                                scheme: scheme,
+                              ),
+                            ],
+                          ),
                         ),
-                        skinToneConfig: const SkinToneConfig(),
-                        categoryViewConfig: CategoryViewConfig(
-                          backgroundColor: Colors.transparent,
-                          tabBarHeight: 36,
-                          indicatorColor: scheme.primary,
-                          iconColor: scheme.onSurfaceVariant
-                              .withValues(alpha: 0.5),
-                          iconColorSelected: scheme.primary,
-                          backspaceColor: scheme.onSurfaceVariant,
-                          dividerColor: Colors.transparent,
+
+                        // Active Picker View
+                        Expanded(
+                          child: _pickerTabIndex == 0
+                              ? EmojiPicker(
+                                  textEditingController: widget.inputController,
+                                  config: Config(
+                                    height: 338,
+                                    checkPlatformCompatibility: true,
+                                    emojiViewConfig: EmojiViewConfig(
+                                      backgroundColor: Colors.transparent,
+                                      columns: 8,
+                                      emojiSizeMax: 26,
+                                      verticalSpacing: 2,
+                                      horizontalSpacing: 2,
+                                      gridPadding:
+                                          const EdgeInsets.symmetric(horizontal: 8),
+                                      buttonMode: ButtonMode.NONE,
+                                    ),
+                                    skinToneConfig: const SkinToneConfig(),
+                                    categoryViewConfig: CategoryViewConfig(
+                                      backgroundColor: Colors.transparent,
+                                      tabBarHeight: 36,
+                                      indicatorColor: scheme.primary,
+                                      iconColor: scheme.onSurfaceVariant
+                                          .withValues(alpha: 0.5),
+                                      iconColorSelected: scheme.primary,
+                                      backspaceColor: scheme.onSurfaceVariant,
+                                      dividerColor: Colors.transparent,
+                                    ),
+                                    bottomActionBarConfig: BottomActionBarConfig(
+                                      backgroundColor: Colors.transparent,
+                                      buttonColor: scheme.surfaceContainerHigh,
+                                      buttonIconColor: scheme.onSurfaceVariant,
+                                    ),
+                                    searchViewConfig: SearchViewConfig(
+                                      backgroundColor: Colors.transparent,
+                                      buttonIconColor: scheme.onSurfaceVariant,
+                                      customSearchView:
+                                          (config, state, showEmojiView) {
+                                        return M3EmojiSearchView(
+                                            config, state, showEmojiView);
+                                      },
+                                    ),
+                                  ),
+                                )
+                              : StickerPickerView(
+                                  chatId: widget.chatId,
+                                  onStickerSelected: (ApiSticker sticker) {
+                                    if (widget.onSendSticker != null) {
+                                      widget.onSendSticker!(sticker);
+                                    }
+                                  },
+                                ),
                         ),
-                        bottomActionBarConfig: BottomActionBarConfig(
-                          backgroundColor: Colors.transparent,
-                          buttonColor: scheme.surfaceContainerHigh,
-                          buttonIconColor: scheme.onSurfaceVariant,
-                        ),
-                        searchViewConfig: SearchViewConfig(
-                          backgroundColor: Colors.transparent,
-                          buttonIconColor: scheme.onSurfaceVariant,
-                          customSearchView:
-                              (config, state, showEmojiView) {
-                            return M3EmojiSearchView(
-                                config, state, showEmojiView);
-                          },
-                        ),
-                      ),
+                      ],
                     )
                   : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPickerTab({
+    required int index,
+    required String label,
+    required IconData icon,
+    required ColorScheme scheme,
+  }) {
+    final bool isSelected = _pickerTabIndex == index;
+    return InkWell(
+      onTap: () {
+        if (widget.hapticsEnabled) HapticService.tap();
+        setState(() => _pickerTabIndex = index);
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? scheme.primaryContainer
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected
+                  ? scheme.onPrimaryContainer
+                  : scheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected
+                    ? scheme.onPrimaryContainer
+                    : scheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

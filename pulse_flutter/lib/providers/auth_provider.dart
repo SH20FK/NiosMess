@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
+import 'package:pulse_flutter/models/api/working_hours_model.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
@@ -475,6 +476,12 @@ class AuthNotifier extends Notifier<AuthState> {
     String? displayName,
     String? username,
     String? bio,
+    String? phoneNumber,
+    String? birthday,
+    WorkingHours? workingHours,
+    bool clearPhoneNumber = false,
+    bool clearBirthday = false,
+    bool clearWorkingHours = false,
   }) async {
     if (!state.isAuthenticated) {
       return const AuthActionResult(
@@ -491,6 +498,12 @@ class AuthNotifier extends Notifier<AuthState> {
             displayName: displayName,
             username: username,
             bio: bio,
+            phoneNumber: phoneNumber,
+            birthday: birthday,
+            workingHours: workingHours,
+            clearPhoneNumber: clearPhoneNumber,
+            clearBirthday: clearBirthday,
+            clearWorkingHours: clearWorkingHours,
           );
       state = state.copyWith(
         busy: false,

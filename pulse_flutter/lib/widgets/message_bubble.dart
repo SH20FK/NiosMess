@@ -14,7 +14,9 @@ import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
+import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/widgets/chat/sticker_set_modal.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
@@ -62,6 +64,9 @@ class MessageBubble extends ConsumerWidget {
     this.e2eeFileKey,
     this.isVoice = false,
     this.isCircleVideo = false,
+    this.isSticker = false,
+    this.sticker,
+    this.onStickerTap,
     this.mediaDuration,
     this.animateHighlight = false,
     this.hideFooter = false,
@@ -106,6 +111,9 @@ class MessageBubble extends ConsumerWidget {
   final bool animate;
   final bool isVoice;
   final bool isCircleVideo;
+  final bool isSticker;
+  final ApiSticker? sticker;
+  final VoidCallback? onStickerTap;
   final int? mediaDuration;
   final bool animateHighlight;
   final bool hideFooter;
@@ -283,7 +291,9 @@ class MessageBubble extends ConsumerWidget {
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: <Widget>[
-            if (isCircleVideo && hasMedia)
+            if (isSticker && (sticker != null || hasMedia))
+              _buildStickerContent(context, scheme, textTheme)
+            else if (isCircleVideo && hasMedia)
               _buildCircleVideoContent(context, scheme, textTheme,
                 ref: ref,
                 chatId: chatId,
@@ -596,6 +606,158 @@ if (onSwipeToReply != null) {
             duration: 180.ms,
             curve: Curves.easeOutCubic,
           ),
+    );
+  }
+
+  Widget _buildStickerContent(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+  ) {
+    final String url = sticker?.url ?? mediaUrl ?? '';
+    final bool isAnimated = sticker?.isAnimated == true ||
+        (sticker?.mediaType ?? '').contains('video') ||
+        (sticker?.mediaType ?? '').contains('webm') ||
+        url.endsWith('.webm') ||
+        url.endsWith('.mp4');
+
+    return Semantics(
+      label: 'Стикер',
+      child: InkWell(
+        onTap: () {
+          HapticService.tap();
+          if (onStickerTap != null) {
+            onStickerTap!();
+          } else if (sticker?.setId != null) {
+            StickerSetModal.show(context, setId: sticker!.setId);
+          }
+        },
+        onDoubleTap: onReactionTap != null
+            ? () {
+                HapticService.reaction();
+                onReactionTap!('❤️');
+              }
+            : null,
+        onLongPress: onLongPress != null
+            ? () {
+                HapticService.confirm();
+                onLongPress!();
+              }
+            : null,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          // Borderless with transparent background (no container box, no border, no outline)
+          color: Colors.transparent,
+          constraints: const BoxConstraints(
+            maxWidth: 190,
+            maxHeight: 190,
+            minWidth: 100,
+            minHeight: 100,
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: <Widget>[
+              // Sticker media content
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: isAnimated
+                    ? _StickerVideoPlayer(url: url)
+                    : CachedNetworkImage(
+                        imageUrl: url,
+                        fit: BoxFit.contain,
+                        memCacheWidth: 400,
+                        memCacheHeight: 400,
+                        placeholder: (_, _) => Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: scheme.primary.withValues(alpha: 0.4),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, _, _) => Icon(
+                          Icons.broken_image_outlined,
+                          size: 36,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+              ),
+
+              // Floating translucent time badge
+              Positioned(
+                bottom: 4,
+                right: 4,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: scheme.scrim.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        formattedTime,
+                        style: TextStyle(
+                          color: scheme.onPrimary,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (isMine) ...<Widget>[
+                        const SizedBox(width: 3),
+                        Icon(
+                          isRead
+                              ? Icons.done_all_rounded
+                              : Icons.done_rounded,
+                          size: 12,
+                          color: scheme.onPrimary,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              // Sending spinner
+              if (isSending)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: scheme.surface.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: scheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Failed icon
+              if (isFailed)
+                Positioned(
+                  top: 4,
+                  left: 4,
+                  child: IconButton(
+                    onPressed: onRetrySend,
+                    icon: Icon(Icons.refresh_rounded, color: scheme.error),
+                    tooltip: 'Повторить отправку',
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1711,6 +1873,71 @@ class _UploadProgressOverlay extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _StickerVideoPlayer extends StatefulWidget {
+  const _StickerVideoPlayer({required this.url});
+  final String url;
+
+  @override
+  State<_StickerVideoPlayer> createState() => _StickerVideoPlayerState();
+}
+
+class _StickerVideoPlayerState extends State<_StickerVideoPlayer> {
+  VideoPlayerController? _controller;
+  bool _isInit = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initVideo();
+  }
+
+  Future<void> _initVideo() async {
+    try {
+      final Uri uri = Uri.parse(widget.url);
+      _controller = VideoPlayerController.networkUrl(uri);
+      await _controller!.initialize();
+      await _controller!.setLooping(true);
+      await _controller!.setVolume(0.0);
+      await _controller!.play();
+      if (mounted) setState(() => _isInit = true);
+    } catch (_) {
+      // Graceful fallback to static thumbnail
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_controller != null && _isInit && _controller!.value.isInitialized) {
+      return FittedBox(
+        fit: BoxFit.contain,
+        child: SizedBox(
+          width: _controller!.value.size.width,
+          height: _controller!.value.size.height,
+          child: VideoPlayer(_controller!),
+        ),
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: widget.url,
+      fit: BoxFit.contain,
+      memCacheWidth: 400,
+      memCacheHeight: 400,
+      placeholder: (_, _) => const SizedBox(
+        width: 24,
+        height: 24,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      errorWidget: (_, _, _) => const Icon(Icons.sticky_note_2_outlined),
     );
   }
 }

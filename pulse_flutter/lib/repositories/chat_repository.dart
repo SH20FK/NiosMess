@@ -6,6 +6,7 @@ import 'package:universal_io/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/network/api_constants.dart';
+import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/chat_actions_models.dart';
@@ -137,6 +138,7 @@ class ChatRepository {
     String? description,
     String? username,
     bool? commentsEnabled,
+    bool isPrivate = false,
   }) async {
     final String normalizedName = name.trim();
     if (normalizedName.isEmpty) {
@@ -146,6 +148,7 @@ class ChatRepository {
     final Map<String, dynamic> payload = <String, dynamic>{
       'name': normalizedName,
       'chat_type': chatType,
+      'is_private': isPrivate,
     };
 
     if (description != null && description.trim().isNotEmpty) {
@@ -311,6 +314,37 @@ class ChatRepository {
         isDeleted: false,
         isE2ee: e2eeContent != null && e2eeContent.isNotEmpty,
         e2eeContent: e2eeContent,
+      );
+    }
+
+    return ApiMessage.fromJson(
+      response.map(
+        (dynamic key, dynamic value) => MapEntry(key.toString(), value),
+      ),
+    );
+  }
+
+  Future<ApiMessage> sendSticker(
+    int chatId,
+    int stickerId, {
+    int? replyToId,
+  }) async {
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'chat_id': chatId,
+      'sticker_id': stickerId,
+    };
+    if (replyToId != null) {
+      payload['reply_to_id'] = replyToId;
+    }
+
+    final dynamic response = await _ref
+        .read(webSocketClientProvider)
+        .request('send_sticker', payload: payload);
+
+    if (response is! Map) {
+      throw ApiException(
+        statusCode: 500,
+        message: 'Invalid server response for send_sticker',
       );
     }
 
@@ -758,6 +792,8 @@ class ChatRepository {
     String? description,
     String? username,
     bool? commentsEnabled,
+    int? autoDeleteSeconds,
+    bool clearAutoDelete = false,
   }) async {
     final Map<String, dynamic> payload = <String, dynamic>{'chat_id': chatId};
     if (name != null && name.trim().isNotEmpty) payload['name'] = name.trim();
@@ -766,6 +802,11 @@ class ChatRepository {
       payload['username'] = username.trim();
     }
     if (commentsEnabled != null) payload['comments_enabled'] = commentsEnabled;
+    if (clearAutoDelete) {
+      payload['auto_delete_seconds'] = null;
+    } else if (autoDeleteSeconds != null) {
+      payload['auto_delete_seconds'] = autoDeleteSeconds;
+    }
 
     final dynamic response = await _ref
         .read(webSocketClientProvider)
@@ -801,21 +842,65 @@ class ChatRepository {
         );
   }
 
-  Future<void> banUser(int chatId, int userId, bool ban) async {
+  Future<void> banUser(
+    int chatId,
+    int userId,
+    bool ban, {
+    int? durationSeconds,
+    String? reason,
+  }) async {
+    if (userId == 1) {
+      throw Exception('Нельзя заблокировать пользователя Support');
+    }
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'chat_id': chatId,
+      'user_id': userId,
+      'ban': ban,
+      'banned': ban,
+    };
+    if (durationSeconds != null && durationSeconds > 0) {
+      payload['duration_seconds'] = durationSeconds;
+    }
+    if (reason != null && reason.trim().isNotEmpty) {
+      payload['reason'] = reason.trim();
+    }
+
     await _ref
         .read(webSocketClientProvider)
         .request(
           'ban_member',
-          payload: <String, dynamic>{'chat_id': chatId, 'user_id': userId, 'ban': ban},
+          payload: payload,
         );
   }
 
-  Future<void> muteUser(int chatId, int userId, bool mute) async {
+  Future<void> muteUser(
+    int chatId,
+    int userId,
+    bool mute, {
+    int? durationSeconds,
+    String? reason,
+  }) async {
+    if (userId == 1) {
+      throw Exception('Нельзя заглушить пользователя Support');
+    }
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'chat_id': chatId,
+      'user_id': userId,
+      'mute': mute,
+      'muted': mute,
+    };
+    if (durationSeconds != null && durationSeconds > 0) {
+      payload['duration_seconds'] = durationSeconds;
+    }
+    if (reason != null && reason.trim().isNotEmpty) {
+      payload['reason'] = reason.trim();
+    }
+
     await _ref
         .read(webSocketClientProvider)
         .request(
           'mute_member',
-          payload: <String, dynamic>{'chat_id': chatId, 'user_id': userId, 'mute': mute},
+          payload: payload,
         );
   }
 

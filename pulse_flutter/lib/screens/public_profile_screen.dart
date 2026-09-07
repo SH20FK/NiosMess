@@ -12,12 +12,14 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/profile/profile_shared_media_tab_view.dart';
+import 'package:pulse_flutter/widgets/profile/working_hours_widget.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -281,7 +283,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 ],
 
                 // ── About & Bio Section ────────────────────────────────
-                _buildAboutCard(context, profile, scheme, textTheme),
+                _buildAboutCard(context, profile, scheme, textTheme, isMe: isMe),
                 const SizedBox(height: 20),
 
                 // ── Shared Media Gallery Tabs ──────────────────────────
@@ -516,8 +518,9 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     BuildContext context,
     ApiProfile profile,
     ColorScheme scheme,
-    TextTheme textTheme,
-  ) {
+    TextTheme textTheme, {
+    bool isMe = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
@@ -581,6 +584,44 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 scheme: scheme,
                 textTheme: textTheme,
               ),
+
+            // Phone Number
+            if (profile.phoneNumber != null && profile.phoneNumber!.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _buildInfoRow(
+                icon: Icons.phone_rounded,
+                label: 'Телефон',
+                value: profile.phoneNumber!,
+                scheme: scheme,
+                textTheme: textTheme,
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: profile.phoneNumber!));
+                  HapticService.confirm();
+                  AppToast.showInfo(context, 'Номер телефона скопирован');
+                },
+              ),
+            ],
+
+            // Birthday
+            if (profile.birthday != null && profile.birthday!.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _buildInfoRow(
+                icon: Icons.cake_rounded,
+                label: 'День рождения',
+                value: profile.birthday!,
+                scheme: scheme,
+                textTheme: textTheme,
+              ),
+            ],
+
+            // Working Hours
+            if (profile.workingHours != null && !profile.workingHours!.isEmpty) ...[
+              const SizedBox(height: 16),
+              WorkingHoursWidget(
+                workingHours: profile.workingHours,
+                isEditable: isMe,
+              ),
+            ],
 
             // Non-status badges
             if (profile.badges.where((b) => !BadgeResolver.isStatusBadge(b)).isNotEmpty) ...[
@@ -737,11 +778,31 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                         ),
                         onPressed: () async {
                           Navigator.of(ctx).pop();
+                          if (profile.username.toLowerCase() == 'support' ||
+                              profile.id == 1) {
+                            AppToast.showError(
+                              context,
+                              'Службу поддержки NiosMess нельзя заблокировать',
+                            );
+                            return;
+                          }
                           HapticService.confirm();
-                          AppToast.showSuccess(
-                            context,
-                            '@${profile.username} заблокирован на этом устройстве',
-                          );
+                          final bool success = await ref
+                              .read(privacyProvider.notifier)
+                              .blockUser(profile.id);
+                          if (!mounted) return;
+                          if (success) {
+                            AppToast.showSuccess(
+                              context,
+                              '@${profile.username} заблокирован',
+                            );
+                          } else {
+                            AppToast.showError(
+                              context,
+                              'Не удалось заблокировать пользователя',
+                            );
+                          }
+
                         },
                         child: const Text('Заблокировать'),
                       ),
@@ -807,6 +868,30 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                   _submitUserReport(profile, 'illegal');
                 },
               ),
+              ListTile(
+                leading: Icon(Icons.copyright_rounded, color: scheme.error),
+                title: const Text('Нарушение авторских прав (copyright)'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _submitUserReport(profile, 'copyright');
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.privacy_tip_rounded, color: scheme.error),
+                title: const Text('Доксинг (личные данные)'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _submitUserReport(profile, 'doxing');
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.warning_amber_rounded, color: scheme.error),
+                title: const Text('Сваттинг / угрозы'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _submitUserReport(profile, 'swatting');
+                },
+              ),
               const SizedBox(height: 16),
             ],
           ),
@@ -816,6 +901,10 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   }
 
   Future<void> _submitUserReport(ApiProfile profile, String reason) async {
+    if (profile.id == 1 || profile.username.toLowerCase() == 'support') {
+      AppToast.showError(context, 'Службу поддержки NiosMess нельзя пожаловаться');
+      return;
+    }
     try {
       await ref.read(reportRepositoryProvider).report(
         chatId: 0,

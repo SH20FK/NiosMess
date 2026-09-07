@@ -22,7 +22,12 @@ import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/settings_storage_screen.dart';
 import 'package:pulse_flutter/screens/settings_system_device_screen.dart';
+import 'package:pulse_flutter/models/api/badge_model.dart';
+import 'package:pulse_flutter/models/api/working_hours_model.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/profile/working_hours_widget.dart';
+import 'package:pulse_flutter/widgets/profile/working_hours_planner_dialog.dart';
+import 'package:pulse_flutter/widgets/profile/badge_selector_dialog.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/profile_header_delegate.dart';
@@ -56,24 +61,81 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _uploadAvatar() async {
-    final List<PlatformFile> result = await FilePicker.pickFiles(
-      type: FileType.image,
+    final String? choice = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext context) {
+        final ColorScheme scheme = Theme.of(context).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Container(
+                  width: 32,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: scheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                ListTile(
+                  leading: Icon(Icons.photo_library_outlined, color: scheme.primary),
+                  title: const Text('Выбрать фото'),
+                  subtitle: const Text('PNG, JPG, WebP до 8 МБ'),
+                  onTap: () => Navigator.of(context).pop('photo'),
+                ),
+                ListTile(
+                  leading: Icon(Icons.videocam_outlined, color: scheme.primary),
+                  title: const Text('Выбрать видеоаватар'),
+                  subtitle: const Text('Видео до 5 сек, 1:1, до 8 МБ'),
+                  onTap: () => Navigator.of(context).pop('video'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
-    if (result.isEmpty) return;
 
-    if (!mounted) return;
+    if (choice == null || !mounted) return;
+
+    final bool isVideo = choice == 'video';
+    final List<PlatformFile> result = await FilePicker.pickFiles(
+      type: isVideo ? FileType.video : FileType.image,
+    );
+    if (result.isEmpty || !mounted) return;
+
     setState(() => _uploadingAvatar = true);
 
     try {
       final PlatformFile file = result.first;
       Uint8List bytes = await file.readAsBytes();
       if (bytes.isEmpty) return;
-      final Uint8List? compressed = await ImageCompressor.compressImageBytes(
-        bytes: bytes,
-        fileName: file.name,
-      );
-      if (compressed != null) bytes = compressed;
-      await ref.read(authRepositoryProvider).uploadAvatar(bytes, file.name);
+
+      if (bytes.length > 8 * 1024 * 1024) {
+        if (!mounted) return;
+        AppToast.showError(context, 'Размер файла превышает 8 МБ');
+        return;
+      }
+
+      if (!isVideo) {
+        final Uint8List? compressed = await ImageCompressor.compressImageBytes(
+          bytes: bytes,
+          fileName: file.name,
+        );
+        if (compressed != null) bytes = compressed;
+      }
+
+      await ref.read(authRepositoryProvider).uploadAvatar(
+            bytes,
+            filename: file.name,
+            isVideo: isVideo,
+          );
       await ref.read(authProvider.notifier).refreshProfile();
       if (!mounted) return;
       AppToast.showSuccess(context, context.l10n.profileAvatarUpdated);
@@ -84,6 +146,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
   }
+
 
   Future<void> _logout() async {
     final bool? confirmed = await showAppConfirmDialog(
@@ -523,6 +586,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     initialName: displayName,
                     initialUsername: auth.session?.username ?? '',
                     initialBio: bio,
+                    initialPhoneNumber: auth.profile?.phoneNumber,
+                    initialBirthday: auth.profile?.birthday,
+                    initialWorkingHours: auth.profile?.workingHours,
                     onUploadAvatar: _uploadAvatar,
                   ),
                 );
@@ -588,6 +654,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               name: displayName,
               username: username,
               avatarUrl: auth.profile?.avatarUrl,
+              bio: bio,
+              badges: auth.profile?.visibleBadges ?? const <ApiBadge>[],
               onEdit: () {
                 showDialog<void>(
                   context: context,
@@ -595,6 +663,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     initialName: displayName,
                     initialUsername: auth.session?.username ?? '',
                     initialBio: bio,
+                    initialPhoneNumber: auth.profile?.phoneNumber,
+                    initialBirthday: auth.profile?.birthday,
+                    initialWorkingHours: auth.profile?.workingHours,
                     onUploadAvatar: _uploadAvatar,
                   ),
                 );
@@ -611,6 +682,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
                 child: Column(
                   children: [
+                    WorkingHoursWidget(
+                      workingHours: auth.profile?.workingHours,
+                      isEditable: true,
+                      onEdit: () async {
+                        final WorkingHours? updated =
+                            await WorkingHoursPlannerDialog.show(
+                          context,
+                          initialWorkingHours: auth.profile?.workingHours,
+                        );
+                        if (updated != null) {
+                          await ref
+                              .read(authProvider.notifier)
+                              .updateProfile(workingHours: updated);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
                     // 1. Account & Privacy
                     SettingsSection(
                       title: context.l10n.profileSectionAccount,
@@ -735,12 +823,18 @@ class _EditProfileDialog extends ConsumerStatefulWidget {
     required this.initialName,
     required this.initialUsername,
     required this.initialBio,
+    this.initialPhoneNumber,
+    this.initialBirthday,
+    this.initialWorkingHours,
     this.onUploadAvatar,
   });
 
   final String initialName;
   final String initialUsername;
   final String initialBio;
+  final String? initialPhoneNumber;
+  final String? initialBirthday;
+  final WorkingHours? initialWorkingHours;
   final Future<void> Function()? onUploadAvatar;
 
   @override
@@ -753,6 +847,9 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
   late final TextEditingController nameController;
   late final TextEditingController usernameController;
   late final TextEditingController bioController;
+  late final TextEditingController phoneController;
+  late final TextEditingController birthdayController;
+  WorkingHours? _workingHours;
   bool _saving = false;
   String? _nameError;
   String? _usernameError;
@@ -763,6 +860,11 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
     nameController = TextEditingController(text: widget.initialName);
     usernameController = TextEditingController(text: widget.initialUsername);
     bioController = TextEditingController(text: widget.initialBio);
+    phoneController =
+        TextEditingController(text: widget.initialPhoneNumber ?? '');
+    birthdayController =
+        TextEditingController(text: widget.initialBirthday ?? '');
+    _workingHours = widget.initialWorkingHours;
     nameController.addListener(_validateName);
     usernameController.addListener(_validateUsername);
     _validateName();
@@ -776,6 +878,8 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
     nameController.dispose();
     usernameController.dispose();
     bioController.dispose();
+    phoneController.dispose();
+    birthdayController.dispose();
     super.dispose();
   }
 
@@ -807,6 +911,44 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
     }
   }
 
+  Future<void> _selectBirthday() async {
+    final DateTime initialDate = DateTime.tryParse(birthdayController.text) ??
+        DateTime(2000, 1, 1);
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      final String formatted =
+          '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+      setState(() {
+        birthdayController.text = formatted;
+      });
+    }
+  }
+
+  Future<void> _editWorkingHours() async {
+    final WorkingHours? updated = await WorkingHoursPlannerDialog.show(
+      context,
+      initialWorkingHours: _workingHours,
+    );
+    if (updated != null) {
+      setState(() {
+        _workingHours = updated;
+      });
+    }
+  }
+
+  Future<void> _selectBadges() async {
+    final AuthState auth = ref.read(authProvider);
+    await BadgeSelectorDialog.show(
+      context,
+      initialSelectedBadgeIds: auth.profile?.visibleBadgeIds ?? const <int>[],
+    );
+  }
+
   Future<void> _save() async {
     if (_nameError != null || _usernameError != null) return;
     setState(() => _saving = true);
@@ -816,12 +958,21 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
         username.isNotEmpty && username != widget.initialUsername
             ? username
             : null;
+    final String phone = phoneController.text.trim();
+    final String birthday = birthdayController.text.trim();
 
     final AuthActionResult result =
         await ref.read(authProvider.notifier).updateProfile(
               displayName: nameController.text.trim(),
               username: newUsername,
               bio: bioController.text.trim(),
+              phoneNumber: phone.isNotEmpty ? phone : null,
+              clearPhoneNumber: phone.isEmpty && widget.initialPhoneNumber != null,
+              birthday: birthday.isNotEmpty ? birthday : null,
+              clearBirthday: birthday.isEmpty && widget.initialBirthday != null,
+              workingHours: _workingHours,
+              clearWorkingHours:
+                  _workingHours == null && widget.initialWorkingHours != null,
             );
 
     if (!mounted) return;
@@ -855,129 +1006,254 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
           icon: Icons.check_rounded,
           isPrimary: true,
           isLoading: _saving,
-          onPressed:
-              _saving || _nameError != null || _usernameError != null ? null : _save,
+          onPressed: _saving || _nameError != null || _usernameError != null
+              ? null
+              : _save,
         ),
       ],
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Center(
-            child: Stack(
-              children: <Widget>[
-                PulseAvatar(
-                  name: widget.initialName,
-                  avatarUrl: auth.profile?.avatarUrl,
-                  radius: 36,
-                  fallbackColor: scheme.primaryContainer,
-                  textColor: scheme.onPrimaryContainer,
-                ),
-                if (widget.onUploadAvatar != null)
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Material(
-                      color: scheme.primary,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        onTap: () => widget.onUploadAvatar!(),
-                        customBorder: const CircleBorder(),
-                        child: Padding(
-                          padding: const EdgeInsets.all(6),
-                          child: Icon(
-                            Icons.photo_camera_rounded,
-                            size: 16,
-                            color: scheme.onPrimary,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Center(
+              child: Stack(
+                children: <Widget>[
+                  PulseAvatar(
+                    name: widget.initialName,
+                    avatarUrl: auth.profile?.avatarUrl,
+                    radius: 36,
+                    fallbackColor: scheme.primaryContainer,
+                    textColor: scheme.onPrimaryContainer,
+                  ),
+                  if (widget.onUploadAvatar != null)
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Material(
+                        color: scheme.primary,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          onTap: () => widget.onUploadAvatar!(),
+                          customBorder: const CircleBorder(),
+                          child: Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: Icon(
+                              Icons.photo_camera_rounded,
+                              size: 16,
+                              color: scheme.onPrimary,
+                            ),
                           ),
                         ),
                       ),
                     ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: nameController,
+              maxLength: 64,
+              decoration: InputDecoration(
+                labelText: context.l10n.profileDisplayName,
+                prefixIcon: const Icon(Icons.person_rounded),
+                errorText: _nameError,
+                filled: true,
+                fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.18),
                   ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.18),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: scheme.primary, width: 1.4),
+                ),
+                counterStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: usernameController,
+              decoration: InputDecoration(
+                labelText: context.l10n.profileUsernameLabel,
+                prefixIcon: const Icon(Icons.alternate_email_rounded),
+                prefixText: '@',
+                errorText: _usernameError,
+                filled: true,
+                fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.18),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.18),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: scheme.primary, width: 1.4),
+                ),
+              ),
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Номер телефона',
+                prefixIcon: const Icon(Icons.phone_rounded),
+                filled: true,
+                fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.18),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.18),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: scheme.primary, width: 1.4),
+                ),
+              ),
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: birthdayController,
+              readOnly: true,
+              onTap: _selectBirthday,
+              decoration: InputDecoration(
+                labelText: 'Дата рождения (ГГГГ-ММ-ДД)',
+                prefixIcon: const Icon(Icons.cake_rounded),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.calendar_today_rounded, size: 20),
+                  onPressed: _selectBirthday,
+                ),
+                filled: true,
+                fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.18),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.18),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: scheme.primary, width: 1.4),
+                ),
+              ),
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: bioController,
+              maxLines: 3,
+              maxLength: 500,
+              decoration: InputDecoration(
+                labelText: context.l10n.profileDescription,
+                prefixIcon: const Icon(Icons.notes_rounded),
+                filled: true,
+                fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.18),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.18),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: scheme.primary, width: 1.4),
+                ),
+                counterStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.schedule_rounded, size: 18),
+                    label: Text(
+                      _workingHours == null || _workingHours!.isEmpty
+                          ? 'График работы'
+                          : 'График: ${_workingHours!.isOpenNow() ? "Открыто" : "Закрыто"}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onPressed: _editWorkingHours,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.military_tech_rounded, size: 18),
+                    label: Text(
+                      'Бейджи (${auth.profile?.visibleBadgeIds.length ?? 0}/2)',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onPressed: _selectBadges,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: nameController,
-            maxLength: 64,
-            decoration: InputDecoration(
-              labelText: context.l10n.profileDisplayName,
-              prefixIcon: const Icon(Icons.person_rounded),
-              errorText: _nameError,
-              filled: true,
-              fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.18)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.18)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: scheme.primary, width: 1.4),
-              ),
-              counterStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: usernameController,
-            decoration: InputDecoration(
-              labelText: context.l10n.profileUsernameLabel,
-              prefixIcon: const Icon(Icons.alternate_email_rounded),
-              prefixText: '@',
-              errorText: _usernameError,
-              filled: true,
-              fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.18)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.18)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: scheme.primary, width: 1.4),
-              ),
-            ),
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: bioController,
-            maxLines: 3,
-            maxLength: 500,
-            decoration: InputDecoration(
-              labelText: context.l10n.profileDescription,
-              prefixIcon: const Icon(Icons.notes_rounded),
-              filled: true,
-              fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.18)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.18)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: scheme.primary, width: 1.4),
-              ),
-              counterStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

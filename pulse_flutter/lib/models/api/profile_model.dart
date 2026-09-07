@@ -1,4 +1,5 @@
 import 'package:pulse_flutter/models/api/badge_model.dart';
+import 'package:pulse_flutter/models/api/working_hours_model.dart';
 
 class ApiProfile {
   const ApiProfile({
@@ -9,8 +10,14 @@ class ApiProfile {
     this.avatarUrl,
     this.twoFaEnabled,
     this.spamBlock,
+    this.spamBlockUntil,
+    this.spamBlockReason,
     this.badges = const <ApiBadge>[],
     this.createdAt,
+    this.phoneNumber,
+    this.birthday,
+    this.workingHours,
+    this.visibleBadgeIds = const <int>[],
   });
 
   final int id;
@@ -20,8 +27,38 @@ class ApiProfile {
   final String? avatarUrl;
   final bool? twoFaEnabled;
   final bool? spamBlock;
+  final DateTime? spamBlockUntil;
+  final String? spamBlockReason;
   final List<ApiBadge> badges;
   final DateTime? createdAt;
+  final String? phoneNumber;
+  final String? birthday;
+  final WorkingHours? workingHours;
+  final List<int> visibleBadgeIds;
+
+  bool get isRestrictedBySpamBlock {
+    if (spamBlock == true) return true;
+    if (spamBlockUntil != null && spamBlockUntil!.isAfter(DateTime.now())) {
+      return true;
+    }
+    return false;
+  }
+
+  List<ApiBadge> get visibleBadges {
+    if (visibleBadgeIds.isEmpty) {
+      return badges.take(2).toList(growable: false);
+    }
+    final List<ApiBadge> list = <ApiBadge>[];
+    for (final int id in visibleBadgeIds) {
+      final int idx = badges.indexWhere((ApiBadge b) => b.id == id);
+      if (idx != -1) {
+        list.add(badges[idx]);
+        if (list.length >= 2) break;
+      }
+    }
+    if (list.isNotEmpty) return list;
+    return badges.take(2).toList(growable: false);
+  }
 
   factory ApiProfile.fromJson(Map<String, dynamic> json) {
     final dynamic badgesRaw = json['badges'];
@@ -40,6 +77,32 @@ class ApiProfile {
     } else {
       badges = const <ApiBadge>[];
     }
+
+    final dynamic visibleBadgesRaw = json['visible_badge_ids'];
+    final List<int> visibleBadgeIds;
+    if (visibleBadgesRaw is List) {
+      visibleBadgeIds = visibleBadgesRaw
+          .map((dynamic item) => int.tryParse(item.toString()))
+          .whereType<int>()
+          .take(2)
+          .toList(growable: false);
+    } else {
+      visibleBadgeIds = const <int>[];
+    }
+
+
+    final dynamic workingHoursRaw = json['working_hours'];
+    final WorkingHours? workingHours;
+    if (workingHoursRaw is Map) {
+      workingHours = WorkingHours.fromJson(
+        workingHoursRaw.map(
+          (dynamic key, dynamic value) => MapEntry(key.toString(), value),
+        ),
+      );
+    } else {
+      workingHours = null;
+    }
+
     return ApiProfile(
       id: json['id'] as int? ?? 0,
       username: json['username'] as String? ?? '',
@@ -48,10 +111,18 @@ class ApiProfile {
       avatarUrl: json['avatar_url'] as String?,
       twoFaEnabled: json['two_fa_enabled'] as bool?,
       spamBlock: json['spam_block'] as bool?,
+      spamBlockUntil: json['spam_block_until'] != null
+          ? DateTime.tryParse(json['spam_block_until'] as String)
+          : null,
+      spamBlockReason: json['spam_block_reason'] as String?,
       badges: badges,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String)
           : null,
+      phoneNumber: json['phone_number'] as String?,
+      birthday: json['birthday'] as String?,
+      workingHours: workingHours,
+      visibleBadgeIds: visibleBadgeIds,
     );
   }
 
@@ -64,8 +135,15 @@ class ApiProfile {
       'avatar_url': avatarUrl,
       'two_fa_enabled': twoFaEnabled,
       'spam_block': spamBlock,
+      if (spamBlockUntil != null)
+        'spam_block_until': spamBlockUntil!.toIso8601String(),
+      if (spamBlockReason != null) 'spam_block_reason': spamBlockReason,
       'badges': badges.map((b) => b.toJson()).toList(),
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
+      if (phoneNumber != null) 'phone_number': phoneNumber,
+      if (birthday != null) 'birthday': birthday,
+      if (workingHours != null) 'working_hours': workingHours!.toJson(),
+      'visible_badge_ids': visibleBadgeIds,
     };
   }
 
@@ -77,8 +155,14 @@ class ApiProfile {
     String? avatarUrl,
     bool? twoFaEnabled,
     bool? spamBlock,
+    DateTime? spamBlockUntil,
+    String? spamBlockReason,
     List<ApiBadge>? badges,
     DateTime? createdAt,
+    String? phoneNumber,
+    String? birthday,
+    WorkingHours? workingHours,
+    List<int>? visibleBadgeIds,
   }) {
     return ApiProfile(
       id: id ?? this.id,
@@ -88,8 +172,14 @@ class ApiProfile {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       twoFaEnabled: twoFaEnabled ?? this.twoFaEnabled,
       spamBlock: spamBlock ?? this.spamBlock,
+      spamBlockUntil: spamBlockUntil ?? this.spamBlockUntil,
+      spamBlockReason: spamBlockReason ?? this.spamBlockReason,
       badges: badges ?? this.badges,
       createdAt: createdAt ?? this.createdAt,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      birthday: birthday ?? this.birthday,
+      workingHours: workingHours ?? this.workingHours,
+      visibleBadgeIds: visibleBadgeIds ?? this.visibleBadgeIds,
     );
   }
 }

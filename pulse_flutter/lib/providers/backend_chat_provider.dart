@@ -10,8 +10,10 @@ import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
+import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
+import 'package:pulse_flutter/providers/sticker_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/websocket_dispatcher_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
@@ -920,6 +922,82 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         next[index] = failedMsg;
         state = AsyncData<List<ApiMessage>>(next);
       }
+    }
+  }
+
+  Future<void> sendSticker(int stickerId, {int? replyToId}) async {
+    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+    final String myUsername = ref.read(authProvider).session?.username ?? '';
+    final int tempId = -(DateTime.now().millisecondsSinceEpoch + _sendCounter++);
+
+    final List<ApiStickerSet> sets =
+        ref.read(stickerSetsProvider).value ?? const <ApiStickerSet>[];
+    ApiSticker? foundSticker;
+    for (final ApiStickerSet s in sets) {
+      for (final ApiSticker st in s.stickers) {
+        if (st.id == stickerId) {
+          foundSticker = st;
+          break;
+        }
+      }
+      if (foundSticker != null) break;
+    }
+
+    final ApiMessage optimisticMessage = ApiMessage(
+      id: tempId,
+      chatId: _chatId,
+      senderId: myUserId,
+      senderUsername: myUsername,
+      senderDisplayName: myUsername.isEmpty ? 'Я' : myUsername,
+      senderBadges: const [],
+      content: '',
+      msgType: 'sticker',
+      sticker: foundSticker,
+      replyToId: replyToId,
+      mediaUrl: foundSticker?.url,
+      mediaType: foundSticker?.mediaType,
+      mediaName: null,
+      mediaSize: foundSticker?.fileSize,
+      mediaDuration: foundSticker?.durationSeconds,
+      commentsCount: 0,
+      reactions: const {},
+      sentAt: DateTime.now(),
+      editedAt: null,
+      isDeleted: false,
+      isSending: true,
+      isFailed: false,
+    );
+
+    List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    List<ApiMessage> next = List<ApiMessage>.from(current)..add(optimisticMessage);
+    next.sort(_compareMessages);
+    state = AsyncData<List<ApiMessage>>(next);
+
+    try {
+      final ApiMessage sent = await ref
+          .read(chatRepositoryProvider)
+          .sendSticker(_chatId, stickerId, replyToId: replyToId);
+
+      current = state.value ?? const <ApiMessage>[];
+      next = List<ApiMessage>.from(current)
+        ..removeWhere((ApiMessage m) => m.id == tempId || m.id == sent.id)
+        ..add(sent)
+        ..sort(_compareMessages);
+
+      state = AsyncData<List<ApiMessage>>(next);
+      await _saveToCache(next);
+      ref.read(chatsProvider.notifier)._handleNewMessagePush(sent);
+      await _playNotificationSound(volume: 0.65);
+    } catch (e) {
+      debugPrint('[backend_chat_provider.dart] sendSticker error: $e');
+      current = state.value ?? const <ApiMessage>[];
+      final int index = current.indexWhere((ApiMessage m) => m.id == tempId);
+      if (index != -1) {
+        next = List<ApiMessage>.from(current);
+        next[index] = next[index].copyWith(isSending: false, isFailed: true);
+        state = AsyncData<List<ApiMessage>>(next);
+      }
+      rethrow;
     }
   }
 

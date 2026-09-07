@@ -17,6 +17,10 @@ class ApiChatMember {
     required this.isBanned,
     this.avatarUrl,
     this.badges = const <ApiBadge>[],
+    this.mutedUntil,
+    this.muteReason,
+    this.bannedUntil,
+    this.banReason,
   });
 
   final int userId;
@@ -27,6 +31,10 @@ class ApiChatMember {
   final bool isBanned;
   final String? avatarUrl;
   final List<ApiBadge> badges;
+  final DateTime? mutedUntil;
+  final String? muteReason;
+  final DateTime? bannedUntil;
+  final String? banReason;
 
   bool get isOwner => role == 'owner';
   bool get isAdmin => role == 'admin';
@@ -57,6 +65,31 @@ class ApiChatMember {
       isBanned: _parseBool(json['is_banned']),
       avatarUrl: json['avatar_url'] as String?,
       badges: badges,
+      mutedUntil: json['muted_until'] != null
+          ? DateTime.tryParse(json['muted_until'] as String)
+          : null,
+      muteReason: json['mute_reason'] as String? ?? json['reason'] as String?,
+      bannedUntil: json['banned_until'] != null
+          ? DateTime.tryParse(json['banned_until'] as String)
+          : null,
+      banReason: json['ban_reason'] as String? ?? json['reason'] as String?,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'user_id': userId,
+      'username': username,
+      'display_name': displayName,
+      'role': role,
+      'is_muted': isMuted,
+      'is_banned': isBanned,
+      'avatar_url': avatarUrl,
+      'badges': badges.map((ApiBadge b) => b.toJson()).toList(),
+      if (mutedUntil != null) 'muted_until': mutedUntil!.toIso8601String(),
+      if (muteReason != null) 'mute_reason': muteReason,
+      if (bannedUntil != null) 'banned_until': bannedUntil!.toIso8601String(),
+      if (banReason != null) 'ban_reason': banReason,
+    };
   }
 }

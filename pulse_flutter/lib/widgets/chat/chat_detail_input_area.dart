@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/widgets/chat/chat_input_bar.dart';
+import 'package:pulse_flutter/widgets/chat/spamblock_banner.dart';
 
 class ChatDetailInputArea extends StatelessWidget {
   const ChatDetailInputArea({
@@ -12,6 +14,8 @@ class ChatDetailInputArea extends StatelessWidget {
     required this.inputController,
     required this.inputFocusNode,
     required this.isAiProcessing,
+    this.chatId,
+    this.onSendSticker,
     this.editingMessageId,
     this.editingOriginalText,
     this.replyToMessageId,
@@ -26,11 +30,19 @@ class ChatDetailInputArea extends StatelessWidget {
     this.onCircleSend,
     required this.hapticsEnabled,
     this.sendOnEnter = true,
+    this.isSpamBlocked = false,
+    this.spamBlockUntil,
+    this.spamBlockReason,
+    this.onContactSupport,
   });
 
   final bool canPostInChannel;
   final bool showDraftRestoredBanner;
   final VoidCallback onClearDraft;
+  final bool isSpamBlocked;
+  final DateTime? spamBlockUntil;
+  final String? spamBlockReason;
+  final VoidCallback? onContactSupport;
 
   /// True while this chat has uploads in flight — swaps the attach button
   /// for a spinner in [ChatInputBar]. Per-message progress lives in the
@@ -53,6 +65,8 @@ class ChatDetailInputArea extends StatelessWidget {
   final VoidCallback onAiPressed;
   final void Function(String) onVoiceSend;
   final void Function(String)? onCircleSend;
+  final int? chatId;
+  final void Function(ApiSticker sticker)? onSendSticker;
   final bool hapticsEnabled;
   final bool sendOnEnter;
 
@@ -61,6 +75,19 @@ class ChatDetailInputArea extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     final TextTheme textTheme = theme.textTheme;
+
+    if (isSpamBlocked) {
+      return SafeArea(
+        top: false,
+        child: RepaintBoundary(
+          child: SpamBlockBanner(
+            until: spamBlockUntil,
+            reason: spamBlockReason,
+            onContactSupport: onContactSupport,
+          ),
+        ),
+      );
+    }
 
     return SafeArea(
       top: false,
@@ -116,6 +143,8 @@ class ChatDetailInputArea extends StatelessWidget {
                           ),
                         ),
                       ChatInputBar(
+                        chatId: chatId,
+                        onSendSticker: onSendSticker,
                         inputController: inputController,
                         inputFocusNode: inputFocusNode,
                         isAiProcessing: isAiProcessing,

@@ -137,6 +137,7 @@ class ChatCreateResult {
     this.inviteLink,
     this.shareLink,
     this.commentsChatId,
+    this.inviteToken,
   });
 
   final int chatId;
@@ -145,6 +146,12 @@ class ChatCreateResult {
   final String? inviteLink;
   final String? shareLink;
   final int? commentsChatId;
+  final String? inviteToken;
+
+  String? get privateInviteUrl =>
+      inviteToken != null && inviteToken!.isNotEmpty
+          ? '/u/+$inviteToken'
+          : inviteLink;
 
   factory ChatCreateResult.fromJson(Map<String, dynamic> json) {
     return ChatCreateResult(
@@ -154,6 +161,7 @@ class ChatCreateResult {
       inviteLink: json['invite_link'] as String?,
       shareLink: json['share_link'] as String?,
       commentsChatId: json['comments_chat_id'] as int?,
+      inviteToken: json['invite_token'] as String?,
     );
   }
 }

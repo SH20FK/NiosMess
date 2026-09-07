@@ -7,6 +7,7 @@ import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/widgets/chat/auto_delete_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/profile/profile_shared_media_tab_view.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
@@ -82,6 +83,9 @@ class GroupProfileScreen extends ConsumerWidget {
                     if (chat.username != null &&
                         chat.username!.trim().isNotEmpty)
                       _buildPublicLink(context, scheme, textTheme, chat),
+                    if (chat.isPrivate || chat.inviteToken != null)
+                      _buildPrivateInviteLink(context, scheme, textTheme, chat),
+                    _buildAutoDeleteTile(context, scheme, textTheme, chat),
                     const SizedBox(height: 24),
                     Padding(
                       padding: const EdgeInsets.symmetric(
@@ -346,6 +350,135 @@ class GroupProfileScreen extends ConsumerWidget {
               icon: const Icon(Icons.copy_rounded, size: 20),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: '@${chat.username}'));
+                AppToast.showInfo(context, context.l10n.groupProfileLinkCopied);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAutoDeleteTile(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+    ApiChatSummary chat,
+  ) {
+    final String status = chat.formattedAutoDeleteDuration ?? 'Отключено';
+    final bool isActive =
+        chat.autoDeleteSeconds != null && chat.autoDeleteSeconds! > 0;
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: 12,
+        left: AppConstants.screenHorizontalPadding,
+        right: AppConstants.screenHorizontalPadding,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.10),
+          ),
+        ),
+        child: ListTile(
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? scheme.primaryContainer
+                  : scheme.surfaceContainerHigh,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.auto_delete_rounded,
+              size: 20,
+              color:
+                  isActive ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
+            ),
+          ),
+          title: Text(
+            'Автоудаление сообщений',
+            style: textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Text(
+            status,
+            style: textTheme.bodySmall?.copyWith(
+              color: isActive ? scheme.primary : scheme.onSurfaceVariant,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () {
+            AutoDeleteBottomSheet.show(
+              context,
+              chatId: chat.id,
+              currentAutoDeleteSeconds: chat.autoDeleteSeconds,
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrivateInviteLink(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+    ApiChatSummary chat,
+  ) {
+    final String? link = chat.privateInviteUrl;
+    if (link == null || link.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: 12,
+        left: AppConstants.screenHorizontalPadding,
+        right: AppConstants.screenHorizontalPadding,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.10),
+          ),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(Icons.lock_outline_rounded, size: 20, color: scheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Приватная ссылка',
+                    style: textTheme.labelLarge?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    link,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.copy_rounded, size: 20),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: link));
                 AppToast.showInfo(context, context.l10n.groupProfileLinkCopied);
               },
             ),

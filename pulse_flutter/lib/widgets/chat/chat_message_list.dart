@@ -7,6 +7,7 @@ import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
+import 'package:pulse_flutter/widgets/chat/sticker_set_modal.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -214,6 +215,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             message.msgType == 'circle_video' ||
             message.msgType == 'video_note' ||
             message.msgType == 'round_video';
+        final bool isSticker = message.isSticker;
         final int? mediaDuration = message.mediaDuration;
         final bool isLocalSending = message.isSending && message.id < 0;
 
@@ -270,6 +272,13 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             mediaLabel: mediaLabel,
             isVoice: isVoice,
             isCircleVideo: isCircleVideo,
+            isSticker: isSticker,
+            sticker: message.sticker,
+            onStickerTap: () {
+              if (message.sticker?.setId != null) {
+                StickerSetModal.show(context, setId: message.sticker!.setId);
+              }
+            },
             mediaDuration: mediaDuration,
             senderBadges: message.senderBadges,
             senderDisplayName: message.senderDisplayName,

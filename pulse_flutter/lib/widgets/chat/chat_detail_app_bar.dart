@@ -17,6 +17,8 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.isGroup = false,
     this.isChannel = false,
     this.isSecret = false,
+    this.autoDeleteDuration,
+    this.isVerified = false,
     required this.onBack,
     this.onVoiceCall,
     this.onVideoCall,
@@ -33,6 +35,8 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isGroup;
   final bool isChannel;
   final bool isSecret;
+  final String? autoDeleteDuration;
+  final bool isVerified;
   final VoidCallback onBack;
   final VoidCallback? onVoiceCall;
   final VoidCallback? onVideoCall;
@@ -118,13 +122,63 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(
-                      title,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isVerified ||
+                            directUsername?.toLowerCase() == 'support' ||
+                            title.toLowerCase() == 'support') ...<Widget>[
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.verified_rounded,
+                            size: 16,
+                            color: scheme.primary,
+                          ),
+                        ],
+                        if (autoDeleteDuration != null) ...<Widget>[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  scheme.primaryContainer.withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Icon(
+                                  Icons.timer_outlined,
+                                  size: 11,
+                                  color: scheme.onPrimaryContainer,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  autoDeleteDuration!,
+                                  style: textTheme.labelSmall?.copyWith(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: scheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     typingSubtitle,
                   ],
