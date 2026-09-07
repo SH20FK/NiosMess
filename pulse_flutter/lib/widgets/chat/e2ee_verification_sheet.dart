@@ -132,6 +132,24 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: scheme.secondaryContainer.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'E2EE v1',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: scheme.onSecondaryContainer,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                     const Spacer(),
                     if (isSecured)
                       Container(
@@ -235,7 +253,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                   const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(16),
@@ -243,29 +261,53 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                         color: scheme.outlineVariant.withValues(alpha: 0.3),
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: info.visualWords!.map((word) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _colorFromName(word.color)
-                                .withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            word.word,
-                            style: textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: _colorFromName(word.color),
-                              letterSpacing: 0.5,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: <Widget>[
+                        for (int i = 0; i < info.visualWords!.length; i++) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _colorFromName(info.visualWords![i].color)
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: _colorFromName(info.visualWords![i].color)
+                                    .withValues(alpha: 0.35),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Text(
+                                  '${i + 1}. ',
+                                  style: textTheme.labelSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: _colorFromName(
+                                            info.visualWords![i].color)
+                                        .withValues(alpha: 0.7),
+                                  ),
+                                ),
+                                Text(
+                                  info.visualWords![i].word,
+                                  style: textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: _colorFromName(
+                                        info.visualWords![i].color),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        );
-                      }).toList(),
+                        ],
+                      ],
                     ),
                   ),
                   const SizedBox(height: 6),

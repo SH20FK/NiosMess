@@ -16,8 +16,8 @@ import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/widgets/chat/inline_keyboard_view.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_modal.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
 import 'package:go_router/go_router.dart';
@@ -1029,69 +1029,10 @@ if (onSwipeToReply != null) {
   }
 
   Widget _buildInlineKeyboard(ColorScheme scheme, TextTheme textTheme) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Column(
-        crossAxisAlignment: isMine
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
-        children: replyMarkup!.inlineKeyboard
-            .map((List<InlineKeyboardButton> row) {
-              if (row.isEmpty) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
-                  children: row
-                      .map((InlineKeyboardButton btn) {
-                        return OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            minimumSize: const Size(0, 36),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            side: BorderSide(
-                              color: scheme.outlineVariant.withValues(
-                                alpha: 0.5,
-                              ),
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: () async {
-                            if (btn.url != null && btn.url!.trim().isNotEmpty) {
-                              final Uri? uri = Uri.tryParse(btn.url!);
-                              if (uri != null) {
-                                await launchUrl(
-                                  uri,
-                                  mode: LaunchMode.externalApplication,
-                                );
-                              }
-                            } else if (btn.callbackData != null &&
-                                onCallbackQuery != null) {
-                              onCallbackQuery!(btn.callbackData!);
-                            }
-                          },
-                          child: Text(
-                            btn.text,
-                            style: textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: scheme.primary,
-                            ),
-                          ),
-                        );
-                      })
-                      .toList(growable: false),
-                ),
-              );
-            })
-            .toList(growable: false),
-      ),
+    return InlineKeyboardView(
+      replyMarkup: replyMarkup!,
+      isMine: isMine,
+      onCallbackQuery: onCallbackQuery,
     );
   }
   Widget _buildMessageTextAndFooter({

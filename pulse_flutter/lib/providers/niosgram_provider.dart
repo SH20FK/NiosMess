@@ -159,29 +159,77 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     state = AsyncData<NiosgramState>(current.value.copyWith(posts: updated));
 
     try {
-      await ref.read(webSocketClientProvider).request(
+      final dynamic response = await ref.read(webSocketClientProvider).request(
         'react_post',
         payload: <String, dynamic>{
           'post_id': postId,
+          'reaction': isLike ? 'like' : 'dislike',
           'is_like': isLike,
         },
       );
+      if (response is Map) {
+        final dynamic respPayload = response['payload'] ?? response;
+        if (respPayload is Map) {
+          final int? likes = respPayload['likes'] as int? ??
+              respPayload['likes_count'] as int?;
+          final int? dislikes = respPayload['dislikes'] as int? ??
+              respPayload['dislikes_count'] as int?;
+          final dynamic reactionRaw = respPayload['my_reaction'];
+          bool? serverReaction;
+          if (reactionRaw == 'like' || reactionRaw == true) {
+            serverReaction = true;
+          } else if (reactionRaw == 'dislike' || reactionRaw == false) {
+            serverReaction = false;
+          }
+
+          final AsyncData<NiosgramState>? fresh = state.asData;
+          if (fresh != null) {
+            final List<NgPost> synced = fresh.value.posts.map((NgPost p) {
+              if (p.id != postId) return p;
+              return p.copyWith(
+                likesCount: likes ?? p.likesCount,
+                dislikesCount: dislikes ?? p.dislikesCount,
+                myReaction: () => serverReaction,
+              );
+            }).toList(growable: false);
+            state =
+                AsyncData<NiosgramState>(fresh.value.copyWith(posts: synced));
+          }
+        }
+      }
     } catch (e) {
       debugPrint('[niosgram_provider] Like error: $e');
       state = AsyncData<NiosgramState>(current.value);
     }
   }
 
-  Future<void> createPost(String text, {int? uploadId}) async {
-    final Map<String, dynamic> payload = <String, dynamic>{'content': text.trim()};
-    if (uploadId != null) payload['upload_id'] = uploadId;
+  Future<void> createPost(
+    String text, {
+    int? uploadId,
+    List<int>? uploadIds,
+    List<String>? aiTags,
+  }) async {
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'content': text.trim(),
+    };
+    if (uploadIds != null && uploadIds.isNotEmpty) {
+      payload['upload_ids'] = uploadIds;
+    } else if (uploadId != null) {
+      payload['upload_id'] = uploadId;
+    }
+    if (aiTags != null && aiTags.isNotEmpty) {
+      payload['ai_tags'] = aiTags;
+    }
     final dynamic response = await ref.read(webSocketClientProvider).request(
       'create_post',
       payload: payload,
     );
     if (response is! Map) return;
+    final dynamic respData =
+        response['payload'] ?? response['data'] ?? response;
+    if (respData is! Map) return;
     final NgPost post = NgPost.fromJson(
-      response.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
+      respData.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
     );
     final AsyncData<NiosgramState>? current = state.asData;
     if (current == null) return;

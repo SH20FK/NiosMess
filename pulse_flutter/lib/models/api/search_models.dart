@@ -1,29 +1,51 @@
 import 'package:pulse_flutter/models/api/badge_model.dart';
+import 'package:pulse_flutter/models/api/post_model.dart';
 
 class ApiSearchResult {
   const ApiSearchResult({
     required this.users,
     required this.chats,
     required this.messages,
+    this.posts = const <NgPost>[],
   });
 
   const ApiSearchResult.empty()
     : users = const <ApiSearchUser>[],
       chats = const <ApiSearchChat>[],
-      messages = const <ApiSearchMessage>[];
+      messages = const <ApiSearchMessage>[],
+      posts = const <NgPost>[];
 
   final List<ApiSearchUser> users;
   final List<ApiSearchChat> chats;
   final List<ApiSearchMessage> messages;
+  final List<NgPost> posts;
 
-  bool get isEmpty => users.isEmpty && chats.isEmpty && messages.isEmpty;
+  bool get isEmpty =>
+      users.isEmpty && chats.isEmpty && messages.isEmpty && posts.isEmpty;
 
   factory ApiSearchResult.fromJson(Map<String, dynamic> json) {
     return ApiSearchResult(
       users: _parseUsers(json['users']),
       chats: _parseChats(json['chats']),
       messages: _parseMessages(json['messages']),
+      posts: _parsePosts(json['posts']),
     );
+  }
+
+  static List<NgPost> _parsePosts(dynamic raw) {
+    if (raw is! List) {
+      return const <NgPost>[];
+    }
+    return raw
+        .whereType<Map>()
+        .map(
+          (Map item) => NgPost.fromJson(
+            item.map(
+              (dynamic key, dynamic value) => MapEntry(key.toString(), value),
+            ),
+          ),
+        )
+        .toList(growable: false);
   }
 
   static List<ApiSearchUser> _parseUsers(dynamic raw) {

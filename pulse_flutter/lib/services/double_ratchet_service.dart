@@ -545,7 +545,7 @@ class DoubleRatchetService {
     );
   }
 
-  /// Generate 4 colored visual words (matches Python get_wrd).
+  /// Generate 12 colored visual words for E2EE v1 safety verification.
   Future<List<({String word, String color})>> getVisualWords(
     SecretKey keyVal,
   ) async {
@@ -567,7 +567,7 @@ class DoubleRatchetService {
     ];
 
     final result = <({String word, String color})>[];
-    for (var i = 0; i < 4; i++) {
+    for (var i = 0; i < 12; i++) {
       final wordIdx = hashBytes[i * 2] % 50;
       final colorIdx = hashBytes[i * 2 + 1] % 7;
       result.add((word: words[wordIdx], color: colors[colorIdx]));

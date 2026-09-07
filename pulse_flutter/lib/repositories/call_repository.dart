@@ -27,12 +27,12 @@ class CallRepository {
     return asStringMap(response);
   }
 
-  Future<void> join({
+  Future<Map<String, dynamic>> join({
     required int chatId,
     required String roomId,
     required int messageId,
   }) async {
-    await _ref
+    final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request(
           'join_call',
@@ -42,6 +42,7 @@ class CallRepository {
             'message_id': messageId,
           },
         );
+    return asStringMap(response);
   }
 
   Future<void> end({

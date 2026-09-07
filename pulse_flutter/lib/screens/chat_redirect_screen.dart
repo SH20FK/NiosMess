@@ -32,6 +32,20 @@ class _ChatRedirectScreenState extends ConsumerState<ChatRedirectScreen> {
     });
 
     try {
+      if (widget.slug.startsWith('+')) {
+        // Private invite link (/u/+TOKEN)
+        final joinRes =
+            await ref.read(chatRepositoryProvider).joinBySlug(widget.slug);
+        if (!mounted) return;
+        if (joinRes != null && joinRes.chatId > 0) {
+          context.go('/chat/${joinRes.chatId}');
+          return;
+        } else {
+          context.go('/join?slug=${Uri.encodeComponent(widget.slug)}');
+          return;
+        }
+      }
+
       final result = await ref
           .read(chatRepositoryProvider)
           .resolveShortLink(widget.slug);
@@ -41,17 +55,11 @@ class _ChatRedirectScreenState extends ConsumerState<ChatRedirectScreen> {
       if (result != null && result.isNotEmpty) {
         context.go(result);
       } else {
-        setState(() {
-          _loading = false;
-          _error = context.l10n.deepLinkNotFound;
-        });
+        context.go('/chat/dm/${widget.slug}');
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = e.toString();
-      });
+      context.go('/chat/dm/${widget.slug}');
     }
   }
 

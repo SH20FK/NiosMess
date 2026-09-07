@@ -44,6 +44,13 @@ class ApiProfile {
     return false;
   }
 
+  bool get isCallsTester =>
+      badges.any((ApiBadge b) =>
+          b.name.toLowerCase().contains('calls tester') ||
+          b.name.toLowerCase() == 'calls_tester' ||
+          (b.description != null &&
+              b.description!.toLowerCase().contains('calls tester')));
+
   List<ApiBadge> get visibleBadges {
     if (visibleBadgeIds.isEmpty) {
       return badges.take(2).toList(growable: false);

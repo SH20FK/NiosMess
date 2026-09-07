@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/models/api/call_models.dart';
 import 'package:pulse_flutter/providers/call_video_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
@@ -31,6 +32,8 @@ class CallSessionManager {
     required this.displayName,
     this.peerName,
     required this.aesKeyBytes,
+    this.isListener = false,
+    this.gatewayInfo,
   });
 
   final WidgetRef ref;
@@ -42,11 +45,32 @@ class CallSessionManager {
   final String displayName;
   final String? peerName;
   final Uint8List aesKeyBytes;
+  final bool isListener;
+  final ApiCallGatewayInfo? gatewayInfo;
 
   CallSession? _session;
   StreamSubscription<CallSessionData>? _stateSub;
+  Timer? _soloTimer;
 
   CallSession? get session => _session;
+
+  void _handleSoloCheck(CallSessionData data) {
+    if (data.state == CallSessionState.ended || data.state == CallSessionState.idle) {
+      _soloTimer?.cancel();
+      _soloTimer = null;
+      return;
+    }
+
+    if (data.remoteParticipants.isEmpty) {
+      _soloTimer ??= Timer(const Duration(minutes: 3), () {
+        debugPrint('[call_session_provider] Solo waiting timeout reached (3 min), ending call');
+        end();
+      });
+    } else {
+      _soloTimer?.cancel();
+      _soloTimer = null;
+    }
+  }
 
   CallSession start({bool preferQuic = false}) {
     _session = CallSession(
@@ -58,6 +82,7 @@ class CallSessionManager {
       displayName: displayName,
       peerName: peerName,
       aesKeyBytes: aesKeyBytes,
+      isListener: isListener,
       onCameraReady: isVideo
           ? (controller) {
               ref.read(localCameraControllerProvider.notifier).set(controller);
@@ -67,14 +92,30 @@ class CallSessionManager {
     _stateSub?.cancel();
     _stateSub = _session!.stateStream.listen((data) {
       if (data.state == CallSessionState.ended) {
+        _soloTimer?.cancel();
+        _soloTimer = null;
         ref.read(callSessionProvider.notifier).setSession(null);
+        return;
+      }
+
+      _handleSoloCheck(data);
+
+      if (gatewayInfo?.maxDurationSeconds != null &&
+          data.durationSeconds >= gatewayInfo!.maxDurationSeconds!) {
+        debugPrint(
+            '[call_session_provider] Max duration quota reached (${gatewayInfo!.maxDurationSeconds}s), ending call');
+        end();
       }
     });
+
+    _handleSoloCheck(_session!.currentData);
     _session!.start(preferQuic: preferQuic);
     return _session!;
   }
 
   Future<void> end() async {
+    _soloTimer?.cancel();
+    _soloTimer = null;
     final duration = _session?.currentData.durationSeconds ?? 0;
     final wasMissed = _session?.currentData.durationSeconds == 0;
     try {
@@ -97,6 +138,8 @@ class CallSessionManager {
   }
 
   void dispose() {
+    _soloTimer?.cancel();
+    _soloTimer = null;
     _stateSub?.cancel();
     _stateSub = null;
     _session?.dispose();
@@ -106,6 +149,8 @@ class CallSessionManager {
   /// The remote side ended the call (end_call push): tear down locally
   /// without echoing end signaling back to the server.
   Future<void> remoteEnd() async {
+    _soloTimer?.cancel();
+    _soloTimer = null;
     _stateSub?.cancel();
     _stateSub = null;
     await _session?.end();

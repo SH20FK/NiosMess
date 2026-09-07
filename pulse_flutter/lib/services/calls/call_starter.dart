@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/models/api/call_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
@@ -12,7 +13,7 @@ import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/services/permission_service.dart';
 
 /// Why [startOutgoingCall] or [startIncomingCall] refused to start.
-enum CallStartFailure { permissions }
+enum CallStartFailure { permissions, botForbidden }
 
 class CallStartException implements Exception {
   const CallStartException(this.failure, {this.cause});
@@ -59,10 +60,20 @@ Future<int> startOutgoingCall({
   required bool isVideo,
   String? peerName,
 }) async {
+  final chat = ref.read(chatByIdProvider(chatId));
+  final bool isBot = (chat != null && chat.isBotChat) ||
+      (peerName != null && peerName.toLowerCase().endsWith('_bot')) ||
+      (chat?.username != null && chat!.username!.toLowerCase().endsWith('_bot'));
+  if (isBot) {
+    throw const CallStartException(CallStartFailure.botForbidden);
+  }
+
+  bool isListener = false;
   final bool perm =
       await PermissionService().requestCallPermissions(video: isVideo);
   if (!perm) {
-    throw const CallStartException(CallStartFailure.permissions);
+    // Spec: "Если микрофон и камера недоступны, клиент всё равно подключается слушателем."
+    isListener = true;
   }
 
   final Random random = Random.secure();
@@ -80,8 +91,16 @@ Future<int> startOutgoingCall({
         isVideo: isVideo,
       );
 
-  final int callId =
-      (result['payload']?['message_id'] ?? result['message_id'] ?? 0) as int;
+  final bool isCallsTester =
+      ref.read(authProvider).profile?.isCallsTester ?? false;
+  final ApiCallInitiateResult initResult =
+      ApiCallInitiateResult.fromJson(result, isCallsTester: isCallsTester);
+  final ApiCallGatewayInfo gatewayInfo = initResult.gatewayInfo ??
+      ApiCallGatewayInfo.defaultFor(isCallsTester: isCallsTester);
+
+  final int callId = (result['payload']?['message_id'] ??
+          result['message_id'] ??
+          initResult.callId) as int;
 
   final Uint8List aesKeyBytes = await deriveCallMediaKey(
     ref,
@@ -97,8 +116,10 @@ Future<int> startOutgoingCall({
     isVideo: isVideo,
     direction: CallDirection.outgoing,
     displayName: nickname,
-    peerName: peerName ?? ref.read(chatByIdProvider(chatId))?.name,
+    peerName: peerName ?? chat?.name,
     aesKeyBytes: aesKeyBytes,
+    isListener: isListener,
+    gatewayInfo: gatewayInfo,
   )..start(preferQuic: false);
 
   ref.read(callSessionProvider.notifier).setSession(manager);
@@ -114,15 +135,17 @@ Future<void> startIncomingCall({
   required bool isVideo,
   String? peerName,
 }) async {
+  bool isListener = false;
   final bool perm =
       await PermissionService().requestCallPermissions(video: isVideo);
   if (!perm) {
-    throw const CallStartException(CallStartFailure.permissions);
+    isListener = true;
   }
 
   // Signal server that we accepted the call (mirrors web.html acceptCall join_call)
+  Map<String, dynamic> joinResult = <String, dynamic>{};
   try {
-    await ref.read(callRepositoryProvider).join(
+    joinResult = await ref.read(callRepositoryProvider).join(
       chatId: chatId,
       roomId: roomId,
       messageId: callId,
@@ -130,6 +153,13 @@ Future<void> startIncomingCall({
   } catch (e) {
     // If signaling fails, proceed to attempt connection
   }
+
+  final bool isCallsTester =
+      ref.read(authProvider).profile?.isCallsTester ?? false;
+  final ApiCallInitiateResult initResult =
+      ApiCallInitiateResult.fromJson(joinResult, isCallsTester: isCallsTester);
+  final ApiCallGatewayInfo gatewayInfo = initResult.gatewayInfo ??
+      ApiCallGatewayInfo.defaultFor(isCallsTester: isCallsTester);
 
   final String nickname =
       ref.read(authProvider).session?.displayName ?? 'User';
@@ -150,6 +180,8 @@ Future<void> startIncomingCall({
     displayName: nickname,
     peerName: peerName,
     aesKeyBytes: aesKeyBytes,
+    isListener: isListener,
+    gatewayInfo: gatewayInfo,
   )..start(preferQuic: false);
 
   ref.read(callSessionProvider.notifier).setSession(manager);

@@ -1,24 +1,28 @@
-# Handoff Report — Project Sentinel
+# Sentinel Handoff — Phase 1: Core Messenger Suite Launch
 
 ## Observation
-The user requested the full implementation of the unified Nios ID OAuth 2.0 PKCE authentication flow and premium Material 3 Expressive authentication hub in `pulse_flutter` in accordance with `NIOSMESS_FRONTEND_LOGIN.md`.
-The implementation swarm executed the work across 5 milestone stages (M1-M5), completely removing legacy local username/password input forms, creating the unified responsive Material 3 Expressive Auth Hub, integrating the cryptographic S256 PKCE flow with ephemeral storage, WebSocket `login_nios_id` action, cold-start session verification, and clean 5-stage logout.
+Received user request for Phase 1: Core Messenger Suite covering:
+- R1: Full Sticker Suite (WebSocket actions, M3 Expressive sticker picker panel, bubble rendering, sticker modal)
+- R2: Profile, Schedule & Badges (working hours weekly planner, dynamic status badge, visible badges selector, video avatar)
+- R3: Privacy Policies & Blocklist (12 privacy keys, exception lists, block/unblock, settings privacy UI redesign)
+- R4: Groups, Invite Links, Auto-delete & Moderation (/u/+TOKEN links, auto_delete_seconds, mute/ban bottom sheet)
+- R5: Reports, Support & Spamblock UI (new report reasons, support tickets/chat, spamblock countdown banner)
 
 ## Logic Chain
-1. Request was received and recorded into `ORIGINAL_REQUEST.md`.
-2. Routed to `teamwork_preview_orchestrator` per General routing rule.
-3. Orchestrator planned and managed implementation across specialist workers, test writers, reviewers, challengers, and integrity auditors.
-4. When victory was claimed, Sentinel dispatched the independent `teamwork_preview_victory_auditor` to conduct a 3-phase post-victory audit (timeline provenance, anti-cheating/leak detection, independent test & static analysis execution).
-5. The Victory Auditor confirmed all contract requirements, security guardrails, zero analyze issues, 100% test pass rate across 312 tests, and SemVer bump to `3.6.1+9`.
-6. Background monitoring tasks and subagent lifecycles were cleanly terminated.
+1. Verified task nature against Routing Decision Table: complex multi-milestone full-stack messenger feature suite -> routed to General (`teamwork_preview_orchestrator`).
+2. Appended verbatim request to `f:\Niosmess V2\.agents\ORIGINAL_REQUEST.md`.
+3. Created detailed dispatch specification `f:\Niosmess V2\.agents\orchestrator_6\DISPATCH.md`.
+4. Spawned Project Orchestrator (conversation ID: `10b7cd82-1b66-4490-a7a4-b6e7fad1a944`).
+5. Scheduled Cron 1 (Progress reporting, `*/8 * * * *`, task-28) and Cron 2 (Liveness check, `*/10 * * * *`, task-30).
+6. Updated `BRIEFING.md`.
 
 ## Caveats
-- Native mobile platforms (Android/iOS) rely on Custom Tabs/System Browser with deep link callback scheme (`niosmess://auth/callback` via `app_links`), while Web uses direct navigation with `history.replaceState` address bar sanitization.
-- Central session verification checks `GET /id/api/v1/account` on cold start and gracefully ignores offline network errors while clearing the local session only on strict 401 Unauthorized.
+- Orchestrator must adhere to Riverpod 3.x NotifierProvider conventions, universal_io, and Material 3 Expressive.
+- Mandatory Victory Audit will be required upon completion claim before declaring final success.
 
 ## Conclusion
-Mission accomplished. Unified Nios ID OAuth 2.0 PKCE authentication flow is fully functional, fully tested, and verified under independent audit.
+Phase 1 implementation has been successfully dispatched to Project Orchestrator (`10b7cd82-1b66-4490-a7a4-b6e7fad1a944`). Sentinel is actively monitoring progress and liveness.
 
 ## Verification Method
-- Independent Victory Auditor executed `flutter analyze` (0 errors, 0 warnings) and `flutter test` (312 tests passed, 0 failures).
-- RFC 7636 Appendix B test vector verified for S256 PKCE challenge calculation.
+- Active monitoring via crons task-28 and task-30.
+- Mandatory post-victory audit via `teamwork_preview_victory_auditor`.

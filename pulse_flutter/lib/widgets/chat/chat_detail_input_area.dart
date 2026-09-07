@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/models/api/inline_query_model.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
+import 'package:pulse_flutter/providers/inline_query_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_input_bar.dart';
+import 'package:pulse_flutter/widgets/chat/inline_query_overlay.dart';
 import 'package:pulse_flutter/widgets/chat/spamblock_banner.dart';
 
-class ChatDetailInputArea extends StatelessWidget {
+class ChatDetailInputArea extends ConsumerWidget {
   const ChatDetailInputArea({
     super.key,
     required this.canPostInChannel,
@@ -16,6 +20,7 @@ class ChatDetailInputArea extends StatelessWidget {
     required this.isAiProcessing,
     this.chatId,
     this.onSendSticker,
+    this.onSendInlineResult,
     this.editingMessageId,
     this.editingOriginalText,
     this.replyToMessageId,
@@ -43,6 +48,7 @@ class ChatDetailInputArea extends StatelessWidget {
   final DateTime? spamBlockUntil;
   final String? spamBlockReason;
   final VoidCallback? onContactSupport;
+  final void Function(InlineQueryResult result)? onSendInlineResult;
 
   /// True while this chat has uploads in flight — swaps the attach button
   /// for a spinner in [ChatInputBar]. Per-message progress lives in the
@@ -71,7 +77,7 @@ class ChatDetailInputArea extends StatelessWidget {
   final bool sendOnEnter;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     final TextTheme textTheme = theme.textTheme;
@@ -89,6 +95,10 @@ class ChatDetailInputArea extends StatelessWidget {
       );
     }
 
+    final InlineQueryState inlineState = ref.watch(inlineQueryProvider);
+    final bool showInlineOverlay = inlineState.isActive &&
+        (inlineState.chatId == null || inlineState.chatId == chatId);
+
     return SafeArea(
       top: false,
       child: RepaintBoundary(
@@ -102,6 +112,25 @@ class ChatDetailInputArea extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
+                      if (showInlineOverlay)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: InlineQueryOverlay(
+                            state: inlineState,
+                            onSelectResult: (InlineQueryResult result) {
+                              inputController.clear();
+                              ref.read(inlineQueryProvider.notifier).clear();
+                              if (onSendInlineResult != null) {
+                                onSendInlineResult!(result);
+                              } else {
+                                inputController.text = result.messageText;
+                                onSend();
+                              }
+                            },
+                            onClose: () =>
+                                ref.read(inlineQueryProvider.notifier).clear(),
+                          ),
+                        ),
                       if (showDraftRestoredBanner)
                         DecoratedBox(
                           decoration: BoxDecoration(

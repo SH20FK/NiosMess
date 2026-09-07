@@ -41,6 +41,7 @@ class CallSession {
     this.onRemoteParticipantJoined,
     this.onRemoteParticipantLeft,
     this.onCameraReady,
+    this.isListener = false,
   }) : aesKey = SecretKey(aesKeyBytes);
 
   final int chatId;
@@ -51,6 +52,7 @@ class CallSession {
   final String displayName;
   final String? peerName;
   final SecretKey aesKey;
+  final bool isListener;
 
   OnStateChanged? onStateChanged;
   OnIncomingAudio? onIncomingAudio;
@@ -90,9 +92,9 @@ class CallSession {
   String? _fatalError;
 
   CallSessionState _state = CallSessionState.idle;
-  bool _isMuted = false;
+  late bool _isMuted = isListener;
   bool _isSpeakerOn = false;
-  bool _isSelfVideoEnabled = true;
+  late bool _isSelfVideoEnabled = !isListener;
   final List<StreamSubscription<void>> _transportSubs =
       <StreamSubscription<void>>[];
   int _reconnectAttempts = 0;
@@ -114,6 +116,7 @@ class CallSession {
         isMuted: _isMuted,
         isSpeakerOn: _isSpeakerOn,
         isSelfVideoEnabled: _isSelfVideoEnabled,
+        isListener: isListener,
         fatalError: _fatalError,
       );
 

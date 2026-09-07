@@ -4,12 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+
+enum SearchCategory { all, users, chats, messages, posts }
 
 /// Android 15 / Google Messages floating search bar with 28dp pill radius,
 /// tonal elevation, and embedded profile avatar shortcut.
@@ -36,6 +39,7 @@ class ChatSearchBar extends ConsumerStatefulWidget {
 class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
   late final SearchController _searchController;
   Timer? _searchDebounce;
+  SearchCategory _selectedCategory = SearchCategory.all;
 
   @override
   void initState() {
@@ -171,6 +175,39 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
         }
 
         return <Widget>[
+          StatefulBuilder(
+            builder: (BuildContext context, StateSetter setChipState) {
+              Widget buildChip(SearchCategory cat, String label) {
+                final bool isSelected = _selectedCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    selected: isSelected,
+                    label: Text(label),
+                    onSelected: (_) {
+                      setChipState(() {
+                        _selectedCategory = cat;
+                      });
+                    },
+                  ),
+                );
+              }
+
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Row(
+                  children: <Widget>[
+                    buildChip(SearchCategory.all, 'Все'),
+                    buildChip(SearchCategory.users, 'Люди'),
+                    buildChip(SearchCategory.chats, 'Чаты'),
+                    buildChip(SearchCategory.messages, 'Сообщения'),
+                    buildChip(SearchCategory.posts, 'Посты'),
+                  ],
+                ),
+              );
+            },
+          ),
           Consumer(
             builder: (BuildContext context, WidgetRef ref, Widget? child) {
               final AsyncValue<ApiSearchResult> searchAsync =
@@ -178,9 +215,26 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
 
               return searchAsync.when(
                 data: (ApiSearchResult result) {
-                  if (result.messages.isEmpty &&
-                      result.chats.isEmpty &&
-                      result.users.isEmpty) {
+                  final List<Widget> resultsList = <Widget>[];
+
+                  final bool showChats =
+                      (_selectedCategory == SearchCategory.all ||
+                              _selectedCategory == SearchCategory.chats) &&
+                          result.chats.isNotEmpty;
+                  final bool showUsers =
+                      (_selectedCategory == SearchCategory.all ||
+                              _selectedCategory == SearchCategory.users) &&
+                          result.users.isNotEmpty;
+                  final bool showMessages =
+                      (_selectedCategory == SearchCategory.all ||
+                              _selectedCategory == SearchCategory.messages) &&
+                          result.messages.isNotEmpty;
+                  final bool showPosts =
+                      (_selectedCategory == SearchCategory.all ||
+                              _selectedCategory == SearchCategory.posts) &&
+                          result.posts.isNotEmpty;
+
+                  if (!showChats && !showUsers && !showMessages && !showPosts) {
                     return Padding(
                       padding: const EdgeInsets.all(32),
                       child: Center(
@@ -194,9 +248,7 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
                     );
                   }
 
-                  final List<Widget> resultsList = <Widget>[];
-
-                  if (result.chats.isNotEmpty) {
+                  if (showChats) {
                     resultsList.add(
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -255,7 +307,7 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
                     }
                   }
 
-                  if (result.users.isNotEmpty) {
+                  if (showUsers) {
                     resultsList.add(
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -318,7 +370,7 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
                     }
                   }
 
-                  if (result.messages.isNotEmpty) {
+                  if (showMessages) {
                     resultsList.add(
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -365,6 +417,71 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           onTap: () => _openMessage(msg),
+                        ),
+                      );
+                    }
+                  }
+
+                  if (showPosts) {
+                    resultsList.add(
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Text(
+                          'Посты',
+                          style: textTheme.labelMedium?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    );
+
+                    for (final NgPost post in result.posts) {
+                      resultsList.add(
+                        ListTile(
+                          leading: PulseAvatar(
+                            radius: 20,
+                            name: post.author.displayName.isNotEmpty
+                                ? post.author.displayName
+                                : post.author.username,
+                            avatarUrl: post.author.avatarUrl,
+                            fallbackColor: scheme.secondary,
+                            textColor: scheme.onSecondary,
+                          ),
+                          title: Text(
+                            post.author.displayName.isNotEmpty
+                                ? post.author.displayName
+                                : '@${post.author.username}',
+                            style: textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            post.content,
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: (post.mediaUrls.isNotEmpty ||
+                                  post.mediaUrl != null)
+                              ? Icon(
+                                  post.isVideo
+                                      ? Icons.videocam_rounded
+                                      : Icons.image_rounded,
+                                  size: 20,
+                                  color: scheme.onSurfaceVariant,
+                                )
+                              : null,
+                          onTap: () {
+                            controller.closeView('');
+                            context.push(
+                              '/niosgram/post/${post.id}/comments',
+                            );
+                          },
                         ),
                       );
                     }

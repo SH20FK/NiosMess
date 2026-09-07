@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
+import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:pulse_flutter/repositories/search_repository.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/niosgram_provider.dart';
 
 class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
   Timer? _debounce;
@@ -78,11 +80,23 @@ class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
       }
     }
 
+    final niosgramState = ref.read(niosgramProvider).value;
+    final List<NgPost> localPosts = niosgramState?.posts ?? const <NgPost>[];
+    final List<NgPost> localMatchingPosts = <NgPost>[];
+    for (final NgPost post in localPosts) {
+      if (post.content.toLowerCase().contains(lowerQuery) ||
+          post.author.username.toLowerCase().contains(lowerQuery) ||
+          post.author.displayName.toLowerCase().contains(lowerQuery)) {
+        localMatchingPosts.add(post);
+      }
+    }
+
     // Update state instantly with local matches so the user sees results immediately
     state = AsyncData<ApiSearchResult>(ApiSearchResult(
       users: localMatchingUsers,
       chats: localMatchingChats,
       messages: localMatchingMessages,
+      posts: localMatchingPosts,
     ));
 
     // Debounce the backend request
@@ -92,6 +106,7 @@ class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
         localMatchingChats,
         localMatchingUsers,
         localMatchingMessages,
+        localMatchingPosts,
       );
     });
   }
@@ -101,6 +116,7 @@ class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
     List<ApiSearchChat> localChats,
     List<ApiSearchUser> localUsers,
     List<ApiSearchMessage> localMessages,
+    List<NgPost> localPosts,
   ) async {
     final int seq = ++_seq;
     try {
@@ -134,10 +150,18 @@ class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
         mergedMessages[m.id] = m;
       }
 
+      final Map<int, NgPost> mergedPosts = <int, NgPost>{
+        for (final p in localPosts) p.id: p,
+      };
+      for (final p in backendResult.posts) {
+        mergedPosts[p.id] = p;
+      }
+
       final ApiSearchResult finalResult = ApiSearchResult(
         users: mergedUsers.values.toList(),
         chats: mergedChats.values.toList(),
         messages: mergedMessages.values.toList(),
+        posts: mergedPosts.values.toList(),
       );
 
       if (seq == _seq) {
@@ -149,6 +173,7 @@ class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
           users: localUsers,
           chats: localChats,
           messages: localMessages,
+          posts: localPosts,
         ));
       }
     }

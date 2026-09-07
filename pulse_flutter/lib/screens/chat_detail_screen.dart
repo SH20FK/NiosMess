@@ -25,7 +25,9 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
+import 'package:pulse_flutter/models/api/inline_query_model.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
+import 'package:pulse_flutter/providers/inline_query_provider.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
@@ -354,6 +356,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _inputController.dispose();
     _scrollController.dispose();
     _inputFocusNode.dispose();
+    ref.read(inlineQueryProvider.notifier).clear();
     if (_isSecret) {
       ScreenSecurityService.setSecureFlag(enabled: false);
     }
@@ -439,6 +442,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         _isInputEmpty = isEmpty;
       });
     }
+    ref.read(inlineQueryProvider.notifier).onInputChanged(
+      chatId: _chatId,
+      text: _inputController.text,
+    );
     if (!isEmpty) {
       final int? chatId = _chatId;
       if (chatId != null) {
@@ -1618,6 +1625,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           autoDeleteDuration: chat?.formattedAutoDeleteDuration,
           isVerified: chat?.username?.toLowerCase() == 'support' ||
               directUsername?.toLowerCase() == 'support',
+          isBot: chat?.chatType == 'bot' ||
+              (directUsername != null &&
+                  directUsername.toLowerCase().endsWith('bot')),
           onBack: () {
             if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
             _goBack();
@@ -1699,7 +1709,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                             title: 'Секретный чат',
                             description: 'Переписка в этом чате защищена сквозным шифрованием',
                             features: const [
-                              'Сквозное шифрование (Double Ratchet)',
+                              'Сквозное шифрование (E2EE v1)',
                               'Сообщения не сохраняются на сервере',
                               'Ключи хранятся только на ваших устройствах',
                               'Никто третий не может прочитать переписку',
@@ -1828,6 +1838,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             child: ChatDetailInputArea(
               chatId: chatId,
               onSendSticker: _sendSticker,
+              onSendInlineResult: (InlineQueryResult result) {
+                _inputController.text = result.messageText;
+                _sendMessage();
+              },
               canPostInChannel: canPostInChannel,
               showDraftRestoredBanner: _showDraftRestoredBanner,
               onClearDraft: () {

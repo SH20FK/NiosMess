@@ -19,6 +19,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.isSecret = false,
     this.autoDeleteDuration,
     this.isVerified = false,
+    this.isBot = false,
     required this.onBack,
     this.onVoiceCall,
     this.onVideoCall,
@@ -37,12 +38,14 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isSecret;
   final String? autoDeleteDuration;
   final bool isVerified;
+  final bool isBot;
   final VoidCallback onBack;
   final VoidCallback? onVoiceCall;
   final VoidCallback? onVideoCall;
   final VoidCallback? onSecurityTap;
 
-  bool get _showCallButtons => !isChannel && (onVoiceCall != null || onVideoCall != null);
+  bool get _showCallButtons =>
+      !isChannel && !isBot && (onVoiceCall != null || onVideoCall != null);
   bool get _showOverflowMenu => true;
 
   @override

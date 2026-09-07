@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
+
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
@@ -40,6 +42,8 @@ class ApiMessage {
     this.e2eeContent,
     this.e2eeFileKey,
     this.isRead = false,
+    this.systemEventType,
+    this.systemEvent,
   });
 
   final int id;
@@ -73,12 +77,18 @@ class ApiMessage {
   final String? e2eeFileKey;
   final bool isRead;
   final ApiSticker? sticker;
+  final String? systemEventType;
+  final Map<String, dynamic>? systemEvent;
 
   bool get isEdited => editedAt != null;
 
   bool get hasMedia => (mediaUrl ?? '').isNotEmpty;
 
   bool get isSticker => msgType == 'sticker' || sticker != null;
+
+  bool get isCallEvent => systemEventType == 'call' || msgType == 'call';
+
+  bool get isSystemEvent => systemEventType != null;
 
   DateTime get resolvedSentAt => AppTimeSettings.resolve(sentAt);
 
@@ -111,6 +121,8 @@ class ApiMessage {
     String? e2eeContent,
     String? e2eeFileKey,
     bool? isRead,
+    String? systemEventType,
+    Map<String, dynamic>? systemEvent,
   }) {
     return ApiMessage(
       id: id ?? this.id,
@@ -141,6 +153,8 @@ class ApiMessage {
       e2eeContent: e2eeContent ?? this.e2eeContent,
       e2eeFileKey: e2eeFileKey ?? this.e2eeFileKey,
       isRead: isRead ?? this.isRead,
+      systemEventType: systemEventType ?? this.systemEventType,
+      systemEvent: systemEvent ?? this.systemEvent,
     );
   }
 
@@ -218,6 +232,12 @@ class ApiMessage {
               ),
             )
           : null,
+      systemEventType: json['system_event_type'] as String?,
+      systemEvent: json['system_event'] is Map
+          ? (json['system_event'] as Map).map(
+              (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+            )
+          : null,
     );
   }
 
@@ -249,6 +269,8 @@ class ApiMessage {
       if (e2eeContent != null) 'e2ee_content': e2eeContent,
       if (e2eeFileKey != null) 'e2ee_file_key': e2eeFileKey,
       if (replyMarkup != null) 'reply_markup': replyMarkup!.toJson(),
+      if (systemEventType != null) 'system_event_type': systemEventType,
+      if (systemEvent != null) 'system_event': systemEvent,
     };
   }
 }
@@ -267,7 +289,10 @@ class InlineKeyboardMarkup {
       inlineKeyboard: rows.map((dynamic row) {
         if (row is List) {
           return row
-              .map((dynamic btn) => InlineKeyboardButton.fromJson(btn as Map<String, dynamic>))
+              .whereType<Map>()
+              .map((dynamic btn) => InlineKeyboardButton.fromJson(
+                    (btn as Map).map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
+                  ))
               .toList(growable: false);
         }
         return <InlineKeyboardButton>[];
@@ -282,6 +307,54 @@ class InlineKeyboardMarkup {
           .toList(growable: false),
     };
   }
+
+  InlineKeyboardMarkup copyWith({
+    List<List<InlineKeyboardButton>>? inlineKeyboard,
+  }) {
+    return InlineKeyboardMarkup(
+      inlineKeyboard: inlineKeyboard ?? this.inlineKeyboard,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! InlineKeyboardMarkup) return false;
+    if (inlineKeyboard.length != other.inlineKeyboard.length) return false;
+    for (int i = 0; i < inlineKeyboard.length; i++) {
+      if (!listEquals(inlineKeyboard[i], other.inlineKeyboard[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(inlineKeyboard.map(Object.hashAll));
+
+  @override
+  String toString() => 'InlineKeyboardMarkup(rows: ${inlineKeyboard.length})';
+}
+
+enum InlineKeyboardButtonStyle {
+  defaultStyle('default'),
+  primary('primary'),
+  success('success'),
+  warning('warning'),
+  danger('danger');
+
+  const InlineKeyboardButtonStyle(this.value);
+  final String value;
+
+  static InlineKeyboardButtonStyle fromString(String? value) {
+    return switch (value?.toLowerCase().trim()) {
+      'primary' => InlineKeyboardButtonStyle.primary,
+      'success' => InlineKeyboardButtonStyle.success,
+      'warning' => InlineKeyboardButtonStyle.warning,
+      'danger' => InlineKeyboardButtonStyle.danger,
+      _ => InlineKeyboardButtonStyle.defaultStyle,
+    };
+  }
 }
 
 class InlineKeyboardButton {
@@ -289,17 +362,38 @@ class InlineKeyboardButton {
     required this.text,
     this.callbackData,
     this.url,
-  });
+    this.style = 'default',
+  }) : assert(
+          url == null || callbackData == null,
+          'InlineKeyboardButton cannot have both url and callbackData',
+        );
 
   final String text;
   final String? callbackData;
   final String? url;
+  final String style;
+
+  InlineKeyboardButtonStyle get buttonStyle =>
+      InlineKeyboardButtonStyle.fromString(style);
+
+  bool get isUrl => url != null && url!.trim().isNotEmpty;
+  bool get isCallback => callbackData != null && callbackData!.trim().isNotEmpty;
 
   factory InlineKeyboardButton.fromJson(Map<String, dynamic> json) {
+    final String text = json['text'] as String? ?? '';
+    final String? rawUrl = (json['url'] as String?)?.trim();
+    final String? rawCb = (json['callback_data'] as String?)?.trim();
+    final String rawStyle = (json['style'] as String?)?.toLowerCase().trim() ?? 'default';
+
+    // Mutual exclusivity: url takes precedence if both are present
+    final String? url = (rawUrl != null && rawUrl.isNotEmpty) ? rawUrl : null;
+    final String? callbackData = (url == null && rawCb != null && rawCb.isNotEmpty) ? rawCb : null;
+
     return InlineKeyboardButton(
-      text: json['text'] as String? ?? '',
-      callbackData: json['callback_data'] as String?,
-      url: json['url'] as String?,
+      text: text,
+      callbackData: callbackData,
+      url: url,
+      style: rawStyle.isNotEmpty ? rawStyle : 'default',
     );
   }
 
@@ -308,6 +402,39 @@ class InlineKeyboardButton {
       'text': text,
       if (callbackData != null) 'callback_data': callbackData,
       if (url != null) 'url': url,
+      if (style != 'default') 'style': style,
     };
   }
+
+  InlineKeyboardButton copyWith({
+    String? text,
+    String? callbackData,
+    String? url,
+    String? style,
+  }) {
+    return InlineKeyboardButton(
+      text: text ?? this.text,
+      callbackData: callbackData ?? this.callbackData,
+      url: url ?? this.url,
+      style: style ?? this.style,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InlineKeyboardButton &&
+          runtimeType == other.runtimeType &&
+          text == other.text &&
+          callbackData == other.callbackData &&
+          url == other.url &&
+          style == other.style;
+
+  @override
+  int get hashCode => Object.hash(text, callbackData, url, style);
+
+  @override
+  String toString() =>
+      'InlineKeyboardButton(text: $text, style: $style, callbackData: $callbackData, url: $url)';
 }
+

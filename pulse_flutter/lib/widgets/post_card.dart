@@ -172,12 +172,19 @@ class _PostCardState extends ConsumerState<PostCard>
   void _handleMediaTap() {
     if (widget.onMediaTap != null) {
       widget.onMediaTap!();
-    } else if (widget.post.mediaUrl != null && widget.post.mediaUrl!.isNotEmpty) {
-      _openFullScreen(
-        context,
-        ApiConstants.resolve(widget.post.mediaUrl),
-        widget.post.id,
-      );
+    } else {
+      final List<String> list = widget.post.mediaUrls.isNotEmpty
+          ? widget.post.mediaUrls
+          : (widget.post.mediaUrl != null && widget.post.mediaUrl!.isNotEmpty
+              ? <String>[widget.post.mediaUrl!]
+              : const <String>[]);
+      if (list.isNotEmpty) {
+        _openFullScreen(
+          context,
+          ApiConstants.resolve(list.first),
+          widget.post.id,
+        );
+      }
     }
   }
 
@@ -189,6 +196,11 @@ class _PostCardState extends ConsumerState<PostCard>
       authProvider.select((a) => a.profile?.id == widget.post.author.id),
     );
     final NgPost post = widget.post;
+    final List<String> effectiveMediaUrls = post.mediaUrls.isNotEmpty
+        ? post.mediaUrls
+        : (post.mediaUrl != null && post.mediaUrl!.isNotEmpty
+            ? <String>[post.mediaUrl!]
+            : const <String>[]);
 
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -415,55 +427,12 @@ class _PostCardState extends ConsumerState<PostCard>
                   ),
 
                 // ── Media Viewport ──────────────────────────────────
-                if (post.mediaUrl != null && post.mediaUrl!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-                    child: GestureDetector(
-                      onDoubleTap: _onDoubleTapLike,
-                      onTap: _handleMediaTap,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHighest
-                                .withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color:
-                                  scheme.outlineVariant.withValues(alpha: 0.15),
-                            ),
-                          ),
-                          child: AspectRatio(
-                            aspectRatio: 16 / 9,
-                            child: Hero(
-                              tag: 'post_media_${post.id}',
-                              child: CachedNetworkImage(
-                                imageUrl: ApiConstants.resolve(post.mediaUrl),
-                                httpHeaders: cachedAuthHeaders(),
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                memCacheWidth: 1600,
-                                fadeInDuration:
-                                    const Duration(milliseconds: 250),
-                                fadeOutDuration:
-                                    const Duration(milliseconds: 150),
-                                placeholder:
-                                    (BuildContext context, String url) =>
-                                        _MediaPlaceholderShimmer(
-                                  scheme: scheme,
-                                ),
-                                errorWidget: (
-                                  BuildContext context,
-                                  String url,
-                                  Object error,
-                                ) =>
-                                    _MediaErrorPlaceholder(scheme: scheme),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                if (effectiveMediaUrls.isNotEmpty)
+                  _PostMediaViewport(
+                    post: post,
+                    mediaUrls: effectiveMediaUrls,
+                    onDoubleTapLike: _onDoubleTapLike,
+                    onMediaTap: _handleMediaTap,
                   ),
 
                 // ── Action bar ──────────────────────────────────────
@@ -556,22 +525,22 @@ class _PostCardState extends ConsumerState<PostCard>
     ),
   );
 }
+}
 
-  static void _openFullScreen(BuildContext context, String url, int postId) {
-    Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        opaque: true,
-        barrierLabel: context.l10n.semanticsClose,
-        pageBuilder: (_, _, _) => _FullScreenImage(url: url, postId: postId),
-        transitionsBuilder: (_, Animation<double> a1, _, Widget child) {
-          return FadeTransition(
-            opacity: CurvedAnimation(parent: a1, curve: Curves.easeOut),
-            child: child,
-          );
-        },
-      ),
-    );
-  }
+void _openFullScreen(BuildContext context, String url, int postId) {
+  Navigator.of(context).push(
+    PageRouteBuilder<void>(
+      opaque: true,
+      barrierLabel: context.l10n.semanticsClose,
+      pageBuilder: (_, _, _) => _FullScreenImage(url: url, postId: postId),
+      transitionsBuilder: (_, Animation<double> a1, _, Widget child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: a1, curve: Curves.easeOut),
+          child: child,
+        );
+      },
+    ),
+  );
 }
 
 // ── Full-screen image viewer ─────────────────────────────────────────
@@ -664,6 +633,213 @@ class _FullScreenImageState extends State<_FullScreenImage> {
           ),
         ],
       ),
+      ),
+    );
+  }
+}
+
+// ── Media Viewport (Carousel & Video) ────────────────────────────────
+class _PostMediaViewport extends StatefulWidget {
+  const _PostMediaViewport({
+    required this.post,
+    required this.mediaUrls,
+    required this.onDoubleTapLike,
+    required this.onMediaTap,
+  });
+
+  final NgPost post;
+  final List<String> mediaUrls;
+  final VoidCallback onDoubleTapLike;
+  final VoidCallback onMediaTap;
+
+  @override
+  State<_PostMediaViewport> createState() => _PostMediaViewportState();
+}
+
+class _PostMediaViewportState extends State<_PostMediaViewport> {
+  int _currentPage = 0;
+  final PageController _pageController = PageController();
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool isMultiple = widget.mediaUrls.length > 1;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+      child: GestureDetector(
+        onDoubleTap: widget.onDoubleTapLike,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.15),
+              ),
+            ),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                children: <Widget>[
+                  if (isMultiple)
+                    PageView.builder(
+                      controller: _pageController,
+                      itemCount: widget.mediaUrls.length,
+                      onPageChanged: (int index) {
+                        setState(() => _currentPage = index);
+                      },
+                      itemBuilder: (BuildContext context, int index) {
+                        final String url = widget.mediaUrls[index];
+                        return GestureDetector(
+                          onTap: () => _openFullScreen(
+                            context,
+                            ApiConstants.resolve(url),
+                            widget.post.id,
+                          ),
+                          child: CachedNetworkImage(
+                            imageUrl: ApiConstants.resolve(url),
+                            httpHeaders: cachedAuthHeaders(),
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            memCacheWidth: 1600,
+                            fadeInDuration: const Duration(milliseconds: 250),
+                            fadeOutDuration: const Duration(milliseconds: 150),
+                            placeholder: (_, _) =>
+                                _MediaPlaceholderShimmer(scheme: scheme),
+                            errorWidget: (_, _, _) =>
+                                _MediaErrorPlaceholder(scheme: scheme),
+                          ),
+                        );
+                      },
+                    )
+                  else
+                    GestureDetector(
+                      onTap: widget.onMediaTap,
+                      child: Hero(
+                        tag: 'post_media_${widget.post.id}',
+                        child: CachedNetworkImage(
+                          imageUrl: ApiConstants.resolve(widget.mediaUrls.first),
+                          httpHeaders: cachedAuthHeaders(),
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          memCacheWidth: 1600,
+                          fadeInDuration: const Duration(milliseconds: 250),
+                          fadeOutDuration: const Duration(milliseconds: 150),
+                          placeholder: (_, _) =>
+                              _MediaPlaceholderShimmer(scheme: scheme),
+                          errorWidget: (_, _, _) =>
+                              _MediaErrorPlaceholder(scheme: scheme),
+                        ),
+                      ),
+                    ),
+
+                  // If video, render a subtle video badge
+                  if (widget.post.isVideo)
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: scheme.scrim.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            const Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'VIDEO',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 10,
+                                    letterSpacing: 0.5,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Carousel dots indicator & counter
+                  if (isMultiple) ...<Widget>[
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: scheme.scrim.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${_currentPage + 1}/${widget.mediaUrls.length}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                              ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      left: 0,
+                      right: 0,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List<Widget>.generate(
+                          widget.mediaUrls.length,
+                          (int idx) {
+                            final bool active = idx == _currentPage;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                              width: active ? 16 : 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: active
+                                    ? scheme.primary
+                                    : scheme.surface.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

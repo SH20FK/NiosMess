@@ -27,6 +27,11 @@ class DeepLinkService {
     debugPrint('[DeepLink] Received: $uri');
 
     String path = uri.path;
+    if (uri.scheme == 'niosmess') {
+      if (uri.host.isNotEmpty && !path.startsWith('/${uri.host}')) {
+        path = '/${uri.host}$path';
+      }
+    }
     if (path.isEmpty || path == '/') return;
 
     // Rewrite server URL patterns to app routes
@@ -40,6 +45,11 @@ class DeepLinkService {
       final String slug = path.substring(3);
       if (slug.isNotEmpty) {
         path = '/u/$slug';
+      }
+    } else if (path.startsWith('/g/')) {
+      final String username = path.substring(3);
+      if (username.isNotEmpty) {
+        path = '/g/$username';
       }
     }
 

@@ -189,7 +189,7 @@ void main() {
     );
 
     final words = await dr.getVisualWords(aliceSession.keyVal);
-    expect(words.length, 4);
+    expect(words.length, 12);
     // Same key -> same words (both sides see identical emoji words).
     final again = await dr.getVisualWords(aliceSession.keyVal);
     expect(again.map((w) => w.word), words.map((w) => w.word));

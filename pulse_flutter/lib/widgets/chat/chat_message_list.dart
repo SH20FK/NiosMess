@@ -220,7 +220,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
         final bool isLocalSending = message.isSending && message.id < 0;
 
         final String rawText = widget.displayTextBuilder(message);
-        final bool isCallMessage = message.msgType == 'call' ||
+        final bool isCallMessage = message.isCallEvent ||
             rawText.startsWith('📹') ||
             rawText.startsWith('📞') ||
             rawText.contains('Видеозвонок') ||
@@ -240,6 +240,24 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
                 if (data.showDateSep)
                   widget.dateSeparatorBuilder(message.resolvedSentAt, now),
                 callPill,
+              ],
+            ),
+          );
+        }
+
+        if (message.isSystemEvent) {
+          final Widget systemPill = _SystemEventPill(
+            message: message,
+            formattedTime: formatMessageTime(message.sentAt),
+          );
+          return RepaintBoundary(
+            key: ValueKey<int>(message.id),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (data.showDateSep)
+                  widget.dateSeparatorBuilder(message.resolvedSentAt, now),
+                systemPill,
               ],
             ),
           );
@@ -518,6 +536,68 @@ class _CallEventPill extends StatelessWidget {
                 color: isMissed
                     ? scheme.onErrorContainer.withValues(alpha: 0.70)
                     : scheme.onSurfaceVariant.withValues(alpha: 0.75),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SystemEventPill extends StatelessWidget {
+  const _SystemEventPill({
+    required this.message,
+    required this.formattedTime,
+  });
+
+  final ApiMessage message;
+  final String formattedTime;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final String text = message.content.isNotEmpty
+        ? message.content
+        : 'Системное уведомление';
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark
+              ? scheme.surfaceContainerHighest.withValues(alpha: 0.60)
+              : scheme.surfaceContainerHigh.withValues(alpha: 0.80),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.25),
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.info_outline_rounded, size: 16, color: scheme.primary),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                text,
+                style: textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              formattedTime,
+              style: textTheme.labelSmall?.copyWith(
+                fontSize: 11,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
               ),
             ),
           ],

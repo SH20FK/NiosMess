@@ -26,6 +26,7 @@ class CallSessionData {
     this.isMuted = false,
     this.isSpeakerOn = false,
     this.isSelfVideoEnabled = false,
+    this.isListener = false,
     required this.durationSeconds,
     this.remoteParticipants = const [],
     this.verificationEmojis = const [],
@@ -42,6 +43,7 @@ class CallSessionData {
   final bool isMuted;
   final bool isSpeakerOn;
   final bool isSelfVideoEnabled;
+  final bool isListener;
   final int durationSeconds;
   final List<RemoteParticipant> remoteParticipants;
   final List<String> verificationEmojis;
@@ -61,6 +63,7 @@ class CallSessionData {
     bool? isMuted,
     bool? isSpeakerOn,
     bool? isSelfVideoEnabled,
+    bool? isListener,
     int? durationSeconds,
     List<RemoteParticipant>? remoteParticipants,
     List<String>? verificationEmojis,
@@ -77,6 +80,7 @@ class CallSessionData {
       isMuted: isMuted ?? this.isMuted,
       isSpeakerOn: isSpeakerOn ?? this.isSpeakerOn,
       isSelfVideoEnabled: isSelfVideoEnabled ?? this.isSelfVideoEnabled,
+      isListener: isListener ?? this.isListener,
       durationSeconds: durationSeconds ?? this.durationSeconds,
       remoteParticipants: remoteParticipants ?? this.remoteParticipants,
       verificationEmojis: verificationEmojis ?? this.verificationEmojis,

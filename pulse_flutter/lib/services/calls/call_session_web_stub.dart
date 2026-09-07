@@ -20,6 +20,7 @@ class CallSession {
     this.peerName,
     required this.aesKeyBytes,
     this.onCameraReady,
+    this.isListener = false,
   });
 
   final int chatId;
@@ -31,6 +32,7 @@ class CallSession {
   final String? peerName;
   final Uint8List aesKeyBytes;
   final void Function(CameraController?)? onCameraReady;
+  final bool isListener;
 
   final WsCallTransport _transport = WsCallTransport();
   final StreamController<CallSessionData> _stateController =
@@ -41,9 +43,9 @@ class CallSession {
   Timer? _durationTimer;
   StreamSubscription<void>? _connSub;
   StreamSubscription<void>? _disconnSub;
-  bool _isMuted = false;
+  late bool _isMuted = isListener;
   bool _isSpeakerOn = false;
-  bool _isSelfVideoEnabled = false;
+  late bool _isSelfVideoEnabled = isVideo && !isListener;
 
   VideoOutputPipeline? get videoOutput => null;
   bool get isSelfVideoEnabled => _isSelfVideoEnabled;
@@ -58,6 +60,7 @@ class CallSession {
         isMuted: _isMuted,
         isSpeakerOn: _isSpeakerOn,
         isSelfVideoEnabled: _isSelfVideoEnabled,
+        isListener: isListener,
         durationSeconds: _durationSeconds,
       );
 

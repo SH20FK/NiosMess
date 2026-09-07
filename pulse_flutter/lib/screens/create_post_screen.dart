@@ -27,7 +27,8 @@ class CreatePostScreen extends ConsumerStatefulWidget {
 class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   final TextEditingController _textController = TextEditingController();
   PlatformFile? _selectedFile;
-  Uint8List? _previewBytes;
+  List<PlatformFile> _selectedFiles = <PlatformFile>[];
+  List<Uint8List> _previewBytesList = <Uint8List>[];
   bool _isLoading = false;
   String? _error;
 
@@ -54,29 +55,38 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       type: FileType.media,
     );
     if (result.isEmpty) return;
-    final PlatformFile file = result.first;
-    if ((await file.length()) > _maxFileBytes) {
-      setState(() => _error = context.l10n.postFileTooLarge);
-      return;
+    final List<PlatformFile> picked = result.take(5).toList();
+    final List<PlatformFile> validFiles = <PlatformFile>[];
+    final List<Uint8List> previews = <Uint8List>[];
+
+    for (final PlatformFile file in picked) {
+      if ((await file.length()) > _maxFileBytes) {
+        setState(() => _error = context.l10n.postFileTooLarge);
+        continue;
+      }
+      Uint8List previewBytes = await file.readAsBytes();
+      final Uint8List? compressed = await ImageCompressor.compressImageBytes(
+        bytes: previewBytes,
+        fileName: file.name,
+      );
+      if (compressed != null) previewBytes = compressed;
+      validFiles.add(file);
+      previews.add(previewBytes);
     }
 
-    Uint8List previewBytes = await file.readAsBytes();
-    final Uint8List? compressed = await ImageCompressor.compressImageBytes(
-      bytes: previewBytes,
-      fileName: file.name,
-    );
-    if (compressed != null) previewBytes = compressed;
-
-    setState(() {
-      _selectedFile = file;
-      _previewBytes = previewBytes;
-      _error = null;
-    });
+    if (validFiles.isNotEmpty) {
+      setState(() {
+        _selectedFiles = validFiles;
+        _previewBytesList = previews;
+        _selectedFile = validFiles.first;
+        _error = null;
+      });
+    }
   }
 
   Future<void> _submit() async {
     final String text = _textController.text.trim();
-    if (text.isEmpty && _selectedFile == null) {
+    if (text.isEmpty && _selectedFiles.isEmpty && _selectedFile == null) {
       setState(() => _error = context.l10n.postEmptyContent);
       return;
     }
@@ -89,8 +99,24 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     });
 
     try {
-      int? uploadId;
-      if (_selectedFile != null) {
+      List<int>? uploadIds;
+      if (_selectedFiles.isNotEmpty) {
+        uploadIds = <int>[];
+        for (final PlatformFile file in _selectedFiles) {
+          final Uint8List fileBytes = await file.readAsBytes();
+          final String uploadIdStr = await ref
+              .read(chatRepositoryProvider)
+              .uploadStreamInChunks(
+                bytes: fileBytes,
+                filename: file.name,
+                mediaSubtype: 'media',
+                fileSize: fileBytes.length,
+                onProgress: (_, _) {},
+              );
+          final int? id = int.tryParse(uploadIdStr);
+          if (id != null) uploadIds.add(id);
+        }
+      } else if (_selectedFile != null) {
         final PlatformFile file = _selectedFile!;
         final Uint8List fileBytes = await file.readAsBytes();
         final String uploadIdStr = await ref
@@ -102,12 +128,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               fileSize: fileBytes.length,
               onProgress: (_, _) {},
             );
-        uploadId = int.tryParse(uploadIdStr);
+        final int? id = int.tryParse(uploadIdStr);
+        if (id != null) uploadIds = <int>[id];
       }
 
       await ref.read(niosgramProvider.notifier).createPost(
             text,
-            uploadId: uploadId,
+            uploadIds: uploadIds,
+            uploadId: uploadIds?.firstOrNull,
           );
 
       if (mounted) {
@@ -318,61 +346,114 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                       const SizedBox(height: 16),
 
                       // Media preview
-                      if (_previewBytes != null) ...<Widget>[
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Stack(
-                            children: <Widget>[
-                              Container(
-                                width: double.infinity,
-                                constraints: const BoxConstraints(
-                                  maxHeight: 420,
-                                  minHeight: 160,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: scheme.surfaceContainerHighest
-                                      .withValues(alpha: 0.35),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: scheme.outlineVariant
-                                        .withValues(alpha: 0.3),
+                      if (_previewBytesList.isNotEmpty) ...<Widget>[
+                        if (_previewBytesList.length == 1)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Stack(
+                              children: <Widget>[
+                                Container(
+                                  width: double.infinity,
+                                  constraints: const BoxConstraints(
+                                    maxHeight: 420,
+                                    minHeight: 160,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: scheme.surfaceContainerHighest
+                                        .withValues(alpha: 0.35),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: scheme.outlineVariant
+                                          .withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Image.memory(
+                                    _previewBytesList.first,
+                                    fit: BoxFit.contain,
+                                    width: double.infinity,
                                   ),
                                 ),
-                                child: Image.memory(
-                                  _previewBytes!,
-                                  fit: BoxFit.contain,
-                                  width: double.infinity,
-                                ),
-                              ),
-                              Positioned(
-                                top: 10,
-                                right: 10,
-                                child: Material(
-                                  color: Colors.black.withValues(alpha: 0.60),
-                                  shape: const CircleBorder(),
-                                  child: Tooltip(
-                                    message: context.l10n.postRemove,
-                                    child: InkWell(
-                                      customBorder: const CircleBorder(),
-                                      onTap: () => setState(() {
-                                        _selectedFile = null;
-                                        _previewBytes = null;
-                                      }),
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(7),
-                                        child: Icon(
-                                          Icons.close_rounded,
-                                          size: 18,
-                                          color: Colors.white,
+                                Positioned(
+                                  top: 10,
+                                  right: 10,
+                                  child: Material(
+                                    color: Colors.black.withValues(alpha: 0.60),
+                                    shape: const CircleBorder(),
+                                    child: Tooltip(
+                                      message: context.l10n.postRemove,
+                                      child: InkWell(
+                                        customBorder: const CircleBorder(),
+                                        onTap: () => setState(() {
+                                          _selectedFiles.clear();
+                                          _previewBytesList.clear();
+                                          _selectedFile = null;
+                                        }),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(7),
+                                          child: Icon(
+                                            Icons.close_rounded,
+                                            size: 18,
+                                            color: Colors.white,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                          )
+                        else
+                          SizedBox(
+                            height: 120,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _previewBytesList.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(width: 10),
+                              itemBuilder: (BuildContext context, int index) {
+                                return Stack(
+                                  children: <Widget>[
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.memory(
+                                        _previewBytesList[index],
+                                        width: 120,
+                                        height: 120,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 4,
+                                      right: 4,
+                                      child: Material(
+                                        color:
+                                            Colors.black.withValues(alpha: 0.65),
+                                        shape: const CircleBorder(),
+                                        child: InkWell(
+                                          customBorder: const CircleBorder(),
+                                          onTap: () => setState(() {
+                                            _selectedFiles.removeAt(index);
+                                            _previewBytesList.removeAt(index);
+                                            _selectedFile =
+                                                _selectedFiles.firstOrNull;
+                                          }),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(4),
+                                            child: Icon(
+                                              Icons.close_rounded,
+                                              size: 14,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
                           ),
-                        ),
                         const SizedBox(height: 16),
                       ],
 
