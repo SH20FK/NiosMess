@@ -168,12 +168,15 @@ class _WorkingHoursWidgetState extends State<WorkingHoursWidget> {
           color: scheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
-      child: ListTile(
-        leading: Icon(Icons.schedule_rounded, color: scheme.primary),
-        title: const Text('График работы не настроен'),
-        subtitle: const Text('Нажмите, чтобы добавить расписание'),
-        trailing: const Icon(Icons.add_rounded),
-        onTap: widget.onEdit,
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          leading: Icon(Icons.schedule_rounded, color: scheme.primary),
+          title: const Text('График работы не настроен'),
+          subtitle: const Text('Нажмите, чтобы добавить расписание'),
+          trailing: const Icon(Icons.add_rounded),
+          onTap: widget.onEdit,
+        ),
       ),
     );
   }

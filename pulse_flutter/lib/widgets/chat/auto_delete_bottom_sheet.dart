@@ -181,27 +181,30 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
                     width: isSelected ? 1.5 : 1.0,
                   ),
                 ),
-                child: ListTile(
-                  title: Text(
-                    title,
-                    style: textTheme.bodyMedium?.copyWith(
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? scheme.primary : scheme.onSurface,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: ListTile(
+                    title: Text(
+                      title,
+                      style: textTheme.bodyMedium?.copyWith(
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected ? scheme.primary : scheme.onSurface,
+                      ),
                     ),
+                    trailing: isSelected
+                        ? Icon(Icons.check_circle_rounded, color: scheme.primary)
+                        : Icon(
+                            Icons.radio_button_unchecked_rounded,
+                            color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                          ),
+                    onTap: () {
+                      HapticService.tap();
+                      setState(() {
+                        _isCustom = false;
+                        _selectedSeconds = seconds;
+                      });
+                    },
                   ),
-                  trailing: isSelected
-                      ? Icon(Icons.check_circle_rounded, color: scheme.primary)
-                      : Icon(
-                          Icons.radio_button_unchecked_rounded,
-                          color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
-                        ),
-                  onTap: () {
-                    HapticService.tap();
-                    setState(() {
-                      _isCustom = false;
-                      _selectedSeconds = seconds;
-                    });
-                  },
                 ),
               );
             }),
@@ -223,24 +226,27 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
               ),
               child: Column(
                 children: <Widget>[
-                  ListTile(
-                    title: Text(
-                      'Свой срок: ${_customDays.round()} дн.',
-                      style: textTheme.bodyMedium?.copyWith(
-                        fontWeight: _isCustom ? FontWeight.w700 : FontWeight.w500,
-                        color: _isCustom ? scheme.primary : scheme.onSurface,
+                  Material(
+                    type: MaterialType.transparency,
+                    child: ListTile(
+                      title: Text(
+                        'Свой срок: ${_customDays.round()} дн.',
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: _isCustom ? FontWeight.w700 : FontWeight.w500,
+                          color: _isCustom ? scheme.primary : scheme.onSurface,
+                        ),
                       ),
+                      trailing: _isCustom
+                          ? Icon(Icons.check_circle_rounded, color: scheme.primary)
+                          : Icon(
+                              Icons.radio_button_unchecked_rounded,
+                              color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                            ),
+                      onTap: () {
+                        HapticService.tap();
+                        setState(() => _isCustom = true);
+                      },
                     ),
-                    trailing: _isCustom
-                        ? Icon(Icons.check_circle_rounded, color: scheme.primary)
-                        : Icon(
-                            Icons.radio_button_unchecked_rounded,
-                            color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
-                          ),
-                    onTap: () {
-                      HapticService.tap();
-                      setState(() => _isCustom = true);
-                    },
                   ),
                   if (_isCustom)
                     Padding(

@@ -43,7 +43,7 @@ class SoundService {
           ),
           iOS: AudioContextIOS(
             category: AVAudioSessionCategory.ambient,
-            options: <AVAudioSessionOptions>{AVAudioSessionOptions.mixWithOthers},
+            options: const <AVAudioSessionOptions>{},
           ),
         ),
       );

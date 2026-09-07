@@ -383,7 +383,9 @@ class GroupProfileScreen extends ConsumerWidget {
             color: scheme.outlineVariant.withValues(alpha: 0.10),
           ),
         ),
-        child: ListTile(
+        child: Material(
+          type: MaterialType.transparency,
+          child: ListTile(
           leading: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -422,8 +424,9 @@ class GroupProfileScreen extends ConsumerWidget {
           },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPrivateInviteLink(
     BuildContext context,
