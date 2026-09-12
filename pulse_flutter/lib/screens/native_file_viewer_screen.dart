@@ -122,11 +122,26 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
       final String filePath = '$tempDir/${widget.fileName}';
       final File file = File(filePath);
       await file.writeAsBytes(data);
-      await Share.shareXFiles([XFile(filePath)], text: widget.fileName);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: <XFile>[XFile(filePath)],
+          text: widget.fileName,
+        ),
+      );
     } else if (widget.localPath != null) {
-      await Share.shareXFiles([XFile(widget.localPath!)], text: widget.fileName);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: <XFile>[XFile(widget.localPath!)],
+          text: widget.fileName,
+        ),
+      );
     } else if (widget.url != null) {
-      await Share.share(widget.url!, subject: widget.fileName);
+      await SharePlus.instance.share(
+        ShareParams(
+          text: widget.url!,
+          subject: widget.fileName,
+        ),
+      );
     }
   }
 

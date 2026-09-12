@@ -120,7 +120,7 @@ class DocxParser {
 
     // Detect heading styles
     final Match? styleMatch = RegExp(
-      r'pStyle[^>]*val=["'']?([^"''\s\/>]+)',
+      r'''pStyle[^>]*val=["']?([^"'\s/>]+)''',
       caseSensitive: false,
     ).firstMatch(pXml);
     if (styleMatch != null) {
