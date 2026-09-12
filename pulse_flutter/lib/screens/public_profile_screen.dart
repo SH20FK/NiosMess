@@ -260,42 +260,18 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Stack(
-        children: [
-          // Ambient top gradient pinned behind the status bar and content
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 280,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      scheme.primary.withValues(alpha: 0.35),
-                      scheme.tertiary.withValues(alpha: 0.25),
-                      scheme.surface,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            padding: EdgeInsets.only(
-              bottom: 32 + MediaQuery.paddingOf(context).bottom,
-            ),
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 680),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.only(
+          bottom: 32 + MediaQuery.paddingOf(context).bottom,
+        ),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 // ── Hero Avatar & Header ───────────────────────────────
                 _buildHeroHeader(context, profile, scheme, textTheme, isMe),
                 const SizedBox(height: 16),
@@ -319,9 +295,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           ),
         ),
       ),
-    ],
-  ),
-);
+    );
   }
 
   // ── Hero Header ───────────────────────────────────────────────────
@@ -339,31 +313,9 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           clipBehavior: Clip.none,
           alignment: Alignment.bottomCenter,
           children: [
-            // Ambient tonal gradient banner (extends upwards to cover overscroll/status bar)
-            Positioned(
-              top: -200,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      scheme.primary.withValues(alpha: 0.35),
-                      scheme.tertiary.withValues(alpha: 0.25),
-                      scheme.surface,
-                    ],
-                  ),
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(32),
-                  ),
-                ),
-              ),
-            ),
+            // Header top spacing
             const SizedBox(
-              height: 150,
+              height: 100,
               width: double.infinity,
             ),
 
