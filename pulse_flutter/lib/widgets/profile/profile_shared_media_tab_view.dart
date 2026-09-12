@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -61,19 +62,16 @@ class _ProfileSharedMediaTabViewState
     extends ConsumerState<ProfileSharedMediaTabView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  final ScrollController _mediaScrollController = ScrollController();
 
   static final RegExp _urlRegExp = RegExp(
     r'(https?:\/\/[^\s]+)',
     caseSensitive: false,
   );
 
-  static const int _kBatchChunkSize = 18;
-  int _visibleMediaLimit = 18;
+  static const int _kBatchSize = 12;
   bool _isHistoryLoading = false;
-  bool _hasMoreHistory = true;
-  int _loadedHistoryBatches = 0;
-  final Set<int> _prefetchedBatches = <int>{};
+  final Set<int> _loadedGroups = <int>{};
+  bool _isBatchProcessing = false;
 
   @override
   void initState() {
@@ -82,28 +80,17 @@ class _ProfileSharedMediaTabViewState
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
-    _mediaScrollController.addListener(_onMediaScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAllChatMedia();
     });
-  }
-
-  void _onMediaScroll() {
-    if (!_mediaScrollController.hasClients) return;
-    final position = _mediaScrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 320) {
-      _loadMoreVisibleMedia();
-    }
   }
 
   @override
   void didUpdateWidget(covariant ProfileSharedMediaTabView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.chatId != widget.chatId) {
-      _visibleMediaLimit = _kBatchChunkSize;
-      _hasMoreHistory = true;
-      _loadedHistoryBatches = 0;
-      _prefetchedBatches.clear();
+      _loadedGroups.clear();
+      _isBatchProcessing = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadAllChatMedia();
       });
@@ -112,117 +99,109 @@ class _ProfileSharedMediaTabViewState
 
   Future<void> _loadAllChatMedia() async {
     final int? cid = widget.chatId;
-    if (cid == null || cid <= 0 || _isHistoryLoading || !_hasMoreHistory) return;
+    if (cid == null || cid <= 0 || _isHistoryLoading) return;
     _isHistoryLoading = true;
 
     try {
-      // Step 1: Immediately fetch a large batch (up to 300 messages) in 1 roundtrip
+      // 1. Instantly check local cache to display existing media in ~2ms
+      try {
+        final cached = await EncryptedMessageCache.loadMessages(cid);
+        if (cached.isNotEmpty && mounted) {
+          final cachedMedia = _extractPhotosAndVideos(cached);
+          if (cachedMedia.isNotEmpty) {
+            _startGroupedBatchPipeline(cachedMedia);
+          }
+        }
+      } catch (_) {}
+
+      // 2. Fetch full history batch in 1 single WebSocket roundtrip (up to 300 messages)
       final int added = await ref
           .read(chatMessagesProvider(cid).notifier)
           .loadOlder(pageSize: 300);
 
-      _loadedHistoryBatches++;
-      if (added == 0) {
-        _hasMoreHistory = false;
-      }
       if (mounted) {
-        _triggerMediaPrefetch();
+        final messages = ref.read(chatMessagesProvider(cid)).value ?? const <ApiMessage>[];
+        final allMedia = _extractPhotosAndVideos(messages);
+        _startGroupedBatchPipeline(allMedia);
       }
 
-      // Step 2: If the chat has more history, fetch an additional batch in the background
-      if (added >= 250 && mounted && _loadedHistoryBatches == 1 && _hasMoreHistory) {
-        final int secondAdded = await ref
+      // 3. If there are 280+ messages (full page), eagerly fetch another 300 older in the background
+      if (added >= 280 && mounted) {
+        await ref
             .read(chatMessagesProvider(cid).notifier)
             .loadOlder(pageSize: 300);
-        _loadedHistoryBatches++;
-        if (secondAdded == 0) {
-          _hasMoreHistory = false;
-        }
-        if (mounted && secondAdded > 0) {
-          _triggerMediaPrefetch();
+        if (mounted) {
+          final messages = ref.read(chatMessagesProvider(cid)).value ?? const <ApiMessage>[];
+          final allMedia = _extractPhotosAndVideos(messages);
+          _startGroupedBatchPipeline(allMedia);
         }
       }
     } catch (_) {
     } finally {
-      _isHistoryLoading = false;
-    }
-  }
-
-  void _triggerMediaPrefetch() {
-    final int? cid = widget.chatId;
-    if (cid == null || cid <= 0 || !mounted) return;
-    final messages =
-        ref.read(chatMessagesProvider(cid)).value ?? const <ApiMessage>[];
-    final media = _extractPhotosAndVideos(messages);
-    if (media.isEmpty) return;
-
-    // Prefetch Batch 0 (0..18) immediately
-    _prefetchBatchChunk(media, 0);
-    // Speculatively prefetch Batch 1 (18..36) so scroll is 0ms
-    _prefetchBatchChunk(media, 1);
-  }
-
-  void _prefetchBatchChunk(List<_SharedMediaItem> media, int batchIndex) {
-    if (_prefetchedBatches.contains(batchIndex)) return;
-    final int start = batchIndex * _kBatchChunkSize;
-    if (start >= media.length) return;
-    final int end = (start + _kBatchChunkSize).clamp(0, media.length);
-
-    _prefetchedBatches.add(batchIndex);
-
-    final List<String> paths = <String>[];
-    final Map<String, Uint8List?> keys = <String, Uint8List?>{};
-
-    for (int i = start; i < end; i++) {
-      final item = media[i];
-      if (!item.isVideo && item.mediaUrl.isNotEmpty) {
-        paths.add(item.mediaUrl);
-        if (item.e2eeFileKey != null && item.e2eeFileKey!.isNotEmpty) {
-          try {
-            keys[item.mediaUrl] = base64Decode(item.e2eeFileKey!);
-          } catch (_) {}
-        }
+      if (mounted) {
+        setState(() {
+          _isHistoryLoading = false;
+        });
       }
     }
-
-    if (paths.isNotEmpty) {
-      final wsClient = ref.read(webSocketClientProvider);
-      WsMediaFetcher.prefetchBatch(
-        filePaths: paths,
-        wsClient: wsClient,
-        e2eeFileKeys: keys,
-        concurrency: 8,
-      );
-    }
   }
 
-  void _loadMoreVisibleMedia() {
-    final int? cid = widget.chatId;
-    if (cid == null || cid <= 0) return;
-    final messages =
-        ref.read(chatMessagesProvider(cid)).value ?? const <ApiMessage>[];
-    final allMedia = _extractPhotosAndVideos(messages);
+  void _startGroupedBatchPipeline(List<_SharedMediaItem> media) {
+    if (media.isEmpty || _isBatchProcessing) return;
+    _isBatchProcessing = true;
 
-    if (_visibleMediaLimit < allMedia.length) {
-      final int nextLimit = (_visibleMediaLimit + _kBatchChunkSize).clamp(0, allMedia.length);
-      final int currentBatch = _visibleMediaLimit ~/ _kBatchChunkSize;
-      setState(() {
-        _visibleMediaLimit = nextLimit;
-      });
+    Future<void>.microtask(() async {
+      try {
+        final int totalGroups = (media.length / _kBatchSize).ceil();
+        final wsClient = ref.read(webSocketClientProvider);
 
-      // Prefetch this batch and the next batch proactively
-      _prefetchBatchChunk(allMedia, currentBatch);
-      _prefetchBatchChunk(allMedia, currentBatch + 1);
-    } else if (!_isHistoryLoading && _hasMoreHistory) {
-      // Reached the end of loaded media; pull older messages from server
-      _loadAllChatMedia();
-    }
+        for (int g = 0; g < totalGroups; g++) {
+          if (!mounted) break;
+          if (_loadedGroups.contains(g)) continue;
+
+          final int start = g * _kBatchSize;
+          final int end = (start + _kBatchSize).clamp(0, media.length);
+
+          final List<String> groupPaths = <String>[];
+          final Map<String, Uint8List?> groupKeys = <String, Uint8List?>{};
+
+          for (int i = start; i < end; i++) {
+            final item = media[i];
+            if (!item.isVideo && item.mediaUrl.isNotEmpty) {
+              groupPaths.add(item.mediaUrl);
+              if (item.e2eeFileKey != null && item.e2eeFileKey!.isNotEmpty) {
+                try {
+                  groupKeys[item.mediaUrl] = base64Decode(item.e2eeFileKey!);
+                } catch (_) {}
+              }
+            }
+          }
+
+          if (groupPaths.isNotEmpty) {
+            await WsMediaFetcher.prefetchBatch(
+              filePaths: groupPaths,
+              wsClient: wsClient,
+              e2eeFileKeys: groupKeys,
+              concurrency: 8,
+            );
+          }
+
+          _loadedGroups.add(g);
+          if (mounted) {
+            setState(() {});
+          }
+
+          // Small 16ms yield between groups to ensure 120 FPS frame budget
+          await Future<void>.delayed(const Duration(milliseconds: 16));
+        }
+      } finally {
+        _isBatchProcessing = false;
+      }
+    });
   }
 
   @override
   void dispose() {
-    _mediaScrollController.removeListener(_onMediaScroll);
-    _mediaScrollController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -336,14 +315,15 @@ class _ProfileSharedMediaTabViewState
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    if (widget.chatId == null || widget.chatId! <= 0) {
+    if (widget.chatId == null) {
+      // While resolving the chatId, show an elegant shimmer grid rather than empty placeholder
+      return _buildShimmerGrid(scheme);
+    }
+    if (widget.chatId! <= 0) {
       return _buildNoChatPlaceholder(scheme, textTheme);
     }
 
     final messagesAsync = ref.watch(chatMessagesProvider(widget.chatId!));
-
-    final double screenHeight = MediaQuery.sizeOf(context).height;
-    final double galleryHeight = (screenHeight * 0.65).clamp(460.0, 720.0);
 
     return messagesAsync.when(
       loading: () => _buildShimmerGrid(scheme),
@@ -363,6 +343,30 @@ class _ProfileSharedMediaTabViewState
         final files = messages.where(_isFile).toList(growable: false);
         final links = messages.where(_hasLink).toList(growable: false);
 
+        if (photosAndVideos.isNotEmpty && !_isBatchProcessing) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _startGroupedBatchPipeline(photosAndVideos);
+          });
+        }
+
+        final Widget currentTabView;
+        switch (_tabController.index) {
+          case 0:
+            currentTabView = _buildMediaGrid(photosAndVideos, scheme, textTheme);
+            break;
+          case 1:
+            currentTabView = _buildVoiceList(voiceAndVideoNotes, scheme, textTheme);
+            break;
+          case 2:
+            currentTabView = _buildFilesList(files, scheme, textTheme);
+            break;
+          case 3:
+            currentTabView = _buildLinksList(links, scheme, textTheme);
+            break;
+          default:
+            currentTabView = _buildMediaGrid(photosAndVideos, scheme, textTheme);
+        }
+
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -378,17 +382,14 @@ class _ProfileSharedMediaTabViewState
             ),
             const SizedBox(height: 12),
 
-            // ── Tab Bar Views ─────────────────────────────────────────
-            SizedBox(
-              height: galleryHeight,
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildMediaGrid(photosAndVideos, scheme, textTheme),
-                  _buildVoiceList(voiceAndVideoNotes, scheme, textTheme),
-                  _buildFilesList(files, scheme, textTheme),
-                  _buildLinksList(links, scheme, textTheme),
-                ],
+            // ── Active Tab View with Smooth Transition (Unified Scrolling) ──
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              switchInCurve: M3SpringCurves.snappy,
+              switchOutCurve: Curves.easeInQuad,
+              child: KeyedSubtree(
+                key: ValueKey<int>(_tabController.index),
+                child: currentTabView,
               ),
             ),
           ],
@@ -614,10 +615,6 @@ class _ProfileSharedMediaTabViewState
       );
     }
 
-    final int displayCount = items.length > _visibleMediaLimit
-        ? _visibleMediaLimit
-        : items.length;
-
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final double width = constraints.maxWidth;
@@ -630,16 +627,16 @@ class _ProfileSharedMediaTabViewState
                     : 3;
 
         return GridView.builder(
-          controller: _mediaScrollController,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          physics: const BouncingScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 6,
             mainAxisSpacing: 6,
             childAspectRatio: 1.0,
           ),
-          itemCount: displayCount,
+          itemCount: items.length,
           itemBuilder: (context, index) {
             final item = items[index];
             final url = item.mediaUrl;
@@ -662,7 +659,8 @@ class _ProfileSharedMediaTabViewState
                           chatId: widget.chatId ?? 0,
                           isE2ee: item.message.isE2ee,
                           e2eeFileKey: item.e2eeFileKey,
-                          memCacheWidth: 320,
+                          memCacheWidth: 280,
+                          memCacheHeight: 280,
                           fit: BoxFit.cover,
                           placeholder: (ctx) => Container(
                             color: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
@@ -711,8 +709,9 @@ class _ProfileSharedMediaTabViewState
     }
 
     return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      physics: const BouncingScrollPhysics(),
       itemCount: items.length,
       separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
@@ -852,8 +851,9 @@ class _ProfileSharedMediaTabViewState
     }
 
     return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      physics: const BouncingScrollPhysics(),
       itemCount: items.length,
       separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
@@ -882,8 +882,9 @@ class _ProfileSharedMediaTabViewState
     }
 
     return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      physics: const BouncingScrollPhysics(),
       itemCount: items.length,
       separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {

@@ -13,17 +13,29 @@ enum AppSound {
 }
 
 class SoundService {
-  final AudioPlayer _effectPlayer = AudioPlayer(playerId: 'nios_effects');
-  final List<AudioPlayer> _uiPlayers = List<AudioPlayer>.generate(
-    3,
-    (int index) => AudioPlayer(playerId: 'nios_ui_$index'),
-  );
-  final AudioPlayer _loopPlayer = AudioPlayer(playerId: 'nios_loops');
+  AudioPlayer? _effectPlayer;
+  List<AudioPlayer>? _uiPlayers;
+  AudioPlayer? _loopPlayer;
 
   AppSound? _loopingSound;
   Future<void>? _initializing;
   bool _enabled = true;
   double _volume = 0.85;
+
+  static final AudioContext _audioContext = AudioContext(
+    android: const AudioContextAndroid(
+      isSpeakerphoneOn: false,
+      audioMode: AndroidAudioMode.normal,
+      stayAwake: false,
+      contentType: AndroidContentType.music,
+      usageType: AndroidUsageType.media,
+      audioFocus: AndroidAudioFocus.gainTransientMayDuck,
+    ),
+    iOS: AudioContextIOS(
+      category: AVAudioSessionCategory.ambient,
+      options: const <AVAudioSessionOptions>{},
+    ),
+  );
 
   bool get enabled => _enabled;
   double get volume => _volume;
@@ -34,28 +46,49 @@ class SoundService {
 
   Future<void> _initialize() async {
     try {
-      AudioPlayer.global.setAudioContext(
-        AudioContext(
-          android: AudioContextAndroid(
-            contentType: AndroidContentType.sonification,
-            usageType: AndroidUsageType.assistanceSonification,
-            audioFocus: AndroidAudioFocus.none,
-          ),
-          iOS: AudioContextIOS(
-            category: AVAudioSessionCategory.ambient,
-            options: const <AVAudioSessionOptions>{},
-          ),
-        ),
+      await AudioPlayer.global.setAudioContext(_audioContext);
+    } catch (e) {
+      debugPrint('[SoundService] Global AudioContext warning: $e');
+    }
+
+    try {
+      await AudioCache.instance.load(AppSound.message.assetPath);
+      await AudioCache.instance.load(AppSound.navigation.assetPath);
+    } catch (e) {
+      debugPrint('[SoundService] AudioCache pre-cache warning: $e');
+    }
+
+    try {
+      _effectPlayer = AudioPlayer(playerId: 'nios_effects');
+      await _effectPlayer!.setAudioContext(_audioContext);
+      await _effectPlayer!.setPlayerMode(PlayerMode.mediaPlayer);
+      await _effectPlayer!.setReleaseMode(ReleaseMode.stop);
+    } catch (e) {
+      debugPrint('[SoundService] _effectPlayer init error: $e');
+    }
+
+    try {
+      _uiPlayers = List<AudioPlayer>.generate(
+        3,
+        (int index) => AudioPlayer(playerId: 'nios_ui_$index'),
       );
-      for (final AudioPlayer player in _uiPlayers) {
-        await player.setPlayerMode(PlayerMode.lowLatency);
+      for (final AudioPlayer player in _uiPlayers!) {
+        await player.setAudioContext(_audioContext);
+        await player.setPlayerMode(PlayerMode.mediaPlayer);
         await player.setReleaseMode(ReleaseMode.stop);
       }
-      await _effectPlayer.setPlayerMode(PlayerMode.mediaPlayer);
-      await _effectPlayer.setReleaseMode(ReleaseMode.stop);
-      await _loopPlayer.setPlayerMode(PlayerMode.mediaPlayer);
-      await _loopPlayer.setReleaseMode(ReleaseMode.stop);
-    } catch (e) { debugPrint('[app_sound.dart] Error: $e'); }
+    } catch (e) {
+      debugPrint('[SoundService] _uiPlayers init error: $e');
+    }
+
+    try {
+      _loopPlayer = AudioPlayer(playerId: 'nios_loops');
+      await _loopPlayer!.setAudioContext(_audioContext);
+      await _loopPlayer!.setPlayerMode(PlayerMode.mediaPlayer);
+      await _loopPlayer!.setReleaseMode(ReleaseMode.stop);
+    } catch (e) {
+      debugPrint('[SoundService] _loopPlayer init error: $e');
+    }
   }
 
   Future<void> setEnabled(bool value) async {
@@ -64,29 +97,44 @@ class SoundService {
     if (!value) {
       await stopLoop();
       try {
-        await _effectPlayer.stop();
-        for (final AudioPlayer player in _uiPlayers) {
-          await player.stop();
+        await _effectPlayer?.stop();
+        if (_uiPlayers != null) {
+          for (final AudioPlayer player in _uiPlayers!) {
+            await player.stop();
+          }
         }
-      } catch (e) { debugPrint('[app_sound.dart] Error: $e'); }
+      } catch (e) {
+        debugPrint('[app_sound.dart] Error: $e');
+      }
     }
   }
 
   void setVolume(double value) {
     _volume = value.clamp(0.0, 1.0);
+    _effectPlayer?.setVolume(_effectiveVolume(0.9));
+    if (_uiPlayers != null) {
+      for (final AudioPlayer player in _uiPlayers!) {
+        player.setVolume(_effectiveVolume(0.85));
+      }
+    }
+    _loopPlayer?.setVolume(_effectiveVolume(0.75));
   }
 
   Future<void> play(AppSound sound, {double volume = 0.9}) async {
     if (!_enabled) return;
     try {
       await initialize();
-      await _effectPlayer.stop();
-      await _effectPlayer.setReleaseMode(ReleaseMode.stop);
-      await _effectPlayer.play(
+      final AudioPlayer? player = _effectPlayer;
+      if (player == null) return;
+      await player.stop();
+      await player.setReleaseMode(ReleaseMode.stop);
+      await player.play(
         AssetSource(sound.assetPath),
         volume: _effectiveVolume(volume),
       );
-    } catch (e) { debugPrint('[app_sound.dart] Error: $e'); }
+    } catch (e) {
+      debugPrint('[app_sound.dart] Error: $e');
+    }
   }
 
   int _uiPlayerIndex = 0;
@@ -95,14 +143,18 @@ class SoundService {
     if (!_enabled) return;
     try {
       await initialize();
-      final AudioPlayer player = _uiPlayers[_uiPlayerIndex % _uiPlayers.length];
+      final List<AudioPlayer>? uiPlayers = _uiPlayers;
+      if (uiPlayers == null || uiPlayers.isEmpty) return;
+      final AudioPlayer player = uiPlayers[_uiPlayerIndex % uiPlayers.length];
       _uiPlayerIndex++;
       await player.stop();
       await player.play(
-        AssetSource('sounds/nav1.ogg'),
-        volume: _effectiveVolume(volume * 0.5),
+        AssetSource(AppSound.navigation.assetPath),
+        volume: _effectiveVolume(volume),
       );
-    } catch (e) { debugPrint('[app_sound.dart] playUiTick error: $e'); }
+    } catch (e) {
+      debugPrint('[app_sound.dart] playUiTick error: $e');
+    }
   }
 
   Future<void> startLoop(AppSound sound, {double volume = 0.75}) async {
@@ -111,28 +163,46 @@ class SoundService {
     _loopingSound = sound;
     try {
       await initialize();
-      await _loopPlayer.stop();
-      await _loopPlayer.setReleaseMode(ReleaseMode.loop);
-      await _loopPlayer.play(
+      final AudioPlayer? player = _loopPlayer;
+      if (player == null) return;
+      await player.stop();
+      await player.setReleaseMode(ReleaseMode.loop);
+      await player.play(
         AssetSource(sound.assetPath),
         volume: _effectiveVolume(volume),
       );
-    } catch (e) { debugPrint('[app_sound.dart] Error: $e'); }
+    } catch (e) {
+      debugPrint('[app_sound.dart] Error: $e');
+    }
   }
 
   Future<void> stopLoop() async {
     _loopingSound = null;
     try {
-      await _loopPlayer.stop();
-    } catch (e) { debugPrint('[app_sound.dart] Error: $e'); }
+      await _loopPlayer?.stop();
+    } catch (e) {
+      debugPrint('[app_sound.dart] Error: $e');
+    }
   }
 
   Future<void> dispose() async {
-    try { await _effectPlayer.dispose(); } catch (_) {}
-    for (final AudioPlayer player in _uiPlayers) {
-      try { await player.dispose(); } catch (_) {}
+    try {
+      await _effectPlayer?.dispose();
+    } catch (_) {}
+    if (_uiPlayers != null) {
+      for (final AudioPlayer player in _uiPlayers!) {
+        try {
+          await player.dispose();
+        } catch (_) {}
+      }
     }
-    try { await _loopPlayer.dispose(); } catch (_) {}
+    try {
+      await _loopPlayer?.dispose();
+    } catch (_) {}
+    _effectPlayer = null;
+    _uiPlayers = null;
+    _loopPlayer = null;
+    _initializing = null;
   }
 
   double _effectiveVolume(double requestedVolume) {

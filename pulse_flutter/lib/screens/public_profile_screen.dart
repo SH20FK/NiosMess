@@ -260,18 +260,42 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.only(
-          bottom: 32 + MediaQuery.paddingOf(context).bottom,
-        ),
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 680),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+      body: Stack(
+        children: [
+          // Ambient top gradient pinned behind the status bar and content
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 280,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      scheme.primary.withValues(alpha: 0.35),
+                      scheme.tertiary.withValues(alpha: 0.25),
+                      scheme.surface,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            padding: EdgeInsets.only(
+              bottom: 32 + MediaQuery.paddingOf(context).bottom,
+            ),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 680),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                 // ── Hero Avatar & Header ───────────────────────────────
                 _buildHeroHeader(context, profile, scheme, textTheme, isMe),
                 const SizedBox(height: 16),
@@ -295,7 +319,9 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           ),
         ),
       ),
-    );
+    ],
+  ),
+);
   }
 
   // ── Hero Header ───────────────────────────────────────────────────
@@ -313,24 +339,32 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           clipBehavior: Clip.none,
           alignment: Alignment.bottomCenter,
           children: [
-            // Ambient tonal gradient banner
-            Container(
-              height: 150,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    scheme.primary.withValues(alpha: 0.35),
-                    scheme.tertiary.withValues(alpha: 0.25),
-                    scheme.surface,
-                  ],
-                ),
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(32),
+            // Ambient tonal gradient banner (extends upwards to cover overscroll/status bar)
+            Positioned(
+              top: -200,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      scheme.primary.withValues(alpha: 0.35),
+                      scheme.tertiary.withValues(alpha: 0.25),
+                      scheme.surface,
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(32),
+                  ),
                 ),
               ),
+            ),
+            const SizedBox(
+              height: 150,
+              width: double.infinity,
             ),
 
             // Avatar overlapping the banner bottom
@@ -466,7 +500,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             Expanded(
               child: _QuickActionButton(
                 icon: Icons.chat_bubble_rounded,
-                label: context.l10n.tabChats,
+                label: context.l10n.profileMessage,
                 color: scheme.primary,
                 onTap: () {
                   HapticService.tap();
@@ -477,7 +511,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             Expanded(
               child: _QuickActionButton(
                 icon: Icons.call_rounded,
-                label: context.l10n.callsQuickPeople,
+                label: context.l10n.profileCall,
                 color: scheme.tertiary,
                 onTap: () {
                   HapticService.tap();
@@ -488,7 +522,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             Expanded(
               child: _QuickActionButton(
                 icon: Icons.videocam_rounded,
-                label: context.l10n.callsFilterVideo,
+                label: context.l10n.profileVideo,
                 color: scheme.secondary,
                 onTap: () {
                   HapticService.tap();
@@ -961,14 +995,23 @@ class _QuickActionButton extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: scheme.onSurface,
+              SizedBox(
+                height: 28,
+                child: Center(
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    softWrap: true,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                      height: 1.15,
+                      letterSpacing: -0.2,
+                      color: scheme.onSurface,
+                    ),
+                  ),
                 ),
               ),
             ],
