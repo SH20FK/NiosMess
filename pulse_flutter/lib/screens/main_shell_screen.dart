@@ -417,12 +417,16 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     final String? action = await showCreateChatMenu(context);
 
     if (action == null || !context.mounted) return;
+    final bool isWide = MediaQuery.sizeOf(context).width >= 720;
+
     switch (action) {
       case 'group':
-        context.push('/chat/create?type=group');
-        return;
       case 'channel':
-        context.push('/chat/create?type=channel');
+        if (isWide) {
+          await showCreateChatDialog(context, initialType: action);
+        } else {
+          context.push('/chat/create?type=$action');
+        }
         return;
       case 'join':
         context.push('/join');

@@ -759,16 +759,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             color: scheme.outlineVariant.withValues(alpha: isDark ? 0.15 : 0.22),
             width: 1,
           ),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: <Color>[
-              scheme.primary.withValues(alpha: isDark ? 0.08 : 0.04),
-              isDark
-                  ? scheme.surfaceContainerLow
-                  : scheme.surfaceContainerLowest,
-            ],
-          ),
         ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

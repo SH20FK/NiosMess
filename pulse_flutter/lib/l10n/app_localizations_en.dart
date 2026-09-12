@@ -2315,6 +2315,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatCreatePersonal => 'Create direct chat';
 
   @override
+  String get chatJoinByLink => 'Join via link';
+
+  @override
   String get chatCreatePersonalSubtitle =>
       'Start a direct conversation by username';
 

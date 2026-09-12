@@ -107,16 +107,24 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
       context: context,
       initialTime: defaultStart,
       helpText: 'Начало работы',
+      builder: (BuildContext context, Widget? child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
     );
     if (start == null || !mounted) return;
 
     final TimeOfDay? end = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(
-        hour: (start.hour + 8) % 24,
+        hour: (start.hour + 9) % 24,
         minute: start.minute,
       ),
       helpText: 'Конец работы',
+      builder: (BuildContext context, Widget? child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
     );
     if (end == null || !mounted) return;
 
@@ -130,11 +138,25 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
       return;
     }
 
-    for (final TimeInterval existing in current) {
+    for (int i = 0; i < current.length; i++) {
+      final TimeInterval existing = current[i];
       final int? exStart = existing.startMinutes;
       final int? exEnd = existing.endMinutes;
       if (exStart != null && exEnd != null) {
         if (startMinutes < exEnd && endMinutes > exStart) {
+          if (current.length == 1) {
+            // Automatically replace single overlapping interval with new interval
+            final String startStr =
+                '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+            final String endStr =
+                '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+            setState(() {
+              _schedule[_selectedDay] = <TimeInterval>[
+                TimeInterval(start: startStr, end: endStr),
+              ];
+            });
+            return;
+          }
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Интервалы не должны пересекаться')),
@@ -156,6 +178,93 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
         final int bM = b.startMinutes ?? 0;
         return aM.compareTo(bM);
       });
+    });
+  }
+
+  Future<void> _editInterval(int index) async {
+    HapticService.tap();
+    final List<TimeInterval> current = _schedule[_selectedDay]!;
+    if (index < 0 || index >= current.length) return;
+    final TimeInterval target = current[index];
+
+    final int? curStartMin = target.startMinutes;
+    final int? curEndMin = target.endMinutes;
+    final TimeOfDay initialStart = curStartMin != null
+        ? TimeOfDay(hour: curStartMin ~/ 60, minute: curStartMin % 60)
+        : const TimeOfDay(hour: 9, minute: 0);
+    final TimeOfDay initialEnd = curEndMin != null
+        ? TimeOfDay(hour: curEndMin ~/ 60, minute: curEndMin % 60)
+        : const TimeOfDay(hour: 18, minute: 0);
+
+    final TimeOfDay? start = await showTimePicker(
+      context: context,
+      initialTime: initialStart,
+      helpText: 'Начало работы',
+      builder: (BuildContext context, Widget? child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+    if (start == null || !mounted) return;
+
+    final TimeOfDay? end = await showTimePicker(
+      context: context,
+      initialTime: initialEnd,
+      helpText: 'Конец работы',
+      builder: (BuildContext context, Widget? child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+    if (end == null || !mounted) return;
+
+    final int startMinutes = start.hour * 60 + start.minute;
+    final int endMinutes = end.hour * 60 + end.minute;
+    if (endMinutes <= startMinutes) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Конец интервала должен быть позже начала')),
+      );
+      return;
+    }
+
+    for (int i = 0; i < current.length; i++) {
+      if (i == index) continue;
+      final TimeInterval existing = current[i];
+      final int? exStart = existing.startMinutes;
+      final int? exEnd = existing.endMinutes;
+      if (exStart != null && exEnd != null) {
+        if (startMinutes < exEnd && endMinutes > exStart) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Интервалы не должны пересекаться')),
+          );
+          return;
+        }
+      }
+    }
+
+    final String startStr =
+        '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+    final String endStr =
+        '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+
+    setState(() {
+      current[index] = TimeInterval(start: startStr, end: endStr);
+      current.sort((TimeInterval a, TimeInterval b) {
+        final int aM = a.startMinutes ?? 0;
+        final int bM = b.startMinutes ?? 0;
+        return aM.compareTo(bM);
+      });
+    });
+  }
+
+  void _applyPreset(String start, String end) {
+    HapticService.tap();
+    setState(() {
+      _schedule[_selectedDay] = <TimeInterval>[
+        TimeInterval(start: start, end: end),
+      ];
     });
   }
 
@@ -183,6 +292,28 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Расписание скопировано на будни (Пн–Пт)')),
+    );
+  }
+
+  void _copyToAllDays() {
+    HapticService.confirm();
+    final List<TimeInterval> source =
+        List<TimeInterval>.from(_schedule[_selectedDay]!);
+    setState(() {
+      for (final int day in <int>[
+        DateTime.monday,
+        DateTime.tuesday,
+        DateTime.wednesday,
+        DateTime.thursday,
+        DateTime.friday,
+        DateTime.saturday,
+        DateTime.sunday,
+      ]) {
+        _schedule[day] = List<TimeInterval>.from(source);
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Расписание скопировано на всю неделю (Пн–Вс)')),
     );
   }
 
@@ -407,7 +538,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(40),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -415,11 +546,11 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                             color: scheme.outlineVariant.withValues(alpha: 0.3),
                           ),
                         ),
-                        icon: const Icon(Icons.copy_rounded, size: 16),
+                        icon: const Icon(Icons.copy_rounded, size: 15),
                         label: const Text(
                           'Будни (Пн–Пт)',
                           style: TextStyle(
-                            fontSize: 12.5,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -427,14 +558,39 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                         onPressed: _copyToWeekdays,
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(40),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: BorderSide(
+                            color: scheme.outlineVariant.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        icon: const Icon(Icons.all_inclusive_rounded, size: 15),
+                        label: const Text(
+                          'Все дни',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onPressed: _copyToAllDays,
+                      ),
+                    ),
                     if (_schedule[_selectedDay]!.isNotEmpty) ...<Widget>[
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: scheme.error,
                             minimumSize: const Size.fromHeight(40),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -442,11 +598,11 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                               color: scheme.error.withValues(alpha: 0.3),
                             ),
                           ),
-                          icon: const Icon(Icons.event_busy_rounded, size: 16),
+                          icon: const Icon(Icons.event_busy_rounded, size: 15),
                           label: const Text(
                             'Выходной',
                             style: TextStyle(
-                              fontSize: 12.5,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -585,7 +741,11 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+
+          // Quick Preset Chips
+          _buildPresetChips(scheme),
+          const SizedBox(height: 12),
 
           // Body: Intervals or Empty
           if (intervals.isEmpty)
@@ -609,7 +769,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Рабочие часы в этот день отключены',
+                    'Выберите быстрый шаблон выше или задайте своё время',
                     style: textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                       fontSize: 12,
@@ -645,69 +805,86 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
               final TimeInterval interval = entry.value;
               final String durationStr = _formatDuration(interval);
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? scheme.surfaceContainerLow
-                      : scheme.surface,
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: scheme.outlineVariant
-                        .withValues(alpha: isDark ? 0.1 : 0.15),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Icon(
-                      Icons.schedule_rounded,
-                      size: 18,
-                      color: scheme.primary,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      '${interval.start} — ${interval.end}',
-                      style: textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14.5,
-                        letterSpacing: 0.2,
+                  onTap: () => _editInterval(index),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? scheme.surfaceContainerLow
+                          : scheme.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: scheme.outlineVariant
+                            .withValues(alpha: isDark ? 0.1 : 0.15),
+                        width: 1,
                       ),
                     ),
-                    if (durationStr.isNotEmpty) ...<Widget>[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
+                    child: Row(
+                      children: <Widget>[
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 18,
+                          color: scheme.primary,
                         ),
-                        decoration: BoxDecoration(
-                          color: scheme.primaryContainer.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          durationStr,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: scheme.primary,
+                        const SizedBox(width: 10),
+                        Text(
+                          '${interval.start} — ${interval.end}',
+                          style: textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14.5,
+                            letterSpacing: 0.2,
                           ),
                         ),
-                      ),
-                    ],
-                    const Spacer(),
-                    IconButton(
-                      icon: Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                      onPressed: () => _removeInterval(index),
-                      tooltip: 'Удалить интервал',
-                      visualDensity: VisualDensity.compact,
+                        if (durationStr.isNotEmpty) ...<Widget>[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: scheme.primaryContainer.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              durationStr,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: scheme.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        IconButton(
+                          icon: Icon(
+                            Icons.edit_outlined,
+                            size: 18,
+                            color: scheme.primary,
+                          ),
+                          onPressed: () => _editInterval(index),
+                          tooltip: 'Изменить время',
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.close_rounded,
+                            size: 18,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                          onPressed: () => _removeInterval(index),
+                          tooltip: 'Удалить интервал',
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               );
             }),
@@ -730,6 +907,60 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
             ],
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildPresetChips(ColorScheme scheme) {
+    final List<Map<String, String>> presets = const <Map<String, String>>[
+      <String, String>{'label': '09:00–18:00', 'start': '09:00', 'end': '18:00'},
+      <String, String>{'label': '10:00–19:00', 'start': '10:00', 'end': '19:00'},
+      <String, String>{'label': '08:00–17:00', 'start': '08:00', 'end': '17:00'},
+      <String, String>{'label': '10:00–22:00', 'start': '10:00', 'end': '22:00'},
+      <String, String>{'label': '24/7', 'start': '00:00', 'end': '23:59'},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: presets.map((Map<String, String> p) {
+          final bool isActive = _schedule[_selectedDay]!.length == 1 &&
+              _schedule[_selectedDay]!.first.start == p['start'] &&
+              _schedule[_selectedDay]!.first.end == p['end'];
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: ActionChip(
+              avatar: Icon(
+                Icons.bolt_rounded,
+                size: 14,
+                color: isActive ? scheme.onPrimary : scheme.primary,
+              ),
+              label: Text(
+                p['label']!,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                  color: isActive ? scheme.onPrimary : scheme.onSurface,
+                ),
+              ),
+              backgroundColor: isActive
+                  ? scheme.primary
+                  : scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              side: BorderSide(
+                color: isActive
+                    ? scheme.primary
+                    : scheme.outlineVariant.withValues(alpha: 0.2),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _applyPreset(p['start']!, p['end']!),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

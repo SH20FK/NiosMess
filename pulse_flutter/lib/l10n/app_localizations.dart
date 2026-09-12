@@ -4234,6 +4234,12 @@ abstract class AppLocalizations {
   /// **'Create direct chat'**
   String get chatCreatePersonal;
 
+  /// No description provided for @chatJoinByLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Join via link'**
+  String get chatJoinByLink;
+
   /// No description provided for @chatCreatePersonalSubtitle.
   ///
   /// In en, this message translates to:

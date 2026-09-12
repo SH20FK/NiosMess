@@ -2339,6 +2339,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatCreatePersonal => 'Создать личный чат';
 
   @override
+  String get chatJoinByLink => 'Вступить по ссылке';
+
+  @override
   String get chatCreatePersonalSubtitle =>
       'Начать прямой диалог по имени пользователя';
 
