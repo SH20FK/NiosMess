@@ -71,6 +71,32 @@ class MainActivity : FlutterFragmentActivity() {
                         specs["board"] = Build.BOARD
                         specs["hardware"] = Build.HARDWARE
 
+                        // 1.1 Read OEM system properties for real commercial marketing name
+                        var marketName = ""
+                        val propertyKeys = arrayOf(
+                            "ro.product.marketname",
+                            "ro.product.brand.marketname",
+                            "ro.product.model.marketname",
+                            "ro.vendor.product.marketname",
+                            "ro.oplus.market.name",
+                            "ro.oppo.market.name",
+                            "ro.realme.market.name",
+                            "ro.vivo.market.name",
+                            "ro.honor.market.name",
+                            "ro.huawei.market.name",
+                            "ro.transsion.market.name",
+                            "ro.config.marketing_name",
+                            "ro.sem.market.name"
+                        )
+                        for (key in propertyKeys) {
+                            val prop = getSystemProp(key)
+                            if (prop.isNotEmpty()) {
+                                marketName = prop
+                                break
+                            }
+                        }
+                        specs["marketName"] = marketName
+
                         // 2. SoC / Processor
                         var socModel = ""
                         var socManufacturer = ""
@@ -143,7 +169,7 @@ class MainActivity : FlutterFragmentActivity() {
                             specs["freeStorageBytes"] = statFs.availableBlocksLong * blockSize
                         } catch (_: Exception) {}
 
-                        // 6. Cameras
+                        // 6. Cameras (Enhanced with true sensor array megapixels for Quad-Bayer / 50MP+ sensors)
                         try {
                             val cameraManager = getSystemService(CAMERA_SERVICE) as? CameraManager
                             if (cameraManager != null) {
@@ -152,19 +178,58 @@ class MainActivity : FlutterFragmentActivity() {
                                     try {
                                         val chars = cameraManager.getCameraCharacteristics(id)
                                         val facing = chars.get(CameraCharacteristics.LENS_FACING)
-                                        val map = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-                                        val sizes = map?.getOutputSizes(ImageFormat.JPEG)
-                                        var maxMp = 0f
-                                        if (sizes != null && sizes.isNotEmpty()) {
-                                            val largest = sizes.maxByOrNull { it.width * it.height }
-                                            if (largest != null) {
-                                                maxMp = (largest.width * largest.height) / 1_000_000f
+
+                                        // Physical silicon sensor pixel array (true physical resolution before binning)
+                                        var sensorMp = 0f
+                                        val pixelArraySize = chars.get(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE)
+                                        if (pixelArraySize != null && pixelArraySize.width > 0 && pixelArraySize.height > 0) {
+                                            sensorMp = (pixelArraySize.width.toLong() * pixelArraySize.height.toLong()) / 1_000_000f
+                                        }
+
+                                        // Active array size
+                                        val activeArray = chars.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
+                                        if (activeArray != null && activeArray.width() > 0 && activeArray.height() > 0) {
+                                            val activeMp = (activeArray.width().toLong() * activeArray.height().toLong()) / 1_000_000f
+                                            if (activeMp > sensorMp) {
+                                                sensorMp = activeMp
                                             }
                                         }
+
+                                        // Android 12+ Maximum resolution configuration map
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                            try {
+                                                val maxResMap = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP_MAXIMUM_RESOLUTION)
+                                                val maxSizes = maxResMap?.getOutputSizes(ImageFormat.JPEG)
+                                                if (maxSizes != null && maxSizes.isNotEmpty()) {
+                                                    val largestMax = maxSizes.maxByOrNull { it.width.toLong() * it.height.toLong() }
+                                                    if (largestMax != null) {
+                                                        val mp = (largestMax.width.toLong() * largestMax.height.toLong()) / 1_000_000f
+                                                        if (mp > sensorMp) sensorMp = mp
+                                                    }
+                                                }
+                                            } catch (_: Exception) {}
+                                        }
+
+                                        // Standard stream configuration map (often 4-in-1 binned e.g. 12.5 MP)
+                                        var streamMp = 0f
+                                        val map = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+                                        val sizes = map?.getOutputSizes(ImageFormat.JPEG)
+                                        if (sizes != null && sizes.isNotEmpty()) {
+                                            val largest = sizes.maxByOrNull { it.width.toLong() * it.height.toLong() }
+                                            if (largest != null) {
+                                                streamMp = (largest.width.toLong() * largest.height.toLong()) / 1_000_000f
+                                            }
+                                        }
+
+                                        // The real sensor megapixel is the highest physical resolution
+                                        val effectiveMp = if (sensorMp > 0f) sensorMp else streamMp
+
                                         cameraList.add(mapOf(
                                             "id" to id,
                                             "facing" to if (facing == CameraCharacteristics.LENS_FACING_FRONT) "front" else "back",
-                                            "maxMegapixels" to maxMp
+                                            "maxMegapixels" to effectiveMp,
+                                            "sensorMegapixels" to sensorMp,
+                                            "streamMegapixels" to streamMp
                                         ))
                                     } catch (_: Exception) {}
                                 }
@@ -188,6 +253,16 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    private fun getSystemProp(key: String): String {
+        try {
+            val systemPropertiesClass = Class.forName("android.os.SystemProperties")
+            val getMethod = systemPropertiesClass.getMethod("get", String::class.java)
+            val value = getMethod.invoke(null, key) as? String
+            if (!value.isNullOrBlank()) return value.trim()
+        } catch (_: Exception) {}
+        return ""
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

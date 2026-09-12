@@ -52,6 +52,15 @@ class LocalStorageService {
   static const String _schemaVersionKey = 'storage.schemaVersion';
   static const String _draftPrefix = 'draft.';
 
+  static LocalStorageSnapshot? _cachedSnapshot;
+  static DateTime? _lastSnapshotTime;
+  static const Duration _snapshotTtl = Duration(minutes: 5);
+
+  static void invalidateSnapshotCache() {
+    _cachedSnapshot = null;
+    _lastSnapshotTime = null;
+  }
+
   Future<int> ensureInitialized() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final int? existingVersion = prefs.getInt(_schemaVersionKey);
@@ -62,7 +71,15 @@ class LocalStorageService {
     return existingVersion;
   }
 
-  Future<LocalStorageSnapshot> snapshot() async {
+  Future<LocalStorageSnapshot> snapshot({bool forceRefresh = false}) async {
+    final DateTime now = DateTime.now();
+    if (!forceRefresh &&
+        _cachedSnapshot != null &&
+        _lastSnapshotTime != null &&
+        now.difference(_lastSnapshotTime!) < _snapshotTtl) {
+      return _cachedSnapshot!;
+    }
+
     await ensureInitialized();
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final Iterable<String> draftKeys = prefs.getKeys().where(
@@ -95,13 +112,17 @@ class LocalStorageService {
       temporaryBytes = await _directorySizeUnique(temporary, countedPaths);
     }
 
-    return LocalStorageSnapshot(
+    final LocalStorageSnapshot result = LocalStorageSnapshot(
       documentsBytes: documentsBytes,
       supportBytes: supportBytes,
       temporaryBytes: temporaryBytes,
       draftBytes: draftBytes,
       draftCount: draftCount,
     );
+
+    _cachedSnapshot = result;
+    _lastSnapshotTime = now;
+    return result;
   }
 
   Future<LocalStorageHealth> checkIntegrity() async {
@@ -163,6 +184,7 @@ class LocalStorageService {
     await ensureInitialized();
     final Directory temporary = await getTemporaryDirectory();
     await _clearDirectoryContents(temporary);
+    invalidateSnapshotCache();
   }
 
   Future<int> clearDrafts() async {
@@ -175,6 +197,7 @@ class LocalStorageService {
     for (final String key in draftKeys) {
       await prefs.remove(key);
     }
+    invalidateSnapshotCache();
     return draftKeys.length;
   }
 

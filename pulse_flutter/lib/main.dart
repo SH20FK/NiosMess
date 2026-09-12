@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
+import 'package:pulse_flutter/core/storage/chat_media_cache.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
@@ -39,6 +40,7 @@ Future<void> main() async {
       );
       await const CacheService().ensureInitialized();
       await EncryptedMessageCache.ensureInitialized();
+      await ChatMediaCache.ensureInitialized();
       final AppLogger logger = AppLogger.instance;
       FlutterError.onError = (FlutterErrorDetails details) {
         FlutterError.presentError(details);

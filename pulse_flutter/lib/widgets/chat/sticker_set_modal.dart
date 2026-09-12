@@ -42,6 +42,40 @@ class StickerSetModal extends ConsumerStatefulWidget {
 
 class _StickerSetModalState extends ConsumerState<StickerSetModal> {
   bool _isActionLoading = false;
+  bool _isFetchingSet = false;
+  ApiStickerSet? _fetchedSet;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchSetIfNeeded();
+  }
+
+  Future<void> _fetchSetIfNeeded() async {
+    if (widget.stickerSet != null || widget.setId == null) return;
+
+    final List<ApiStickerSet>? installed = ref.read(stickerSetsProvider).value;
+    if (installed != null &&
+        installed.any((ApiStickerSet s) => s.id == widget.setId)) {
+      return;
+    }
+
+    setState(() => _isFetchingSet = true);
+    try {
+      final ApiStickerSet? fetched =
+          await ref.read(stickerRepositoryProvider).getStickerSet(widget.setId!);
+      if (mounted) {
+        setState(() {
+          _fetchedSet = fetched;
+          _isFetchingSet = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isFetchingSet = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +86,7 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
         ref.watch(stickerSetsProvider).value ?? const <ApiStickerSet>[];
 
     // Resolve current sticker set
-    ApiStickerSet? currentSet = widget.stickerSet;
+    ApiStickerSet? currentSet = widget.stickerSet ?? _fetchedSet;
     if (currentSet == null && widget.setId != null) {
       for (final ApiStickerSet s in installedSets) {
         if (s.id == widget.setId) {
@@ -60,6 +94,17 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
           break;
         }
       }
+    }
+
+    if (_isFetchingSet && currentSet == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+        child: Center(
+          child: CircularProgressIndicator(
+            color: scheme.primary,
+          ),
+        ),
+      );
     }
 
     if (currentSet == null) {
@@ -123,7 +168,7 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
                   clipBehavior: Clip.antiAlias,
                   child: resolvedSet.coverSticker != null
                       ? CachedNetworkImage(
-                          imageUrl: resolvedSet.coverSticker!.url,
+                          imageUrl: resolvedSet.coverSticker!.resolvedUrl,
                           fit: BoxFit.contain,
                           memCacheWidth: 160,
                           memCacheHeight: 160,
@@ -396,7 +441,7 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
                               alignment: Alignment.center,
                               children: <Widget>[
                                 CachedNetworkImage(
-                                  imageUrl: sticker.url,
+                                  imageUrl: sticker.resolvedUrl,
                                   fit: BoxFit.contain,
                                   memCacheWidth: 200,
                                   memCacheHeight: 200,

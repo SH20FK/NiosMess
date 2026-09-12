@@ -842,6 +842,14 @@ class ChatRepository {
         );
   }
 
+  Future<void> inviteUsers(int chatId, List<int> userIds) async {
+    for (final int uid in userIds) {
+      try {
+        await inviteUser(chatId, uid);
+      } catch (_) {}
+    }
+  }
+
   Future<void> banUser(
     int chatId,
     int userId,

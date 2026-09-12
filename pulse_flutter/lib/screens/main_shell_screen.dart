@@ -1,4 +1,3 @@
-import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
@@ -40,7 +39,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     'profile',
   ];
 
-  late final PageController _pageController;
+  late final Set<int> _activatedTabs;
 
   bool _biometricLocked = false;
   double _desktopChatListWidth = 360.0;
@@ -50,7 +49,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _pageController = PageController(initialPage: _tabIndex(widget.tab));
+    _activatedTabs = <int>{_tabIndex(widget.tab)};
     _checkBiometricLock();
     _showAlphaDialog();
   }
@@ -96,12 +95,10 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tab != widget.tab) {
       final int nextIndex = _tabIndex(widget.tab);
-      if (_pageController.hasClients && _pageController.page?.round() != nextIndex) {
-        _pageController.animateToPage(
-          nextIndex,
-          duration: const Duration(milliseconds: 320),
-          curve: Curves.easeOutCubic,
-        );
+      if (!_activatedTabs.contains(nextIndex)) {
+        setState(() {
+          _activatedTabs.add(nextIndex);
+        });
       }
     }
   }
@@ -109,7 +106,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _pageController.dispose();
     super.dispose();
   }
 
@@ -118,6 +114,12 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   void _onTapTab(int nextIndex) {
     if (nextIndex < 0 || nextIndex >= _tabs.length) {
       return;
+    }
+
+    if (!_activatedTabs.contains(nextIndex)) {
+      setState(() {
+        _activatedTabs.add(nextIndex);
+      });
     }
 
     final String targetTab = _tabs[nextIndex];
@@ -235,25 +237,14 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               : const NiosgramScreen(),
           const ProfileScreen(),
         ];
-        final Widget body = PageTransitionSwitcher(
-          duration: const Duration(milliseconds: 400),
-          transitionBuilder: (
-            Widget child,
-            Animation<double> animation,
-            Animation<double> secondaryAnimation,
-          ) {
-            return SharedAxisTransition(
-              animation: animation,
-              secondaryAnimation: secondaryAnimation,
-              transitionType: SharedAxisTransitionType.scaled,
-              fillColor: Colors.transparent,
-              child: child,
-            );
-          },
-          child: KeyedSubtree(
-            key: ValueKey<int>(currentIndex),
-            child: pages[currentIndex],
-          ),
+        final Widget body = IndexedStack(
+          index: currentIndex,
+          children: List<Widget>.generate(pages.length, (int index) {
+            if (!_activatedTabs.contains(index)) {
+              return const SizedBox.shrink();
+            }
+            return pages[index];
+          }),
         );
 
         if (isWide) {

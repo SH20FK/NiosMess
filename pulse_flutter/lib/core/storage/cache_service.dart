@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
+import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
+import 'package:pulse_flutter/models/api/sticker_model.dart';
 
 class CacheService {
   const CacheService();
@@ -12,6 +14,8 @@ class CacheService {
   static const String _messagesBoxName = 'messages_cache_box';
   static const String _contactsBoxName = 'contacts_cache_box';
   static const String _profilesBoxName = 'profiles_cache_box';
+  static const String _feedBoxName = 'feed_cache_box';
+  static const String _stickersBoxName = 'stickers_cache_box';
   static bool _hiveInitialized = false;
 
   Future<Box<List<dynamic>>> _ensureBox(String name) async {
@@ -31,13 +35,19 @@ class CacheService {
   Future<void> ensureInitialized() async {
     try {
       if (!_hiveInitialized) {
-        await Hive.initFlutter();
+        try {
+          await Hive.initFlutter();
+        } catch (_) {
+          // Unit tests initialize Hive via Hive.init(tempDir.path)
+        }
         _hiveInitialized = true;
       }
       await Hive.openBox<List<dynamic>>(_chatsBoxName);
       await Hive.openBox<List<dynamic>>(_messagesBoxName);
       await Hive.openBox<List<dynamic>>(_contactsBoxName);
       await Hive.openBox<Map<dynamic, dynamic>>(_profilesBoxName);
+      await Hive.openBox<List<dynamic>>(_feedBoxName);
+      await Hive.openBox<List<dynamic>>(_stickersBoxName);
     } catch (e) {
       debugPrint('[CacheService] Initialization error: $e');
     }
@@ -167,12 +177,68 @@ class CacheService {
     }
   }
 
+  Future<void> saveFeed(List<NgPost> posts) async {
+    try {
+      final Box<List<dynamic>> box = await _ensureBox(_feedBoxName);
+      final List<Map<String, dynamic>> jsonList =
+          posts.take(60).map((NgPost p) => p.toJson()).toList(growable: false);
+      await box.put('feed', jsonList);
+    } catch (e) {
+      debugPrint('[CacheService] Error saving feed: $e');
+    }
+  }
+
+  List<NgPost> getCachedFeed() {
+    try {
+      if (!Hive.isBoxOpen(_feedBoxName)) return <NgPost>[];
+      final Box<List<dynamic>> box = Hive.box<List<dynamic>>(_feedBoxName);
+      final List<dynamic>? list = box.get('feed');
+      if (list == null) return <NgPost>[];
+      return list
+          .whereType<Map>()
+          .map((dynamic e) => NgPost.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('[CacheService] Error loading cached feed: $e');
+      return <NgPost>[];
+    }
+  }
+
+  Future<void> saveStickerSets(List<ApiStickerSet> sets) async {
+    try {
+      final Box<List<dynamic>> box = await _ensureBox(_stickersBoxName);
+      final List<Map<String, dynamic>> jsonList =
+          sets.map((ApiStickerSet s) => s.toJson()).toList(growable: false);
+      await box.put('sets', jsonList);
+    } catch (e) {
+      debugPrint('[CacheService] Error saving sticker sets: $e');
+    }
+  }
+
+  List<ApiStickerSet> getCachedStickerSets() {
+    try {
+      if (!Hive.isBoxOpen(_stickersBoxName)) return <ApiStickerSet>[];
+      final Box<List<dynamic>> box = Hive.box<List<dynamic>>(_stickersBoxName);
+      final List<dynamic>? list = box.get('sets');
+      if (list == null) return <ApiStickerSet>[];
+      return list
+          .whereType<Map>()
+          .map((dynamic e) => ApiStickerSet.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('[CacheService] Error loading cached sticker sets: $e');
+      return <ApiStickerSet>[];
+    }
+  }
+
   Future<void> clearAll() async {
     try {
       if (Hive.isBoxOpen(_chatsBoxName)) await Hive.box<List<dynamic>>(_chatsBoxName).clear();
       if (Hive.isBoxOpen(_messagesBoxName)) await Hive.box<List<dynamic>>(_messagesBoxName).clear();
       if (Hive.isBoxOpen(_contactsBoxName)) await Hive.box<List<dynamic>>(_contactsBoxName).clear();
       if (Hive.isBoxOpen(_profilesBoxName)) await Hive.box<Map<dynamic, dynamic>>(_profilesBoxName).clear();
+      if (Hive.isBoxOpen(_feedBoxName)) await Hive.box<List<dynamic>>(_feedBoxName).clear();
+      if (Hive.isBoxOpen(_stickersBoxName)) await Hive.box<List<dynamic>>(_stickersBoxName).clear();
     } catch (e) {
       debugPrint('[CacheService] Error clearing cache: $e');
     }

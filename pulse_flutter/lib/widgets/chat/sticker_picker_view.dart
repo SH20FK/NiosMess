@@ -223,7 +223,7 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: CachedNetworkImage(
-                              imageUrl: sticker.url,
+                              imageUrl: sticker.resolvedUrl,
                               fit: BoxFit.contain,
                               memCacheWidth: 160,
                               memCacheHeight: 160,
@@ -317,7 +317,7 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
                       ),
                       child: s.coverSticker != null
                           ? CachedNetworkImage(
-                              imageUrl: s.coverSticker!.url,
+                              imageUrl: s.coverSticker!.resolvedUrl,
                               fit: BoxFit.contain,
                               memCacheWidth: 80,
                               memCacheHeight: 80,
@@ -374,7 +374,7 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
             clipBehavior: Clip.antiAlias,
             child: currentSet.coverSticker != null
                 ? CachedNetworkImage(
-                    imageUrl: currentSet.coverSticker!.url,
+                    imageUrl: currentSet.coverSticker!.resolvedUrl,
                     fit: BoxFit.contain,
                     memCacheWidth: 64,
                     memCacheHeight: 64,

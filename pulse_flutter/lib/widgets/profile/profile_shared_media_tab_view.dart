@@ -8,7 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
-import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
+import 'package:pulse_flutter/core/storage/chat_media_cache.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -72,10 +72,15 @@ class _ProfileSharedMediaTabViewState
   bool _isHistoryLoading = false;
   final Set<int> _loadedGroups = <int>{};
   bool _isBatchProcessing = false;
+  List<ApiMessage> _cachedMediaMessages = const <ApiMessage>[];
 
   @override
   void initState() {
     super.initState();
+    final int? cid = widget.chatId;
+    if (cid != null && cid > 0) {
+      _cachedMediaMessages = ChatMediaCache.getCachedMediaSync(cid);
+    }
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       if (mounted) setState(() {});
@@ -89,6 +94,12 @@ class _ProfileSharedMediaTabViewState
   void didUpdateWidget(covariant ProfileSharedMediaTabView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.chatId != widget.chatId) {
+      final int? cid = widget.chatId;
+      if (cid != null && cid > 0) {
+        _cachedMediaMessages = ChatMediaCache.getCachedMediaSync(cid);
+      } else {
+        _cachedMediaMessages = const <ApiMessage>[];
+      }
       _loadedGroups.clear();
       _isBatchProcessing = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -103,11 +114,14 @@ class _ProfileSharedMediaTabViewState
     _isHistoryLoading = true;
 
     try {
-      // 1. Instantly check local cache to display existing media in ~2ms
+      // 1. Instantly check local persistent cache to display existing media in ~0-2ms
       try {
-        final cached = await EncryptedMessageCache.loadMessages(cid);
+        final List<ApiMessage> cached = await ChatMediaCache.getCachedMedia(cid);
         if (cached.isNotEmpty && mounted) {
-          final cachedMedia = _extractPhotosAndVideos(cached);
+          setState(() {
+            _cachedMediaMessages = cached;
+          });
+          final List<_SharedMediaItem> cachedMedia = _extractPhotosAndVideos(cached);
           if (cachedMedia.isNotEmpty) {
             _startGroupedBatchPipeline(cachedMedia);
           }
@@ -120,9 +134,17 @@ class _ProfileSharedMediaTabViewState
           .loadOlder(pageSize: 300);
 
       if (mounted) {
-        final messages = ref.read(chatMessagesProvider(cid)).value ?? const <ApiMessage>[];
-        final allMedia = _extractPhotosAndVideos(messages);
-        _startGroupedBatchPipeline(allMedia);
+        final List<ApiMessage> messages =
+            ref.read(chatMessagesProvider(cid)).value ?? const <ApiMessage>[];
+        await ChatMediaCache.saveMediaMessages(cid, messages);
+        final List<ApiMessage> updated = await ChatMediaCache.getCachedMedia(cid);
+        if (mounted) {
+          setState(() {
+            _cachedMediaMessages = updated;
+          });
+          final List<_SharedMediaItem> allMedia = _extractPhotosAndVideos(updated);
+          _startGroupedBatchPipeline(allMedia);
+        }
       }
 
       // 3. If there are 280+ messages (full page), eagerly fetch another 300 older in the background
@@ -131,9 +153,17 @@ class _ProfileSharedMediaTabViewState
             .read(chatMessagesProvider(cid).notifier)
             .loadOlder(pageSize: 300);
         if (mounted) {
-          final messages = ref.read(chatMessagesProvider(cid)).value ?? const <ApiMessage>[];
-          final allMedia = _extractPhotosAndVideos(messages);
-          _startGroupedBatchPipeline(allMedia);
+          final List<ApiMessage> messages =
+              ref.read(chatMessagesProvider(cid)).value ?? const <ApiMessage>[];
+          await ChatMediaCache.saveMediaMessages(cid, messages);
+          final List<ApiMessage> updated = await ChatMediaCache.getCachedMedia(cid);
+          if (mounted) {
+            setState(() {
+              _cachedMediaMessages = updated;
+            });
+            final List<_SharedMediaItem> allMedia = _extractPhotosAndVideos(updated);
+            _startGroupedBatchPipeline(allMedia);
+          }
         }
       }
     } catch (_) {
@@ -310,10 +340,74 @@ class _ProfileSharedMediaTabViewState
     return _urlRegExp.hasMatch(m.content);
   }
 
+  Widget _buildContent(
+    List<ApiMessage> messages,
+    ColorScheme scheme,
+    TextTheme textTheme,
+  ) {
+    final List<_SharedMediaItem> photosAndVideos = _extractPhotosAndVideos(messages);
+    final List<ApiMessage> voiceAndVideoNotes =
+        messages.where(_isVoiceOrVideoNote).toList(growable: false);
+    final List<ApiMessage> files = messages.where(_isFile).toList(growable: false);
+    final List<ApiMessage> links = messages.where(_hasLink).toList(growable: false);
+
+    if (photosAndVideos.isNotEmpty && !_isBatchProcessing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _startGroupedBatchPipeline(photosAndVideos);
+      });
+    }
+
+    final Widget currentTabView;
+    switch (_tabController.index) {
+      case 0:
+        currentTabView = _buildMediaGrid(photosAndVideos, scheme, textTheme);
+        break;
+      case 1:
+        currentTabView = _buildVoiceList(voiceAndVideoNotes, scheme, textTheme);
+        break;
+      case 2:
+        currentTabView = _buildFilesList(files, scheme, textTheme);
+        break;
+      case 3:
+        currentTabView = _buildLinksList(links, scheme, textTheme);
+        break;
+      default:
+        currentTabView = _buildMediaGrid(photosAndVideos, scheme, textTheme);
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // ── Material 3 Expressive Horizontal Pill Bar ──
+        _buildPillBar(
+          scheme: scheme,
+          textTheme: textTheme,
+          mediaCount: photosAndVideos.length,
+          voiceCount: voiceAndVideoNotes.length,
+          filesCount: files.length,
+          linksCount: links.length,
+        ),
+        const SizedBox(height: 12),
+
+        // ── Active Tab View with Smooth Transition (Unified Scrolling) ──
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          switchInCurve: M3SpringCurves.snappy,
+          switchOutCurve: Curves.easeInQuad,
+          child: KeyedSubtree(
+            key: ValueKey<int>(_tabController.index),
+            child: currentTabView,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
 
     if (widget.chatId == null) {
       // While resolving the chatId, show an elegant shimmer grid rather than empty placeholder
@@ -323,77 +417,38 @@ class _ProfileSharedMediaTabViewState
       return _buildNoChatPlaceholder(scheme, textTheme);
     }
 
-    final messagesAsync = ref.watch(chatMessagesProvider(widget.chatId!));
+    final AsyncValue<List<ApiMessage>> messagesAsync =
+        ref.watch(chatMessagesProvider(widget.chatId!));
 
     return messagesAsync.when(
-      loading: () => _buildShimmerGrid(scheme),
-      error: (err, _) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
-        child: Center(
-          child: Text(
-            'Не удалось загрузить медиафайлы',
-            style: textTheme.bodyMedium?.copyWith(color: scheme.error),
-          ),
-        ),
-      ),
-      data: (messages) {
-        final photosAndVideos = _extractPhotosAndVideos(messages);
-        final voiceAndVideoNotes =
-            messages.where(_isVoiceOrVideoNote).toList(growable: false);
-        final files = messages.where(_isFile).toList(growable: false);
-        final links = messages.where(_hasLink).toList(growable: false);
-
-        if (photosAndVideos.isNotEmpty && !_isBatchProcessing) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _startGroupedBatchPipeline(photosAndVideos);
-          });
-        }
-
-        final Widget currentTabView;
-        switch (_tabController.index) {
-          case 0:
-            currentTabView = _buildMediaGrid(photosAndVideos, scheme, textTheme);
-            break;
-          case 1:
-            currentTabView = _buildVoiceList(voiceAndVideoNotes, scheme, textTheme);
-            break;
-          case 2:
-            currentTabView = _buildFilesList(files, scheme, textTheme);
-            break;
-          case 3:
-            currentTabView = _buildLinksList(links, scheme, textTheme);
-            break;
-          default:
-            currentTabView = _buildMediaGrid(photosAndVideos, scheme, textTheme);
-        }
-
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ── Material 3 Expressive Horizontal Pill Bar ──
-            _buildPillBar(
-              scheme: scheme,
-              textTheme: textTheme,
-              mediaCount: photosAndVideos.length,
-              voiceCount: voiceAndVideoNotes.length,
-              filesCount: files.length,
-              linksCount: links.length,
-            ),
-            const SizedBox(height: 12),
-
-            // ── Active Tab View with Smooth Transition (Unified Scrolling) ──
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              switchInCurve: M3SpringCurves.snappy,
-              switchOutCurve: Curves.easeInQuad,
-              child: KeyedSubtree(
-                key: ValueKey<int>(_tabController.index),
-                child: currentTabView,
+      loading: () => _cachedMediaMessages.isNotEmpty
+          ? _buildContent(_cachedMediaMessages, scheme, textTheme)
+          : _buildShimmerGrid(scheme),
+      error: (Object err, StackTrace? _) => _cachedMediaMessages.isNotEmpty
+          ? _buildContent(_cachedMediaMessages, scheme, textTheme)
+          : Padding(
+              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+              child: Center(
+                child: Text(
+                  'Не удалось загрузить медиафайлы',
+                  style: textTheme.bodyMedium?.copyWith(color: scheme.error),
+                ),
               ),
             ),
-          ],
-        );
+      data: (List<ApiMessage> messages) {
+        final Map<int, ApiMessage> byId = <int, ApiMessage>{};
+        for (final ApiMessage m in _cachedMediaMessages) {
+          byId[m.id] = m;
+        }
+        for (final ApiMessage m in messages) {
+          if (ChatMediaCache.isMediaMessage(m)) {
+            byId[m.id] = m;
+          }
+        }
+        final List<ApiMessage> allMessages = byId.values.toList()
+          ..sort((ApiMessage a, ApiMessage b) => b.sentAt.compareTo(a.sentAt));
+
+        return _buildContent(allMessages, scheme, textTheme);
       },
     );
   }

@@ -39,7 +39,7 @@ class WsCallTransport implements CallTransport {
   }) async {
     try {
       final Uri uri = Uri.parse(
-        'wss://c.ni-os.ru:4433/ws?room=$roomId&nick=${Uri.encodeComponent(nickname)}',
+        'wss://c.ni-os.ru/ws?room=$roomId&nick=${Uri.encodeComponent(nickname)}',
       );
       _channel = WebSocketChannel.connect(uri);
 

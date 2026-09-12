@@ -5,6 +5,8 @@ import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
+import 'package:pulse_flutter/models/api/sticker_model.dart';
+import 'package:pulse_flutter/providers/sticker_provider.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_modal.dart';
@@ -295,6 +297,16 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             onStickerTap: () {
               if (message.sticker?.setId != null) {
                 StickerSetModal.show(context, setId: message.sticker!.setId);
+              } else if (message.sticker?.id != null) {
+                final List<ApiStickerSet> sets =
+                    ref.read(stickerSetsProvider).value ??
+                        const <ApiStickerSet>[];
+                for (final ApiStickerSet s in sets) {
+                  if (s.stickers.any((ApiSticker st) => st.id == message.sticker!.id)) {
+                    StickerSetModal.show(context, stickerSet: s, setId: s.id);
+                    return;
+                  }
+                }
               }
             },
             mediaDuration: mediaDuration,

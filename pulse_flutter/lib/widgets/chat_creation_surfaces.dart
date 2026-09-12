@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
@@ -73,53 +75,185 @@ Future<void> showStartDirectChatDialog(BuildContext context) {
 }
 
 Future<String?> showCreateChatMenu(BuildContext context) {
-  return AppBottomSheets.show<String>(
-    context: context,
-    
-    builder: (BuildContext ctx) {
-      final ColorScheme scheme = Theme.of(ctx).colorScheme;
-      final TextTheme textTheme = Theme.of(ctx).textTheme;
+  final bool isWide = MediaQuery.sizeOf(context).width >= 720;
 
-      Widget actionTile({
-        required String value,
-        required IconData icon,
-        required String title,
-        required String subtitle,
-      }) {
-        return InkWell(
-          onTap: () => Navigator.of(ctx).pop(value),
-          borderRadius: BorderRadius.circular(22),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-            child: Row(
+  Widget buildContent(BuildContext ctx) {
+    final ColorScheme scheme = Theme.of(ctx).colorScheme;
+    final TextTheme textTheme = Theme.of(ctx).textTheme;
+
+    Widget heroCard({
+      required String value,
+      required IconData icon,
+      required String title,
+      required String subtitle,
+      required Color containerColor,
+      required Color iconColor,
+    }) {
+      return _PressableScale(
+        onTap: () {
+          HapticService.tap();
+          Navigator.of(ctx).pop(value);
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: containerColor,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.18),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, color: iconColor, size: 26),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.25,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget listActionTile({
+      required String value,
+      required IconData icon,
+      required String title,
+      required String subtitle,
+    }) {
+      return _PressableScale(
+        onTap: () {
+          HapticService.tap();
+          Navigator.of(ctx).pop(value);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow.withValues(alpha: 0.70),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.12),
+            ),
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: scheme.secondaryContainer.withValues(alpha: 0.60),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, color: scheme.onSecondaryContainer, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.60),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.28),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            Row(
               children: <Widget>[
                 Container(
-                  width: 46,
-                  height: 46,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: scheme.primaryContainer.withValues(alpha: 0.66),
-                    borderRadius: BorderRadius.circular(16),
+                    color: scheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   alignment: Alignment.center,
-                  child: Icon(icon, color: scheme.onPrimaryContainer),
+                  child: Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: scheme.primary,
+                    size: 22,
+                  ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        title,
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
+                        context.l10n.groupCreateOrJoin,
+                        style: textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
                         ),
                       ),
-                      const SizedBox(height: 2),
                       Text(
-                        subtitle,
+                        'Выберите формат для общения или трансляций',
                         style: textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
-                          height: 1.3,
                         ),
                       ),
                     ],
@@ -127,70 +261,107 @@ Future<String?> showCreateChatMenu(BuildContext context) {
                 ),
               ],
             ),
-          ),
-        );
-      }
-
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(30),
-            child: Material(
-              color: scheme.surfaceContainerHigh,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
-                    child: Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            context.l10n.groupCreateOrJoin,
-                            style: textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  actionTile(
+            const SizedBox(height: 18),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: heroCard(
                     value: 'group',
                     icon: Icons.groups_rounded,
                     title: context.l10n.groupNewGroup,
                     subtitle: context.l10n.groupCreateSharedSubtitle,
+                    containerColor: scheme.surfaceContainerLow,
+                    iconColor: scheme.primary,
                   ),
-                  Divider(height: 1, indent: 76, color: scheme.outlineVariant.withValues(alpha: 0.18)),
-                  actionTile(
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: heroCard(
                     value: 'channel',
                     icon: Icons.campaign_rounded,
                     title: context.l10n.groupNewChannel,
                     subtitle: context.l10n.groupCreateBroadcastSubtitle,
+                    containerColor: scheme.surfaceContainerLow,
+                    iconColor: scheme.tertiary,
                   ),
-                  Divider(height: 1, indent: 76, color: scheme.outlineVariant.withValues(alpha: 0.18)),
-                  actionTile(
-                    value: 'join',
-                    icon: Icons.link_rounded,
-                    title: context.l10n.groupJoinByInvite,
-                    subtitle: context.l10n.groupJoinByInviteSubtitle,
-                  ),
-                  Divider(height: 1, indent: 76, color: scheme.outlineVariant.withValues(alpha: 0.18)),
-                  actionTile(
-                    value: 'direct',
-                    icon: Icons.person_add_alt_1_rounded,
-                    title: context.l10n.chatCreatePersonal,
-                    subtitle: context.l10n.chatCreatePersonalSubtitle,
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            listActionTile(
+              value: 'direct',
+              icon: Icons.person_add_alt_1_rounded,
+              title: context.l10n.chatCreatePersonal,
+              subtitle: context.l10n.chatCreatePersonalSubtitle,
+            ),
+            const SizedBox(height: 8),
+            listActionTile(
+              value: 'join',
+              icon: Icons.link_rounded,
+              title: context.l10n.groupJoinByInvite,
+              subtitle: context.l10n.groupJoinByInviteSubtitle,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  if (isWide) {
+    return showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) {
+        final ColorScheme scheme = Theme.of(ctx).colorScheme;
+        return Dialog(
+          backgroundColor: scheme.surfaceContainerHigh,
+          elevation: 6,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(32),
+            side: BorderSide(
+              color: scheme.outlineVariant.withValues(alpha: 0.18),
             ),
           ),
-        ),
-      );
-    },
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: buildContent(ctx),
+          ),
+        );
+      },
+    );
+  }
+
+  return AppBottomSheets.show<String>(
+    context: context,
+    builder: buildContent,
   );
+}
+
+class _PressableScale extends StatefulWidget {
+  const _PressableScale({required this.child, required this.onTap});
+
+  final Widget child;
+  final VoidCallback onTap;
+
+  @override
+  State<_PressableScale> createState() => _PressableScaleState();
+}
+
+class _PressableScaleState extends State<_PressableScale> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 140),
+        curve: M3SpringCurves.spatial,
+        child: widget.child,
+      ),
+    );
+  }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
+import 'package:pulse_flutter/core/storage/chat_media_cache.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:pulse_flutter/core/storage/notification_storage.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
@@ -455,6 +456,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       ..removeAt(index);
     state = AsyncData<List<ApiMessage>>(updated);
     _saveToCache(updated);
+    unawaited(ChatMediaCache.removeMediaMessage(_chatId, message.id));
   }
 
   void _handleReactionPush(ApiMessage message, String emoji,
@@ -528,6 +530,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final List<ApiMessage> decrypted = await _decryptE2eeMessages(messages);
     try {
       await EncryptedMessageCache.saveMessages(_chatId, decrypted);
+      await ChatMediaCache.saveMediaMessages(_chatId, decrypted);
     } catch (e) {
       debugPrint('[backend_chat_provider.dart] Save messages cache error: $e');
     }
@@ -694,6 +697,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   Future<void> _saveToCache(List<ApiMessage> messages) async {
     try {
       await EncryptedMessageCache.saveMessages(_chatId, messages);
+      await ChatMediaCache.saveMediaMessages(_chatId, messages);
     } catch (e) {
       debugPrint('[backend_chat_provider.dart] Save messages cache error: $e');
     }

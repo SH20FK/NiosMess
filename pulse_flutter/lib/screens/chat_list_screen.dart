@@ -27,6 +27,7 @@ import 'package:pulse_flutter/widgets/chat/chat_list_filter_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_search_field.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 
 
 enum _LastMessageKind { photo, video, audio, file }
@@ -42,19 +43,10 @@ class ChatListScreen extends ConsumerStatefulWidget {
 
 class _ChatListScreenState extends ConsumerState<ChatListScreen>
     with SingleTickerProviderStateMixin {
-
-
-  bool _isInitialLoaded = false;
-
   @override
   void initState() {
     super.initState();
-    // Don't call refresh() here — it causes a full rebuild on every
-    // screen return. The provider already fetches on first build and
-    // WebSocket push keeps data fresh.
-    Future<void>.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) setState(() => _isInitialLoaded = true);
-    });
+    // The provider already fetches on first build and WebSocket push keeps data fresh.
   }
 
 
@@ -266,7 +258,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     ),
                   );
 
-                  if (_isInitialLoaded || index >= 6) {
+                  if (index >= 6) {
                     return RepaintBoundary(child: item);
                   }
 
@@ -618,11 +610,30 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   Future<void> _leaveChat(BuildContext context, ApiChatSummary chat) async {
+    final bool isDirect = chat.chatType == 'direct';
+    final bool? confirmed = await showAppConfirmDialog(
+      context: context,
+      title: isDirect
+          ? 'Удалить диалог?'
+          : (chat.chatType == 'channel' ? 'Покинуть канал?' : 'Покинуть группу?'),
+      subtitle: isDirect
+          ? 'Диалог с «${chat.name}» исчезнет из вашего списка. Вы или собеседник сможете написать снова в любой момент.'
+          : 'Вы перестанете получать новые сообщения из «${chat.name}».',
+      confirmLabel: isDirect ? 'Удалить' : 'Покинуть',
+      cancelLabel: 'Отмена',
+      icon: Icons.delete_outline_rounded,
+      destructive: true,
+    );
+    if (confirmed != true) return;
+
     try {
       await ref.read(chatRepositoryProvider).leaveChat(chat.id);
       await ref.read(chatsProvider.notifier).refresh();
       if (!context.mounted) return;
-      AppToast.showSuccess(context, context.l10n.chatListLeft);
+      AppToast.showSuccess(
+        context,
+        isDirect ? 'Диалог удален' : context.l10n.chatListLeft,
+      );
     } catch (e) {
       if (!context.mounted) return;
       AppToast.showError(context, e);

@@ -22,6 +22,7 @@ import 'package:pulse_flutter/widgets/centered_note.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/storage/cache_service.dart';
 
 enum _ContactsTab { recent, search }
 
@@ -38,19 +39,12 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
   String _query = '';
   String? _openingUsername;
   int? _callingChatId;
-
-  bool _isInitialLoaded = false;
+  List<ApiChatSummary>? _cachedDirectContacts;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future<void>.delayed(const Duration(milliseconds: 600), () {
-        if (mounted) {
-          setState(() => _isInitialLoaded = true);
-        }
-      });
-    });
+    _cachedDirectContacts = ref.read(cacheServiceProvider).getCachedContacts();
   }
 
   @override
@@ -220,167 +214,181 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         ),
       ];
     }
-    return chatsAsync.when(
-      data: (List<ApiChatSummary> chats) {
-        final List<ApiChatSummary> direct = _recentDirectChats(chats);
-        if (direct.isEmpty) {
-          return <Widget>[
-            SliverFillRemaining(
-              child: CenteredNote(
-                context.l10n.contactsNoRecentFull,
-              ),
-            ),
-          ];
-        }
-        return <Widget>[
+
+    final List<ApiChatSummary>? freshChats = chatsAsync.value;
+    if (freshChats != null) {
+      final List<ApiChatSummary> direct = _recentDirectChats(freshChats);
+      _cachedDirectContacts = direct;
+      ref.read(cacheServiceProvider).saveContacts(direct);
+    }
+
+    final List<ApiChatSummary> direct = _cachedDirectContacts ?? const <ApiChatSummary>[];
+
+    if (direct.isEmpty) {
+      if (chatsAsync.isLoading) {
+        return const <Widget>[
           SliverPadding(
-            padding: const EdgeInsets.symmetric(
+            padding: EdgeInsets.symmetric(
               horizontal: AppConstants.screenHorizontalPadding,
             ),
-            sliver: SliverList.separated(
-              itemCount: direct.length,
-              itemBuilder: (BuildContext context, int index) {
-                final ApiChatSummary chat = direct[index];
-                final bool busy = _callingChatId == chat.id;
-
-                final List<ApiBadge> badges = chat.partnerBadges
-                    .take(2)
-                    .toList(growable: false);
-                final int hiddenBadgeCount =
-                    chat.partnerBadges.length - badges.length;
-
-                final Widget item = InkWell(
-                  onTap: chat.username == null || chat.username!.isEmpty
-                      ? () => context.push('/chat/${chat.id}')
-                      : () => context.push('/contact/${chat.username}'),
-                  borderRadius: BorderRadius.circular(22),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: compact ? 10 : 13,
-                    ),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerLow.withValues(alpha: 0.82),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                        color: scheme.outlineVariant.withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        Hero(
-                          tag: 'user-avatar-${chat.username}',
-                          child: PulseAvatar(
-                            radius: 22,
-                            name: chat.name,
-                            avatarUrl: chat.avatarUrl,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Row(
-                                children: <Widget>[
-                                  Flexible(
-                                    child: Text(
-                                      chat.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: textTheme.titleMedium,
-                                    ),
-                                  ),
-                                  if (badges.isNotEmpty) ...<Widget>[
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Wrap(
-                                        spacing: 4,
-                                        runSpacing: 2,
-                                        children: <Widget>[
-                                          ...badges.map(
-                                            (badge) => BadgeChip(
-                                              id: badge.id,
-                                              name: badge.name,
-                                              icon: badge.icon,
-                                              color: badge.color,
-                                              interactive: false,
-                                              mode: BadgeResolver.isStatusBadge(badge) ? BadgeDisplayMode.statusIcon : BadgeDisplayMode.infoLabel,
-                                            ),
-                                          ),
-                                          if (hiddenBadgeCount > 0)
-                                            BadgeOverflowChip(
-                                              count: hiddenBadgeCount,
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _previewText(chat.lastMessage?.content),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (busy)
-                          AppLoadingIndicator(size: 20)
-                        else ...<Widget>[
-                          IconButton(
-                            onPressed: () {
-                              if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
-                              context.push('/chat/${chat.id}');
-                            },
-                            icon: const Icon(Icons.chat_rounded),
-                            tooltip: context.l10n.contactsMessage,
-                            iconSize: 20,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                );
-
-                if (_isInitialLoaded) {
-                  return RepaintBoundary(child: item);
-                }
-
-                final int delayMs = (index < 6) ? index * 35 : 0;
-                return RepaintBoundary(child: item)
-                    .animate()
-                    .fade(duration: 250.ms, delay: delayMs.ms, curve: Curves.easeOutCubic)
-                    .slideY(
-                      begin: 0.06,
-                      end: 0,
-                      duration: 250.ms,
-                      delay: delayMs.ms,
-                      curve: Curves.easeOutCubic,
-                    );
-              },
-              separatorBuilder: (_, _) => SizedBox(height: compact ? 8 : 10),
+            sliver: SliverToBoxAdapter(child: ChatListSkeleton(count: 4)),
+          ),
+        ];
+      }
+      if (chatsAsync.hasError) {
+        return <Widget>[
+          SliverFillRemaining(
+            child: CenteredNote(
+              context.l10n.contactsFailedToLoad('${chatsAsync.error}'),
             ),
           ),
         ];
-      },
-      loading: () => const <Widget>[
-        SliverPadding(
-          padding: EdgeInsets.symmetric(
-            horizontal: AppConstants.screenHorizontalPadding,
+      }
+      return <Widget>[
+        SliverFillRemaining(
+          child: CenteredNote(
+            context.l10n.contactsNoRecentFull,
           ),
-          sliver: SliverToBoxAdapter(child: ChatListSkeleton(count: 4)),
         ),
-      ],
-      error: (Object error, StackTrace _) => <Widget>[
-        SliverFillRemaining(child: CenteredNote(context.l10n.contactsFailedToLoad('$error'))),
-      ],
-    );
+      ];
+    }
+
+    return <Widget>[
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppConstants.screenHorizontalPadding,
+        ),
+        sliver: SliverList.separated(
+          itemCount: direct.length,
+          itemBuilder: (BuildContext context, int index) {
+            final ApiChatSummary chat = direct[index];
+            final bool busy = _callingChatId == chat.id;
+
+            final List<ApiBadge> badges = chat.partnerBadges
+                .take(2)
+                .toList(growable: false);
+            final int hiddenBadgeCount =
+                chat.partnerBadges.length - badges.length;
+
+            final Widget item = InkWell(
+              onTap: chat.username == null || chat.username!.isEmpty
+                  ? () => context.push('/chat/${chat.id}')
+                  : () => context.push('/contact/${chat.username}'),
+              borderRadius: BorderRadius.circular(22),
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: compact ? 10 : 13,
+                ),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerLow.withValues(alpha: 0.82),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Hero(
+                      tag: 'user-avatar-${chat.username}',
+                      child: PulseAvatar(
+                        radius: 22,
+                        name: chat.name,
+                        avatarUrl: chat.avatarUrl,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              Flexible(
+                                child: Text(
+                                  chat.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.titleMedium,
+                                ),
+                              ),
+                              if (badges.isNotEmpty) ...<Widget>[
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Wrap(
+                                    spacing: 4,
+                                    runSpacing: 2,
+                                    children: <Widget>[
+                                      ...badges.map(
+                                        (badge) => BadgeChip(
+                                          id: badge.id,
+                                          name: badge.name,
+                                          icon: badge.icon,
+                                          color: badge.color,
+                                          interactive: false,
+                                          mode: BadgeResolver.isStatusBadge(badge) ? BadgeDisplayMode.statusIcon : BadgeDisplayMode.infoLabel,
+                                        ),
+                                      ),
+                                      if (hiddenBadgeCount > 0)
+                                        BadgeOverflowChip(
+                                          count: hiddenBadgeCount,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _previewText(chat.lastMessage?.content),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (busy)
+                      AppLoadingIndicator(size: 20)
+                    else ...<Widget>[
+                      IconButton(
+                        onPressed: () {
+                          if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+                          context.push('/chat/${chat.id}');
+                        },
+                        icon: const Icon(Icons.chat_rounded),
+                        tooltip: context.l10n.contactsMessage,
+                        iconSize: 20,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+
+            if (index >= 6) {
+              return RepaintBoundary(child: item);
+            }
+
+            final int delayMs = index * 35;
+            return RepaintBoundary(child: item)
+                .animate()
+                .fade(duration: 250.ms, delay: delayMs.ms, curve: Curves.easeOutCubic)
+                .slideY(
+                  begin: 0.06,
+                  end: 0,
+                  duration: 250.ms,
+                  delay: delayMs.ms,
+                  curve: Curves.easeOutCubic,
+                );
+          },
+          separatorBuilder: (_, _) => SizedBox(height: compact ? 8 : 10),
+        ),
+      ),
+    ];
   }
 
   List<Widget> _buildSearchSlivers(

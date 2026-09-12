@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/repositories/sticker_repository.dart';
 
@@ -9,7 +11,23 @@ export 'package:pulse_flutter/repositories/sticker_repository.dart';
 class StickerSetsNotifier extends AsyncNotifier<List<ApiStickerSet>> {
   @override
   Future<List<ApiStickerSet>> build() async {
-    return _fetchSets();
+    final CacheService cache = ref.read(cacheServiceProvider);
+    final List<ApiStickerSet> cached = cache.getCachedStickerSets();
+    if (cached.isNotEmpty) {
+      state = AsyncData<List<ApiStickerSet>>(cached);
+    }
+
+    try {
+      final List<ApiStickerSet> fresh = await _fetchSets();
+      await cache.saveStickerSets(fresh);
+      return fresh;
+    } catch (e) {
+      debugPrint('[sticker_provider] Error fetching sticker sets in build: $e');
+      if (cached.isNotEmpty) {
+        return cached;
+      }
+      rethrow;
+    }
   }
 
   Future<List<ApiStickerSet>> _fetchSets() async {
@@ -18,8 +36,16 @@ class StickerSetsNotifier extends AsyncNotifier<List<ApiStickerSet>> {
   }
 
   Future<void> refresh() async {
-    state = const AsyncLoading<List<ApiStickerSet>>();
-    state = await AsyncValue.guard(_fetchSets);
+    try {
+      final List<ApiStickerSet> fresh = await _fetchSets();
+      await ref.read(cacheServiceProvider).saveStickerSets(fresh);
+      state = AsyncData<List<ApiStickerSet>>(fresh);
+    } catch (e) {
+      debugPrint('[sticker_provider] Error refreshing sticker sets: $e');
+      if (state.value == null) {
+        state = AsyncError<List<ApiStickerSet>>(e, StackTrace.current);
+      }
+    }
   }
 
   Future<ApiStickerSet> createStickerSet({
@@ -35,7 +61,9 @@ class StickerSetsNotifier extends AsyncNotifier<List<ApiStickerSet>> {
     );
 
     final List<ApiStickerSet> current = state.value ?? const <ApiStickerSet>[];
-    state = AsyncData<List<ApiStickerSet>>(<ApiStickerSet>[...current, newSet]);
+    final List<ApiStickerSet> updated = <ApiStickerSet>[...current, newSet];
+    state = AsyncData<List<ApiStickerSet>>(updated);
+    ref.read(cacheServiceProvider).saveStickerSets(updated);
     return newSet;
   }
 
@@ -68,6 +96,7 @@ class StickerSetsNotifier extends AsyncNotifier<List<ApiStickerSet>> {
     }).toList(growable: false);
 
     state = AsyncData<List<ApiStickerSet>>(updated);
+    ref.read(cacheServiceProvider).saveStickerSets(updated);
     return sticker;
   }
 
@@ -89,6 +118,7 @@ class StickerSetsNotifier extends AsyncNotifier<List<ApiStickerSet>> {
     final List<ApiStickerSet> updated =
         current.where((ApiStickerSet s) => s.id != setId).toList(growable: false);
     state = AsyncData<List<ApiStickerSet>>(updated);
+    ref.read(cacheServiceProvider).saveStickerSets(updated);
   }
 
   Future<void> deleteSticker(int setId, int stickerId) async {
@@ -108,6 +138,7 @@ class StickerSetsNotifier extends AsyncNotifier<List<ApiStickerSet>> {
     }).toList(growable: false);
 
     state = AsyncData<List<ApiStickerSet>>(updated);
+    ref.read(cacheServiceProvider).saveStickerSets(updated);
   }
 }
 

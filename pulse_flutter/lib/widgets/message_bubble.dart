@@ -621,7 +621,9 @@ if (onSwipeToReply != null) {
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
-    final String url = sticker?.url ?? mediaUrl ?? '';
+    final String url = sticker?.resolvedUrl.isNotEmpty == true
+        ? sticker!.resolvedUrl
+        : ApiConstants.resolve(mediaUrl ?? '');
     final bool isAnimated = sticker?.isAnimated == true ||
         (sticker?.mediaType ?? '').contains('video') ||
         (sticker?.mediaType ?? '').contains('webm') ||

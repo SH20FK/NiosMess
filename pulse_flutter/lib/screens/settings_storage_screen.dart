@@ -32,14 +32,14 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     _snapshotFuture = _loadSnapshot();
   }
 
-  Future<LocalStorageSnapshot> _loadSnapshot() {
-    return ref.read(localStorageServiceProvider).snapshot();
+  Future<LocalStorageSnapshot> _loadSnapshot({bool forceRefresh = false}) {
+    return ref.read(localStorageServiceProvider).snapshot(forceRefresh: forceRefresh);
   }
 
   void _refresh() {
     if (_busy) return;
     setState(() {
-      _snapshotFuture = _loadSnapshot();
+      _snapshotFuture = _loadSnapshot(forceRefresh: true);
     });
   }
 

@@ -206,3 +206,12 @@ async def handle_unregister_fcm_token(payload: dict, db: AsyncSession, user: Use
 - Все рассылки служебных событий идут с `skip_offline_fcm=True` — FCM на них не тратится (оффлайн-клиент всё равно догонит историю).
 - `handle_answer_call` со статусами звонков в диспетчере по-прежнему не подключён — не нужен текущему клиентскому флоу (`start_call` / `join_call` / `decline_call` / `end_call`).
 - Изменения E2EE-медиа на сервере не требуются: `/api/files/upload` и `/api/files/download` уже хранят/отдают байты как есть для `is_e2ee` сообщений (заголовок `X-Is-E2EE`) — шифрование полностью клиентское.
+
+---
+
+## 7. `handle_open_direct`, `handle_send_message`, `handle_send_sticker` — автоматическое восстановление `ChatMember` в Direct-чатах
+
+Устранён критический баг: при удалении/выходе из direct-чата (`leave_chat`) удалялась запись `ChatMember`. При повторной попытке написать собеседнику (`open_direct`) сервер находил существующий `Chat`, но не восстанавливал членство пользователя, что приводило к ошибке `Not a member of this chat`.
+
+- В `handle_open_direct`: при нахождении существующего direct-чата (обычного и секретного) проверяется наличие обоих участников (`u1` и `u2`) в `ChatMember`. Если участник отсутствует, создаётся запись с ролью `MemberRole.MEMBER`.
+- В `handle_send_message` и `handle_send_sticker`: при отправке в `ChatType.DIRECT` проверяется наличие `other_id` в `ChatMember`. Если собеседник ранее удалил чат у себя, он автоматически восстанавливается, чтобы получить входящее сообщение, пуш-уведомление и счётчик непрочитанных.

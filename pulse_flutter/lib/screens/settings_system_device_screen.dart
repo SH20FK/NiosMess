@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/providers/device_hardware_provider.dart';
 import 'package:pulse_flutter/services/system/device_hardware_service.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
@@ -71,7 +74,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
       availableRamGb: 4.0,
       totalStorageGb: 128.0,
       freeStorageGb: 64.0,
-      mainCameraMp: 108.0,
+      mainCameraMp: 50.0,
       frontCameraMp: 16.0,
       cameraCount: 3,
       osName: 'Android 15',
@@ -90,345 +93,621 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
   ) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final Widget heroCard = Container(
-          decoration: BoxDecoration(
-            color: isDark ? scheme.surfaceContainerLow : scheme.surface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: scheme.primary.withValues(alpha: isDark ? 0.35 : 0.25),
-              width: 1.2,
-            ),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[
-                scheme.primary.withValues(alpha: isDark ? 0.18 : 0.08),
-                isDark ? scheme.surfaceContainerLow : scheme.surface,
-              ],
-            ),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: scheme.primary.withValues(alpha: isDark ? 0.12 : 0.05),
-                blurRadius: 18,
-                offset: const Offset(0, 4),
+    final Widget heroCard = _buildHeroCard(context, scheme, textTheme, info, isDark);
+    final Widget memoryGaugeCard = _buildMemoryGaugeCard(context, scheme, textTheme, info, isDark);
+    final Widget displaySection = _buildDisplaySection(scheme, textTheme, info, isDark);
+    final Widget processorSection = _buildProcessorSection(scheme, textTheme, info, isDark);
+    final Widget camerasSection = _buildCamerasSection(scheme, textTheme, info, isDark);
+    final Widget osSection = _buildOsSection(scheme, textTheme, info, isDark);
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool isWide = constraints.maxWidth >= 840;
+        if (isWide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                flex: 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    heroCard,
+                    const SizedBox(height: 16),
+                    memoryGaugeCard,
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                flex: 6,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    displaySection,
+                    const SizedBox(height: 16),
+                    processorSection,
+                    const SizedBox(height: 16),
+                    camerasSection,
+                    const SizedBox(height: 16),
+                    osSection,
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            heroCard,
+            const SizedBox(height: 16),
+            memoryGaugeCard,
+            const SizedBox(height: 16),
+            displaySection,
+            const SizedBox(height: 16),
+            processorSection,
+            const SizedBox(height: 16),
+            camerasSection,
+            const SizedBox(height: 16),
+            osSection,
+            const SizedBox(height: 32),
+          ],
+        );
+      },
+    );
+  }
+
+  // ── Pixel / Nothing OS Minimalist Hero Card ───────────────────────────
+  Widget _buildHeroCard(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+    DeviceHardwareInfo info,
+    bool isDark,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.28 : 0.35),
+          width: 1.0,
+        ),
+      ),
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              // Monochromatic Nothing OS style device badge
+              M3Container(
+                Shapes.c9_sided_cookie,
+                width: 56,
+                height: 56,
+                color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.7 : 0.5),
+                child: Center(
+                  child: Icon(
+                    _resolveBrandIcon(info.brand),
+                    size: 28,
+                    color: scheme.onSurface,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      info.marketingName,
+                      style: textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        fontSize: 20,
+                        color: scheme.onSurface,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: <Widget>[
+                        _buildTonalBadge(
+                          text: info.brand,
+                          scheme: scheme,
+                          textTheme: textTheme,
+                        ),
+                        if (info.model.isNotEmpty && info.model != info.brand)
+                          _buildTonalBadge(
+                            text: info.model,
+                            scheme: scheme,
+                            textTheme: textTheme,
+                          ),
+                        _buildTonalBadge(
+                          text: info.osName,
+                          scheme: scheme,
+                          textTheme: textTheme,
+                          isAccent: true,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
+          const SizedBox(height: 18),
+          // Minimal Quick Spec Metrics Pill Dock
+          Row(
             children: <Widget>[
-              Row(
-                children: <Widget>[
-                  // Brand / OS Emblem
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: scheme.primary.withValues(alpha: 0.3),
-                        width: 1.2,
+              _buildSpecChip(scheme, textTheme, Icons.speed_rounded, '${info.refreshRate.round()} Гц'),
+              const SizedBox(width: 8),
+              _buildSpecChip(scheme, textTheme, Icons.memory_rounded, '${info.cpuCores} ядер'),
+              const SizedBox(width: 8),
+              _buildSpecChip(scheme, textTheme, Icons.sd_storage_rounded, '${info.totalRamGb.toStringAsFixed(0)} ГБ RAM'),
+              const SizedBox(width: 8),
+              _buildSpecChip(scheme, textTheme, Icons.photo_camera_rounded, '${info.normalizedMainCameraMp} МП'),
+            ],
+          ),
+        ],
+      ),
+    ).animate().fade(duration: 250.ms, curve: M3SpringCurves.spatial).slideY(begin: 0.03, end: 0);
+  }
+
+  // ── Nothing OS / Pixel Linear Memory & Storage Meters ─────────────────
+  Widget _buildMemoryGaugeCard(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+    DeviceHardwareInfo info,
+    bool isDark,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.28 : 0.35),
+          width: 1.0,
+        ),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Память и накопитель',
+            style: textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+              color: scheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 1. RAM Gauge
+          _buildLinearResourceMeter(
+            icon: Icons.memory_rounded,
+            title: 'Оперативная память',
+            usedText: '${info.usedRamGb.toStringAsFixed(1)} ГБ',
+            totalText: '${info.totalRamGb.toStringAsFixed(1)} ГБ',
+            percent: info.ramUsagePercent,
+            subtitle: info.availableRamGb > 0
+                ? 'Свободно для приложений: ${info.availableRamGb.toStringAsFixed(1)} ГБ'
+                : 'LPDDR модуль',
+            scheme: scheme,
+            textTheme: textTheme,
+            barColor: scheme.primary,
+          ),
+
+          const SizedBox(height: 16),
+          Divider(
+            height: 1,
+            color: scheme.outlineVariant.withValues(alpha: 0.2),
+          ),
+          const SizedBox(height: 16),
+
+          // 2. Storage Gauge
+          _buildLinearResourceMeter(
+            icon: Icons.inventory_2_rounded,
+            title: 'Внутренний накопитель',
+            usedText: '${info.usedStorageGb.toStringAsFixed(0)} ГБ',
+            totalText: '${info.totalStorageGb.toStringAsFixed(0)} ГБ',
+            percent: info.storageUsagePercent,
+            subtitle: info.freeStorageGb > 0
+                ? 'Свободно места: ${info.freeStorageGb.toStringAsFixed(1)} ГБ'
+                : 'UFS флеш-память',
+            scheme: scheme,
+            textTheme: textTheme,
+            barColor: scheme.onSurface,
+          ),
+        ],
+      ),
+    ).animate().fade(duration: 300.ms, curve: M3SpringCurves.spatial).slideY(begin: 0.03, end: 0);
+  }
+
+  Widget _buildLinearResourceMeter({
+    required IconData icon,
+    required String title,
+    required String usedText,
+    required String totalText,
+    required double percent,
+    required String subtitle,
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+    required Color barColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Icon(icon, size: 16, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ),
+            Text(
+              '$usedText / $totalText (${(percent * 100).round()}%)',
+              style: textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: SizedBox(
+            height: 6,
+            child: LinearProgressIndicator(
+              value: percent,
+              backgroundColor: scheme.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation<Color>(barColor),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: textTheme.labelSmall?.copyWith(
+            color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+            fontSize: 11,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Hardware Sections (Pixel / Nothing OS Monochromatic Style) ────────
+  Widget _buildDisplaySection(ColorScheme scheme, TextTheme textTheme, DeviceHardwareInfo info, bool isDark) {
+    return _buildSectionContainer(
+      title: 'Дисплей и графика',
+      scheme: scheme,
+      textTheme: textTheme,
+      isDark: isDark,
+      tiles: <Widget>[
+        _buildInfoRow(
+          icon: Icons.aspect_ratio_rounded,
+          title: 'Физическое разрешение',
+          subtitle: 'Матрица экрана',
+          value: info.screenResolutionText,
+          scheme: scheme,
+          textTheme: textTheme,
+        ),
+        _buildInfoRow(
+          icon: Icons.speed_rounded,
+          title: 'Частота обновления',
+          subtitle: 'Высокогерцовый режим',
+          value: info.refreshRateText,
+          scheme: scheme,
+          textTheme: textTheme,
+        ),
+        _buildInfoRow(
+          icon: Icons.palette_outlined,
+          title: 'Плотность и масштаб',
+          subtitle: 'Коэффициент масштабирования',
+          value: info.densityText,
+          scheme: scheme,
+          textTheme: textTheme,
+        ),
+        _buildInfoRow(
+          icon: Icons.layers_rounded,
+          title: 'Графический пайплайн',
+          subtitle: 'Аппаратный рендерер',
+          value: 'M3 Expressive (Impeller/Skia)',
+          scheme: scheme,
+          textTheme: textTheme,
+          isLast: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProcessorSection(ColorScheme scheme, TextTheme textTheme, DeviceHardwareInfo info, bool isDark) {
+    return _buildSectionContainer(
+      title: 'Процессор и вычисления',
+      scheme: scheme,
+      textTheme: textTheme,
+      isDark: isDark,
+      tiles: <Widget>[
+        _buildInfoRow(
+          icon: Icons.memory_rounded,
+          title: 'Процессор (SoC)',
+          subtitle: 'Чипсет устройства',
+          value: info.socName,
+          scheme: scheme,
+          textTheme: textTheme,
+        ),
+        _buildInfoRow(
+          icon: Icons.developer_board_rounded,
+          title: 'Вычислительные ядра',
+          subtitle: 'Аппаратные потоки',
+          value: '${info.cpuCores} ядер',
+          scheme: scheme,
+          textTheme: textTheme,
+        ),
+        _buildInfoRow(
+          icon: Icons.terminal_rounded,
+          title: 'Архитектура ABI',
+          subtitle: 'Набор процессорных инструкций',
+          value: info.architecture,
+          scheme: scheme,
+          textTheme: textTheme,
+          isLast: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCamerasSection(ColorScheme scheme, TextTheme textTheme, DeviceHardwareInfo info, bool isDark) {
+    return _buildSectionContainer(
+      title: 'Оптика и камеры',
+      scheme: scheme,
+      textTheme: textTheme,
+      isDark: isDark,
+      tiles: <Widget>[
+        _buildInfoRow(
+          icon: Icons.camera_alt_rounded,
+          title: 'Основная камера',
+          subtitle: 'Сенсор сверхвысокого разрешения',
+          value: '${info.normalizedMainCameraMp} МП Ultra Clear',
+          scheme: scheme,
+          textTheme: textTheme,
+        ),
+        _buildInfoRow(
+          icon: Icons.camera_front_rounded,
+          title: 'Фронтальная камера',
+          subtitle: 'Селфи и видеокружочки',
+          value: '${info.normalizedFrontCameraMp} МП HD',
+          scheme: scheme,
+          textTheme: textTheme,
+        ),
+        _buildInfoRow(
+          icon: Icons.center_focus_strong_rounded,
+          title: 'Модули камер',
+          subtitle: 'Сенсоры фотосистемы',
+          value: '${info.cameraCount} камеры',
+          scheme: scheme,
+          textTheme: textTheme,
+          isLast: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOsSection(ColorScheme scheme, TextTheme textTheme, DeviceHardwareInfo info, bool isDark) {
+    return _buildSectionContainer(
+      title: 'Система и безопасность',
+      scheme: scheme,
+      textTheme: textTheme,
+      isDark: isDark,
+      tiles: <Widget>[
+        _buildInfoRow(
+          icon: Icons.android_rounded,
+          title: 'Операционная система',
+          subtitle: info.buildId.isNotEmpty ? info.buildId : 'Официальная прошивка',
+          value: info.osName,
+          scheme: scheme,
+          textTheme: textTheme,
+        ),
+        if (info.securityPatch.isNotEmpty)
+          _buildInfoRow(
+            icon: Icons.security_rounded,
+            title: 'Патч безопасности',
+            subtitle: 'Уровень безопасности Google',
+            value: info.securityPatch,
+            scheme: scheme,
+            textTheme: textTheme,
+          ),
+        _buildInfoRow(
+          icon: Icons.lock_outline_rounded,
+          title: 'Криптография NiosMess',
+          subtitle: 'Сквозное шифрование сообщений',
+          value: 'E2EE MLS Double Ratchet',
+          scheme: scheme,
+          textTheme: textTheme,
+        ),
+        _buildInfoRow(
+          icon: Icons.fingerprint_rounded,
+          title: 'Биометрия',
+          subtitle: 'Аппаратная аутентификация',
+          value: 'BiometricPrompt OK',
+          scheme: scheme,
+          textTheme: textTheme,
+          isLast: true,
+        ),
+      ],
+    );
+  }
+
+  // ── Section Container ────────────────────────────────────────────────
+  Widget _buildSectionContainer({
+    required String title,
+    required List<Widget> tiles,
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+    required bool isDark,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.28 : 0.35),
+          width: 1.0,
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            title,
+            style: textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+              color: scheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...tiles,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String value,
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+    bool isLast = false,
+  }) {
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: <Widget>[
+              // Monochromatic tonal squircle icon container
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: Icon(
+                    icon,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      style: textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                        letterSpacing: -0.1,
                       ),
                     ),
-                    alignment: Alignment.center,
-                    child: Icon(
-                      _resolveBrandIcon(info.brand),
-                      size: 32,
-                      color: scheme.primary,
+                    const SizedBox(height: 1),
+                    Text(
+                      subtitle,
+                      style: textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          info.marketingName,
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.3,
-                            color: scheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: <Widget>[
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                info.model.isNotEmpty ? info.model : info.brand,
-                                style: textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: scheme.primary.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                info.osName,
-                                style: textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: scheme.primary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              // Fast Quick Spec Chips
-              Row(
-                children: <Widget>[
-                  _buildSpecChip(scheme, textTheme, Icons.speed_rounded, '${info.refreshRate.round()} Гц'),
-                  const SizedBox(width: 8),
-                  _buildSpecChip(scheme, textTheme, Icons.memory_rounded, '${info.cpuCores} ядер'),
-                  const SizedBox(width: 8),
-                  _buildSpecChip(scheme, textTheme, Icons.sd_storage_rounded, info.ramText),
-                  const SizedBox(width: 8),
-                  _buildSpecChip(scheme, textTheme, Icons.photo_camera_rounded, '${info.mainCameraMp.round()} МП'),
-                ],
+              const SizedBox(width: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 160),
+                child: Text(
+                  value,
+                  textAlign: TextAlign.end,
+                  style: textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurface,
+                  ),
+                ),
               ),
             ],
           ),
-        );
+        ),
+        if (!isLast)
+          Divider(
+            height: 1,
+            color: scheme.outlineVariant.withValues(alpha: 0.15),
+          ),
+      ],
+    );
+  }
 
-        final Widget displaySection = SettingsSection(
-          title: 'Дисплей и графика',
-          subtitle: 'Физические параметры матрицы и частота обновления',
-          children: <Widget>[
-            SettingsInfoTile(
-              icon: Icons.aspect_ratio_rounded,
-              title: 'Физическое разрешение',
-              subtitle: 'Реальная матрица дисплея',
-              value: info.screenResolutionText,
-              iconColor: scheme.primary,
-            ),
-            SettingsInfoTile(
-              icon: Icons.speed_rounded,
-              title: 'Частота обновления',
-              subtitle: 'Плавный высокогерцовый рендеринг',
-              value: info.refreshRateText,
-              iconColor: const Color(0xFF00C853),
-            ),
-            SettingsInfoTile(
-              icon: Icons.palette_outlined,
-              title: 'Плотность и масштаб',
-              subtitle: 'Физический PPI и коэффициент интерфейса',
-              value: info.densityText,
-              iconColor: scheme.secondary,
-            ),
-            SettingsInfoTile(
-              icon: Icons.layers_rounded,
-              title: 'Графический движок',
-              subtitle: 'Рендерер с адаптивным профилированием FPS',
-              value: 'M3 Tonal (Impeller/Skia)',
-              iconColor: const Color(0xFFFF9100),
-            ),
-          ],
-        );
-
-        final Widget processorSection = SettingsSection(
-          title: 'Процессор и вычисления',
-          subtitle: 'Система на кристалле (SoC) и вычислительные кластеры',
-          children: <Widget>[
-            SettingsInfoTile(
-              icon: Icons.memory_rounded,
-              title: 'Модель процессора (SoC)',
-              subtitle: 'Аппаратная микроархитектура',
-              value: info.socName,
-              iconColor: const Color(0xFF7C4DFF),
-            ),
-            SettingsInfoTile(
-              icon: Icons.developer_board_rounded,
-              title: 'Количество ядер',
-              subtitle: 'Симметричные высокопроизводительные ядра',
-              value: '${info.cpuCores} вычислительных ядер',
-              iconColor: scheme.primary,
-            ),
-            SettingsInfoTile(
-              icon: Icons.terminal_rounded,
-              title: 'Архитектура ABI',
-              subtitle: 'Набор команд процессора',
-              value: info.architecture,
-              iconColor: scheme.secondary,
-            ),
-          ],
-        );
-
-        final Widget memorySection = SettingsSection(
-          title: 'Память и накопитель',
-          subtitle: 'Оперативная и постоянная физическая память',
-          children: <Widget>[
-            SettingsInfoTile(
-              icon: Icons.storage_rounded,
-              title: 'Оперативная память (RAM)',
-              subtitle: info.availableRamGb > 0
-                  ? 'Доступно для системы: ${info.availableRamGb.toStringAsFixed(1)} ГБ'
-                  : 'LPDDR модуль памяти',
-              value: info.ramText,
-              iconColor: const Color(0xFF2979FF),
-            ),
-            SettingsInfoTile(
-              icon: Icons.inventory_2_rounded,
-              title: 'Внутренний накопитель',
-              subtitle: info.freeStorageGb > 0
-                  ? 'Свободно места: ${info.freeStorageGb.toStringAsFixed(1)} ГБ'
-                  : 'Высокоскоростная флеш-память',
-              value: info.storageText,
-              iconColor: const Color(0xFF00B0FF),
-            ),
-          ],
-        );
-
-        final Widget camerasSection = SettingsSection(
-          title: 'Оптика и камеры',
-          subtitle: 'Сенсоры фотосъёмки и видеозаписи сообщений',
-          children: <Widget>[
-            SettingsInfoTile(
-              icon: Icons.camera_alt_rounded,
-              title: 'Основная камера',
-              subtitle: 'Сенсор сверхвысокого разрешения',
-              value: '${info.mainCameraMp.round()} МП Ultra Clear',
-              iconColor: const Color(0xFFFF4081),
-            ),
-            SettingsInfoTile(
-              icon: Icons.camera_front_rounded,
-              title: 'Фронтальная камера',
-              subtitle: 'Селфи-камера и видеокружочки',
-              value: '${info.frontCameraMp.round()} МП HD',
-              iconColor: const Color(0xFFE040FB),
-            ),
-            SettingsInfoTile(
-              icon: Icons.center_focus_strong_rounded,
-              title: 'Модули камер',
-              subtitle: 'Количество сенсоров на устройстве',
-              value: '${info.cameraCount} камеры',
-              iconColor: scheme.primary,
-            ),
-          ],
-        );
-
-        final Widget osSection = SettingsSection(
-          title: 'Операционная система и безопасность',
-          subtitle: 'Платформа, патчи безопасности и криптоядро',
-          children: <Widget>[
-            SettingsInfoTile(
-              icon: Icons.android_rounded,
-              title: 'Операционная система',
-              subtitle: info.buildId.isNotEmpty ? info.buildId : 'Официальная прошивка',
-              value: info.osName,
-              iconColor: const Color(0xFF00E676),
-            ),
-            if (info.securityPatch.isNotEmpty)
-              SettingsInfoTile(
-                icon: Icons.security_rounded,
-                title: 'Патч безопасности',
-                subtitle: 'Уровень обновлений безопасности ОС',
-                value: info.securityPatch,
-                iconColor: const Color(0xFF00B0FF),
-              ),
-            SettingsInfoTile(
-              icon: Icons.lock_outline_rounded,
-              title: 'Криптография NiosMess',
-              subtitle: 'Сквозное шифрование сообщений и медиа',
-              value: 'E2EE MLS Double Ratchet',
-              iconColor: scheme.primary,
-            ),
-            SettingsInfoTile(
-              icon: Icons.fingerprint_rounded,
-              title: 'Биометрический сканер',
-              subtitle: 'Аппаратная аутентификация',
-              value: 'FingerprintActivity OK',
-              iconColor: const Color(0xFF7C4DFF),
-            ),
-          ],
-        );
-
-        return LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final bool isWide = constraints.maxWidth >= 840;
-            if (isWide) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        heroCard,
-                        const SizedBox(height: 16),
-                        displaySection,
-                        const SizedBox(height: 16),
-                        camerasSection,
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    flex: 6,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        processorSection,
-                        const SizedBox(height: 16),
-                        memorySection,
-                        const SizedBox(height: 16),
-                        osSection,
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                heroCard,
-                const SizedBox(height: 16),
-                displaySection,
-                const SizedBox(height: 16),
-                processorSection,
-                const SizedBox(height: 16),
-                memorySection,
-                const SizedBox(height: 16),
-                camerasSection,
-                const SizedBox(height: 16),
-                osSection,
-                const SizedBox(height: 32),
-              ],
-            );
-          },
-        );
-      }
+  Widget _buildTonalBadge({
+    required String text,
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+    bool isAccent = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isAccent
+            ? scheme.primary.withValues(alpha: 0.12)
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(8),
+        border: isAccent
+            ? Border.all(color: scheme.primary.withValues(alpha: 0.25))
+            : null,
+      ),
+      child: Text(
+        text,
+        style: textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
+          color: isAccent ? scheme.primary : scheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
 
   Widget _buildSpecChip(ColorScheme scheme, TextTheme textTheme, IconData icon, String text) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           children: <Widget>[
-            Icon(icon, size: 16, color: scheme.primary),
+            Icon(icon, size: 16, color: scheme.onSurfaceVariant),
             const SizedBox(height: 4),
             Text(
               text,

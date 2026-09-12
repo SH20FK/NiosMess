@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'package:pulse_flutter/core/network/api_constants.dart';
+
 bool _parseBool(dynamic value) {
   return value == true ||
       value == 1 ||
@@ -31,6 +33,9 @@ class ApiSticker {
   final int? height;
   final int? fileSize;
 
+  /// Absolute resolved URL for network image and video loaders.
+  String get resolvedUrl => ApiConstants.resolve(url);
+
   bool get isAnimated =>
       (durationSeconds != null && durationSeconds! > 0) ||
       mediaType.contains('video') ||
@@ -41,14 +46,20 @@ class ApiSticker {
   factory ApiSticker.fromJson(Map<String, dynamic> json) {
     return ApiSticker(
       id: (json['id'] as num?)?.toInt() ?? 0,
-      setId: (json['set_id'] as num?)?.toInt(),
+      setId: (json['set_id'] as num?)?.toInt() ??
+          (json['setId'] as num?)?.toInt() ??
+          (json['sticker_set_id'] as num?)?.toInt(),
       url: json['url'] as String? ?? '',
       emoji: json['emoji'] as String? ?? '',
-      mediaType: json['media_type'] as String? ?? 'image/webp',
-      durationSeconds: (json['duration_seconds'] as num?)?.toInt(),
+      mediaType: json['media_type'] as String? ??
+          json['mediaType'] as String? ??
+          'image/webp',
+      durationSeconds: (json['duration_seconds'] as num?)?.toInt() ??
+          (json['durationSeconds'] as num?)?.toInt(),
       width: (json['width'] as num?)?.toInt(),
       height: (json['height'] as num?)?.toInt(),
-      fileSize: (json['file_size'] as num?)?.toInt(),
+      fileSize: (json['file_size'] as num?)?.toInt() ??
+          (json['fileSize'] as num?)?.toInt(),
     );
   }
 
@@ -141,16 +152,22 @@ class ApiStickerSet {
 
   factory ApiStickerSet.fromJson(Map<String, dynamic> json) {
     final dynamic rawStickers = json['stickers'];
+    final int setId = (json['id'] as num?)?.toInt() ?? 0;
     final List<ApiSticker> parsedStickers;
     if (rawStickers is List) {
       parsedStickers = rawStickers
           .whereType<Map>()
           .map(
-            (Map item) => ApiSticker.fromJson(
-              item.map(
-                (dynamic k, dynamic v) => MapEntry(k.toString(), v),
-              ),
-            ),
+            (Map item) {
+              final ApiSticker st = ApiSticker.fromJson(
+                item.map(
+                  (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+                ),
+              );
+              return (st.setId == null || st.setId == 0) && setId > 0
+                  ? st.copyWith(setId: setId)
+                  : st;
+            },
           )
           .toList(growable: false);
     } else {
