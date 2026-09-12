@@ -510,14 +510,16 @@ class DeviceHardwareService {
   }
 
   /// Resolves commercial SoC names for Qualcomm, MediaTek, Tensor, Exynos, Unisoc.
-  /// When the raw SoC ID (e.g. SM6375) is non-empty and the chip is positively
-  /// identified, it is appended in parentheses: "Qualcomm Snapdragon 695 5G (SM6375)".
+  /// When a device model is provided the raw SoC ID (e.g. SM6375) is appended in
+  /// parentheses for display: "Qualcomm Snapdragon 695 5G (SM6375)".
   static String resolveCommercialSoc(String rawSoc, [String manufacturer = '', String model = '']) {
     final lower = rawSoc.toLowerCase();
     final lowerModel = model.toLowerCase();
 
-    // Helper: append raw SoC ID in parentheses when positively identified.
+    // Helper: append raw SoC ID in parentheses — only when a device model is known,
+    // so bare resolveCommercialSoc('sm6375') returns the plain marketing name.
     String withId(String name) {
+      if (model.isEmpty) return name;
       final id = rawSoc.trim();
       if (id.isEmpty || id.toLowerCase() == 'unknown') return name;
       if (name.contains('($id)') || name.toLowerCase() == id.toLowerCase()) return name;

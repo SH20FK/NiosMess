@@ -35,12 +35,12 @@ class _FakeWebSocketClient extends WebSocketClient {
 void main() {
   late Directory hiveDir;
 
-  setUp(() async {
+  setUpAll(() async {
     hiveDir = await Directory.systemTemp.createTemp('profile_test_hive_');
     Hive.init(hiveDir.path);
   });
 
-  tearDown(() async {
+  tearDownAll(() async {
     try {
       await Hive.close();
       if (hiveDir.existsSync()) await hiveDir.delete(recursive: true);

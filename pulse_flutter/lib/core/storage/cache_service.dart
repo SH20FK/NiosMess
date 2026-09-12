@@ -18,18 +18,34 @@ class CacheService {
   static const String _stickersBoxName = 'stickers_cache_box';
   static bool _hiveInitialized = false;
 
-  Future<Box<List<dynamic>>> _ensureBox(String name) async {
-    if (!Hive.isBoxOpen(name)) {
-      await ensureInitialized();
+  Future<Box<List<dynamic>>?> _ensureBox(String name) async {
+    try {
+      if (!Hive.isBoxOpen(name)) {
+        await ensureInitialized();
+      }
+      if (Hive.isBoxOpen(name)) {
+        return Hive.box<List<dynamic>>(name);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[CacheService] _ensureBox error: $e');
+      return null;
     }
-    return Hive.box<List<dynamic>>(name);
   }
 
-  Future<Box<Map<dynamic, dynamic>>> _ensureMapBox(String name) async {
-    if (!Hive.isBoxOpen(name)) {
-      await ensureInitialized();
+  Future<Box<Map<dynamic, dynamic>>?> _ensureMapBox(String name) async {
+    try {
+      if (!Hive.isBoxOpen(name)) {
+        await ensureInitialized();
+      }
+      if (Hive.isBoxOpen(name)) {
+        return Hive.box<Map<dynamic, dynamic>>(name);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[CacheService] _ensureMapBox error: $e');
+      return null;
     }
-    return Hive.box<Map<dynamic, dynamic>>(name);
   }
 
   Future<void> ensureInitialized() async {
@@ -42,12 +58,12 @@ class CacheService {
         }
         _hiveInitialized = true;
       }
-      await Hive.openBox<List<dynamic>>(_chatsBoxName);
-      await Hive.openBox<List<dynamic>>(_messagesBoxName);
-      await Hive.openBox<List<dynamic>>(_contactsBoxName);
-      await Hive.openBox<Map<dynamic, dynamic>>(_profilesBoxName);
-      await Hive.openBox<List<dynamic>>(_feedBoxName);
-      await Hive.openBox<List<dynamic>>(_stickersBoxName);
+      if (!Hive.isBoxOpen(_chatsBoxName)) await Hive.openBox<List<dynamic>>(_chatsBoxName);
+      if (!Hive.isBoxOpen(_messagesBoxName)) await Hive.openBox<List<dynamic>>(_messagesBoxName);
+      if (!Hive.isBoxOpen(_contactsBoxName)) await Hive.openBox<List<dynamic>>(_contactsBoxName);
+      if (!Hive.isBoxOpen(_profilesBoxName)) await Hive.openBox<Map<dynamic, dynamic>>(_profilesBoxName);
+      if (!Hive.isBoxOpen(_feedBoxName)) await Hive.openBox<List<dynamic>>(_feedBoxName);
+      if (!Hive.isBoxOpen(_stickersBoxName)) await Hive.openBox<List<dynamic>>(_stickersBoxName);
     } catch (e) {
       debugPrint('[CacheService] Initialization error: $e');
     }
@@ -55,7 +71,8 @@ class CacheService {
 
   Future<void> saveProfile(ApiProfile profile) async {
     try {
-      final Box<Map<dynamic, dynamic>> box = await _ensureMapBox(_profilesBoxName);
+      final Box<Map<dynamic, dynamic>>? box = await _ensureMapBox(_profilesBoxName);
+      if (box == null) return;
       final Map<String, dynamic> json = profile.toJson();
       if (profile.username.isNotEmpty) {
         await box.put(profile.username.toLowerCase(), json);
@@ -100,7 +117,8 @@ class CacheService {
 
   Future<void> saveMessages(int chatId, List<ApiMessage> messages) async {
     try {
-      final Box<List<dynamic>> box = await _ensureBox(_messagesBoxName);
+      final Box<List<dynamic>>? box = await _ensureBox(_messagesBoxName);
+      if (box == null) return;
       final List<Map<String, dynamic>> jsonList =
           messages.take(100).map((e) => e.toJson()).toList(growable: false);
       await box.put('chat_$chatId', jsonList);
@@ -127,7 +145,8 @@ class CacheService {
 
   Future<void> saveChats(List<ApiChatSummary> chats) async {
     try {
-      final Box<List<dynamic>> box = await _ensureBox(_chatsBoxName);
+      final Box<List<dynamic>>? box = await _ensureBox(_chatsBoxName);
+      if (box == null) return;
       final List<Map<String, dynamic>> jsonList = chats.map((e) => e.toJson()).toList();
       await box.put('list', jsonList);
     } catch (e) {
@@ -153,7 +172,8 @@ class CacheService {
 
   Future<void> saveContacts(List<ApiChatSummary> contacts) async {
     try {
-      final Box<List<dynamic>> box = await _ensureBox(_contactsBoxName);
+      final Box<List<dynamic>>? box = await _ensureBox(_contactsBoxName);
+      if (box == null) return;
       final List<Map<String, dynamic>> jsonList = contacts.map((e) => e.toJson()).toList();
       await box.put('list', jsonList);
     } catch (e) {
@@ -179,7 +199,8 @@ class CacheService {
 
   Future<void> saveFeed(List<NgPost> posts) async {
     try {
-      final Box<List<dynamic>> box = await _ensureBox(_feedBoxName);
+      final Box<List<dynamic>>? box = await _ensureBox(_feedBoxName);
+      if (box == null) return;
       final List<Map<String, dynamic>> jsonList =
           posts.take(60).map((NgPost p) => p.toJson()).toList(growable: false);
       await box.put('feed', jsonList);
@@ -206,7 +227,8 @@ class CacheService {
 
   Future<void> saveStickerSets(List<ApiStickerSet> sets) async {
     try {
-      final Box<List<dynamic>> box = await _ensureBox(_stickersBoxName);
+      final Box<List<dynamic>>? box = await _ensureBox(_stickersBoxName);
+      if (box == null) return;
       final List<Map<String, dynamic>> jsonList =
           sets.map((ApiStickerSet s) => s.toJson()).toList(growable: false);
       await box.put('sets', jsonList);

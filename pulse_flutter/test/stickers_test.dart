@@ -59,12 +59,12 @@ Widget _wrapWidget({
 void main() {
   late Directory hiveDir;
 
-  setUp(() async {
+  setUpAll(() async {
     hiveDir = await Directory.systemTemp.createTemp('stickers_test_hive_');
     Hive.init(hiveDir.path);
   });
 
-  tearDown(() async {
+  tearDownAll(() async {
     try {
       await Hive.close();
       if (hiveDir.existsSync()) await hiveDir.delete(recursive: true);
@@ -559,7 +559,8 @@ void main() {
           child: const StickerPickerView(chatId: 1),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('У вас пока нет стикерпаков'), findsOneWidget);
       expect(find.text('Создать стикерпак'), findsOneWidget);
@@ -589,7 +590,8 @@ void main() {
           child: const StickerPickerView(chatId: 1),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Пустой пак'), findsOneWidget);
       expect(find.text('В этом наборе пока нет стикеров'), findsOneWidget);

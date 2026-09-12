@@ -7,6 +7,7 @@ import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/widgets/post_card.dart';
 import 'package:universal_io/io.dart';
 
@@ -42,12 +43,13 @@ class MockWebSocketClient extends WebSocketClient {
 void main() {
   late Directory hiveDir;
 
-  setUp(() async {
+  setUpAll(() async {
     hiveDir = await Directory.systemTemp.createTemp('niosgram_test_hive_');
     Hive.init(hiveDir.path);
+    await const CacheService().ensureInitialized();
   });
 
-  tearDown(() async {
+  tearDownAll(() async {
     try {
       await Hive.close();
       if (hiveDir.existsSync()) await hiveDir.delete(recursive: true);
