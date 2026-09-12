@@ -26,15 +26,38 @@ class MediaGridPicker extends StatefulWidget {
 }
 
 class _MediaGridPickerState extends State<MediaGridPicker> {
+  static const int _pageSize = 80;
+
   List<AssetEntity> _allAssets = [];
   final Set<String> _selectedIds = {};
+  final ScrollController _scrollController = ScrollController();
+  AssetPathEntity? _recentAlbum;
+  int _currentPage = 0;
+  bool _hasMore = true;
+  bool _loadingMore = false;
   bool _loading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadMedia();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 350) {
+      _loadNextPage();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMedia() async {
@@ -56,14 +79,17 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
       }
 
       final AssetPathEntity recent = albums.first;
+      _recentAlbum = recent;
+      _currentPage = 0;
       final List<AssetEntity> assets = await recent.getAssetListPaged(
         page: 0,
-        size: 200,
+        size: _pageSize,
       );
 
       if (mounted) {
         setState(() {
           _allAssets = assets;
+          _hasMore = assets.length >= _pageSize;
           _loading = false;
         });
       }
@@ -73,6 +99,32 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
           _error = e.toString();
           _loading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _loadNextPage() async {
+    final album = _recentAlbum;
+    if (album == null || _loadingMore || !_hasMore) return;
+    _loadingMore = true;
+
+    try {
+      final int nextPage = _currentPage + 1;
+      final List<AssetEntity> nextBatch = await album.getAssetListPaged(
+        page: nextPage,
+        size: _pageSize,
+      );
+      if (mounted) {
+        setState(() {
+          _currentPage = nextPage;
+          _allAssets.addAll(nextBatch);
+          _hasMore = nextBatch.length >= _pageSize;
+          _loadingMore = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingMore = false);
       }
     }
   }
@@ -149,62 +201,87 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
         ),
       );
     } else {
-      body = GridView.builder(
-        padding: const EdgeInsets.all(2),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 2,
-          crossAxisSpacing: 2,
-        ),
-        itemCount: _allAssets.length,
-        itemBuilder: (context, index) {
-          final AssetEntity asset = _allAssets[index];
-          final bool selected = _selectedIds.contains(asset.id);
-          return GestureDetector(
-            onTap: () => _toggleSelection(asset.id),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                _AssetThumbnail(asset: asset, scheme: scheme),
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: selected ? scheme.primary : Colors.black38,
-                      border: Border.all(
-                        color: selected ? scheme.primary : Colors.white70,
-                        width: 2,
+      body = Stack(
+        children: [
+          GridView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.all(2),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 2,
+              crossAxisSpacing: 2,
+            ),
+            itemCount: _allAssets.length,
+            itemBuilder: (context, index) {
+              final AssetEntity asset = _allAssets[index];
+              final bool selected = _selectedIds.contains(asset.id);
+              return GestureDetector(
+                onTap: () => _toggleSelection(asset.id),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _AssetThumbnail(asset: asset, scheme: scheme),
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: selected ? scheme.primary : scheme.scrim.withValues(alpha: 0.38),
+                          border: Border.all(
+                            color: selected ? scheme.primary : scheme.surface.withValues(alpha: 0.7),
+                            width: 2,
+                          ),
+                        ),
+                        child: selected
+                            ? Icon(Icons.check_rounded, size: 16, color: scheme.onPrimary)
+                            : null,
                       ),
                     ),
-                    child: selected
-                        ? Icon(Icons.check_rounded, size: 16, color: scheme.onPrimary)
-                        : null,
+                    if (asset.type == AssetType.video)
+                      Positioned(
+                        left: 6,
+                        bottom: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: scheme.scrim.withValues(alpha: 0.65),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _formatDuration(Duration(milliseconds: asset.duration)),
+                            style: TextStyle(color: scheme.onInverseSurface, fontSize: 11, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+          if (_loadingMore)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                color: scheme.surface.withValues(alpha: 0.75),
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: scheme.primary,
+                    ),
                   ),
                 ),
-                if (asset.type == AssetType.video)
-                  Positioned(
-                    left: 6,
-                    bottom: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _formatDuration(Duration(milliseconds: asset.duration)),
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             ),
-          );
-        },
+        ],
       );
     }
 
@@ -266,32 +343,120 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
   }
 }
 
-class _AssetThumbnail extends StatelessWidget {
+class _AssetThumbnailCache {
+  static final Map<String, Uint8List> _cache = <String, Uint8List>{};
+  static final List<String> _lru = <String>[];
+  static const int _maxSize = 250;
+
+  static Uint8List? get(String id) {
+    final data = _cache[id];
+    if (data != null) {
+      _lru.remove(id);
+      _lru.add(id);
+    }
+    return data;
+  }
+
+  static void put(String id, Uint8List data) {
+    if (_cache.length >= _maxSize && _lru.isNotEmpty) {
+      final oldest = _lru.removeAt(0);
+      _cache.remove(oldest);
+    }
+    _cache[id] = data;
+    _lru.remove(id);
+    _lru.add(id);
+  }
+}
+
+class _AssetThumbnail extends StatefulWidget {
   const _AssetThumbnail({required this.asset, required this.scheme});
 
   final AssetEntity asset;
   final ColorScheme scheme;
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Uint8List?>(
-      future: asset.thumbnailDataWithSize(const ThumbnailSize(400, 400)),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            color: scheme.surfaceContainerHighest,
-            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          );
-        }
-        final Uint8List? data = snapshot.data;
+  State<_AssetThumbnail> createState() => _AssetThumbnailState();
+}
+
+class _AssetThumbnailState extends State<_AssetThumbnail> {
+  Uint8List? _data;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkCacheAndLoad();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AssetThumbnail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.asset.id != widget.asset.id) {
+      _data = null;
+      _checkCacheAndLoad();
+    }
+  }
+
+  Future<void> _checkCacheAndLoad() async {
+    final cached = _AssetThumbnailCache.get(widget.asset.id);
+    if (cached != null) {
+      _data = cached;
+      _loading = false;
+      return;
+    }
+
+    _data = null;
+    _loading = true;
+    try {
+      final Uint8List? data = await widget.asset.thumbnailDataWithSize(
+        const ThumbnailSize(240, 240),
+      );
+      if (mounted) {
         if (data != null) {
-          return Image.memory(data, fit: BoxFit.cover);
+          _AssetThumbnailCache.put(widget.asset.id, data);
         }
-        return Container(
-          color: scheme.surfaceContainerHighest,
-          child: Icon(Icons.broken_image_rounded, color: scheme.onSurfaceVariant.withValues(alpha: 0.4)),
-        );
-      },
+        setState(() {
+          _data = data;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_data != null) {
+      return Image.memory(
+        _data!,
+        fit: BoxFit.cover,
+        cacheWidth: 240,
+        cacheHeight: 240,
+      );
+    }
+
+    if (_loading) {
+      return Container(
+        color: widget.scheme.surfaceContainerHighest,
+        child: Center(
+          child: Icon(
+            Icons.photo_outlined,
+            color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.3),
+            size: 24,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      color: widget.scheme.surfaceContainerHighest,
+      child: Icon(
+        Icons.broken_image_rounded,
+        color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.4),
+      ),
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -13,11 +14,8 @@ import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
-import 'package:universal_io/io.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:video_player/video_player.dart';
 
 class ProfileSharedMediaTabView extends ConsumerStatefulWidget {
   const ProfileSharedMediaTabView({
@@ -36,11 +34,19 @@ class _ProfileSharedMediaTabViewState
     extends ConsumerState<ProfileSharedMediaTabView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  final ScrollController _mediaScrollController = ScrollController();
 
   static final RegExp _urlRegExp = RegExp(
     r'(https?:\/\/[^\s]+)',
     caseSensitive: false,
   );
+
+  static const int _kBatchChunkSize = 18;
+  int _visibleMediaLimit = 18;
+  bool _isHistoryLoading = false;
+  bool _hasMoreHistory = true;
+  int _loadedHistoryBatches = 0;
+  final Set<int> _prefetchedBatches = <int>{};
 
   @override
   void initState() {
@@ -49,15 +55,28 @@ class _ProfileSharedMediaTabViewState
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
+    _mediaScrollController.addListener(_onMediaScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAllChatMedia();
     });
+  }
+
+  void _onMediaScroll() {
+    if (!_mediaScrollController.hasClients) return;
+    final position = _mediaScrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 320) {
+      _loadMoreVisibleMedia();
+    }
   }
 
   @override
   void didUpdateWidget(covariant ProfileSharedMediaTabView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.chatId != widget.chatId) {
+      _visibleMediaLimit = _kBatchChunkSize;
+      _hasMoreHistory = true;
+      _loadedHistoryBatches = 0;
+      _prefetchedBatches.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadAllChatMedia();
       });
@@ -66,23 +85,117 @@ class _ProfileSharedMediaTabViewState
 
   Future<void> _loadAllChatMedia() async {
     final int? cid = widget.chatId;
-    if (cid == null || cid <= 0) return;
-    int added = 1;
-    int iterations = 0;
-    while (added > 0 && iterations < 15 && mounted) {
-      iterations++;
-      try {
-        added = await ref
-            .read(chatMessagesProvider(cid).notifier)
-            .loadOlder(pageSize: 100);
-      } catch (_) {
-        break;
+    if (cid == null || cid <= 0 || _isHistoryLoading || !_hasMoreHistory) return;
+    _isHistoryLoading = true;
+
+    try {
+      // Step 1: Immediately fetch a large batch (up to 300 messages) in 1 roundtrip
+      final int added = await ref
+          .read(chatMessagesProvider(cid).notifier)
+          .loadOlder(pageSize: 300);
+
+      _loadedHistoryBatches++;
+      if (added == 0) {
+        _hasMoreHistory = false;
       }
+      if (mounted) {
+        _triggerMediaPrefetch();
+      }
+
+      // Step 2: If the chat has more history, fetch an additional batch in the background
+      if (added >= 250 && mounted && _loadedHistoryBatches == 1 && _hasMoreHistory) {
+        final int secondAdded = await ref
+            .read(chatMessagesProvider(cid).notifier)
+            .loadOlder(pageSize: 300);
+        _loadedHistoryBatches++;
+        if (secondAdded == 0) {
+          _hasMoreHistory = false;
+        }
+        if (mounted && secondAdded > 0) {
+          _triggerMediaPrefetch();
+        }
+      }
+    } catch (_) {
+    } finally {
+      _isHistoryLoading = false;
+    }
+  }
+
+  void _triggerMediaPrefetch() {
+    final int? cid = widget.chatId;
+    if (cid == null || cid <= 0 || !mounted) return;
+    final messages =
+        ref.read(chatMessagesProvider(cid)).value ?? const <ApiMessage>[];
+    final media = _extractPhotosAndVideos(messages);
+    if (media.isEmpty) return;
+
+    // Prefetch Batch 0 (0..18) immediately
+    _prefetchBatchChunk(media, 0);
+    // Speculatively prefetch Batch 1 (18..36) so scroll is 0ms
+    _prefetchBatchChunk(media, 1);
+  }
+
+  void _prefetchBatchChunk(List<_SharedMediaItem> media, int batchIndex) {
+    if (_prefetchedBatches.contains(batchIndex)) return;
+    final int start = batchIndex * _kBatchChunkSize;
+    if (start >= media.length) return;
+    final int end = (start + _kBatchChunkSize).clamp(0, media.length);
+
+    _prefetchedBatches.add(batchIndex);
+
+    final List<String> paths = <String>[];
+    final Map<String, Uint8List?> keys = <String, Uint8List?>{};
+
+    for (int i = start; i < end; i++) {
+      final item = media[i];
+      if (!item.isVideo && item.mediaUrl.isNotEmpty) {
+        paths.add(item.mediaUrl);
+        if (item.e2eeFileKey != null && item.e2eeFileKey!.isNotEmpty) {
+          try {
+            keys[item.mediaUrl] = base64Decode(item.e2eeFileKey!);
+          } catch (_) {}
+        }
+      }
+    }
+
+    if (paths.isNotEmpty) {
+      final wsClient = ref.read(webSocketClientProvider);
+      WsMediaFetcher.prefetchBatch(
+        filePaths: paths,
+        wsClient: wsClient,
+        e2eeFileKeys: keys,
+        concurrency: 8,
+      );
+    }
+  }
+
+  void _loadMoreVisibleMedia() {
+    final int? cid = widget.chatId;
+    if (cid == null || cid <= 0) return;
+    final messages =
+        ref.read(chatMessagesProvider(cid)).value ?? const <ApiMessage>[];
+    final allMedia = _extractPhotosAndVideos(messages);
+
+    if (_visibleMediaLimit < allMedia.length) {
+      final int nextLimit = (_visibleMediaLimit + _kBatchChunkSize).clamp(0, allMedia.length);
+      final int currentBatch = _visibleMediaLimit ~/ _kBatchChunkSize;
+      setState(() {
+        _visibleMediaLimit = nextLimit;
+      });
+
+      // Prefetch this batch and the next batch proactively
+      _prefetchBatchChunk(allMedia, currentBatch);
+      _prefetchBatchChunk(allMedia, currentBatch + 1);
+    } else if (!_isHistoryLoading && _hasMoreHistory) {
+      // Reached the end of loaded media; pull older messages from server
+      _loadAllChatMedia();
     }
   }
 
   @override
   void dispose() {
+    _mediaScrollController.removeListener(_onMediaScroll);
+    _mediaScrollController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -211,11 +324,11 @@ class _ProfileSharedMediaTabViewState
 
     final messagesAsync = ref.watch(chatMessagesProvider(widget.chatId!));
 
+    final double screenHeight = MediaQuery.sizeOf(context).height;
+    final double galleryHeight = (screenHeight * 0.65).clamp(460.0, 720.0);
+
     return messagesAsync.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 48),
-        child: Center(child: AppLoadingIndicator(size: 32)),
-      ),
+      loading: () => _buildShimmerGrid(scheme),
       error: (err, _) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
         child: Center(
@@ -249,7 +362,7 @@ class _ProfileSharedMediaTabViewState
 
             // ── Tab Bar Views ─────────────────────────────────────────
             SizedBox(
-              height: 420,
+              height: galleryHeight,
               child: TabBarView(
                 controller: _tabController,
                 children: [
@@ -263,6 +376,33 @@ class _ProfileSharedMediaTabViewState
           ],
         );
       },
+    );
+  }
+
+  Widget _buildShimmerGrid(ColorScheme scheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 6,
+          mainAxisSpacing: 6,
+          childAspectRatio: 1.0,
+        ),
+        itemCount: 9,
+        itemBuilder: (context, index) {
+          return Container(
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(14),
+            ),
+          )
+              .animate(onPlay: (controller) => controller.repeat(reverse: true))
+              .fade(begin: 0.4, end: 0.85, duration: 800.ms);
+        },
+      ),
     );
   }
 
@@ -426,108 +566,91 @@ class _ProfileSharedMediaTabViewState
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      physics: const BouncingScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 6,
-        mainAxisSpacing: 6,
-        childAspectRatio: 1.0,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        final url = item.mediaUrl;
-        final isVideo = item.isVideo;
+    final int displayCount = items.length > _visibleMediaLimit
+        ? _visibleMediaLimit
+        : items.length;
 
-        return GestureDetector(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            final typeParam = isVideo ? 'video' : 'image';
-            final titleParam = Uri.encodeComponent(
-              item.mediaName ?? (isVideo ? 'Видео' : 'Фото'),
-            );
-            context.push(
-              '/media-viewer?url=${Uri.encodeComponent(url)}&type=$typeParam&title=$titleParam',
-              extra: item.e2eeFileKey,
-            );
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (isVideo)
-                  _MediaGridVideoThumbnail(
-                    key: ValueKey('vid_$url'),
-                    mediaUrl: url,
-                    chatId: widget.chatId ?? 0,
-                    isE2ee: item.message.isE2ee,
-                    e2eeFileKey: item.e2eeFileKey,
-                  )
-                else
-                  WsCachedImage(
-                    key: ValueKey('img_$url'),
-                    mediaUrl: url,
-                    chatId: widget.chatId ?? 0,
-                    isE2ee: item.message.isE2ee,
-                    e2eeFileKey: item.e2eeFileKey,
-                    fit: BoxFit.cover,
-                    placeholder: (ctx) => Container(
-                      color: scheme.surfaceContainerHigh,
-                      child: const Center(child: AppLoadingIndicator(size: 20)),
-                    ),
-                    errorWidget: (ctx, err) => Container(
-                      color: scheme.surfaceContainerHigh,
-                      child: Icon(
-                        Icons.image_rounded,
-                        color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                        size: 28,
-                      ),
-                    ),
-                  ),
-                if (isVideo)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(6, 12, 6, 4),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.75),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Icon(
-                            Icons.play_circle_fill_rounded,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          if (item.duration != null && item.duration! > 0)
-                            Text(
-                              _formatDuration(item.duration!),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double width = constraints.maxWidth;
+        final int crossAxisCount = width > 1050
+            ? 6
+            : width > 750
+                ? 5
+                : width > 480
+                    ? 4
+                    : 3;
+
+        return GridView.builder(
+          controller: _mediaScrollController,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          physics: const BouncingScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 6,
+            mainAxisSpacing: 6,
+            childAspectRatio: 1.0,
+          ),
+          itemCount: displayCount,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final url = item.mediaUrl;
+            final isVideo = item.isVideo;
+
+            return RepaintBoundary(
+              child: _MediaGridTileWrapper(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  final typeParam = isVideo ? 'video' : 'image';
+                  final titleParam = Uri.encodeComponent(
+                    item.mediaName ?? (isVideo ? 'Видео' : 'Фото'),
+                  );
+                  context.push(
+                    '/media-viewer?url=${Uri.encodeComponent(url)}&type=$typeParam&title=$titleParam',
+                    extra: item.e2eeFileKey,
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: isVideo
+                      ? _SharedMediaVideoTile(
+                          item: item,
+                          scheme: scheme,
+                          textTheme: textTheme,
+                        )
+                      : WsCachedImage(
+                          key: ValueKey('img_$url'),
+                          mediaUrl: url,
+                          chatId: widget.chatId ?? 0,
+                          isE2ee: item.message.isE2ee,
+                          e2eeFileKey: item.e2eeFileKey,
+                          memCacheWidth: 320,
+                          fit: BoxFit.cover,
+                          placeholder: (ctx) => Container(
+                            color: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
+                            child: Center(
+                              child: Icon(
+                                Icons.photo_outlined,
+                                color: scheme.onSurfaceVariant.withValues(alpha: 0.35),
+                                size: 24,
                               ),
                             ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+                          )
+                              .animate(onPlay: (c) => c.repeat(reverse: true))
+                              .fade(begin: 0.45, end: 0.85, duration: 750.ms),
+                          errorWidget: (ctx, err) => Container(
+                            color: scheme.surfaceContainerHigh,
+                            child: Icon(
+                              Icons.broken_image_rounded,
+                              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                              size: 28,
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -1075,122 +1198,169 @@ class _SharedMediaItem {
   final String? mediaName;
 }
 
-class _MediaGridVideoThumbnail extends ConsumerStatefulWidget {
-  const _MediaGridVideoThumbnail({
-    required this.mediaUrl,
-    required this.chatId,
-    required this.isE2ee,
-    this.e2eeFileKey,
-    super.key,
+class _SharedMediaVideoTile extends StatelessWidget {
+  const _SharedMediaVideoTile({
+    required this.item,
+    required this.scheme,
+    required this.textTheme,
   });
 
-  final String mediaUrl;
-  final int chatId;
-  final bool isE2ee;
-  final String? e2eeFileKey;
+  final _SharedMediaItem item;
+  final ColorScheme scheme;
+  final TextTheme textTheme;
 
-  @override
-  ConsumerState<_MediaGridVideoThumbnail> createState() =>
-      _MediaGridVideoThumbnailState();
-}
-
-class _MediaGridVideoThumbnailState
-    extends ConsumerState<_MediaGridVideoThumbnail> {
-  VideoPlayerController? _controller;
-  bool _initialized = false;
-  bool _error = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initThumbnail();
-  }
-
-  @override
-  void didUpdateWidget(covariant _MediaGridVideoThumbnail oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.mediaUrl != widget.mediaUrl) {
-      _disposeController();
-      _initThumbnail();
-    }
-  }
-
-  Future<void> _initThumbnail() async {
-    try {
-      final wsClient = ref.read(webSocketClientProvider);
-      Uint8List? fileKey;
-      if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
-        fileKey = base64Decode(widget.e2eeFileKey!);
-      }
-      final String localPath = await WsMediaFetcher.fetchToLocalFile(
-        filePath: widget.mediaUrl,
-        wsClient: wsClient,
-        e2eeFileKey: fileKey,
-      );
-      final controller = VideoPlayerController.file(File(localPath));
-      await controller.initialize();
-      await controller.seekTo(const Duration(milliseconds: 100));
-      await controller.pause();
-      if (mounted) {
-        setState(() {
-          _controller = controller;
-          _initialized = true;
-        });
-      } else {
-        controller.dispose();
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() => _error = true);
-      }
-    }
-  }
-
-  void _disposeController() {
-    _controller?.dispose();
-    _controller = null;
-    _initialized = false;
-  }
-
-  @override
-  void dispose() {
-    _disposeController();
-    super.dispose();
+  String _formatDuration(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    if (_error) {
-      return Container(
-        color: scheme.surfaceContainerHigh,
-        child: Icon(
-          Icons.videocam_rounded,
-          color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-          size: 28,
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            scheme.surfaceContainerHigh,
+            scheme.surfaceContainerLowest,
+          ],
         ),
-      );
-    }
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.55),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
+              ),
+              child: const Icon(
+                Icons.play_arrow_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 6,
+            top: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.videocam_rounded,
+                    color: Colors.white70,
+                    size: 12,
+                  ),
+                  SizedBox(width: 3),
+                  Text(
+                    'MP4',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(6, 12, 6, 6),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.75),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.mediaName ?? 'Видео',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  if (item.duration != null && item.duration! > 0)
+                    Text(
+                      _formatDuration(item.duration!),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-    if (!_initialized || _controller == null) {
-      return Container(
-        color: scheme.surfaceContainerHigh,
-        child: const Center(child: AppLoadingIndicator(size: 20)),
-      );
-    }
+class _MediaGridTileWrapper extends StatefulWidget {
+  const _MediaGridTileWrapper({
+    required this.onTap,
+    required this.child,
+  });
 
-    return FittedBox(
-      fit: BoxFit.cover,
-      clipBehavior: Clip.hardEdge,
-      child: SizedBox(
-        width: _controller!.value.size.width > 0
-            ? _controller!.value.size.width
-            : 200,
-        height: _controller!.value.size.height > 0
-            ? _controller!.value.size.height
-            : 200,
-        child: VideoPlayer(_controller!),
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  State<_MediaGridTileWrapper> createState() => _MediaGridTileWrapperState();
+}
+
+class _MediaGridTileWrapperState extends State<_MediaGridTileWrapper> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: (_) => setState(() => _isPressed = true),
+      onPointerUp: (_) => setState(() => _isPressed = false),
+      onPointerCancel: (_) => setState(() => _isPressed = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _isPressed ? 0.95 : 1.0,
+          duration: const Duration(milliseconds: 160),
+          curve: _isPressed ? M3SpringCurves.snappy : M3SpringCurves.bouncy,
+          child: widget.child,
+        ),
       ),
     );
   }

@@ -277,7 +277,7 @@ class _AppearanceScreen extends ConsumerWidget {
             return SettingsScaffold(
               title: context.l10n.appearanceTitle,
               isEmbedded: isEmbedded,
-              maxWidth: 1380,
+              maxWidth: 1120,
               children: [
                 const SizedBox(height: 12),
                 Row(
@@ -320,7 +320,7 @@ class _AppearanceScreen extends ConsumerWidget {
           return SettingsScaffold(
             title: context.l10n.appearanceTitle,
             isEmbedded: isEmbedded,
-            maxWidth: 1380,
+            maxWidth: 860,
             children: [
               const SizedBox(height: 12),
               heroBanner,

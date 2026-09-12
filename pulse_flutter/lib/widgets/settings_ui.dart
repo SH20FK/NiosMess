@@ -19,8 +19,8 @@ class SettingsScaffold extends ConsumerWidget {
     required this.children,
     this.onRefresh,
     this.isEmbedded = false,
-    this.maxWidth = 1380,
-    this.adaptiveColumns = true,
+    this.maxWidth = 860,
+    this.adaptiveColumns = false,
     super.key,
   });
 
@@ -42,8 +42,8 @@ class SettingsScaffold extends ConsumerWidget {
       builder: (BuildContext context, BoxConstraints constraints) {
         final bool isWide = constraints.maxWidth >= 840;
         final double horizontalPadding = isEmbedded
-            ? (isWide ? 32.0 : 20.0)
-            : (isWide ? 32.0 : AppConstants.screenHorizontalPadding);
+            ? (isWide ? 36.0 : 20.0)
+            : (isWide ? 36.0 : AppConstants.screenHorizontalPadding);
 
         final bool hasNavBanner =
             children.isNotEmpty && children.first is SettingsNavBanner;
@@ -141,7 +141,7 @@ class SettingsScaffold extends ConsumerWidget {
 
         if (isEmbedded) {
           return Align(
-            alignment: Alignment.topLeft,
+            alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxWidth),
               child: bodyContent,

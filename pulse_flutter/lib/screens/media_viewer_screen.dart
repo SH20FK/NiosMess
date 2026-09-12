@@ -184,11 +184,11 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Icon(Icons.open_in_new_rounded,
-              size: 48, color: Colors.white54),
+              size: 48, color: scheme.onSurfaceVariant.withValues(alpha: 0.7)),
           const SizedBox(height: 16),
           Text(
             context.l10n.mediaViewerCannotPreview,
-            style: const TextStyle(color: Colors.white70),
+            style: TextStyle(color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
@@ -202,7 +202,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                 mode: LaunchMode.externalApplication),
             icon: const Icon(Icons.open_in_browser_rounded),
             label: Text(context.l10n.mediaViewerOpenExternal),
-            style: TextButton.styleFrom(foregroundColor: Colors.white70),
+            style: TextButton.styleFrom(foregroundColor: scheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -275,19 +275,42 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
   @override
   void initState() {
     super.initState();
-    _load();
+    final Uint8List? cached = WsMediaFetcher.getMemoryCachedBytes(
+      filePath: widget.url,
+      e2eeFileKey: widget.e2eeFileKey,
+    );
+    if (cached != null) {
+      _bytes = cached;
+      _isLoading = false;
+    } else {
+      _load();
+    }
   }
 
   @override
   void didUpdateWidget(covariant _FullScreenImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.url != widget.url) {
-      _load();
+    if (oldWidget.url != widget.url ||
+        oldWidget.e2eeFileKey != widget.e2eeFileKey) {
+      final Uint8List? cached = WsMediaFetcher.getMemoryCachedBytes(
+        filePath: widget.url,
+        e2eeFileKey: widget.e2eeFileKey,
+      );
+      if (cached != null) {
+        setState(() {
+          _bytes = cached;
+          _isLoading = false;
+          _error = null;
+        });
+      } else {
+        _load();
+      }
     }
   }
 
   Future<void> _load() async {
     setState(() {
+      _bytes = null;
       _isLoading = true;
       _error = null;
     });
@@ -329,13 +352,15 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
               Icon(
                 Icons.broken_image_rounded,
                 size: 48,
-                color: Colors.white54,
+                color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.54),
               ),
               const SizedBox(height: 16),
               Text(
                 AppErrorFormatter.format(_error).toString(),
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70),
+                style: TextStyle(
+                  color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
               ),
             ],
           ),
@@ -351,8 +376,11 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
       loadingBuilder: (context, event) => const Center(
         child: AppLoadingIndicator(size: 32),
       ),
-      errorBuilder: (context, error, stackTrace) => const Center(
-        child: Icon(Icons.broken_image_rounded, color: Colors.white70),
+      errorBuilder: (context, error, stackTrace) => Center(
+        child: Icon(
+          Icons.broken_image_rounded,
+          color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.7),
+        ),
       ),
     );
   }

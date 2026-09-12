@@ -142,12 +142,21 @@ class _CreateStickerSetDialogState extends ConsumerState<CreateStickerSetDialog>
           ? _emojiController.text.trim()
           : '✨';
 
+      final String ext = _pickedFilename != null && _pickedFilename!.contains('.')
+          ? _pickedFilename!.split('.').last.toLowerCase()
+          : 'webp';
+      final String safeFilename =
+          'cover_${newSet.id}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+
       await ref.read(stickerSetsProvider.notifier).addSticker(
             setId: newSet.id,
-            filename: _pickedFilename!,
+            filename: safeFilename,
             dataBase64: base64Data,
             emoji: emoji,
           );
+
+      // Synchronize provider so new set and cover are immediately accessible
+      await ref.read(stickerSetsProvider.notifier).refresh();
 
       if (mounted) {
         AppToast.showSuccess(context, 'Стикерпак успешно создан!');

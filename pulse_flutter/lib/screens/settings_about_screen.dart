@@ -462,31 +462,54 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
+    final Widget sanlsanTile = _DeveloperTile(
+      name: 'Sanlsan',
+      role: 'Основатель & Главный Архитектор',
+      assetPath: 'assets/developers/Sanlsan_clean.png',
+      svgAssetPath: 'assets/svg/developer_sanlsan.svg',
+      fallbackIcon: Icons.dns_rounded,
+      accentColor: const Color(0xFF2196F3),
+      telegramHandle: 'hello_sanlsan',
+      onOpenTelegram: () => _openUrl('https://t.me/hello_sanlsan'),
+    );
+
+    final Widget sh20fkTile = _DeveloperTile(
+      name: 'SH20FK',
+      role: 'Руководитель разработки клиента & UX',
+      assetPath: 'assets/developers/SH20FK_clean.png',
+      svgAssetPath: 'assets/svg/developer_sh20fk.svg',
+      fallbackIcon: Icons.phone_iphone_rounded,
+      accentColor: const Color(0xFF7C4DFF),
+      telegramHandle: 'Door0S',
+      onOpenTelegram: () => _openUrl('https://t.me/Door0S'),
+    );
+
     return SettingsSection(
       title: context.l10n.aboutTabDevelopers,
       subtitle: 'Архитекторы и создатели экосистемы защищённого мессенджера NiosMess',
       isCard: false,
       children: <Widget>[
-        _DeveloperTile(
-          name: 'Sanlsan',
-          role: 'Основатель & Главный Архитектор',
-          assetPath: 'assets/developers/Sanlsan_clean.png',
-          svgAssetPath: 'assets/svg/developer_sanlsan.svg',
-          fallbackIcon: Icons.dns_rounded,
-          accentColor: const Color(0xFF2196F3),
-          telegramHandle: 'hello_sanlsan',
-          onOpenTelegram: () => _openUrl('https://t.me/hello_sanlsan'),
-        ),
-        const SizedBox(height: 14),
-        _DeveloperTile(
-          name: 'SH20FK',
-          role: 'Руководитель разработки клиента & UX',
-          assetPath: 'assets/developers/SH20FK_clean.png',
-          svgAssetPath: 'assets/svg/developer_sh20fk.svg',
-          fallbackIcon: Icons.phone_iphone_rounded,
-          accentColor: const Color(0xFF7C4DFF),
-          telegramHandle: 'Door0S',
-          onOpenTelegram: () => _openUrl('https://t.me/Door0S'),
+        LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            if (constraints.maxWidth >= 620) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(child: sanlsanTile),
+                  const SizedBox(width: 14),
+                  Expanded(child: sh20fkTile),
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                sanlsanTile,
+                const SizedBox(height: 14),
+                sh20fkTile,
+              ],
+            );
+          },
         ),
       ],
     );

@@ -6,6 +6,7 @@ import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
+import 'package:pulse_flutter/widgets/chat/add_sticker_dialog.dart';
 
 class StickerSetModal extends ConsumerStatefulWidget {
   const StickerSetModal({
@@ -170,103 +171,135 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
             ),
             const SizedBox(height: 16),
 
-            // Primary action: Add or Remove
-            SizedBox(
-              height: 44,
-              child: isInstalled
-                  ? OutlinedButton.icon(
-                      onPressed: _isActionLoading
-                          ? null
-                          : () async {
-                              setState(() => _isActionLoading = true);
-                              HapticService.tap();
-                              try {
-                                await ref
-                                    .read(stickerSetsProvider.notifier)
-                                    .removeStickerSet(resolvedSet.id);
-                                if (context.mounted) {
-                                  AppToast.showSuccess(
-                                    context,
-                                    'Стикерпак удален из коллекции',
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  AppToast.showError(
-                                    context,
-                                    'Не удалось удалить: $e',
-                                  );
-                                }
-                              } finally {
-                                if (mounted) {
-                                  setState(() => _isActionLoading = false);
-                                }
-                              }
-                            },
-                      icon: _isActionLoading
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.delete_outline_rounded, size: 20),
-                      label: const Text('Удалить из коллекции'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: scheme.error,
-                        side: BorderSide(
-                          color: scheme.error.withValues(alpha: 0.5),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    )
-                  : FilledButton.icon(
-                      onPressed: _isActionLoading
-                          ? null
-                          : () async {
-                              setState(() => _isActionLoading = true);
-                              HapticService.confirm();
-                              try {
-                                await ref
-                                    .read(stickerSetsProvider.notifier)
-                                    .saveStickerSet(resolvedSet.id);
-                                if (context.mounted) {
-                                  AppToast.showSuccess(
-                                    context,
-                                    'Стикерпак добавлен в коллекцию',
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  AppToast.showError(
-                                    context,
-                                    'Не удалось добавить: $e',
-                                  );
-                                }
-                              } finally {
-                                if (mounted) {
-                                  setState(() => _isActionLoading = false);
-                                }
-                              }
-                            },
-                      icon: _isActionLoading
-                          ? SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: scheme.onPrimary,
-                              ),
-                            )
-                          : const Icon(Icons.add_rounded, size: 20),
-                      label: const Text('Добавить стикерпак'),
-                      style: FilledButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
+            // Primary actions: Add/Remove + Add Stickers
+            Row(
+              children: <Widget>[
+                // Add Stickers button
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: () {
+                      HapticService.tap();
+                      AddStickerDialog.show(
+                        context,
+                        setId: resolvedSet.id,
+                        setTitle: resolvedSet.title,
+                      );
+                    },
+                    icon: const Icon(Icons.add_photo_alternate_rounded,
+                        size: 18),
+                    label: const Text(
+                      'Добавить стикеры',
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
+                    style: FilledButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      minimumSize: const Size.fromHeight(44),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Install or Remove button
+                isInstalled
+                    ? OutlinedButton.icon(
+                        onPressed: _isActionLoading
+                            ? null
+                            : () async {
+                                setState(() => _isActionLoading = true);
+                                HapticService.tap();
+                                try {
+                                  await ref
+                                      .read(stickerSetsProvider.notifier)
+                                      .removeStickerSet(resolvedSet.id);
+                                  if (context.mounted) {
+                                    AppToast.showSuccess(
+                                      context,
+                                      'Стикерпак удален из коллекции',
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    AppToast.showError(
+                                      context,
+                                      'Не удалось удалить: $e',
+                                    );
+                                  }
+                                } finally {
+                                  if (mounted) {
+                                    setState(() => _isActionLoading = false);
+                                  }
+                                }
+                              },
+                        icon: _isActionLoading
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.delete_outline_rounded,
+                                size: 18),
+                        label: const Text('Удалить'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: scheme.error,
+                          side: BorderSide(
+                            color: scheme.error.withValues(alpha: 0.5),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          minimumSize: const Size(0, 44),
+                        ),
+                      )
+                    : FilledButton.icon(
+                        onPressed: _isActionLoading
+                            ? null
+                            : () async {
+                                setState(() => _isActionLoading = true);
+                                HapticService.confirm();
+                                try {
+                                  await ref
+                                      .read(stickerSetsProvider.notifier)
+                                      .saveStickerSet(resolvedSet.id);
+                                  if (context.mounted) {
+                                    AppToast.showSuccess(
+                                      context,
+                                      'Стикерпак добавлен в коллекцию',
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    AppToast.showError(
+                                      context,
+                                      'Не удалось добавить: $e',
+                                    );
+                                  }
+                                } finally {
+                                  if (mounted) {
+                                    setState(() => _isActionLoading = false);
+                                  }
+                                }
+                              },
+                        icon: _isActionLoading
+                            ? SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: scheme.onPrimary,
+                                ),
+                              )
+                            : const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('В коллекцию'),
+                        style: FilledButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          minimumSize: const Size(0, 44),
+                        ),
+                      ),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -274,20 +307,65 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
             Expanded(
               child: resolvedSet.stickers.isEmpty
                   ? Center(
-                      child: Text(
-                        'В этом наборе пока нет стикеров',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: scheme.primaryContainer
+                                  .withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Icon(
+                              Icons.add_photo_alternate_rounded,
+                              size: 30,
+                              color: scheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'В этом наборе пока нет стикеров',
+                            style: textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Добавьте стикеры прямо сейчас',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          FilledButton.icon(
+                            onPressed: () {
+                              HapticService.tap();
+                              AddStickerDialog.show(
+                                context,
+                                setId: resolvedSet.id,
+                                setTitle: resolvedSet.title,
+                              );
+                            },
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: const Text('Загрузить стикеры'),
+                            style: FilledButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     )
                   : GridView.builder(
                       physics: const BouncingScrollPhysics(),
                       gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 84,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
                         childAspectRatio: 1.0,
                       ),
                       itemCount: resolvedSet.stickers.length,

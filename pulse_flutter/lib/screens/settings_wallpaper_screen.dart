@@ -326,7 +326,7 @@ class _SettingsWallpaperScreenState
           return SettingsScaffold(
             title: screenTitle,
             isEmbedded: widget.isEmbedded,
-            maxWidth: 1380,
+            maxWidth: 1120,
             children: <Widget>[
               const SizedBox(height: 10),
               _buildPresetsCarousel(scheme, textTheme),
@@ -371,7 +371,7 @@ class _SettingsWallpaperScreenState
         return SettingsScaffold(
           title: screenTitle,
           isEmbedded: widget.isEmbedded,
-          maxWidth: 1380,
+          maxWidth: 860,
           children: <Widget>[
             _buildPresetsCarousel(scheme, textTheme),
             const SizedBox(height: 14),

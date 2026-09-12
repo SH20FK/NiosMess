@@ -15,6 +15,8 @@ class WsCachedImage extends ConsumerStatefulWidget {
     this.e2eeFileKey,
     this.width,
     this.height,
+    this.memCacheWidth,
+    this.memCacheHeight,
     this.fit,
     this.placeholder,
     this.errorWidget,
@@ -29,6 +31,13 @@ class WsCachedImage extends ConsumerStatefulWidget {
   final String? e2eeFileKey;
   final double? width;
   final double? height;
+
+  /// Target decoding width in memory pixels for optimized gallery performance.
+  final int? memCacheWidth;
+
+  /// Target decoding height in memory pixels for optimized gallery performance.
+  final int? memCacheHeight;
+
   final BoxFit? fit;
   final Widget Function(BuildContext)? placeholder;
   final Widget Function(BuildContext, Object)? errorWidget;
@@ -45,14 +54,45 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _checkSyncCache();
+    if (_bytes == null) {
+      _load();
+    }
+  }
+
+  void _checkSyncCache() {
+    if (widget.mediaUrl.isEmpty || widget.mediaUrl.startsWith('local://')) return;
+    Uint8List? fileKey;
+    if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
+      try {
+        fileKey = base64Decode(widget.e2eeFileKey!);
+      } catch (_) {}
+    }
+    final Uint8List? cached = WsMediaFetcher.getMemoryCachedBytes(
+      filePath: widget.mediaUrl,
+      e2eeFileKey: fileKey,
+    );
+    if (cached != null) {
+      _bytes = cached;
+      _isLoading = false;
+    }
   }
 
   @override
   void didUpdateWidget(covariant WsCachedImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.mediaUrl != widget.mediaUrl) {
-      _load();
+    if (oldWidget.mediaUrl != widget.mediaUrl ||
+        oldWidget.e2eeFileKey != widget.e2eeFileKey) {
+      _bytes = null;
+      _checkSyncCache();
+      if (_bytes == null) {
+        _load();
+      } else {
+        setState(() {
+          _isLoading = false;
+          _error = null;
+        });
+      }
     }
   }
 
@@ -66,9 +106,11 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
       // Optimistic local messages reference a file on disk (or a
       // local:// placeholder while bytes are in flight) — never fetch those
       // over the network.
-      if (!widget.mediaUrl.startsWith('local://')) {
-        final File? local = _tryLocalFile(widget.mediaUrl);
-        if (local != null && await local.exists()) {
+      if (widget.mediaUrl.startsWith('local://')) {
+        final String localSubPath =
+            widget.mediaUrl.substring('local://'.length);
+        final File local = File(localSubPath);
+        if (await local.exists()) {
           final Uint8List localBytes = await local.readAsBytes();
           if (mounted) {
             setState(() {
@@ -78,6 +120,25 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
           }
           return;
         }
+        // Local pseudo-path not on disk; keep placeholder without attempting network
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      final File? local = _tryLocalFile(widget.mediaUrl);
+      if (local != null && await local.exists()) {
+        final Uint8List localBytes = await local.readAsBytes();
+        if (mounted) {
+          setState(() {
+            _bytes = localBytes;
+            _isLoading = false;
+          });
+        }
+        return;
       }
 
       final wsClient = ref.read(webSocketClientProvider);
@@ -110,7 +171,9 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
 
   /// Returns a [File] when [path] points at the local filesystem.
   static File? _tryLocalFile(String path) {
-    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('local://')) {
+    if (path.startsWith('http://') ||
+        path.startsWith('https://') ||
+        path.startsWith('local://')) {
       return null;
     }
     if (path.contains('://')) return null; // other schemes
@@ -136,19 +199,26 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
           MediaErrorIllustration(
             width: widget.width ?? double.infinity,
             height: widget.height ?? 160,
-            message: _error != null ? 'Ошибка загрузки' : 'Изображение недоступно',
+            message:
+                _error != null ? 'Ошибка загрузки' : 'Изображение недоступно',
           );
     }
 
     final double dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0;
-    final int? cacheWidth = widget.width != null && widget.width!.isFinite
-        ? (widget.width! * dpr).round()
-        : (MediaQuery.maybeSizeOf(context)?.width != null
-            ? (MediaQuery.sizeOf(context).width * dpr).round()
-            : null);
-    final int? cacheHeight = widget.height != null && widget.height!.isFinite
-        ? (widget.height! * dpr).round()
-        : null;
+    final int? cacheWidth;
+    final int? cacheHeight;
+
+    if (widget.memCacheWidth != null || widget.memCacheHeight != null) {
+      cacheWidth = widget.memCacheWidth;
+      cacheHeight = widget.memCacheHeight;
+    } else {
+      cacheWidth = widget.width != null && widget.width!.isFinite
+          ? (widget.width! * dpr).round()
+          : null;
+      cacheHeight = widget.height != null && widget.height!.isFinite
+          ? (widget.height! * dpr).round()
+          : null;
+    }
 
     return Image.memory(
       _bytes!,

@@ -508,8 +508,9 @@ void main() {
 
       expect(find.text('Super Pack'), findsOneWidget);
       expect(find.text('2 стикеров • @super_pack'), findsOneWidget);
-      // Not installed by default in empty provider -> shows "Добавить стикерпак"
-      expect(find.text('Добавить стикерпак'), findsOneWidget);
+      // Not installed by default in empty provider -> shows "В коллекцию" and "Добавить стикеры"
+      expect(find.text('В коллекцию'), findsOneWidget);
+      expect(find.text('Добавить стикеры'), findsOneWidget);
     });
 
     testWidgets('CreateStickerSetDialog renders form fields and create button', (
@@ -546,6 +547,37 @@ void main() {
 
       expect(find.text('У вас пока нет стикерпаков'), findsOneWidget);
       expect(find.text('Создать стикерпак'), findsOneWidget);
+    });
+
+    testWidgets('StickerPickerView renders empty pack state with add stickers button', (
+      WidgetTester tester,
+    ) async {
+      final fakeWs = FakeWebSocketClient();
+      fakeWs.responseToReturn = <String, dynamic>{
+        'sets': [
+          <String, dynamic>{
+            'id': 101,
+            'name': 'empty_pack',
+            'title': 'Пустой пак',
+            'is_public': true,
+            'stickers': <dynamic>[],
+          },
+        ],
+      };
+
+      await tester.pumpWidget(
+        _wrapWidget(
+          overrides: [
+            webSocketClientProvider.overrideWithValue(fakeWs),
+          ],
+          child: const StickerPickerView(chatId: 1),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Пустой пак'), findsOneWidget);
+      expect(find.text('В этом наборе пока нет стикеров'), findsOneWidget);
+      expect(find.text('Добавить стикеры'), findsOneWidget);
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 
@@ -93,7 +94,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
 
       // Verify Current version
-      expect(find.text('v3.10.2 (Expressive)'), findsOneWidget);
+      expect(find.text('${AppConstants.appVersionWithPrefix} (Expressive)'), findsOneWidget);
       expect(find.text('Текущая'), findsOneWidget);
     });
   });

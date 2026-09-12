@@ -561,34 +561,46 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       children: <Widget>[
                         // Tab Selector: [Emoji | Stickers]
                         Container(
-                          height: 42,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 6),
                           decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+                            color: scheme.surfaceContainerHigh
+                                .withValues(alpha: 0.4),
                             border: Border(
                               bottom: BorderSide(
-                                color: scheme.outlineVariant.withValues(alpha: 0.2),
+                                color: scheme.outlineVariant
+                                    .withValues(alpha: 0.15),
                                 width: 0.5,
                               ),
                             ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: <Widget>[
-                              _buildPickerTab(
-                                index: 0,
-                                label: 'Эмодзи',
-                                icon: Icons.emoji_emotions_outlined,
-                                scheme: scheme,
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(24),
                               ),
-                              const SizedBox(width: 8),
-                              _buildPickerTab(
-                                index: 1,
-                                label: 'Стикеры',
-                                icon: Icons.sticky_note_2_outlined,
-                                scheme: scheme,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  _buildPickerTab(
+                                    index: 0,
+                                    label: 'Эмодзи',
+                                    icon: Icons.emoji_emotions_outlined,
+                                    scheme: scheme,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  _buildPickerTab(
+                                    index: 1,
+                                    label: 'Стикеры',
+                                    icon: Icons.sticky_note_2_outlined,
+                                    scheme: scheme,
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
 
@@ -668,33 +680,34 @@ class _ChatInputBarState extends State<ChatInputBar> {
         if (widget.hapticsEnabled) HapticService.tap();
         setState(() => _pickerTabIndex = index);
       },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? scheme.primaryContainer
+              ? scheme.secondaryContainer
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
               icon,
-              size: 16,
+              size: 17,
               color: isSelected
-                  ? scheme.onPrimaryContainer
+                  ? scheme.onSecondaryContainer
                   : scheme.onSurfaceVariant,
             ),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected
-                    ? scheme.onPrimaryContainer
+                    ? scheme.onSecondaryContainer
                     : scheme.onSurfaceVariant,
               ),
             ),
