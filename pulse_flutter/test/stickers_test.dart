@@ -57,17 +57,17 @@ Widget _wrapWidget({
 }
 
 void main() {
-  late Directory _hiveDir;
+  late Directory hiveDir;
 
   setUp(() async {
-    _hiveDir = await Directory.systemTemp.createTemp('stickers_test_hive_');
-    Hive.init(_hiveDir.path);
+    hiveDir = await Directory.systemTemp.createTemp('stickers_test_hive_');
+    Hive.init(hiveDir.path);
   });
 
   tearDown(() async {
     try {
       await Hive.close();
-      if (_hiveDir.existsSync()) await _hiveDir.delete(recursive: true);
+      if (hiveDir.existsSync()) await hiveDir.delete(recursive: true);
     } catch (_) {}
   });
 
