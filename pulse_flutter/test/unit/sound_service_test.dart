@@ -1,8 +1,137 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'dart:async';
+
+import 'package:audioplayers_platform_interface/audioplayers_platform_interface.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
+
+class MockAudioplayersPlatform extends AudioplayersPlatformInterface {
+  final Map<String, StreamController<AudioEvent>> _controllers =
+      <String, StreamController<AudioEvent>>{};
+
+  @override
+  Future<void> create(String playerId) async {
+    _controllers[playerId] = StreamController<AudioEvent>.broadcast();
+  }
+
+  @override
+  Future<void> dispose(String playerId) async {
+    await _controllers[playerId]?.close();
+    _controllers.remove(playerId);
+  }
+
+  @override
+  Future<void> emitError(String playerId, String code, String message) async {}
+
+  @override
+  Future<void> emitLog(String playerId, String message) async {}
+
+  @override
+  Future<int?> getCurrentPosition(String playerId) async => 0;
+
+  @override
+  Future<int?> getDuration(String playerId) async => 0;
+
+  @override
+  Future<void> pause(String playerId) async {}
+
+  @override
+  Future<void> release(String playerId) async {}
+
+  @override
+  Future<void> resume(String playerId) async {}
+
+  @override
+  Future<void> seek(String playerId, Duration position) async {}
+
+  @override
+  Future<void> setAudioContext(
+    String playerId,
+    AudioContext audioContext,
+  ) async {}
+
+  @override
+  Future<void> setBalance(String playerId, double balance) async {}
+
+  @override
+  Future<void> setPlaybackRate(String playerId, double playbackRate) async {}
+
+  @override
+  Future<void> setPlayerMode(String playerId, PlayerMode playerMode) async {}
+
+  @override
+  Future<void> setReleaseMode(String playerId, ReleaseMode releaseMode) async {}
+
+  @override
+  Future<void> setSourceBytes(
+    String playerId,
+    Uint8List bytes, {
+    String? mimeType,
+  }) async {
+    _controllers[playerId]?.add(
+      const AudioEvent(eventType: AudioEventType.prepared, isPrepared: true),
+    );
+  }
+
+  @override
+  Future<void> setSourceUrl(
+    String playerId,
+    String url, {
+    bool? isLocal,
+    String? mimeType,
+  }) async {
+    _controllers[playerId]?.add(
+      const AudioEvent(eventType: AudioEventType.prepared, isPrepared: true),
+    );
+  }
+
+  @override
+  Future<void> setVolume(String playerId, double volume) async {}
+
+  @override
+  Future<void> stop(String playerId) async {}
+
+  @override
+  Stream<AudioEvent> getEventStream(String playerId) {
+    return _controllers
+        .putIfAbsent(playerId, () => StreamController<AudioEvent>.broadcast())
+        .stream;
+  }
+}
+
+class MockGlobalAudioplayersPlatform
+    extends GlobalAudioplayersPlatformInterface {
+  @override
+  Future<void> init() async {}
+
+  @override
+  Future<void> setGlobalAudioContext(AudioContext ctx) async {}
+
+  @override
+  Future<void> emitGlobalLog(String message) async {}
+
+  @override
+  Future<void> emitGlobalError(String code, String message) async {}
+
+  @override
+  Stream<GlobalAudioEvent> getGlobalEventStream() {
+    return const Stream<GlobalAudioEvent>.empty();
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() {
+    AudioplayersPlatformInterface.instance = MockAudioplayersPlatform();
+    GlobalAudioplayersPlatformInterface.instance =
+        MockGlobalAudioplayersPlatform();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      (MethodCall methodCall) async => '.',
+    );
+  });
 
   group('AppSound Enum', () {
     test('sound enum defines valid assets', () {
