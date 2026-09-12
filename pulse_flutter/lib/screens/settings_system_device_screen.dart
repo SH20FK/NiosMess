@@ -511,7 +511,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
 
   Widget _buildOsSection(ColorScheme scheme, TextTheme textTheme, DeviceHardwareInfo info, bool isDark) {
     return _buildSectionContainer(
-      title: 'Система и безопасность',
+      title: 'Операционная система и безопасность',
       scheme: scheme,
       textTheme: textTheme,
       isDark: isDark,

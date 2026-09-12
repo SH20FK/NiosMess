@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/widgets/post_card.dart';
+import 'package:universal_io/io.dart';
 
 class MockWebSocketClient extends WebSocketClient {
   MockWebSocketClient()
@@ -38,6 +40,20 @@ class MockWebSocketClient extends WebSocketClient {
 }
 
 void main() {
+  late Directory _hiveDir;
+
+  setUp(() async {
+    _hiveDir = await Directory.systemTemp.createTemp('niosgram_test_hive_');
+    Hive.init(_hiveDir.path);
+  });
+
+  tearDown(() async {
+    try {
+      await Hive.close();
+      if (_hiveDir.existsSync()) await _hiveDir.delete(recursive: true);
+    } catch (_) {}
+  });
+
   group('NgPost Model - Media & Reactions', () {
     test('parses multiple mediaUrls, aiTags, and mediaType correctly', () {
       final json = <String, dynamic>{

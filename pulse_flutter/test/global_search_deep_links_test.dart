@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_search_bar.dart';
+import 'package:universal_io/io.dart';
 
 class _FakeAuthNotifier extends AuthNotifier {
   @override
@@ -43,6 +45,20 @@ class MockWebSocketClient extends WebSocketClient {
 }
 
 void main() {
+  late Directory _hiveDir;
+
+  setUp(() async {
+    _hiveDir = await Directory.systemTemp.createTemp('search_test_hive_');
+    Hive.init(_hiveDir.path);
+  });
+
+  tearDown(() async {
+    try {
+      await Hive.close();
+      if (_hiveDir.existsSync()) await _hiveDir.delete(recursive: true);
+    } catch (_) {}
+  });
+
   group('ApiSearchResult 4-Section Global Search Model', () {
     test('parses users, chats, messages, and posts correctly', () {
       final json = <String, dynamic>{

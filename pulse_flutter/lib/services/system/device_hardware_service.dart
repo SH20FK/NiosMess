@@ -510,13 +510,23 @@ class DeviceHardwareService {
   }
 
   /// Resolves commercial SoC names for Qualcomm, MediaTek, Tensor, Exynos, Unisoc.
+  /// When the raw SoC ID (e.g. SM6375) is non-empty and the chip is positively
+  /// identified, it is appended in parentheses: "Qualcomm Snapdragon 695 5G (SM6375)".
   static String resolveCommercialSoc(String rawSoc, [String manufacturer = '', String model = '']) {
     final lower = rawSoc.toLowerCase();
     final lowerModel = model.toLowerCase();
 
+    // Helper: append raw SoC ID in parentheses when positively identified.
+    String withId(String name) {
+      final id = rawSoc.trim();
+      if (id.isEmpty || id.toLowerCase() == 'unknown') return name;
+      if (name.contains('($id)') || name.toLowerCase() == id.toLowerCase()) return name;
+      return '$name ($id)';
+    }
+
     // Specific mapping for common hardware strings
     if (lowerModel.contains('cph2417') || lower.contains('sm6375') || lower.contains('holi')) {
-      return 'Qualcomm Snapdragon 695 5G';
+      return withId('Qualcomm Snapdragon 695 5G');
     }
 
     // ── QUALCOMM SNAPDRAGON ──────────────────────────────────────────

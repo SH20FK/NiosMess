@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
@@ -10,6 +11,7 @@ import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/widgets/profile/badge_selector_dialog.dart';
 import 'package:pulse_flutter/widgets/profile/working_hours_planner_dialog.dart';
 import 'package:pulse_flutter/widgets/profile/working_hours_widget.dart';
+import 'package:universal_io/io.dart';
 
 class _FakeWebSocketClient extends WebSocketClient {
   _FakeWebSocketClient()
@@ -31,6 +33,20 @@ class _FakeWebSocketClient extends WebSocketClient {
 }
 
 void main() {
+  late Directory _hiveDir;
+
+  setUp(() async {
+    _hiveDir = await Directory.systemTemp.createTemp('profile_test_hive_');
+    Hive.init(_hiveDir.path);
+  });
+
+  tearDown(() async {
+    try {
+      await Hive.close();
+      if (_hiveDir.existsSync()) await _hiveDir.delete(recursive: true);
+    } catch (_) {}
+  });
+
   group('WorkingHours & TimeInterval Models', () {
     test('TimeInterval serialization & format', () {
       final TimeInterval interval = TimeInterval.fromJson(<dynamic>['10:00', '19:00']);

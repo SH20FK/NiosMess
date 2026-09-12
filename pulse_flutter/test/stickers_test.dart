@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -13,6 +14,7 @@ import 'package:pulse_flutter/widgets/chat/create_sticker_set_dialog.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_picker_view.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_modal.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
+import 'package:universal_io/io.dart';
 
 class FakeWebSocketClient extends WebSocketClient {
   FakeWebSocketClient()
@@ -55,6 +57,20 @@ Widget _wrapWidget({
 }
 
 void main() {
+  late Directory _hiveDir;
+
+  setUp(() async {
+    _hiveDir = await Directory.systemTemp.createTemp('stickers_test_hive_');
+    Hive.init(_hiveDir.path);
+  });
+
+  tearDown(() async {
+    try {
+      await Hive.close();
+      if (_hiveDir.existsSync()) await _hiveDir.delete(recursive: true);
+    } catch (_) {}
+  });
+
   group('ApiSticker & ApiStickerSet Models', () {
     test('ApiSticker serialization and isAnimated detection', () {
       final Map<String, dynamic> json = <String, dynamic>{
