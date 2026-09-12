@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Identifiers for each settings section in Master-Detail.
@@ -20,6 +21,10 @@ class DesktopSettingsSectionNotifier extends Notifier<SettingsSectionId> {
   SettingsSectionId build() => SettingsSectionId.account;
 
   void setSelectedSection(SettingsSectionId section) {
+    if (kIsWeb && section == SettingsSectionId.systemDevice) {
+      state = SettingsSectionId.about;
+      return;
+    }
     state = section;
   }
 }

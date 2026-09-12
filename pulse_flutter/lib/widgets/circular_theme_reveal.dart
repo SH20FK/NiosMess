@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
-/// Telegram / MagicUI Animated Theme Toggler wrapper.
-/// Captures the current theme as a bitmap snapshot and smoothly reveals the new theme
-/// via an expanding circular cutout originating from the tap gesture coordinates.
+/// Optimized Animated Theme Toggler wrapper.
+/// Smoothly reveals the new theme via an expanding circular cutout from tap coordinates
+/// using an ultra-efficient 1.0 pixel-ratio snapshot with hardware-accelerated rendering.
 class CircularThemeSwitcher extends StatefulWidget {
   const CircularThemeSwitcher({
     super.key,
@@ -41,15 +41,17 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 480),
+      duration: const Duration(milliseconds: 450),
     );
     _animController.addStatusListener((AnimationStatus status) {
       if (status == AnimationStatus.completed) {
-        setState(() {
-          _isAnimating = false;
-          _oldImage?.dispose();
-          _oldImage = null;
-        });
+        if (mounted) {
+          setState(() {
+            _isAnimating = false;
+            _oldImage?.dispose();
+            _oldImage = null;
+          });
+        }
       }
     });
   }
@@ -61,7 +63,7 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
     super.dispose();
   }
 
-  /// Triggers theme toggle with circular reveal animation from tap position or key.
+  /// Triggers theme toggle with circular reveal animation from tap position or button key.
   Future<void> toggleTheme(
     VoidCallback changeThemeCallback, {
     Offset? tapOffset,
@@ -83,29 +85,31 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
       offset = Offset(size.width / 2, size.height / 2);
     }
 
-    // 1. Capture snapshot of OLD theme BEFORE state change
+    // 1. Capture lightweight 1.0 pixel-ratio snapshot of OLD theme before change
     ui.Image? snapshotImage;
     try {
       final RenderRepaintBoundary? boundary =
           _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary != null && boundary.attached && boundary.hasSize) {
-        final double pixelRatio = MediaQuery.of(context).devicePixelRatio;
-        snapshotImage = await boundary.toImage(pixelRatio: pixelRatio);
+        // PixelRatio fixed to 1.0 to prevent memory spikes & GPU pipeline stalls
+        snapshotImage = await boundary.toImage(pixelRatio: 1.0);
       }
     } catch (_) {
       snapshotImage = null;
     }
 
-    // 2. Save snapshot & tap position
     _oldImage = snapshotImage;
     _tapOffset = offset;
 
-    // 3. NOW update theme state (rebuilds underlying widget tree in new theme)
-    HapticFeedback.mediumImpact();
+    try {
+      HapticFeedback.lightImpact();
+    } catch (_) {}
+
+    // 2. Change theme state
     changeThemeCallback();
 
-    // 4. Start expanding circular reveal animation
-    if (_oldImage != null) {
+    // 3. Run circular expansion reveal
+    if (_oldImage != null && mounted) {
       setState(() {
         _isAnimating = true;
       });
@@ -122,23 +126,29 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
         children: [
           widget.child,
           if (_isAnimating && _oldImage != null)
-            AnimatedBuilder(
-              animation: _animController,
-              builder: (BuildContext context, Widget? child) {
-                final double progress = CurvedAnimation(
-                  parent: _animController,
-                  curve: Curves.fastOutSlowIn,
-                ).value;
+            Positioned.fill(
+              child: IgnorePointer(
+                child: RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: _animController,
+                    builder: (BuildContext context, Widget? child) {
+                      final double progress = CurvedAnimation(
+                        parent: _animController,
+                        curve: Curves.fastOutSlowIn,
+                      ).value;
 
-                return CustomPaint(
-                  size: Size.infinite,
-                  painter: _CircularRevealPainter(
-                    image: _oldImage!,
-                    center: _tapOffset,
-                    progress: progress,
+                      return CustomPaint(
+                        size: Size.infinite,
+                        painter: _CircularRevealPainter(
+                          image: _oldImage!,
+                          center: _tapOffset,
+                          progress: progress,
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ),
+              ),
             ),
         ],
       ),
@@ -166,7 +176,6 @@ class _CircularRevealPainter extends CustomPainter {
 
     canvas.save();
 
-    // Path fillType evenOdd: Entire screen rectangle minus expanding circle hole at tap center
     final Path path = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 

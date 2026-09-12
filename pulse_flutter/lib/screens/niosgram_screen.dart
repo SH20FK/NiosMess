@@ -349,8 +349,8 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
   bool _isExpanded = false;
   final TextEditingController _textController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  PlatformFile? _selectedFile;
-  Uint8List? _previewBytes;
+  List<PlatformFile> _selectedFiles = <PlatformFile>[];
+  List<Uint8List> _previewBytesList = <Uint8List>[];
   bool _isLoading = false;
   String? _error;
 
@@ -374,45 +374,61 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
     setState(() {
       _isExpanded = false;
       _textController.clear();
-      _selectedFile = null;
-      _previewBytes = null;
+      _selectedFiles = <PlatformFile>[];
+      _previewBytesList = <Uint8List>[];
       _error = null;
     });
     _focusNode.unfocus();
   }
 
   Future<void> _pickMedia() async {
+    final int availableSlots = 5 - _selectedFiles.length;
+    if (availableSlots <= 0) {
+      if (mounted) AppToast.showInfo(context, 'Максимум 5 фотографий');
+      return;
+    }
+
     final List<PlatformFile> result = await FilePicker.pickFiles(
       type: FileType.media,
     );
     if (result.isEmpty) return;
-    final PlatformFile file = result.first;
-    if ((await file.length()) > _maxFileBytes) {
-      setState(() {
-        _isExpanded = true;
-        _error = context.l10n.postFileTooLarge;
-      });
-      return;
+
+    final List<PlatformFile> picked = result.take(availableSlots).toList();
+    final List<PlatformFile> validFiles = List<PlatformFile>.from(_selectedFiles);
+    final List<Uint8List> previews = List<Uint8List>.from(_previewBytesList);
+
+    for (final PlatformFile file in picked) {
+      if ((await file.length()) > _maxFileBytes) {
+        setState(() {
+          _isExpanded = true;
+          _error = context.l10n.postFileTooLarge;
+        });
+        continue;
+      }
+
+      Uint8List previewBytes = await file.readAsBytes();
+      final Uint8List? compressed = await ImageCompressor.compressImageBytes(
+        bytes: previewBytes,
+        fileName: file.name,
+      );
+      if (compressed != null) previewBytes = compressed;
+      validFiles.add(file);
+      previews.add(previewBytes);
     }
 
-    Uint8List previewBytes = await file.readAsBytes();
-    final Uint8List? compressed = await ImageCompressor.compressImageBytes(
-      bytes: previewBytes,
-      fileName: file.name,
-    );
-    if (compressed != null) previewBytes = compressed;
-
-    setState(() {
-      _isExpanded = true;
-      _selectedFile = file;
-      _previewBytes = previewBytes;
-      _error = null;
-    });
+    if (validFiles.length != _selectedFiles.length) {
+      setState(() {
+        _isExpanded = true;
+        _selectedFiles = validFiles;
+        _previewBytesList = previews;
+        _error = null;
+      });
+    }
   }
 
   Future<void> _submit() async {
     final String text = _textController.text.trim();
-    if (text.isEmpty && _selectedFile == null) {
+    if (text.isEmpty && _selectedFiles.isEmpty) {
       setState(() => _error = context.l10n.postEmptyContent);
       return;
     }
@@ -425,25 +441,29 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
     });
 
     try {
-      int? uploadId;
-      if (_selectedFile != null) {
-        final PlatformFile file = _selectedFile!;
-        final Uint8List fileBytes = await file.readAsBytes();
-        final String uploadIdStr = await ref
-            .read(chatRepositoryProvider)
-            .uploadStreamInChunks(
-              bytes: fileBytes,
-              filename: file.name,
-              mediaSubtype: 'media',
-              fileSize: fileBytes.length,
-              onProgress: (_, _) {},
-            );
-        uploadId = int.tryParse(uploadIdStr);
+      List<int>? uploadIds;
+      if (_selectedFiles.isNotEmpty) {
+        uploadIds = <int>[];
+        for (final PlatformFile file in _selectedFiles) {
+          final Uint8List fileBytes = await file.readAsBytes();
+          final String uploadIdStr = await ref
+              .read(chatRepositoryProvider)
+              .uploadStreamInChunks(
+                bytes: fileBytes,
+                filename: file.name,
+                mediaSubtype: 'media',
+                fileSize: fileBytes.length,
+                onProgress: (_, _) {},
+              );
+          final int? id = int.tryParse(uploadIdStr);
+          if (id != null) uploadIds.add(id);
+        }
       }
 
       await ref.read(niosgramProvider.notifier).createPost(
             text,
-            uploadId: uploadId,
+            uploadIds: uploadIds,
+            uploadId: uploadIds?.firstOrNull,
           );
 
       if (mounted) {
@@ -630,63 +650,100 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                   ),
                 ),
 
-                // Selected media preview
-                if (_previewBytes != null) ...<Widget>[
+                // Selected media preview (compact horizontal strip)
+                if (_previewBytesList.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Stack(
-                      children: <Widget>[
-                        Container(
-                          width: double.infinity,
-                          constraints: const BoxConstraints(
-                            maxHeight: 320,
-                            minHeight: 120,
-                          ),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHighest.withValues(
-                              alpha: 0.35,
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: scheme.outlineVariant.withValues(
-                                alpha: 0.3,
+                  SizedBox(
+                    height: 76,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _previewBytesList.length +
+                          (_previewBytesList.length < 5 ? 1 : 0),
+                      separatorBuilder: (_, _) => const SizedBox(width: 8),
+                      itemBuilder: (BuildContext context, int index) {
+                        if (index == _previewBytesList.length) {
+                          // [+] Slot to add more photos
+                          return Material(
+                            color: scheme.surfaceContainerHighest
+                                .withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: _isLoading ? null : _pickMedia,
+                              child: Container(
+                                width: 76,
+                                height: 76,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: scheme.outlineVariant
+                                        .withValues(alpha: 0.35),
+                                  ),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: <Widget>[
+                                    Icon(
+                                      Icons.add_photo_alternate_rounded,
+                                      size: 22,
+                                      color: scheme.primary,
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'Ещё',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: scheme.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          child: Image.memory(
-                            _previewBytes!,
-                            fit: BoxFit.contain,
-                            width: double.infinity,
-                          ),
-                        ),
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Material(
-                            color: Colors.black.withValues(alpha: 0.60),
-                            shape: const CircleBorder(),
-                            child: Tooltip(
-                              message: 'Удалить фото',
-                              child: InkWell(
-                                customBorder: const CircleBorder(),
-                                onTap: () => setState(() {
-                                  _selectedFile = null;
-                                  _previewBytes = null;
-                                }),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(6),
-                                  child: Icon(
-                                    Icons.close_rounded,
-                                    size: 16,
-                                    color: Colors.white,
+                          );
+                        }
+
+                        return Stack(
+                          children: <Widget>[
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.memory(
+                                _previewBytesList[index],
+                                width: 76,
+                                height: 76,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 3,
+                              right: 3,
+                              child: Material(
+                                color: Colors.black.withValues(alpha: 0.65),
+                                shape: const CircleBorder(),
+                                child: Tooltip(
+                                  message: 'Удалить фото',
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: () => setState(() {
+                                      _selectedFiles.removeAt(index);
+                                      _previewBytesList.removeAt(index);
+                                    }),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(4),
+                                      child: Icon(
+                                        Icons.close_rounded,
+                                        size: 13,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -731,11 +788,18 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                 Row(
                   children: <Widget>[
                     OutlinedButton.icon(
-                      onPressed: _isLoading ? null : _pickMedia,
-                      icon: const Icon(Icons.image_outlined, size: 18),
+                      onPressed: _isLoading || _selectedFiles.length >= 5
+                          ? null
+                          : _pickMedia,
+                      icon: const Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 17,
+                      ),
                       label: Text(
-                        _selectedFile == null ? 'Фото' : 'Заменить фото',
-                        style: const TextStyle(fontSize: 13),
+                        _selectedFiles.isEmpty
+                            ? 'Фото'
+                            : 'Фото (${_selectedFiles.length}/5)',
+                        style: const TextStyle(fontSize: 12.5),
                       ),
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
@@ -747,18 +811,22 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                     const Spacer(),
                     if (_textController.text.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(right: 12),
+                        padding: const EdgeInsets.only(right: 8),
                         child: Text(
                           '${_textController.text.length} симв.',
                           style: textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant
                                 .withValues(alpha: 0.6),
+                            fontSize: 11,
                           ),
                         ),
                       ),
                     TextButton(
                       onPressed: _isLoading ? null : _collapse,
-                      child: const Text('Отмена'),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: const Text('Отмена', style: TextStyle(fontSize: 13)),
                     ),
                     const SizedBox(width: 6),
                     FilledButton.icon(
@@ -772,8 +840,8 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                                 color: Colors.white,
                               ),
                             )
-                          : const Icon(Icons.send_rounded, size: 15),
-                      label: const Text('Опубликовать'),
+                          : const Icon(Icons.send_rounded, size: 14),
+                      label: const Text('Опубликовать', style: TextStyle(fontSize: 13)),
                       style: FilledButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                         shape: RoundedRectangleBorder(

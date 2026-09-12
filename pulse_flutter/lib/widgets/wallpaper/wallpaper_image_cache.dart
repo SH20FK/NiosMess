@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
 import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_painter.dart';
@@ -17,6 +18,8 @@ class WallpaperImageCache {
   static int? _cachedHeight;
   static Future<ui.Image>? _inFlightFuture;
 
+  static final Map<String, String> _rawSvgStringCache = <String, String>{};
+
   static int quantizeWidth(double width, double pixelRatio) {
     final int raw = (width * pixelRatio).round();
     return max(64, ((raw + 31) ~/ 32) * 32);
@@ -25,6 +28,43 @@ class WallpaperImageCache {
   static int quantizeHeight(double height, double pixelRatio) {
     final int raw = (height * pixelRatio).round();
     return max(64, ((raw + 31) ~/ 32) * 32);
+  }
+
+  /// High-performance SVG loader with in-memory string caching and smart fill injection
+  static Future<ui.Picture?> loadPatternSvg({
+    required String assetPath,
+    required Color color,
+    required bool filled,
+  }) async {
+    try {
+      if (!filled) {
+        final PictureInfo info = await vg.loadPicture(
+          SvgAssetLoader(assetPath, theme: SvgTheme(currentColor: color)),
+          null,
+        );
+        return info.picture;
+      }
+
+      String? rawSvg = _rawSvgStringCache[assetPath];
+      if (rawSvg == null) {
+        rawSvg = await rootBundle.loadString(assetPath);
+        if (_rawSvgStringCache.length > 300) {
+          _rawSvgStringCache.clear();
+        }
+        _rawSvgStringCache[assetPath] = rawSvg;
+      }
+
+      // Smart fill for closed vector paths: replace fill="none" with fill="currentColor"
+      final String filledSvg =
+          rawSvg.replaceAll('fill="none"', 'fill="currentColor"');
+      final PictureInfo info = await vg.loadPicture(
+        SvgStringLoader(filledSvg, theme: SvgTheme(currentColor: color)),
+        null,
+      );
+      return info.picture;
+    } catch (_) {
+      return null;
+    }
   }
 
   static ui.Image? getSyncCachedImage({
@@ -111,57 +151,60 @@ class WallpaperImageCache {
       config.iconAlpha,
     );
 
-    // Preload SVG if applicable
+    // Preload SVGs in parallel for Lucide and Tabler
     if (config.iconSource == IconSource.lucide ||
         config.iconSource == IconSource.tabler) {
-      if (config.useAllIcons) {
-        // Preload diverse pool of icons from the catalog
+      final String folder =
+          config.iconSource == IconSource.lucide ? 'lucide' : 'tabler';
+      List<String> iconsToLoad = <String>[];
+
+      if (config.themePack != 'all' && config.themePack != 'custom') {
+        iconsToLoad = IconSourcesCatalog.getThemePackIcons(
+          config.themePack,
+          source: config.iconSource,
+        );
+      } else if (config.themePack == 'custom' &&
+          config.selectedGlyphs.isNotEmpty) {
+        iconsToLoad = config.selectedGlyphs;
+      } else if (config.useAllIcons || config.themePack == 'all') {
         final List<String> catalog = config.iconSource == IconSource.lucide
             ? IconSourcesCatalog.lucideIcons
             : IconSourcesCatalog.tablerIcons;
-        final String folder = config.iconSource == IconSource.lucide ? 'lucide' : 'tabler';
-
-        poolSvgPictures = <ui.Picture>[];
-        final int poolSize = min(36, catalog.length);
+        final int poolSize = min(28, catalog.length);
         final Random poolRng = Random(config.seed);
-
         for (int i = 0; i < poolSize; i++) {
-          final String iconName = catalog[poolRng.nextInt(catalog.length)];
-          try {
-            final PictureInfo info = await vg.loadPicture(
-              SvgAssetLoader(
-                'assets/svg/pattern_icons/$folder/$iconName.svg',
-                theme: SvgTheme(currentColor: primaryIconColor),
-              ),
-              null,
-            );
-            poolSvgPictures.add(info.picture);
-          } catch (_) {}
+          iconsToLoad.add(catalog[poolRng.nextInt(catalog.length)]);
         }
-      } else if (config.svgAssetPath != null && config.svgAssetPath!.isNotEmpty) {
-        try {
-          final PictureInfo info = await vg.loadPicture(
-            SvgAssetLoader(
-              config.svgAssetPath!,
-              theme: SvgTheme(currentColor: primaryIconColor),
+      }
+
+      if (iconsToLoad.isNotEmpty) {
+        final List<ui.Picture?> results = await Future.wait(
+          iconsToLoad.map(
+            (name) => loadPatternSvg(
+              assetPath: 'assets/svg/pattern_icons/$folder/$name.svg',
+              color: primaryIconColor,
+              filled: config.filled,
             ),
-            null,
-          );
-          svgPicture = info.picture;
-        } catch (_) {}
+          ),
+        );
+        poolSvgPictures = results.whereType<ui.Picture>().toList();
+      } else if (config.svgAssetPath != null &&
+          config.svgAssetPath!.isNotEmpty) {
+        svgPicture = await loadPatternSvg(
+          assetPath: config.svgAssetPath!,
+          color: primaryIconColor,
+          filled: config.filled,
+        );
       }
     } else if (config.iconSource == IconSource.niosMess) {
-      if (!config.useAllIcons && config.svgAssetPath != null && config.svgAssetPath!.isNotEmpty) {
-        try {
-          final PictureInfo info = await vg.loadPicture(
-            SvgAssetLoader(
-              config.svgAssetPath!,
-              theme: SvgTheme(currentColor: primaryIconColor),
-            ),
-            null,
-          );
-          svgPicture = info.picture;
-        } catch (_) {}
+      if (!config.useAllIcons &&
+          config.svgAssetPath != null &&
+          config.svgAssetPath!.isNotEmpty) {
+        svgPicture = await loadPatternSvg(
+          assetPath: config.svgAssetPath!,
+          color: primaryIconColor,
+          filled: config.filled,
+        );
       }
     }
 

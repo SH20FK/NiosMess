@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 
 enum IconSource {
   materialSymbols,
   phosphor,
   lucide,
   tabler,
+  cupertino,
   niosMess,
 }
 
@@ -26,6 +28,28 @@ enum WallpaperColorMode {
   singleTone,
   palette,
   tonalAccent,
+}
+
+enum WallpaperBackgroundStyle {
+  solid,
+  linearGradient,
+  radialGlow,
+}
+
+class ChatWallpaperPreset {
+  const ChatWallpaperPreset({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.icon,
+    required this.config,
+  });
+
+  final String id;
+  final String name;
+  final String description;
+  final IconData icon;
+  final ChatWallpaperConfig config;
 }
 
 class ChatWallpaperConfig {
@@ -50,6 +74,9 @@ class ChatWallpaperConfig {
     this.iconAlpha = 0.12,
     this.seed = 42,
     this.backgroundRole = 'surfaceContainerLow',
+    this.backgroundSecondaryRole = 'surfaceContainerLowest',
+    this.backgroundStyle = WallpaperBackgroundStyle.solid,
+    this.gradientAngle = 135.0,
     this.iconColorRole = 'primary',
     this.paletteRoles = const <String>[
       'primary',
@@ -57,6 +84,8 @@ class ChatWallpaperConfig {
       'tertiary',
       'outline',
     ],
+    this.themePack = 'all',
+    this.selectedGlyphs = const <String>[],
   });
 
   final IconSource iconSource;
@@ -79,8 +108,13 @@ class ChatWallpaperConfig {
   final double iconAlpha;
   final int seed;
   final String backgroundRole;
+  final String backgroundSecondaryRole;
+  final WallpaperBackgroundStyle backgroundStyle;
+  final double gradientAngle;
   final String iconColorRole;
   final List<String> paletteRoles;
+  final String themePack;
+  final List<String> selectedGlyphs;
 
   static const ChatWallpaperConfig defaultPattern = ChatWallpaperConfig();
 
@@ -95,7 +129,7 @@ class ChatWallpaperConfig {
     bool? filled,
     double? weight,
     double? cellSize,
-    double? gridAngle,
+    gridAngle,
     double? density,
     WallpaperLayoutMode? layoutMode,
     bool? staggerByRow,
@@ -105,8 +139,13 @@ class ChatWallpaperConfig {
     double? iconAlpha,
     int? seed,
     String? backgroundRole,
+    String? backgroundSecondaryRole,
+    WallpaperBackgroundStyle? backgroundStyle,
+    double? gradientAngle,
     String? iconColorRole,
     List<String>? paletteRoles,
+    String? themePack,
+    List<String>? selectedGlyphs,
   }) {
     return ChatWallpaperConfig(
       iconSource: iconSource ?? this.iconSource,
@@ -129,8 +168,14 @@ class ChatWallpaperConfig {
       iconAlpha: iconAlpha ?? this.iconAlpha,
       seed: seed ?? this.seed,
       backgroundRole: backgroundRole ?? this.backgroundRole,
+      backgroundSecondaryRole:
+          backgroundSecondaryRole ?? this.backgroundSecondaryRole,
+      backgroundStyle: backgroundStyle ?? this.backgroundStyle,
+      gradientAngle: gradientAngle ?? this.gradientAngle,
       iconColorRole: iconColorRole ?? this.iconColorRole,
       paletteRoles: paletteRoles ?? this.paletteRoles,
+      themePack: themePack ?? this.themePack,
+      selectedGlyphs: selectedGlyphs ?? this.selectedGlyphs,
     );
   }
 
@@ -156,8 +201,13 @@ class ChatWallpaperConfig {
       'iconAlpha': iconAlpha,
       'seed': seed,
       'backgroundRole': backgroundRole,
+      'backgroundSecondaryRole': backgroundSecondaryRole,
+      'backgroundStyle': backgroundStyle.name,
+      'gradientAngle': gradientAngle,
       'iconColorRole': iconColorRole,
       'paletteRoles': paletteRoles,
+      'themePack': themePack,
+      'selectedGlyphs': selectedGlyphs,
     };
   }
 
@@ -195,11 +245,23 @@ class ChatWallpaperConfig {
       iconAlpha: (map['iconAlpha'] as num?)?.toDouble() ?? 0.12,
       seed: (map['seed'] as num?)?.toInt() ?? 42,
       backgroundRole: map['backgroundRole'] as String? ?? 'surfaceContainerLow',
+      backgroundSecondaryRole:
+          map['backgroundSecondaryRole'] as String? ?? 'surfaceContainerLowest',
+      backgroundStyle: WallpaperBackgroundStyle.values.firstWhere(
+        (e) => e.name == map['backgroundStyle'],
+        orElse: () => WallpaperBackgroundStyle.solid,
+      ),
+      gradientAngle: (map['gradientAngle'] as num?)?.toDouble() ?? 135.0,
       iconColorRole: map['iconColorRole'] as String? ?? 'primary',
       paletteRoles: (map['paletteRoles'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList(growable: false) ??
           const <String>['primary', 'secondary', 'tertiary', 'outline'],
+      themePack: map['themePack'] as String? ?? 'all',
+      selectedGlyphs: (map['selectedGlyphs'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList(growable: false) ??
+          const <String>[],
     );
   }
 
@@ -239,7 +301,21 @@ class ChatWallpaperConfig {
         other.iconAlpha == iconAlpha &&
         other.seed == seed &&
         other.backgroundRole == backgroundRole &&
-        other.iconColorRole == iconColorRole;
+        other.backgroundSecondaryRole == backgroundSecondaryRole &&
+        other.backgroundStyle == backgroundStyle &&
+        other.gradientAngle == gradientAngle &&
+        other.iconColorRole == iconColorRole &&
+        other.themePack == themePack &&
+        _listEquals(other.selectedGlyphs, selectedGlyphs);
+  }
+
+  static bool _listEquals(List<String> a, List<String> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   @override
@@ -264,6 +340,167 @@ class ChatWallpaperConfig {
         iconAlpha,
         seed,
         backgroundRole,
+        backgroundSecondaryRole,
+        backgroundStyle,
+        gradientAngle,
         iconColorRole,
+        themePack,
+        Object.hashAll(selectedGlyphs),
       ]);
 }
+
+/// Curated high-aesthetic wallpaper presets
+final List<ChatWallpaperPreset> kDefaultWallpaperPresets = <ChatWallpaperPreset>[
+  const ChatWallpaperPreset(
+    id: 'cosmos',
+    name: 'Космос',
+    description: 'Звездная россыпь в полуночном небе',
+    icon: Icons.rocket_launch_rounded,
+    config: ChatWallpaperConfig(
+      iconSource: IconSource.lucide,
+      themePack: 'space',
+      useAllIcons: false,
+      layoutMode: WallpaperLayoutMode.scatter,
+      density: 0.60,
+      cellSize: 64.0,
+      iconAlpha: 0.18,
+      backgroundRole: 'surfaceContainerLowest',
+      backgroundSecondaryRole: 'surfaceContainerHigh',
+      backgroundStyle: WallpaperBackgroundStyle.radialGlow,
+      colorMode: WallpaperColorMode.tonalAccent,
+      iconColorRole: 'tertiary',
+      filled: false,
+      seed: 777,
+    ),
+  ),
+  const ChatWallpaperPreset(
+    id: 'cyberpunk',
+    name: 'Киберпанк',
+    description: 'Технологичные соты с неоновым акцентом',
+    icon: Icons.terminal_rounded,
+    config: ChatWallpaperConfig(
+      iconSource: IconSource.tabler,
+      themePack: 'tech',
+      useAllIcons: false,
+      layoutMode: WallpaperLayoutMode.hex,
+      density: 0.70,
+      cellSize: 58.0,
+      iconAlpha: 0.20,
+      backgroundRole: 'surfaceContainerLowest',
+      backgroundSecondaryRole: 'primaryContainer',
+      backgroundStyle: WallpaperBackgroundStyle.linearGradient,
+      gradientAngle: 135.0,
+      colorMode: WallpaperColorMode.tonalAccent,
+      iconColorRole: 'primary',
+      filled: true,
+      seed: 2077,
+    ),
+  ),
+  const ChatWallpaperPreset(
+    id: 'sunset',
+    name: 'Неоновый закат',
+    description: 'Мягкое радиальное свечение и теплые иконки',
+    icon: Icons.wb_twilight_rounded,
+    config: ChatWallpaperConfig(
+      iconSource: IconSource.materialSymbols,
+      themePack: 'chat',
+      useAllIcons: false,
+      layoutMode: WallpaperLayoutMode.stagger,
+      density: 0.68,
+      cellSize: 60.0,
+      iconAlpha: 0.16,
+      backgroundRole: 'tertiaryContainer',
+      backgroundSecondaryRole: 'surfaceContainerLowest',
+      backgroundStyle: WallpaperBackgroundStyle.radialGlow,
+      colorMode: WallpaperColorMode.palette,
+      filled: false,
+      seed: 888,
+    ),
+  ),
+  const ChatWallpaperPreset(
+    id: 'oled_minimal',
+    name: 'OLED Минимал',
+    description: 'Глубокий черный с аккуратной геометрией',
+    icon: Icons.dark_mode_rounded,
+    config: ChatWallpaperConfig(
+      iconSource: IconSource.lucide,
+      themePack: 'minimal',
+      useAllIcons: false,
+      layoutMode: WallpaperLayoutMode.grid,
+      density: 0.52,
+      cellSize: 70.0,
+      iconAlpha: 0.10,
+      backgroundRole: 'surfaceContainerLowest',
+      backgroundStyle: WallpaperBackgroundStyle.solid,
+      colorMode: WallpaperColorMode.singleTone,
+      iconColorRole: 'outline',
+      filled: false,
+      seed: 101,
+    ),
+  ),
+  const ChatWallpaperPreset(
+    id: 'cupertino',
+    name: 'Купертино',
+    description: 'Элегантные символы Apple с вертикальным градиентом',
+    icon: Icons.apple_rounded,
+    config: ChatWallpaperConfig(
+      iconSource: IconSource.cupertino,
+      themePack: 'chat',
+      useAllIcons: false,
+      layoutMode: WallpaperLayoutMode.stagger,
+      density: 0.70,
+      cellSize: 62.0,
+      iconAlpha: 0.15,
+      backgroundRole: 'surfaceContainerLow',
+      backgroundSecondaryRole: 'surfaceContainerHigh',
+      backgroundStyle: WallpaperBackgroundStyle.linearGradient,
+      gradientAngle: 90.0,
+      colorMode: WallpaperColorMode.singleTone,
+      iconColorRole: 'primary',
+      filled: true,
+      seed: 555,
+    ),
+  ),
+  const ChatWallpaperPreset(
+    id: 'pastel',
+    name: 'Пастель',
+    description: 'Природная спираль в нежных переливах',
+    icon: Icons.eco_rounded,
+    config: ChatWallpaperConfig(
+      iconSource: IconSource.tabler,
+      themePack: 'nature',
+      useAllIcons: false,
+      layoutMode: WallpaperLayoutMode.spiral,
+      density: 0.65,
+      cellSize: 54.0,
+      iconAlpha: 0.14,
+      backgroundRole: 'surfaceContainerLow',
+      backgroundSecondaryRole: 'secondaryContainer',
+      backgroundStyle: WallpaperBackgroundStyle.linearGradient,
+      gradientAngle: 45.0,
+      colorMode: WallpaperColorMode.palette,
+      filled: false,
+      seed: 404,
+    ),
+  ),
+  const ChatWallpaperPreset(
+    id: 'nios_matrix',
+    name: 'Nios Matrix',
+    description: 'Матричные экспрессивные формы Material 3',
+    icon: Icons.auto_awesome_mosaic_rounded,
+    config: ChatWallpaperConfig(
+      iconSource: IconSource.niosMess,
+      useAllIcons: true,
+      layoutMode: WallpaperLayoutMode.hex,
+      density: 0.72,
+      cellSize: 64.0,
+      iconAlpha: 0.16,
+      backgroundRole: 'surfaceContainerLowest',
+      backgroundSecondaryRole: 'surfaceContainerHighest',
+      backgroundStyle: WallpaperBackgroundStyle.radialGlow,
+      colorMode: WallpaperColorMode.tonalAccent,
+      filled: true,
+      seed: 1337,
+    ),
+  ),
+];

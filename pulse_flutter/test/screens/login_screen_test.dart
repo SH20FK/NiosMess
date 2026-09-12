@@ -81,16 +81,11 @@ void main() {
 
       // Hero Header
       expect(find.text('NiosMess'), findsOneWidget);
-      expect(find.text('Войдите в NiosMess через аккаунт Nios ID'), findsOneWidget);
-
-      // 3 Ecosystem Pillars
-      expect(find.text('Единый вход Nios ID'), findsOneWidget);
-      expect(find.text('Сквозное E2EE шифрование'), findsOneWidget);
-      expect(find.text('Конфиденциальность'), findsOneWidget);
+      expect(find.text('Единый доступ к чатам, звонкам и\u00A0Nios\u00A0ID'), findsOneWidget);
 
       // Primary 56dp Pill Button
       expect(find.text('Войти через Nios ID'), findsOneWidget);
-      expect(find.byIcon(Icons.vpn_key_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.all_inclusive_rounded), findsWidgets);
 
       // Secondary Link
       expect(find.text('Создать аккаунт Nios ID'), findsOneWidget);

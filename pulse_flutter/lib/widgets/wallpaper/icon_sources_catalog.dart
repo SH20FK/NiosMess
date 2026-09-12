@@ -2,6 +2,9 @@
 // Lucide icons: 1806
 // Tabler icons: 5130
 
+import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
+import 'package:pulse_flutter/widgets/wallpaper/cupertino_icons_data.dart';
+
 class IconSourcesCatalog {
   const IconSourcesCatalog._();
 
@@ -15,6 +18,256 @@ class IconSourcesCatalog {
     'm3_pentagon',
     'm3_slanted',
   ];
+
+  static const Map<String, List<String>> materialThemePacks = <String, List<String>>{
+    'chat': <String>[
+      'chat',
+      'favorite',
+      'thumb_up',
+      'send',
+      'mood',
+      'local_fire_department',
+      'bolt',
+      'notifications',
+      'waving_hand',
+      'forum',
+      'mail',
+      'share',
+    ],
+    'tech': <String>[
+      'code',
+      'terminal',
+      'memory',
+      'database',
+      'wifi',
+      'bug_report',
+      'laptop',
+      'developer_board',
+      'cloud',
+      'security',
+      'integration_instructions',
+      'settings',
+    ],
+    'space': <String>[
+      'rocket_launch',
+      'star',
+      'auto_awesome',
+      'brightness_2',
+      'wb_sunny',
+      'public',
+      'flare',
+      'satellite_alt',
+      'explore',
+      'dark_mode',
+      'nights_stay',
+      'cyclone',
+    ],
+    'food': <String>[
+      'local_cafe',
+      'local_pizza',
+      'restaurant',
+      'bakery_dining',
+      'cake',
+      'icecream',
+      'lunch_dining',
+      'local_bar',
+      'ramen_dining',
+      'fastfood',
+      'coffee',
+      'liquor',
+    ],
+    'nature': <String>[
+      'eco',
+      'forest',
+      'park',
+      'pets',
+      'water_drop',
+      'local_florist',
+      'volcano',
+      'ac_unit',
+      'waves',
+      'sunny',
+      'spa',
+      'grass',
+    ],
+    'minimal': <String>[
+      'circle',
+      'square',
+      'hexagon',
+      'change_history',
+      'interests',
+      'grain',
+      'texture',
+      'grid_view',
+      'lens',
+      'adjust',
+      'filter_vintage',
+      'category',
+    ],
+  };
+
+  static const Map<String, List<String>> lucideThemePacks = <String, List<String>>{
+    'chat': <String>[
+      'message-circle',
+      'heart',
+      'thumbs-up',
+      'send',
+      'flame',
+      'zap',
+      'bell',
+      'sparkles',
+      'mail',
+      'share-2',
+      'message-square',
+    ],
+    'tech': <String>[
+      'code',
+      'terminal',
+      'cpu',
+      'database',
+      'wifi',
+      'bug',
+      'laptop',
+      'server',
+      'cloud',
+      'shield',
+      'binary',
+      'settings',
+    ],
+    'space': <String>[
+      'rocket',
+      'star',
+      'sparkle',
+      'moon',
+      'sun',
+      'globe',
+      'telescope',
+      'satellite',
+      'compass',
+      'orbit',
+    ],
+    'food': <String>[
+      'coffee',
+      'pizza',
+      'utensils',
+      'cake',
+      'sandwich',
+      'wine',
+      'beer',
+      'soup',
+      'cookie',
+    ],
+    'nature': <String>[
+      'leaf',
+      'tree-pine',
+      'flower',
+      'droplet',
+      'waves-horizontal',
+      'snowflake',
+      'sprout',
+      'fish',
+      'bird',
+    ],
+    'minimal': <String>[
+      'circle',
+      'square',
+      'triangle',
+      'hexagon',
+      'diamond',
+      'asterisk',
+      'shapes',
+    ],
+  };
+
+  static const Map<String, List<String>> tablerThemePacks = <String, List<String>>{
+    'chat': <String>[
+      'message-circle-2',
+      'heart',
+      'thumb-up',
+      'send',
+      'flame',
+      'bolt',
+      'bell',
+      'sparkles',
+      'mail',
+      'share-2',
+      'message-dots',
+    ],
+    'tech': <String>[
+      'code',
+      'terminal-2',
+      'cpu',
+      'database',
+      'wifi',
+      'bug',
+      'device-laptop',
+      'server',
+      'cloud',
+      'shield',
+      'binary',
+      'settings',
+    ],
+    'space': <String>[
+      'rocket',
+      'star',
+      'sparkles',
+      'moon',
+      'sun',
+      'planet',
+      'telescope',
+      'satellite',
+      'compass',
+      'orbit',
+    ],
+    'food': <String>[
+      'coffee',
+      'pizza',
+      'tools-kitchen-2',
+      'cake',
+      'glass-full',
+      'beer',
+      'soup',
+      'cookie',
+    ],
+    'nature': <String>[
+      'leaf',
+      'tree',
+      'flower',
+      'droplet',
+      'waves-electricity',
+      'snowflake',
+      'seeding',
+      'paw',
+    ],
+    'minimal': <String>[
+      'circle',
+      'square',
+      'triangle',
+      'hexagon',
+      'diamond',
+      'asterisk',
+      'shapes',
+    ],
+  };
+
+  static List<String> getThemePackIcons(
+    String pack, {
+    IconSource? source,
+    bool isLucide = false,
+  }) {
+    if (pack == 'all') return const <String>[];
+    if (source == IconSource.tabler) {
+      return tablerThemePacks[pack] ?? const <String>[];
+    }
+    if (source == IconSource.cupertino) {
+      return CupertinoIconsData.themePacks[pack] ?? const <String>[];
+    }
+    final Map<String, List<String>> packs =
+        (source == IconSource.lucide || isLucide)
+            ? lucideThemePacks
+            : materialThemePacks;
+    return packs[pack] ?? const <String>[];
+  }
 
   static const List<String> lucideIcons = <String>[
     'a-arrow-down',

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,14 +35,38 @@ class _ChatWallpaperBackgroundState extends ConsumerState<ChatWallpaperBackgroun
         ? state.forChat(widget.chatId!)
         : state.global;
 
-    final Color bgColor = WallpaperColorResolver.resolveBackground(
-      scheme,
-      config.backgroundRole,
-    );
+    final BoxDecoration placeholderDecoration;
+    if (config.backgroundStyle == WallpaperBackgroundStyle.linearGradient) {
+      final Color c1 = WallpaperColorResolver.resolveBackground(scheme, config.backgroundRole);
+      final Color c2 = WallpaperColorResolver.resolveBackground(scheme, config.backgroundSecondaryRole);
+      final double rad = config.gradientAngle * pi / 180.0;
+      placeholderDecoration = BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment(cos(rad + pi), sin(rad + pi)),
+          end: Alignment(cos(rad), sin(rad)),
+          colors: [c1, c2],
+        ),
+      );
+    } else if (config.backgroundStyle == WallpaperBackgroundStyle.radialGlow) {
+      final Color c1 = WallpaperColorResolver.resolveBackground(scheme, config.backgroundRole);
+      final Color c2 = WallpaperColorResolver.resolveBackground(scheme, config.backgroundSecondaryRole);
+      placeholderDecoration = BoxDecoration(
+        gradient: RadialGradient(
+          colors: [c1, c2],
+          radius: 0.85,
+        ),
+      );
+    } else {
+      final Color bgColor = WallpaperColorResolver.resolveBackground(
+        scheme,
+        config.backgroundRole,
+      );
+      placeholderDecoration = BoxDecoration(color: bgColor);
+    }
 
     return RepaintBoundary(
       child: Container(
-        color: bgColor,
+        decoration: placeholderDecoration,
         width: double.infinity,
         height: double.infinity,
         child: LayoutBuilder(

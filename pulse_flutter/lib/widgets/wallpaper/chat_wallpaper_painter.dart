@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
+import 'package:pulse_flutter/widgets/wallpaper/cupertino_icons_data.dart';
+import 'package:pulse_flutter/widgets/wallpaper/icon_sources_catalog.dart';
 import 'package:pulse_flutter/widgets/wallpaper/material_symbols_data.dart';
 import 'package:pulse_flutter/widgets/wallpaper/wallpaper_color_resolver.dart';
 
@@ -59,160 +61,216 @@ class ChatWallpaperPainter extends CustomPainter {
     if (size.width <= 0 || size.height <= 0) return;
 
     // 1. Paint background
-    final Color bgColor = WallpaperColorResolver.resolveBackground(
-      scheme,
-      config.backgroundRole,
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..color = bgColor,
-    );
+    if (config.backgroundStyle == WallpaperBackgroundStyle.linearGradient) {
+      final Paint bgPaint = Paint()
+        ..shader = WallpaperColorResolver.createLinearGradientShader(
+          scheme: scheme,
+          role1: config.backgroundRole,
+          role2: config.backgroundSecondaryRole,
+          angleDeg: config.gradientAngle,
+          size: size,
+        );
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        bgPaint,
+      );
+    } else if (config.backgroundStyle == WallpaperBackgroundStyle.radialGlow) {
+      final Paint bgPaint = Paint()
+        ..shader = WallpaperColorResolver.createRadialGlowShader(
+          scheme: scheme,
+          centerRole: config.backgroundRole,
+          outerRole: config.backgroundSecondaryRole,
+          size: size,
+        );
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        bgPaint,
+      );
+    } else {
+      final Color bgColor = WallpaperColorResolver.resolveBackground(
+        scheme,
+        config.backgroundRole,
+      );
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Paint()..color = bgColor,
+      );
+    }
 
     // 2. Setup seeded random and positioning bounds
     final Random rng = Random(config.seed);
     final double cellSize = config.cellSize.clamp(20.0, 240.0);
     final double iconBaseSize = cellSize * 0.44;
 
-    // Cache shapes if M3Shape is selected
-    Shapes? m3Shape;
-    if (config.iconSource == IconSource.niosMess && config.m3ShapeName != null && !config.useAllIcons) {
-      m3Shape = _resolveM3Shape(config.m3ShapeName!);
+    // 3. Resolve active color roles and colors
+    final List<String> activeRoles = _resolveActiveRoles(config);
+    final Map<String, Color> resolvedColors = <String, Color>{};
+    for (final String role in activeRoles) {
+      resolvedColors[role] = WallpaperColorResolver.resolveIconColor(
+        scheme,
+        role,
+        config.iconAlpha,
+      );
     }
 
-    // Material Symbols Font Family
-    final String fontFamily = _resolveFontFamily(config.symbolsStyle);
-
-    // Resolve base colors
-    final Color singleColor = WallpaperColorResolver.resolveIconColor(
-      scheme,
-      config.iconColorRole,
-      config.iconAlpha,
+    // 4. PRE-COMPUTED GLYPH CACHE (0 UI Layout Overhead in tight loop)
+    final _PainterGlyphCache cache = _buildGlyphCache(
+      config: config,
+      scheme: scheme,
+      iconBaseSize: iconBaseSize,
+      activeRoles: activeRoles,
+      resolvedColors: resolvedColors,
+      svgPicture: svgPicture,
+      paletteSvgPictures: paletteSvgPictures,
+      poolSvgPictures: poolSvgPictures,
     );
 
-    // Spiral layout
+    // 5. Render selected layout mode
     if (config.layoutMode == WallpaperLayoutMode.spiral) {
-      _paintSpiral(
+      _paintPhyllotaxisSpiral(
         canvas: canvas,
         size: size,
         config: config,
-        scheme: scheme,
         rng: rng,
         cellSize: cellSize,
         iconBaseSize: iconBaseSize,
-        singleColor: singleColor,
-        fontFamily: fontFamily,
-        m3Shape: m3Shape,
-        svgPicture: svgPicture,
-        paletteSvgPictures: paletteSvgPictures,
-        poolSvgPictures: poolSvgPictures,
+        cache: cache,
       );
       return;
     }
 
-    // Grid, Stagger, Scatter, Hex using rotated/expanded bounds
-    final double rad = config.gridAngle * pi / 180.0;
-    final bool hasRotation = config.gridAngle.abs() > 0.01;
-
-    final double diagonal = sqrt(size.width * size.width + size.height * size.height);
+    // 2D Lattices (Grid, Stagger, Hex, Scatter) with center-stable rotation
     final double cx = size.width / 2.0;
     final double cy = size.height / 2.0;
+    final double diagonal = sqrt(size.width * size.width + size.height * size.height) + cellSize * 2.0;
 
     canvas.save();
-    if (hasRotation) {
+    if (config.gridAngle.abs() > 0.01) {
+      final double rad = config.gridAngle * pi / 180.0;
       canvas.translate(cx, cy);
       canvas.rotate(rad);
       canvas.translate(-cx, -cy);
     }
 
-    final double startX = (size.width - diagonal) / 2.0 - cellSize;
-    final double endX = startX + diagonal + cellSize * 2;
-    final double startY = (size.height - diagonal) / 2.0 - cellSize;
-    final double endY = startY + diagonal + cellSize * 2;
-
-    int rowIndex = 0;
-    double currentY = startY;
-
-    final double rowHeight = config.layoutMode == WallpaperLayoutMode.hex
-        ? cellSize * 0.8660254 // sqrt(3)/2
-        : cellSize;
-
-    while (currentY <= endY) {
-      double currentX = startX;
-
-      // Stagger offset calculation
-      double xOffset = 0.0;
-      if (config.layoutMode == WallpaperLayoutMode.stagger ||
-          config.layoutMode == WallpaperLayoutMode.hex) {
-        if (config.staggerByRow && (rowIndex % 2 == 1)) {
-          xOffset = cellSize * 0.5;
-        }
-      }
-
-      while (currentX <= endX) {
-        double posX = currentX + xOffset;
-        double posY = currentY;
-
-        // Apply scatter jitter
-        if (config.layoutMode == WallpaperLayoutMode.scatter) {
-          final double jitterX = (rng.nextDouble() - 0.5) * cellSize * 0.55;
-          final double jitterY = (rng.nextDouble() - 0.5) * cellSize * 0.55;
-          posX += jitterX;
-          posY += jitterY;
-        }
-
-        // Density check
-        if (rng.nextDouble() <= config.density) {
-          _drawSingleIcon(
-            canvas: canvas,
-            x: posX,
-            y: posY,
-            config: config,
-            scheme: scheme,
-            rng: rng,
-            iconBaseSize: iconBaseSize,
-            singleColor: singleColor,
-            fontFamily: fontFamily,
-            m3Shape: m3Shape,
-            svgPicture: svgPicture,
-            paletteSvgPictures: paletteSvgPictures,
-            poolSvgPictures: poolSvgPictures,
-          );
-        }
-
-        currentX += cellSize;
-      }
-
-      currentY += rowHeight;
-      rowIndex++;
+    if (config.layoutMode == WallpaperLayoutMode.hex) {
+      _paintHexagonal(
+        canvas: canvas,
+        cx: cx,
+        cy: cy,
+        diagonal: diagonal,
+        cellSize: cellSize,
+        config: config,
+        rng: rng,
+        iconBaseSize: iconBaseSize,
+        cache: cache,
+      );
+    } else if (config.layoutMode == WallpaperLayoutMode.scatter) {
+      _paintScatter(
+        canvas: canvas,
+        cx: cx,
+        cy: cy,
+        diagonal: diagonal,
+        cellSize: cellSize,
+        config: config,
+        rng: rng,
+        iconBaseSize: iconBaseSize,
+        cache: cache,
+      );
+    } else if (config.layoutMode == WallpaperLayoutMode.stagger) {
+      _paintStagger(
+        canvas: canvas,
+        cx: cx,
+        cy: cy,
+        diagonal: diagonal,
+        cellSize: cellSize,
+        config: config,
+        rng: rng,
+        iconBaseSize: iconBaseSize,
+        cache: cache,
+      );
+    } else {
+      _paintGrid(
+        canvas: canvas,
+        cx: cx,
+        cy: cy,
+        diagonal: diagonal,
+        cellSize: cellSize,
+        config: config,
+        rng: rng,
+        iconBaseSize: iconBaseSize,
+        cache: cache,
+      );
     }
 
     canvas.restore();
   }
 
-  static void _paintSpiral({
+  // ── 60° Hexagonal Triangular Lattice ──────────────────────────────────────
+  static void _paintHexagonal({
+    required Canvas canvas,
+    required double cx,
+    required double cy,
+    required double diagonal,
+    required double cellSize,
+    required ChatWallpaperConfig config,
+    required Random rng,
+    required double iconBaseSize,
+    required _PainterGlyphCache cache,
+  }) {
+    final double D = cellSize;
+    final double H = D * 0.8660254037844386; // sqrt(3)/2 = ~0.866
+
+    final int countX = (diagonal / D).ceil() + 2;
+    final int countY = (diagonal / H).ceil() + 2;
+    final double startX = cx - (countX * D) / 2.0;
+    final double startY = cy - (countY * H) / 2.0;
+    final double endX = cx + (countX * D) / 2.0;
+    final double endY = cy + (countY * H) / 2.0;
+
+    int row = 0;
+    for (double y = startY; y <= endY; y += H, row++) {
+      final double rowOffset = (row % 2 == 1) ? (D * 0.5) : 0.0;
+      for (double x = startX + rowOffset; x <= endX; x += D) {
+        if (rng.nextDouble() <= config.density) {
+          _drawSingleIcon(
+            canvas: canvas,
+            x: x,
+            y: y,
+            config: config,
+            rng: rng,
+            iconBaseSize: iconBaseSize,
+            cache: cache,
+          );
+        }
+      }
+    }
+  }
+
+  // ── Fermat / Vogel Phyllotaxis Spiral (Sunflower seeds pattern) ───────────
+  static void _paintPhyllotaxisSpiral({
     required Canvas canvas,
     required Size size,
     required ChatWallpaperConfig config,
-    required ColorScheme scheme,
     required Random rng,
     required double cellSize,
     required double iconBaseSize,
-    required Color singleColor,
-    required String fontFamily,
-    Shapes? m3Shape,
-    ui.Picture? svgPicture,
-    Map<String, ui.Picture>? paletteSvgPictures,
-    List<ui.Picture>? poolSvgPictures,
+    required _PainterGlyphCache cache,
   }) {
     final double cx = size.width / 2.0;
     final double cy = size.height / 2.0;
-    final double maxRadius = sqrt(cx * cx + cy * cy) + cellSize;
+    final double maxRadius = sqrt(cx * cx + cy * cy) + cellSize * 1.5;
 
-    double theta = 0.0;
-    double r = cellSize * 0.5;
-    final double b = cellSize / (2 * pi);
+    // Golden Angle in radians: 137.507764° = 2.39996323 rad
+    const double goldenAngle = 2.399963229728653;
+    final double c = cellSize * 0.65;
+    final double r0 = cellSize * 0.80; // Clear open center
 
-    while (r <= maxRadius) {
+    int n = 0;
+    while (true) {
+      final double r = c * sqrt(n) + r0;
+      if (r > maxRadius) break;
+
+      final double theta = n * goldenAngle;
       final double posX = cx + r * cos(theta);
       final double posY = cy + r * sin(theta);
 
@@ -222,138 +280,393 @@ class ChatWallpaperPainter extends CustomPainter {
           x: posX,
           y: posY,
           config: config,
-          scheme: scheme,
           rng: rng,
           iconBaseSize: iconBaseSize,
-          singleColor: singleColor,
-          fontFamily: fontFamily,
-          m3Shape: m3Shape,
-          svgPicture: svgPicture,
-          paletteSvgPictures: paletteSvgPictures,
-          poolSvgPictures: poolSvgPictures,
+          cache: cache,
         );
       }
-
-      final double step = cellSize / max(r, cellSize * 0.5);
-      theta += step;
-      r = b * theta + cellSize * 0.5;
+      n++;
     }
   }
 
+  // ── Collision-Protected Organic Scatter ────────────────────────────────────
+  static void _paintScatter({
+    required Canvas canvas,
+    required double cx,
+    required double cy,
+    required double diagonal,
+    required double cellSize,
+    required ChatWallpaperConfig config,
+    required Random rng,
+    required double iconBaseSize,
+    required _PainterGlyphCache cache,
+  }) {
+    final double D = cellSize;
+    final int countX = (diagonal / D).ceil() + 2;
+    final int countY = (diagonal / D).ceil() + 2;
+    final double startX = cx - (countX * D) / 2.0;
+    final double startY = cy - (countY * D) / 2.0;
+    final double endX = cx + (countX * D) / 2.0;
+    final double endY = cy + (countY * D) / 2.0;
+
+    // Jitter is strictly bounded by 0.32 D to guarantee minimum distance > 0.36 D
+    final double maxJitter = D * 0.32;
+
+    for (double y = startY; y <= endY; y += D) {
+      for (double x = startX; x <= endX; x += D) {
+        if (rng.nextDouble() <= config.density) {
+          final double jx = (rng.nextDouble() * 2.0 - 1.0) * maxJitter;
+          final double jy = (rng.nextDouble() * 2.0 - 1.0) * maxJitter;
+          _drawSingleIcon(
+            canvas: canvas,
+            x: x + jx,
+            y: y + jy,
+            config: config,
+            rng: rng,
+            iconBaseSize: iconBaseSize,
+            cache: cache,
+          );
+        }
+      }
+    }
+  }
+
+  // ── Stagger (Шахматы) ──────────────────────────────────────────────────────
+  static void _paintStagger({
+    required Canvas canvas,
+    required double cx,
+    required double cy,
+    required double diagonal,
+    required double cellSize,
+    required ChatWallpaperConfig config,
+    required Random rng,
+    required double iconBaseSize,
+    required _PainterGlyphCache cache,
+  }) {
+    final double D = cellSize;
+    final int countX = (diagonal / D).ceil() + 2;
+    final int countY = (diagonal / D).ceil() + 2;
+    final double startX = cx - (countX * D) / 2.0;
+    final double startY = cy - (countY * D) / 2.0;
+    final double endX = cx + (countX * D) / 2.0;
+    final double endY = cy + (countY * D) / 2.0;
+
+    int row = 0;
+    for (double y = startY; y <= endY; y += D, row++) {
+      final double rowOffset = (row % 2 == 1) ? (D * 0.5) : 0.0;
+      for (double x = startX + rowOffset; x <= endX; x += D) {
+        if (rng.nextDouble() <= config.density) {
+          _drawSingleIcon(
+            canvas: canvas,
+            x: x,
+            y: y,
+            config: config,
+            rng: rng,
+            iconBaseSize: iconBaseSize,
+            cache: cache,
+          );
+        }
+      }
+    }
+  }
+
+  // ── Regular Cartesian Grid ────────────────────────────────────────────────
+  static void _paintGrid({
+    required Canvas canvas,
+    required double cx,
+    required double cy,
+    required double diagonal,
+    required double cellSize,
+    required ChatWallpaperConfig config,
+    required Random rng,
+    required double iconBaseSize,
+    required _PainterGlyphCache cache,
+  }) {
+    final double D = cellSize;
+    final int countX = (diagonal / D).ceil() + 2;
+    final int countY = (diagonal / D).ceil() + 2;
+    final double startX = cx - (countX * D) / 2.0;
+    final double startY = cy - (countY * D) / 2.0;
+    final double endX = cx + (countX * D) / 2.0;
+    final double endY = cy + (countY * D) / 2.0;
+
+    for (double y = startY; y <= endY; y += D) {
+      for (double x = startX; x <= endX; x += D) {
+        if (rng.nextDouble() <= config.density) {
+          _drawSingleIcon(
+            canvas: canvas,
+            x: x,
+            y: y,
+            config: config,
+            rng: rng,
+            iconBaseSize: iconBaseSize,
+            cache: cache,
+          );
+        }
+      }
+    }
+  }
+
+  // ── High-Speed Glyph Draw (Uses pre-rendered Paragraphs & Paths) ───────────
   static void _drawSingleIcon({
     required Canvas canvas,
     required double x,
     required double y,
     required ChatWallpaperConfig config,
-    required ColorScheme scheme,
     required Random rng,
     required double iconBaseSize,
-    required Color singleColor,
-    required String fontFamily,
-    Shapes? m3Shape,
-    ui.Picture? svgPicture,
-    Map<String, ui.Picture>? paletteSvgPictures,
-    List<ui.Picture>? poolSvgPictures,
+    required _PainterGlyphCache cache,
   }) {
-    // Scale and rotation jitter
     final double scaleJitter = 1.0 + (rng.nextDouble() * 2.0 - 1.0) * config.randomScaleJitter;
-    final double scale = (scaleJitter).clamp(0.3, 2.2);
-    final double currentSize = iconBaseSize * scale;
+    final double scale = scaleJitter.clamp(0.25, 2.4);
 
     final double rotationJitterDeg = (rng.nextDouble() * 2.0 - 1.0) * config.randomRotationDeg;
     final double rotationRad = rotationJitterDeg * pi / 180.0;
 
-    // Resolve color based on colorMode
-    Color iconColor = singleColor;
-    String selectedRole = config.iconColorRole;
-    if (config.colorMode == WallpaperColorMode.palette && config.paletteRoles.isNotEmpty) {
-      selectedRole = config.paletteRoles[rng.nextInt(config.paletteRoles.length)];
-      iconColor = WallpaperColorResolver.resolveIconColor(
-        scheme,
-        selectedRole,
-        config.iconAlpha,
-      );
-    } else if (config.colorMode == WallpaperColorMode.tonalAccent) {
-      final bool pickPrimary = rng.nextBool();
-      selectedRole = pickPrimary ? 'primary' : 'tertiary';
-      iconColor = WallpaperColorResolver.resolveIconColor(
-        scheme,
-        selectedRole,
-        config.iconAlpha,
-      );
-    }
+    final String selectedRole = cache.activeRoles[rng.nextInt(cache.activeRoles.length)];
 
     canvas.save();
     canvas.translate(x, y);
+
     if (rotationRad.abs() > 0.001) {
       canvas.rotate(rotationRad);
     }
+    if ((scale - 1.0).abs() > 0.001) {
+      canvas.scale(scale, scale);
+    }
 
-    // Determine shape/icon to draw
     if (config.iconSource == IconSource.niosMess) {
-      Shapes shapeToDraw = m3Shape ?? Shapes.gem;
-      if (config.useAllIcons) {
-        shapeToDraw = _kAllM3Shapes[rng.nextInt(_kAllM3Shapes.length)];
+      final Shapes shape = cache.shapesPool[rng.nextInt(cache.shapesPool.length)];
+      final Path? path = cache.shapePaths[shape];
+      final Paint? paint = cache.shapePaints[selectedRole];
+      if (path != null && paint != null) {
+        canvas.drawPath(path, paint);
       }
-
-      final Path path = M3Clipper(shapeToDraw).getClip(Size(currentSize, currentSize));
-      final Paint paint = Paint()
-        ..color = iconColor
-        ..style = config.filled ? PaintingStyle.fill : PaintingStyle.stroke
-        ..strokeWidth = max(1.2, currentSize * 0.075);
-
-      canvas.save();
-      canvas.translate(-currentSize / 2.0, -currentSize / 2.0);
-      canvas.drawPath(path, paint);
-      canvas.restore();
     } else if (config.iconSource == IconSource.lucide || config.iconSource == IconSource.tabler) {
-      ui.Picture? picToDraw;
-      if (config.useAllIcons && poolSvgPictures != null && poolSvgPictures.isNotEmpty) {
-        picToDraw = poolSvgPictures[rng.nextInt(poolSvgPictures.length)];
+      ui.Picture? pic;
+      if (cache.poolSvgPictures != null && cache.poolSvgPictures!.isNotEmpty) {
+        pic = cache.poolSvgPictures![rng.nextInt(cache.poolSvgPictures!.length)];
       } else {
-        picToDraw = paletteSvgPictures?[selectedRole] ?? svgPicture;
+        pic = cache.paletteSvgPictures?[selectedRole] ?? cache.svgPicture;
       }
 
-      if (picToDraw != null) {
-        canvas.save();
-        final double svgScale = currentSize / 24.0;
+      if (pic != null) {
+        final double svgScale = iconBaseSize / 24.0;
         canvas.scale(svgScale, svgScale);
         canvas.translate(-12.0, -12.0);
-        canvas.drawPicture(picToDraw);
-        canvas.restore();
+        canvas.drawPicture(pic);
       }
     } else {
-      // Material Symbols (all icons mode vs single icon)
-      int code = config.glyphCodepoint;
-      if (config.useAllIcons && MaterialSymbolsData.allCodepoints.isNotEmpty) {
-        code = MaterialSymbolsData.allCodepoints[rng.nextInt(MaterialSymbolsData.allCodepoints.length)];
+      // Material Symbols or Cupertino Icons via Pre-Laid-Out ui.Paragraph
+      if (cache.activeCodepoints.isNotEmpty) {
+        final int code = cache.activeCodepoints[rng.nextInt(cache.activeCodepoints.length)];
+        final String key = '${code}_$selectedRole';
+        final ui.Paragraph? paragraph = cache.cachedParagraphs[key];
+        if (paragraph != null) {
+          canvas.drawParagraph(
+            paragraph,
+            Offset(-paragraph.width / 2.0, -paragraph.height / 2.0),
+          );
+        }
       }
-
-      final TextPainter textPainter = TextPainter(
-        text: TextSpan(
-          text: String.fromCharCode(code),
-          style: TextStyle(
-            fontFamily: fontFamily,
-            fontSize: currentSize,
-            color: iconColor,
-            fontVariations: <ui.FontVariation>[
-              ui.FontVariation('FILL', config.filled ? 1.0 : 0.0),
-              ui.FontVariation('wght', config.weight.clamp(100.0, 700.0)),
-              const ui.FontVariation('GRAD', 0.0),
-              const ui.FontVariation('opsz', 24.0),
-            ],
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(-textPainter.width / 2.0, -textPainter.height / 2.0),
-      );
     }
 
     canvas.restore();
+  }
+
+  // ── Pre-building Glyph Cache ──────────────────────────────────────────────
+  static _PainterGlyphCache _buildGlyphCache({
+    required ChatWallpaperConfig config,
+    required ColorScheme scheme,
+    required double iconBaseSize,
+    required List<String> activeRoles,
+    required Map<String, Color> resolvedColors,
+    ui.Picture? svgPicture,
+    Map<String, ui.Picture>? paletteSvgPictures,
+    List<ui.Picture>? poolSvgPictures,
+  }) {
+    final List<Shapes> shapesPool = <Shapes>[];
+    final Map<Shapes, Path> shapePaths = <Shapes, Path>{};
+    final Map<String, Paint> shapePaints = <String, Paint>{};
+
+    final List<int> activeCodepoints = <int>[];
+    final Map<String, ui.Paragraph> cachedParagraphs = <String, ui.Paragraph>{};
+
+    if (config.iconSource == IconSource.niosMess) {
+      if (config.useAllIcons) {
+        shapesPool.addAll(_kAllM3Shapes);
+      } else if (config.m3ShapeName != null && config.m3ShapeName!.isNotEmpty) {
+        shapesPool.add(_resolveM3Shape(config.m3ShapeName!));
+      } else {
+        shapesPool.add(Shapes.gem);
+      }
+
+      for (final Shapes shape in shapesPool) {
+        final Path originalPath = M3Clipper(shape).getClip(Size(iconBaseSize, iconBaseSize));
+        final Matrix4 m = Matrix4.translationValues(-iconBaseSize / 2.0, -iconBaseSize / 2.0, 0);
+        shapePaths[shape] = originalPath.transform(m.storage);
+      }
+
+      for (final String role in activeRoles) {
+        final Color c = resolvedColors[role] ?? scheme.primary;
+        shapePaints[role] = Paint()
+          ..color = c
+          ..style = config.filled ? PaintingStyle.fill : PaintingStyle.stroke
+          ..strokeWidth = max(1.2, iconBaseSize * 0.075);
+      }
+    } else if (config.iconSource == IconSource.materialSymbols) {
+      // 1. Determine active codepoints based on themePack, customGlyphs or allIcons
+      if (config.themePack != 'all' && config.themePack != 'custom') {
+        final List<String> packNames = IconSourcesCatalog.getThemePackIcons(config.themePack, isLucide: false);
+        for (final String name in packNames) {
+          final int? cp = MaterialSymbolsData.codepoints[name];
+          if (cp != null) activeCodepoints.add(cp);
+        }
+      } else if (config.themePack == 'custom' && config.selectedGlyphs.isNotEmpty) {
+        for (final String name in config.selectedGlyphs) {
+          final int? cp = MaterialSymbolsData.codepoints[name];
+          if (cp != null) activeCodepoints.add(cp);
+        }
+      } else if (!config.useAllIcons) {
+        activeCodepoints.add(config.glyphCodepoint);
+      }
+
+      if (activeCodepoints.isEmpty) {
+        if (config.useAllIcons && MaterialSymbolsData.allCodepoints.isNotEmpty) {
+          final Random sampleRng = Random(config.seed);
+          final int count = min(28, MaterialSymbolsData.allCodepoints.length);
+          for (int i = 0; i < count; i++) {
+            activeCodepoints.add(MaterialSymbolsData.allCodepoints[sampleRng.nextInt(MaterialSymbolsData.allCodepoints.length)]);
+          }
+        } else {
+          activeCodepoints.add(config.glyphCodepoint);
+        }
+      }
+
+      // 2. Pre-layout ui.Paragraph for each unique (codepoint, colorRole) combination ONCE
+      final String fontFamily = _resolveFontFamily(config.symbolsStyle);
+      final double fontSize = iconBaseSize;
+
+      for (final int code in activeCodepoints) {
+        for (final String role in activeRoles) {
+          final Color color = resolvedColors[role] ?? scheme.primary;
+          final String key = '${code}_$role';
+
+          final ui.ParagraphBuilder pb = ui.ParagraphBuilder(
+            ui.ParagraphStyle(
+              textAlign: TextAlign.center,
+              fontSize: fontSize,
+            ),
+          );
+          pb.pushStyle(
+            ui.TextStyle(
+              color: color,
+              fontSize: fontSize,
+              fontFamily: fontFamily,
+              fontVariations: <ui.FontVariation>[
+                ui.FontVariation('FILL', config.filled ? 1.0 : 0.0),
+                ui.FontVariation('wght', config.weight.clamp(100.0, 700.0)),
+                const ui.FontVariation('GRAD', 0.0),
+                const ui.FontVariation('opsz', 24.0),
+              ],
+            ),
+          );
+          pb.addText(String.fromCharCode(code));
+          final ui.Paragraph paragraph = pb.build();
+          paragraph.layout(ui.ParagraphConstraints(width: fontSize * 1.4));
+          cachedParagraphs[key] = paragraph;
+        }
+      }
+    } else if (config.iconSource == IconSource.cupertino) {
+      if (config.themePack != 'all' && config.themePack != 'custom') {
+        final List<String> packNames = IconSourcesCatalog.getThemePackIcons(
+          config.themePack,
+          source: IconSource.cupertino,
+        );
+        for (final String name in packNames) {
+          activeCodepoints.add(
+            CupertinoIconsData.resolveCodepoint(name, filled: config.filled),
+          );
+        }
+      } else if (config.themePack == 'custom' &&
+          config.selectedGlyphs.isNotEmpty) {
+        for (final String name in config.selectedGlyphs) {
+          activeCodepoints.add(
+            CupertinoIconsData.resolveCodepoint(name, filled: config.filled),
+          );
+        }
+      } else if (!config.useAllIcons) {
+        activeCodepoints.add(
+          CupertinoIconsData.resolveCodepoint(config.glyphName,
+              filled: config.filled),
+        );
+      }
+
+      if (activeCodepoints.isEmpty) {
+        final Random sampleRng = Random(config.seed);
+        final int count = min(28, CupertinoIconsData.allNames.length);
+        for (int i = 0; i < count; i++) {
+          final String name = CupertinoIconsData
+              .allNames[sampleRng.nextInt(CupertinoIconsData.allNames.length)];
+          activeCodepoints.add(
+            CupertinoIconsData.resolveCodepoint(name, filled: config.filled),
+          );
+        }
+      }
+
+      const String fontFamily = 'packages/cupertino_icons/CupertinoIcons';
+      final double fontSize = iconBaseSize;
+
+      for (final int code in activeCodepoints) {
+        for (final String role in activeRoles) {
+          final Color color = resolvedColors[role] ?? scheme.primary;
+          final String key = '${code}_$role';
+
+          final ui.ParagraphBuilder pb = ui.ParagraphBuilder(
+            ui.ParagraphStyle(
+              textAlign: TextAlign.center,
+              fontSize: fontSize,
+            ),
+          );
+          pb.pushStyle(
+            ui.TextStyle(
+              color: color,
+              fontSize: fontSize,
+              fontFamily: fontFamily,
+            ),
+          );
+          pb.addText(String.fromCharCode(code));
+          final ui.Paragraph paragraph = pb.build();
+          paragraph.layout(ui.ParagraphConstraints(width: fontSize * 1.4));
+          cachedParagraphs[key] = paragraph;
+        }
+      }
+    }
+
+    return _PainterGlyphCache(
+      activeRoles: activeRoles,
+      resolvedColors: resolvedColors,
+      shapesPool: shapesPool,
+      shapePaths: shapePaths,
+      shapePaints: shapePaints,
+      activeCodepoints: activeCodepoints,
+      cachedParagraphs: cachedParagraphs,
+      svgPicture: svgPicture,
+      paletteSvgPictures: paletteSvgPictures,
+      poolSvgPictures: poolSvgPictures,
+    );
+  }
+
+  static List<String> _resolveActiveRoles(ChatWallpaperConfig config) {
+    if (config.colorMode == WallpaperColorMode.singleTone) {
+      return <String>[config.iconColorRole];
+    } else if (config.colorMode == WallpaperColorMode.tonalAccent) {
+      return const <String>['primary', 'tertiary'];
+    } else {
+      return config.paletteRoles.isNotEmpty
+          ? config.paletteRoles
+          : const <String>['primary', 'secondary', 'tertiary', 'outline'];
+    }
   }
 
   static String _resolveFontFamily(MaterialSymbolsStyle style) {
@@ -387,6 +700,12 @@ class ChatWallpaperPainter extends CustomPainter {
       case 'm3_slanted':
       case 'slanted':
         return Shapes.slanted;
+      case 'm3_sunny':
+      case 'sunny':
+        return Shapes.sunny;
+      case 'm3_flower':
+      case 'flower':
+        return Shapes.flower;
       default:
         return Shapes.gem;
     }
@@ -396,6 +715,34 @@ class ChatWallpaperPainter extends CustomPainter {
   bool shouldRepaint(ChatWallpaperPainter oldDelegate) {
     return oldDelegate.config != config ||
         oldDelegate.scheme != scheme ||
-        oldDelegate.svgPicture != svgPicture;
+        oldDelegate.svgPicture != svgPicture ||
+        oldDelegate.poolSvgPictures != poolSvgPictures;
   }
 }
+
+class _PainterGlyphCache {
+  _PainterGlyphCache({
+    required this.activeRoles,
+    required this.resolvedColors,
+    required this.shapesPool,
+    required this.shapePaths,
+    required this.shapePaints,
+    required this.activeCodepoints,
+    required this.cachedParagraphs,
+    this.svgPicture,
+    this.paletteSvgPictures,
+    this.poolSvgPictures,
+  });
+
+  final List<String> activeRoles;
+  final Map<String, Color> resolvedColors;
+  final List<Shapes> shapesPool;
+  final Map<Shapes, Path> shapePaths;
+  final Map<String, Paint> shapePaints;
+  final List<int> activeCodepoints;
+  final Map<String, ui.Paragraph> cachedParagraphs;
+  final ui.Picture? svgPicture;
+  final Map<String, ui.Picture>? paletteSvgPictures;
+  final List<ui.Picture>? poolSvgPictures;
+}
+

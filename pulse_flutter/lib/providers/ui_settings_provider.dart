@@ -77,6 +77,8 @@ class UiSettingsState {
     this.doubleTapReactionEmoji = '❤️',
     this.autoDownloadWifi = true,
     this.autoDownloadCellular = false,
+    this.messageBubbleRadius = 16.0,
+    this.uiCornerRadius = 20.0,
   });
 
   VisualThemeSettings get visualTheme => VisualThemeSettings(
@@ -109,7 +111,9 @@ class UiSettingsState {
       sendOnEnter = true,
       doubleTapReactionEmoji = '❤️',
       autoDownloadWifi = true,
-      autoDownloadCellular = false;
+      autoDownloadCellular = false,
+      messageBubbleRadius = 16.0,
+      uiCornerRadius = 20.0;
 
   final ThemeMode themeMode;
   final Color seedColor;
@@ -133,6 +137,8 @@ class UiSettingsState {
   final String doubleTapReactionEmoji;
   final bool autoDownloadWifi;
   final bool autoDownloadCellular;
+  final double messageBubbleRadius;
+  final double uiCornerRadius;
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
@@ -159,6 +165,8 @@ class UiSettingsState {
     String? doubleTapReactionEmoji,
     bool? autoDownloadWifi,
     bool? autoDownloadCellular,
+    double? messageBubbleRadius,
+    double? uiCornerRadius,
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -187,6 +195,8 @@ class UiSettingsState {
       autoDownloadWifi: autoDownloadWifi ?? this.autoDownloadWifi,
       autoDownloadCellular:
           autoDownloadCellular ?? this.autoDownloadCellular,
+      messageBubbleRadius: messageBubbleRadius ?? this.messageBubbleRadius,
+      uiCornerRadius: uiCornerRadius ?? this.uiCornerRadius,
     );
   }
 
@@ -220,6 +230,8 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _doubleTapReactionEmojiKey = 'ui.doubleTapReactionEmoji';
   static const String _autoDownloadWifiKey = 'ui.autoDownloadWifi';
   static const String _autoDownloadCellularKey = 'ui.autoDownloadCellular';
+  static const String _messageBubbleRadiusKey = 'ui.messageBubbleRadius';
+  static const String _uiCornerRadiusKey = 'ui.cornerRadius';
 
   bool _loaded = false;
 
@@ -283,6 +295,10 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
           prefs.getBool(_autoDownloadWifiKey) ?? state.autoDownloadWifi,
       autoDownloadCellular:
           prefs.getBool(_autoDownloadCellularKey) ?? state.autoDownloadCellular,
+      messageBubbleRadius:
+          prefs.getDouble(_messageBubbleRadiusKey) ?? state.messageBubbleRadius,
+      uiCornerRadius:
+          prefs.getDouble(_uiCornerRadiusKey) ?? state.uiCornerRadius,
     );
     } catch (e) {
       debugPrint('[UiSettingsNotifier] Failed to load settings: $e');
@@ -320,6 +336,8 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.setString(_doubleTapReactionEmojiKey, nextState.doubleTapReactionEmoji),
       prefs.setBool(_autoDownloadWifiKey, nextState.autoDownloadWifi),
       prefs.setBool(_autoDownloadCellularKey, nextState.autoDownloadCellular),
+      prefs.setDouble(_messageBubbleRadiusKey, nextState.messageBubbleRadius),
+      prefs.setDouble(_uiCornerRadiusKey, nextState.uiCornerRadius),
     ]);
   }
 
@@ -327,6 +345,12 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     state = nextState;
     _persist(nextState);
   }
+
+  void setMessageBubbleRadius(double value) =>
+      _set(state.copyWith(messageBubbleRadius: value));
+
+  void setUiCornerRadius(double value) =>
+      _set(state.copyWith(uiCornerRadius: value));
 
   void setThemeMode(ThemeMode value) {
     debugPrint('[UiSettingsNotifier] setThemeMode -> $value');

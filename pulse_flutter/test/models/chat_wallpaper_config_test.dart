@@ -72,5 +72,48 @@ void main() {
       expect(updated.density, config.density);
       expect(updated.seed, config.seed);
     });
+
+    test('themePack and selectedGlyphs serialization and copyWith', () {
+      const original = ChatWallpaperConfig(
+        themePack: 'tech',
+        selectedGlyphs: <String>['code', 'terminal', 'cpu'],
+      );
+      final jsonStr = original.toJson();
+      final restored = ChatWallpaperConfig.fromJson(jsonStr);
+
+      expect(restored.themePack, 'tech');
+      expect(restored.selectedGlyphs, <String>['code', 'terminal', 'cpu']);
+
+      final modified = restored.copyWith(themePack: 'space', selectedGlyphs: <String>['rocket']);
+      expect(modified.themePack, 'space');
+      expect(modified.selectedGlyphs, <String>['rocket']);
+    });
+
+    test('Gradient styles and new icon sources serialize correctly', () {
+      const config = ChatWallpaperConfig(
+        iconSource: IconSource.cupertino,
+        backgroundStyle: WallpaperBackgroundStyle.linearGradient,
+        backgroundSecondaryRole: 'primaryContainer',
+        gradientAngle: 135.0,
+      );
+
+      final jsonStr = config.toJson();
+      final restored = ChatWallpaperConfig.fromJson(jsonStr);
+
+      expect(restored.iconSource, IconSource.cupertino);
+      expect(restored.backgroundStyle, WallpaperBackgroundStyle.linearGradient);
+      expect(restored.backgroundSecondaryRole, 'primaryContainer');
+      expect(restored.gradientAngle, 135.0);
+    });
+
+    test('kDefaultWallpaperPresets contains valid curated presets', () {
+      expect(kDefaultWallpaperPresets, isNotEmpty);
+      for (final preset in kDefaultWallpaperPresets) {
+        expect(preset.id, isNotEmpty);
+        expect(preset.name, isNotEmpty);
+        expect(preset.config, isNotNull);
+      }
+    });
   });
 }
+

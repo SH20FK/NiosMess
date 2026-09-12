@@ -168,8 +168,13 @@ class AuthRepository {
     if (clearPhoneNumber) {
       payload['phone_number'] = null;
     } else if (phoneNumber != null) {
-      payload['phone_number'] =
-          phoneNumber.trim().isEmpty ? null : phoneNumber.trim();
+      final String trimmed = phoneNumber.trim();
+      if (trimmed.isEmpty) {
+        payload['phone_number'] = null;
+      } else {
+        payload['phone_number'] =
+            trimmed.startsWith('+') ? trimmed : '+$trimmed';
+      }
     }
     if (clearBirthday) {
       payload['birthday'] = null;
@@ -178,9 +183,9 @@ class AuthRepository {
           birthday.trim().isEmpty ? null : birthday.trim();
     }
     if (clearWorkingHours) {
-      payload['working_hours'] = null;
+      payload['working_hours'] = <String, dynamic>{};
     } else if (workingHours != null) {
-      payload['working_hours'] = workingHours.toJson();
+      payload['working_hours'] = workingHours.toServerJson();
     }
 
     final dynamic response = await _ref

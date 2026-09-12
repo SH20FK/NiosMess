@@ -24,12 +24,19 @@ import 'package:pulse_flutter/firebase_options.dart';
 import 'package:pulse_flutter/providers/call_push_handler.dart';
 import 'package:pulse_flutter/widgets/calls/call_overlay.dart';
 import 'package:pulse_flutter/screens/calls/incoming_call_overlay.dart';
+import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 
 Future<void> main() async {
   await runZonedGuarded<Future<void>>(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      // Precache GPU fragment shader for instant appearance settings screen mesh gradient
+      unawaited(
+        ShaderBuilder.precacheShader(
+          'packages/mesh_gradient/shaders/animated_mesh_gradient.frag',
+        ).catchError((Object _) {}),
+      );
       await const CacheService().ensureInitialized();
       await EncryptedMessageCache.ensureInitialized();
       final AppLogger logger = AppLogger.instance;

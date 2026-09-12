@@ -1,11 +1,7 @@
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
-import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -48,273 +44,202 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
   final List<ApiBadge> badges;
 
   @override
-  double get minExtent => 88;
+  double get minExtent => 68;
 
   @override
-  double get maxExtent => 440;
+  double get maxExtent => 220;
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final double topInset = MediaQuery.viewPaddingOf(context).top;
     final double progress =
         (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
     final double screenWidth = MediaQuery.sizeOf(context).width;
 
-    final double fogOpacity = (1.0 - (progress / 0.7)).clamp(0.0, 1.0);
-    final double expandedOpacity = ((0.7 - progress) / 0.4).clamp(0.0, 1.0);
-    final double collapsedOpacity = ((progress - 0.3) / 0.4).clamp(0.0, 1.0);
+    final double expandedOpacity = ((0.65 - progress) / 0.35).clamp(0.0, 1.0);
+    final double collapsedOpacity = ((progress - 0.4) / 0.35).clamp(0.0, 1.0);
 
-    const double expandedAvatarSize = 112;
-    const double collapsedAvatarSizeTarget = 40;
-    final double collapsedAvatarSize = ui.lerpDouble(expandedAvatarSize, collapsedAvatarSizeTarget, progress)!;
+    const double expandedAvatarSize = 76;
+    const double collapsedAvatarSize = 36;
+
     final double collapsedAvatarTop =
         topInset + (minExtent - topInset - collapsedAvatarSize) / 2;
-    const double collapsedAvatarLeft = 16;
-    final double collapsedTitleTop =
-        topInset + (minExtent - topInset - 28) / 2;
-
-    final double gearTopExpanded = topInset + 8;
-    final double gearTopCollapsed =
-        topInset + (minExtent - topInset) / 2 - 24;
-    final double gearTop = ui.lerpDouble(gearTopExpanded, gearTopCollapsed, progress)!;
-    final double gearSurfaceBlend = ((progress - 0.3) / 0.4).clamp(0.0, 1.0);
-    final Color gearColor = Color.lerp(
-          scheme.primaryContainer,
-          scheme.surfaceContainerHigh,
-          gearSurfaceBlend,
-        ) ??
-        scheme.surfaceContainerHigh;
+    final double gearTop = topInset + 8;
 
     return Container(
       decoration: BoxDecoration(
-        color: Color.lerp(
-          Colors.transparent,
-          scheme.surface.withValues(alpha: 0.95),
-          progress,
+        color: scheme.surface,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            scheme.primaryContainer.withValues(
+              alpha: ui.lerpDouble(isDark ? 0.30 : 0.40, 0.08, progress)!,
+            ),
+            scheme.surface,
+          ],
         ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: scheme.shadow.withValues(alpha: 0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+        border: Border(
+          bottom: BorderSide(
+            color: scheme.outlineVariant.withValues(
+              alpha: progress > 0.85 ? (isDark ? 0.20 : 0.35) : 0.0,
+            ),
           ),
-        ],
+        ),
       ),
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          // Fog background
-          Positioned.fill(
-            child: _ProfileHeaderFadeTransition(
-              opacity: fogOpacity,
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final tier = ref.watch(
-                    adaptivePerformanceProvider.select((s) => s.tier),
-                  );
-                  final optimize = ref.watch(
-                    uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
-                  );
-                  return CustomPaint(
-                    painter: _ExpressiveProfileFogPainter(
-                      progress: progress,
-                      scheme: scheme,
-                      tier: tier,
-                      optimizeForWeakDevices: optimize,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          // Shadow gradient at bottom
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: IgnorePointer(
-              child: Opacity(
-                opacity: progress,
-                child: Container(
-                  height: 92,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: <Color>[
-                        Colors.transparent,
-                        scheme.surface.withValues(alpha: 0.16),
-                        scheme.surface.withValues(alpha: 0.42),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Expanded state: avatar + info + badges + stats
+          // 1. Expanded view: compact avatar, name, username, badges, bio
           Positioned.fill(
             child: _ProfileHeaderFadeTransition(
               opacity: expandedOpacity,
               child: Padding(
-                padding: EdgeInsets.only(top: topInset + 20),
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        // Avatar
-                        GestureDetector(
-                          onTap: isUploadingAvatar ? null : onUploadAvatar,
-                          child: SizedBox(
-                            width: 112,
-                            height: 112,
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: <Widget>[
-                                PulseAvatar(
-                                  radius: 56,
-                                  name: name,
-                                  avatarUrl: avatarUrl,
-                                  fallbackColor: scheme.primaryContainer,
-                                  textColor: scheme.onPrimaryContainer,
-                                  borderColor: scheme.surface,
-                                  borderWidth: 2,
+                padding: EdgeInsets.only(top: topInset + 10),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // Avatar with camera badge
+                    GestureDetector(
+                      onTap: isUploadingAvatar ? null : onUploadAvatar,
+                      child: SizedBox(
+                        width: expandedAvatarSize,
+                        height: expandedAvatarSize,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: <Widget>[
+                            PulseAvatar(
+                              radius: expandedAvatarSize / 2,
+                              name: name,
+                              avatarUrl: avatarUrl,
+                              fallbackColor: scheme.primaryContainer,
+                              textColor: scheme.onPrimaryContainer,
+                              borderColor: scheme.surface,
+                              borderWidth: 2,
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                width: 26,
+                                height: 26,
+                                decoration: BoxDecoration(
+                                  color: scheme.surface,
+                                  shape: BoxShape.circle,
+                                  boxShadow: <BoxShadow>[
+                                    BoxShadow(
+                                      color: scheme.shadow
+                                          .withValues(alpha: 0.12),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
-                                Positioned(
-                                  right: 2,
-                                  bottom: 2,
-                                  child: Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: scheme.surface,
-                                      shape: BoxShape.circle,
-                                      boxShadow: <BoxShadow>[
-                                        BoxShadow(
-                                          color: scheme.shadow.withValues(alpha: 0.10),
-                                          blurRadius: 12,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Container(
-                                      width: 24,
-                                      height: 24,
-                                      decoration: BoxDecoration(
-                                        color: scheme.primary,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: isUploadingAvatar
-                                        ? AppLoadingIndicator(size: 12, color: scheme.onPrimary)
-                                        : Icon(
-                                            Icons.camera_alt_rounded,
-                                            size: 12,
-                                            color: scheme.onPrimary,
-                                          ),
-                                    ),
+                                alignment: Alignment.center,
+                                child: Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: scheme.primary,
+                                    shape: BoxShape.circle,
                                   ),
+                                  alignment: Alignment.center,
+                                  child: isUploadingAvatar
+                                      ? AppLoadingIndicator(
+                                          size: 10,
+                                          color: scheme.onPrimary,
+                                        )
+                                      : Icon(
+                                          Icons.camera_alt_rounded,
+                                          size: 11,
+                                          color: scheme.onPrimary,
+                                        ),
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(height: 24),
-                        // Name + username
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 320),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              Text(
-                                name,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.6,
-                                  color: scheme.onSurface,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                username.isEmpty ? '' : '@$username',
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Bio
-                        if (bio != null && bio!.trim().isNotEmpty) ...[
-                          const SizedBox(height: 14),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 320),
-                            child: Text(
-                              bio!.trim(),
-                              textAlign: TextAlign.center,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        ],
-                        // Badges
-                        if (badges.isNotEmpty) ...[
-                          const SizedBox(height: 14),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: Wrap(
-                              spacing: 6,
-                              runSpacing: 4,
-                              alignment: WrapAlignment.center,
-                              children: badges.map((ApiBadge b) {
-                                return BadgeChip(
-                                  id: b.id,
-                                  name: b.name,
-                                  icon: b.icon,
-                                  color: b.color,
-                                  mode: BadgeDisplayMode.infoLabel,
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+
+                    // Name + username
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(
+                            name,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                              color: scheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            username.isEmpty ? '' : '@',
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Badges or bio
+                    if (badges.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        alignment: WrapAlignment.center,
+                        children: badges.take(2).map((ApiBadge b) {
+                          return BadgeChip(
+                            id: b.id,
+                            name: b.name,
+                            icon: b.icon,
+                            color: b.color,
+                            mode: BadgeDisplayMode.infoLabel,
+                          );
+                        }).toList(),
+                      ),
+                    ] else if (bio != null && bio!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          bio!.trim(),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
           ),
-          // Edit gear button
+
+          // 2. Collapsed view: compact horizontal bar
           Positioned(
-            right: 16,
-            top: gearTop,
-            child: Material(
-              color: gearColor.withValues(alpha: 0.88),
-              shape: const CircleBorder(),
-              child: IconButton(
-                icon: const Icon(Icons.tune_rounded),
-                onPressed: onEdit,
-              ),
-            ),
-          ),
-          // Collapsed state
-          Positioned(
-            left: collapsedAvatarLeft,
+            left: 16,
             top: collapsedAvatarTop,
             child: _ProfileHeaderFadeTransition(
               opacity: collapsedOpacity,
@@ -330,26 +255,47 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
                     fallbackColor: scheme.primaryContainer,
                     textColor: scheme.onPrimaryContainer,
                     borderColor: scheme.surface,
-                    borderWidth: 2,
+                    borderWidth: 1.5,
                   ),
                 ),
               ),
             ),
           ),
           Positioned(
-            left: collapsedAvatarLeft + 48,
-            top: collapsedTitleTop,
+            left: 62,
+            top: topInset + (minExtent - topInset - 24) / 2,
             child: _ProfileHeaderFadeTransition(
               opacity: collapsedOpacity,
               child: SizedBox(
-                width: screenWidth - (collapsedAvatarLeft + 48 + 16),
+                width: (screenWidth - 120).clamp(100.0, 600.0),
                 child: Text(
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: textTheme.titleLarge?.copyWith(
+                  style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: scheme.onSurface,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // 3. Edit gear button (always top-right)
+          Positioned(
+            right: 14,
+            top: gearTop,
+            child: Material(
+              color: scheme.surfaceContainerHigh.withValues(alpha: 0.8),
+              shape: const CircleBorder(),
+              child: Tooltip(
+                message: 'Редактировать',
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onEdit,
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(Icons.tune_rounded, size: 20),
                   ),
                 ),
               ),
@@ -370,163 +316,5 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
         onUploadAvatar != oldDelegate.onUploadAvatar ||
         bio != oldDelegate.bio ||
         badges != oldDelegate.badges;
-  }
-}
-
-class _ExpressiveProfileFogPainter extends CustomPainter {
-  const _ExpressiveProfileFogPainter({
-    required this.progress,
-    required this.scheme,
-    this.tier = PerformanceTier.tierA,
-    this.optimizeForWeakDevices = false,
-  });
-
-  final double progress;
-  final ColorScheme scheme;
-  final PerformanceTier tier;
-  final bool optimizeForWeakDevices;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Rect rect = Offset.zero & size;
-    final Paint base = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: <Color>[
-          Color.alphaBlend(
-            scheme.primary.withValues(alpha: 0.035),
-            scheme.surfaceContainerHigh,
-          ),
-          Color.alphaBlend(
-            scheme.tertiary.withValues(alpha: 0.02),
-            scheme.surfaceContainerLow,
-          ),
-        ],
-      ).createShader(rect);
-    canvas.drawRect(rect, base);
-
-    // If Tier C or weak devices: Zero MaskFilter.blur passes during scroll
-    if (tier == PerformanceTier.tierC || optimizeForWeakDevices) {
-      return;
-    }
-
-    final double drift = (1.0 - progress) * 8;
-    final double phase = progress * math.pi * 2;
-    canvas.save();
-    canvas.clipRect(rect.inflate(48));
-
-    final double blurFactor = (tier == PerformanceTier.tierB) ? 0.45 : 1.0;
-
-    _drawFogCluster(
-      canvas,
-      center: Offset(
-        size.width * 0.22 + math.sin(phase + 0.2) * drift,
-        size.height * 0.20,
-      ),
-      radiusX: size.width * 0.22,
-      radiusY: 34,
-      color: scheme.primary.withValues(alpha: 0.12),
-      blurSigma: 32 * blurFactor,
-      lobeScale: 0.94,
-    );
-    _drawFogCluster(
-      canvas,
-      center: Offset(
-        size.width * 0.74 + math.cos(phase + 0.7) * drift,
-        size.height * 0.18,
-      ),
-      radiusX: size.width * 0.16,
-      radiusY: 26,
-      color: scheme.primaryContainer.withValues(alpha: 0.14),
-      blurSigma: 28 * blurFactor,
-      lobeScale: 0.88,
-    );
-    _drawFogCluster(
-      canvas,
-      center: Offset(
-        size.width * 0.54 + math.sin(phase + 1.2) * drift,
-        size.height * 0.34,
-      ),
-      radiusX: size.width * 0.24,
-      radiusY: 38,
-      color: scheme.tertiary.withValues(alpha: 0.08),
-      blurSigma: 32 * blurFactor,
-      lobeScale: 1.0,
-    );
-
-    // Render remaining clusters on flagship Tier A only
-    if (tier == PerformanceTier.tierA) {
-      _drawFogCluster(
-        canvas,
-        center: Offset(
-          size.width * 0.34 + math.cos(phase + 1.7) * drift,
-          size.height * 0.58,
-        ),
-        radiusX: size.width * 0.28,
-        radiusY: 42,
-        color: scheme.secondary.withValues(alpha: 0.06),
-        blurSigma: 32,
-        lobeScale: 1.06,
-      );
-      _drawFogCluster(
-        canvas,
-        center: Offset(
-          size.width * 0.76 + math.sin(phase + 2.4) * drift,
-          size.height * 0.62,
-        ),
-        radiusX: size.width * 0.18,
-        radiusY: 30,
-        color: scheme.primaryContainer.withValues(alpha: 0.10),
-        blurSigma: 26,
-        lobeScale: 0.90,
-      );
-    }
-    canvas.restore();
-  }
-
-  void _drawFogCluster(
-    Canvas canvas, {
-    required Offset center,
-    required double radiusX,
-    required double radiusY,
-    required Color color,
-    required double blurSigma,
-    required double lobeScale,
-  }) {
-    final Paint corePaint = Paint()
-      ..color = color
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurSigma);
-    final Path body = Path()
-      ..addOval(
-        Rect.fromCenter(
-          center: center,
-          width: radiusX * 2,
-          height: radiusY * 2,
-        ),
-      )
-      ..addOval(
-        Rect.fromCenter(
-          center: center.translate(-radiusX * 0.28, radiusY * 0.06),
-          width: radiusX * 1.04 * lobeScale,
-          height: radiusY * 1.02 * lobeScale,
-        ),
-      )
-      ..addOval(
-        Rect.fromCenter(
-          center: center.translate(radiusX * 0.24, -radiusY * 0.12),
-          width: radiusX * 0.98 * lobeScale,
-          height: radiusY * 0.96 * lobeScale,
-        ),
-      );
-    canvas.drawPath(body, corePaint);
-  }
-
-  @override
-  bool shouldRepaint(_ExpressiveProfileFogPainter oldDelegate) {
-    return progress != oldDelegate.progress ||
-        scheme != oldDelegate.scheme ||
-        tier != oldDelegate.tier ||
-        optimizeForWeakDevices != oldDelegate.optimizeForWeakDevices;
   }
 }

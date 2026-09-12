@@ -86,3 +86,6 @@ design.md
 ДОКУМЕТАЦИЯ БОТЫ.md
 NiosMess_Setup.iss
 update_script.ps1
+dev_proxy.py
+__pycache__/
+

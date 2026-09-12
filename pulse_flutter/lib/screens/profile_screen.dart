@@ -1,8 +1,10 @@
-import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/storage/local_storage_service.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -27,10 +29,10 @@ import 'package:pulse_flutter/models/api/working_hours_model.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/profile/working_hours_widget.dart';
 import 'package:pulse_flutter/widgets/profile/working_hours_planner_dialog.dart';
-import 'package:pulse_flutter/widgets/profile/badge_selector_dialog.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
-import 'package:pulse_flutter/widgets/profile_header_delegate.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -227,6 +229,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ref.watch(desktopSelectedSettingsSectionProvider);
 
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final ThemeMode themeMode =
+        ref.watch(uiSettingsProvider.select((UiSettingsState s) => s.themeMode));
+    final bool isRussian =
+        Localizations.localeOf(context).languageCode == 'ru';
+    final String themeLabel = themeMode == ThemeMode.dark
+        ? (isRussian ? 'Тёмная' : 'Dark')
+        : themeMode == ThemeMode.light
+            ? (isRussian ? 'Светлая' : 'Light')
+            : (isRussian ? 'Системная' : 'System');
+    final String languageLabel = isRussian ? 'Русский' : 'English';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -254,14 +266,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // 1. Account & Security
+                // 1. Account & Sessions
                 SettingsSection(
                   isCard: false,
-                  title: context.l10n.profileSectionAccount,
+                  title: 'Аккаунт и сессии',
                   children: <Widget>[
                     SettingsTile(
                       icon: Icons.manage_accounts_rounded,
                       title: context.l10n.settingsAccountTitle,
+                      value: username.isNotEmpty ? '@$username' : null,
                       iconColor: scheme.primary,
                       isSelected: selectedSection == SettingsSectionId.account,
                       onTap: () => ref
@@ -280,14 +293,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ],
                 ),
 
-                // 2. Interface & Personalization
+                // 2. Appearance & Chats
                 SettingsSection(
                   isCard: false,
-                  title: context.l10n.profileAppearance,
+                  title: 'Внешний вид и чаты',
                   children: <Widget>[
                     SettingsTile(
                       icon: Icons.palette_rounded,
                       title: context.l10n.profileAppearance,
+                      value: themeLabel,
                       iconColor: scheme.primary,
                       isSelected:
                           selectedSection == SettingsSectionId.appearance,
@@ -305,6 +319,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           .read(desktopSelectedSettingsSectionProvider.notifier)
                           .setSelectedSection(SettingsSectionId.chats),
                     ),
+                  ],
+                ),
+
+                // 3. Notifications & Sounds
+                SettingsSection(
+                  isCard: false,
+                  title: 'Уведомления и звуки',
+                  children: <Widget>[
                     SettingsTile(
                       icon: Icons.notifications_active_rounded,
                       title: context.l10n.settingsPreferencesTitle,
@@ -315,25 +337,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           .read(desktopSelectedSettingsSectionProvider.notifier)
                           .setSelectedSection(SettingsSectionId.preferences),
                     ),
-                    SettingsTile(
-                      icon: Icons.language_rounded,
-                      title: context.l10n.profileLanguage,
-                      iconColor: scheme.secondary,
-                      isSelected:
-                          selectedSection == SettingsSectionId.languageRegion,
-                      onTap: () => ref
-                          .read(desktopSelectedSettingsSectionProvider.notifier)
-                          .setSelectedSection(
-                            SettingsSectionId.languageRegion,
-                          ),
-                    ),
                   ],
                 ),
 
-                // 3. Privacy & Security
+                // 4. Privacy & Security
                 SettingsSection(
                   isCard: false,
-                  title: context.l10n.profileSectionPrivacySecurity,
+                  title: 'Безопасность и E2EE',
                   children: <Widget>[
                     SettingsTile(
                       icon: Icons.lock_rounded,
@@ -356,39 +366,71 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ],
                 ),
 
-                // 4. Notifications & Storage
+                // 5. Storage & Data
                 SettingsSection(
                   isCard: false,
-                  title: context.l10n.settingsStorageTitle,
+                  title: 'Память и данные',
                   children: <Widget>[
                     SettingsTile(
                       icon: Icons.sd_storage_rounded,
                       title: context.l10n.settingsStorageTitle,
+                      value: storageUsed.isNotEmpty ? storageUsed : '0 Б',
                       iconColor: scheme.tertiary,
                       isSelected: selectedSection == SettingsSectionId.storage,
                       onTap: () => ref
                           .read(desktopSelectedSettingsSectionProvider.notifier)
                           .setSelectedSection(SettingsSectionId.storage),
                     ),
+                  ],
+                ),
+
+                // 6. Language & Region
+                SettingsSection(
+                  isCard: false,
+                  title: context.l10n.profileLanguage,
+                  children: <Widget>[
                     SettingsTile(
-                      icon: Icons.memory_rounded,
-                      title: 'Система и устройство',
-                      iconColor: scheme.primary,
+                      icon: Icons.language_rounded,
+                      title: context.l10n.profileLanguage,
+                      value: languageLabel,
+                      iconColor: scheme.secondary,
                       isSelected:
-                          selectedSection == SettingsSectionId.systemDevice,
+                          selectedSection == SettingsSectionId.languageRegion,
                       onTap: () => ref
                           .read(desktopSelectedSettingsSectionProvider.notifier)
-                          .setSelectedSection(SettingsSectionId.systemDevice),
+                          .setSelectedSection(
+                            SettingsSectionId.languageRegion,
+                          ),
                     ),
+                  ],
+                ),
+
+                // 7. About App
+                SettingsSection(
+                  isCard: false,
+                  title: 'О приложении',
+                  children: <Widget>[
                     SettingsTile(
                       icon: Icons.info_outline_rounded,
                       title: context.l10n.settingsAboutTitle,
+                      value: AppConstants.appVersionWithPrefix,
                       iconColor: scheme.onSurfaceVariant,
                       isSelected: selectedSection == SettingsSectionId.about,
                       onTap: () => ref
                           .read(desktopSelectedSettingsSectionProvider.notifier)
                           .setSelectedSection(SettingsSectionId.about),
                     ),
+                    if (!kIsWeb)
+                      SettingsTile(
+                        icon: Icons.memory_rounded,
+                        title: 'Система и устройство',
+                        iconColor: scheme.primary,
+                        isSelected:
+                            selectedSection == SettingsSectionId.systemDevice,
+                        onTap: () => ref
+                            .read(desktopSelectedSettingsSectionProvider.notifier)
+                            .setSelectedSection(SettingsSectionId.systemDevice),
+                      ),
                   ],
                 ),
 
@@ -436,22 +478,64 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
           // 3. Right Detail Pane
           Expanded(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 740),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: KeyedSubtree(
-                    key: ValueKey<SettingsSectionId>(selectedSection),
-                    child: _buildDetailPane(selectedSection),
-                  ),
+            child: RepaintBoundary(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 260),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  final Animation<double> curved = CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                    reverseCurve: Curves.easeInCubic,
+                  );
+                  return FadeTransition(
+                    opacity: CurvedAnimation(
+                      parent: animation,
+                      curve: const Interval(0.0, 0.85, curve: Curves.easeOut),
+                    ),
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.02, 0),
+                        end: Offset.zero,
+                      ).animate(curved),
+                      child: child,
+                    ),
+                  );
+                },
+                child: KeyedSubtree(
+                  key: ValueKey<SettingsSectionId>(selectedSection),
+                  child: _buildDetailPane(selectedSection),
                 ),
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  void _openEditProfile(
+    BuildContext context,
+    String displayName,
+    AuthState auth,
+    String bio,
+  ) {
+    _EditProfileSheet.show(
+      context,
+      initialName: auth.profile?.displayName.isNotEmpty == true
+          ? auth.profile!.displayName
+          : displayName,
+      initialUsername: auth.profile?.username.isNotEmpty == true
+          ? auth.profile!.username
+          : (auth.session?.username ?? ''),
+      initialBio: auth.profile?.bio.isNotEmpty == true
+          ? auth.profile!.bio
+          : bio,
+      initialPhoneNumber: auth.profile?.phoneNumber,
+      initialBirthday: auth.profile?.birthday,
+      initialWorkingHours: auth.profile?.workingHours,
+      onUploadAvatar: _uploadAvatar,
     );
   }
 
@@ -469,21 +553,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.25 : 0.40),
-          width: 1,
-        ),
-        boxShadow: isDark
-            ? null
-            : <BoxShadow>[
-                BoxShadow(
-                  color: scheme.shadow.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+        color: isDark
+            ? scheme.surfaceContainerLow
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         children: <Widget>[
@@ -575,24 +648,51 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
           ],
+          if (auth.profile?.phoneNumber?.isNotEmpty == true ||
+              auth.profile?.birthday?.isNotEmpty == true) ...<Widget>[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              children: <Widget>[
+                if (auth.profile?.phoneNumber?.isNotEmpty == true)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(Icons.phone_outlined, size: 12, color: scheme.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        auth.profile!.phoneNumber!,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                if (auth.profile?.birthday?.isNotEmpty == true)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(Icons.cake_outlined, size: 12, color: scheme.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        auth.profile!.birthday!,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: FilledButton.tonalIcon(
-              onPressed: () {
-                showDialog<void>(
-                  context: context,
-                  builder: (BuildContext ctx) => _EditProfileDialog(
-                    initialName: displayName,
-                    initialUsername: auth.session?.username ?? '',
-                    initialBio: bio,
-                    initialPhoneNumber: auth.profile?.phoneNumber,
-                    initialBirthday: auth.profile?.birthday,
-                    initialWorkingHours: auth.profile?.workingHours,
-                    onUploadAvatar: _uploadAvatar,
-                  ),
-                );
-              },
+              onPressed: () => _openEditProfile(context, displayName, auth, bio),
               icon: const Icon(Icons.edit_rounded, size: 15),
               label: Text(context.l10n.profileEdit, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               style: FilledButton.styleFrom(
@@ -625,6 +725,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       case SettingsSectionId.preferences:
         return const SettingsPreferencesScreen(isEmbedded: true);
       case SettingsSectionId.systemDevice:
+        if (kIsWeb) return const SettingsAboutScreen(isEmbedded: true);
         return const SettingsSystemDeviceScreen(isEmbedded: true);
       case SettingsSectionId.about:
         return const SettingsAboutScreen(isEmbedded: true);
@@ -635,6 +736,238 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Widget _buildMobileHeroProfileCard(
+    BuildContext context,
+    AuthState auth,
+    ColorScheme scheme,
+    String displayName,
+    String username,
+    String bio,
+  ) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return RepaintBoundary(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark
+              ? scheme.surfaceContainerLow
+              : scheme.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.15 : 0.22),
+            width: 1,
+          ),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: <Color>[
+              scheme.primary.withValues(alpha: isDark ? 0.08 : 0.04),
+              isDark
+                  ? scheme.surfaceContainerLow
+                  : scheme.surfaceContainerLowest,
+            ],
+          ),
+        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              // Avatar with camera badge
+              Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  PulseAvatar(
+                    name: displayName,
+                    avatarUrl: auth.profile?.avatarUrl,
+                    radius: 34,
+                    fallbackColor: scheme.primaryContainer,
+                    textColor: scheme.onPrimaryContainer,
+                    borderWidth: 2,
+                    borderColor: scheme.surface,
+                  ),
+                  Positioned(
+                    right: -2,
+                    bottom: -2,
+                    child: GestureDetector(
+                      onTap: _uploadingAvatar ? null : _uploadAvatar,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: scheme.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: scheme.surface, width: 2),
+                        ),
+                        child: _uploadingAvatar
+                            ? SizedBox(
+                                width: 10,
+                                height: 10,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: scheme.onPrimary,
+                                ),
+                              )
+                            : Icon(
+                                Icons.photo_camera_rounded,
+                                size: 12,
+                                color: scheme.onPrimary,
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 14),
+              // User Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Flexible(
+                          child: Text(
+                            displayName,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              letterSpacing: -0.2,
+                              color: scheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (username.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 2),
+                      Text(
+                        '@$username',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    if (bio.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 3),
+                      Text(
+                        bio,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 12.5,
+                          height: 1.25,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    if (auth.profile?.phoneNumber?.isNotEmpty == true) ...<Widget>[
+                      const SizedBox(height: 3),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            Icons.phone_outlined,
+                            size: 13,
+                            color: scheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            auth.profile!.phoneNumber!,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (auth.profile?.birthday?.isNotEmpty == true) ...<Widget>[
+                      const SizedBox(height: 3),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            Icons.cake_outlined,
+                            size: 13,
+                            color: scheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            auth.profile!.birthday!,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Badges if present
+          if (auth.profile?.visibleBadges.isNotEmpty == true) ...<Widget>[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: auth.profile!.visibleBadges.take(3).map((ApiBadge b) {
+                return BadgeChip(
+                  id: b.id,
+                  name: b.name,
+                  icon: b.icon,
+                  color: b.color,
+                  mode: BadgeDisplayMode.infoLabel,
+                  showName: true,
+                );
+              }).toList(),
+            ),
+          ],
+
+          // Edit profile action button
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: SizedBox(
+              width: double.infinity,
+              height: 38,
+              child: FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                ),
+                onPressed: () => _openEditProfile(context, displayName, auth, bio),
+                icon: const Icon(Icons.edit_rounded, size: 16),
+                label: Text(
+                  context.l10n.profileEdit,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
   Widget _buildMobileProfile(
     BuildContext context,
     AuthState auth,
@@ -644,172 +977,243 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     String bio,
     String storageUsed,
   ) {
+    final ThemeMode themeMode =
+        ref.watch(uiSettingsProvider.select((UiSettingsState s) => s.themeMode));
+    final bool isRussian =
+        Localizations.localeOf(context).languageCode == 'ru';
+    final String themeLabel = themeMode == ThemeMode.dark
+        ? (isRussian ? 'Тёмная' : 'Dark')
+        : themeMode == ThemeMode.light
+            ? (isRussian ? 'Светлая' : 'Light')
+            : (isRussian ? 'Системная' : 'System');
+    final String languageLabel = isRussian ? 'Русский' : 'English';
+
     return Scaffold(
       backgroundColor: scheme.surface,
-      body: CustomScrollView(
-        slivers: [
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: ProfileHeaderDelegate(
-              name: displayName,
-              username: username,
-              avatarUrl: auth.profile?.avatarUrl,
-              bio: bio,
-              badges: auth.profile?.visibleBadges ?? const <ApiBadge>[],
-              onEdit: () {
-                showDialog<void>(
-                  context: context,
-                  builder: (ctx) => _EditProfileDialog(
-                    initialName: displayName,
-                    initialUsername: auth.session?.username ?? '',
-                    initialBio: bio,
-                    initialPhoneNumber: auth.profile?.phoneNumber,
-                    initialBirthday: auth.profile?.birthday,
-                    initialWorkingHours: auth.profile?.workingHours,
-                    onUploadAvatar: _uploadAvatar,
-                  ),
-                );
-              },
-              onUploadAvatar: _uploadAvatar,
-              isUploadingAvatar: _uploadingAvatar,
+      appBar: AppBar(
+        backgroundColor: scheme.surface,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        title: Text(
+          context.l10n.profileSettingsSection,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
+              ),
+        ),
+        actions: <Widget>[
+          IconButton(
+            tooltip: context.l10n.profileEdit,
+            icon: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                shape: BoxShape.circle,
+              ),
+              child:
+                  Icon(Icons.edit_outlined, size: 18, color: scheme.onSurface),
             ),
+            onPressed: () => _openEditProfile(context, displayName, auth, bio),
           ),
-          SliverSafeArea(
-            top: false,
-            sliver: SliverToBoxAdapter(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                child: Column(
-                  children: [
-                    WorkingHoursWidget(
-                      workingHours: auth.profile?.workingHours,
-                      isEditable: true,
-                      onEdit: () async {
-                        final WorkingHours? updated =
-                            await WorkingHoursPlannerDialog.show(
-                          context,
-                          initialWorkingHours: auth.profile?.workingHours,
-                        );
-                        if (updated != null) {
-                          await ref
-                              .read(authProvider.notifier)
-                              .updateProfile(workingHours: updated);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    // 1. Account & Privacy
-                    SettingsSection(
-                      title: context.l10n.profileSectionAccount,
-                      children: <Widget>[
-                        SettingsTile(
-                          icon: Icons.manage_accounts_rounded,
-                          title: context.l10n.settingsAccountTitle,
-                          subtitle: context.l10n.settingsAccountSubtitle,
-                          iconColor: scheme.primary,
-                          onTap: () => context.push('/settings/account'),
-                        ),
-                        SettingsTile(
-                          icon: Icons.privacy_tip_rounded,
-                          title: context.l10n.settingsPrivacyTitle,
-                          subtitle: context.l10n.settingsPrivacySubtitle,
-                          iconColor: scheme.secondary,
-                          onTap: () => context.push('/settings/privacy'),
-                        ),
-                      ],
-                    ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: CustomScrollView(
+        slivers: <Widget>[
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate(<Widget>[
+          // Hero Profile Card
+          _buildMobileHeroProfileCard(
+            context,
+            auth,
+            scheme,
+            displayName,
+            username,
+            bio,
+          ),
+          const SizedBox(height: 12),
 
-                    // 2. Interface & Notifications
-                    SettingsSection(
-                      title: context.l10n.profileAppearance,
-                      children: <Widget>[
-                        SettingsTile(
-                          icon: Icons.palette_rounded,
-                          title: context.l10n.profileAppearance,
-                          subtitle: context.l10n.profileAppearanceDesc,
-                          iconColor: scheme.primary,
-                          onTap: () => context.push('/settings/appearance'),
-                        ),
-                        SettingsTile(
-                          icon: Icons.chat_bubble_outline_rounded,
-                          title: 'Чаты и медиа',
-                          subtitle: 'Отправка по Enter, реакции, автозагрузка',
-                          iconColor: scheme.primary,
-                          onTap: () => context.push('/settings/chats'),
-                        ),
-                        SettingsTile(
-                          icon: Icons.notifications_active_rounded,
-                          title: context.l10n.settingsPreferencesTitle,
-                          subtitle:
-                              context.l10n.settingsPreferencesBannerSubtitle,
-                          iconColor: scheme.secondary,
-                          onTap: () => context.push('/settings/preferences'),
-                        ),
-                        SettingsTile(
-                          icon: Icons.sd_storage_rounded,
-                          title: context.l10n.settingsStorageTitle,
-                          subtitle: storageUsed.isNotEmpty
-                              ? storageUsed
-                              : context.l10n.settingsStorageSubtitle,
-                          iconColor: scheme.tertiary,
-                          onTap: () => context.push('/settings/storage'),
-                        ),
-                        SettingsTile(
-                          icon: Icons.language_rounded,
-                          title: context.l10n.profileLanguage,
-                          subtitle: context.l10n.profileLanguageDesc,
-                          iconColor: scheme.onSurfaceVariant,
-                          onTap: () => context.push('/settings/language-region'),
-                        ),
-                      ],
-                    ),
+          // Working Hours
+          if (auth.profile?.workingHours?.isNotEmpty == true) ...<Widget>[
+            WorkingHoursWidget(
+              workingHours: auth.profile?.workingHours,
+              isEditable: true,
+              onEdit: () async {
+                final WorkingHours? updated =
+                    await WorkingHoursPlannerDialog.show(
+                  context,
+                  initialWorkingHours: auth.profile?.workingHours,
+                );
+                if (updated != null) {
+                  final AuthActionResult res = await ref
+                      .read(authProvider.notifier)
+                      .updateProfile(workingHours: updated);
+                  if (context.mounted) {
+                    if (res.success) {
+                      AppToast.showSuccess(context, 'График работы обновлен');
+                    } else {
+                      AppToast.showError(context, res.message ?? 'Ошибка сохранения графика');
+                    }
+                  }
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
 
-                    // 3. About & System
-                    SettingsSection(
-                      title: context.l10n.profileSectionAbout,
-                      children: <Widget>[
-                        SettingsTile(
-                          icon: Icons.memory_rounded,
-                          title: 'Система и устройство',
-                          subtitle: 'Характеристики смартфона, экран, процессор и память',
-                          iconColor: scheme.primary,
-                          onTap: () => context.push('/settings/system-device'),
-                        ),
-                        SettingsTile(
-                          icon: Icons.info_outline_rounded,
-                          title: context.l10n.settingsAboutTitle,
-                          subtitle: context.l10n.settingsSupportAboutSubtitle,
-                          iconColor: scheme.onSurfaceVariant,
-                          onTap: () => context.push('/settings/about'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: scheme.errorContainer,
-                          foregroundColor: scheme.onErrorContainer,
-                          minimumSize: const Size.fromHeight(56),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        onPressed: _logout,
-                        icon: const Icon(Icons.logout_rounded),
-                        label: Text(
-                          context.l10n.profileLogout,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                  ],
+          // 1. Account & Sessions
+          SettingsSection(
+            title: 'Аккаунт и сессии',
+            children: <Widget>[
+              SettingsTile(
+                icon: Icons.person_rounded,
+                title: context.l10n.settingsAccountTitle,
+                value: username.isNotEmpty ? '@$username' : null,
+                iconColor: const Color(0xFF3B82F6),
+                onTap: () => context.push('/settings/account'),
+              ),
+              SettingsTile(
+                icon: Icons.devices_rounded,
+                title: context.l10n.settingsActiveSessions,
+                iconColor: const Color(0xFF06B6D4),
+                onTap: () => context.push('/settings/sessions'),
+              ),
+            ],
+          ),
+
+          // 2. Appearance & Chats
+          SettingsSection(
+            title: 'Внешний вид и чаты',
+            children: <Widget>[
+              SettingsTile(
+                icon: Icons.palette_rounded,
+                title: context.l10n.profileAppearance,
+                value: themeLabel,
+                iconColor: const Color(0xFF8B5CF6),
+                onTap: () => context.push('/settings/appearance'),
+              ),
+              SettingsTile(
+                icon: Icons.chat_bubble_rounded,
+                title: 'Чаты и медиа',
+                iconColor: const Color(0xFF2563EB),
+                onTap: () => context.push('/settings/chats'),
+              ),
+            ],
+          ),
+
+          // 3. Notifications & Sounds
+          SettingsSection(
+            title: 'Уведомления и звуки',
+            children: <Widget>[
+              SettingsTile(
+                icon: Icons.notifications_active_rounded,
+                title: context.l10n.settingsPreferencesTitle,
+                iconColor: const Color(0xFFF59E0B),
+                onTap: () => context.push('/settings/preferences'),
+              ),
+            ],
+          ),
+
+          // 4. Security & E2EE
+          SettingsSection(
+            title: 'Безопасность и E2EE',
+            children: <Widget>[
+              SettingsTile(
+                icon: Icons.security_rounded,
+                title: context.l10n.settingsPrivacyTitle,
+                iconColor: const Color(0xFF10B981),
+                onTap: () => context.push('/settings/privacy'),
+              ),
+              SettingsTile(
+                icon: Icons.lock_rounded,
+                title: 'E2EE и секретные чаты',
+                iconColor: const Color(0xFF8B5CF6),
+                onTap: () => context.push('/settings/e2ee'),
+              ),
+            ],
+          ),
+
+          // 5. Storage & Data
+          SettingsSection(
+            title: 'Память и данные',
+            children: <Widget>[
+              SettingsTile(
+                icon: Icons.pie_chart_rounded,
+                title: context.l10n.settingsStorageTitle,
+                value: storageUsed.isNotEmpty ? storageUsed : '0 Б',
+                iconColor: const Color(0xFFEC4899),
+                onTap: () => context.push('/settings/storage'),
+              ),
+            ],
+          ),
+
+          // 6. Language & Region
+          SettingsSection(
+            title: context.l10n.profileLanguage,
+            children: <Widget>[
+              SettingsTile(
+                icon: Icons.language_rounded,
+                title: context.l10n.profileLanguage,
+                value: languageLabel,
+                iconColor: const Color(0xFF14B8A6),
+                onTap: () => context.push('/settings/language-region'),
+              ),
+            ],
+          ),
+
+          // 7. About & System
+          SettingsSection(
+            title: context.l10n.profileSectionAbout,
+            children: <Widget>[
+              SettingsTile(
+                icon: Icons.info_rounded,
+                title: context.l10n.settingsAboutTitle,
+                value: AppConstants.appVersionWithPrefix,
+                iconColor: const Color(0xFF0284C7),
+                onTap: () => context.push('/settings/about'),
+              ),
+              if (!kIsWeb)
+                SettingsTile(
+                  icon: Icons.memory_rounded,
+                  title: 'Система и устройство',
+                  iconColor: const Color(0xFF64748B),
+                  onTap: () => context.push('/settings/system-device'),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Logout
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: scheme.error,
+                side: BorderSide(
+                  color: scheme.error.withValues(alpha: 0.35),
+                ),
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
+              onPressed: _logout,
+              icon: const Icon(Icons.logout_rounded, size: 19),
+              label: Text(
+                context.l10n.profileLogout,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 110),
+              ]),
             ),
           ),
         ],
@@ -818,8 +1222,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 }
 
-class _EditProfileDialog extends ConsumerStatefulWidget {
-  const _EditProfileDialog({
+class _EditProfileSheet extends ConsumerStatefulWidget {
+  const _EditProfileSheet({
     required this.initialName,
     required this.initialUsername,
     required this.initialBio,
@@ -827,6 +1231,7 @@ class _EditProfileDialog extends ConsumerStatefulWidget {
     this.initialBirthday,
     this.initialWorkingHours,
     this.onUploadAvatar,
+    this.isDialog = false,
   });
 
   final String initialName;
@@ -836,12 +1241,65 @@ class _EditProfileDialog extends ConsumerStatefulWidget {
   final String? initialBirthday;
   final WorkingHours? initialWorkingHours;
   final Future<void> Function()? onUploadAvatar;
+  final bool isDialog;
+
+  static Future<void> show(
+    BuildContext context, {
+    required String initialName,
+    required String initialUsername,
+    required String initialBio,
+    String? initialPhoneNumber,
+    String? initialBirthday,
+    WorkingHours? initialWorkingHours,
+    Future<void> Function()? onUploadAvatar,
+  }) {
+    final bool isWide = MediaQuery.sizeOf(context).width >= 600;
+    if (isWide) {
+      return showDialog<void>(
+        context: context,
+        builder: (BuildContext ctx) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 780),
+            child: _EditProfileSheet(
+              initialName: initialName,
+              initialUsername: initialUsername,
+              initialBio: initialBio,
+              initialPhoneNumber: initialPhoneNumber,
+              initialBirthday: initialBirthday,
+              initialWorkingHours: initialWorkingHours,
+              onUploadAvatar: onUploadAvatar,
+              isDialog: true,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext ctx) => _EditProfileSheet(
+        initialName: initialName,
+        initialUsername: initialUsername,
+        initialBio: initialBio,
+        initialPhoneNumber: initialPhoneNumber,
+        initialBirthday: initialBirthday,
+        initialWorkingHours: initialWorkingHours,
+        onUploadAvatar: onUploadAvatar,
+        isDialog: false,
+      ),
+    );
+  }
 
   @override
-  ConsumerState<_EditProfileDialog> createState() => _EditProfileDialogState();
+  ConsumerState<_EditProfileSheet> createState() => _EditProfileSheetState();
 }
 
-class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
+class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
   static final RegExp _usernameRegExp = RegExp(r'^[a-zA-Z0-9_]{3,32}$');
 
   late final TextEditingController nameController;
@@ -850,7 +1308,6 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
   late final TextEditingController phoneController;
   late final TextEditingController birthdayController;
   WorkingHours? _workingHours;
-  bool _saving = false;
   String? _nameError;
   String? _usernameError;
 
@@ -860,8 +1317,9 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
     nameController = TextEditingController(text: widget.initialName);
     usernameController = TextEditingController(text: widget.initialUsername);
     bioController = TextEditingController(text: widget.initialBio);
-    phoneController =
-        TextEditingController(text: widget.initialPhoneNumber ?? '');
+    phoneController = TextEditingController(
+      text: widget.initialPhoneNumber?.replaceAll(RegExp(r'\D'), '') ?? '',
+    );
     birthdayController =
         TextEditingController(text: widget.initialBirthday ?? '');
     _workingHours = widget.initialWorkingHours;
@@ -941,316 +1399,568 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
     }
   }
 
-  Future<void> _selectBadges() async {
-    final AuthState auth = ref.read(authProvider);
-    await BadgeSelectorDialog.show(
-      context,
-      initialSelectedBadgeIds: auth.profile?.visibleBadgeIds ?? const <int>[],
+  Widget _buildInputField({
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+    required IconData icon,
+    required String label,
+    required TextEditingController controller,
+    String? hintText,
+    String? errorText,
+    String? prefixText,
+    int? maxLines = 1,
+    int? maxLength,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
+    final bool hasError = errorText != null;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Row(
+        crossAxisAlignment: maxLines != null && maxLines > 1
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
+        children: <Widget>[
+          Padding(
+            padding: EdgeInsets.only(
+              top: maxLines != null && maxLines > 1 ? 4 : 0,
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: hasError
+                  ? scheme.error
+                  : scheme.onSurfaceVariant.withValues(alpha: 0.8),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  label,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: hasError ? scheme.error : scheme.primary,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                    fontSize: 11.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: <Widget>[
+                    if (prefixText != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 2),
+                        child: Text(
+                          prefixText,
+                          style: textTheme.bodyLarge?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        maxLines: maxLines,
+                        maxLength: maxLength,
+                        keyboardType: keyboardType,
+                        inputFormatters: inputFormatters,
+                        style: textTheme.bodyLarge?.copyWith(
+                          color: scheme.onSurface,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          hintText: hintText,
+                          hintStyle: textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                            fontSize: 14,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 2),
+                          counterText: '',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (hasError) ...<Widget>[
+                  const SizedBox(height: 2),
+                  Text(
+                    errorText,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.error,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Future<void> _save() async {
     if (_nameError != null || _usernameError != null) return;
-    setState(() => _saving = true);
 
     final String username = usernameController.text.trim();
     final String? newUsername =
         username.isNotEmpty && username != widget.initialUsername
             ? username
             : null;
-    final String phone = phoneController.text.trim();
-    final String birthday = birthdayController.text.trim();
-
-    final AuthActionResult result =
-        await ref.read(authProvider.notifier).updateProfile(
-              displayName: nameController.text.trim(),
-              username: newUsername,
-              bio: bioController.text.trim(),
-              phoneNumber: phone.isNotEmpty ? phone : null,
-              clearPhoneNumber: phone.isEmpty && widget.initialPhoneNumber != null,
-              birthday: birthday.isNotEmpty ? birthday : null,
-              clearBirthday: birthday.isEmpty && widget.initialBirthday != null,
-              workingHours: _workingHours,
-              clearWorkingHours:
-                  _workingHours == null && widget.initialWorkingHours != null,
-            );
-
-    if (!mounted) return;
-    if (result.success) {
-      Navigator.of(context).pop();
-    } else {
-      AppToast.showError(
-        context,
-        context.l10n.profileError(result.message ?? 'Failed'),
-      );
-      setState(() => _saving = false);
+    final String rawDigits =
+        phoneController.text.replaceAll(RegExp(r'\D'), '').trim();
+    String? formattedPhone;
+    if (rawDigits.isNotEmpty) {
+      String digits = rawDigits;
+      if (digits.startsWith('8') && digits.length == 11) {
+        digits = '7${digits.substring(1)}';
+      }
+      formattedPhone = '+$digits';
+      if (!RegExp(r'^\+[1-9]\d{6,14}$').hasMatch(formattedPhone)) {
+        AppToast.showError(
+          context,
+          'Номер телефона должен содержать от 7 до 15 цифр',
+        );
+        return;
+      }
     }
+    final String birthday = birthdayController.text.trim();
+    final String displayName = nameController.text.trim();
+    final String bio = bioController.text.trim();
+    final WorkingHours? workingHours = _workingHours;
+    final bool clearPhoneNumber =
+        rawDigits.isEmpty && widget.initialPhoneNumber != null;
+    final bool clearBirthday =
+        birthday.isEmpty && widget.initialBirthday != null;
+    final bool clearWorkingHours =
+        (workingHours == null || workingHours.isEmpty) &&
+            widget.initialWorkingHours != null;
+
+    final ScaffoldMessengerState scaffoldMessenger =
+        ScaffoldMessenger.of(context);
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+
+    Navigator.of(context).pop();
+
+    try {
+      final AuthActionResult result =
+          await ref.read(authProvider.notifier).updateProfile(
+                displayName: displayName,
+                username: newUsername,
+                bio: bio,
+                phoneNumber: formattedPhone,
+                clearPhoneNumber: clearPhoneNumber,
+                birthday: birthday.isNotEmpty ? birthday : null,
+                clearBirthday: clearBirthday,
+                workingHours: workingHours,
+                clearWorkingHours: clearWorkingHours,
+              );
+
+      if (result.success) {
+        scaffoldMessenger.hideCurrentSnackBar();
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: <Widget>[
+                Icon(Icons.check_circle_outline_rounded,
+                    color: scheme.onPrimary, size: 20),
+                const SizedBox(width: 10),
+                const Text('Профиль успешно сохранён'),
+              ],
+            ),
+            backgroundColor: scheme.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        scaffoldMessenger.hideCurrentSnackBar();
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: <Widget>[
+                Icon(Icons.error_outline_rounded,
+                    color: scheme.onError, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    result.message ?? 'Ошибка сохранения профиля',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: scheme.error,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      scaffoldMessenger.hideCurrentSnackBar();
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('$e'),
+          backgroundColor: scheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Widget _buildCard({
+    required ColorScheme scheme,
+    required bool isDark,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark
+            ? scheme.surfaceContainerHighest.withValues(alpha: 0.35)
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.12 : 0.18),
+          width: 1,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: children,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
     final AuthState auth = ref.watch(authProvider);
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
-    return AppDialog(
-      title: context.l10n.profileEdit,
-      subtitle: context.l10n.settingsEditProfileSubtitle,
-      icon: Icons.edit_note_rounded,
-      actions: <AppDialogAction>[
-        AppDialogAction(
-          label: context.l10n.commonCancel,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        AppDialogAction(
-          label: context.l10n.commonSave,
-          icon: Icons.check_rounded,
-          isPrimary: true,
-          isLoading: _saving,
-          onPressed: _saving || _nameError != null || _usernameError != null
-              ? null
-              : _save,
-        ),
-      ],
-      child: SingleChildScrollView(
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+        borderRadius: widget.isDialog
+            ? BorderRadius.circular(28)
+            : const BorderRadius.vertical(top: Radius.circular(28)),
+        border: widget.isDialog
+            ? Border.all(
+                color: scheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.3),
+                width: 1,
+              )
+            : null,
+      ),
+      child: SafeArea(
+        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Center(
-              child: Stack(
+            // Drag handle on mobile
+            if (!widget.isDialog) ...<Widget>[
+              const SizedBox(height: 10),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+
+            // Top Header Bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+              child: Row(
                 children: <Widget>[
-                  PulseAvatar(
-                    name: widget.initialName,
-                    avatarUrl: auth.profile?.avatarUrl,
-                    radius: 36,
-                    fallbackColor: scheme.primaryContainer,
-                    textColor: scheme.onPrimaryContainer,
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: scheme.onSurfaceVariant,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                    child: Text(
+                      context.l10n.commonCancel,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                    ),
                   ),
-                  if (widget.onUploadAvatar != null)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Material(
-                        color: scheme.primary,
-                        shape: const CircleBorder(),
-                        child: InkWell(
-                          onTap: () => widget.onUploadAvatar!(),
-                          customBorder: const CircleBorder(),
-                          child: Padding(
-                            padding: const EdgeInsets.all(6),
-                            child: Icon(
-                              Icons.photo_camera_rounded,
-                              size: 16,
-                              color: scheme.onPrimary,
-                            ),
-                          ),
-                        ),
+                  Expanded(
+                    child: Text(
+                      context.l10n.profileEdit,
+                      textAlign: TextAlign.center,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                        letterSpacing: -0.2,
                       ),
                     ),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      minimumSize: const Size(60, 36),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    onPressed: _nameError != null || _usernameError != null ? null : _save,
+                    child: Text(
+                      context.l10n.commonSave,
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: nameController,
-              maxLength: 64,
-              decoration: InputDecoration(
-                labelText: context.l10n.profileDisplayName,
-                prefixIcon: const Icon(Icons.person_rounded),
-                errorText: _nameError,
-                filled: true,
-                fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: scheme.primary, width: 1.4),
-                ),
-                counterStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-              ),
-              style: Theme.of(context).textTheme.bodyLarge,
+            Divider(
+              height: 1,
+              color: scheme.outlineVariant.withValues(alpha: 0.15),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: usernameController,
-              decoration: InputDecoration(
-                labelText: context.l10n.profileUsernameLabel,
-                prefixIcon: const Icon(Icons.alternate_email_rounded),
-                prefixText: '@',
-                errorText: _usernameError,
-                filled: true,
-                fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: scheme.primary, width: 1.4),
-                ),
-              ),
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: 'Номер телефона',
-                prefixIcon: const Icon(Icons.phone_rounded),
-                filled: true,
-                fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: scheme.primary, width: 1.4),
-                ),
-              ),
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: birthdayController,
-              readOnly: true,
-              onTap: _selectBirthday,
-              decoration: InputDecoration(
-                labelText: 'Дата рождения (ГГГГ-ММ-ДД)',
-                prefixIcon: const Icon(Icons.cake_rounded),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.calendar_today_rounded, size: 20),
-                  onPressed: _selectBirthday,
-                ),
-                filled: true,
-                fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: scheme.primary, width: 1.4),
-                ),
-              ),
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: bioController,
-              maxLines: 3,
-              maxLength: 500,
-              decoration: InputDecoration(
-                labelText: context.l10n.profileDescription,
-                prefixIcon: const Icon(Icons.notes_rounded),
-                filled: true,
-                fillColor: scheme.surfaceContainerLow.withValues(alpha: 0.82),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: scheme.primary, width: 1.4),
-                ),
-                counterStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-              ),
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.schedule_rounded, size: 18),
-                    label: Text(
-                      _workingHours == null || _workingHours!.isEmpty
-                          ? 'График работы'
-                          : 'График: ${_workingHours!.isOpenNow() ? "Открыто" : "Закрыто"}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onPressed: _editWorkingHours,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+
+            // Scrollable Form
+            Flexible(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 20 + bottomInset),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    // Avatar center
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: <Widget>[
+                              PulseAvatar(
+                                name: widget.initialName,
+                                avatarUrl: auth.profile?.avatarUrl,
+                                radius: 44,
+                                fallbackColor: scheme.primaryContainer,
+                                textColor: scheme.onPrimaryContainer,
+                                borderWidth: 3,
+                                borderColor: scheme.surface,
+                              ),
+                              if (widget.onUploadAvatar != null)
+                                Positioned(
+                                  right: -2,
+                                  bottom: -2,
+                                  child: Material(
+                                    color: scheme.primary,
+                                    shape: const CircleBorder(),
+                                    elevation: 2,
+                                    child: InkWell(
+                                      onTap: widget.onUploadAvatar,
+                                      customBorder: const CircleBorder(),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(7),
+                                        child: Icon(
+                                          Icons.photo_camera_rounded,
+                                          size: 16,
+                                          color: scheme.onPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (widget.onUploadAvatar != null) ...<Widget>[
+                            const SizedBox(height: 6),
+                            TextButton(
+                              onPressed: widget.onUploadAvatar,
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              child: Text(
+                                'Изменить фотографию',
+                                style: TextStyle(
+                                  color: scheme.primary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.military_tech_rounded, size: 18),
-                    label: Text(
-                      'Бейджи (${auth.profile?.visibleBadgeIds.length ?? 0}/2)',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    const SizedBox(height: 16),
+
+                    // Section 1: Личные данные
+                    _buildCard(
+                      scheme: scheme,
+                      isDark: isDark,
+                      children: <Widget>[
+                        _buildInputField(
+                          scheme: scheme,
+                          textTheme: textTheme,
+                          icon: Icons.person_outline_rounded,
+                          label: context.l10n.profileDisplayName,
+                          controller: nameController,
+                          hintText: 'Ваше имя',
+                          errorText: _nameError,
+                          maxLength: 64,
+                        ),
+                        Divider(
+                          height: 1,
+                          indent: 50,
+                          color: scheme.outlineVariant.withValues(alpha: 0.12),
+                        ),
+                        _buildInputField(
+                          scheme: scheme,
+                          textTheme: textTheme,
+                          icon: Icons.notes_rounded,
+                          label: context.l10n.profileDescription,
+                          controller: bioController,
+                          hintText: 'Расскажите о себе...',
+                          maxLines: 2,
+                          maxLength: 500,
+                        ),
+                      ],
                     ),
-                    onPressed: _selectBadges,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                    const SizedBox(height: 14),
+
+                    // Section 2: Контакты и аккаунт
+                    _buildCard(
+                      scheme: scheme,
+                      isDark: isDark,
+                      children: <Widget>[
+                        _buildInputField(
+                          scheme: scheme,
+                          textTheme: textTheme,
+                          icon: Icons.alternate_email_rounded,
+                          label: context.l10n.profileUsernameLabel,
+                          controller: usernameController,
+                          prefixText: '@',
+                          errorText: _usernameError,
+                        ),
+                        Divider(
+                          height: 1,
+                          indent: 50,
+                          color: scheme.outlineVariant.withValues(alpha: 0.12),
+                        ),
+                        _buildInputField(
+                          scheme: scheme,
+                          textTheme: textTheme,
+                          icon: Icons.phone_outlined,
+                          label: 'Номер телефона',
+                          controller: phoneController,
+                          hintText: '79990000000',
+                          keyboardType: TextInputType.number,
+                          inputFormatters: <TextInputFormatter>[
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          maxLength: 16,
+                        ),
+                        Divider(
+                          height: 1,
+                          indent: 50,
+                          color: scheme.outlineVariant.withValues(alpha: 0.12),
+                        ),
+                        InkWell(
+                          onTap: _selectBirthday,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                            child: Row(
+                              children: <Widget>[
+                                Icon(
+                                  Icons.cake_outlined,
+                                  size: 20,
+                                  color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      Text(
+                                        'Дата рождения',
+                                        style: textTheme.labelSmall?.copyWith(
+                                          color: scheme.primary,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.2,
+                                          fontSize: 11.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        birthdayController.text.isNotEmpty
+                                            ? birthdayController.text
+                                            : 'Не указана',
+                                        style: textTheme.bodyLarge?.copyWith(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w500,
+                                          color: birthdayController.text.isNotEmpty
+                                              ? scheme.onSurface
+                                              : scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.calendar_today_rounded,
+                                  size: 18,
+                                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 14),
+
+                    // Section 3: График работы
+                    _buildCard(
+                      scheme: scheme,
+                      isDark: isDark,
+                      children: <Widget>[
+                        ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                          leading: Icon(
+                            Icons.schedule_rounded,
+                            color: scheme.primary,
+                            size: 22,
+                          ),
+                          title: const Text(
+                            'График работы',
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            _workingHours == null || _workingHours!.isEmpty
+                                ? 'Не настроен'
+                                : (_workingHours!.isOpenNow() ? 'Открыто сейчас' : 'Закрыто'),
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+                          onTap: _editWorkingHours,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                 ),
-              ],
+              ),
             ),
           ],
         ),

@@ -131,75 +131,78 @@ class MessageBubble extends ConsumerWidget {
         .where((e) => e.isNotEmpty)
         .toList();
   }
-
-  // Google Messages / Android 15 M3 Expressive signature radii:
-  // Outgoing: anchor on bottom-right (6dp). Consecutive bubbles link with 6dp inner corners.
-  static const BorderRadius _mineRadiusNoneSame = BorderRadius.only(
-    topLeft: Radius.circular(22),
-    bottomLeft: Radius.circular(22),
-    topRight: Radius.circular(22),
-    bottomRight: Radius.circular(6),
-  );
-  static const BorderRadius _mineRadiusPrevSame = BorderRadius.only(
-    topLeft: Radius.circular(22),
-    bottomLeft: Radius.circular(22),
-    topRight: Radius.circular(6),
-    bottomRight: Radius.circular(6),
-  );
-  static const BorderRadius _mineRadiusNextSame = BorderRadius.only(
-    topLeft: Radius.circular(22),
-    bottomLeft: Radius.circular(22),
-    topRight: Radius.circular(22),
-    bottomRight: Radius.circular(6),
-  );
-  static const BorderRadius _mineRadiusPrevSameNextSame = BorderRadius.only(
-    topLeft: Radius.circular(22),
-    bottomLeft: Radius.circular(22),
-    topRight: Radius.circular(6),
-    bottomRight: Radius.circular(6),
-  );
-
-  // Incoming: anchor on bottom-left (6dp). Consecutive bubbles link with 6dp inner corners.
-  static const BorderRadius _theirsRadiusNoneSame = BorderRadius.only(
-    topRight: Radius.circular(22),
-    bottomRight: Radius.circular(22),
-    topLeft: Radius.circular(22),
-    bottomLeft: Radius.circular(6),
-  );
-  static const BorderRadius _theirsRadiusPrevSame = BorderRadius.only(
-    topRight: Radius.circular(22),
-    bottomRight: Radius.circular(22),
-    topLeft: Radius.circular(6),
-    bottomLeft: Radius.circular(6),
-  );
-  static const BorderRadius _theirsRadiusNextSame = BorderRadius.only(
-    topRight: Radius.circular(22),
-    bottomRight: Radius.circular(22),
-    topLeft: Radius.circular(22),
-    bottomLeft: Radius.circular(6),
-  );
-  static const BorderRadius _theirsRadiusPrevSameNextSame = BorderRadius.only(
-    topRight: Radius.circular(22),
-    bottomRight: Radius.circular(22),
-    topLeft: Radius.circular(6),
-    bottomLeft: Radius.circular(6),
-  );
-
   static BorderRadius _getBubbleRadius(
     bool isMine,
     bool isPrevSame,
-    bool isNextSame,
-  ) {
+    bool isNextSame, [
+    double outer = 16.0,
+  ]) {
+    final double small = (outer * 0.28).clamp(3.0, 6.0);
+    final Radius rOuter = Radius.circular(outer);
+    final Radius rSmall = Radius.circular(small);
+
     if (isMine) {
-      if (isPrevSame && isNextSame) return _mineRadiusPrevSameNextSame;
-      if (isPrevSame) return _mineRadiusPrevSame;
-      if (isNextSame) return _mineRadiusNextSame;
-      return _mineRadiusNoneSame;
+      if (isPrevSame && isNextSame) {
+        return BorderRadius.only(
+          topLeft: rOuter,
+          bottomLeft: rOuter,
+          topRight: rSmall,
+          bottomRight: rSmall,
+        );
+      }
+      if (isPrevSame) {
+        return BorderRadius.only(
+          topLeft: rOuter,
+          bottomLeft: rOuter,
+          topRight: rSmall,
+          bottomRight: rSmall,
+        );
+      }
+      if (isNextSame) {
+        return BorderRadius.only(
+          topLeft: rOuter,
+          bottomLeft: rOuter,
+          topRight: rOuter,
+          bottomRight: rSmall,
+        );
+      }
+      return BorderRadius.only(
+        topLeft: rOuter,
+        bottomLeft: rOuter,
+        topRight: rOuter,
+        bottomRight: rSmall,
+      );
     } else {
-      if (isPrevSame && isNextSame) return _theirsRadiusPrevSameNextSame;
-      if (isPrevSame) return _theirsRadiusPrevSame;
-      if (isNextSame) return _theirsRadiusNextSame;
-      return _theirsRadiusNoneSame;
+      if (isPrevSame && isNextSame) {
+        return BorderRadius.only(
+          topRight: rOuter,
+          bottomRight: rOuter,
+          topLeft: rSmall,
+          bottomLeft: rSmall,
+        );
+      }
+      if (isPrevSame) {
+        return BorderRadius.only(
+          topRight: rOuter,
+          bottomRight: rOuter,
+          topLeft: rSmall,
+          bottomLeft: rSmall,
+        );
+      }
+      if (isNextSame) {
+        return BorderRadius.only(
+          topRight: rOuter,
+          bottomRight: rOuter,
+          topLeft: rOuter,
+          bottomLeft: rSmall,
+        );
+      }
+      return BorderRadius.only(
+        topRight: rOuter,
+        bottomRight: rOuter,
+        topLeft: rOuter,
+        bottomLeft: rSmall,
+      );
     }
   }
 
@@ -276,10 +279,14 @@ class MessageBubble extends ConsumerWidget {
 
     final Map<String, String> headers = cachedAuthHeaders();
 
+    final double messageRadius = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.messageBubbleRadius),
+    );
     final BorderRadius bubbleRadius = _getBubbleRadius(
       isMine,
       isPrevSame,
       isNextSame,
+      messageRadius,
     );
 
     Widget content = Align(

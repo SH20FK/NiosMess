@@ -29,7 +29,7 @@ class PulseScaffoldBody extends StatelessWidget {
   final AlignmentGeometry alignment;
 
   bool get _isDesktop {
-    if (kIsWeb) return false;
+    if (kIsWeb) return true;
     return defaultTargetPlatform == TargetPlatform.windows ||
            defaultTargetPlatform == TargetPlatform.macOS ||
            defaultTargetPlatform == TargetPlatform.linux;
@@ -89,7 +89,7 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
       vsync: this,
       duration: const Duration(seconds: 80),
     );
-    if (widget.animated) {
+    if (widget.animated && !kIsWeb) {
       _controller.repeat(reverse: true);
     } else {
       _controller.value = 0.5;
@@ -110,7 +110,7 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final bool optimize = settings.optimizeForWeakDevices;
 
-    final bool shouldAnimate = widget.animated && !optimize;
+    final bool shouldAnimate = widget.animated && !optimize && !kIsWeb;
 
     if (shouldAnimate) {
       if (!_controller.isAnimating) {
@@ -248,7 +248,9 @@ class _BackdropPainter extends CustomPainter {
       return;
     }
     final Paint paint = Paint()
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 56)
+      ..maskFilter = kIsWeb
+          ? const MaskFilter.blur(BlurStyle.normal, 16)
+          : const MaskFilter.blur(BlurStyle.normal, 56)
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,

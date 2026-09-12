@@ -1,3 +1,5 @@
+import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 class WallpaperColorResolver {
@@ -26,6 +28,44 @@ class WallpaperColorResolver {
       default:
         return scheme.surfaceContainerLow;
     }
+  }
+
+  static Shader createLinearGradientShader({
+    required ColorScheme scheme,
+    required String role1,
+    required String role2,
+    required double angleDeg,
+    required Size size,
+  }) {
+    final Color c1 = resolveBackground(scheme, role1);
+    final Color c2 = resolveBackground(scheme, role2);
+    final double rad = angleDeg * pi / 180.0;
+    final double cx = size.width / 2.0;
+    final double cy = size.height / 2.0;
+    final double halfDiag = (size.width + size.height) * 0.5;
+    final double dx = cos(rad) * halfDiag;
+    final double dy = sin(rad) * halfDiag;
+    return ui.Gradient.linear(
+      Offset(cx - dx, cy - dy),
+      Offset(cx + dx, cy + dy),
+      <Color>[c1, c2],
+    );
+  }
+
+  static Shader createRadialGlowShader({
+    required ColorScheme scheme,
+    required String centerRole,
+    required String outerRole,
+    required Size size,
+  }) {
+    final Color cCenter = resolveBackground(scheme, centerRole);
+    final Color cOuter = resolveBackground(scheme, outerRole);
+    final double radius = max(size.width, size.height) * 0.75;
+    return ui.Gradient.radial(
+      Offset(size.width / 2.0, size.height / 2.0),
+      radius,
+      <Color>[cCenter, cOuter],
+    );
   }
 
   static Color resolveIconColor(

@@ -51,13 +51,20 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   Future<void> _pickMedia() async {
+    final int availableSlots = 5 - _selectedFiles.length;
+    if (availableSlots <= 0) {
+      AppToast.showInfo(context, 'Максимум 5 фотографий');
+      return;
+    }
+
     final List<PlatformFile> result = await FilePicker.pickFiles(
       type: FileType.media,
     );
     if (result.isEmpty) return;
-    final List<PlatformFile> picked = result.take(5).toList();
-    final List<PlatformFile> validFiles = <PlatformFile>[];
-    final List<Uint8List> previews = <Uint8List>[];
+
+    final List<PlatformFile> picked = result.take(availableSlots).toList();
+    final List<PlatformFile> validFiles = List<PlatformFile>.from(_selectedFiles);
+    final List<Uint8List> previews = List<Uint8List>.from(_previewBytesList);
 
     for (final PlatformFile file in picked) {
       if ((await file.length()) > _maxFileBytes) {
@@ -74,11 +81,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       previews.add(previewBytes);
     }
 
-    if (validFiles.isNotEmpty) {
+    if (validFiles.length != _selectedFiles.length) {
       setState(() {
         _selectedFiles = validFiles;
         _previewBytesList = previews;
-        _selectedFile = validFiles.first;
+        _selectedFile = validFiles.firstOrNull;
         _error = null;
       });
     }
@@ -345,91 +352,91 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Media preview
+                      // Media preview (compact horizontal strip ~84dp)
                       if (_previewBytesList.isNotEmpty) ...<Widget>[
-                        if (_previewBytesList.length == 1)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Stack(
-                              children: <Widget>[
-                                Container(
-                                  width: double.infinity,
-                                  constraints: const BoxConstraints(
-                                    maxHeight: 420,
-                                    minHeight: 160,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: scheme.surfaceContainerHighest
-                                        .withValues(alpha: 0.35),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: scheme.outlineVariant
-                                          .withValues(alpha: 0.3),
-                                    ),
-                                  ),
-                                  child: Image.memory(
-                                    _previewBytesList.first,
-                                    fit: BoxFit.contain,
-                                    width: double.infinity,
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 10,
-                                  right: 10,
-                                  child: Material(
-                                    color: Colors.black.withValues(alpha: 0.60),
-                                    shape: const CircleBorder(),
-                                    child: Tooltip(
-                                      message: context.l10n.postRemove,
-                                      child: InkWell(
-                                        customBorder: const CircleBorder(),
-                                        onTap: () => setState(() {
-                                          _selectedFiles.clear();
-                                          _previewBytesList.clear();
-                                          _selectedFile = null;
-                                        }),
-                                        child: const Padding(
-                                          padding: EdgeInsets.all(7),
-                                          child: Icon(
-                                            Icons.close_rounded,
-                                            size: 18,
-                                            color: Colors.white,
-                                          ),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            'Прикрепленные фото (${_previewBytesList.length}/5)',
+                            style: textTheme.labelMedium?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          height: 84,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _previewBytesList.length +
+                                (_previewBytesList.length < 5 ? 1 : 0),
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 8),
+                            itemBuilder: (BuildContext context, int index) {
+                              if (index == _previewBytesList.length) {
+                                // [+] Slot to add more photos
+                                return Material(
+                                  color: scheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.4),
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(14),
+                                    onTap: _pickMedia,
+                                    child: Container(
+                                      width: 84,
+                                      height: 84,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: scheme.outlineVariant
+                                              .withValues(alpha: 0.4),
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          SizedBox(
-                            height: 120,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _previewBytesList.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(width: 10),
-                              itemBuilder: (BuildContext context, int index) {
-                                return Stack(
-                                  children: <Widget>[
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Image.memory(
-                                        _previewBytesList[index],
-                                        width: 120,
-                                        height: 120,
-                                        fit: BoxFit.cover,
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: <Widget>[
+                                          Icon(
+                                            Icons.add_photo_alternate_rounded,
+                                            size: 24,
+                                            color: scheme.primary,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Ещё фото',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: scheme.primary,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    Positioned(
-                                      top: 4,
-                                      right: 4,
-                                      child: Material(
-                                        color:
-                                            Colors.black.withValues(alpha: 0.65),
-                                        shape: const CircleBorder(),
+                                  ),
+                                );
+                              }
+
+                              return Stack(
+                                children: <Widget>[
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Image.memory(
+                                      _previewBytesList[index],
+                                      width: 84,
+                                      height: 84,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 4,
+                                    right: 4,
+                                    child: Material(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.65),
+                                      shape: const CircleBorder(),
+                                      child: Tooltip(
+                                        message: 'Удалить',
                                         child: InkWell(
                                           customBorder: const CircleBorder(),
                                           onTap: () => setState(() {
@@ -449,42 +456,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                                         ),
                                       ),
                                     ),
-                                  ],
-                                );
-                              },
-                            ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
+                        ),
                         const SizedBox(height: 16),
                       ],
-
-                      // Bottom action toolbar
-                      Row(
-                        children: <Widget>[
-                          OutlinedButton.icon(
-                            onPressed: _pickMedia,
-                            icon: const Icon(Icons.image_outlined, size: 20),
-                            label: Text(
-                              _selectedFile == null
-                                  ? context.l10n.postAttachMedia
-                                  : 'Заменить фото',
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                          ),
-                          const Spacer(),
-                          if (_textController.text.isNotEmpty)
-                            Text(
-                              '${_textController.text.length} симв.',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant
-                                    .withValues(alpha: 0.6),
-                              ),
-                            ),
-                        ],
-                      ),
 
                       // Error message
                       if (_error != null) ...<Widget>[
@@ -523,6 +502,73 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   ),
                 ),
               ),
+            ),
+          ),
+        ),
+        bottomNavigationBar: Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          decoration: BoxDecoration(
+            color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+            border: Border(
+              top: BorderSide(
+                color: scheme.outlineVariant
+                    .withValues(alpha: isDark ? 0.20 : 0.35),
+              ),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Row(
+              children: <Widget>[
+                OutlinedButton.icon(
+                  onPressed:
+                      _selectedFiles.length >= 5 ? null : _pickMedia,
+                  icon: const Icon(
+                      Icons.add_photo_alternate_outlined,
+                      size: 18),
+                  label: Text(
+                    _selectedFiles.isEmpty
+                        ? 'Добавить фото'
+                        : 'Фото (${_selectedFiles.length}/5)',
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                if (_textController.text.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Text(
+                      '${_textController.text.length} симв.',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant
+                            .withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ),
+                FilledButton.icon(
+                  onPressed: _isLoading ? null : _submit,
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.send_rounded, size: 16),
+                  label: const Text('Опубликовать'),
+                  style: FilledButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

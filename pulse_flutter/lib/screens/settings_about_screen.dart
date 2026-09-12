@@ -1,12 +1,15 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
@@ -76,27 +79,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
         const SizedBox(height: 16),
 
         // 3. Tab Content View (Smooth Transition)
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 240),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (Widget child, Animation<double> animation) {
-            return FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.03),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
-              ),
-            );
-          },
-          child: KeyedSubtree(
-            key: ValueKey<int>(_selectedTabIndex),
-            child: _buildCurrentTabContent(context, scheme, textTheme),
-          ),
-        ),
+        _buildCurrentTabContent(context, scheme, textTheme),
 
         const SizedBox(height: 12),
 
@@ -146,31 +129,33 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
         padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
         child: Column(
           children: <Widget>[
-            // Rotating Animated M3 Cookie Badge with Logo
-            SizedBox(
-              width: 72,
-              height: 72,
-              child: Stack(
-                alignment: Alignment.center,
-                children: <Widget>[
-                  M3Container.c9SidedCookie(
-                    width: 72,
-                    height: 72,
-                    color: scheme.primary,
-                    child: const SizedBox(),
-                  )
-                      .animate(onPlay: (AnimationController c) => c.repeat())
-                      .rotate(duration: 14.seconds, curve: Curves.linear),
-                  SvgPicture.asset(
-                    'assets/svg/niosmess_logo_tintable.svg',
-                    width: 42,
-                    height: 42,
-                    colorFilter: ColorFilter.mode(
-                      scheme.onPrimary,
-                      BlendMode.srcIn,
+            // Rotating Animated M3 Cookie Badge with Logo (Isolated with RepaintBoundary)
+            RepaintBoundary(
+              child: SizedBox(
+                width: 72,
+                height: 72,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: <Widget>[
+                    M3Container.c9SidedCookie(
+                      width: 72,
+                      height: 72,
+                      color: scheme.primary,
+                      child: const SizedBox(),
+                    )
+                        .animate(onPlay: (AnimationController c) => c.repeat())
+                        .rotate(duration: 14.seconds, curve: Curves.linear),
+                    SvgPicture.asset(
+                      'assets/svg/niosmess_logo_tintable.svg',
+                      width: 42,
+                      height: 42,
+                      colorFilter: ColorFilter.mode(
+                        scheme.onPrimary,
+                        BlendMode.srcIn,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             )
                 .animate(controller: _heroController)
@@ -212,7 +197,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
               builder: (BuildContext context, AsyncSnapshot<PackageInfo> snapshot) {
                 final String ver = snapshot.data != null
                     ? 'v${snapshot.data!.version}+${snapshot.data!.buildNumber}'
-                    : 'v3.10.2+19';
+                    : AppConstants.appFullVersion;
                 return Material(
                   color: Colors.transparent,
                   child: InkWell(
@@ -268,12 +253,13 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
               runSpacing: 8,
               alignment: WrapAlignment.center,
               children: <Widget>[
-                _QuickHeroButton(
-                  icon: Icons.memory_rounded,
-                  label: 'Устройство',
-                  color: scheme.primary,
-                  onTap: () => context.push('/settings/system-device'),
-                ),
+                if (!kIsWeb)
+                  _QuickHeroButton(
+                    icon: Icons.memory_rounded,
+                    label: 'Устройство',
+                    color: scheme.primary,
+                    onTap: () => context.push('/settings/system-device'),
+                  ),
                 _QuickHeroButton(
                   icon: Icons.science_rounded,
                   label: 'Альфа-тест',
@@ -346,38 +332,60 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
           final bool isSelected = _selectedTabIndex == index;
 
           return Expanded(
-            child: Material(
-              color: isSelected ? scheme.primary : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                onTap: () => setState(() => _selectedTabIndex = index),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(
+                color: isSelected ? scheme.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Icon(
-                        tab.icon,
-                        size: 18,
-                        color: isSelected
-                            ? scheme.onPrimary
-                            : scheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        tab.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.labelSmall?.copyWith(
-                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                          fontSize: 11,
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: scheme.primary.withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+                child: InkWell(
+                  onTap: () {
+                    if (_selectedTabIndex != index) {
+                      HapticService.selection();
+                      setState(() => _selectedTabIndex = index);
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          tab.icon,
+                          size: 18,
                           color: isSelected
                               ? scheme.onPrimary
                               : scheme.onSurfaceVariant,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 3),
+                        Text(
+                          tab.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.labelSmall?.copyWith(
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            fontSize: 11,
+                            color: isSelected
+                                ? scheme.onPrimary
+                                : scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -389,14 +397,51 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // 3. Current Tab Content Switcher
+  // 3. Current Tab Content Switcher (Animated with smooth M3 transitions)
   // ---------------------------------------------------------------------------
   Widget _buildCurrentTabContent(
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
-    switch (_selectedTabIndex) {
+    return RepaintBoundary(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 240),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: const Interval(0.0, 0.9, curve: Curves.easeOut),
+            ),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.02, 0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              )),
+              child: child,
+            ),
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey<int>(_selectedTabIndex),
+          child: _tabWidgetForIndex(_selectedTabIndex, context, scheme, textTheme),
+        ),
+      ),
+    );
+  }
+
+  Widget _tabWidgetForIndex(
+    int index,
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+  ) {
+    switch (index) {
       case 0:
         return _buildDevelopersTab(context, scheme, textTheme);
       case 1:
@@ -493,7 +538,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
             showLicensePage(
               context: context,
               applicationName: 'NiosMess',
-              applicationVersion: '3.10.2',
+              applicationVersion: AppConstants.appVersion,
               applicationIcon: Padding(
                 padding: const EdgeInsets.all(12),
                 child: SizedBox(
@@ -614,15 +659,17 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Row(
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 4,
                           children: <Widget>[
                             Text(
-                              'v3.10.2 (Expressive)',
+                              '${AppConstants.appVersionWithPrefix} (Expressive)',
                               style: textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -657,12 +704,12 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                 ],
               ),
               const SizedBox(height: 14),
-              _buildChangeItem(scheme, textTheme, context.l10n.aboutChangelogV300C1),
-              _buildChangeItem(scheme, textTheme, 'Двухпанельный Master-Detail режим настроек для ПК и планшетов'),
-              _buildChangeItem(scheme, textTheme, 'Единая авторизация Nios ID по протоколу OAuth 2.0 PKCE'),
-              _buildChangeItem(scheme, textTheme, 'Адаптивная лента NiosGram с быстрыми реакциями и красивыми карточками'),
-              _buildChangeItem(scheme, textTheme, 'Глобальная плавная инерционная прокрутка на Web-платформе'),
-              _buildChangeItem(scheme, textTheme, context.l10n.aboutChangelogV300C4),
+              _buildChangeItem(scheme, textTheme, 'Ультра-плавный движок анимаций (120 FPS без рывков и дерганий списков)'),
+              _buildChangeItem(scheme, textTheme, 'Комплексная оптимизация рендеринга для Web и Android APK'),
+              _buildChangeItem(scheme, textTheme, 'Исключение аппаратной диагностики в веб-клиенте для чистоты интерфейса'),
+              _buildChangeItem(scheme, textTheme, 'Адаптивные и безопасные переходы экранов Material 3 Expressive'),
+              _buildChangeItem(scheme, textTheme, 'Мгновенный отклик переключателей с тактильной индикацией thumbIcon'),
+              _buildChangeItem(scheme, textTheme, 'Информативные статусные бейджи в Master-Detail режиме настроек'),
               _buildChangeItem(scheme, textTheme, context.l10n.aboutChangelogV300C6),
             ],
           ),
@@ -724,23 +771,30 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
       child: Center(
         child: Column(
           children: <Widget>[
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(
-                  Icons.shield_rounded,
-                  size: 13,
-                  color: scheme.primary.withValues(alpha: 0.8),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Безопасность и сквозное шифрование по умолчанию',
-                  style: textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
-                    fontWeight: FontWeight.w600,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Icon(
+                    Icons.shield_rounded,
+                    size: 13,
+                    color: scheme.primary.withValues(alpha: 0.8),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Безопасность и сквозное шифрование по умолчанию',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 4),
             Text(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pulse_flutter/core/network/oauth_navigation_helper.dart';
@@ -292,26 +293,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 480),
+                    constraints: const BoxConstraints(maxWidth: 440),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // ── Hero Header ──────────────────────────────
                         _buildHeroHeader(scheme, textTheme),
-                        const SizedBox(height: 28),
+                        SizedBox(height: _deviceCodeResponse != null ? 32 : 44),
 
-                        // ── Ecosystem Benefits Card ───────────────────
-                        _buildBenefitsCard(scheme, textTheme),
-                        const SizedBox(height: 32),
-
-                        // ── Primary Action Block ──────────────────────
-                        _buildPrimaryAction(scheme, textTheme),
-                        const SizedBox(height: 16),
-
-                        // ── Secondary Action (Register) ───────────────
-                        _buildSecondaryAction(scheme, textTheme),
-                        const SizedBox(height: 28),
+                        // ── Main Action or Device Code Verification ───
+                        if (_deviceCodeResponse != null) ...[
+                          _buildDeviceCodeCard(scheme, textTheme),
+                        ] else ...[
+                          _buildPrimaryAction(scheme, textTheme),
+                          const SizedBox(height: 12),
+                          _buildSecondaryAction(scheme, textTheme),
+                        ],
+                        const SizedBox(height: 36),
 
                         // ── Legal Footer ──────────────────────────────
                         _buildLegalFooter(scheme, textTheme),
@@ -331,47 +330,60 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildHeroHeader(ColorScheme scheme, TextTheme textTheme) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       children: [
-        // Brand Squircle Logo Badge
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: scheme.primaryContainer,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.4),
-              width: 1,
+        // Clean Brand Squircle Emblem with subtle glow
+        Center(
+          child: Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              borderRadius: BorderRadius.circular(26),
+              boxShadow: [
+                BoxShadow(
+                  color: scheme.primary.withValues(alpha: isDark ? 0.38 : 0.22),
+                  blurRadius: 36,
+                  offset: const Offset(0, 10),
+                  spreadRadius: -2,
+                ),
+              ],
             ),
-          ),
-          child: Center(
-            child: Icon(
-              Icons.all_inclusive_rounded,
-              size: 32,
-              color: scheme.onPrimaryContainer,
+            padding: const EdgeInsets.all(20),
+            child: SvgPicture.asset(
+              'assets/svg/niosmess_n_mark.svg',
+              colorFilter: ColorFilter.mode(
+                scheme.onPrimary,
+                BlendMode.srcIn,
+              ),
             ),
           ),
         ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
-        const SizedBox(height: 16),
+        const SizedBox(height: 22),
 
-        // Brand Title
+        // Brand Title in Unbounded
         Text(
           'NiosMess',
-          style: textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.2,
+          style: GoogleFonts.unbounded(
+            fontSize: 34,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.6,
             color: scheme.onSurface,
           ),
           textAlign: TextAlign.center,
-        ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.2, end: 0),
-        const SizedBox(height: 6),
+        ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.15, end: 0),
+        const SizedBox(height: 10),
 
-        // Subtitle
+        // Subtitle without awkward line wraps
         Text(
-          'Войдите в NiosMess через аккаунт Nios ID',
-          style: textTheme.bodyMedium?.copyWith(
+          'Единый доступ к чатам, звонкам и\u00A0Nios\u00A0ID',
+          style: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
             color: scheme.onSurfaceVariant,
+            height: 1.4,
           ),
           textAlign: TextAlign.center,
         ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
@@ -379,106 +391,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildBenefitsCard(ColorScheme scheme, TextTheme textTheme) {
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.4),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          ListTile(
-            leading: Icon(
-              Icons.badge_outlined,
-              color: scheme.primary,
-              size: 24,
-            ),
-            title: Text(
-              'Единый вход Nios ID',
-              style: textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: scheme.onSurface,
-              ),
-            ),
-            subtitle: Text(
-              'Быстрый и защищённый доступ без ввода лишних паролей.',
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                height: 1.35,
-              ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          ),
-          Divider(
-            height: 1,
-            indent: 56,
-            endIndent: 16,
-            color: scheme.outlineVariant.withValues(alpha: 0.2),
-          ),
-          ListTile(
-            leading: Icon(
-              Icons.lock_outline_rounded,
-              color: scheme.primary,
-              size: 24,
-            ),
-            title: Text(
-              'Сквозное E2EE шифрование',
-              style: textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: scheme.onSurface,
-              ),
-            ),
-            subtitle: Text(
-              'Ваши сообщения и звонки защищены криптографией на устройстве.',
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                height: 1.35,
-              ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          ),
-          Divider(
-            height: 1,
-            indent: 56,
-            endIndent: 16,
-            color: scheme.outlineVariant.withValues(alpha: 0.2),
-          ),
-          ListTile(
-            leading: Icon(
-              Icons.shield_outlined,
-              color: scheme.primary,
-              size: 24,
-            ),
-            title: Text(
-              'Конфиденциальность',
-              style: textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: scheme.onSurface,
-              ),
-            ),
-            subtitle: Text(
-              'NiosMess не получает и не хранит мастер-пароль от аккаунта.',
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                height: 1.35,
-              ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 450.ms, delay: 150.ms).slideY(begin: 0.1, end: 0);
-  }
-
   Widget _buildPrimaryAction(ColorScheme scheme, TextTheme textTheme) {
-    if (_deviceCodeResponse != null) {
-      return _buildDeviceCodeCard(scheme, textTheme);
-    }
-
     return SizedBox(
       width: double.infinity,
       height: 56,
@@ -488,6 +401,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           minimumSize: const Size.fromHeight(56),
           shape: const StadiumBorder(),
           elevation: 0,
+          backgroundColor: scheme.primary,
+          foregroundColor: scheme.onPrimary,
         ),
         icon: _isStartingAuth
             ? SizedBox(
@@ -498,165 +413,204 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   valueColor: AlwaysStoppedAnimation<Color>(scheme.onPrimary),
                 ),
               )
-            : const Icon(Icons.vpn_key_rounded, size: 20),
+            : const Icon(Icons.all_inclusive_rounded, size: 22),
         label: Text(
           'Войти через Nios ID',
-          style: textTheme.labelLarge?.copyWith(
+          style: GoogleFonts.inter(
             fontSize: 16,
-            fontWeight: FontWeight.w500,
-            letterSpacing: 0.1,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
           ),
         ),
       ),
-    ).animate().fadeIn(duration: 450.ms, delay: 250.ms);
-  }
-
-  Widget _buildDeviceCodeCard(ColorScheme scheme, TextTheme textTheme) {
-    final NiosDeviceCodeResponse resp = _deviceCodeResponse!;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.4),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Ожидание подтверждения...',
-                  style: textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: scheme.onSurface,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'В браузере открыта страница входа Nios ID. Убедитесь, что код совпадает:',
-            style: textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 14),
-          InkWell(
-            onTap: () {
-              Clipboard.setData(ClipboardData(text: resp.userCode));
-              HapticFeedback.lightImpact();
-              AppToast.showSuccess(context, 'Код скопирован');
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: scheme.primaryContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.4),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    resp.userCode,
-                    style: GoogleFonts.firaCode(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 3,
-                      color: scheme.onPrimaryContainer,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Icon(
-                    Icons.copy_rounded,
-                    size: 18,
-                    color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    OAuthNavigationHelper().openInBrowser(resp.verificationUriComplete);
-                  },
-                  icon: const Icon(Icons.open_in_browser_rounded, size: 18),
-                  label: const Text('Открыть Nios ID'),
-                  style: OutlinedButton.styleFrom(
-                    shape: const StadiumBorder(),
-                    side: BorderSide(
-                      color: scheme.outlineVariant.withValues(alpha: 0.5),
-                      width: 1,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              TextButton(
-                onPressed: _cancelDeviceAuth,
-                child: const Text('Отмена'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 300.ms);
+    ).animate().fadeIn(duration: 450.ms, delay: 150.ms);
   }
 
   Widget _buildSecondaryAction(ColorScheme scheme, TextTheme textTheme) {
     return SizedBox(
       width: double.infinity,
       height: 52,
-      child: OutlinedButton(
+      child: FilledButton.tonal(
         onPressed: () {
           HapticFeedback.lightImpact();
           OAuthNavigationHelper().openRegistration();
         },
-        style: OutlinedButton.styleFrom(
+        style: FilledButton.styleFrom(
+          backgroundColor: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
+          foregroundColor: scheme.onSurface,
           minimumSize: const Size.fromHeight(52),
           shape: const StadiumBorder(),
-          side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.6),
-            width: 1,
-          ),
+          elevation: 0,
         ),
         child: Text(
           'Создать аккаунт Nios ID',
-          style: textTheme.labelLarge?.copyWith(
+          style: GoogleFonts.inter(
             fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: scheme.primary,
+            fontWeight: FontWeight.w600,
+            color: scheme.onSurface,
+            letterSpacing: 0.1,
           ),
         ),
       ),
-    ).animate().fadeIn(duration: 450.ms, delay: 300.ms);
+    ).animate().fadeIn(duration: 450.ms, delay: 200.ms);
+  }
+
+  Widget _buildDeviceCodeCard(ColorScheme scheme, TextTheme textTheme) {
+    final NiosDeviceCodeResponse resp = _deviceCodeResponse!;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Подтверждение входа',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Откройте страницу Nios ID и подтвердите совпадение одноразового кода:',
+            style: GoogleFonts.inter(
+              fontSize: 13.5,
+              color: scheme.onSurfaceVariant,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 18),
+
+          // High-contrast clean Code Box
+          InkWell(
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: resp.userCode));
+              HapticFeedback.lightImpact();
+              AppToast.showSuccess(context, 'Код скопирован');
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: scheme.primary.withValues(alpha: 0.25),
+                  width: 1.2,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        resp.userCode,
+                        style: GoogleFonts.firaCode(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 4,
+                          color: scheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Icon(
+                        Icons.copy_rounded,
+                        size: 20,
+                        color: scheme.primary.withValues(alpha: 0.85),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Нажмите, чтобы скопировать',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Primary confirmation button
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton.icon(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                OAuthNavigationHelper().openInBrowser(resp.verificationUriComplete);
+              },
+              icon: const Icon(Icons.open_in_browser_rounded, size: 20),
+              label: Text(
+                'Подтвердить в браузере',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: scheme.primary,
+                foregroundColor: scheme.onPrimary,
+                shape: const StadiumBorder(),
+                elevation: 0,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Clean cancel action
+          TextButton(
+            onPressed: _cancelDeviceAuth,
+            style: TextButton.styleFrom(
+              foregroundColor: scheme.onSurfaceVariant,
+            ),
+            child: Text(
+              'Отмена',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 300.ms).scale(begin: const Offset(0.96, 0.96), end: const Offset(1, 1));
   }
 
   Widget _buildLegalFooter(ColorScheme scheme, TextTheme textTheme) {

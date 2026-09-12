@@ -101,6 +101,20 @@ class WorkingHours {
     };
   }
 
+  /// Serializes working hours strictly conforming to the server profile_svc contract
+  /// which rejects any keys outside of `{"mon", "tue", "wed", "thu", "fri", "sat", "sun"}`.
+  Map<String, dynamic> toServerJson() {
+    return <String, dynamic>{
+      'mon': mon.map((TimeInterval i) => i.toJson()).toList(),
+      'tue': tue.map((TimeInterval i) => i.toJson()).toList(),
+      'wed': wed.map((TimeInterval i) => i.toJson()).toList(),
+      'thu': thu.map((TimeInterval i) => i.toJson()).toList(),
+      'fri': fri.map((TimeInterval i) => i.toJson()).toList(),
+      'sat': sat.map((TimeInterval i) => i.toJson()).toList(),
+      'sun': sun.map((TimeInterval i) => i.toJson()).toList(),
+    };
+  }
+
   List<TimeInterval> intervalsForDay(int weekday) {
     switch (weekday) {
       case DateTime.monday:
@@ -130,6 +144,8 @@ class WorkingHours {
       fri.isEmpty &&
       sat.isEmpty &&
       sun.isEmpty;
+
+  bool get isNotEmpty => !isEmpty;
 
   bool isOpenNow([DateTime? dateTime]) {
     final DateTime now = dateTime ?? DateTime.now();

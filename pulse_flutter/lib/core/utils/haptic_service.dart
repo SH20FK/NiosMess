@@ -13,6 +13,10 @@ class HapticService {
     if (_supported) HapticFeedback.selectionClick();
   }
 
+  static void selection() {
+    if (_supported) HapticFeedback.selectionClick();
+  }
+
   static void confirm() {
     if (_supported) HapticFeedback.mediumImpact();
   }

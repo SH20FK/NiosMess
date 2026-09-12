@@ -615,7 +615,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             ],
 
             // Working Hours
-            if (profile.workingHours != null && !profile.workingHours!.isEmpty) ...[
+            if (profile.workingHours != null && profile.workingHours!.isNotEmpty) ...[
               const SizedBox(height: 16),
               WorkingHoursWidget(
                 workingHours: profile.workingHours,

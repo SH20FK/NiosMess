@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/device_hardware_provider.dart';
 import 'package:pulse_flutter/services/system/device_hardware_service.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/screens/settings_about_screen.dart';
 
 class SettingsSystemDeviceScreen extends ConsumerWidget {
   const SettingsSystemDeviceScreen({
@@ -16,6 +18,11 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+
+    if (kIsWeb) {
+      return SettingsAboutScreen(isEmbedded: isEmbedded);
+    }
+
     final AsyncValue<DeviceHardwareInfo> hardwareAsync = ref.watch(deviceHardwareProvider);
 
     return SettingsScaffold(
@@ -83,11 +90,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
   ) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        // ── 1. Hero Brand & Device Card ──
-        Container(
+    final Widget heroCard = Container(
           decoration: BoxDecoration(
             color: isDark ? scheme.surfaceContainerLow : scheme.surface,
             borderRadius: BorderRadius.circular(24),
@@ -202,12 +205,9 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               ),
             ],
           ),
-        ),
+        );
 
-        const SizedBox(height: 16),
-
-        // ── 2. Display & Graphics ──
-        SettingsSection(
+        final Widget displaySection = SettingsSection(
           title: 'Дисплей и графика',
           subtitle: 'Физические параметры матрицы и частота обновления',
           children: <Widget>[
@@ -240,12 +240,9 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               iconColor: const Color(0xFFFF9100),
             ),
           ],
-        ),
+        );
 
-        const SizedBox(height: 16),
-
-        // ── 3. Processor (SoC) & Compute ──
-        SettingsSection(
+        final Widget processorSection = SettingsSection(
           title: 'Процессор и вычисления',
           subtitle: 'Система на кристалле (SoC) и вычислительные кластеры',
           children: <Widget>[
@@ -271,12 +268,9 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               iconColor: scheme.secondary,
             ),
           ],
-        ),
+        );
 
-        const SizedBox(height: 16),
-
-        // ── 4. Memory & Storage ──
-        SettingsSection(
+        final Widget memorySection = SettingsSection(
           title: 'Память и накопитель',
           subtitle: 'Оперативная и постоянная физическая память',
           children: <Widget>[
@@ -299,12 +293,9 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               iconColor: const Color(0xFF00B0FF),
             ),
           ],
-        ),
+        );
 
-        const SizedBox(height: 16),
-
-        // ── 5. Cameras & Optics ──
-        SettingsSection(
+        final Widget camerasSection = SettingsSection(
           title: 'Оптика и камеры',
           subtitle: 'Сенсоры фотосъёмки и видеозаписи сообщений',
           children: <Widget>[
@@ -330,12 +321,9 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               iconColor: scheme.primary,
             ),
           ],
-        ),
+        );
 
-        const SizedBox(height: 16),
-
-        // ── 6. OS & Security ──
-        SettingsSection(
+        final Widget osSection = SettingsSection(
           title: 'Операционная система и безопасность',
           subtitle: 'Платформа, патчи безопасности и криптоядро',
           children: <Widget>[
@@ -369,12 +357,66 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               iconColor: const Color(0xFF7C4DFF),
             ),
           ],
-        ),
+        );
 
-        const SizedBox(height: 32),
-      ],
-    );
-  }
+        return LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final bool isWide = constraints.maxWidth >= 840;
+            if (isWide) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        heroCard,
+                        const SizedBox(height: 16),
+                        displaySection,
+                        const SizedBox(height: 16),
+                        camerasSection,
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    flex: 6,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        processorSection,
+                        const SizedBox(height: 16),
+                        memorySection,
+                        const SizedBox(height: 16),
+                        osSection,
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                heroCard,
+                const SizedBox(height: 16),
+                displaySection,
+                const SizedBox(height: 16),
+                processorSection,
+                const SizedBox(height: 16),
+                memorySection,
+                const SizedBox(height: 16),
+                camerasSection,
+                const SizedBox(height: 16),
+                osSection,
+                const SizedBox(height: 32),
+              ],
+            );
+          },
+        );
+      }
 
   Widget _buildSpecChip(ColorScheme scheme, TextTheme textTheme, IconData icon, String text) {
     return Expanded(
