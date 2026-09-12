@@ -106,37 +106,52 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     });
 
     try {
-      List<int>? uploadIds;
+      List<String>? uploadIds;
       if (_selectedFiles.isNotEmpty) {
-        uploadIds = <int>[];
-        for (final PlatformFile file in _selectedFiles) {
-          final Uint8List fileBytes = await file.readAsBytes();
+        uploadIds = <String>[];
+        for (int i = 0; i < _selectedFiles.length; i++) {
+          final PlatformFile file = _selectedFiles[i];
+          final Uint8List fileBytes = (i < _previewBytesList.length)
+              ? _previewBytesList[i]
+              : await file.readAsBytes();
+          String filename = file.name;
+          if (!filename.contains('.')) {
+            filename = '$filename.jpg';
+          }
           final String uploadIdStr = await ref
               .read(chatRepositoryProvider)
               .uploadStreamInChunks(
                 bytes: fileBytes,
-                filename: file.name,
+                filename: filename,
                 mediaSubtype: 'media',
                 fileSize: fileBytes.length,
                 onProgress: (_, _) {},
               );
-          final int? id = int.tryParse(uploadIdStr);
-          if (id != null) uploadIds.add(id);
+          if (uploadIdStr.isNotEmpty) {
+            uploadIds.add(uploadIdStr);
+          }
         }
       } else if (_selectedFile != null) {
         final PlatformFile file = _selectedFile!;
-        final Uint8List fileBytes = await file.readAsBytes();
+        final Uint8List fileBytes = _previewBytesList.isNotEmpty
+            ? _previewBytesList.first
+            : await file.readAsBytes();
+        String filename = file.name;
+        if (!filename.contains('.')) {
+          filename = '$filename.jpg';
+        }
         final String uploadIdStr = await ref
             .read(chatRepositoryProvider)
             .uploadStreamInChunks(
               bytes: fileBytes,
-              filename: file.name,
+              filename: filename,
               mediaSubtype: 'media',
               fileSize: fileBytes.length,
               onProgress: (_, _) {},
             );
-        final int? id = int.tryParse(uploadIdStr);
-        if (id != null) uploadIds = <int>[id];
+        if (uploadIdStr.isNotEmpty) {
+          uploadIds = <String>[uploadIdStr];
+        }
       }
 
       await ref.read(niosgramProvider.notifier).createPost(
@@ -506,7 +521,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           ),
         ),
         bottomNavigationBar: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color: isDark ? scheme.surfaceContainerLow : scheme.surface,
             border: Border(
@@ -518,57 +533,80 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           ),
           child: SafeArea(
             top: false,
-            child: Row(
-              children: <Widget>[
-                OutlinedButton.icon(
-                  onPressed:
-                      _selectedFiles.length >= 5 ? null : _pickMedia,
-                  icon: const Icon(
-                      Icons.add_photo_alternate_outlined,
-                      size: 18),
-                  label: Text(
-                    _selectedFiles.isEmpty
-                        ? 'Добавить фото'
-                        : 'Фото (${_selectedFiles.length}/5)',
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                if (_textController.text.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: Text(
-                      '${_textController.text.length} симв.',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant
-                            .withValues(alpha: 0.6),
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final bool isNarrow = constraints.maxWidth < 360;
+                final bool isVeryNarrow = constraints.maxWidth < 310;
+                return Row(
+                  children: <Widget>[
+                    FilledButton.tonalIcon(
+                      onPressed:
+                          _selectedFiles.length >= 5 ? null : _pickMedia,
+                      icon: Badge(
+                        isLabelVisible: _selectedFiles.isNotEmpty,
+                        label: Text('${_selectedFiles.length}'),
+                        child: const Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 19,
+                        ),
+                      ),
+                      label: Text(
+                        _selectedFiles.isEmpty
+                            ? (isNarrow ? 'Фото' : 'Добавить фото')
+                            : (isNarrow
+                                ? '${_selectedFiles.length}/5'
+                                : 'Фото (${_selectedFiles.length}/5)'),
+                      ),
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isNarrow ? 10 : 14,
+                          vertical: 8,
+                        ),
                       ),
                     ),
-                  ),
-                FilledButton.icon(
-                  onPressed: _isLoading ? null : _submit,
-                  icon: _isLoading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                    const Spacer(),
+                    if (_textController.text.isNotEmpty && !isVeryNarrow)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: Text(
+                          '${_textController.text.length} симв.',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant
+                                .withValues(alpha: 0.6),
                           ),
-                        )
-                      : const Icon(Icons.send_rounded, size: 16),
-                  label: const Text('Опубликовать'),
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    FilledButton.icon(
+                      onPressed: _isLoading ? null : _submit,
+                      icon: _isLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.send_rounded, size: 16),
+                      label: Text(
+                        isNarrow ? 'Пост' : context.l10n.postPublish,
+                      ),
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isNarrow ? 12 : 16,
+                          vertical: 8,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           ),
         ),

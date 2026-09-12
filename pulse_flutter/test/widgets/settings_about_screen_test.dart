@@ -89,7 +89,8 @@ void main() {
 
       // Tap Changelog tab
       await tester.tap(find.text('Обновления').first);
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
 
       // Verify Current version
       expect(find.textContaining('(Expressive)'), findsOneWidget);

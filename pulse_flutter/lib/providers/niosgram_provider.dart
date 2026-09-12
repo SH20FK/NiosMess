@@ -205,17 +205,20 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
 
   Future<void> createPost(
     String text, {
-    int? uploadId,
-    List<int>? uploadIds,
+    dynamic uploadId,
+    List<dynamic>? uploadIds,
     List<String>? aiTags,
   }) async {
     final Map<String, dynamic> payload = <String, dynamic>{
       'content': text.trim(),
     };
-    if (uploadIds != null && uploadIds.isNotEmpty) {
-      payload['upload_ids'] = uploadIds;
-    } else if (uploadId != null) {
-      payload['upload_id'] = uploadId;
+    final List<dynamic> effectiveUploadIds = <dynamic>[
+      ...?uploadIds,
+      if (uploadIds == null && uploadId != null) uploadId,
+    ];
+    if (effectiveUploadIds.isNotEmpty) {
+      payload['upload_ids'] = effectiveUploadIds;
+      payload['upload_id'] = effectiveUploadIds.first;
     }
     if (aiTags != null && aiTags.isNotEmpty) {
       payload['ai_tags'] = aiTags;
@@ -225,19 +228,41 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
       payload: payload,
     );
     if (response is! Map) return;
+    if (response['error'] != null) {
+      throw Exception(response['error'].toString());
+    }
+
     final dynamic respData =
         response['payload'] ?? response['data'] ?? response;
-    if (respData is! Map) return;
-    final NgPost post = NgPost.fromJson(
-      respData.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
-    );
-    final AsyncData<NiosgramState>? current = state.asData;
-    if (current == null) return;
-    state = AsyncData<NiosgramState>(
-      current.value.copyWith(
-        posts: <NgPost>[post, ...current.value.posts],
-      ),
-    );
+    if (respData is Map && respData['id'] != null && respData['author'] != null) {
+      final NgPost post = NgPost.fromJson(
+        respData.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
+      );
+      final AsyncData<NiosgramState>? current = state.asData;
+      if (current != null) {
+        state = AsyncData<NiosgramState>(
+          current.value.copyWith(
+            posts: <NgPost>[post, ...current.value.posts.where((NgPost p) => p.id != post.id)],
+          ),
+        );
+      }
+    }
+
+    try {
+      final List<NgPost> freshPosts = await _fetchPage(1);
+      final AsyncData<NiosgramState>? current = state.asData;
+      if (current != null && freshPosts.isNotEmpty) {
+        state = AsyncData<NiosgramState>(
+          current.value.copyWith(
+            posts: freshPosts,
+            page: 1,
+            hasMore: freshPosts.length >= 20,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[niosgram_provider] Error refreshing feed after createPost: $e');
+    }
   }
 
   Future<void> deletePost(int postId) async {

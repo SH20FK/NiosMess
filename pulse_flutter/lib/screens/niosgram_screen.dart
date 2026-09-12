@@ -441,22 +441,30 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
     });
 
     try {
-      List<int>? uploadIds;
+      List<String>? uploadIds;
       if (_selectedFiles.isNotEmpty) {
-        uploadIds = <int>[];
-        for (final PlatformFile file in _selectedFiles) {
-          final Uint8List fileBytes = await file.readAsBytes();
+        uploadIds = <String>[];
+        for (int i = 0; i < _selectedFiles.length; i++) {
+          final PlatformFile file = _selectedFiles[i];
+          final Uint8List fileBytes = (i < _previewBytesList.length)
+              ? _previewBytesList[i]
+              : await file.readAsBytes();
+          String filename = file.name;
+          if (!filename.contains('.')) {
+            filename = '$filename.jpg';
+          }
           final String uploadIdStr = await ref
               .read(chatRepositoryProvider)
               .uploadStreamInChunks(
                 bytes: fileBytes,
-                filename: file.name,
+                filename: filename,
                 mediaSubtype: 'media',
                 fileSize: fileBytes.length,
                 onProgress: (_, _) {},
               );
-          final int? id = int.tryParse(uploadIdStr);
-          if (id != null) uploadIds.add(id);
+          if (uploadIdStr.isNotEmpty) {
+            uploadIds.add(uploadIdStr);
+          }
         }
       }
 
@@ -785,71 +793,84 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                 const SizedBox(height: 12),
 
                 // Bottom toolbar
-                Row(
-                  children: <Widget>[
-                    OutlinedButton.icon(
-                      onPressed: _isLoading || _selectedFiles.length >= 5
-                          ? null
-                          : _pickMedia,
-                      icon: const Icon(
-                        Icons.add_photo_alternate_outlined,
-                        size: 17,
-                      ),
-                      label: Text(
-                        _selectedFiles.isEmpty
-                            ? 'Фото'
-                            : 'Фото (${_selectedFiles.length}/5)',
-                        style: const TextStyle(fontSize: 12.5),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    if (_textController.text.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Text(
-                          '${_textController.text.length} симв.',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant
-                                .withValues(alpha: 0.6),
-                            fontSize: 11,
+                LayoutBuilder(
+                  builder: (BuildContext context, BoxConstraints constraints) {
+                    final bool isVeryNarrow = constraints.maxWidth < 310;
+                    return Row(
+                      children: <Widget>[
+                        Tooltip(
+                          message: _selectedFiles.isEmpty
+                              ? 'Прикрепить фото'
+                              : 'Прикреплено фото: ${_selectedFiles.length}/5',
+                          child: IconButton.filledTonal(
+                            onPressed: _isLoading || _selectedFiles.length >= 5
+                                ? null
+                                : _pickMedia,
+                            icon: Badge(
+                              isLabelVisible: _selectedFiles.isNotEmpty,
+                              label: Text('${_selectedFiles.length}'),
+                              child: const Icon(
+                                Icons.add_photo_alternate_outlined,
+                                size: 20,
+                              ),
+                            ),
+                            style: IconButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    TextButton(
-                      onPressed: _isLoading ? null : _collapse,
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      child: const Text('Отмена', style: TextStyle(fontSize: 13)),
-                    ),
-                    const SizedBox(width: 6),
-                    FilledButton.icon(
-                      onPressed: _isLoading ? null : _submit,
-                      icon: _isLoading
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.send_rounded, size: 14),
-                      label: const Text('Опубликовать', style: TextStyle(fontSize: 13)),
-                      style: FilledButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        const SizedBox(width: 8),
+                        if (_textController.text.isNotEmpty && !isVeryNarrow)
+                          Text(
+                            '${_textController.text.length} симв.',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant
+                                  .withValues(alpha: 0.6),
+                              fontSize: 11,
+                            ),
+                          ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: _isLoading ? null : _collapse,
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          child: const Text('Отмена', style: TextStyle(fontSize: 13)),
                         ),
-                      ),
-                    ),
-                  ],
+                        const SizedBox(width: 4),
+                        FilledButton.icon(
+                          onPressed: _isLoading ? null : _submit,
+                          icon: _isLoading
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.send_rounded, size: 14),
+                          label: Text(
+                            isVeryNarrow ? 'Пост' : 'Опубликовать',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          style: FilledButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isVeryNarrow ? 10 : 14,
+                              vertical: 0,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),

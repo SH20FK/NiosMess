@@ -96,6 +96,28 @@ void main() {
       expect(post.dislikesCount, 0);
       expect(post.myReaction, isNull);
     });
+    test('parses backend media array with object dictionaries', () {
+      final json = <String, dynamic>{
+        'id': 103,
+        'content': 'Post with backend media objects',
+        'media_url': '/static/posts/1_first.jpg',
+        'media': <dynamic>[
+          <String, dynamic>{'url': '/static/posts/1_first.jpg', 'path': 'posts/1_first.jpg'},
+          <String, dynamic>{'url': '/static/posts/1_second.jpg', 'path': 'posts/1_second.jpg'},
+          <String, dynamic>{'url': '/static/posts/1_third.jpg', 'path': 'posts/1_third.jpg'},
+        ],
+        'likes': 10,
+        'dislikes': 0,
+      };
+
+      final post = NgPost.fromJson(json);
+      expect(post.id, 103);
+      expect(post.mediaUrls.length, 3);
+      expect(post.mediaUrls[0], '/static/posts/1_first.jpg');
+      expect(post.mediaUrls[1], '/static/posts/1_second.jpg');
+      expect(post.mediaUrls[2], '/static/posts/1_third.jpg');
+      expect(post.mediaUrl, '/static/posts/1_first.jpg');
+    });
   });
 
   group('NiosgramNotifier - Reactive Reactions & Multimedia Creation', () {
@@ -123,6 +145,39 @@ void main() {
       expect(req['action'], 'react_post');
       expect(req['payload']['post_id'], 10);
       expect(req['payload']['reaction'], 'like');
+    });
+
+    test('createPost sends string UUID upload_ids and ai_tags', () async {
+      final mockWs = MockWebSocketClient();
+      mockWs.nextResponse = <String, dynamic>{
+        'message': 'Post created successfully',
+        'post_id': 202,
+      };
+
+      final container = ProviderContainer(
+        overrides: [
+          webSocketClientProvider.overrideWithValue(mockWs),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(niosgramProvider.notifier);
+      await notifier.createPost(
+        'New post with UUID photos',
+        uploadIds: <String>['f47ac10b93bc44a8b7c938166d03227e', '9a8b7c6d5e4f3a2b1c0d'],
+        aiTags: ['sunset', 'mountain'],
+      );
+
+      final req = mockWs.sentRequests
+          .firstWhere((Map<String, dynamic> r) => r['action'] == 'create_post');
+      expect(req['action'], 'create_post');
+      expect(req['payload']['content'], 'New post with UUID photos');
+      expect(req['payload']['upload_ids'], <String>[
+        'f47ac10b93bc44a8b7c938166d03227e',
+        '9a8b7c6d5e4f3a2b1c0d',
+      ]);
+      expect(req['payload']['upload_id'], 'f47ac10b93bc44a8b7c938166d03227e');
+      expect(req['payload']['ai_tags'], ['sunset', 'mountain']);
     });
 
     test('createPost sends upload_ids and ai_tags', () async {

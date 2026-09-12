@@ -57,14 +57,20 @@ class NgPost {
       myReaction = false;
     }
 
-    final dynamic mediaUrlsRaw = json['media_urls'];
+    final dynamic mediaUrlsRaw = json['media_urls'] ?? json['media'];
     final List<String> mediaUrls;
     if (mediaUrlsRaw is List) {
       mediaUrls = mediaUrlsRaw
           .whereType<Object>()
-          .map((Object e) => e.toString())
+          .map((Object e) {
+            if (e is Map) {
+              return (e['url'] ?? e['path'] ?? '').toString();
+            }
+            return e.toString();
+          })
+          .where((String s) => s.isNotEmpty)
           .toList(growable: false);
-    } else if (json['media_url'] != null) {
+    } else if (json['media_url'] != null && json['media_url'].toString().isNotEmpty) {
       mediaUrls = <String>[json['media_url'].toString()];
     } else {
       mediaUrls = const <String>[];
@@ -78,8 +84,9 @@ class NgPost {
             .toList(growable: false)
         : const <String>[];
 
-    final String? primaryMediaUrl = json['media_url'] as String? ??
-        (mediaUrls.isNotEmpty ? mediaUrls.first : null);
+    final String? primaryMediaUrl = (json['media_url'] as String?)?.isNotEmpty == true
+        ? json['media_url'] as String
+        : (mediaUrls.isNotEmpty ? mediaUrls.first : null);
 
     return NgPost(
       id: json['id'] as int? ?? 0,
