@@ -38,6 +38,14 @@ class FakeWebSocketClient extends WebSocketClient {
   }
 }
 
+class _FakeStickerSetsNotifier extends StickerSetsNotifier {
+  _FakeStickerSetsNotifier(this._sets);
+  final List<ApiStickerSet> _sets;
+
+  @override
+  Future<List<ApiStickerSet>> build() async => _sets;
+}
+
 Widget _wrapWidget({
   required Widget child,
   List<dynamic> overrides = const [],
@@ -548,19 +556,18 @@ void main() {
     testWidgets('StickerPickerView renders empty state when no packs installed', (
       WidgetTester tester,
     ) async {
-      final fakeWs = FakeWebSocketClient();
-      fakeWs.responseToReturn = <String, dynamic>{'sets': <dynamic>[]};
-
       await tester.pumpWidget(
         _wrapWidget(
           overrides: [
-            webSocketClientProvider.overrideWithValue(fakeWs),
+            stickerSetsProvider.overrideWith(
+              () => _FakeStickerSetsNotifier(const <ApiStickerSet>[]),
+            ),
           ],
           child: const StickerPickerView(chatId: 1),
         ),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('У вас пока нет стикерпаков'), findsOneWidget);
       expect(find.text('Создать стикерпак'), findsOneWidget);
@@ -569,29 +576,26 @@ void main() {
     testWidgets('StickerPickerView renders empty pack state with add stickers button', (
       WidgetTester tester,
     ) async {
-      final fakeWs = FakeWebSocketClient();
-      fakeWs.responseToReturn = <String, dynamic>{
-        'sets': [
-          <String, dynamic>{
-            'id': 101,
-            'name': 'empty_pack',
-            'title': 'Пустой пак',
-            'is_public': true,
-            'stickers': <dynamic>[],
-          },
-        ],
-      };
+      const emptyPack = ApiStickerSet(
+        id: 101,
+        name: 'empty_pack',
+        title: 'Пустой пак',
+        isPublic: true,
+        stickers: <ApiSticker>[],
+      );
 
       await tester.pumpWidget(
         _wrapWidget(
           overrides: [
-            webSocketClientProvider.overrideWithValue(fakeWs),
+            stickerSetsProvider.overrideWith(
+              () => _FakeStickerSetsNotifier(const <ApiStickerSet>[emptyPack]),
+            ),
           ],
           child: const StickerPickerView(chatId: 1),
         ),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Пустой пак'), findsOneWidget);
       expect(find.text('В этом наборе пока нет стикеров'), findsOneWidget);
