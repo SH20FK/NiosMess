@@ -7,20 +7,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/utils/sticker_formatter.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
 
 class _PickedStickerFile {
   _PickedStickerFile({
-    required this.bytes,
+    required this.rawBytes,
+    required this.formattedBytes,
     required this.name,
     required this.extension,
     this.emoji = '✨',
+    this.fitMode = StickerFitMode.fit,
   });
 
-  final Uint8List bytes;
+  final Uint8List rawBytes;
+  Uint8List formattedBytes;
   final String name;
-  final String extension;
+  String extension;
   String emoji;
+  StickerFitMode fitMode;
+  bool isFormatting = false;
 }
 
 class AddStickerDialog extends ConsumerStatefulWidget {
@@ -55,7 +61,9 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
   final List<_PickedStickerFile> _files = <_PickedStickerFile>[];
   final TextEditingController _globalEmojiController =
       TextEditingController(text: '✨');
+  StickerFitMode _globalFitMode = StickerFitMode.fit;
   bool _isLoading = false;
+  bool _isFormatting = false;
   int _uploadProgress = 0;
 
   static const List<String> _suggestedEmojis = <String>[
@@ -68,27 +76,58 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
     super.dispose();
   }
 
+  Future<void> _changeFitMode(StickerFitMode mode) async {
+    if (_globalFitMode == mode || _files.isEmpty) {
+      setState(() => _globalFitMode = mode);
+      return;
+    }
+    HapticService.tap();
+    setState(() {
+      _globalFitMode = mode;
+      _isFormatting = true;
+    });
+
+    for (final _PickedStickerFile file in _files) {
+      final StickerFormatResult res =
+          await StickerFormatter.formatBytes(file.rawBytes, mode: mode);
+      file.formattedBytes = res.bytes;
+      file.extension = res.extension;
+      file.fitMode = mode;
+    }
+
+    if (mounted) {
+      setState(() => _isFormatting = false);
+    }
+  }
+
   Future<void> _pickFiles() async {
     try {
-      final List<PlatformFile> pickedFiles = await FilePicker.pickFiles(
+      final List<PlatformFile> picked = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: <String>[
           'png',
           'webp',
           'jpg',
           'jpeg',
+          'jfif',
           'gif',
+          'bmp',
+          'ico',
+          'tiff',
+          'svg',
           'mp4',
           'webm',
           'mov',
         ],
       );
 
-      if (pickedFiles.isEmpty) return;
+      if (picked.isEmpty) return;
+
+      setState(() => _isFormatting = true);
 
       final List<_PickedStickerFile> newFiles = <_PickedStickerFile>[];
 
-      for (final PlatformFile file in pickedFiles) {
+      for (final PlatformFile file in picked) {
         final Uint8List bytes = await file.readAsBytes();
         if (bytes.isEmpty) continue;
 
@@ -96,26 +135,32 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
         final bool isVideoOrGif =
             ext == 'mp4' || ext == 'webm' || ext == 'mov' || ext == 'gif';
         final int maxBytes =
-            isVideoOrGif ? 25 * 1024 * 1024 : 5 * 1024 * 1024;
+            isVideoOrGif ? 25 * 1024 * 1024 : 10 * 1024 * 1024;
 
         if (bytes.length > maxBytes) {
           if (mounted) {
             AppToast.showError(
               context,
-              'Файл "${file.name}" превышает лимит размера (${isVideoOrGif ? '25' : '5'} МБ)',
+              'Файл "${file.name}" превышает лимит размера (${isVideoOrGif ? '25' : '10'} МБ)',
             );
           }
           continue;
         }
 
+        // Auto-format any image on-device into compliant 512x512
+        final StickerFormatResult formatted =
+            await StickerFormatter.formatBytes(bytes, mode: _globalFitMode);
+
         newFiles.add(
           _PickedStickerFile(
-            bytes: bytes,
+            rawBytes: bytes,
+            formattedBytes: formatted.bytes,
             name: file.name,
-            extension: ext.isNotEmpty ? ext : 'webp',
+            extension: formatted.extension,
             emoji: _globalEmojiController.text.trim().isNotEmpty
                 ? _globalEmojiController.text.trim()
                 : '✨',
+            fitMode: _globalFitMode,
           ),
         );
       }
@@ -129,6 +174,10 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
     } catch (e) {
       if (mounted) {
         AppToast.showError(context, 'Ошибка выбора файлов: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isFormatting = false);
       }
     }
   }
@@ -151,7 +200,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
     try {
       for (int i = 0; i < total; i++) {
         final _PickedStickerFile item = _files[i];
-        final String base64Data = base64Encode(item.bytes);
+        final String base64Data = base64Encode(item.formattedBytes);
         final String safeFilename =
             'sticker_${widget.setId}_${DateTime.now().millisecondsSinceEpoch}_$i.${item.extension}';
 
@@ -159,6 +208,8 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
               setId: widget.setId,
               filename: safeFilename,
               dataBase64: base64Data,
+              width: StickerFormatter.kStickerDimension,
+              height: StickerFormatter.kStickerDimension,
               emoji: item.emoji.isNotEmpty ? item.emoji : '✨',
             );
 
@@ -379,7 +430,26 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            if (_files.isNotEmpty) ...[
+              SegmentedButton<StickerFitMode>(
+                segments: const <ButtonSegment<StickerFitMode>>[
+                  ButtonSegment(
+                    value: StickerFitMode.fit,
+                    icon: Icon(Icons.fit_screen_rounded, size: 16),
+                    label: Text('Вписать целиком'),
+                  ),
+                  ButtonSegment(
+                    value: StickerFitMode.crop,
+                    icon: Icon(Icons.crop_square_rounded, size: 16),
+                    label: Text('В квадрат'),
+                  ),
+                ],
+                selected: <StickerFitMode>{_globalFitMode},
+                onSelectionChanged: (Set<StickerFitMode> selected) =>
+                    _changeFitMode(selected.first),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Files list or drop zone
             Expanded(
@@ -416,7 +486,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                             ),
                             const SizedBox(height: 14),
                             Text(
-                              'Выбрать стикеры',
+                              'Выбрать любые картинки',
                               style: textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w700,
                                 color: scheme.primary,
@@ -424,7 +494,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Можно выбрать сразу несколько изображений',
+                              'Клиент автоматически конвертирует их в 512x512',
                               style: textTheme.bodySmall?.copyWith(
                                 color: scheme.onSurfaceVariant,
                               ),
@@ -444,6 +514,14 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
+                            if (_isFormatting) ...[
+                              const SizedBox(width: 8),
+                              const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            ],
                             const Spacer(),
                             TextButton.icon(
                               onPressed: _pickFiles,
@@ -490,7 +568,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                                               color: scheme.primary,
                                             )
                                           : Image.memory(
-                                              item.bytes,
+                                              item.formattedBytes,
                                               fit: BoxFit.contain,
                                             ),
                                     ),

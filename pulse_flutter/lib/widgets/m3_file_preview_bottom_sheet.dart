@@ -44,10 +44,19 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
   bool get hasLocalPath => (filePath ?? '').trim().isNotEmpty;
   bool get hasRemoteUrl => (mediaUrl ?? '').trim().isNotEmpty;
   bool get canPreviewNow {
-    if (typeInfo.isImage) return hasRemoteUrl || hasBytes;
+    if (typeInfo.isImage) return hasRemoteUrl || hasBytes || hasLocalPath;
     if (typeInfo.isVideo) return hasRemoteUrl;
     if (typeInfo.isAudio) return hasRemoteUrl || hasLocalPath;
-    if (typeInfo.isPdf) return hasRemoteUrl || hasBytes;
+    if (typeInfo.isPdf) return hasRemoteUrl || hasBytes || hasLocalPath;
+    final String ext =
+        fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';
+    if (ext == 'md' ||
+        ext == 'docx' ||
+        ext == 'doc' ||
+        typeInfo.category == FileTypeCategory.text ||
+        typeInfo.category == FileTypeCategory.code) {
+      return hasRemoteUrl || hasBytes || hasLocalPath;
+    }
     return false;
   }
 
@@ -215,55 +224,64 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
   Future<void> _previewFile(BuildContext context) async {
     Navigator.of(context).pop();
 
+    final Object? routeExtra = hasBytes
+        ? (e2eeFileKey != null && e2eeFileKey!.isNotEmpty
+            ? <String, dynamic>{'bytes': fileBytes, 'e2eeFileKey': e2eeFileKey}
+            : fileBytes)
+        : e2eeFileKey;
+
     if (typeInfo.isImage) {
-      Navigator.of(context).pop();
       await context.push(
         '/file-viewer?name=${Uri.encodeComponent(fileName)}'
         '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}'
         '${hasLocalPath ? '&path=${Uri.encodeComponent(filePath!)}' : ''}',
-        extra: e2eeFileKey,
+        extra: routeExtra,
       );
       return;
     }
 
     if (typeInfo.isVideo && hasRemoteUrl) {
-      Navigator.of(context).pop();
       await context.push(
         '/file-viewer?name=${Uri.encodeComponent(fileName)}'
         '&url=${Uri.encodeComponent(mediaUrl!)}',
-        extra: e2eeFileKey,
+        extra: routeExtra,
       );
       return;
     }
 
-    if (typeInfo.isAudio && (hasRemoteUrl || hasLocalPath)) {
-      Navigator.of(context).pop();
+    if (typeInfo.isAudio && (hasRemoteUrl || hasLocalPath || hasBytes)) {
       await context.push(
         '/file-viewer?name=${Uri.encodeComponent(fileName)}'
         '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}'
         '${hasLocalPath ? '&path=${Uri.encodeComponent(filePath!)}' : ''}',
-        extra: e2eeFileKey,
+        extra: routeExtra,
       );
       return;
     }
 
-    if (typeInfo.isPdf && (hasRemoteUrl || hasBytes)) {
-      Navigator.of(context).pop();
-      await context.push(
-        '/file-viewer?name=${Uri.encodeComponent(fileName)}'
-        '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}',
-        extra: e2eeFileKey,
-      );
-      return;
-    }
-
-    if (typeInfo.isDocument) {
-      Navigator.of(context).pop();
+    if (typeInfo.isPdf && (hasRemoteUrl || hasBytes || hasLocalPath)) {
       await context.push(
         '/file-viewer?name=${Uri.encodeComponent(fileName)}'
         '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}'
         '${hasLocalPath ? '&path=${Uri.encodeComponent(filePath!)}' : ''}',
-        extra: e2eeFileKey,
+        extra: routeExtra,
+      );
+      return;
+    }
+
+    final String ext =
+        fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';
+    if (ext == 'md' ||
+        ext == 'docx' ||
+        ext == 'doc' ||
+        typeInfo.isDocument ||
+        typeInfo.category == FileTypeCategory.text ||
+        typeInfo.category == FileTypeCategory.code) {
+      await context.push(
+        '/file-viewer?name=${Uri.encodeComponent(fileName)}'
+        '${hasRemoteUrl ? '&url=${Uri.encodeComponent(mediaUrl!)}' : ''}'
+        '${hasLocalPath ? '&path=${Uri.encodeComponent(filePath!)}' : ''}',
+        extra: routeExtra,
       );
       return;
     }

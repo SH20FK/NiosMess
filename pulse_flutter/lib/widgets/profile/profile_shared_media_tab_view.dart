@@ -13,6 +13,7 @@ import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -24,6 +25,32 @@ class ProfileSharedMediaTabView extends ConsumerStatefulWidget {
   });
 
   final int? chatId;
+
+  static bool isPureImage(
+    String type,
+    String msgType,
+    String name,
+    String urlLower,
+  ) =>
+      _ProfileSharedMediaTabViewState._isPureImage(
+        type,
+        msgType,
+        name,
+        urlLower,
+      );
+
+  static bool isPureVideo(
+    String type,
+    String msgType,
+    String name,
+    String urlLower,
+  ) =>
+      _ProfileSharedMediaTabViewState._isPureVideo(
+        type,
+        msgType,
+        name,
+        urlLower,
+      );
 
   @override
   ConsumerState<ProfileSharedMediaTabView> createState() =>
@@ -200,6 +227,32 @@ class _ProfileSharedMediaTabViewState
     super.dispose();
   }
 
+  static bool _isPureImage(
+    String type,
+    String msgType,
+    String name,
+    String urlLower,
+  ) =>
+      FileTypeDetector.isPureImage(
+        mediaType: type,
+        msgType: msgType,
+        fileName: name,
+        url: urlLower,
+      );
+
+  static bool _isPureVideo(
+    String type,
+    String msgType,
+    String name,
+    String urlLower,
+  ) =>
+      FileTypeDetector.isPureVideo(
+        mediaType: type,
+        msgType: msgType,
+        fileName: name,
+        url: urlLower,
+      );
+
   List<_SharedMediaItem> _extractPhotosAndVideos(List<ApiMessage> messages) {
     final List<_SharedMediaItem> list = <_SharedMediaItem>[];
     for (final m in messages) {
@@ -222,34 +275,8 @@ class _ProfileSharedMediaTabViewState
         final name = (m.mediaName ?? '').toLowerCase();
         final urlLower = url.toLowerCase();
 
-        final isVideo = type.startsWith('video/') ||
-            msgType.contains('video') ||
-            name.endsWith('.mp4') ||
-            name.endsWith('.mov') ||
-            name.endsWith('.mkv') ||
-            name.endsWith('.webm') ||
-            urlLower.endsWith('.mp4') ||
-            urlLower.endsWith('.mov') ||
-            urlLower.endsWith('.webm') ||
-            urlLower.endsWith('.mkv');
-
-        final isPhoto = type.startsWith('image/') ||
-            msgType.contains('image') ||
-            msgType.contains('photo') ||
-            name.endsWith('.jpg') ||
-            name.endsWith('.jpeg') ||
-            name.endsWith('.png') ||
-            name.endsWith('.webp') ||
-            name.endsWith('.gif') ||
-            urlLower.endsWith('.jpg') ||
-            urlLower.endsWith('.jpeg') ||
-            urlLower.endsWith('.png') ||
-            urlLower.endsWith('.webp') ||
-            urlLower.endsWith('.gif') ||
-            (!isVideo &&
-                (msgType == 'media' ||
-                    msgType == 'file' ||
-                    msgType == 'document'));
+        final bool isVideo = _isPureVideo(type, msgType, name, urlLower);
+        final bool isPhoto = !isVideo && _isPureImage(type, msgType, name, urlLower);
 
         if (isVideo || isPhoto) {
           list.add(
@@ -290,20 +317,11 @@ class _ProfileSharedMediaTabViewState
     final type = (m.mediaType ?? '').toLowerCase();
     final name = (m.mediaName ?? '').toLowerCase();
     final msgType = m.msgType.toLowerCase();
-    if (type.startsWith('image/') ||
-        type.startsWith('video/') ||
-        msgType.contains('image') ||
-        msgType.contains('photo') ||
-        msgType.contains('video') ||
-        name.endsWith('.jpg') ||
-        name.endsWith('.jpeg') ||
-        name.endsWith('.png') ||
-        name.endsWith('.webp') ||
-        name.endsWith('.gif') ||
-        name.endsWith('.mp4') ||
-        name.endsWith('.mov') ||
-        name.endsWith('.mkv') ||
-        name.endsWith('.webm')) {
+    final urlLower = (m.mediaUrl ?? '').toLowerCase();
+
+    // If it is pure image or pure video, it belongs in Media tab, not in Files tab
+    if (_isPureImage(type, msgType, name, urlLower) ||
+        _isPureVideo(type, msgType, name, urlLower)) {
       return false;
     }
     return true;
@@ -550,6 +568,36 @@ class _ProfileSharedMediaTabViewState
     );
   }
 
+  void _openGallery(int initialIndex, List<_SharedMediaItem> allItems) {
+    if (initialIndex < 0 || initialIndex >= allItems.length) return;
+    HapticFeedback.lightImpact();
+
+    final List<MediaViewerItem> playlist = allItems.map((item) {
+      return MediaViewerItem(
+        url: item.mediaUrl,
+        mediaType: item.isVideo ? MediaType.video : MediaType.image,
+        title: item.mediaName ?? (item.isVideo ? 'Видео' : 'Фото'),
+        e2eeFileKey: item.e2eeFileKey,
+        mediaName: item.mediaName,
+      );
+    }).toList(growable: false);
+
+    final _SharedMediaItem current = allItems[initialIndex];
+    final String typeParam = current.isVideo ? 'video' : 'image';
+    final String titleParam = Uri.encodeComponent(
+      current.mediaName ?? (current.isVideo ? 'Видео' : 'Фото'),
+    );
+
+    context.push(
+      '/media-viewer?url=${Uri.encodeComponent(current.mediaUrl)}&type=$typeParam&title=$titleParam',
+      extra: <String, dynamic>{
+        'playlist': playlist,
+        'initialIndex': initialIndex,
+        'e2eeKey': current.e2eeFileKey,
+      },
+    );
+  }
+
   // ── Tab 1: Photos & Videos Grid with Decryption & Caching ──────────
   Widget _buildMediaGrid(
     List<_SharedMediaItem> items,
@@ -599,17 +647,7 @@ class _ProfileSharedMediaTabViewState
 
             return RepaintBoundary(
               child: _MediaGridTileWrapper(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  final typeParam = isVideo ? 'video' : 'image';
-                  final titleParam = Uri.encodeComponent(
-                    item.mediaName ?? (isVideo ? 'Видео' : 'Фото'),
-                  );
-                  context.push(
-                    '/media-viewer?url=${Uri.encodeComponent(url)}&type=$typeParam&title=$titleParam',
-                    extra: item.e2eeFileKey,
-                  );
-                },
+                onTap: () => _openGallery(index, items),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: isVideo

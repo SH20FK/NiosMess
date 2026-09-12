@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -12,11 +14,14 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/docx_parser.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:universal_io/io.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class NativeFileViewerScreen extends ConsumerStatefulWidget {
   const NativeFileViewerScreen({
@@ -47,6 +52,7 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
   Uint8List? _fetchedBytes;
   Object? _fetchError;
   bool _fetching = false;
+  bool _showMarkdownRaw = false;
 
   bool get _isE2ee =>
       widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty;
@@ -109,9 +115,60 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
     }
   }
 
+  Future<void> _shareFile() async {
+    final Uint8List? data = _fetchedBytes ?? widget.bytes;
+    if (data != null) {
+      final String tempDir = (await getTemporaryDirectory()).path;
+      final String filePath = '$tempDir/${widget.fileName}';
+      final File file = File(filePath);
+      await file.writeAsBytes(data);
+      await Share.shareXFiles([XFile(filePath)], text: widget.fileName);
+    } else if (widget.localPath != null) {
+      await Share.shareXFiles([XFile(widget.localPath!)], text: widget.fileName);
+    } else if (widget.url != null) {
+      await Share.share(widget.url!, subject: widget.fileName);
+    }
+  }
+
+  Future<void> _downloadFile() async {
+    final Uint8List? data = _fetchedBytes ?? widget.bytes;
+    if (kIsWeb) {
+      AppToast.showInfo(context, 'В веб-версии файл скачивается через браузер');
+      if (widget.url != null) {
+        launchUrl(Uri.parse(widget.url!));
+      }
+      return;
+    }
+    try {
+      final Directory dir = await getApplicationDocumentsDirectory();
+      final String savePath = '${dir.path}/${widget.fileName}';
+      if (data != null) {
+        final File file = File(savePath);
+        await file.writeAsBytes(data);
+        if (mounted) {
+          AppToast.showSuccess(context, 'Файл сохранён в $savePath');
+        }
+      } else if (widget.localPath != null) {
+        final File src = File(widget.localPath!);
+        await src.copy(savePath);
+        if (mounted) {
+          AppToast.showSuccess(context, 'Файл сохранён в $savePath');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.showError(context, 'Не удалось сохранить файл: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final String ext = widget.fileName.contains('.')
+        ? widget.fileName.split('.').last.toLowerCase()
+        : '';
+    final bool isMarkdown = ext == 'md';
 
     return PopScope(
       canPop: false,
@@ -141,6 +198,27 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
               }
             },
           ),
+          actions: [
+            if (isMarkdown)
+              IconButton(
+                icon: Icon(_showMarkdownRaw
+                    ? Icons.visibility_rounded
+                    : Icons.code_rounded),
+                tooltip: _showMarkdownRaw ? 'Форматированный вид' : 'Исходный код',
+                onPressed: () =>
+                    setState(() => _showMarkdownRaw = !_showMarkdownRaw),
+              ),
+            IconButton(
+              icon: const Icon(Icons.share_rounded),
+              tooltip: 'Поделиться',
+              onPressed: _shareFile,
+            ),
+            IconButton(
+              icon: const Icon(Icons.download_rounded),
+              tooltip: 'Сохранить',
+              onPressed: _downloadFile,
+            ),
+          ],
         ),
         body: _buildViewer(),
       ),
@@ -167,6 +245,54 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
     final Uint8List? resolvedBytes = _fetchedBytes ?? widget.bytes;
     final String? resolvedLocalPath = widget.localPath;
     final ft = widget.fileType;
+
+    final String ext = widget.fileName.contains('.')
+        ? widget.fileName.split('.').last.toLowerCase()
+        : '';
+    final bool isMarkdown = ext == 'md';
+    final bool isDocx = ext == 'docx' || ext == 'doc';
+    final bool isTextOrCode = ft.category == FileTypeCategory.text ||
+        ft.category == FileTypeCategory.code ||
+        ext == 'txt' ||
+        ext == 'json' ||
+        ext == 'csv' ||
+        ext == 'log' ||
+        ext == 'dart' ||
+        ext == 'py' ||
+        ext == 'js' ||
+        ext == 'ts' ||
+        ext == 'html' ||
+        ext == 'css' ||
+        ext == 'yaml' ||
+        ext == 'yml' ||
+        ext == 'xml' ||
+        ext == 'sql' ||
+        ext == 'sh';
+
+    if (isMarkdown) {
+      return _MarkdownViewer(
+        fileName: widget.fileName,
+        bytes: resolvedBytes,
+        localPath: resolvedLocalPath,
+        showRawSource: _showMarkdownRaw,
+      );
+    }
+
+    if (isDocx) {
+      return _DocxViewer(
+        fileName: widget.fileName,
+        bytes: resolvedBytes,
+        localPath: resolvedLocalPath,
+      );
+    }
+
+    if (isTextOrCode) {
+      return _TextViewer(
+        fileName: widget.fileName,
+        bytes: resolvedBytes,
+        localPath: resolvedLocalPath,
+      );
+    }
 
     if (ft.isImage) {
       return _ImageViewer(
@@ -200,12 +326,516 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
       );
     }
 
-    // Word, Excel, PowerPoint, etc — show document info card
+    // Fallback for other files
     return _DocumentInfoViewer(
       fileName: widget.fileName,
       fileType: ft,
       url: widget.url,
       localPath: resolvedLocalPath,
+    );
+  }
+}
+
+// ── Markdown Document Viewer ──────────────────────────────────
+class _MarkdownViewer extends StatelessWidget {
+  const _MarkdownViewer({
+    required this.fileName,
+    required this.bytes,
+    required this.localPath,
+    required this.showRawSource,
+  });
+
+  final String fileName;
+  final Uint8List? bytes;
+  final String? localPath;
+  final bool showRawSource;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    String content = '';
+    if (bytes != null) {
+      content = utf8.decode(bytes!, allowMalformed: true);
+    } else if (localPath != null && !kIsWeb) {
+      try {
+        content = File(localPath!).readAsStringSync();
+      } catch (_) {}
+    }
+
+    if (content.isEmpty) {
+      return const Center(child: AppLoadingIndicator(size: 32));
+    }
+
+    if (showRawSource) {
+      return _TextViewer(
+        fileName: fileName,
+        bytes: bytes,
+        localPath: localPath,
+      );
+    }
+
+    return SelectionArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Markdown(
+            data: content,
+            selectable: true,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            onTapLink: (text, href, title) {
+              if (href != null && href.isNotEmpty) {
+                launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
+              }
+            },
+            styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+              p: textTheme.bodyLarge?.copyWith(
+                height: 1.6,
+                color: scheme.onSurface,
+              ),
+              h1: textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: scheme.primary,
+              ),
+              h2: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: scheme.primary,
+              ),
+              h3: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: scheme.onSurface,
+              ),
+              code: TextStyle(
+                backgroundColor: scheme.surfaceContainerHighest,
+                fontFamily: 'monospace',
+                fontSize: 13,
+                color: scheme.primary,
+              ),
+              codeblockDecoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.3),
+                ),
+              ),
+              blockquoteDecoration: BoxDecoration(
+                color: scheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(8),
+                border: Border(
+                  left: BorderSide(color: scheme.primary, width: 4),
+                ),
+              ),
+              tableBorder: TableBorder.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              tableHead: textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: scheme.primary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Native DOCX Document Viewer ──────────────────────────────
+class _DocxViewer extends StatefulWidget {
+  const _DocxViewer({
+    required this.fileName,
+    required this.bytes,
+    required this.localPath,
+  });
+
+  final String fileName;
+  final Uint8List? bytes;
+  final String? localPath;
+
+  @override
+  State<_DocxViewer> createState() => _DocxViewerState();
+}
+
+class _DocxViewerState extends State<_DocxViewer> {
+  DocxDocument? _doc;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _parse();
+  }
+
+  void _parse() {
+    Uint8List? data = widget.bytes;
+    if (data == null && widget.localPath != null && !kIsWeb) {
+      try {
+        data = File(widget.localPath!).readAsBytesSync();
+      } catch (_) {}
+    }
+
+    if (data != null && data.isNotEmpty) {
+      _doc = DocxParser.parseBytes(data);
+    }
+    setState(() => _isLoading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    if (_isLoading) {
+      return const Center(child: AppLoadingIndicator(size: 32));
+    }
+
+    if (_doc == null || !_doc!.hasContent) {
+      return _DocumentInfoViewer(
+        fileName: widget.fileName,
+        fileType: FileTypeDetector.detect(fileName: widget.fileName),
+        localPath: widget.localPath,
+      );
+    }
+
+    return SelectionArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            physics: const BouncingScrollPhysics(),
+            itemCount: _doc!.blocks.length,
+            itemBuilder: (BuildContext context, int index) {
+              final DocxBlock block = _doc!.blocks[index];
+              return _buildDocxBlock(context, block, scheme, textTheme);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocxBlock(
+    BuildContext context,
+    DocxBlock block,
+    ColorScheme scheme,
+    TextTheme textTheme,
+  ) {
+    switch (block.type) {
+      case DocxBlockType.title:
+        return Padding(
+          padding: const EdgeInsets.only(top: 16, bottom: 12),
+          child: Text(
+            block.plainText,
+            style: textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: scheme.primary,
+            ),
+          ),
+        );
+      case DocxBlockType.heading1:
+        return Padding(
+          padding: const EdgeInsets.only(top: 18, bottom: 8),
+          child: Text(
+            block.plainText,
+            style: textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: scheme.primary,
+            ),
+          ),
+        );
+      case DocxBlockType.heading2:
+        return Padding(
+          padding: const EdgeInsets.only(top: 14, bottom: 6),
+          child: Text(
+            block.plainText,
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurface,
+            ),
+          ),
+        );
+      case DocxBlockType.heading3:
+        return Padding(
+          padding: const EdgeInsets.only(top: 10, bottom: 4),
+          child: Text(
+            block.plainText,
+            style: textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        );
+      case DocxBlockType.bulletItem:
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 7, right: 10),
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: scheme.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              Expanded(
+                child: _buildRuns(block.runs, scheme, textTheme),
+              ),
+            ],
+          ),
+        );
+      case DocxBlockType.table:
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Table(
+              border: TableBorder.symmetric(
+                inside: BorderSide(
+                  color: scheme.outlineVariant.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              children: block.tableRows.asMap().entries.map((entry) {
+                final int rowIndex = entry.key;
+                final List<String> row = entry.value;
+                final bool isHeader = rowIndex == 0;
+                return TableRow(
+                  decoration: BoxDecoration(
+                    color: isHeader
+                        ? scheme.surfaceContainerHigh
+                        : (rowIndex.isEven
+                            ? scheme.surfaceContainerLowest
+                            : scheme.surface),
+                  ),
+                  children: row.map((String cell) {
+                    return Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Text(
+                        cell,
+                        style: isHeader
+                            ? textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              )
+                            : textTheme.bodySmall,
+                      ),
+                    );
+                  }).toList(),
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      case DocxBlockType.paragraph:
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: _buildRuns(block.runs, scheme, textTheme),
+        );
+    }
+  }
+
+  Widget _buildRuns(
+    List<DocxRun> runs,
+    ColorScheme scheme,
+    TextTheme textTheme,
+  ) {
+    return Text.rich(
+      TextSpan(
+        children: runs.map((DocxRun r) {
+          return TextSpan(
+            text: r.text,
+            style: TextStyle(
+              fontWeight: r.isBold ? FontWeight.bold : FontWeight.normal,
+              fontStyle: r.isItalic ? FontStyle.italic : FontStyle.normal,
+              decoration:
+                  r.isUnderline ? TextDecoration.underline : TextDecoration.none,
+              height: 1.5,
+              color: scheme.onSurface,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+// ── Native Text & Code Document Viewer ─────────────────────────
+class _TextViewer extends StatefulWidget {
+  const _TextViewer({
+    required this.fileName,
+    required this.bytes,
+    required this.localPath,
+  });
+
+  final String fileName;
+  final Uint8List? bytes;
+  final String? localPath;
+
+  @override
+  State<_TextViewer> createState() => _TextViewerState();
+}
+
+class _TextViewerState extends State<_TextViewer> {
+  String _content = '';
+  bool _wrapLines = true;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.bytes != null) {
+      _content = utf8.decode(widget.bytes!, allowMalformed: true);
+    } else if (widget.localPath != null && !kIsWeb) {
+      try {
+        _content = File(widget.localPath!).readAsStringSync();
+      } catch (_) {}
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final List<String> lines = _content.split('\n');
+
+    return Column(
+      children: [
+        // Search & settings bar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            border: Border(
+              bottom: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.2),
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 36,
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Поиск по тексту...',
+                      prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 16),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                          : null,
+                      contentPadding: EdgeInsets.zero,
+                      filled: true,
+                      fillColor: scheme.surfaceContainerHighest,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (val) =>
+                        setState(() => _searchQuery = val.trim().toLowerCase()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                tooltip: _wrapLines
+                    ? 'Отключить перенос строк'
+                    : 'Включить перенос строк',
+                icon: Icon(
+                  _wrapLines ? Icons.wrap_text_rounded : Icons.table_rows_rounded,
+                  size: 18,
+                ),
+                onPressed: () => setState(() => _wrapLines = !_wrapLines),
+              ),
+              IconButton.filledTonal(
+                tooltip: 'Скопировать весь текст',
+                icon: const Icon(Icons.copy_rounded, size: 18),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: _content));
+                  AppToast.showSuccess(context, 'Текст скопирован');
+                },
+              ),
+            ],
+          ),
+        ),
+        // Content with line numbers
+        Expanded(
+          child: SelectionArea(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              physics: const BouncingScrollPhysics(),
+              itemCount: lines.length,
+              itemBuilder: (BuildContext context, int index) {
+                final String line = lines[index];
+                final bool isMatch = _searchQuery.isNotEmpty &&
+                    line.toLowerCase().contains(_searchQuery);
+
+                return Container(
+                  color: isMatch
+                      ? scheme.primaryContainer.withValues(alpha: 0.35)
+                      : Colors.transparent,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 44,
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          line,
+                          softWrap: _wrapLines,
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                            height: 1.4,
+                            color: scheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

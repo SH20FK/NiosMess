@@ -258,4 +258,63 @@ class FileTypeDetector {
     }
     return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
+
+  static bool isPureImage({
+    String? mediaType,
+    String? msgType,
+    String? fileName,
+    String? url,
+  }) {
+    final String type = (mediaType ?? '').toLowerCase();
+    final String msg = (msgType ?? '').toLowerCase();
+    final String name = (fileName ?? '').toLowerCase();
+    final String urlLower = (url ?? '').toLowerCase();
+
+    if (type.startsWith('image/')) return true;
+    if (msg == 'image' || msg == 'photo') return true;
+    final String cleanExt = name.contains('.')
+        ? name.split('.').last.toLowerCase()
+        : (urlLower.contains('.')
+            ? urlLower.split('?').first.split('.').last.toLowerCase()
+            : '');
+    return cleanExt == 'jpg' ||
+        cleanExt == 'jpeg' ||
+        cleanExt == 'png' ||
+        cleanExt == 'webp' ||
+        cleanExt == 'gif' ||
+        cleanExt == 'bmp' ||
+        cleanExt == 'svg' ||
+        cleanExt == 'heic' ||
+        cleanExt == 'heif' ||
+        cleanExt == 'jfif' ||
+        cleanExt == 'ico';
+  }
+
+  static bool isPureVideo({
+    String? mediaType,
+    String? msgType,
+    String? fileName,
+    String? url,
+  }) {
+    final String type = (mediaType ?? '').toLowerCase();
+    final String msg = (msgType ?? '').toLowerCase();
+    final String name = (fileName ?? '').toLowerCase();
+    final String urlLower = (url ?? '').toLowerCase();
+
+    if (type.startsWith('video/')) return true;
+    if (msg == 'video') return true;
+    final String cleanExt = name.contains('.')
+        ? name.split('.').last.toLowerCase()
+        : (urlLower.contains('.')
+            ? urlLower.split('?').first.split('.').last.toLowerCase()
+            : '');
+    return cleanExt == 'mp4' ||
+        cleanExt == 'mov' ||
+        cleanExt == 'mkv' ||
+        cleanExt == 'webm' ||
+        cleanExt == 'avi' ||
+        cleanExt == '3gp' ||
+        cleanExt == 'flv' ||
+        cleanExt == 'wmv';
+  }
 }

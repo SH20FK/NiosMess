@@ -21,6 +21,24 @@ import 'package:universal_io/io.dart';
 
 enum MediaType { image, video, pdf, other }
 
+class MediaViewerItem {
+  const MediaViewerItem({
+    required this.url,
+    required this.mediaType,
+    this.title,
+    this.e2eeFileKey,
+    this.filePath,
+    this.mediaName,
+  });
+
+  final String url;
+  final MediaType mediaType;
+  final String? title;
+  final String? e2eeFileKey;
+  final String? filePath;
+  final String? mediaName;
+}
+
 class MediaViewerScreen extends ConsumerStatefulWidget {
   const MediaViewerScreen({
     required this.url,
@@ -29,6 +47,8 @@ class MediaViewerScreen extends ConsumerStatefulWidget {
     this.filePath,
     this.mediaName,
     this.e2eeFileKey,
+    this.playlist,
+    this.initialIndex = 0,
     super.key,
   });
 
@@ -41,6 +61,10 @@ class MediaViewerScreen extends ConsumerStatefulWidget {
   final String? e2eeFileKey;
   final String? mediaName;
 
+  /// Optional playlist for swipeable multi-media gallery
+  final List<MediaViewerItem>? playlist;
+  final int initialIndex;
+
   @override
   ConsumerState<MediaViewerScreen> createState() => _MediaViewerScreenState();
 }
@@ -50,8 +74,28 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   ChewieController? _chewieController;
   bool _initialized = false;
 
-  Uint8List? _fileKey() {
-    final String? b64 = widget.e2eeFileKey;
+  late final bool _hasPlaylist =
+      widget.playlist != null && widget.playlist!.isNotEmpty;
+  late final List<MediaViewerItem> _playlistItems = _hasPlaylist
+      ? widget.playlist!
+      : <MediaViewerItem>[
+          MediaViewerItem(
+            url: widget.url,
+            mediaType: widget.mediaType,
+            title: widget.title,
+            e2eeFileKey: widget.e2eeFileKey,
+            filePath: widget.filePath,
+            mediaName: widget.mediaName,
+          ),
+        ];
+  late int _currentIndex = _hasPlaylist
+      ? widget.initialIndex.clamp(0, _playlistItems.length - 1)
+      : 0;
+  late final PageController _pageController =
+      PageController(initialPage: _currentIndex);
+
+  Uint8List? _fileKey([String? rawKey]) {
+    final String? b64 = rawKey ?? widget.e2eeFileKey;
     if (b64 == null || b64.isEmpty) return null;
     try {
       return base64Decode(b64);
@@ -63,14 +107,14 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   @override
   void initState() {
     super.initState();
-    _initMedia();
+    if (!_hasPlaylist) {
+      _initMedia();
+    }
   }
 
   Future<void> _initMedia() async {
     if (widget.mediaType == MediaType.video) {
       try {
-        // Download through the authenticated fetcher (also handles E2EE
-        // blobs) and play from the local file.
         final String localPath = await WsMediaFetcher.fetchToLocalFile(
           filePath: widget.url,
           wsClient: ref.read(webSocketClientProvider),
@@ -97,6 +141,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
 
   @override
   void dispose() {
+    _pageController.dispose();
     _chewieController?.dispose();
     _videoController?.dispose();
     super.dispose();
@@ -105,9 +150,12 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final String displayTitle = (widget.title ?? '').trim().isEmpty
-        ? context.l10n.mediaViewerTitle
-        : widget.title!.trim();
+    final MediaViewerItem currentItem = _playlistItems[_currentIndex];
+    final String displayTitle = _hasPlaylist
+        ? '${_currentIndex + 1} из ${_playlistItems.length}'
+        : ((currentItem.title ?? '').trim().isEmpty
+            ? context.l10n.mediaViewerTitle
+            : currentItem.title!.trim());
 
     return PopScope(
       canPop: false,
@@ -134,12 +182,28 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
               }
             },
           ),
-          title: Text(displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(displayTitle,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (_hasPlaylist && (currentItem.mediaName ?? '').isNotEmpty)
+                Text(
+                  currentItem.mediaName!,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.download_rounded),
               tooltip: context.l10n.mediaViewerDownload,
-              onPressed: () => _downloadMedia(context, ref),
+              onPressed: () => _downloadCurrentMedia(context, ref),
             ),
           ],
         ),
@@ -149,6 +213,41 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   }
 
   Widget _buildBody(ColorScheme scheme) {
+    if (_hasPlaylist) {
+      return PageView.builder(
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(),
+        itemCount: _playlistItems.length,
+        onPageChanged: (int index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        itemBuilder: (BuildContext context, int index) {
+          final MediaViewerItem item = _playlistItems[index];
+          final Uint8List? key = _fileKey(item.e2eeFileKey);
+
+          if (item.mediaType == MediaType.image) {
+            return _FullScreenImage(
+              key: ValueKey('page_${item.url}'),
+              url: item.url,
+              e2eeFileKey: key,
+              scheme: scheme,
+            );
+          } else if (item.mediaType == MediaType.video) {
+            return _InlineVideoPlayer(
+              key: ValueKey('video_${item.url}'),
+              url: item.url,
+              e2eeFileKey: key,
+              isActive: _currentIndex == index,
+            );
+          } else {
+            return _buildFallback(scheme, item);
+          }
+        },
+      );
+    }
+
     switch (widget.mediaType) {
       case MediaType.image:
         return _buildImageViewer(scheme);
@@ -156,7 +255,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         return _buildVideoPlayer(scheme);
       case MediaType.pdf:
       case MediaType.other:
-        return _buildFallback(scheme);
+        return _buildFallback(scheme, _playlistItems.first);
     }
   }
 
@@ -178,7 +277,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
     );
   }
 
-  Widget _buildFallback(ColorScheme scheme) {
+  Widget _buildFallback(ColorScheme scheme, MediaViewerItem item) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -192,13 +291,13 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: () => _downloadMedia(context, ref),
+            onPressed: () => _downloadCurrentMedia(context, ref),
             icon: const Icon(Icons.download_rounded),
             label: Text(context.l10n.mediaDownloadAndOpen),
           ),
           const SizedBox(height: 8),
           TextButton.icon(
-            onPressed: () => launchUrl(Uri.parse(widget.url),
+            onPressed: () => launchUrl(Uri.parse(item.url),
                 mode: LaunchMode.externalApplication),
             icon: const Icon(Icons.open_in_browser_rounded),
             label: Text(context.l10n.mediaViewerOpenExternal),
@@ -209,21 +308,22 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
     );
   }
 
-  Future<void> _downloadMedia(BuildContext context, WidgetRef ref) async {
+  Future<void> _downloadCurrentMedia(BuildContext context, WidgetRef ref) async {
+    final MediaViewerItem current = _playlistItems[_currentIndex];
     if (kIsWeb) {
       if (!context.mounted) return;
       AppToast.showInfo(context, context.l10n.mediaViewerDownloadWeb);
       return;
     }
     try {
-      final fileName = widget.mediaName ?? widget.title ?? 'download';
+      final fileName = current.mediaName ?? current.title ?? 'download';
       final dir = await getApplicationDocumentsDirectory();
       final savePath = '${dir.path}/$fileName';
 
-      if (widget.filePath != null && widget.filePath!.isNotEmpty) {
+      if (current.filePath != null && current.filePath!.isNotEmpty) {
         final bytes = await ref
             .read(chatRepositoryProvider)
-            .downloadMedia(widget.filePath!);
+            .downloadMedia(current.filePath!);
         final file = File(savePath);
         await file.writeAsBytes(bytes);
         if (!context.mounted) return;
@@ -232,7 +332,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         try {
           final bytes = await ref
               .read(chatRepositoryProvider)
-              .downloadMedia(widget.url);
+              .downloadMedia(current.url);
           final file = File(savePath);
           await file.writeAsBytes(bytes);
           if (!context.mounted) return;
@@ -249,6 +349,81 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   }
 }
 
+class _InlineVideoPlayer extends ConsumerStatefulWidget {
+  const _InlineVideoPlayer({
+    required this.url,
+    this.e2eeFileKey,
+    this.isActive = false,
+    super.key,
+  });
+
+  final String url;
+  final Uint8List? e2eeFileKey;
+  final bool isActive;
+
+  @override
+  ConsumerState<_InlineVideoPlayer> createState() => _InlineVideoPlayerState();
+}
+
+class _InlineVideoPlayerState extends ConsumerState<_InlineVideoPlayer> {
+  VideoPlayerController? _videoController;
+  ChewieController? _chewieController;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  @override
+  void didUpdateWidget(covariant _InlineVideoPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isActive != widget.isActive) {
+      if (!widget.isActive) {
+        _videoController?.pause();
+      } else {
+        _videoController?.play();
+      }
+    }
+  }
+
+  Future<void> _init() async {
+    try {
+      final String localPath = await WsMediaFetcher.fetchToLocalFile(
+        filePath: widget.url,
+        wsClient: ref.read(webSocketClientProvider),
+        e2eeFileKey: widget.e2eeFileKey,
+      );
+      _videoController = VideoPlayerController.file(File(localPath));
+      await _videoController!.initialize();
+      _chewieController = ChewieController(
+        videoPlayerController: _videoController!,
+        autoPlay: widget.isActive,
+        looping: false,
+        placeholder: const AppLoadingIndicator(size: 32),
+        allowedScreenSleep: false,
+      );
+    } catch (_) {}
+    if (mounted) setState(() => _initialized = true);
+  }
+
+  @override
+  void dispose() {
+    _chewieController?.dispose();
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized || _chewieController == null) {
+      return const Center(child: AppLoadingIndicator(size: 32));
+    }
+    return Center(child: Chewie(controller: _chewieController!));
+  }
+}
+
 /// Fetches fullscreen media through the authenticated `/api/files/download`
 /// endpoint (with optional E2EE decryption) instead of hitting the raw
 /// `/api/media/...` URL, which is not served publicly.
@@ -257,6 +432,7 @@ class _FullScreenImage extends ConsumerStatefulWidget {
     required this.url,
     required this.scheme,
     this.e2eeFileKey,
+    super.key,
   });
 
   final String url;

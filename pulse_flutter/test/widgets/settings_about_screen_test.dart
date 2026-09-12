@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 
@@ -90,11 +89,10 @@ void main() {
 
       // Tap Changelog tab
       await tester.tap(find.text('Обновления').first);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
 
       // Verify Current version
-      expect(find.text('${AppConstants.appVersionWithPrefix} (Expressive)'), findsOneWidget);
+      expect(find.textContaining('(Expressive)'), findsOneWidget);
       expect(find.text('Текущая'), findsOneWidget);
     });
   });

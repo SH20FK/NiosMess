@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 import 'package:open_file/open_file.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -30,6 +31,7 @@ class FileOpener {
     required String filePath,
     required String fileName,
     String? mimeType,
+    String? e2eeFileKey,
   }) async {
     final FileTypeInfo typeInfo = FileTypeDetector.detect(
       fileName: fileName,
@@ -49,6 +51,26 @@ class FileOpener {
     } else if (typeInfo.isExe) {
       await _openExe(context, filePath);
     } else {
+      final String ext =
+          fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';
+      final bool isNativeDoc = ext == 'md' ||
+          ext == 'docx' ||
+          ext == 'doc' ||
+          typeInfo.isPdf ||
+          typeInfo.category == FileTypeCategory.document ||
+          typeInfo.category == FileTypeCategory.text ||
+          typeInfo.category == FileTypeCategory.code;
+
+      if (isNativeDoc && context.mounted) {
+        final bool isUrl =
+            filePath.startsWith('http://') || filePath.startsWith('https://');
+        final String route =
+            '/file-viewer?name=${Uri.encodeComponent(fileName)}'
+            '${isUrl ? '&url=${Uri.encodeComponent(filePath)}' : '&path=${Uri.encodeComponent(filePath)}'}';
+        await context.push(route, extra: e2eeFileKey);
+        return;
+      }
+
       await _openWithSystemApp(context, filePath, typeInfo);
     }
   }

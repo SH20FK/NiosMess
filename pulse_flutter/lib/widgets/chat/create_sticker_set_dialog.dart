@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/utils/sticker_formatter.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
 
@@ -137,21 +138,23 @@ class _CreateStickerSetDialogState extends ConsumerState<CreateStickerSetDialog>
             isPublic: _isPublic,
           );
 
-      final String base64Data = base64Encode(_pickedBytes!);
+      // Auto-format cover image to standard 512x512
+      final StickerFormatResult formattedCover =
+          await StickerFormatter.formatBytes(_pickedBytes!, mode: StickerFitMode.fit);
+      final String base64Data = base64Encode(formattedCover.bytes);
       final String emoji = _emojiController.text.trim().isNotEmpty
           ? _emojiController.text.trim()
           : '✨';
 
-      final String ext = _pickedFilename != null && _pickedFilename!.contains('.')
-          ? _pickedFilename!.split('.').last.toLowerCase()
-          : 'webp';
       final String safeFilename =
-          'cover_${newSet.id}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+          'cover_${newSet.id}_${DateTime.now().millisecondsSinceEpoch}.${formattedCover.extension}';
 
       await ref.read(stickerSetsProvider.notifier).addSticker(
             setId: newSet.id,
             filename: safeFilename,
             dataBase64: base64Data,
+            width: StickerFormatter.kStickerDimension,
+            height: StickerFormatter.kStickerDimension,
             emoji: emoji,
           );
 

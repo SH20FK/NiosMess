@@ -219,11 +219,25 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
                   ? MediaType.video
                   : MediaType.other;
           final Object? extra = state.extra;
+          List<MediaViewerItem>? playlist;
+          int initialIndex = 0;
+          String? e2eeKey;
+
+          if (extra is String) {
+            e2eeKey = extra;
+          } else if (extra is Map<String, dynamic>) {
+            e2eeKey = extra['e2eeKey'] as String?;
+            playlist = extra['playlist'] as List<MediaViewerItem>?;
+            initialIndex = (extra['initialIndex'] as int?) ?? 0;
+          }
+
           return _page(state, MediaViewerScreen(
             url: url,
             title: Uri.decodeComponent(state.uri.queryParameters['title'] ?? 'Attachment'),
             mediaType: mediaType,
-            e2eeFileKey: extra is String ? extra : null,
+            e2eeFileKey: e2eeKey,
+            playlist: playlist,
+            initialIndex: initialIndex,
           ));
         },
       ),
@@ -351,6 +365,20 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           final fileName = state.uri.queryParameters['name'] ?? '';
           final fileType = FileTypeDetector.detect(fileName: fileName);
           final Object? extra = state.extra;
+          Uint8List? bytes;
+          String? e2eeKey;
+          if (extra is Uint8List) {
+            bytes = extra;
+          } else if (extra is String && extra.isNotEmpty) {
+            e2eeKey = extra;
+          } else if (extra is Map) {
+            if (extra['bytes'] is Uint8List) {
+              bytes = extra['bytes'] as Uint8List;
+            }
+            if (extra['e2eeFileKey'] is String) {
+              e2eeKey = extra['e2eeFileKey'] as String;
+            }
+          }
           return _page(
             state,
             NativeFileViewerScreen(
@@ -358,7 +386,8 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
               fileType: fileType,
               url: url,
               localPath: localPath,
-              e2eeFileKey: extra is String && extra.isNotEmpty ? extra : null,
+              bytes: bytes,
+              e2eeFileKey: e2eeKey,
             ),
             pageKey: state.pageKey,
           );
