@@ -10,8 +10,12 @@ import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -56,9 +60,41 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
     }
   }
 
+  bool _isCheckingUpdate = false;
+
   void _copyVersion(String version) {
     Clipboard.setData(ClipboardData(text: version));
     AppToast.showSuccess(context, 'Версия $version скопирована');
+  }
+
+  Future<void> _checkForUpdate() async {
+    if (_isCheckingUpdate) return;
+    setState(() => _isCheckingUpdate = true);
+    HapticService.tap();
+
+    try {
+      final AppUpdateService updateService = const AppUpdateService();
+      final AppUpdateInfo updateInfo = await updateService.checkForUpdate();
+
+      if (!mounted) return;
+
+      if (updateInfo.hasUpdate) {
+        await AppUpdateDialog.show(context, updateInfo);
+      } else {
+        AppToast.showSuccess(
+          context,
+          'У вас установлена последняя версия (v${updateInfo.currentVersion})',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.showError(context, 'Не удалось проверить обновления: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCheckingUpdate = false);
+      }
+    }
   }
 
   @override
@@ -72,6 +108,10 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
       children: <Widget>[
         // 1. Compact Hero Header
         _buildHeroCard(context, scheme, textTheme),
+        const SizedBox(height: 14),
+
+        // 1.1 Expressive OTA Update Banner
+        _buildUpdateBanner(context, scheme, textTheme),
         const SizedBox(height: 14),
 
         // 2. Material 3 Expressive Pill Tab Selector
@@ -261,6 +301,14 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                     onTap: () => context.push('/settings/system-device'),
                   ),
                 _QuickHeroButton(
+                  icon: _isCheckingUpdate
+                      ? Icons.hourglass_top_rounded
+                      : Icons.system_update_rounded,
+                  label: 'Обновления',
+                  color: scheme.primary,
+                  onTap: _checkForUpdate,
+                ),
+                _QuickHeroButton(
                   icon: Icons.science_rounded,
                   label: 'Альфа-тест',
                   color: const Color(0xFFFF9800),
@@ -282,6 +330,104 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 1.1 Expressive OTA Update Banner
+  // ---------------------------------------------------------------------------
+  Widget _buildUpdateBanner(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: AppRadii.mdRadius,
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              borderRadius: AppRadii.smRadius,
+            ),
+            child: Icon(
+              Icons.cloud_download_rounded,
+              size: 24,
+              color: scheme.primary,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Обновления приложения',
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'GitHub Releases (OTA)',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TouchContainer(
+            onTap: _isCheckingUpdate ? null : _checkForUpdate,
+            borderRadius: AppRadii.fullRadius,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: scheme.primary,
+                borderRadius: AppRadii.fullRadius,
+              ),
+              child: _isCheckingUpdate
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(scheme.onPrimary),
+                      ),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Icons.refresh_rounded,
+                          size: 16,
+                          color: scheme.onPrimary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Проверить',
+                          style: textTheme.labelMedium?.copyWith(
+                            color: scheme.onPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }

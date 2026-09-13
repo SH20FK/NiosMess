@@ -31,6 +31,7 @@ import 'screens/register_screen_test.dart' as screens_register_screen;
 import 'stress/oauth_service_stress_test.dart' as stress_oauth_service;
 import 'stress/pkce_stress_test.dart' as stress_pkce;
 import 'unit/adaptive_performance_engine_test.dart' as unit_adaptive_performance_engine;
+import 'unit/app_update_service_test.dart' as unit_app_update_service;
 import 'unit/call_transport_test.dart' as unit_call_transport;
 import 'unit/chat_creation_flow_test.dart' as unit_chat_creation_flow;
 import 'unit/chat_media_cache_test.dart' as unit_chat_media_cache;
@@ -71,6 +72,7 @@ void main() {
 
     // Unit Tests
     unit_adaptive_performance_engine.main();
+    unit_app_update_service.main();
     unit_call_transport.main();
     unit_chat_creation_flow.main();
     unit_chat_media_cache.main();
