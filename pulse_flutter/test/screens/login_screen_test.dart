@@ -81,7 +81,7 @@ void main() {
 
       // Hero Header
       expect(find.text('NiosMess'), findsOneWidget);
-      expect(find.text('Единый доступ к чатам, звонкам и\u00A0Nios\u00A0ID'), findsOneWidget);
+      expect(find.text('Единый доступ к чатам, звонкам и Nios ID'), findsOneWidget);
 
       // Primary 56dp Pill Button
       expect(find.text('Войти через Nios ID'), findsOneWidget);

@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
+import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/repositories/privacy_repository.dart';
 import 'package:pulse_flutter/screens/blocked_users_screen.dart';
 import 'package:pulse_flutter/screens/privacy_rule_detail_screen.dart';
@@ -169,6 +170,9 @@ void main() {
             webSocketClientProvider.overrideWithValue(fakeWs),
           ],
           child: const MaterialApp(
+            locale: Locale('ru'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: PrivacyRuleDetailScreen(ruleKey: 'calls'),
           ),
         ),
@@ -193,6 +197,9 @@ void main() {
             webSocketClientProvider.overrideWithValue(fakeWs),
           ],
           child: const MaterialApp(
+            locale: Locale('ru'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: BlockedUsersScreen(),
           ),
         ),

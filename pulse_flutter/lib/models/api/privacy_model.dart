@@ -30,7 +30,9 @@ enum PrivacyPolicy {
     }
   }
 
-  String localizedTitle([AppLocalizations? l10n]) {
+  String get localizedTitle => localized(null);
+
+  String localized([AppLocalizations? l10n]) {
     switch (this) {
       case PrivacyPolicy.everyone:
         return l10n?.privacyPolicyEveryone ?? 'Все';
@@ -137,10 +139,16 @@ class PrivacyRule {
     final dynamic neverRaw = json['never_allow'];
 
     final List<int> alwaysAllow = allowRaw is List
-        ? allowRaw.whereType<int>().toList(growable: false)
+        ? allowRaw
+            .map((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()))
+            .whereType<int>()
+            .toList(growable: false)
         : const <int>[];
     final List<int> neverAllow = neverRaw is List
-        ? neverRaw.whereType<int>().toList(growable: false)
+        ? neverRaw
+            .map((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()))
+            .whereType<int>()
+            .toList(growable: false)
         : const <int>[];
 
     return PrivacyRule(

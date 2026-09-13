@@ -58,6 +58,18 @@ class _PrivacyRuleDetailScreenState
         );
       }
     }
+
+    ref.listenManual<PrivacyState>(privacyProvider, (previous, next) {
+      if (!mounted || _saving) return;
+      final PrivacyRule? newRule = next.rules[widget.ruleKey];
+      if (newRule != null && newRule != previous?.rules[widget.ruleKey]) {
+        setState(() {
+          _selectedPolicy = newRule.policy;
+          _alwaysAllow = List<int>.from(newRule.alwaysAllow);
+          _neverAllow = List<int>.from(newRule.neverAllow);
+        });
+      }
+    });
   }
 
   Future<void> _savePolicy(PrivacyPolicy policy) async {

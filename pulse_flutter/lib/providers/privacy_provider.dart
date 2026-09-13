@@ -55,11 +55,8 @@ class PrivacyNotifier extends Notifier<PrivacyState> {
       _eventsSub?.cancel();
     });
 
-    if (client.isConnected) {
-      Future<void>.microtask(() => _loadInitial());
-      return const PrivacyState(isLoading: true);
-    }
-    return const PrivacyState(isLoading: false);
+    Future<void>.microtask(() => _loadInitial());
+    return const PrivacyState(isLoading: true);
   }
 
   void _onWebSocketEvent(Map<String, dynamic> event) {
@@ -89,11 +86,6 @@ class PrivacyNotifier extends Notifier<PrivacyState> {
 
   Future<void> _loadInitial() async {
     try {
-      final client = ref.read(webSocketClientProvider);
-      if (!client.isConnected) {
-        state = state.copyWith(isLoading: false);
-        return;
-      }
       final PrivacyRepository repo = ref.read(privacyRepositoryProvider);
       final Map<String, PrivacyRule> rules = await repo.getPrivacy();
       final List<BlockedUser> blocked = await repo.listBlockedUsers();

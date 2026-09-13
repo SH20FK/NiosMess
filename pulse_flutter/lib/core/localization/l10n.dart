@@ -1,10 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
-import 'package:pulse_flutter/l10n/app_localizations_en.dart';
+import 'package:pulse_flutter/l10n/app_localizations_ru.dart';
 
 export 'package:pulse_flutter/l10n/app_localizations.dart';
 
 extension L10nBuildContext on BuildContext {
   AppLocalizations get l10n =>
-      AppLocalizations.of(this) ?? AppLocalizationsEn();
+      AppLocalizations.of(this) ?? AppLocalizationsRu();
 }
