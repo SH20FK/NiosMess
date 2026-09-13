@@ -520,7 +520,9 @@ void main() {
       await tester.pumpWidget(
         _wrapWidget(
           overrides: [
-            webSocketClientProvider.overrideWithValue(fakeWs),
+            stickerSetsProvider.overrideWith(
+              () => _FakeStickerSetsNotifier(const <ApiStickerSet>[]),
+            ),
           ],
           child: const StickerSetModal(
             stickerSet: testSet,

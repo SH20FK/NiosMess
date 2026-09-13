@@ -189,7 +189,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isWide = constraints.maxWidth >= 760;
+        final double width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final bool isWide =
+            width >= 760 && MediaQuery.sizeOf(context).width >= 760;
 
         if (isWide) {
           return _buildDesktopMasterDetail(

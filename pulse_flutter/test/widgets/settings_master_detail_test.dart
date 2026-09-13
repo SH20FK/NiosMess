@@ -121,19 +121,22 @@ Widget _buildProfileScreenTestHarness({
     overrides: [
       authProvider.overrideWith(() => _FakeAuthNotifier()),
     ],
-    child: MediaQuery(
-      data: MediaQueryData(
-        size: surfaceSize,
-        padding: EdgeInsets.zero,
-        viewInsets: EdgeInsets.zero,
-      ),
-      child: MaterialApp.router(
-        theme: theme,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        locale: const Locale('ru'),
-        routerConfig: router,
-      ),
+    child: MaterialApp.router(
+      theme: theme,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      locale: const Locale('ru'),
+      routerConfig: router,
+      builder: (BuildContext context, Widget? child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(size: surfaceSize),
+          child: SizedBox(
+            width: surfaceSize.width,
+            height: surfaceSize.height,
+            child: child ?? const SizedBox.shrink(),
+          ),
+        );
+      },
     ),
   );
 }

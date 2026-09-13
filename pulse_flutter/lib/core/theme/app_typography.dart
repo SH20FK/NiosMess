@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTypography {
   const AppTypography._();
@@ -7,30 +6,35 @@ class AppTypography {
   static TextTheme build(ColorScheme scheme) {
     final baseTextTheme = TextTheme(
       displayLarge: TextStyle(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 36,
         fontWeight: FontWeight.w800,
         letterSpacing: -0.5,
         color: scheme.onSurface,
       ),
       headlineLarge: TextStyle(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 28,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.4,
         color: scheme.onSurface,
       ),
       headlineMedium: TextStyle(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 22,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.3,
         color: scheme.onSurface,
       ),
       headlineSmall: TextStyle(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 20,
         fontWeight: FontWeight.w600,
         letterSpacing: -0.2,
         color: scheme.onSurface,
       ),
       titleLarge: TextStyle(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 18,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.2,
@@ -81,6 +85,6 @@ class AppTypography {
       ),
     );
 
-    return GoogleFonts.interTextTheme(baseTextTheme);
+    return baseTextTheme.apply(fontFamily: 'Inter');
   }
 }

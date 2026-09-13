@@ -1,4 +1,4 @@
-﻿// Unified test suite aggregator for rapid single-pass compilation in CI.
+// Unified test suite aggregator for rapid single-pass compilation in CI.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'binary_packet_test.dart' as binary_packet;
