@@ -96,18 +96,40 @@ jobs:
       - run: flutter build apk --release
       - run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/niosmess.apk
 
-      - name: Generate Version Metadata
+      - name: Generate Version Metadata & Changelog
         run: |
           VERSION=$(grep '^version:' pubspec.yaml | head -n 1 | awk '{print $2}')
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
-          cat > build/app/outputs/flutter-apk/version.json << EOF
-          {
-            "version": "$VERSION",
-            "tag_name": "latest",
-            "download_url": "https://github.com/SH20FK/NiosMess/releases/download/latest/niosmess.apk",
-            "published_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-          }
-          EOF
+          python3 -c "
+          import json, re, os
+
+          version = '$VERSION'.split('+')[0]
+          changelog = ''
+          changelog_file = '../CHANGELOG.md'
+          if os.path.exists(changelog_file):
+              with open(changelog_file, 'r', encoding='utf-8') as f:
+                  content = f.read()
+              m = re.search(r'##\s*\[?' + re.escape(version) + r'\]?[^\n]*\n(.*?)(?=\n##\s*\[|\Z)', content, re.DOTALL)
+              if not m:
+                  m = re.search(r'##\s*\[.*?\][^\n]*\n(.*?)(?=\n##\s*\[|\Z)', content, re.DOTALL)
+              if m:
+                  changelog = m.group(1).strip()
+
+          if not changelog:
+              changelog = '• Повышение стабильности и производительности\n• Исправление мелких ошибок'
+
+          with open('build/app/outputs/flutter-apk/version.json', 'w', encoding='utf-8') as f:
+              json.dump({
+                  'version': '$VERSION',
+                  'tag_name': 'latest',
+                  'changelog': changelog,
+                  'download_url': 'https://github.com/SH20FK/NiosMess/releases/download/latest/niosmess.apk',
+                  'published_at': os.popen('date -u +\"%Y-%m-%dT%H:%M:%SZ\"').read().strip()
+              }, f, ensure_ascii=False, indent=2)
+
+          with open('changelog_release.txt', 'w', encoding='utf-8') as f:
+              f.write(changelog)
+          "
 
       - uses: actions/upload-artifact@v4
         with:
@@ -123,8 +145,8 @@ jobs:
             pulse_flutter/build/app/outputs/flutter-apk/version.json
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'latest' }}
           name: NiosMess v${{ env.APP_VERSION }}
+          body_path: pulse_flutter/changelog_release.txt
           make_latest: true
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

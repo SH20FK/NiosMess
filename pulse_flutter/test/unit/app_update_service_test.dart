@@ -1,4 +1,4 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
 
 void main() {
@@ -44,6 +44,39 @@ void main() {
 
     test('handles build number on latest with no build on current', () {
       expect(AppUpdateService.isNewerVersion('3.47.0+1', '3.47.0'), isTrue);
+    });
+  });
+
+  group('AppUpdateService.parseChangelog tests', () {
+    const String sampleChangelog = '''
+# Changelog
+
+## [3.58.1]
+• Feature A
+• Feature B
+
+## [3.58.0]
+• Older Feature C
+''';
+
+    test('extracts specific version cleanly', () {
+      final String notes =
+          AppUpdateService.parseChangelog(sampleChangelog, '3.58.1+122');
+      expect(notes, contains('Feature A'));
+      expect(notes, contains('Feature B'));
+      expect(notes, isNot(contains('Older Feature C')));
+    });
+
+    test('fallbacks to first section if target version not found', () {
+      final String notes =
+          AppUpdateService.parseChangelog(sampleChangelog, '3.99.0');
+      expect(notes, contains('Feature A'));
+      expect(notes, isNot(contains('Older Feature C')));
+    });
+
+    test('returns empty for blank input', () {
+      final String notes = AppUpdateService.parseChangelog('', '3.58.1');
+      expect(notes, isEmpty);
     });
   });
 }

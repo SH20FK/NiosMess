@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -59,6 +59,10 @@ class AppUpdateService {
   String get _rawPubspecUrl =>
       'https://raw.githubusercontent.com/$repoOwner/$repoName/main/pulse_flutter/pubspec.yaml';
 
+  /// Remote raw CHANGELOG.md URL to fetch release notes directly.
+  String get _rawChangelogUrl =>
+      'https://raw.githubusercontent.com/$repoOwner/$repoName/main/CHANGELOG.md';
+
   /// Release API URL for latest release notes and assets.
   String get _latestReleaseUrl =>
       'https://api.github.com/repos/$repoOwner/$repoName/releases/latest';
@@ -110,6 +114,43 @@ class AppUpdateService {
     return int.tryParse(buildStr) ?? 0;
   }
 
+  /// Parses markdown changelog and extracts notes for [targetVersion] or top section.
+  static String parseChangelog(String markdown, [String? targetVersion]) {
+    if (markdown.trim().isEmpty) return '';
+    final List<String> lines = markdown.split('\n');
+    final StringBuffer buffer = StringBuffer();
+    bool capturing = false;
+
+    final String cleanTarget = targetVersion != null
+        ? targetVersion
+            .split('+')
+            .first
+            .replaceFirst(RegExp(r'^v', caseSensitive: false), '')
+            .trim()
+        : '';
+
+    for (final String line in lines) {
+      final String trimmed = line.trim();
+      if (trimmed.startsWith('## ')) {
+        if (capturing) {
+          break;
+        }
+        if (cleanTarget.isEmpty || trimmed.contains(cleanTarget)) {
+          capturing = true;
+          continue;
+        }
+      } else if (capturing) {
+        buffer.writeln(line);
+      }
+    }
+
+    if (buffer.isEmpty && cleanTarget.isNotEmpty) {
+      return parseChangelog(markdown, null);
+    }
+
+    return buffer.toString().trim();
+  }
+
   /// Checks for a newer version of the application using multi-source verification.
   Future<AppUpdateInfo> checkForUpdate() async {
     final PackageInfo packageInfo = await PackageInfo.fromPlatform();
@@ -150,7 +191,29 @@ class AppUpdateService {
       debugPrint('[AppUpdateService] Error fetching raw pubspec: $e');
     }
 
-    // 2. Secondary: Query release metadata for assets, size and changelog
+    // 2. Fetch clean human-friendly CHANGELOG.md without API rate limits
+    try {
+      final http.Response changelogResponse = await http.get(
+        Uri.parse(_rawChangelogUrl),
+        headers: <String, String>{
+          'User-Agent': 'NiosMess-App-Updater',
+        },
+      ).timeout(const Duration(seconds: 8));
+
+      if (changelogResponse.statusCode == 200) {
+        final String parsed = parseChangelog(
+          changelogResponse.body,
+          latestVersion.isNotEmpty ? latestVersion : null,
+        );
+        if (parsed.isNotEmpty) {
+          changelog = parsed;
+        }
+      }
+    } catch (e) {
+      debugPrint('[AppUpdateService] Error fetching raw CHANGELOG.md: $e');
+    }
+
+    // 3. Secondary: Query release metadata for assets, size and fallback changelog
     try {
       final http.Response response = await http.get(
         Uri.parse(_latestReleaseUrl),
@@ -172,7 +235,8 @@ class AppUpdateService {
             publishedAt = DateTime.tryParse(publishedAtStr);
           }
 
-          if (releaseBody.isNotEmpty &&
+          if (changelog.isEmpty &&
+              releaseBody.isNotEmpty &&
               !releaseBody.contains('Full Changelog')) {
             changelog = releaseBody;
           }
