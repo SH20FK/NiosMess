@@ -234,54 +234,39 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ],
         if (_showOverflowMenu)
-          PopupMenuButton<String>(
-            onSelected: (String action) {
-              switch (action) {
-                case 'members':
-                  context.push('/chat/$chatId/members');
-                  break;
-                case 'manage':
-                  context.push('/chat/$chatId/manage');
-                  break;
-                case 'wallpaper':
-                  context.push(
-                    '/settings/wallpaper?chatId=$chatId&chatTitle=${Uri.encodeComponent(title)}',
-                  );
-                  break;
-              }
+          MenuAnchor(
+            builder: (BuildContext context, MenuController controller, Widget? child) {
+              return IconButton(
+                icon: const Icon(Icons.more_vert_rounded),
+                onPressed: () {
+                  if (controller.isOpen) {
+                    controller.close();
+                  } else {
+                    controller.open();
+                  }
+                },
+                tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+              );
             },
-            itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
-              if (isGroup || isChannel) ...<PopupMenuEntry<String>>[
-                PopupMenuItem<String>(
-                  value: 'members',
-                  child: Row(
-                    children: <Widget>[
-                      const Icon(Icons.people_rounded),
-                      const SizedBox(width: 8),
-                      Text(context.l10n.chatMembers),
-                    ],
-                  ),
+            menuChildren: <Widget>[
+              if (isGroup || isChannel) ...<Widget>[
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.people_rounded),
+                  onPressed: () => context.push('/chat/$chatId/members'),
+                  child: Text(context.l10n.chatMembers),
                 ),
-                PopupMenuItem<String>(
-                  value: 'manage',
-                  child: Row(
-                    children: <Widget>[
-                      const Icon(Icons.settings_rounded),
-                      const SizedBox(width: 8),
-                      Text(context.l10n.chatManage),
-                    ],
-                  ),
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.settings_rounded),
+                  onPressed: () => context.push('/chat/$chatId/manage'),
+                  child: Text(context.l10n.chatManage),
                 ),
               ],
-              const PopupMenuItem<String>(
-                value: 'wallpaper',
-                child: Row(
-                  children: <Widget>[
-                    Icon(Icons.texture_rounded),
-                    SizedBox(width: 8),
-                    Text('Обои чата'),
-                  ],
+              MenuItemButton(
+                leadingIcon: const Icon(Icons.texture_rounded),
+                onPressed: () => context.push(
+                  '/settings/wallpaper?chatId=$chatId&chatTitle=${Uri.encodeComponent(title)}',
                 ),
+                child: const Text('Обои чата'),
               ),
             ],
           ),
