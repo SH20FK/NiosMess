@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 
 class AppToast {
   AppToast._();
@@ -166,46 +168,13 @@ class AppToast {
       context: context,
       builder: (BuildContext dialogContext) {
         final ColorScheme scheme = Theme.of(dialogContext).colorScheme;
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.bug_report_outlined, color: scheme.error, size: 22),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Технические подробности',
-                  style: TextStyle(fontSize: 16),
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  formatted.title,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: SelectableText(
-                    formatted.technicalDetails ?? 'Нет дополнительных данных',
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        return AppDialog(
+          icon: Icons.bug_report_outlined,
+          title: 'Технические подробности',
           actions: [
-            TextButton.icon(
+            AppDialogAction(
+              icon: Icons.copy_rounded,
+              label: 'Копировать',
               onPressed: () {
                 Clipboard.setData(
                   ClipboardData(
@@ -215,14 +184,36 @@ class AppToast {
                 Navigator.of(dialogContext).pop();
                 showInfo(context, 'Скопировано в буфер обмена');
               },
-              icon: const Icon(Icons.copy_rounded, size: 16),
-              label: const Text('Копировать'),
             ),
-            TextButton(
+            AppDialogAction(
+              label: 'Закрыть',
+              isPrimary: true,
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Закрыть'),
             ),
           ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                formatted.title,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: AppRadii.smRadius,
+                ),
+                child: SelectableText(
+                  formatted.technicalDetails ?? 'Нет дополнительных данных',
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );

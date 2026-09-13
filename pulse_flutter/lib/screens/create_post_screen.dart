@@ -189,32 +189,53 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         auth.session?.displayName ??
         context.l10n.profileGuestName;
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (bool didPop, Object? result) async {
-        if (didPop) return;
-        if (_textController.text.trim().isEmpty && _selectedFile == null) {
-          if (context.canPop()) {
-            context.pop();
-          } else {
-            context.go('/main/niosgram');
-          }
-          return;
-        }
-        final bool? confirm = await showAppConfirmDialog(
-          context: context,
-          title: context.l10n.commonDiscardChanges,
-          subtitle: context.l10n.commonDiscardChangesDesc,
-          confirmLabel: context.l10n.commonDiscardChangesConfirm,
-          cancelLabel: context.l10n.commonCancel,
+    return ListenableBuilder(
+      listenable: _textController,
+      builder: (BuildContext context, Widget? child) {
+        final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
+        final bool hasDraft =
+            _textController.text.trim().isNotEmpty || _selectedFile != null;
+        return PopScope(
+          canPop: canRoutePop && !hasDraft,
+          onPopInvokedWithResult: (bool didPop, Object? result) async {
+            if (didPop) return;
+            if (!hasDraft) {
+              if (canRoutePop) {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+              } else {
+                try {
+                  context.go('/main/niosgram');
+                } catch (_) {
+                  Navigator.maybePop(context);
+                }
+              }
+              return;
+            }
+            final bool? confirm = await showAppConfirmDialog(
+              context: context,
+              title: context.l10n.commonDiscardChanges,
+              subtitle: context.l10n.commonDiscardChangesDesc,
+              confirmLabel: context.l10n.commonDiscardChangesConfirm,
+              cancelLabel: context.l10n.commonCancel,
+            );
+            if (confirm == true && context.mounted) {
+              if (canRoutePop) {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+              } else {
+                try {
+                  context.go('/main/niosgram');
+                } catch (_) {
+                  Navigator.maybePop(context);
+                }
+              }
+            }
+          },
+          child: child!,
         );
-        if (confirm == true && context.mounted) {
-          if (context.canPop()) {
-            context.pop();
-          } else {
-            context.go('/main/niosgram');
-          }
-        }
       },
       child: Scaffold(
         appBar: AppBar(

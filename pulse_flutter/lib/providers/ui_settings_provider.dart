@@ -24,6 +24,7 @@ class VisualThemeSettings {
     required this.themeMode,
     required this.useSystemDynamic,
     required this.predictiveBackEnabled,
+    this.predictiveBackStrength = 1.0,
     this.pureBlackOled = false,
   });
 
@@ -31,6 +32,7 @@ class VisualThemeSettings {
   final ThemeMode themeMode;
   final bool useSystemDynamic;
   final bool predictiveBackEnabled;
+  final double predictiveBackStrength;
   final bool pureBlackOled;
 
   @override
@@ -42,6 +44,7 @@ class VisualThemeSettings {
           themeMode == other.themeMode &&
           useSystemDynamic == other.useSystemDynamic &&
           predictiveBackEnabled == other.predictiveBackEnabled &&
+          predictiveBackStrength == other.predictiveBackStrength &&
           pureBlackOled == other.pureBlackOled;
 
   @override
@@ -50,6 +53,7 @@ class VisualThemeSettings {
       themeMode.hashCode ^
       useSystemDynamic.hashCode ^
       predictiveBackEnabled.hashCode ^
+      predictiveBackStrength.hashCode ^
       pureBlackOled.hashCode;
 }
 
@@ -68,6 +72,7 @@ class UiSettingsState {
     required this.timeZoneId,
     required this.optimizeForWeakDevices,
     required this.predictiveBackEnabled,
+    this.predictiveBackStrength = 1.0,
     required this.backgroundMode,
     required this.useSystemDynamic,
     required this.fontScale,
@@ -86,6 +91,7 @@ class UiSettingsState {
         themeMode: themeMode,
         useSystemDynamic: useSystemDynamic,
         predictiveBackEnabled: predictiveBackEnabled,
+        predictiveBackStrength: predictiveBackStrength,
         pureBlackOled: pureBlackOled,
       );
 
@@ -103,10 +109,11 @@ class UiSettingsState {
       timeZoneId = null,
       optimizeForWeakDevices = false,
       predictiveBackEnabled = true,
+      predictiveBackStrength = 1.0,
       backgroundMode = BackgroundMode.reliable,
       useSystemDynamic = false,
       fontScale = AppFontScale.normal,
-      navBarFloating = true,
+      navBarFloating = false,
       pureBlackOled = false,
       sendOnEnter = true,
       doubleTapReactionEmoji = '❤️',
@@ -128,6 +135,7 @@ class UiSettingsState {
   final String? timeZoneId;
   final bool optimizeForWeakDevices;
   final bool predictiveBackEnabled;
+  final double predictiveBackStrength;
   final BackgroundMode backgroundMode;
   final bool useSystemDynamic;
   final AppFontScale fontScale;
@@ -156,6 +164,7 @@ class UiSettingsState {
     bool clearTimeZoneId = false,
     bool? optimizeForWeakDevices,
     bool? predictiveBackEnabled,
+    double? predictiveBackStrength,
     BackgroundMode? backgroundMode,
     bool? useSystemDynamic,
     AppFontScale? fontScale,
@@ -184,6 +193,8 @@ class UiSettingsState {
           optimizeForWeakDevices ?? this.optimizeForWeakDevices,
       predictiveBackEnabled:
           predictiveBackEnabled ?? this.predictiveBackEnabled,
+      predictiveBackStrength:
+          predictiveBackStrength ?? this.predictiveBackStrength,
       backgroundMode: backgroundMode ?? this.backgroundMode,
       useSystemDynamic: useSystemDynamic ?? this.useSystemDynamic,
       fontScale: fontScale ?? this.fontScale,
@@ -221,6 +232,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _timeZoneIdKey = 'ui.timeZoneId';
   static const String _optimizeWeakKey = 'ui.optimizeWeak';
   static const String _predictiveBackKey = 'ui.predictiveBack';
+  static const String _predictiveBackStrengthKey = 'ui.predictiveBackStrength';
   static const String _backgroundModeKey = 'ui.backgroundMode';
   static const String _useSystemDynamicKey = 'ui.useSystemDynamic';
   static const String _fontScaleKey = 'ui.fontScale';
@@ -275,6 +287,9 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
           prefs.getBool(_optimizeWeakKey) ?? state.optimizeForWeakDevices,
       predictiveBackEnabled:
           prefs.getBool(_predictiveBackKey) ?? state.predictiveBackEnabled,
+      predictiveBackStrength: (prefs.getDouble(_predictiveBackStrengthKey) ??
+              state.predictiveBackStrength)
+          .clamp(0.5, 1.5),
       backgroundMode: BackgroundMode.values.firstWhere(
         (BackgroundMode mode) =>
             mode.name == prefs.getString(_backgroundModeKey),
@@ -286,7 +301,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
         (AppFontScale fs) => fs.name == prefs.getString(_fontScaleKey),
         orElse: () => AppFontScale.normal,
       ),
-      navBarFloating: prefs.getBool(_navBarFloatingKey) ?? true,
+      navBarFloating: prefs.getBool(_navBarFloatingKey) ?? false,
       pureBlackOled: prefs.getBool(_pureBlackOledKey) ?? state.pureBlackOled,
       sendOnEnter: prefs.getBool(_sendOnEnterKey) ?? state.sendOnEnter,
       doubleTapReactionEmoji:
@@ -327,6 +342,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
         prefs.setString(_timeZoneIdKey, nextState.timeZoneId!),
       prefs.setBool(_optimizeWeakKey, nextState.optimizeForWeakDevices),
       prefs.setBool(_predictiveBackKey, nextState.predictiveBackEnabled),
+      prefs.setDouble(_predictiveBackStrengthKey, nextState.predictiveBackStrength),
       prefs.setString(_backgroundModeKey, nextState.backgroundMode.name),
       prefs.setBool(_useSystemDynamicKey, nextState.useSystemDynamic),
       prefs.setString(_fontScaleKey, nextState.fontScale.name),
@@ -404,6 +420,11 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   void setPredictiveBackEnabled(bool value) {
     debugPrint('[UiSettingsNotifier] setPredictiveBackEnabled -> $value');
     _set(state.copyWith(predictiveBackEnabled: value));
+  }
+
+  void setPredictiveBackStrength(double value) {
+    debugPrint('[UiSettingsNotifier] setPredictiveBackStrength -> $value');
+    _set(state.copyWith(predictiveBackStrength: value.clamp(0.5, 1.5)));
   }
 
   void setBackgroundMode(BackgroundMode value) {

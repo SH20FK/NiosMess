@@ -34,7 +34,11 @@ class ApiSticker {
   final int? fileSize;
 
   /// Absolute resolved URL for network image and video loaders.
-  String get resolvedUrl => ApiConstants.resolve(url);
+  String get resolvedUrl {
+    final String clean = url.trim();
+    if (clean.isEmpty) return '';
+    return ApiConstants.resolve(clean);
+  }
 
   bool get isAnimated =>
       (durationSeconds != null && durationSeconds! > 0) ||
@@ -44,12 +48,25 @@ class ApiSticker {
       mediaType.contains('mp4');
 
   factory ApiSticker.fromJson(Map<String, dynamic> json) {
+    final String rawUrl = json['url'] as String? ?? '';
+    final int? setId = (json['set_id'] as num?)?.toInt() ??
+        (json['setId'] as num?)?.toInt() ??
+        (json['sticker_set_id'] as num?)?.toInt();
+    final int id = (json['id'] as num?)?.toInt() ?? 0;
+
+    String effectiveUrl = rawUrl;
+    if (effectiveUrl.trim().isEmpty) {
+      final String? filePath =
+          json['file_path'] as String? ?? json['media_path'] as String?;
+      if (filePath != null && filePath.isNotEmpty) {
+        effectiveUrl = filePath.startsWith('/') ? filePath : '/static/$filePath';
+      }
+    }
+
     return ApiSticker(
-      id: (json['id'] as num?)?.toInt() ?? 0,
-      setId: (json['set_id'] as num?)?.toInt() ??
-          (json['setId'] as num?)?.toInt() ??
-          (json['sticker_set_id'] as num?)?.toInt(),
-      url: json['url'] as String? ?? '',
+      id: id,
+      setId: setId,
+      url: effectiveUrl,
       emoji: json['emoji'] as String? ?? '',
       mediaType: json['media_type'] as String? ??
           json['mediaType'] as String? ??

@@ -456,10 +456,13 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
                                       ),
                                     ),
                                   ),
-                                  errorWidget: (_, _, _) => Icon(
-                                    Icons.broken_image_outlined,
-                                    size: 24,
-                                    color: scheme.onSurfaceVariant,
+                                  errorWidget: (_, _, _) => Center(
+                                    child: Text(
+                                      sticker.emoji.isNotEmpty
+                                          ? sticker.emoji
+                                          : '🖼️',
+                                      style: const TextStyle(fontSize: 24),
+                                    ),
                                   ),
                                 ),
                                 if (sticker.emoji.isNotEmpty)

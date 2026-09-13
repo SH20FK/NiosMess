@@ -90,33 +90,53 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (bool didPop, Object? result) async {
-        if (didPop) return;
-        if (_inputController.text.trim().isEmpty) {
-          if (context.canPop()) {
-            context.pop();
-          } else {
-            context.go('/main/niosgram');
-          }
-          return;
-        }
-        final bool? confirm = await showAppConfirmDialog(
-          context: context,
-          title: context.l10n.dialogCancelCommentTitle,
-          subtitle: context.l10n.dialogCancelCommentBody,
-          confirmLabel: context.l10n.commonYes,
-          cancelLabel: context.l10n.commonNo,
-          icon: Icons.close_rounded,
+    return ListenableBuilder(
+      listenable: _inputController,
+      builder: (BuildContext context, Widget? child) {
+        final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
+        final bool hasDraft = _inputController.text.trim().isNotEmpty;
+        return PopScope(
+          canPop: canRoutePop && !hasDraft,
+          onPopInvokedWithResult: (bool didPop, Object? result) async {
+            if (didPop) return;
+            if (!hasDraft) {
+              if (canRoutePop) {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+              } else {
+                try {
+                  context.go('/main/niosgram');
+                } catch (_) {
+                  Navigator.maybePop(context);
+                }
+              }
+              return;
+            }
+            final bool? confirm = await showAppConfirmDialog(
+              context: context,
+              title: context.l10n.dialogCancelCommentTitle,
+              subtitle: context.l10n.dialogCancelCommentBody,
+              confirmLabel: context.l10n.commonYes,
+              cancelLabel: context.l10n.commonNo,
+              icon: Icons.close_rounded,
+            );
+            if (confirm == true && context.mounted) {
+              if (canRoutePop) {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+              } else {
+                try {
+                  context.go('/main/niosgram');
+                } catch (_) {
+                  Navigator.maybePop(context);
+                }
+              }
+            }
+          },
+          child: child!,
         );
-        if (confirm == true && context.mounted) {
-          if (context.canPop()) {
-            context.pop();
-          } else {
-            context.go('/main/niosgram');
-          }
-        }
       },
       child: Scaffold(
         appBar: AppBar(

@@ -1,9 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/device_hardware_provider.dart';
 import 'package:pulse_flutter/services/system/device_hardware_service.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
@@ -95,10 +99,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
 
     final Widget heroCard = _buildHeroCard(context, scheme, textTheme, info, isDark);
     final Widget memoryGaugeCard = _buildMemoryGaugeCard(context, scheme, textTheme, info, isDark);
-    final Widget displaySection = _buildDisplaySection(scheme, textTheme, info, isDark);
-    final Widget processorSection = _buildProcessorSection(scheme, textTheme, info, isDark);
-    final Widget camerasSection = _buildCamerasSection(scheme, textTheme, info, isDark);
-    final Widget osSection = _buildOsSection(scheme, textTheme, info, isDark);
+    final Widget coreSpecsCard = _buildCoreSpecsCard(context, scheme, textTheme, info, isDark);
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -121,18 +122,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               const SizedBox(width: 20),
               Expanded(
                 flex: 6,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    displaySection,
-                    const SizedBox(height: 16),
-                    processorSection,
-                    const SizedBox(height: 16),
-                    camerasSection,
-                    const SizedBox(height: 16),
-                    osSection,
-                  ],
-                ),
+                child: coreSpecsCard,
               ),
             ],
           );
@@ -145,13 +135,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             memoryGaugeCard,
             const SizedBox(height: 16),
-            displaySection,
-            const SizedBox(height: 16),
-            processorSection,
-            const SizedBox(height: 16),
-            camerasSection,
-            const SizedBox(height: 16),
-            osSection,
+            coreSpecsCard,
             const SizedBox(height: 32),
           ],
         );
@@ -183,19 +167,11 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              // Monochromatic Nothing OS style device badge
-              M3Container(
-                Shapes.c9_sided_cookie,
-                width: 56,
-                height: 56,
-                color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.7 : 0.5),
-                child: Center(
-                  child: Icon(
-                    _resolveBrandIcon(info.brand),
-                    size: 28,
-                    color: scheme.onSurface,
-                  ),
-                ),
+              // Interactive spring-scale brand logo badge
+              _InteractiveBrandBadge(
+                brand: info.brand,
+                scheme: scheme,
+                isDark: isDark,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -250,7 +226,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               const SizedBox(width: 8),
               _buildSpecChip(scheme, textTheme, Icons.memory_rounded, '${info.cpuCores} ядер'),
               const SizedBox(width: 8),
-              _buildSpecChip(scheme, textTheme, Icons.sd_storage_rounded, '${info.totalRamGb.toStringAsFixed(0)} ГБ RAM'),
+              _buildSpecChip(scheme, textTheme, Icons.sd_storage_rounded, info.commercialRamText),
               const SizedBox(width: 8),
               _buildSpecChip(scheme, textTheme, Icons.photo_camera_rounded, '${info.normalizedMainCameraMp} МП'),
             ],
@@ -260,7 +236,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
     ).animate().fade(duration: 250.ms, curve: M3SpringCurves.spatial).slideY(begin: 0.03, end: 0);
   }
 
-  // ── Nothing OS / Pixel Linear Memory & Storage Meters ─────────────────
+  // ── Nothing OS / Pixel Animated Memory & Storage Meters ──────────────
   Widget _buildMemoryGaugeCard(
     BuildContext context,
     ColorScheme scheme,
@@ -291,19 +267,23 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // 1. RAM Gauge
-          _buildLinearResourceMeter(
+          // 1. RAM Gauge with animated spring filling & rolling number
+          _AnimatedResourceMeter(
             icon: Icons.memory_rounded,
             title: 'Оперативная память',
-            usedText: '${info.usedRamGb.toStringAsFixed(1)} ГБ',
-            totalText: '${info.totalRamGb.toStringAsFixed(1)} ГБ',
+            usedAmount: info.usedRamGb,
+            totalAmount: info.totalRamGb,
+            unit: 'ГБ',
             percent: info.ramUsagePercent,
-            subtitle: info.availableRamGb > 0
-                ? 'Свободно для приложений: ${info.availableRamGb.toStringAsFixed(1)} ГБ'
-                : 'LPDDR модуль',
+            subtitle: info.commercialRamGb > 0
+                ? '${info.commercialRamGb} ГБ LPDDR • ${info.availableRamGb.toStringAsFixed(1)} ГБ доступно'
+                : (info.availableRamGb > 0
+                    ? 'Свободно для приложений: ${info.availableRamGb.toStringAsFixed(1)} ГБ'
+                    : 'LPDDR модуль'),
             scheme: scheme,
             textTheme: textTheme,
             barColor: scheme.primary,
+            isInteger: false,
           ),
 
           const SizedBox(height: 16),
@@ -313,360 +293,140 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // 2. Storage Gauge
-          _buildLinearResourceMeter(
+          // 2. Storage Gauge with animated spring filling & rolling number
+          _AnimatedResourceMeter(
             icon: Icons.inventory_2_rounded,
             title: 'Внутренний накопитель',
-            usedText: '${info.usedStorageGb.toStringAsFixed(0)} ГБ',
-            totalText: '${info.totalStorageGb.toStringAsFixed(0)} ГБ',
+            usedAmount: info.usedStorageGb,
+            totalAmount: info.totalStorageGb,
+            unit: 'ГБ',
             percent: info.storageUsagePercent,
-            subtitle: info.freeStorageGb > 0
-                ? 'Свободно места: ${info.freeStorageGb.toStringAsFixed(1)} ГБ'
-                : 'UFS флеш-память',
+            subtitle: info.commercialStorageGb > 0
+                ? '${info.commercialStorageText} Flash • ${info.freeStorageGb.toStringAsFixed(1)} ГБ свободно'
+                : (info.freeStorageGb > 0
+                    ? 'Свободно места: ${info.freeStorageGb.toStringAsFixed(1)} ГБ'
+                    : 'UFS флеш-память'),
             scheme: scheme,
             textTheme: textTheme,
             barColor: scheme.onSurface,
+            isInteger: true,
           ),
         ],
       ),
     ).animate().fade(duration: 300.ms, curve: M3SpringCurves.spatial).slideY(begin: 0.03, end: 0);
   }
 
-  Widget _buildLinearResourceMeter({
-    required IconData icon,
-    required String title,
-    required String usedText,
-    required String totalText,
-    required double percent,
-    required String subtitle,
-    required ColorScheme scheme,
-    required TextTheme textTheme,
-    required Color barColor,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Icon(icon, size: 16, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                title,
-                style: textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: scheme.onSurface,
-                ),
-              ),
-            ),
-            Text(
-              '$usedText / $totalText (${(percent * 100).round()}%)',
-              style: textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: SizedBox(
-            height: 6,
-            child: LinearProgressIndicator(
-              value: percent,
-              backgroundColor: scheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(barColor),
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          subtitle,
-          style: textTheme.labelSmall?.copyWith(
-            color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
-            fontSize: 11,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Hardware Sections (Pixel / Nothing OS Monochromatic Style) ────────
-  Widget _buildDisplaySection(ColorScheme scheme, TextTheme textTheme, DeviceHardwareInfo info, bool isDark) {
-    return _buildSectionContainer(
-      title: 'Дисплей и графика',
-      scheme: scheme,
-      textTheme: textTheme,
-      isDark: isDark,
-      tiles: <Widget>[
-        _buildInfoRow(
-          icon: Icons.aspect_ratio_rounded,
-          title: 'Физическое разрешение',
-          subtitle: 'Матрица экрана',
-          value: info.screenResolutionText,
-          scheme: scheme,
-          textTheme: textTheme,
-        ),
-        _buildInfoRow(
-          icon: Icons.speed_rounded,
-          title: 'Частота обновления',
-          subtitle: 'Высокогерцовый режим',
-          value: info.refreshRateText,
-          scheme: scheme,
-          textTheme: textTheme,
-        ),
-        _buildInfoRow(
-          icon: Icons.palette_outlined,
-          title: 'Плотность и масштаб',
-          subtitle: 'Коэффициент масштабирования',
-          value: info.densityText,
-          scheme: scheme,
-          textTheme: textTheme,
-        ),
-        _buildInfoRow(
-          icon: Icons.layers_rounded,
-          title: 'Графический пайплайн',
-          subtitle: 'Аппаратный рендерер',
-          value: 'M3 Expressive (Impeller/Skia)',
-          scheme: scheme,
-          textTheme: textTheme,
-          isLast: true,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProcessorSection(ColorScheme scheme, TextTheme textTheme, DeviceHardwareInfo info, bool isDark) {
-    return _buildSectionContainer(
-      title: 'Процессор и вычисления',
-      scheme: scheme,
-      textTheme: textTheme,
-      isDark: isDark,
-      tiles: <Widget>[
-        _buildInfoRow(
-          icon: Icons.memory_rounded,
-          title: 'Процессор (SoC)',
-          subtitle: 'Чипсет устройства',
-          value: info.socName,
-          scheme: scheme,
-          textTheme: textTheme,
-        ),
-        _buildInfoRow(
-          icon: Icons.developer_board_rounded,
-          title: 'Вычислительные ядра',
-          subtitle: 'Аппаратные потоки',
-          value: '${info.cpuCores} ядер',
-          scheme: scheme,
-          textTheme: textTheme,
-        ),
-        _buildInfoRow(
-          icon: Icons.terminal_rounded,
-          title: 'Архитектура ABI',
-          subtitle: 'Набор процессорных инструкций',
-          value: info.architecture,
-          scheme: scheme,
-          textTheme: textTheme,
-          isLast: true,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCamerasSection(ColorScheme scheme, TextTheme textTheme, DeviceHardwareInfo info, bool isDark) {
-    return _buildSectionContainer(
-      title: 'Оптика и камеры',
-      scheme: scheme,
-      textTheme: textTheme,
-      isDark: isDark,
-      tiles: <Widget>[
-        _buildInfoRow(
-          icon: Icons.camera_alt_rounded,
-          title: 'Основная камера',
-          subtitle: 'Сенсор сверхвысокого разрешения',
-          value: '${info.normalizedMainCameraMp} МП Ultra Clear',
-          scheme: scheme,
-          textTheme: textTheme,
-        ),
-        _buildInfoRow(
-          icon: Icons.camera_front_rounded,
-          title: 'Фронтальная камера',
-          subtitle: 'Селфи и видеокружочки',
-          value: '${info.normalizedFrontCameraMp} МП HD',
-          scheme: scheme,
-          textTheme: textTheme,
-        ),
-        _buildInfoRow(
-          icon: Icons.center_focus_strong_rounded,
-          title: 'Модули камер',
-          subtitle: 'Сенсоры фотосистемы',
-          value: '${info.cameraCount} камеры',
-          scheme: scheme,
-          textTheme: textTheme,
-          isLast: true,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildOsSection(ColorScheme scheme, TextTheme textTheme, DeviceHardwareInfo info, bool isDark) {
-    return _buildSectionContainer(
-      title: 'Операционная система и безопасность',
-      scheme: scheme,
-      textTheme: textTheme,
-      isDark: isDark,
-      tiles: <Widget>[
-        _buildInfoRow(
-          icon: Icons.android_rounded,
-          title: 'Операционная система',
-          subtitle: info.buildId.isNotEmpty ? info.buildId : 'Официальная прошивка',
-          value: info.osName,
-          scheme: scheme,
-          textTheme: textTheme,
-        ),
-        if (info.securityPatch.isNotEmpty)
-          _buildInfoRow(
-            icon: Icons.security_rounded,
-            title: 'Патч безопасности',
-            subtitle: 'Уровень безопасности Google',
-            value: info.securityPatch,
-            scheme: scheme,
-            textTheme: textTheme,
-          ),
-        _buildInfoRow(
-          icon: Icons.lock_outline_rounded,
-          title: 'Криптография NiosMess',
-          subtitle: 'Сквозное шифрование сообщений',
-          value: 'E2EE MLS Double Ratchet',
-          scheme: scheme,
-          textTheme: textTheme,
-        ),
-        _buildInfoRow(
-          icon: Icons.fingerprint_rounded,
-          title: 'Биометрия',
-          subtitle: 'Аппаратная аутентификация',
-          value: 'BiometricPrompt OK',
-          scheme: scheme,
-          textTheme: textTheme,
-          isLast: true,
-        ),
-      ],
-    );
-  }
-
-  // ── Section Container ────────────────────────────────────────────────
-  Widget _buildSectionContainer({
-    required String title,
-    required List<Widget> tiles,
-    required ColorScheme scheme,
-    required TextTheme textTheme,
-    required bool isDark,
-  }) {
+  // ── Unified Material 3 Expressive Core Specs Card ─────────────────────
+  Widget _buildCoreSpecsCard(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+    DeviceHardwareInfo info,
+    bool isDark,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? scheme.surfaceContainerLow : scheme.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: scheme.outlineVariant.withValues(alpha: isDark ? 0.28 : 0.35),
           width: 1.0,
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            title,
-            style: textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.2,
-              color: scheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...tiles,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String value,
-    required ColorScheme scheme,
-    required TextTheme textTheme,
-    bool isLast = false,
-  }) {
-    return Column(
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              // Monochromatic tonal squircle icon container
+              Text(
+                'Характеристики',
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                  color: scheme.onSurface,
+                ),
+              ),
               Container(
-                width: 36,
-                height: 36,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(10),
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Center(
-                  child: Icon(
-                    icon,
-                    size: 18,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      title,
-                      style: textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
-                        letterSpacing: -0.1,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      subtitle,
-                      style: textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 160),
                 child: Text(
-                  value,
-                  textAlign: TextAlign.end,
-                  style: textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: scheme.onSurface,
+                  'Нажмите для копирования',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 10,
                   ),
                 ),
               ),
             ],
           ),
-        ),
-        if (!isLast)
-          Divider(
-            height: 1,
-            color: scheme.outlineVariant.withValues(alpha: 0.15),
+          const SizedBox(height: 16),
+
+          // 1. Processor (SoC)
+          _InteractiveSpecTile(
+            icon: Icons.memory_rounded,
+            badgeColor: scheme.primaryContainer.withValues(alpha: isDark ? 0.4 : 0.6),
+            iconColor: scheme.primary,
+            title: 'Процессор',
+            value: info.socName,
+            subtitle: '${info.cpuCores} вычислительных ядер • ${info.architecture}',
+            scheme: scheme,
+            textTheme: textTheme,
           ),
-      ],
-    );
+          const SizedBox(height: 12),
+          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          const SizedBox(height: 12),
+
+          // 2. Display
+          _InteractiveSpecTile(
+            icon: Icons.aspect_ratio_rounded,
+            badgeColor: scheme.secondaryContainer.withValues(alpha: isDark ? 0.4 : 0.6),
+            iconColor: scheme.secondary,
+            title: 'Дисплей и графика',
+            value: '${info.screenResolutionText} • ${info.refreshRateText}',
+            subtitle: '${info.densityDpi} ppi матрица экрана',
+            scheme: scheme,
+            textTheme: textTheme,
+          ),
+          const SizedBox(height: 12),
+          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          const SizedBox(height: 12),
+
+          // 3. Cameras
+          _InteractiveSpecTile(
+            icon: Icons.camera_alt_rounded,
+            badgeColor: scheme.tertiaryContainer.withValues(alpha: isDark ? 0.4 : 0.6),
+            iconColor: scheme.tertiary,
+            title: 'Оптика и камеры',
+            value: '${info.normalizedMainCameraMp} МП • ${info.normalizedFrontCameraMp} МП фронтальная',
+            subtitle: 'Фотосистема (${info.cameraCount} модуля)',
+            scheme: scheme,
+            textTheme: textTheme,
+          ),
+          const SizedBox(height: 12),
+          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          const SizedBox(height: 12),
+
+          // 4. Operating System & Security
+          _InteractiveSpecTile(
+            icon: Icons.android_rounded,
+            badgeColor: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.7 : 0.8),
+            iconColor: scheme.onSurface,
+            title: 'Операционная система',
+            value: info.osName,
+            subtitle: info.securityPatch.isNotEmpty
+                ? 'Патч безопасности Google: ${info.securityPatch}'
+                : (info.buildId.isNotEmpty ? info.buildId : 'Официальная прошивка'),
+            scheme: scheme,
+            textTheme: textTheme,
+          ),
+        ],
+      ),
+    ).animate().fade(duration: 350.ms, curve: M3SpringCurves.spatial).slideY(begin: 0.03, end: 0);
   }
 
   Widget _buildTonalBadge({
@@ -726,6 +486,58 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
     );
   }
 
+  static Widget _buildBrandLogo(String brand, ColorScheme scheme) {
+    final String lower = brand.toLowerCase();
+    String? svgAsset;
+
+    if (lower.contains('oneplus')) {
+      svgAsset = 'assets/svg/brands/oneplus.svg';
+    } else if (lower.contains('apple')) {
+      svgAsset = 'assets/svg/brands/apple.svg';
+    } else if (lower.contains('google') || lower.contains('pixel')) {
+      svgAsset = 'assets/svg/brands/google.svg';
+    } else if (lower.contains('samsung')) {
+      svgAsset = 'assets/svg/brands/samsung.svg';
+    } else if (lower.contains('xiaomi') || lower.contains('redmi') || lower.contains('mi ')) {
+      svgAsset = 'assets/svg/brands/xiaomi.svg';
+    } else if (lower.contains('poco')) {
+      svgAsset = 'assets/svg/brands/poco.svg';
+    } else if (lower.contains('nothing') || lower.contains('cmf')) {
+      svgAsset = 'assets/svg/brands/nothing.svg';
+    } else if (lower.contains('huawei')) {
+      svgAsset = 'assets/svg/brands/huawei.svg';
+    } else if (lower.contains('honor')) {
+      svgAsset = 'assets/svg/brands/honor.svg';
+    } else if (lower.contains('realme')) {
+      svgAsset = 'assets/svg/brands/realme.svg';
+    } else if (lower.contains('motorola') || lower.contains('moto')) {
+      svgAsset = 'assets/svg/brands/motorola.svg';
+    } else if (lower.contains('sony')) {
+      svgAsset = 'assets/svg/brands/sony.svg';
+    } else if (lower.contains('oppo')) {
+      svgAsset = 'assets/svg/brands/oppo.svg';
+    } else if (lower.contains('vivo') || lower.contains('iqoo')) {
+      svgAsset = 'assets/svg/brands/vivo.svg';
+    } else if (lower.contains('android')) {
+      svgAsset = 'assets/svg/brands/android.svg';
+    }
+
+    if (svgAsset != null) {
+      return SvgPicture.asset(
+        svgAsset,
+        width: 28,
+        height: 28,
+        colorFilter: ColorFilter.mode(scheme.onSurface, BlendMode.srcIn),
+      );
+    }
+
+    return Icon(
+      _resolveBrandIcon(brand),
+      size: 28,
+      color: scheme.onSurface,
+    );
+  }
+
   static IconData _resolveBrandIcon(String brand) {
     final lower = brand.toLowerCase();
     if (lower.contains('apple')) return Icons.apple_rounded;
@@ -736,5 +548,292 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
       return Icons.bolt_rounded;
     }
     return Icons.smartphone_rounded;
+  }
+}
+
+// ── Interactive Spring Scale Brand Badge ──────────────────────────────
+class _InteractiveBrandBadge extends StatefulWidget {
+  const _InteractiveBrandBadge({
+    required this.brand,
+    required this.scheme,
+    required this.isDark,
+  });
+
+  final String brand;
+  final ColorScheme scheme;
+  final bool isDark;
+
+  @override
+  State<_InteractiveBrandBadge> createState() => _InteractiveBrandBadgeState();
+}
+
+class _InteractiveBrandBadgeState extends State<_InteractiveBrandBadge> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: () {
+        HapticService.tap();
+      },
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.90 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        curve: M3SpringCurves.bouncy,
+        child: M3Container(
+          Shapes.c9_sided_cookie,
+          width: 58,
+          height: 58,
+          color: widget.scheme.surfaceContainerHighest
+              .withValues(alpha: widget.isDark ? 0.7 : 0.5),
+          child: Center(
+            child: SettingsSystemDeviceScreen._buildBrandLogo(
+              widget.brand,
+              widget.scheme,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Animated Resource Meter with Spring Filling & Rolling Numbers ──────
+class _AnimatedResourceMeter extends StatefulWidget {
+  const _AnimatedResourceMeter({
+    required this.icon,
+    required this.title,
+    required this.usedAmount,
+    required this.totalAmount,
+    required this.unit,
+    required this.percent,
+    required this.subtitle,
+    required this.scheme,
+    required this.textTheme,
+    required this.barColor,
+    this.isInteger = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final double usedAmount;
+  final double totalAmount;
+  final String unit;
+  final double percent;
+  final String subtitle;
+  final ColorScheme scheme;
+  final TextTheme textTheme;
+  final Color barColor;
+  final bool isInteger;
+
+  @override
+  State<_AnimatedResourceMeter> createState() => _AnimatedResourceMeterState();
+}
+
+class _AnimatedResourceMeterState extends State<_AnimatedResourceMeter>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _progressAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _progressAnim = CurvedAnimation(
+      parent: _controller,
+      curve: M3SpringCurves.spatial,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _progressAnim,
+      builder: (BuildContext context, Widget? child) {
+        final double currentProgress = _progressAnim.value * widget.percent;
+        final double currentUsed = _progressAnim.value * widget.usedAmount;
+        final String usedText = widget.isInteger
+            ? '${currentUsed.round()} ${widget.unit}'
+            : '${currentUsed.toStringAsFixed(1)} ${widget.unit}';
+        final String totalText = widget.isInteger
+            ? '${widget.totalAmount.round()} ${widget.unit}'
+            : '${widget.totalAmount.toStringAsFixed(1)} ${widget.unit}';
+        final int percentText = (currentProgress * 100).round();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(widget.icon, size: 18, color: widget.scheme.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: widget.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: widget.scheme.onSurface,
+                    ),
+                  ),
+                ),
+                Text(
+                  '$usedText / $totalText ($percentText%)',
+                  style: widget.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: widget.scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                height: 8,
+                child: LinearProgressIndicator(
+                  value: currentProgress,
+                  backgroundColor: widget.scheme.surfaceContainerHighest,
+                  valueColor: AlwaysStoppedAnimation<Color>(widget.barColor),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              widget.subtitle,
+              style: widget.textTheme.labelSmall?.copyWith(
+                color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                fontSize: 11,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ── Interactive Spec Row with Spring Bounce & Copy to Clipboard ────────
+class _InteractiveSpecTile extends StatefulWidget {
+  const _InteractiveSpecTile({
+    required this.icon,
+    required this.badgeColor,
+    required this.iconColor,
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.scheme,
+    required this.textTheme,
+  });
+
+  final IconData icon;
+  final Color badgeColor;
+  final Color iconColor;
+  final String title;
+  final String value;
+  final String subtitle;
+  final ColorScheme scheme;
+  final TextTheme textTheme;
+
+  @override
+  State<_InteractiveSpecTile> createState() => _InteractiveSpecTileState();
+}
+
+class _InteractiveSpecTileState extends State<_InteractiveSpecTile> {
+  bool _isPressed = false;
+
+  void _onTap() {
+    HapticService.tap();
+    Clipboard.setData(ClipboardData(text: '${widget.title}: ${widget.value}'));
+    AppToast.showSuccess(context, 'Скопировано: ${widget.value}');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: _onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.98 : 1.0,
+        duration: const Duration(milliseconds: 140),
+        curve: M3SpringCurves.bouncy,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: <Widget>[
+              M3Container(
+                Shapes.c9_sided_cookie,
+                width: 44,
+                height: 44,
+                color: widget.badgeColor,
+                child: Center(
+                  child: Icon(
+                    widget.icon,
+                    size: 22,
+                    color: widget.iconColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      widget.title,
+                      style: widget.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: widget.scheme.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.value,
+                      style: widget.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: widget.scheme.onSurface,
+                        letterSpacing: -0.2,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.subtitle,
+                      style: widget.textTheme.labelSmall?.copyWith(
+                        color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.copy_rounded,
+                size: 16,
+                color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

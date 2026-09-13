@@ -98,9 +98,9 @@ Future<int> startOutgoingCall({
   final ApiCallGatewayInfo gatewayInfo = initResult.gatewayInfo ??
       ApiCallGatewayInfo.defaultFor(isCallsTester: isCallsTester);
 
-  final int callId = (result['payload']?['message_id'] ??
+  final int callId = ((result['payload']?['message_id'] ??
           result['message_id'] ??
-          initResult.callId) as int;
+          initResult.callId) as num).toInt();
 
   final Uint8List aesKeyBytes = await deriveCallMediaKey(
     ref,

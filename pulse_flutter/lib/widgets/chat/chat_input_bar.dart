@@ -10,6 +10,8 @@ import 'package:pulse_flutter/widgets/chat/m3_emoji_search_view.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_picker_view.dart';
 import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
 class ChatInputBar extends StatefulWidget {
   const ChatInputBar({
@@ -469,10 +471,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
                             else
                               Tooltip(
                                 message: context.l10n.chatAiAssistant,
-                                child: InkWell(
+                                child: TouchContainer(
+                                  borderRadius: AppRadii.fullRadius,
                                   onTap: widget.onAiPressed,
-                                  borderRadius:
-                                      BorderRadius.circular(20),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 10, vertical: 12),
@@ -491,10 +492,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
                             // Attach Media Button
                             Tooltip(
                               message: context.l10n.chatAttachMedia,
-                              child: InkWell(
+                              child: TouchContainer(
+                                borderRadius: AppRadii.fullRadius,
                                 onTap: widget.onAttachMedia,
-                                borderRadius:
-                                    BorderRadius.circular(20),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 12),
@@ -821,8 +821,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
       duration: const Duration(milliseconds: 180),
       transitionBuilder: (Widget child, Animation<double> anim) =>
           ScaleTransition(scale: anim, child: child),
-      child: GestureDetector(
+      child: TouchContainer(
         key: ValueKey<bool>(widget.editingMessageId != null),
+        borderRadius: AppRadii.fullRadius,
         onTap: widget.editingMessageId != null
             ? widget.onCommitEdit
             : widget.onSend,

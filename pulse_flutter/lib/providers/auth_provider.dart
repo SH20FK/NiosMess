@@ -156,6 +156,8 @@ class AuthNotifier extends Notifier<AuthState> {
       } catch (e) {
         debugPrint('[auth_provider] Refresh profile error on load: $e');
       }
+      _registerFcmToken();
+      _updateBackgroundService();
     }
   }
 
@@ -575,17 +577,20 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> _registerFcmToken() async {
-    if (kIsWeb) return;
     await _fcmTokenRefreshSubscription?.cancel();
     _fcmTokenRefreshSubscription = null;
     try {
       final String? fcmToken = await PushNotificationService.getToken();
-      if (fcmToken != null) {
+      final String platform = kIsWeb
+          ? 'web'
+          : (Platform.isAndroid ? 'android' : 'ios');
+
+      if (fcmToken != null && fcmToken.isNotEmpty) {
         ref.read(webSocketClientProvider).request(
               'register_fcm_token',
               payload: {
                 'fcm_token': fcmToken,
-                'platform': Platform.isAndroid ? 'android' : 'ios',
+                'platform': platform,
               },
             );
       }
@@ -595,7 +600,7 @@ class AuthNotifier extends Notifier<AuthState> {
               'register_fcm_token',
               payload: {
                 'fcm_token': newToken,
-                'platform': Platform.isAndroid ? 'android' : 'ios',
+                'platform': platform,
               },
             );
       });
@@ -603,6 +608,8 @@ class AuthNotifier extends Notifier<AuthState> {
       debugPrint('[AuthNotifier] Failed to register FCM token: $e');
     }
   }
+
+  Future<void> refreshFcmTokenRegistration() => _registerFcmToken();
 
   void _updateBackgroundService() {
     if (kIsWeb) return;

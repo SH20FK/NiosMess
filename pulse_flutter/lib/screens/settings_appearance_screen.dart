@@ -243,6 +243,14 @@ class _AppearanceScreen extends ConsumerWidget {
             ref.read(uiSettingsProvider.notifier).setPredictiveBackEnabled(v);
           },
         ),
+        if (settings.predictiveBackEnabled)
+          _PredictiveBackStrengthTile(
+            strength: settings.predictiveBackStrength,
+            scheme: scheme,
+            onChanged: (double val) {
+              ref.read(uiSettingsProvider.notifier).setPredictiveBackStrength(val);
+            },
+          ),
       ],
     );
 
@@ -1188,6 +1196,107 @@ class _FontScaleSliderTile extends StatelessWidget {
             onSelectionChanged: (Set<AppFontScale> val) {
               HapticService.selection();
               onChanged(val.first);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Predictive Back Gesture Strength Selector Tile
+class _PredictiveBackStrengthTile extends StatelessWidget {
+  const _PredictiveBackStrengthTile({
+    required this.strength,
+    required this.scheme,
+    required this.onChanged,
+  });
+
+  final double strength;
+  final ColorScheme scheme;
+  final ValueChanged<double> onChanged;
+
+  String _descriptionFor(double val) {
+    if (val <= 0.6) {
+      return 'Мягкий: деликатное уменьшение (до 95%), скругление 16dp';
+    } else if (val >= 1.4) {
+      return 'Глубокий: выразительное сжатие (до 85%), скругление 48dp';
+    }
+    return 'Стандарт: сбалансированное сжатие Android 14+ (до 90%), 32dp';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final double normalized =
+        strength <= 0.75 ? 0.5 : (strength >= 1.25 ? 1.5 : 1.0);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.tune_rounded, color: scheme.secondary, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Сила анимации возврата',
+                      style: textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      _descriptionFor(strength),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: scheme.secondary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${strength.toStringAsFixed(1)}x',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: scheme.secondary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<double>(
+            segments: const <ButtonSegment<double>>[
+              ButtonSegment<double>(
+                value: 0.5,
+                label: Text('0.5x Мягкий', style: TextStyle(fontSize: 12)),
+              ),
+              ButtonSegment<double>(
+                value: 1.0,
+                label: Text('1.0x Стандарт', style: TextStyle(fontSize: 12)),
+              ),
+              ButtonSegment<double>(
+                value: 1.5,
+                label: Text('1.5x Глубокий', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+            selected: <double>{normalized},
+            onSelectionChanged: (Set<double> selected) {
+              HapticService.selection();
+              onChanged(selected.first);
             },
           ),
         ],

@@ -106,8 +106,20 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
     final String? avatarUrl = profile?.avatarUrl;
 
     return SearchAnchor.bar(
+      isFullScreen: false,
+      viewConstraints: const BoxConstraints(
+        minHeight: 120,
+        maxHeight: 480,
+      ),
+      viewShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+      ),
+      viewBackgroundColor: scheme.surfaceContainerHigh,
+      viewElevation: 4.0,
+      dividerColor: scheme.outlineVariant.withValues(alpha: 0.25),
       searchController: _searchController,
       barHintText: widget.hintText ?? context.l10n.chatListSearchMessagesHint,
+      viewHintText: widget.hintText ?? context.l10n.chatListSearchMessagesHint,
       barElevation: const WidgetStatePropertyAll<double>(0.0),
       barBackgroundColor:
           WidgetStatePropertyAll<Color>(scheme.surfaceContainerHigh),
@@ -141,6 +153,15 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
           ),
         ),
       ],
+      viewTrailing: <Widget>[
+        IconButton(
+          icon: const Icon(Icons.close_rounded),
+          tooltip: 'Закрыть',
+          onPressed: () {
+            _searchController.closeView('');
+          },
+        ),
+      ],
       suggestionsBuilder:
           (BuildContext context, SearchController controller) {
         _onSearchChanged(controller.text);
@@ -149,19 +170,19 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
         if (query.isEmpty) {
           return <Widget>[
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     Icon(
                       Icons.search_rounded,
-                      size: 56,
+                      size: 48,
                       color: scheme.onSurfaceVariant.withValues(alpha: 0.35),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(
-                      context.l10n.chatListSearchMessagesHint,
+                      widget.hintText ?? context.l10n.chatListSearchMessagesHint,
                       style: textTheme.bodyLarge?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -186,6 +207,9 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
                     label: Text(label),
                     onSelected: (_) {
                       setChipState(() {
+                        _selectedCategory = cat;
+                      });
+                      setState(() {
                         _selectedCategory = cat;
                       });
                     },

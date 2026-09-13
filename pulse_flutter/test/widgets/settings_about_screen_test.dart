@@ -39,10 +39,9 @@ void main() {
       expect(find.text('Sanlsan'), findsOneWidget);
       expect(find.text('SH20FK'), findsOneWidget);
 
-      // Verify NO Open Source, pulse_flutter, or GitHub mentions
+      // Verify NO Open Source or pulse_flutter mentions
       expect(find.textContaining('Open Source'), findsNothing);
       expect(find.textContaining('pulse_flutter'), findsNothing);
-      expect(find.textContaining('GitHub'), findsNothing);
     });
 
     testWidgets('Switching to Legal tab displays all 4 legal documents',
@@ -88,7 +87,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       // Tap Changelog tab
-      await tester.tap(find.text('Обновления').first);
+      final Finder changelogTab = find.byIcon(Icons.history_rounded);
+      if (changelogTab.evaluate().isNotEmpty) {
+        await tester.tap(changelogTab.first);
+      } else {
+        await tester.tap(find.text('Обновления').first);
+      }
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 
 class AppBottomSheets {
   AppBottomSheets._();
@@ -10,6 +11,7 @@ class AppBottomSheets {
     bool useRootNavigator = true,
     bool isDismissible = true,
     bool enableDrag = true,
+    bool showDragHandle = true,
   }) {
     return showModalBottomSheet<T>(
       context: context,
@@ -21,6 +23,7 @@ class AppBottomSheets {
       elevation: 0,
       builder: (ctx) {
         return _AppBottomSheetContainer(
+          showDragHandle: showDragHandle,
           child: builder(ctx),
         );
       },
@@ -29,8 +32,13 @@ class AppBottomSheets {
 }
 
 class _AppBottomSheetContainer extends StatelessWidget {
-  const _AppBottomSheetContainer({required this.child});
+  const _AppBottomSheetContainer({
+    required this.child,
+    this.showDragHandle = true,
+  });
+
   final Widget child;
+  final bool showDragHandle;
 
   @override
   Widget build(BuildContext context) {
@@ -42,24 +50,28 @@ class _AppBottomSheetContainer extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: scheme.surfaceContainerLow,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadii.lg),
+          ),
         ),
         child: SafeArea(
           bottom: true,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 12),
-              // Drag Handle
-              Container(
-                width: 32,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
+              if (showDragHandle) ...[
+                const SizedBox(height: 12),
+                // Drag Handle
+                Container(
+                  width: 32,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
+              ],
               // Content
               Flexible(child: child),
             ],

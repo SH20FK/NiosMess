@@ -16,7 +16,6 @@ import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
-import 'package:pulse_flutter/widgets/adaptive/adaptive_glass.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/centered_note.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
@@ -118,13 +117,13 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         backgroundColor: Colors.transparent,
         extendBodyBehindAppBar: true,
         appBar: AppBar(
-          title: AdaptiveGlass(
-            borderRadius: BorderRadius.circular(20),
-            tierASigma: 10.0,
-            tierBSigma: 6.0,
-            tintColor: scheme.surface.withValues(alpha: 0.75),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(context.l10n.tabContacts),
+          title: Text(
+            context.l10n.tabContacts,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.6,
+                  color: scheme.onSurface,
+                ),
           ),
           centerTitle: false,
           scrolledUnderElevation: 0,

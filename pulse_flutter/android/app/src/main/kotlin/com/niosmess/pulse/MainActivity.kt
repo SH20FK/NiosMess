@@ -74,10 +74,13 @@ class MainActivity : FlutterFragmentActivity() {
                         // 1.1 Read OEM system properties for real commercial marketing name
                         var marketName = ""
                         val propertyKeys = arrayOf(
+                            "ro.display.series",
+                            "ro.oplus.display.series",
                             "ro.product.marketname",
                             "ro.product.brand.marketname",
                             "ro.product.model.marketname",
                             "ro.vendor.product.marketname",
+                            "ro.vendor.oplus.market.name",
                             "ro.oplus.market.name",
                             "ro.oppo.market.name",
                             "ro.realme.market.name",
@@ -85,6 +88,9 @@ class MainActivity : FlutterFragmentActivity() {
                             "ro.honor.market.name",
                             "ro.huawei.market.name",
                             "ro.transsion.market.name",
+                            "ro.product.odm.marketname",
+                            "ro.product.system.marketname",
+                            "ro.common.soft.market.name",
                             "ro.config.marketing_name",
                             "ro.sem.market.name"
                         )
@@ -156,7 +162,23 @@ class MainActivity : FlutterFragmentActivity() {
                         val actManager = getSystemService(ACTIVITY_SERVICE) as ActivityManager
                         val memInfo = ActivityManager.MemoryInfo()
                         actManager.getMemoryInfo(memInfo)
-                        specs["totalRamBytes"] = memInfo.totalMem
+                        var totalRam = memInfo.totalMem
+                        try {
+                            val memInfoLines = java.io.File("/proc/meminfo").readLines()
+                            for (line in memInfoLines) {
+                                if (line.startsWith("MemTotal:")) {
+                                    val parts = line.split("\\s+".toRegex())
+                                    if (parts.size >= 2) {
+                                        val kb = parts[1].toLongOrNull()
+                                        if (kb != null && kb > 0) {
+                                            totalRam = kb * 1024L
+                                            break
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {}
+                        specs["totalRamBytes"] = totalRam
                         specs["availRamBytes"] = memInfo.availMem
                         specs["lowMemory"] = memInfo.lowMemory
 

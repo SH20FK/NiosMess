@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/widgets/common/app_pill_field.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class PrivacyRuleDetailScreen extends ConsumerStatefulWidget {
@@ -63,32 +65,31 @@ class _PrivacyRuleDetailScreenState
     final TextEditingController idController = TextEditingController();
     final int? id = await showDialog<int>(
       context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: Text(isAlwaysAllow ? 'Всегда разрешать' : 'Никогда не разрешать'),
-        content: TextField(
-          controller: idController,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'ID пользователя',
-            hintText: 'Например, 42',
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
+      builder: (BuildContext context) => AppDialog(
+        title: isAlwaysAllow ? 'Всегда разрешать' : 'Никогда не разрешать',
+        subtitle: 'Укажите числовой идентификатор пользователя',
+        actions: <AppDialogAction>[
+          AppDialogAction(
+            label: 'Отмена',
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
           ),
-          FilledButton(
+          AppDialogAction(
+            label: 'Добавить',
+            isPrimary: true,
             onPressed: () {
               final int? parsed = int.tryParse(idController.text.trim());
               if (parsed != null) {
                 Navigator.of(context).pop(parsed);
               }
             },
-            child: const Text('Добавить'),
           ),
         ],
+        child: AppPillField(
+          controller: idController,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          hintText: 'ID пользователя (например, 42)',
+        ),
       ),
     );
 

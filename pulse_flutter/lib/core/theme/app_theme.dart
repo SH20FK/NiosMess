@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/pulse_predictive_back_transition.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 import 'app_typography.dart';
@@ -43,7 +44,7 @@ class AppTheme {
                          brightness.index ^ 
                          (settings.themeMode.index << 8) ^ 
                          (settings.useSystemDynamic ? 1 : 0) ^
-                         (settings.predictiveBackEnabled ? 2 : 0) ^
+                         (settings.predictiveBackEnabled ? ((settings.predictiveBackStrength * 100).round() << 4) : 0) ^
                          (settings.pureBlackOled ? 4 : 0) ^
                          (dynamicScheme?.primary.toARGB32() ?? 0);
     final ThemeData? cached = _themeCache[cacheKey];
@@ -296,7 +297,9 @@ class AppTheme {
       pageTransitionsTheme: PageTransitionsTheme(
         builders: <TargetPlatform, PageTransitionsBuilder>{
           TargetPlatform.android: settings.predictiveBackEnabled
-              ? const PredictiveBackPageTransitionsBuilder()
+              ? PulsePredictiveBackPageTransitionsBuilder(
+                  strength: settings.predictiveBackStrength,
+                )
               : const FadeUpwardsPageTransitionsBuilder(),
           TargetPlatform.iOS: const FadeUpwardsPageTransitionsBuilder(),
           TargetPlatform.macOS: const FadeUpwardsPageTransitionsBuilder(),

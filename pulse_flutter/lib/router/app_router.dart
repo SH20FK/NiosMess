@@ -52,48 +52,6 @@ MaterialPage<void> _page(GoRouterState state, Widget child, {LocalKey? pageKey})
   );
 }
 
-CustomTransitionPage<void> _expressivePage(GoRouterState state, Widget child, {LocalKey? pageKey}) {
-  return CustomTransitionPage<void>(
-    key: pageKey ?? state.pageKey,
-    child: child,
-    transitionDuration: const Duration(milliseconds: 260),
-    reverseTransitionDuration: const Duration(milliseconds: 200),
-    transitionsBuilder: (
-      BuildContext context,
-      Animation<double> animation,
-      Animation<double> secondaryAnimation,
-      Widget child,
-    ) {
-      final Animation<double> primaryCurve = CurvedAnimation(
-        parent: animation,
-        curve: Curves.fastEaseInToSlowEaseOut,
-        reverseCurve: Curves.easeInCubic,
-      );
-
-      final Animation<Offset> primarySlide = Tween<Offset>(
-        begin: const Offset(0.04, 0),
-        end: Offset.zero,
-      ).animate(primaryCurve);
-
-      final Animation<double> primaryFade = CurvedAnimation(
-        parent: animation,
-        curve: const Interval(0.0, 0.85, curve: Curves.easeOut),
-        reverseCurve: const Interval(0.15, 1.0, curve: Curves.easeIn),
-      );
-
-      return RepaintBoundary(
-        child: SlideTransition(
-          position: primarySlide,
-          child: FadeTransition(
-            opacity: primaryFade,
-            child: child,
-          ),
-        ),
-      );
-    },
-  );
-}
-
 final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
   final ValueNotifier<int> refreshListenable = ValueNotifier<int>(0);
   ref.onDispose(refreshListenable.dispose);
@@ -284,15 +242,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/settings/appearance',
-        pageBuilder: (context, state) => _expressivePage(state, const SettingsAppearanceScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsAppearanceScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/chats',
-        pageBuilder: (context, state) => _expressivePage(state, const SettingsChatsScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsChatsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/wallpaper',
-        pageBuilder: (context, state) => _expressivePage(
+        pageBuilder: (context, state) => _page(
           state,
           SettingsWallpaperScreen(
             chatId: state.uri.queryParameters['chatId'],
@@ -303,23 +261,23 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/settings/language-region',
-        pageBuilder: (context, state) => _expressivePage(state, const SettingsLanguageRegionScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsLanguageRegionScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/account',
-        pageBuilder: (context, state) => _expressivePage(state, const SettingsAccountScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsAccountScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/privacy',
-        pageBuilder: (context, state) => _expressivePage(state, const SettingsPrivacyScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsPrivacyScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/storage',
-        pageBuilder: (context, state) => _expressivePage(state, const SettingsStorageScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsStorageScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/about',
-        pageBuilder: (context, state) => _expressivePage(state, const SettingsAboutScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsAboutScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/system-device',
@@ -327,19 +285,19 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           if (kIsWeb) return '/settings/about';
           return null;
         },
-        pageBuilder: (context, state) => _expressivePage(state, const SettingsSystemDeviceScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsSystemDeviceScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/e2ee',
-        pageBuilder: (context, state) => _expressivePage(state, const E2eeSettingsScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(state, const E2eeSettingsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/preferences',
-        pageBuilder: (context, state) => _expressivePage(state, const SettingsPreferencesScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SettingsPreferencesScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/sessions',
-        pageBuilder: (context, state) => _expressivePage(state, const SessionsScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(state, const SessionsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/legal/privacy',

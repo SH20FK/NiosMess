@@ -225,13 +225,15 @@ void main() {
         _wrapWithApp(
           StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) {
-              return SettingsSwitchTile(
-                icon: Icons.notifications_rounded,
-                title: 'Adaptive Switch',
-                value: toggleValue,
-                onChanged: (bool next) {
-                  setState(() => toggleValue = next);
-                },
+              return Scaffold(
+                body: SettingsSwitchTile(
+                  icon: Icons.notifications_rounded,
+                  title: 'Adaptive Switch',
+                  value: toggleValue,
+                  onChanged: (bool next) {
+                    setState(() => toggleValue = next);
+                  },
+                ),
               );
             },
           ),

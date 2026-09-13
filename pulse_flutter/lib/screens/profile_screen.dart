@@ -33,6 +33,9 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/widgets/common/app_pill_field.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -63,42 +66,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _uploadAvatar() async {
-    final String? choice = await showModalBottomSheet<String>(
+    final String? choice = await AppBottomSheets.show<String>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (BuildContext context) {
         final ColorScheme scheme = Theme.of(context).colorScheme;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Container(
-                  width: 32,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: scheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                ListTile(
-                  leading: Icon(Icons.photo_library_outlined, color: scheme.primary),
-                  title: const Text('Выбрать фото'),
-                  subtitle: const Text('PNG, JPG, WebP до 8 МБ'),
-                  onTap: () => Navigator.of(context).pop('photo'),
-                ),
-                ListTile(
-                  leading: Icon(Icons.videocam_outlined, color: scheme.primary),
-                  title: const Text('Выбрать видеоаватар'),
-                  subtitle: const Text('Видео до 5 сек, 1:1, до 8 МБ'),
-                  onTap: () => Navigator.of(context).pop('video'),
-                ),
-              ],
-            ),
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: Icon(Icons.photo_library_outlined, color: scheme.primary),
+                title: const Text('Выбрать фото'),
+                subtitle: const Text('PNG, JPG, WebP до 8 МБ'),
+                onTap: () => Navigator.of(context).pop('photo'),
+              ),
+              ListTile(
+                leading: Icon(Icons.videocam_outlined, color: scheme.primary),
+                title: const Text('Выбрать видеоаватар'),
+                subtitle: const Text('Видео до 5 сек, 1:1, до 8 МБ'),
+                onTap: () => Navigator.of(context).pop('video'),
+              ),
+            ],
           ),
         );
       },
@@ -983,16 +972,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final String languageLabel = isRussian ? 'Русский' : 'English';
 
     return Scaffold(
-      backgroundColor: scheme.surface,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: scheme.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
+        backgroundColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
         title: Text(
           context.l10n.profileSettingsSection,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
+                letterSpacing: -0.6,
+                color: scheme.onSurface,
               ),
         ),
         actions: <Widget>[
@@ -1271,11 +1261,8 @@ class _EditProfileSheet extends ConsumerStatefulWidget {
       );
     }
 
-    return showModalBottomSheet<void>(
+    return AppBottomSheets.show<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
       builder: (BuildContext ctx) => _EditProfileSheet(
         initialName: initialName,
         initialUsername: initialUsername,
@@ -1408,31 +1395,25 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
     List<TextInputFormatter>? inputFormatters,
   }) {
     final bool hasError = errorText != null;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Row(
-        crossAxisAlignment: maxLines != null && maxLines > 1
-            ? CrossAxisAlignment.start
-            : CrossAxisAlignment.center,
-        children: <Widget>[
-          Padding(
-            padding: EdgeInsets.only(
-              top: maxLines != null && maxLines > 1 ? 4 : 0,
-            ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: hasError
-                  ? scheme.error
-                  : scheme.onSurfaceVariant.withValues(alpha: 0.8),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+    final bool isMultiline = maxLines != null && maxLines > 1;
+
+    if (isMultiline) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Row(
               children: <Widget>[
+                Icon(
+                  icon,
+                  size: 18,
+                  color: hasError
+                      ? scheme.error
+                      : scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 8),
                 Text(
                   label,
                   style: textTheme.labelSmall?.copyWith(
@@ -1442,61 +1423,89 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                     fontSize: 11.5,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: <Widget>[
-                    if (prefixText != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 2),
-                        child: Text(
-                          prefixText,
-                          style: textTheme.bodyLarge?.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                    Expanded(
-                      child: TextField(
-                        controller: controller,
-                        maxLines: maxLines,
-                        maxLength: maxLength,
-                        keyboardType: keyboardType,
-                        inputFormatters: inputFormatters,
-                        style: textTheme.bodyLarge?.copyWith(
-                          color: scheme.onSurface,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        decoration: InputDecoration(
-                          isDense: true,
-                          hintText: hintText,
-                          hintStyle: textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
-                            fontSize: 14,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 2),
-                          counterText: '',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (hasError) ...<Widget>[
-                  const SizedBox(height: 2),
-                  Text(
-                    errorText,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.error,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
               ],
             ),
+            const SizedBox(height: 6),
+            TextFormField(
+              controller: controller,
+              maxLines: maxLines,
+              maxLength: maxLength,
+              keyboardType: keyboardType,
+              inputFormatters: inputFormatters,
+              style: textTheme.bodyLarge?.copyWith(
+                color: scheme.onSurface,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: hintText,
+                errorText: errorText,
+                counterText: '',
+                fillColor: scheme.surfaceContainerHigh,
+                filled: true,
+                border: const OutlineInputBorder(
+                  borderRadius: AppRadii.mdRadius,
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: const OutlineInputBorder(
+                  borderRadius: AppRadii.mdRadius,
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: AppRadii.mdRadius,
+                  borderSide: BorderSide(
+                    color: scheme.primary.withValues(alpha: 0.6),
+                    width: 1.5,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 4),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  icon,
+                  size: 16,
+                  color: hasError
+                      ? scheme.error
+                      : scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: hasError ? scheme.error : scheme.primary,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                    fontSize: 11.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          AppPillField(
+            controller: controller,
+            hintText: hintText,
+            prefixText: prefixText,
+            errorText: errorText,
+            maxLength: maxLength,
+            keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
+            fillColor: scheme.surfaceContainerHigh,
           ),
         ],
       ),
@@ -1618,17 +1627,15 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark
-            ? scheme.surfaceContainerHighest.withValues(alpha: 0.35)
-            : scheme.surfaceContainerHighest.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(18),
+        color: scheme.surfaceContainer,
+        borderRadius: AppRadii.mdRadius,
         border: Border.all(
           color: scheme.outlineVariant.withValues(alpha: isDark ? 0.12 : 0.18),
           width: 1,
         ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: AppRadii.mdRadius,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: children,

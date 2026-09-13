@@ -59,7 +59,16 @@ Future<void> main() async {
 
       await SharedPreferences.getInstance();
       AppTimeSettings.initialize();
-      if (!kIsWeb) {
+      if (kIsWeb) {
+        try {
+          await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform,
+          );
+          await PushNotificationService.init();
+        } catch (e) {
+          AppLogger.instance.error(e, StackTrace.current, source: 'firebase_web');
+        }
+      } else {
         // firebase_options.dart only configures android (and web); guard the
         // rest instead of crashing with UnsupportedError on desktop.
         if (Platform.isAndroid || Platform.isIOS) {

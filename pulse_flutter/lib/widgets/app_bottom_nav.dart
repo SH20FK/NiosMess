@@ -144,7 +144,18 @@ class AppBottomNav extends ConsumerWidget {
         ),
       );
     } else {
-      return navBar;
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow,
+          border: Border(
+            top: BorderSide(
+              color: scheme.outlineVariant.withValues(alpha: 0.22),
+              width: 0.8,
+            ),
+          ),
+        ),
+        child: navBar,
+      );
     }
   }
 }

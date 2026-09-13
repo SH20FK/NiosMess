@@ -1,4 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pulse_flutter/core/services/push_notification_service.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,6 +56,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     _activatedTabs = <int>{_tabIndex(widget.tab)};
     _checkBiometricLock();
     _showAlphaDialog();
+    _checkWebPushPrompt();
   }
 
   @override
@@ -78,6 +83,93 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     await Future<void>.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     await AlphaTestDialog.showIfFirstLaunch(context);
+  }
+
+  Future<void> _checkWebPushPrompt() async {
+    if (!kIsWeb) return;
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
+
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final bool isGranted = await PushNotificationService.isPermissionGranted();
+    if (isGranted) {
+      await ref.read(authProvider.notifier).refreshFcmTokenRegistration();
+      return;
+    }
+
+    final bool dismissed = prefs.getBool('web_push_prompt_dismissed') ?? false;
+    if (dismissed) return;
+
+    if (!mounted) return;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: scheme.surfaceContainerHighest,
+        elevation: 6,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.2),
+          ),
+        ),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 12),
+        content: Row(
+          children: <Widget>[
+            Icon(
+              Icons.notifications_active_rounded,
+              color: scheme.primary,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Push-уведомления',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  Text(
+                    'Включите уведомления о новых сообщениях и звонках',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: 'Включить',
+          textColor: scheme.primary,
+          onPressed: () async {
+            await prefs.setBool('web_push_prompt_dismissed', true);
+            final bool granted =
+                await PushNotificationService.requestPermission();
+            if (!mounted) return;
+            if (granted) {
+              await ref
+                  .read(authProvider.notifier)
+                  .refreshFcmTokenRegistration();
+              if (mounted) {
+                AppToast.showSuccess(context, 'Уведомления успешно включены!');
+              }
+            }
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _checkBiometricLock() async {
@@ -316,7 +408,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         }
 
         return Scaffold(
-          extendBody: true,
+          extendBody: settings.navBarFloating,
           body: Column(
             children: [
               OfflineBanner(isOffline: isOffline),

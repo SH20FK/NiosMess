@@ -30,6 +30,8 @@ import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/utils/message_formatter.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
 class MessageBubble extends ConsumerWidget {
   const MessageBubble({
@@ -135,75 +137,23 @@ class MessageBubble extends ConsumerWidget {
     bool isMine,
     bool isPrevSame,
     bool isNextSame, [
-    double outer = 16.0,
+    double outer = AppRadii.md,
   ]) {
-    final double small = (outer * 0.28).clamp(3.0, 6.0);
-    final Radius rOuter = Radius.circular(outer);
-    final Radius rSmall = Radius.circular(small);
-
-    if (isMine) {
-      if (isPrevSame && isNextSame) {
-        return BorderRadius.only(
-          topLeft: rOuter,
-          bottomLeft: rOuter,
-          topRight: rSmall,
-          bottomRight: rSmall,
-        );
-      }
-      if (isPrevSame) {
-        return BorderRadius.only(
-          topLeft: rOuter,
-          bottomLeft: rOuter,
-          topRight: rSmall,
-          bottomRight: rSmall,
-        );
-      }
-      if (isNextSame) {
-        return BorderRadius.only(
-          topLeft: rOuter,
-          bottomLeft: rOuter,
-          topRight: rOuter,
-          bottomRight: rSmall,
-        );
-      }
-      return BorderRadius.only(
-        topLeft: rOuter,
-        bottomLeft: rOuter,
-        topRight: rOuter,
-        bottomRight: rSmall,
-      );
+    final MessageBubblePosition position;
+    if (!isPrevSame && !isNextSame) {
+      position = MessageBubblePosition.single;
+    } else if (!isPrevSame && isNextSame) {
+      position = MessageBubblePosition.top;
+    } else if (isPrevSame && isNextSame) {
+      position = MessageBubblePosition.middle;
     } else {
-      if (isPrevSame && isNextSame) {
-        return BorderRadius.only(
-          topRight: rOuter,
-          bottomRight: rOuter,
-          topLeft: rSmall,
-          bottomLeft: rSmall,
-        );
-      }
-      if (isPrevSame) {
-        return BorderRadius.only(
-          topRight: rOuter,
-          bottomRight: rOuter,
-          topLeft: rSmall,
-          bottomLeft: rSmall,
-        );
-      }
-      if (isNextSame) {
-        return BorderRadius.only(
-          topRight: rOuter,
-          bottomRight: rOuter,
-          topLeft: rOuter,
-          bottomLeft: rSmall,
-        );
-      }
-      return BorderRadius.only(
-        topRight: rOuter,
-        bottomRight: rOuter,
-        topLeft: rOuter,
-        bottomLeft: rSmall,
-      );
+      position = MessageBubblePosition.bottom;
     }
+    return getBubbleRadius(
+      isOutgoing: isMine,
+      position: position,
+      baseRadius: outer,
+    );
   }
 
   static TextSpan _parseTextWithMentions(
@@ -516,7 +466,8 @@ class MessageBubble extends ConsumerWidget {
                   alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
                   children: reactions.entries
                       .map((MapEntry<String, int> item) {
-                        return GestureDetector(
+                        return TouchContainer(
+                          borderRadius: AppRadii.fullRadius,
                           onTap: onReactionTap != null
                               ? () {
                                   HapticService.reaction();
@@ -530,7 +481,7 @@ class MessageBubble extends ConsumerWidget {
                             ),
                             decoration: BoxDecoration(
                               color: scheme.surfaceContainerHigh,
-                              borderRadius: BorderRadius.circular(999),
+                              borderRadius: AppRadii.fullRadius,
                             ),
                             child: Text(
                               '${item.key} ${item.value}',
@@ -621,9 +572,11 @@ if (onSwipeToReply != null) {
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
-    final String url = sticker?.resolvedUrl.isNotEmpty == true
-        ? sticker!.resolvedUrl
-        : ApiConstants.resolve(mediaUrl ?? '');
+    final String stickerUrl = sticker?.resolvedUrl.trim() ?? '';
+    final String mediaResolved = (mediaUrl ?? '').trim().isNotEmpty
+        ? ApiConstants.resolve(mediaUrl!.trim())
+        : '';
+    final String url = stickerUrl.isNotEmpty ? stickerUrl : mediaResolved;
     final bool isAnimated = sticker?.isAnimated == true ||
         (sticker?.mediaType ?? '').contains('video') ||
         (sticker?.mediaType ?? '').contains('webm') ||
@@ -669,29 +622,41 @@ if (onSwipeToReply != null) {
               // Sticker media content
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: isAnimated
-                    ? _StickerVideoPlayer(url: url)
-                    : CachedNetworkImage(
-                        imageUrl: url,
-                        fit: BoxFit.contain,
-                        memCacheWidth: 400,
-                        memCacheHeight: 400,
-                        placeholder: (_, _) => Center(
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: scheme.primary.withValues(alpha: 0.4),
+                child: url.isEmpty
+                    ? Center(
+                        child: Text(
+                          sticker?.emoji.isNotEmpty == true
+                              ? sticker!.emoji
+                              : '🖼️',
+                          style: const TextStyle(fontSize: 48),
+                        ),
+                      )
+                    : isAnimated
+                        ? _StickerVideoPlayer(url: url)
+                        : CachedNetworkImage(
+                            imageUrl: url,
+                            fit: BoxFit.contain,
+                            memCacheWidth: 400,
+                            memCacheHeight: 400,
+                            placeholder: (_, _) => Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: scheme.primary.withValues(alpha: 0.4),
+                                ),
+                              ),
+                            ),
+                            errorWidget: (_, _, _) => Center(
+                              child: Text(
+                                sticker?.emoji.isNotEmpty == true
+                                    ? sticker!.emoji
+                                    : '🖼️',
+                                style: const TextStyle(fontSize: 48),
+                              ),
                             ),
                           ),
-                        ),
-                        errorWidget: (_, _, _) => Icon(
-                          Icons.broken_image_outlined,
-                          size: 36,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
               ),
 
               // Floating translucent time badge

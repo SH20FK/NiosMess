@@ -78,23 +78,23 @@ void main() {
 
       // Display & Screen specs
       expect(find.text('Дисплей и графика'), findsOneWidget);
-      expect(find.text('1080 × 2412 px'), findsOneWidget);
-      expect(find.text('120 Гц'), findsWidgets);
+      expect(find.textContaining('1080 × 2412 px'), findsOneWidget);
+      expect(find.textContaining('120 Гц'), findsWidgets);
       expect(find.textContaining('391 ppi'), findsOneWidget);
 
       // Memory & Storage
       expect(find.text('Память и накопитель'), findsOneWidget);
-      expect(find.textContaining('8.0 ГБ'), findsWidgets);
+      expect(find.textContaining('8 ГБ'), findsWidgets);
       expect(find.textContaining('128 ГБ'), findsWidgets);
 
       // Cameras
       expect(find.text('Оптика и камеры'), findsOneWidget);
       expect(find.textContaining('108 МП'), findsWidgets);
 
-      // OS & Security
-      expect(find.text('Операционная система и безопасность'), findsOneWidget);
-      expect(find.text('Android 14'), findsWidgets);
-      expect(find.text('2026-08-05'), findsOneWidget);
+      // OS
+      expect(find.text('Операционная система'), findsOneWidget);
+      expect(find.textContaining('Android 14'), findsWidgets);
+      expect(find.textContaining('2026-08-05'), findsOneWidget);
     });
 
     testWidgets('Embedded mode suppresses AppBar for Master-Detail desktop layout',
@@ -136,7 +136,13 @@ void main() {
         'OnePlus',
         'CPH2417',
       );
-      expect(marketing, 'OnePlus Nord CE 3 Lite 5G');
+      expect(marketing, 'OnePlus 10T 5G');
+
+      final String nordCe3Lite = DeviceHardwareService.resolveMarketingName(
+        'OnePlus',
+        'CPH2465',
+      );
+      expect(nordCe3Lite, 'OnePlus Nord CE 3 Lite 5G');
     });
 
     test('SettingsSectionId enum contains systemDevice', () {

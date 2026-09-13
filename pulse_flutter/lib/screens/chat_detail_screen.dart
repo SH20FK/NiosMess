@@ -134,11 +134,21 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       ref.read(desktopSelectedChatProvider.notifier).setSelectedChat(null);
       return;
     }
-    if (context.canPop()) {
-      context.pop();
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
       return;
     }
-    context.go('/main/chats');
+    try {
+      if (context.canPop()) {
+        context.pop();
+        return;
+      }
+    } catch (_) {}
+    try {
+      context.go('/main/chats');
+    } catch (_) {
+      Navigator.maybePop(context);
+    }
   }
 
   String? _resolveDirectUsername(
@@ -376,12 +386,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   void _showE2eeVerification() {
     final int? chatId = _chatId;
     if (chatId == null) return;
-    showModalBottomSheet(
+    AppBottomSheets.show(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      showDragHandle: false,
       builder: (_) => E2eeVerificationSheet(
         chatId: chatId,
         onInitiateHandshake: () => _initiateE2eeHandshake(chatId),
@@ -1006,32 +1013,29 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         chatsAsync.value ?? const <ApiChatSummary>[];
     if (chats.isEmpty) return;
 
-    final ApiChatSummary? target = await showModalBottomSheet<ApiChatSummary>(
+    final ApiChatSummary? target = await AppBottomSheets.show<ApiChatSummary>(
       context: context,
-      
       builder: (BuildContext ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(
-                context.l10n.chatForwardTo,
-                style: Theme.of(ctx).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              ...chats.map(
-                (ApiChatSummary c) => ListTile(
-                  leading: PulseAvatar(
-                    radius: 18,
-                    name: c.name,
-                    avatarUrl: c.avatarUrl,
-                  ),
-                  title: Text(c.name),
-                  onTap: () => Navigator.of(ctx).pop(c),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              context.l10n.chatForwardTo,
+              style: Theme.of(ctx).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            ...chats.map(
+              (ApiChatSummary c) => ListTile(
+                leading: PulseAvatar(
+                  radius: 18,
+                  name: c.name,
+                  avatarUrl: c.avatarUrl,
                 ),
+                title: Text(c.name),
+                onTap: () => Navigator.of(ctx).pop(c),
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
@@ -1605,8 +1609,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               ? chat!.name.trim()
               : context.l10n.chatTitleFallback(chatId));
 
+    final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
     return PopScope(
-      canPop: false,
+      canPop: !widget.isDesktopSplit && canRoutePop,
       onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) return;
         _goBack();

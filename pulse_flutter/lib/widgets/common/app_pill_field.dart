@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 
 /// An expressive pill-shaped single-line text input field (border radius 999 dp).
@@ -25,6 +26,11 @@ class AppPillField extends StatelessWidget {
     this.height = AppHeights.lg,
     this.fillColor,
     this.contentPadding,
+    this.inputFormatters,
+    this.maxLength,
+    this.prefixText,
+    this.errorText,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   final TextEditingController? controller;
@@ -44,6 +50,11 @@ class AppPillField extends StatelessWidget {
   final double height;
   final Color? fillColor;
   final EdgeInsetsGeometry? contentPadding;
+  final List<TextInputFormatter>? inputFormatters;
+  final int? maxLength;
+  final String? prefixText;
+  final String? errorText;
+  final TextCapitalization textCapitalization;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +65,7 @@ class AppPillField extends StatelessWidget {
         fillColor ?? scheme.surfaceContainerHigh;
 
     return SizedBox(
-      height: height,
+      height: errorText != null ? null : height,
       child: TextField(
         controller: controller,
         focusNode: focusNode,
@@ -64,6 +75,9 @@ class AppPillField extends StatelessWidget {
         obscureText: obscureText,
         keyboardType: keyboardType,
         textInputAction: textInputAction,
+        inputFormatters: inputFormatters,
+        maxLength: maxLength,
+        textCapitalization: textCapitalization,
         onChanged: onChanged,
         onSubmitted: onSubmitted,
         onTap: onTap,
@@ -75,6 +89,9 @@ class AppPillField extends StatelessWidget {
           isDense: true,
           filled: true,
           fillColor: effectiveFillColor,
+          counterText: '',
+          prefixText: prefixText,
+          errorText: errorText,
           hintText: hintText,
           hintStyle: textTheme.bodyMedium?.copyWith(
             color: scheme.onSurfaceVariant,

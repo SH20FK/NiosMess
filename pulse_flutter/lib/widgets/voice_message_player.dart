@@ -10,6 +10,8 @@ import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/widgets/chat/md3_squiggle_progress.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
 class VoiceMessagePlayer extends StatefulWidget {
   const VoiceMessagePlayer({
@@ -196,7 +198,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                       );
                     },
                   )
-                : GestureDetector(
+                : TouchContainer(
+                    borderRadius: AppRadii.fullRadius,
                     onTap: _togglePlay,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),

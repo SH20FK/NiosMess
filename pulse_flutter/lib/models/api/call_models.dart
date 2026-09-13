@@ -105,12 +105,38 @@ class ApiCallInitiateResult {
         payload.containsKey('signal_url') ||
         payload.containsKey('ice_servers');
 
+    final dynamic rawMessage = json['message'] ?? payload['message'];
+    final String parsedMessage;
+    if (rawMessage is String) {
+      parsedMessage = rawMessage;
+    } else if (rawMessage is Map) {
+      parsedMessage = rawMessage['content']?.toString() ??
+          rawMessage['id']?.toString() ??
+          '';
+    } else {
+      parsedMessage = rawMessage?.toString() ?? '';
+    }
+
+    final int parsedCallId = (json['call_id'] as num?)?.toInt() ??
+        (payload['message_id'] as num?)?.toInt() ??
+        (payload['call_id'] as num?)?.toInt() ??
+        0;
+    final int parsedChatId = (json['chat_id'] as num?)?.toInt() ??
+        (payload['chat_id'] as num?)?.toInt() ??
+        0;
+    final String parsedStatus = json['status']?.toString() ??
+        payload['status']?.toString() ??
+        'ringing';
+    final String parsedCallType = json['call_type']?.toString() ??
+        payload['call_type']?.toString() ??
+        'voice';
+
     return ApiCallInitiateResult(
-      callId: json['call_id'] as int? ?? payload['message_id'] as int? ?? 0,
-      chatId: json['chat_id'] as int? ?? payload['chat_id'] as int? ?? 0,
-      status: json['status'] as String? ?? payload['status'] as String? ?? 'ringing',
-      callType: json['call_type'] as String? ?? payload['call_type'] as String? ?? 'voice',
-      message: json['message'] as String? ?? payload['message'] as String? ?? '',
+      callId: parsedCallId,
+      chatId: parsedChatId,
+      status: parsedStatus,
+      callType: parsedCallType,
+      message: parsedMessage,
       gatewayInfo: hasGateway
           ? ApiCallGatewayInfo.fromJson(payload, isCallsTester: isCallsTester)
           : null,

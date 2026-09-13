@@ -22,6 +22,8 @@ import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/vector_illustrations.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
 class PostCard extends ConsumerStatefulWidget {
   const PostCard({
@@ -210,12 +212,12 @@ class _PostCardState extends ConsumerState<PostCard>
         child: Card(
         margin: EdgeInsets.zero,
         elevation: 0,
-        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+        color: scheme.surfaceContainer,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: AppRadii.lgRadius,
           side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.25 : 0.40),
+            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.20 : 0.35),
             width: 1,
           ),
         ),
@@ -676,11 +678,11 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
       child: GestureDetector(
         onDoubleTap: widget.onDoubleTapLike,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: AppRadii.mdRadius,
           child: Container(
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: AppRadii.mdRadius,
               border: Border.all(
                 color: scheme.outlineVariant.withValues(alpha: 0.15),
               ),
@@ -920,12 +922,12 @@ class _ActionChipState extends State<_ActionChip>
         ? widget.activeColor.withValues(alpha: 0.14)
         : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.45);
 
-    return Material(
-      color: bgColor,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: _handleTap,
-        borderRadius: BorderRadius.circular(20),
+    return TouchContainer(
+      borderRadius: AppRadii.fullRadius,
+      onTap: _handleTap,
+      child: Material(
+        color: bgColor,
+        borderRadius: AppRadii.fullRadius,
         child: Padding(
           padding: EdgeInsets.symmetric(
             horizontal: widget.count > 0 ? 8 : 6,

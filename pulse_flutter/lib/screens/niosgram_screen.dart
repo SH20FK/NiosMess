@@ -67,8 +67,13 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
       appBar: AppBar(
         title: Text(
           context.l10n.niosgramTitle,
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 22),
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
+                color: scheme.onSurface,
+              ),
         ),
+        centerTitle: false,
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
         actions: <Widget>[

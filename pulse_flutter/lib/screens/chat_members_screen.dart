@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
@@ -13,6 +14,7 @@ import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/app_error_banner.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/chat/moderation_bottom_sheet.dart';
+import 'package:pulse_flutter/widgets/common/app_pill_field.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -67,10 +69,8 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
 
   Future<void> _inviteUser() async {
     final TextEditingController searchController = TextEditingController();
-    final ApiSearchUser? picked = await showModalBottomSheet<ApiSearchUser>(
+    final ApiSearchUser? picked = await AppBottomSheets.show<ApiSearchUser>(
       context: context,
-      isScrollControlled: true,
-      
       builder: (BuildContext ctx) {
         return Consumer(
           builder: (BuildContext ctx, WidgetRef ref, _) {
@@ -94,22 +94,20 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                     context.l10n.chatMembersInviteUser,
                     style: Theme.of(ctx).textTheme.titleMedium,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: TextField(
+                    child: AppPillField(
                       controller: searchController,
                       autofocus: true,
-                      decoration: InputDecoration(
-                        hintText: context.l10n.chatMembersSearchHint,
-                        prefixIcon: const Icon(Icons.search_rounded),
-                      ),
+                      hintText: context.l10n.chatMembersSearchHint,
+                      prefixIcon: const Icon(Icons.search_rounded),
                       onChanged: (String q) {
                         ref.read(debouncedSearchProvider.notifier).search(q);
                       },
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   ConstrainedBox(
                     constraints: BoxConstraints(
                       maxHeight: MediaQuery.of(ctx).size.height * 0.4,
@@ -142,7 +140,10 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                                                 id: b.id,
                                                 name: b.name,
                                                 icon: b.icon,
-                                                color: b.color, mode: BadgeResolver.isStatusBadge(b) ? BadgeDisplayMode.statusIcon : BadgeDisplayMode.infoLabel,
+                                                color: b.color,
+                                                mode: BadgeResolver.isStatusBadge(b)
+                                                    ? BadgeDisplayMode.statusIcon
+                                                    : BadgeDisplayMode.infoLabel,
                                               ),
                                             )
                                             .toList(growable: false),

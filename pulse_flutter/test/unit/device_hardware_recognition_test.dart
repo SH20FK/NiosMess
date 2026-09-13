@@ -20,7 +20,9 @@ void main() {
 
     test('resolveMarketingName resolves BBK smartphones (Realme, OnePlus, OPPO, Vivo, iQOO)', () {
       // OnePlus
-      expect(DeviceHardwareService.resolveMarketingName('OnePlus', 'CPH2417'), equals('OnePlus Nord CE 3 Lite 5G'));
+      expect(DeviceHardwareService.resolveMarketingName('OnePlus', 'CPH2417'), equals('OnePlus 10T 5G'));
+      expect(DeviceHardwareService.resolveMarketingName('OnePlus', 'CPH2415'), equals('OnePlus 10T 5G'));
+      expect(DeviceHardwareService.resolveMarketingName('OnePlus', 'CPH2465'), equals('OnePlus Nord CE 3 Lite 5G'));
       expect(DeviceHardwareService.resolveMarketingName('OnePlus', 'CPH2581'), equals('OnePlus 12'));
       expect(DeviceHardwareService.resolveMarketingName('OnePlus', 'CPH2449'), equals('OnePlus 11 5G'));
       expect(DeviceHardwareService.resolveMarketingName('OnePlus', 'CPH2629'), equals('OnePlus Nord 4 5G'));

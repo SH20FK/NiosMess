@@ -133,6 +133,14 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
     AppToast.showInfo(context, context.l10n.chatManageCopied(title));
   }
 
+  bool _hasChanges(dynamic chat) {
+    if (chat == null) return false;
+    return _nameController.text != (chat.name ?? '') ||
+        _descController.text != (chat.description ?? '') ||
+        _usernameController.text != (chat.username ?? '') ||
+        _commentsEnabled != (chat.commentsEnabled ?? false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -140,11 +148,27 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
     final chat = ref.watch(chatByIdProvider(widget.chatId));
     final bool isChannel = chat?.chatType == 'channel';
     final bool isPublic = (chat?.username ?? '').trim().isNotEmpty;
+    final bool hasChanges = _hasChanges(chat);
 
+    final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
     return PopScope(
-      canPop: false,
+      canPop: canRoutePop && !hasChanges,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
+        if (!hasChanges) {
+          if (canRoutePop) {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          } else {
+            try {
+              context.go('/main/chats');
+            } catch (_) {
+              Navigator.maybePop(context);
+            }
+          }
+          return;
+        }
         final bool? confirm = await showAppConfirmDialog(
           context: context,
           title: context.l10n.commonDiscardChanges,
@@ -153,7 +177,17 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
           cancelLabel: context.l10n.commonCancel,
         );
         if (confirm == true && context.mounted) {
-          context.pop();
+          if (canRoutePop) {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          } else {
+            try {
+              context.go('/main/chats');
+            } catch (_) {
+              Navigator.maybePop(context);
+            }
+          }
         }
       },
       child: Scaffold(

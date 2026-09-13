@@ -577,10 +577,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       );
     }
 
-    return showModalBottomSheet<_ChatSwipeAction>(
+    return AppBottomSheets.show<_ChatSwipeAction>(
       context: context,
-      
-      backgroundColor: Colors.transparent,
+      showDragHandle: false,
       builder: buildMenuContent,
     );
   }

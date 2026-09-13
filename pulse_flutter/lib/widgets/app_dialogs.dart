@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class AppDialogAction {
@@ -50,11 +51,11 @@ class AppDialog extends StatelessWidget {
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: AppRadii.lgRadius,
           child: DecoratedBox(
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHigh.withValues(alpha: 0.90),
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: AppRadii.lgRadius,
                 boxShadow: <BoxShadow>[
                   BoxShadow(
                     color: scheme.shadow.withValues(alpha: 0.16),

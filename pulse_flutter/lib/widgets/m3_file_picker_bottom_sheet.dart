@@ -90,10 +90,9 @@ class _CompactAttachmentMenu extends StatelessWidget {
     }
 
     final List<MediaGridPickerResult>? results =
-        await showModalBottomSheet<List<MediaGridPickerResult>?>(
+        await AppBottomSheets.show<List<MediaGridPickerResult>?>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      showDragHandle: false,
       builder: (_) => const MediaGridPicker(),
     );
 

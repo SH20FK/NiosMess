@@ -7,9 +7,10 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/vector_illustrations.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
 export 'package:pulse_flutter/widgets/vector_illustrations.dart';
 
@@ -356,15 +357,15 @@ class SettingsSection extends StatelessWidget {
                 final bool isDark = Theme.of(ctx).brightness == Brightness.dark;
                 return Container(
                   decoration: BoxDecoration(
-                    color: isDark ? scheme.surfaceContainerLow : scheme.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(20),
+                    color: scheme.surfaceContainer,
+                    borderRadius: AppRadii.mdRadius,
                     border: Border.all(
                       color: scheme.outlineVariant.withValues(alpha: isDark ? 0.15 : 0.20),
                       width: 1,
                     ),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: AppRadii.mdRadius,
                     child: Material(
                       color: Colors.transparent,
                       child: Column(
@@ -439,8 +440,6 @@ class SettingsTile extends ConsumerStatefulWidget {
 }
 
 class _SettingsTileState extends ConsumerState<SettingsTile> {
-  bool _isPressed = false;
-
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -461,11 +460,17 @@ class _SettingsTileState extends ConsumerState<SettingsTile> {
         button: true,
         enabled: widget.enabled,
         selected: widget.isSelected,
-        child: AnimatedScale(
-          scale: _isPressed ? 0.985 : 1.0,
-          duration: const Duration(milliseconds: 140),
-          curve: _isPressed ? M3SpringCurves.snappy : M3SpringCurves.bouncy,
-          alignment: Alignment.center,
+        child: TouchContainer(
+          borderRadius: BorderRadius.circular(16),
+          onTap: widget.enabled
+              ? () {
+                  ref.read(appSoundProvider).playUiTick();
+                  if (ref.read(uiSettingsProvider).haptics) {
+                    HapticService.tap();
+                  }
+                  widget.onTap();
+                }
+              : null,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOutCubic,
@@ -476,31 +481,8 @@ class _SettingsTileState extends ConsumerState<SettingsTile> {
               borderRadius: BorderRadius.circular(16),
             ),
             margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                splashColor: scheme.primary.withValues(alpha: 0.10),
-                hoverColor: scheme.primary.withValues(alpha: 0.05),
-                onHighlightChanged: widget.enabled
-                    ? (bool isHighlighted) {
-                        if (_isPressed != isHighlighted) {
-                          setState(() => _isPressed = isHighlighted);
-                        }
-                      }
-                    : null,
-                onTap: widget.enabled
-                    ? () {
-                        ref.read(appSoundProvider).playUiTick();
-                        if (ref.read(uiSettingsProvider).haptics) {
-                          HapticService.tap();
-                        }
-                        widget.onTap();
-                      }
-                    : null,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: Row(
                     children: <Widget>[
                       AnimatedContainer(
@@ -575,15 +557,13 @@ class _SettingsTileState extends ConsumerState<SettingsTile> {
                           ],
                         ),
                   ],
-                ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class SettingsSwitchTile extends ConsumerStatefulWidget {
@@ -609,8 +589,6 @@ class SettingsSwitchTile extends ConsumerStatefulWidget {
 }
 
 class _SettingsSwitchTileState extends ConsumerState<SettingsSwitchTile> {
-  bool _isPressed = false;
-
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -622,94 +600,75 @@ class _SettingsSwitchTileState extends ConsumerState<SettingsSwitchTile> {
         label:
             '${widget.title}, ${widget.value ? context.l10n.semanticsOn : context.l10n.semanticsOff}',
         toggled: true,
-        child: AnimatedScale(
-          scale: _isPressed ? 0.985 : 1.0,
-          duration: const Duration(milliseconds: 140),
-          curve: _isPressed ? M3SpringCurves.snappy : M3SpringCurves.bouncy,
-          alignment: Alignment.center,
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              splashColor: scheme.primary.withValues(alpha: 0.10),
-              hoverColor: scheme.primary.withValues(alpha: 0.05),
-              onHighlightChanged: widget.onChanged != null
-                  ? (bool isHighlighted) {
-                      if (_isPressed != isHighlighted) {
-                        setState(() => _isPressed = isHighlighted);
-                      }
-                    }
-                  : null,
-              onTap: widget.onChanged == null
-                  ? null
-                  : () {
-                      ref.read(appSoundProvider).playUiTick();
-                      if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
-                      widget.onChanged!(!widget.value);
-                    },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Row(
-                  children: <Widget>[
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      curve: Curves.easeOutCubic,
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: resolvedIconColor.withValues(alpha: widget.value ? 0.16 : 0.10),
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(widget.icon, color: resolvedIconColor, size: 21),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(
-                            widget.title,
-                            style: textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              height: 1.15,
-                            ),
-                          ),
-                          if (widget.subtitle != null) ...<Widget>[
-                            const SizedBox(height: 3),
-                            Text(
-                              widget.subtitle!,
-                              style: textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Switch.adaptive(
-                      value: widget.value,
-                      thumbIcon: WidgetStateProperty.resolveWith<Icon?>((Set<WidgetState> states) {
-                        if (states.contains(WidgetState.selected)) {
-                          return Icon(Icons.check_rounded, size: 14, color: scheme.primary);
-                        }
-                        return null;
-                      }),
-                      onChanged: widget.onChanged == null
-                          ? null
-                          : (bool next) {
-                              ref.read(appSoundProvider).playUiTick();
-                              if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
-                              widget.onChanged!(next);
-                            },
-                    ),
-                  ],
+        child: TouchContainer(
+          borderRadius: BorderRadius.circular(16),
+          onTap: widget.onChanged == null
+              ? null
+              : () {
+                  ref.read(appSoundProvider).playUiTick();
+                  if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
+                  widget.onChanged!(!widget.value);
+                },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: <Widget>[
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: resolvedIconColor.withValues(alpha: widget.value ? 0.16 : 0.10),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(widget.icon, color: resolvedIconColor, size: 21),
                 ),
-              ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        widget.title,
+                        style: textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          height: 1.15,
+                        ),
+                      ),
+                      if (widget.subtitle != null) ...<Widget>[
+                        const SizedBox(height: 3),
+                        Text(
+                          widget.subtitle!,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Switch.adaptive(
+                  value: widget.value,
+                  thumbIcon: WidgetStateProperty.resolveWith<Icon?>((Set<WidgetState> states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return Icon(Icons.check_rounded, size: 14, color: scheme.primary);
+                    }
+                    return null;
+                  }),
+                  onChanged: widget.onChanged == null
+                      ? null
+                      : (bool next) {
+                          ref.read(appSoundProvider).playUiTick();
+                          if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
+                          widget.onChanged!(next);
+                        },
+                ),
+              ],
             ),
           ),
         ),
@@ -741,8 +700,6 @@ class SettingsInfoTile extends ConsumerStatefulWidget {
 }
 
 class _SettingsInfoTileState extends ConsumerState<SettingsInfoTile> {
-  bool _isPressed = false;
-
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -754,94 +711,75 @@ class _SettingsInfoTileState extends ConsumerState<SettingsInfoTile> {
         label:
             '${widget.title}${widget.value != null ? ', ${widget.value}' : ''}${widget.subtitle != null ? ', ${widget.subtitle}' : ''}',
         readOnly: true,
-        child: AnimatedScale(
-          scale: _isPressed ? 0.985 : 1.0,
-          duration: const Duration(milliseconds: 140),
-          curve: _isPressed ? M3SpringCurves.snappy : M3SpringCurves.bouncy,
-          alignment: Alignment.center,
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              splashColor: scheme.primary.withValues(alpha: 0.10),
-              hoverColor: scheme.primary.withValues(alpha: 0.05),
-              onHighlightChanged: widget.onLongPress != null
-                  ? (bool isHighlighted) {
-                      if (_isPressed != isHighlighted) {
-                        setState(() => _isPressed = isHighlighted);
-                      }
-                    }
-                  : null,
-              onLongPress: widget.onLongPress == null
-                  ? null
-                  : () {
-                      ref.read(appSoundProvider).playUiTick(volume: 0.65);
-                      if (ref.read(uiSettingsProvider).haptics) {
-                        HapticService.confirm();
-                      }
-                      widget.onLongPress!();
-                    },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Row(
-                  children: <Widget>[
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: resolvedIconColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(widget.icon, color: resolvedIconColor, size: 21),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      flex: widget.value != null ? 3 : 1,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(
-                            widget.title,
-                            style: textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              height: 1.15,
-                            ),
-                          ),
-                          if (widget.subtitle != null) ...<Widget>[
-                            const SizedBox(height: 3),
-                            Text(
-                              widget.subtitle!,
-                              style: textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (widget.value != null) ...<Widget>[
-                      const SizedBox(width: 8),
-                      Flexible(
-                        flex: 2,
-                        child: Text(
-                          widget.value!,
-                          textAlign: TextAlign.end,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 2,
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
+        child: TouchContainer(
+          borderRadius: BorderRadius.circular(16),
+          onLongPress: widget.onLongPress == null
+              ? null
+              : () {
+                  ref.read(appSoundProvider).playUiTick(volume: 0.65);
+                  if (ref.read(uiSettingsProvider).haptics) {
+                    HapticService.confirm();
+                  }
+                  widget.onLongPress!();
+                },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: resolvedIconColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(widget.icon, color: resolvedIconColor, size: 21),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  flex: widget.value != null ? 3 : 1,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        widget.title,
+                        style: textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          height: 1.15,
                         ),
                       ),
+                      if (widget.subtitle != null) ...<Widget>[
+                        const SizedBox(height: 3),
+                        Text(
+                          widget.subtitle!,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
+                if (widget.value != null) ...<Widget>[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    flex: 2,
+                    child: Text(
+                      widget.value!,
+                      textAlign: TextAlign.end,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),

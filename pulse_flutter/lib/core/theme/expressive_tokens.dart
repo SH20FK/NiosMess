@@ -79,10 +79,11 @@ enum MessageBubblePosition {
 BorderRadius getBubbleRadius({
   required bool isOutgoing,
   required MessageBubblePosition position,
+  double baseRadius = AppRadii.md,
 }) {
-  const Radius rLg = Radius.circular(AppRadii.md); // 20.0 dp
-  const Radius rSm = Radius.circular(AppRadii.sm); // 12.0 dp
-  const Radius rXs = Radius.circular(6.0);         // cluster tight chain link
+  final Radius rLg = Radius.circular(baseRadius);
+  final Radius rSm = Radius.circular((baseRadius * 0.6).clamp(8.0, 16.0));
+  const Radius rXs = Radius.circular(6.0); // cluster tight chain link
 
   if (isOutgoing) {
     return BorderRadius.only(

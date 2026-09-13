@@ -185,14 +185,21 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
         : '';
     final bool isMarkdown = ext == 'md';
 
+    final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
     return PopScope(
-      canPop: false,
+      canPop: canRoutePop,
       onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) return;
-        if (context.canPop()) {
-          context.pop();
+        if (canRoutePop) {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
         } else {
-          context.go('/main/chats');
+          try {
+            context.go('/main/chats');
+          } catch (_) {
+            Navigator.maybePop(context);
+          }
         }
       },
       child: Scaffold(

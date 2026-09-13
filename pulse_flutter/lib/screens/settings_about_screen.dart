@@ -304,7 +304,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                   icon: _isCheckingUpdate
                       ? Icons.hourglass_top_rounded
                       : Icons.system_update_rounded,
-                  label: 'Обновления',
+                  label: 'Проверить',
                   color: scheme.primary,
                   onTap: _checkForUpdate,
                 ),
