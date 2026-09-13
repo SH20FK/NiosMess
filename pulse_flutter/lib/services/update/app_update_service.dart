@@ -114,10 +114,18 @@ class AppUpdateService {
     return int.tryParse(buildStr) ?? 0;
   }
 
-  /// Parses markdown changelog and extracts notes for [targetVersion] or top section.
+  /// Parses markdown changelog and extracts strictly ONLY the notes for [targetVersion]
+  /// or the latest topmost section (ignoring all prior history).
   static String parseChangelog(String markdown, [String? targetVersion]) {
-    if (markdown.trim().isEmpty) return '';
-    final List<String> lines = markdown.split('\n');
+    final String trimmedInput = markdown.trim();
+    if (trimmedInput.isEmpty) return '';
+
+    // If input has no markdown headers, return as-is (e.g. plain bullet list)
+    if (!trimmedInput.contains('## ')) {
+      return trimmedInput;
+    }
+
+    final List<String> lines = trimmedInput.split('\n');
     final StringBuffer buffer = StringBuffer();
     bool capturing = false;
 
@@ -133,6 +141,7 @@ class AppUpdateService {
       final String trimmed = line.trim();
       if (trimmed.startsWith('## ')) {
         if (capturing) {
+          // Strictly stop at the start of any older version section
           break;
         }
         if (cleanTarget.isEmpty || trimmed.contains(cleanTarget)) {
@@ -145,7 +154,8 @@ class AppUpdateService {
     }
 
     if (buffer.isEmpty && cleanTarget.isNotEmpty) {
-      return parseChangelog(markdown, null);
+      // Fallback: extract the very first '## ' section (the latest version)
+      return parseChangelog(trimmedInput, null);
     }
 
     return buffer.toString().trim();

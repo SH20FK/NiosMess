@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -48,6 +48,10 @@ class AppUpdateDialog extends ConsumerWidget {
     final bool isReady = otaState.status == OtaStatus.readyToInstall;
     final bool isInstalling = otaState.status == OtaStatus.installing;
     final bool isError = otaState.status == OtaStatus.error;
+    final String latestChangelog = AppUpdateService.parseChangelog(
+      updateInfo.changelog,
+      updateInfo.latestVersion,
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
@@ -62,24 +66,25 @@ class AppUpdateDialog extends ConsumerWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: isReady
-                      ? scheme.primaryContainer
-                      : (isError ? scheme.errorContainer : scheme.primaryContainer),
-                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: <Color>[
+                      scheme.primaryContainer,
+                      scheme.primary.withValues(alpha: 0.18),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: scheme.primary.withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
                 ),
                 child: Center(
                   child: Icon(
-                    isReady
-                        ? Icons.check_circle_rounded
-                        : (isDownloading
-                            ? Icons.cloud_download_rounded
-                            : (isError
-                                ? Icons.error_outline_rounded
-                                : Icons.system_update_rounded)),
+                    Icons.system_update_rounded,
+                    color: scheme.primary,
                     size: 28,
-                    color: isReady
-                        ? scheme.primary
-                        : (isError ? scheme.error : scheme.primary),
                   ),
                 ),
               ),
@@ -89,32 +94,16 @@ class AppUpdateDialog extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      isReady
-                          ? 'Обновление готово'
-                          : (isDownloading
-                              ? 'Загрузка обновления'
-                              : 'Доступно обновление'),
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
+                      'Доступно обновление',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
                         color: scheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Wrap(
-                      spacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+                    const SizedBox(height: 4),
+                    Row(
                       children: <Widget>[
-                        Text(
-                          'v${updateInfo.currentVersion}',
-                          style: textTheme.labelMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 13,
-                          color: scheme.primary,
-                        ),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -132,6 +121,7 @@ class AppUpdateDialog extends ConsumerWidget {
                             ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         if (updateInfo.apkSize != null)
                           Text(
                             _formatBytes(updateInfo.apkSize!),
@@ -148,8 +138,8 @@ class AppUpdateDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // Changelog Section
-          if (!isDownloading && updateInfo.changelog.trim().isNotEmpty) ...<Widget>[
+          // Changelog Section (Strictly latest version only)
+          if (!isDownloading && latestChangelog.isNotEmpty) ...<Widget>[
             Text(
               'Что нового:',
               style: textTheme.labelLarge?.copyWith(
@@ -170,7 +160,7 @@ class AppUpdateDialog extends ConsumerWidget {
               ),
               child: SingleChildScrollView(
                 child: Text(
-                  updateInfo.changelog.trim(),
+                  latestChangelog,
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                     height: 1.45,

@@ -111,12 +111,18 @@ flutter analyze                # Static analysis
 - CI builds APK & runs tests on push/PR to `main`
 - Never commit secrets (google-services.json, certs, keys)
 
-## Automated Semantic Versioning (SemVer) Protocol
+## Automated Semantic Versioning (SemVer) & Changelog Protocol
 At the conclusion of EVERY task or feature implementation, inspect all completed changes (`git status`, `git diff`) and automatically bump the version in `pulse_flutter/pubspec.yaml` (`version: X.Y.Z+build`):
 - **MAJOR (X.0.0+N)**: Global architectural changes, fundamental protocol breaks, major multi-module rewrites, or breaking database/API changes.
 - **MINOR (X.Y.0+N)**: New user-facing features, new screens, significant visual redesigns of core modules, or substantial new functionality added without breaking existing APIs.
 - **PATCH / Micro-minor (X.Y.Z+N)**: Small bug fixes, micro styling tweaks, padding/radius polishes, typo fixes, linter/test corrections, and documentation updates.
 Always increment the build number (`+N`) and report the new version in the final task summary.
+
+### Changelog & Sub-version Prompt Rule
+- **Sub-version / Minor updates (e.g. x.Y.x)**: Whenever bumping a sub-version or releasing a feature update, explicitly notify the user and ask them for a short, simple summary in their own words.
+- Never write corporate AI buzzwords or "нейрослоп" into release notes.
+- The user's provided description is placed directly at the top of `CHANGELOG.md` under `## [X.Y.Z]`.
+- **Single-Version Display**: In the application (`AppUpdateDialog`), strictly display ONLY the changelog section for the latest version being updated to, never old historical changelog blocks.
 
 ## Files to Avoid Editing
 - Generated files: `lib/l10n/app_localizations.dart`, `*.g.dart`, `*.freezed.dart`

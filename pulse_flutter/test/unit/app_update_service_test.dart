@@ -78,5 +78,11 @@ void main() {
       final String notes = AppUpdateService.parseChangelog('', '3.58.1');
       expect(notes, isEmpty);
     });
+
+    test('returns raw input as-is when no headers present', () {
+      const String plain = '• Simple bullet 1\n• Simple bullet 2';
+      final String notes = AppUpdateService.parseChangelog(plain, '3.58.1');
+      expect(notes, equals(plain));
+    });
   });
 }
