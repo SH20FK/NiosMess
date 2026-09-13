@@ -60,10 +60,10 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCibGZI458Q-tN9Sh2qWrkZTqZMscurIUs',
-    appId: '1:1071718522582:android:68564f42919bb2aec27377',
-    messagingSenderId: '1071718522582',
-    projectId: 'niosmess-push',
-    storageBucket: 'niosmess-push.firebasestorage.app',
+    apiKey: 'AIzaSyBKS1OjGKwwJmvEnBwg8q1_WDw1G_def2w',
+    appId: '1:825221435616:android:225ca60a8de4e3ce388085',
+    messagingSenderId: '825221435616',
+    projectId: 'niosmes',
+    storageBucket: 'niosmes.firebasestorage.app',
   );
 }

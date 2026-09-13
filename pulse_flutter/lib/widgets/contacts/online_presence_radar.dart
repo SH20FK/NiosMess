@@ -166,29 +166,34 @@ class OnlinePresenceRadar extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(
             children: <Widget>[
+              Icon(
+                Icons.history_rounded,
+                size: 17,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: 6),
               Text(
-                'В сети и недавние',
+                'Недавние диалоги',
                 style: textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: scheme.onSurfaceVariant,
                   letterSpacing: -0.2,
                 ),
               ),
-              const SizedBox(width: 8),
-              Container(
-                width: 7,
-                height: 7,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF22C55E),
-                  shape: BoxShape.circle,
-                ),
-              ),
               const SizedBox(width: 6),
-              Text(
-                '${activeContacts.length}',
-                style: textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: scheme.onSurfaceVariant,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${activeContacts.length}',
+                  style: textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 10,
+                  ),
                 ),
               ),
             ],
@@ -223,7 +228,7 @@ class OnlinePresenceRadar extends ConsumerWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      // Avatar with online status dot
+                      // Avatar with optional unread indicator
                       Stack(
                         clipBehavior: Clip.none,
                         children: <Widget>[
@@ -232,7 +237,7 @@ class OnlinePresenceRadar extends ConsumerWidget {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: scheme.primary.withValues(alpha: 0.35),
+                                color: scheme.primary.withValues(alpha: 0.25),
                                 width: 1.5,
                               ),
                             ),
@@ -242,22 +247,35 @@ class OnlinePresenceRadar extends ConsumerWidget {
                               avatarUrl: chat.avatarUrl,
                             ),
                           ),
-                          Positioned(
-                            right: 2,
-                            bottom: 2,
-                            child: Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF22C55E),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: scheme.surface,
-                                  width: 2,
+                          if (chat.unreadCount > 0)
+                            Positioned(
+                              right: -1,
+                              top: -1,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: scheme.primary,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: scheme.surface,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Text(
+                                  chat.unreadCount > 99
+                                      ? '99+'
+                                      : '${chat.unreadCount}',
+                                  style: TextStyle(
+                                    color: scheme.onPrimary,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 6),
