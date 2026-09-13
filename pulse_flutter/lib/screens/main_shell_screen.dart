@@ -29,6 +29,9 @@ import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/core/services/biometric_service.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/providers/ota_update_provider.dart';
+import 'package:pulse_flutter/services/update/app_update_service.dart';
+import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
 
 class MainShellScreen extends ConsumerStatefulWidget {
   const MainShellScreen({required this.tab, super.key});
@@ -79,6 +82,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     _checkBiometricLock();
     _showAlphaDialog();
     _checkWebPushPrompt();
+    _checkDailyOtaUpdate();
     PermissionService().requestInitialPermissionsIfNeeded();
   }
 
@@ -193,6 +197,40 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _checkDailyOtaUpdate() async {
+    if (kIsWeb) return;
+    await Future<void>.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
+
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final int lastCheckMs =
+          prefs.getInt('last_daily_ota_check_timestamp') ?? 0;
+      final DateTime now = DateTime.now();
+      final DateTime lastCheck =
+          DateTime.fromMillisecondsSinceEpoch(lastCheckMs);
+
+      // Only check automatically once every 24 hours
+      if (now.difference(lastCheck).inHours < 24) {
+        return;
+      }
+
+      final AppUpdateService service = ref.read(appUpdateServiceProvider);
+      final AppUpdateInfo updateInfo = await service.checkForUpdate();
+      await prefs.setInt(
+        'last_daily_ota_check_timestamp',
+        now.millisecondsSinceEpoch,
+      );
+
+      if (updateInfo.hasUpdate && mounted) {
+        ref.read(otaUpdateProvider.notifier).setUpdateInfo(updateInfo);
+        await AppUpdateDialog.show(context, updateInfo);
+      }
+    } catch (e) {
+      debugPrint('[MainShellScreen] Daily update check warning: $e');
+    }
   }
 
   Future<void> _checkBiometricLock() async {

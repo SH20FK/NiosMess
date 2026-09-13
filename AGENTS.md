@@ -52,7 +52,8 @@ flutter run --release          # Release
 flutter build apk --release    # Build APK
 flutter build web --release    # Build Web
 flutter gen-l10n               # Generate l10n after adding .arb keys
-flutter test                   # Unit/widget tests
+dart test                      # Run tests via Dart (preferred & faster)
+flutter test                   # Widget/integration tests (when flutter_test/dart:ui required)
 flutter test integration_test/ # Integration tests
 flutter analyze                # Static analysis
 ```
@@ -65,7 +66,9 @@ flutter analyze                # Static analysis
 - `flutter clean && flutter pub get` — Clean rebuild
 
 ## Testing
-- **Unit/Widget**: `flutter test` (flutter_test SDK)
+- **Always run tests via Dart (`dart test`)**: Significantly faster than `flutter test`. Preferred for all test executions.
+- **Unit/Logic**: `dart test` (fastest execution)
+- **Widget/UI**: `flutter test` (when `flutter_test`/`dart:ui` framework bindings are explicitly required)
 - **Integration**: `flutter test integration_test/` (integration_test SDK)
 - Location: `test/` (unit/widget), `integration_test/` (integration)
 
