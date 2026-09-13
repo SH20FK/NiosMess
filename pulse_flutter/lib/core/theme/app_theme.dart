@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 import 'app_typography.dart';
+import 'expressive_tokens.dart';
 
 class AppTheme {
   const AppTheme._();
@@ -208,30 +209,47 @@ class AppTheme {
         textStyle: textTheme.labelSmall,
       ),
       inputDecorationTheme: InputDecorationTheme(
-        filled: false,
-        fillColor: Colors.transparent,
+        filled: true,
+        fillColor: scheme.surfaceContainerHigh,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.18),
-          ),
+          borderRadius: AppRadii.mdRadius,
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.18),
-          ),
+          borderRadius: AppRadii.mdRadius,
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: scheme.primary, width: 1.4),
+          borderRadius: AppRadii.mdRadius,
+          borderSide: BorderSide(
+            color: scheme.primary.withValues(alpha: 0.6),
+            width: 1.5,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: AppRadii.mdRadius,
+          borderSide: BorderSide(
+            color: scheme.error,
+            width: 1.2,
+          ),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: AppRadii.mdRadius,
+          borderSide: BorderSide(
+            color: scheme.error,
+            width: 1.5,
+          ),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: AppRadii.mdRadius,
+          borderSide: BorderSide.none,
         ),
         hintStyle: textTheme.bodyMedium?.copyWith(
           color: scheme.onSurfaceVariant,
         ),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
+          horizontal: 18,
+          vertical: 14,
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
