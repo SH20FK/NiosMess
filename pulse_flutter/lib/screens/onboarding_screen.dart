@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/session_provider.dart';
@@ -107,7 +108,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     Text(
                       context.l10n.appName,
                       style: TextStyle(
-                        fontFamily: 'PlusJakartaSans',
+                        fontFamily: AppFonts.headline,
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.4,

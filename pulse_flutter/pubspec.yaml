@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 3.35.1+83
+version: 3.36.0+84
 
 environment:
   sdk: ^3.10.7
@@ -122,6 +122,11 @@ flutter:
 
   assets:
     - assets/fonts/
+    - assets/fonts/bricolage_grotesque/
+    - assets/fonts/onest/
+    - assets/fonts/golos_text/
+    - assets/fonts/plus_jakarta_sans/
+    - assets/fonts/inter/
     - assets/fonts/material_symbols/
     - assets/sounds/
     - assets/developers/
@@ -134,6 +139,40 @@ flutter:
     - assets/NiosMess_icon.png
 
   fonts:
+    - family: BricolageGrotesque
+      fonts:
+        - asset: assets/fonts/bricolage_grotesque/BricolageGrotesque-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/bricolage_grotesque/BricolageGrotesque-Variable.ttf
+          weight: 500
+        - asset: assets/fonts/bricolage_grotesque/BricolageGrotesque-Variable.ttf
+          weight: 600
+        - asset: assets/fonts/bricolage_grotesque/BricolageGrotesque-Variable.ttf
+          weight: 700
+        - asset: assets/fonts/bricolage_grotesque/BricolageGrotesque-Variable.ttf
+          weight: 800
+    - family: Onest
+      fonts:
+        - asset: assets/fonts/onest/Onest-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/onest/Onest-Variable.ttf
+          weight: 500
+        - asset: assets/fonts/onest/Onest-Variable.ttf
+          weight: 600
+        - asset: assets/fonts/onest/Onest-Variable.ttf
+          weight: 700
+        - asset: assets/fonts/onest/Onest-Variable.ttf
+          weight: 800
+    - family: GolosText
+      fonts:
+        - asset: assets/fonts/golos_text/GolosText-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/golos_text/GolosText-Variable.ttf
+          weight: 500
+        - asset: assets/fonts/golos_text/GolosText-Variable.ttf
+          weight: 600
+        - asset: assets/fonts/golos_text/GolosText-Variable.ttf
+          weight: 700
     - family: PlusJakartaSans
       fonts:
         - asset: assets/fonts/plus_jakarta_sans/PlusJakartaSans-Variable.ttf

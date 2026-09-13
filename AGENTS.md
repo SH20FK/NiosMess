@@ -34,7 +34,7 @@
 - **Material 3 Expressive** — Dynamic Color via `dynamic_color`, `ThemeData.from(...)` with tonal palettes
 - **L10n**: All user-facing strings via `context.l10n.key` (no hardcoded strings)
 - **Assets**: Declared in pubspec.yaml under `flutter.assets`
-- **Fonts**: PlusJakartaSans (primary), Inter (secondary) — variable fonts
+- **Fonts**: BricolageGrotesque (headlines/display), Onest (UI/labels/titles), GolosText (body/reading), PlusJakartaSans/Inter (fallbacks) — variable fonts
 
 ## CI/CD (GitHub Actions)
 - **.github/workflows/build.yml** — Triggers on push/PR to `main`

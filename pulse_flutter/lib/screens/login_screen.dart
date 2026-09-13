@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/network/oauth_navigation_helper.dart';
 import 'package:pulse_flutter/core/storage/ephemeral_storage.dart';
+import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
@@ -362,11 +363,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
         const SizedBox(height: 22),
 
-        // Brand Title in PlusJakartaSans
+        // Brand Title in Bricolage Grotesque
         Text(
           'NiosMess',
           style: TextStyle(
-            fontFamily: 'PlusJakartaSans',
+            fontFamily: AppFonts.headline,
             fontSize: 34,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.6,
@@ -380,7 +381,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Text(
           'Единый доступ к чатам, звонкам и\u00A0Nios\u00A0ID',
           style: TextStyle(
-            fontFamily: 'Inter',
+            fontFamily: AppFonts.body,
             fontSize: 15,
             fontWeight: FontWeight.w400,
             color: scheme.onSurfaceVariant,
@@ -418,7 +419,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         label: Text(
           'Войти через Nios ID',
           style: TextStyle(
-            fontFamily: 'Inter',
+            fontFamily: AppFonts.ui,
             fontSize: 16,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.2,
@@ -447,7 +448,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Text(
           'Создать аккаунт Nios ID',
           style: TextStyle(
-            fontFamily: 'Inter',
+            fontFamily: AppFonts.ui,
             fontSize: 15,
             fontWeight: FontWeight.w600,
             color: scheme.onSurface,
@@ -496,7 +497,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Text(
                 'Подтверждение входа',
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.ui,
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: scheme.onSurface,
@@ -508,7 +509,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Text(
             'Откройте страницу Nios ID и подтвердите совпадение одноразового кода:',
             style: TextStyle(
-              fontFamily: 'Inter',
+              fontFamily: AppFonts.body,
               fontSize: 13.5,
               color: scheme.onSurfaceVariant,
               height: 1.4,
@@ -563,7 +564,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     'Нажмите, чтобы скопировать',
                     style: TextStyle(
-                      fontFamily: 'Inter',
+                      fontFamily: AppFonts.body,
                       fontSize: 11,
                       color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
                     ),
@@ -584,10 +585,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 OAuthNavigationHelper().openInBrowser(resp.verificationUriComplete);
               },
               icon: const Icon(Icons.open_in_browser_rounded, size: 20),
-              label: const Text(
+              label: Text(
                 'Подтвердить в браузере',
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.ui,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -608,10 +609,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             style: TextButton.styleFrom(
               foregroundColor: scheme.onSurfaceVariant,
             ),
-            child: const Text(
+            child: Text(
               'Отмена',
               style: TextStyle(
-                fontFamily: 'Inter',
+                fontFamily: AppFonts.ui,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -628,7 +629,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Text(
           'Входя в приложение, вы соглашаетесь с документами:',
           style: TextStyle(
-            fontFamily: 'Inter',
+            fontFamily: AppFonts.body,
             fontSize: 11.5,
             color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
           ),
@@ -647,7 +648,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Text(
                   'Условия использования',
                   style: TextStyle(
-                    fontFamily: 'Inter',
+                    fontFamily: AppFonts.ui,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: scheme.primary,
@@ -671,7 +672,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Text(
                   'Политика конфиденциальности',
                   style: TextStyle(
-                    fontFamily: 'Inter',
+                    fontFamily: AppFonts.ui,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: scheme.primary,
@@ -720,7 +721,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Text(
                   _statusText ?? 'Авторизация...',
                   style: TextStyle(
-                    fontFamily: 'Inter',
+                    fontFamily: AppFonts.ui,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: scheme.onSurface,
