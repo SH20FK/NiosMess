@@ -80,9 +80,21 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
   }
 
   Future<void> _loadRecentMedia() async {
+    final bool isSupported =
+        !kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
+    if (!isSupported) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasPermission = true;
+        });
+      }
+      return;
+    }
+
     try {
       final PermissionState perm = await PhotoManager.requestPermissionExtend()
-          .timeout(const Duration(seconds: 4), onTimeout: () => PermissionState.denied);
+          .timeout(const Duration(seconds: 45), onTimeout: () => PermissionState.denied);
       if (!perm.isAuth) {
         if (mounted) {
           setState(() {
@@ -93,17 +105,48 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
         return;
       }
 
-      final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
-        type: RequestType.common,
-        hasAll: true,
-      ).timeout(const Duration(seconds: 4), onTimeout: () => <AssetPathEntity>[]);
+      List<AssetPathEntity> albums = <AssetPathEntity>[];
+      try {
+        albums = await PhotoManager.getAssetPathList(
+          type: RequestType.common,
+          hasAll: true,
+          filterOption: FilterOptionGroup(
+            orders: const <OrderOption>[
+              OrderOption(type: OrderOptionType.createDate, asc: false),
+            ],
+          ),
+        ).timeout(const Duration(seconds: 15), onTimeout: () => <AssetPathEntity>[]);
+      } catch (_) {}
+
+      if (albums.isEmpty) {
+        try {
+          albums = await PhotoManager.getAssetPathList(
+            type: RequestType.image,
+            hasAll: true,
+            filterOption: FilterOptionGroup(
+              orders: const <OrderOption>[
+                OrderOption(type: OrderOptionType.createDate, asc: false),
+              ],
+            ),
+          ).timeout(const Duration(seconds: 10), onTimeout: () => <AssetPathEntity>[]);
+        } catch (_) {}
+      }
+
+      if (albums.isEmpty) {
+        try {
+          albums = await PhotoManager.getAssetPathList(
+            type: RequestType.all,
+            hasAll: true,
+          ).timeout(const Duration(seconds: 10), onTimeout: () => <AssetPathEntity>[]);
+        } catch (_) {}
+      }
 
       if (albums.isNotEmpty) {
         final List<AssetEntity> assets = await albums.first.getAssetListRange(
           start: 0,
           end: 45,
-        ).timeout(const Duration(seconds: 4), onTimeout: () => <AssetEntity>[]);
-        
+        ).timeout(const Duration(seconds: 15), onTimeout: () => <AssetEntity>[]);
+
         // Sort newest first by createDateTime in Dart
         assets.sort((AssetEntity a, AssetEntity b) {
           final DateTime da = a.createDateTime;
@@ -115,17 +158,25 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
           setState(() {
             _recentAssets.clear();
             _recentAssets.addAll(assets);
+            _hasPermission = true;
             _isLoading = false;
           });
         }
       } else {
         if (mounted) {
-          setState(() => _isLoading = false);
+          setState(() {
+            _recentAssets.clear();
+            _hasPermission = true;
+            _isLoading = false;
+          });
         }
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _hasPermission = true;
+          _isLoading = false;
+        });
       }
     }
   }
@@ -167,7 +218,9 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
 
   Future<void> _openFullGallery() async {
     HapticService.tap();
-    if (kIsWeb) {
+    final bool isSupported =
+        !kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
+    if (!isSupported) {
       await _pickFile(
         type: FileType.media,
         mediaSubtype: 'media',
@@ -429,17 +482,32 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Нет недавних фото или доступ ограничен',
+                                'Нет недавних фото или альбом пуст',
                                 style: TextStyle(
                                   color: scheme.onSurfaceVariant,
                                   fontSize: 13,
                                 ),
                               ),
-                              const SizedBox(height: 6),
-                              TextButton.icon(
-                                onPressed: _openFullGallery,
-                                icon: const Icon(Icons.folder_open_rounded, size: 16),
-                                label: const Text('Выбрать из галереи'),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                alignment: WrapAlignment.center,
+                                children: <Widget>[
+                                  FilledButton.tonalIcon(
+                                    onPressed: _openCamera,
+                                    icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                                    label: const Text('Камера'),
+                                  ),
+                                  FilledButton.icon(
+                                    onPressed: () => _pickFile(
+                                      type: FileType.media,
+                                      mediaSubtype: 'media',
+                                    ),
+                                    icon: const Icon(Icons.folder_open_rounded, size: 16),
+                                    label: const Text('Проводник'),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -481,6 +549,64 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
                         ),
             ),
           ],
+          if (!kIsWeb && !_hasPermission)
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(
+                        Icons.photo_library_outlined,
+                        size: 40,
+                        color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Доступ к галерее не предоставлен',
+                        style: TextStyle(
+                          color: scheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Разрешите доступ в настройках или выберите файлы через проводник',
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.center,
+                        children: <Widget>[
+                          OutlinedButton.icon(
+                            onPressed: () => PhotoManager.openSetting(),
+                            icon: const Icon(Icons.settings_outlined, size: 16),
+                            label: const Text('Настройки'),
+                          ),
+                          FilledButton.icon(
+                            onPressed: () => _pickFile(
+                              type: FileType.media,
+                              mediaSubtype: 'media',
+                            ),
+                            icon: const Icon(Icons.folder_open_rounded, size: 16),
+                            label: const Text('Проводник'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
           // ── Bottom Action / Send Bar ───────────────────────────────
           if (hasSelection)

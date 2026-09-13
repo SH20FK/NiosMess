@@ -17,6 +17,66 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 class AppUrlLauncher {
   AppUrlLauncher._();
 
+  /// Public web origin used for canonical share links and invites.
+  static const String webOrigin = 'https://ni-os.ru';
+
+  /// Normalizes any raw invite slug, token, or legacy URL into canonical `https://ni-os.ru/u/...` format.
+  ///
+  /// Examples:
+  /// - `+token123` -> `https://ni-os.ru/u/+token123`
+  /// - `/join/test` -> `https://ni-os.ru/u/test`
+  /// - `https://ni-os.ru/join/group` -> `https://ni-os.ru/u/group`
+  /// - `my_channel` -> `https://ni-os.ru/u/my_channel`
+  static String formatCanonicalInviteUrl(String? raw) {
+    if (raw == null) return '';
+    final String trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+
+    // If it's already a full https://ni-os.ru/u/... URL, return as is
+    if (trimmed.startsWith('$webOrigin/u/')) {
+      return trimmed;
+    }
+
+    String slug = trimmed;
+
+    // Handle full URLs
+    if (slug.startsWith('http://') || slug.startsWith('https://') || slug.startsWith('niosmess://')) {
+      final Uri? uri = Uri.tryParse(slug);
+      if (uri != null) {
+        final List<String> segments = uri.pathSegments.where((String s) => s.isNotEmpty).toList();
+        if (segments.isNotEmpty) {
+          final int joinIdx = segments.indexOf('join');
+          if (joinIdx != -1 && joinIdx + 1 < segments.length) {
+            slug = segments[joinIdx + 1];
+          } else {
+            final int uIdx = segments.indexOf('u');
+            if (uIdx != -1 && uIdx + 1 < segments.length) {
+              slug = segments[uIdx + 1];
+            } else {
+              slug = segments.last;
+            }
+          }
+        }
+      }
+    }
+
+    // Handle relative paths like /join/slug or /u/slug
+    if (slug.startsWith('/join/')) {
+      slug = slug.substring(6);
+    } else if (slug.startsWith('/u/')) {
+      slug = slug.substring(3);
+    } else if (slug.startsWith('join/')) {
+      slug = slug.substring(5);
+    } else if (slug.startsWith('u/')) {
+      slug = slug.substring(2);
+    }
+
+    slug = slug.replaceAll(RegExp(r'^/+|/+$'), '').trim();
+    if (slug.isEmpty) return '';
+
+    return '$webOrigin/u/$slug';
+  }
+
   /// Opens any given [rawUrl] string intelligently based on its scheme and destination.
   static Future<bool> openUrl(
     BuildContext? context,

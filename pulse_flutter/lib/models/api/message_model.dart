@@ -12,6 +12,27 @@ bool _parseBool(dynamic value) {
       value == 'true';
 }
 
+/// Normalizes legacy text aliases (e.g. 'heart', 'thumbs_up') to unicode emojis.
+String normalizeReactionEmoji(String emoji) {
+  final String cleaned = emoji.trim();
+  switch (cleaned) {
+    case 'heart':
+      return '❤️';
+    case 'thumbs_up':
+      return '👍';
+    case 'fire':
+      return '🔥';
+    case 'joy':
+      return '😂';
+    case 'wow':
+      return '😮';
+    case 'sad':
+      return '😢';
+    default:
+      return cleaned;
+  }
+}
+
 class ApiMessage {
   const ApiMessage({
     required this.id,
@@ -193,12 +214,13 @@ class ApiMessage {
     final Map<String, int> reactions = <String, int>{};
     if (reactionsRaw is Map) {
       reactionsRaw.forEach((dynamic key, dynamic value) {
-        final String emoji = key.toString();
+        final String rawEmoji = key.toString().trim();
+        final String emoji = normalizeReactionEmoji(rawEmoji);
         final int count = value is int
             ? value
             : (value is num ? value.toInt() : 0);
         if (emoji.isNotEmpty && count > 0) {
-          reactions[emoji] = count;
+          reactions[emoji] = (reactions[emoji] ?? 0) + count;
         }
       });
     }

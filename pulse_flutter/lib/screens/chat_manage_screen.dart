@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 
@@ -221,8 +222,10 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
     final bool isPrivate = chat?.isPrivate ?? false;
     final bool isPublic = (chat?.username ?? '').trim().isNotEmpty;
     final bool hasChanges = _hasChanges(chat);
-    final String effectiveInviteLink = _inviteLink ?? chat?.inviteLink ?? '';
-    final String effectiveShareLink = _shareLink ?? chat?.shareLink ?? '';
+    final String rawInvite = _inviteLink ?? chat?.inviteLink ?? '';
+    final String effectiveInviteLink = AppUrlLauncher.formatCanonicalInviteUrl(rawInvite);
+    final String rawShare = _shareLink ?? chat?.shareLink ?? '';
+    final String effectiveShareLink = AppUrlLauncher.formatCanonicalInviteUrl(rawShare);
 
     final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
     return PopScope(

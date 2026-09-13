@@ -507,7 +507,7 @@ class MessageBubble extends ConsumerWidget {
                               borderRadius: AppRadii.fullRadius,
                             ),
                             child: Text(
-                              '${item.key} ${item.value}',
+                              '${normalizeReactionEmoji(item.key)} ${item.value}',
                               style: textTheme.labelSmall,
                             ),
                           ),

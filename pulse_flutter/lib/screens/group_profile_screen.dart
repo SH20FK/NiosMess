@@ -12,6 +12,7 @@ import 'package:pulse_flutter/widgets/profile/profile_shared_media_tab_view.dart
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 
 class GroupProfileScreen extends ConsumerWidget {
@@ -107,10 +108,13 @@ class GroupProfileScreen extends ConsumerWidget {
                               label: context.l10n.groupProfileShare,
                               icon: Icons.share_rounded,
                               onPressed: () {
+                                final String rawLink = chat.privateInviteUrl ??
+                                    chat.inviteLink ??
+                                    chat.shareLink ??
+                                    AppConstants.chatShareUrl(chatId);
+                                final String canonical = AppUrlLauncher.formatCanonicalInviteUrl(rawLink);
                                 Clipboard.setData(ClipboardData(
-                                  text: chat.inviteLink ??
-                                      chat.shareLink ??
-                                      AppConstants.chatShareUrl(chatId),
+                                  text: canonical.isNotEmpty ? canonical : rawLink,
                                 ));
                                 AppToast.showInfo(
                                   context,
@@ -434,8 +438,9 @@ class GroupProfileScreen extends ConsumerWidget {
     TextTheme textTheme,
     ApiChatSummary chat,
   ) {
-    final String? link = chat.privateInviteUrl;
-    if (link == null || link.isEmpty) return const SizedBox.shrink();
+    final String? rawLink = chat.privateInviteUrl;
+    if (rawLink == null || rawLink.isEmpty) return const SizedBox.shrink();
+    final String link = AppUrlLauncher.formatCanonicalInviteUrl(rawLink);
 
     return Padding(
       padding: const EdgeInsets.only(

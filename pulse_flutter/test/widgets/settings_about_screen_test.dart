@@ -39,8 +39,8 @@ void main() {
       expect(find.text('FAQ'), findsWidgets);
       expect(find.text('Обновления'), findsWidgets);
 
-      // Initially on Developers tab: Sanlsan and SH20FK
-      expect(find.text('Sanlsan'), findsOneWidget);
+      // Initially on Developers tab: sanlsan and SH20FK
+      expect(find.text('sanlsan'), findsOneWidget);
       expect(find.text('SH20FK'), findsOneWidget);
 
       // Verify NO Open Source or pulse_flutter mentions

@@ -553,7 +553,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     bool isDark,
   ) {
     final Widget sanlsanTile = _GoogleContactsDeveloperTile(
-      name: 'Sanlsan',
+      name: 'sanlsan',
       role: 'Основатель & Главный Архитектор',
       telegramHandle: 'hello_sanlsan',
       assetPath: 'assets/developers/Sanlsan_clean.png',

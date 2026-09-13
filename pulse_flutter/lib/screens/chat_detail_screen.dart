@@ -1853,6 +1853,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                         onOpenComments: (ApiMessage msg) {
                           context.push('/channel/$chatId/post/${msg.id}/comments');
                         },
+                        onReactionTap: (ApiMessage msg, String emoji) =>
+                            _react(msg, emoji),
                         onOpenMedia: _handleOpenMediaFor,
                         onLongPressMedia: _handleLongPressMediaFor,
                         onLongPress: _handleLongPressFor,

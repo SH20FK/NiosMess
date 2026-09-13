@@ -86,6 +86,7 @@ class ChatMessageList extends ConsumerStatefulWidget {
     required this.isChannel,
     this.isGroup = false,
     this.onOpenComments,
+    this.onReactionTap,
     required this.onOpenMedia,
     required this.onLongPressMedia,
     required this.onLongPress,
@@ -108,6 +109,7 @@ class ChatMessageList extends ConsumerStatefulWidget {
   final bool amAdminOrOwner;
   final bool isChannel;
   final bool isGroup;
+  final void Function(ApiMessage message, String emoji)? onReactionTap;
   final void Function(ApiMessage)? onOpenComments;
   final void Function(ApiMessage) onOpenMedia;
   final void Function(ApiMessage, bool isMine, bool amAdminOrOwner)
@@ -338,6 +340,9 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
                   }
                 : null,
             reactions: message.reactions,
+            onReactionTap: widget.onReactionTap != null
+                ? (String emoji) => widget.onReactionTap!(message, emoji)
+                : null,
             mediaUrl: mediaUrl,
             mediaIsImage: isImageMedia,
             mediaLabel: mediaLabel,

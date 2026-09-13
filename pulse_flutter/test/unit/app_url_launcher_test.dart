@@ -126,5 +126,28 @@ void main() {
       final Uri? converted = AppUrlLauncher.convertTelegramToNativeScheme(rawTg);
       expect(converted, equals(rawTg));
     });
+
+    test('formatCanonicalInviteUrl formats all links into https://ni-os.ru/u/...', () {
+      expect(
+        AppUrlLauncher.formatCanonicalInviteUrl('+token123'),
+        equals('https://ni-os.ru/u/+token123'),
+      );
+      expect(
+        AppUrlLauncher.formatCanonicalInviteUrl('/join/work_chat'),
+        equals('https://ni-os.ru/u/work_chat'),
+      );
+      expect(
+        AppUrlLauncher.formatCanonicalInviteUrl('https://ni-os.ru/join/public_channel'),
+        equals('https://ni-os.ru/u/public_channel'),
+      );
+      expect(
+        AppUrlLauncher.formatCanonicalInviteUrl('/u/+secret456'),
+        equals('https://ni-os.ru/u/+secret456'),
+      );
+      expect(
+        AppUrlLauncher.formatCanonicalInviteUrl('https://ni-os.ru/u/existing'),
+        equals('https://ni-os.ru/u/existing'),
+      );
+    });
   });
 }

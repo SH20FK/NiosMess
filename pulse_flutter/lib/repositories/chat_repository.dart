@@ -43,12 +43,28 @@ class ChatRepository {
       if (joinIndex != -1 && joinIndex + 1 < segments.length) {
         return Uri.decodeComponent(segments[joinIndex + 1]);
       }
+      final int uIndex = segments.indexOf('u');
+      if (uIndex != -1 && uIndex + 1 < segments.length) {
+        return Uri.decodeComponent(segments[uIndex + 1]);
+      }
+      final int cIndex = segments.indexOf('c');
+      if (cIndex != -1 && cIndex + 1 < segments.length) {
+        return Uri.decodeComponent(segments[cIndex + 1]);
+      }
       return Uri.decodeComponent(segments.last);
     }
 
     final int joinPart = trimmed.indexOf('/join/');
     if (joinPart >= 0) {
       return trimmed.substring(joinPart + '/join/'.length).trim();
+    }
+    final int uPart = trimmed.indexOf('/u/');
+    if (uPart >= 0) {
+      return trimmed.substring(uPart + '/u/'.length).trim();
+    }
+    final int cPart = trimmed.indexOf('/c/');
+    if (cPart >= 0) {
+      return trimmed.substring(cPart + '/c/'.length).trim();
     }
 
     return trimmed.replaceAll(RegExp(r'^/+|/+$'), '');

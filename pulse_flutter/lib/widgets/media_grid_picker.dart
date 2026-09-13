@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/quick_camera_capture_screen.dart';
@@ -78,9 +80,26 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
   }
 
   Future<void> _loadMedia() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final bool isSupported =
+        !kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
+    if (!isSupported) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = null;
+        });
+      }
+      return;
+    }
+
     try {
       final PermissionState perm = await PhotoManager.requestPermissionExtend()
-          .timeout(const Duration(seconds: 4), onTimeout: () => PermissionState.denied);
+          .timeout(const Duration(seconds: 45), onTimeout: () => PermissionState.denied);
       if (!perm.isAuth) {
         if (mounted) {
           setState(() {
@@ -91,13 +110,50 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
         return;
       }
 
-      final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
-        type: RequestType.common,
-        hasAll: true,
-      ).timeout(const Duration(seconds: 4), onTimeout: () => <AssetPathEntity>[]);
+      List<AssetPathEntity> albums = <AssetPathEntity>[];
+      try {
+        albums = await PhotoManager.getAssetPathList(
+          type: RequestType.common,
+          hasAll: true,
+          filterOption: FilterOptionGroup(
+            orders: const <OrderOption>[
+              OrderOption(type: OrderOptionType.createDate, asc: false),
+            ],
+          ),
+        ).timeout(const Duration(seconds: 15), onTimeout: () => <AssetPathEntity>[]);
+      } catch (_) {}
 
       if (albums.isEmpty) {
-        if (mounted) setState(() => _loading = false);
+        try {
+          albums = await PhotoManager.getAssetPathList(
+            type: RequestType.image,
+            hasAll: true,
+            filterOption: FilterOptionGroup(
+              orders: const <OrderOption>[
+                OrderOption(type: OrderOptionType.createDate, asc: false),
+              ],
+            ),
+          ).timeout(const Duration(seconds: 10), onTimeout: () => <AssetPathEntity>[]);
+        } catch (_) {}
+      }
+
+      if (albums.isEmpty) {
+        try {
+          albums = await PhotoManager.getAssetPathList(
+            type: RequestType.all,
+            hasAll: true,
+          ).timeout(const Duration(seconds: 10), onTimeout: () => <AssetPathEntity>[]);
+        } catch (_) {}
+      }
+
+      if (albums.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _albums = <AssetPathEntity>[];
+            _allAssets = <AssetEntity>[];
+            _loading = false;
+          });
+        }
         return;
       }
 
@@ -108,7 +164,7 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
       final List<AssetEntity> assets = await recent.getAssetListPaged(
         page: 0,
         size: _pageSize,
-      ).timeout(const Duration(seconds: 5), onTimeout: () => <AssetEntity>[]);
+      ).timeout(const Duration(seconds: 15), onTimeout: () => <AssetEntity>[]);
 
       // Sort newest first by createDateTime in Dart
       assets.sort((AssetEntity a, AssetEntity b) {
@@ -127,7 +183,7 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = 'Не удалось загрузить галерею: $e';
           _loading = false;
         });
       }
@@ -149,7 +205,7 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
       final List<AssetEntity> assets = await album.getAssetListPaged(
         page: 0,
         size: _pageSize,
-      ).timeout(const Duration(seconds: 5), onTimeout: () => <AssetEntity>[]);
+      ).timeout(const Duration(seconds: 15), onTimeout: () => <AssetEntity>[]);
 
       assets.sort((AssetEntity a, AssetEntity b) {
         final DateTime da = a.createDateTime;
@@ -257,14 +313,23 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
           initialIndex: initialIndex,
           selectedIds: _selectedIds,
           onToggleSelection: _toggleSelection,
-          onSendDirect: (String caption, bool asDocument) async {
-            final AssetEntity current = _allAssets[initialIndex];
-            if (!_selectedIds.contains(current.id)) {
-              _selectedIds.add(current.id);
+          onSendDirect: (AssetEntity asset, String caption, bool asDocument) async {
+            final File? file = await asset.file;
+            if (file == null || !mounted) return;
+            final MediaGridPickerResult result = MediaGridPickerResult(
+              filePath: file.path,
+              fileName: (asset.title != null && asset.title!.isNotEmpty)
+                  ? asset.title!
+                  : file.path.split('/').last.split('\\').last,
+              fileSize: await file.length(),
+              caption: caption.isNotEmpty ? caption : null,
+              sendAsDocument: asDocument,
+            );
+            if (!mounted) return;
+            if (widget.onSelected != null) {
+              widget.onSelected!(<MediaGridPickerResult>[result]);
             }
-            _captionController.text = caption;
-            _sendAsDocument = asDocument;
-            await _sendSelected();
+            Navigator.of(context).pop(<MediaGridPickerResult>[result]);
           },
           scheme: Theme.of(context).colorScheme,
         ),
@@ -413,8 +478,46 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
     );
   }
 
-  void _openFilePicker() {
-    Navigator.of(context).pop(null);
+  Future<void> _openFilePicker() async {
+    HapticService.tap();
+    try {
+      final List<PlatformFile> picked = await FilePicker.pickFiles(
+        type: FileType.media,
+      );
+      if (picked.isEmpty || !mounted) return;
+
+      final List<MediaGridPickerResult> results = <MediaGridPickerResult>[];
+      for (final PlatformFile file in picked) {
+        final String? path = file.path;
+        if (path != null && path.isNotEmpty) {
+          int fileSize = 0;
+          try {
+            fileSize = await File(path).length();
+          } catch (_) {}
+
+          results.add(
+            MediaGridPickerResult(
+              filePath: path,
+              fileName: file.name,
+              fileSize: fileSize,
+              caption: _captionController.text.trim(),
+              sendAsDocument: _sendAsDocument,
+            ),
+          );
+        }
+      }
+
+      if (results.isNotEmpty && mounted) {
+        if (widget.onSelected != null) {
+          widget.onSelected!(results);
+        }
+        Navigator.of(context).pop(results);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.showError(context, 'Ошибка выбора файлов: $e');
+      }
+    }
   }
 
   Widget _buildSelectionBadge(String id, ColorScheme scheme) {
@@ -460,46 +563,104 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     final bool showCameraTile = _recentAlbum?.isAll ?? true;
-    final int totalGridItems = _allAssets.length + (showCameraTile ? 1 : 0);
 
     final Widget body;
     if (_loading) {
       body = Center(child: AppLoadingIndicator(color: scheme.primary));
     } else if (_error != null) {
       body = Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(Icons.error_outline_rounded, size: 48, color: scheme.error),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              style: textTheme.bodyMedium?.copyWith(color: scheme.error),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(Icons.photo_library_outlined, size: 48, color: scheme.error),
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: <Widget>[
+                  OutlinedButton.icon(
+                    onPressed: () => PhotoManager.openSetting(),
+                    icon: const Icon(Icons.settings_outlined, size: 16),
+                    label: const Text('Настройки'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _openFilePicker,
+                    icon: const Icon(Icons.folder_open_rounded, size: 16),
+                    label: const Text('Проводник'),
+                  ),
+                  TextButton.icon(
+                    onPressed: _loadMedia,
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Повторить'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       );
-    } else if (_allAssets.isEmpty && !showCameraTile) {
+    } else if (_allAssets.isEmpty) {
       body = Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(
-              Icons.photo_library_outlined,
-              size: 64,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              context.l10n.mediaViewerCannotPreview,
-              style: textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                Icons.photo_library_outlined,
+                size: 52,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.45),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                'В галерее нет медиафайлов или доступ ограничен',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: <Widget>[
+                  FilledButton.tonalIcon(
+                    onPressed: _openCameraCapture,
+                    icon: const Icon(Icons.photo_camera_rounded, size: 16),
+                    label: const Text('Камера'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _openFilePicker,
+                    icon: const Icon(Icons.folder_open_rounded, size: 16),
+                    label: const Text('Проводник'),
+                  ),
+                  TextButton.icon(
+                    onPressed: _loadMedia,
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Повторить'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       );
     } else {
+      final int totalGridItems = _allAssets.length + (showCameraTile ? 1 : 0);
       body = Stack(
         children: <Widget>[
           GridView.builder(
@@ -653,10 +814,10 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
                   ),
                 ),
                 const Spacer(),
-                TextButton.icon(
+                FilledButton.tonalIcon(
                   onPressed: _openFilePicker,
                   icon: const Icon(Icons.folder_open_rounded, size: 18),
-                  label: Text(context.l10n.filePickerFile),
+                  label: const Text('Проводник'),
                 ),
               ],
             ),
@@ -792,7 +953,7 @@ class _MediaPreviewScreen extends StatefulWidget {
   final int initialIndex;
   final List<String> selectedIds;
   final void Function(String id) onToggleSelection;
-  final void Function(String caption, bool asDocument) onSendDirect;
+  final void Function(AssetEntity asset, String caption, bool asDocument) onSendDirect;
   final ColorScheme scheme;
 
   @override
@@ -986,6 +1147,7 @@ class _MediaPreviewScreenState extends State<_MediaPreviewScreen> {
                         HapticService.confirm();
                         Navigator.of(context).pop();
                         widget.onSendDirect(
+                          currentAsset,
                           _captionController.text.trim(),
                           _sendAsDocument,
                         );
@@ -1086,8 +1248,15 @@ class _AssetThumbnailState extends State<_AssetThumbnail> {
   Future<void> _checkCacheAndLoad() async {
     final Uint8List? cached = _AssetThumbnailCache.get(widget.asset.id);
     if (cached != null) {
-      _data = cached;
-      _loading = false;
+      if (mounted) {
+        setState(() {
+          _data = cached;
+          _loading = false;
+        });
+      } else {
+        _data = cached;
+        _loading = false;
+      }
       return;
     }
 

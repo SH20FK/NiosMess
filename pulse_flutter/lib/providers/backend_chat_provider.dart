@@ -182,7 +182,8 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     ref.read(cacheServiceProvider).saveChats(updated);
   }
 
-  void _handleReactionPush(ApiMessage message, String emoji, {required bool added}) {
+  void _handleReactionPush(ApiMessage message, String rawEmoji, {required bool added}) {
+    final String emoji = normalizeReactionEmoji(rawEmoji);
     if (emoji.isEmpty) return;
     final List<ApiChatSummary>? currentChats = state.value;
     if (currentChats == null) return;
@@ -454,8 +455,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       case ChatPushEventKind.deleted:
         _handleDeletedIncomingMessage(event.message);
       case ChatPushEventKind.reaction:
-        _handleReactionPush(event.message, event.reactionEmoji!,
-            added: event.reactionAdded);
+        _handleReactionPush(
+          event.message,
+          event.reactionEmoji ?? '',
+          added: event.reactionAdded,
+        );
       case ChatPushEventKind.read:
         _handleReadPush(event.userId!);
     }
@@ -496,8 +500,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     unawaited(ChatMediaCache.removeMediaMessage(_chatId, message.id));
   }
 
-  void _handleReactionPush(ApiMessage message, String emoji,
+  void _handleReactionPush(ApiMessage message, String rawEmoji,
       {required bool added}) {
+    final String emoji = normalizeReactionEmoji(rawEmoji);
+    if (emoji.isEmpty) return;
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
     final int index = current.indexWhere((ApiMessage m) => m.id == message.id);
     if (index == -1) return;
@@ -1197,8 +1203,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
   }
 
-  Future<void> toggleReaction(int messageId, String emoji) async {
-    if (emoji.trim().isEmpty) return;
+  Future<void> toggleReaction(int messageId, String rawEmoji) async {
+    final String emoji = normalizeReactionEmoji(rawEmoji);
+    if (emoji.isEmpty) return;
 
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
     final ApiMessage? original = current.where((m) => m.id == messageId).firstOrNull;
@@ -1228,11 +1235,13 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         ref.read(chatsProvider.notifier)._handleEditedPush(updatedMsg);
       }
     } catch (e) {
+      debugPrint('[backend_chat_provider.dart] toggleReaction error: $e');
       if (original != null) {
         final List<ApiMessage> latest = state.value ?? const <ApiMessage>[];
         final List<ApiMessage> reverted = latest.map((m) => m.id == messageId ? original : m).toList();
         state = AsyncData<List<ApiMessage>>(reverted);
       }
+      rethrow;
     }
   }
 }

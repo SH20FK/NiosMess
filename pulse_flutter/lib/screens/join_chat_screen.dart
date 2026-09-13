@@ -186,7 +186,7 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _loadPreview(),
                     decoration: InputDecoration(
-                      hintText: 'https://ni-os.ru/join/work_chat',
+                      hintText: 'https://ni-os.ru/u/work_chat',
                       prefixIcon: const Icon(Icons.link_rounded),
                       suffixIcon: IconButton(
                         onPressed: () async {

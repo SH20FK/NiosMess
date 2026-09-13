@@ -133,8 +133,9 @@ class WebSocketPushDispatcher {
         case 'message_reaction':
           final int chatId = int.tryParse(payload['chat_id']?.toString() ?? '') ?? 0;
           final int messageId = int.tryParse(payload['message_id']?.toString() ?? '') ?? 0;
-          final String? emoji = payload['emoji']?.toString();
-          if (chatId > 0 && messageId > 0 && emoji != null && emoji.isNotEmpty) {
+          final String? rawEmoji = payload['emoji']?.toString();
+          if (chatId > 0 && messageId > 0 && rawEmoji != null && rawEmoji.isNotEmpty) {
+            final String emoji = normalizeReactionEmoji(rawEmoji);
             final ApiMessage stub = _stub(messageId, chatId);
             emit(
               stub,
