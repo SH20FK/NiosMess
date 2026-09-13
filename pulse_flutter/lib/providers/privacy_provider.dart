@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
+import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/privacy_repository.dart';
 
@@ -24,6 +26,8 @@ class PrivacyState {
     return blockedUsers.any((BlockedUser u) => u.id == userId);
   }
 
+  bool isBlocked(int userId) => isUserBlocked(userId);
+
   PrivacyState copyWith({
     Map<String, PrivacyRule>? rules,
     List<BlockedUser>? blockedUsers,
@@ -40,14 +44,47 @@ class PrivacyState {
 }
 
 class PrivacyNotifier extends Notifier<PrivacyState> {
+  StreamSubscription<Map<String, dynamic>>? _eventsSub;
+
   @override
   PrivacyState build() {
     final client = ref.read(webSocketClientProvider);
+    _eventsSub?.cancel();
+    _eventsSub = client.pushStream.listen(_onWebSocketEvent);
+    ref.onDispose(() {
+      _eventsSub?.cancel();
+    });
+
     if (client.isConnected) {
       Future<void>.microtask(() => _loadInitial());
       return const PrivacyState(isLoading: true);
     }
     return const PrivacyState(isLoading: false);
+  }
+
+  void _onWebSocketEvent(Map<String, dynamic> event) {
+    final String? action = event['action'] as String?;
+    final dynamic rawPayload = event['payload'];
+    final Map<String, dynamic> payload = rawPayload is Map
+        ? rawPayload.map((k, v) => MapEntry(k.toString(), v))
+        : const <String, dynamic>{};
+
+    if (action == 'user_blocked') {
+      final int uid = int.tryParse(payload['user_id']?.toString() ?? '') ?? 0;
+      if (uid > 0 && !state.isUserBlocked(uid)) {
+        refresh();
+      }
+    } else if (action == 'user_unblocked') {
+      final int uid = int.tryParse(payload['user_id']?.toString() ?? '') ?? 0;
+      if (uid > 0) {
+        final updated = state.blockedUsers
+            .where((BlockedUser u) => u.id != uid)
+            .toList(growable: false);
+        state = state.copyWith(blockedUsers: updated);
+      }
+    } else if (action == 'block_status_updated') {
+      ref.read(chatsProvider.notifier).refresh();
+    }
   }
 
   Future<void> _loadInitial() async {
@@ -102,34 +139,60 @@ class PrivacyNotifier extends Notifier<PrivacyState> {
     }
   }
 
-  Future<bool> blockUser(int userId) async {
+  Future<bool> blockUser(int userId, {BlockedUser? user}) async {
+    // Optimistic add
+    final List<BlockedUser> current = List<BlockedUser>.from(state.blockedUsers);
+    if (!current.any((BlockedUser u) => u.id == userId)) {
+      current.add(
+        user ??
+            BlockedUser(
+              id: userId,
+              username: 'id$userId',
+              displayName: 'Пользователь #$userId',
+            ),
+      );
+      state = state.copyWith(blockedUsers: current);
+    }
+
     try {
       final PrivacyRepository repo = ref.read(privacyRepositoryProvider);
       final bool success = await repo.blockUser(userId);
       if (success) {
         final List<BlockedUser> updated = await repo.listBlockedUsers();
         state = state.copyWith(blockedUsers: updated);
+        ref.read(chatsProvider.notifier).refresh();
+      } else {
+        await refresh();
       }
       return success;
     } catch (e) {
       state = state.copyWith(error: '$e');
+      await refresh();
       return false;
     }
   }
 
   Future<bool> unblockUser(int userId) async {
+    // Optimistic remove
+    final List<BlockedUser> updated = state.blockedUsers
+        .where((BlockedUser u) => u.id != userId)
+        .toList(growable: false);
+    state = state.copyWith(blockedUsers: updated);
+
     try {
       final PrivacyRepository repo = ref.read(privacyRepositoryProvider);
       final bool success = await repo.unblockUser(userId);
       if (success) {
-        final List<BlockedUser> updated = state.blockedUsers
-            .where((BlockedUser u) => u.id != userId)
-            .toList(growable: false);
-        state = state.copyWith(blockedUsers: updated);
+        final List<BlockedUser> fresh = await repo.listBlockedUsers();
+        state = state.copyWith(blockedUsers: fresh);
+        ref.read(chatsProvider.notifier).refresh();
+      } else {
+        await refresh();
       }
       return success;
     } catch (e) {
       state = state.copyWith(error: '$e');
+      await refresh();
       return false;
     }
   }

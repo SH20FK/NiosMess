@@ -186,7 +186,7 @@ class _ChatTileState extends State<ChatTile>
                                 width: 13,
                                 height: 13,
                                 decoration: BoxDecoration(
-                                  color: scheme.primary,
+                                  color: const Color(0xFF4CAF50),
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: scheme.surfaceContainerLow,

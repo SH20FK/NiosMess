@@ -6255,6 +6255,18 @@ abstract class AppLocalizations {
   /// **'typing...'**
   String get chatTyping;
 
+  /// No description provided for @online.
+  ///
+  /// In en, this message translates to:
+  /// **'online'**
+  String get online;
+
+  /// No description provided for @offline.
+  ///
+  /// In en, this message translates to:
+  /// **'offline'**
+  String get offline;
+
   /// No description provided for @chatReactedWith.
   ///
   /// In en, this message translates to:

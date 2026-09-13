@@ -34,6 +34,11 @@ class ApiChatSummary {
     this.isPrivate = false,
     this.inviteToken,
     this.autoDeleteSeconds,
+    this.partnerUserId,
+    this.isBlockedByMe = false,
+    this.isBlockedByUser = false,
+    this.isBlocked = false,
+    this.isOnline = false,
   });
 
   final int id;
@@ -55,6 +60,11 @@ class ApiChatSummary {
   final bool isPrivate;
   final String? inviteToken;
   final int? autoDeleteSeconds;
+  final int? partnerUserId;
+  final bool isBlockedByMe;
+  final bool isBlockedByUser;
+  final bool isBlocked;
+  final bool isOnline;
 
   String? get formattedAutoDeleteDuration {
     if (autoDeleteSeconds == null || autoDeleteSeconds! <= 0) return null;
@@ -114,6 +124,20 @@ class ApiChatSummary {
 
     final int? autoDelete = json['auto_delete_seconds'] as int?;
 
+    final dynamic partnerRaw = json['partner'] ?? json['with_user'];
+    final Map<String, dynamic>? partnerMap = partnerRaw is Map
+        ? partnerRaw.map((dynamic k, dynamic v) => MapEntry(k.toString(), v))
+        : null;
+
+    final int? partnerUserId = partnerMap != null
+        ? ((partnerMap['id'] as num?)?.toInt() ?? (partnerMap['user_id'] as num?)?.toInt())
+        : ((json['with_user_id'] as num?)?.toInt() ?? (json['partner_id'] as num?)?.toInt() ?? (json['other_user_id'] as num?)?.toInt());
+
+    final bool isBlockedByMe = _parseBool(partnerMap?['is_blocked_by_me'] ?? json['is_blocked_by_me']);
+    final bool isBlockedByUser = _parseBool(partnerMap?['is_blocked_by_user'] ?? json['is_blocked_by_user']);
+    final bool isBlocked = _parseBool(partnerMap?['is_blocked'] ?? json['is_blocked']) || isBlockedByMe || isBlockedByUser;
+    final bool isOnline = _parseBool(json['is_online']) || _parseBool(partnerMap?['is_online']);
+
     return ApiChatSummary(
       id: json['id'] as int? ?? 0,
       chatType: json['chat_type'] as String? ?? 'direct',
@@ -133,6 +157,11 @@ class ApiChatSummary {
       isPrivate: _parseBool(json['is_private']),
       inviteToken: json['invite_token'] as String?,
       autoDeleteSeconds: autoDelete,
+      partnerUserId: partnerUserId,
+      isBlockedByMe: isBlockedByMe,
+      isBlockedByUser: isBlockedByUser,
+      isBlocked: isBlocked,
+      isOnline: isOnline,
       lastMessage: last is Map
           ? ApiMessage.fromJson(
               last.map(
@@ -163,6 +192,11 @@ class ApiChatSummary {
     bool? isPrivate,
     String? inviteToken,
     int? autoDeleteSeconds,
+    int? partnerUserId,
+    bool? isBlockedByMe,
+    bool? isBlockedByUser,
+    bool? isBlocked,
+    bool? isOnline,
   }) {
     return ApiChatSummary(
       id: id ?? this.id,
@@ -184,6 +218,11 @@ class ApiChatSummary {
       isPrivate: isPrivate ?? this.isPrivate,
       inviteToken: inviteToken ?? this.inviteToken,
       autoDeleteSeconds: autoDeleteSeconds ?? this.autoDeleteSeconds,
+      partnerUserId: partnerUserId ?? this.partnerUserId,
+      isBlockedByMe: isBlockedByMe ?? this.isBlockedByMe,
+      isBlockedByUser: isBlockedByUser ?? this.isBlockedByUser,
+      isBlocked: isBlocked ?? this.isBlocked,
+      isOnline: isOnline ?? this.isOnline,
     );
   }
 
@@ -207,6 +246,8 @@ class ApiChatSummary {
       'is_private': isPrivate,
       if (inviteToken != null) 'invite_token': inviteToken,
       if (autoDeleteSeconds != null) 'auto_delete_seconds': autoDeleteSeconds,
+      'is_online': isOnline,
+      if (partnerUserId != null) 'partner_user_id': partnerUserId,
       'last_message': lastMessage?.toJson(),
     };
   }

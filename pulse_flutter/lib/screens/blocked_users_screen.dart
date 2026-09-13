@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
@@ -18,6 +19,14 @@ class BlockedUsersScreen extends ConsumerStatefulWidget {
 class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(privacyProvider.notifier).refresh();
+    });
+  }
 
   @override
   void dispose() {
@@ -40,8 +49,15 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
     if (picked == null || !mounted) return;
 
     HapticService.confirm();
-    final bool success =
-        await ref.read(privacyProvider.notifier).blockUser(picked.id);
+    final bool success = await ref.read(privacyProvider.notifier).blockUser(
+          picked.id,
+          user: BlockedUser(
+            id: picked.id,
+            username: picked.username,
+            displayName: picked.displayName,
+            avatarUrl: picked.avatarUrl,
+          ),
+        );
     if (!mounted) return;
     if (success) {
       AppToast.showSuccess(
@@ -84,6 +100,11 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
         title: const Text('Заблокированные пользователи'),
         actions: <Widget>[
           IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Обновить',
+            onPressed: () => ref.read(privacyProvider.notifier).refresh(),
+          ),
+          IconButton(
             icon: const Icon(Icons.person_add_rounded),
             tooltip: 'Заблокировать пользователя',
             onPressed: _promptBlockUser,
@@ -95,110 +116,127 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
         icon: const Icon(Icons.block_rounded),
         label: const Text('Заблокировать'),
       ),
-      body: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Поиск заблокированных...',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: _query.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear_rounded),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _query = '');
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+      body: RefreshIndicator(
+        onRefresh: () => ref.read(privacyProvider.notifier).refresh(),
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Поиск заблокированных...',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _query.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _query = '');
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                onChanged: (String val) => setState(() => _query = val.trim()),
               ),
-              onChanged: (String val) => setState(() => _query = val.trim()),
             ),
-          ),
-          Expanded(
-            child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : filtered.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
+            Expanded(
+              child: state.isLoading && state.blockedUsers.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : filtered.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
                           children: <Widget>[
-                            Icon(
-                              Icons.block_rounded,
-                              size: 56,
-                              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _query.isEmpty
-                                  ? 'Черный список пуст'
-                                  : 'Пользователи не найдены',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _query.isEmpty
-                                  ? 'Заблокированные пользователи не смогут писать и звонить вам'
-                                  : 'Попробуйте изменить поисковый запрос',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
+                            const SizedBox(height: 80),
+                            Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Icon(
+                                    Icons.block_rounded,
+                                    size: 56,
                                     color: scheme.onSurfaceVariant
-                                        .withValues(alpha: 0.7),
+                                        .withValues(alpha: 0.5),
                                   ),
-                              textAlign: TextAlign.center,
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    _query.isEmpty
+                                        ? 'Черный список пуст'
+                                        : 'Пользователи не найдены',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          color: scheme.onSurfaceVariant,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _query.isEmpty
+                                        ? 'Заблокированные пользователи не смогут писать и звонить вам'
+                                        : 'Попробуйте изменить поисковый запрос',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: scheme.onSurfaceVariant
+                                              .withValues(alpha: 0.7),
+                                        ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: filtered.length,
-                        itemBuilder: (BuildContext context, int index) {
-                          final BlockedUser user = filtered[index];
-                          return ListTile(
-                            leading: PulseAvatar(
-                              name: user.displayName,
-                              avatarUrl: user.avatarUrl,
-                              radius: 20,
-                            ),
-                            title: Text(
-                              user.displayName,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: Text('@${user.username}'),
-                            trailing: OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 6,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                        )
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: filtered.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            final BlockedUser user = filtered[index];
+                            return ListTile(
+                              leading: PulseAvatar(
+                                name: user.displayName,
+                                avatarUrl: user.avatarUrl,
+                                radius: 20,
                               ),
-                              onPressed: () => _unblock(user),
-                              child: const Text('Разблокировать'),
-                            ),
-                          );
-                        },
-                      ),
-          ),
-        ],
+                              title: Text(
+                                user.displayName,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              subtitle: Text('@${user.username}'),
+                              onTap: () {
+                                if (user.username.isNotEmpty &&
+                                    !user.username.startsWith('id')) {
+                                  context.push('/u/${user.username}');
+                                }
+                              },
+                              trailing: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 6,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: () => _unblock(user),
+                                child: const Text('Разблокировать'),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }

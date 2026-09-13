@@ -79,6 +79,9 @@ class ApiProfile {
     this.workingHours,
     this.visibleBadgeIds = const <int>[],
     this.aiUsage,
+    this.isBlockedByMe = false,
+    this.isBlockedByUser = false,
+    this.isBlocked = false,
   });
 
   final int id;
@@ -97,6 +100,9 @@ class ApiProfile {
   final WorkingHours? workingHours;
   final List<int> visibleBadgeIds;
   final ApiAiUsage? aiUsage;
+  final bool isBlockedByMe;
+  final bool isBlockedByUser;
+  final bool isBlocked;
 
   bool get isRestrictedBySpamBlock {
     if (spamBlock == true) return true;
@@ -199,6 +205,10 @@ class ApiProfile {
               ),
             )
           : null,
+      isBlockedByMe: json['is_blocked_by_me'] as bool? ?? false,
+      isBlockedByUser: json['is_blocked_by_user'] as bool? ?? false,
+      isBlocked: json['is_blocked'] as bool? ??
+          (json['is_blocked_by_me'] == true || json['is_blocked_by_user'] == true),
     );
   }
 
@@ -221,6 +231,9 @@ class ApiProfile {
       if (workingHours != null) 'working_hours': workingHours!.toJson(),
       'visible_badge_ids': visibleBadgeIds,
       if (aiUsage != null) 'ai_usage': aiUsage!.toJson(),
+      'is_blocked_by_me': isBlockedByMe,
+      'is_blocked_by_user': isBlockedByUser,
+      'is_blocked': isBlocked,
     };
   }
 
@@ -241,6 +254,9 @@ class ApiProfile {
     WorkingHours? workingHours,
     List<int>? visibleBadgeIds,
     ApiAiUsage? aiUsage,
+    bool? isBlockedByMe,
+    bool? isBlockedByUser,
+    bool? isBlocked,
   }) {
     return ApiProfile(
       id: id ?? this.id,
@@ -259,6 +275,9 @@ class ApiProfile {
       workingHours: workingHours ?? this.workingHours,
       visibleBadgeIds: visibleBadgeIds ?? this.visibleBadgeIds,
       aiUsage: aiUsage ?? this.aiUsage,
+      isBlockedByMe: isBlockedByMe ?? this.isBlockedByMe,
+      isBlockedByUser: isBlockedByUser ?? this.isBlockedByUser,
+      isBlocked: isBlocked ?? this.isBlocked,
     );
   }
 }

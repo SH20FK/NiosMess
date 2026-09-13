@@ -79,9 +79,18 @@ class TypingNotifier extends Notifier<TypingState> {
     state = TypingState(typingUserIds: updated);
   }
 
+  DateTime? _lastSentTyping;
+
   Future<void> sendTyping() async {
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     if (myUserId <= 0) return;
+
+    final DateTime now = DateTime.now();
+    if (_lastSentTyping != null &&
+        now.difference(_lastSentTyping!) < const Duration(seconds: 3)) {
+      return;
+    }
+    _lastSentTyping = now;
 
     try {
       await ref.read(webSocketClientProvider).request(

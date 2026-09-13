@@ -15,6 +15,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
+import 'package:pulse_flutter/providers/typing_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/chat_tile.dart';
@@ -234,31 +235,40 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                         onSecondaryTapDown: (TapDownDetails details) {
                           _showChatContextMenu(context, chat);
                         },
-                        child: ChatTile(
-                          key: ValueKey<int>(chat.id),
-                          title: chat.name,
-                          subtitle: _chatPreview(chat),
-                          formattedTime: formatRelativeTime(chat.lastActivity),
-                          unreadCount: chat.unreadCount,
-                          avatarText: chat.name,
-                          avatarUrl: chat.avatarUrl,
-                          avatarColor: _avatarColor(chat.id, scheme),
-                          subtitleIcon: _chatPreviewIcon(chat),
-                          compact: compact,
-                          isSecret: chat.isSecret,
-                          partnerBadges: chat.partnerBadges,
-                          chatId: chat.id,
-                          isSelected: desktopChatId == chat.id,
-                          onTap: () {
-                            if (MediaQuery.sizeOf(context).width >= 760) {
-                              ref
-                                  .read(desktopSelectedChatProvider.notifier)
-                                  .setSelectedChat(chat.id);
-                            } else {
-                              context.push('/chat/${chat.id}');
-                            }
+                        child: Consumer(
+                          builder: (BuildContext context, WidgetRef ref, _) {
+                            final bool isTyping = ref.watch(
+                              typingProvider(chat.id)
+                                  .select((TypingState s) => s.typingUserIds.isNotEmpty),
+                            );
+                            return ChatTile(
+                              key: ValueKey<int>(chat.id),
+                              title: chat.name,
+                              subtitle: isTyping ? context.l10n.chatTyping : _chatPreview(chat),
+                              formattedTime: formatRelativeTime(chat.lastActivity),
+                              unreadCount: chat.unreadCount,
+                              avatarText: chat.name,
+                              avatarUrl: chat.avatarUrl,
+                              avatarColor: _avatarColor(chat.id, scheme),
+                              subtitleIcon: isTyping ? Icons.edit_note_rounded : _chatPreviewIcon(chat),
+                              compact: compact,
+                              isOnline: chat.chatType == 'direct' && chat.isOnline,
+                              isSecret: chat.isSecret,
+                              partnerBadges: chat.partnerBadges,
+                              chatId: chat.id,
+                              isSelected: desktopChatId == chat.id,
+                              onTap: () {
+                                if (MediaQuery.sizeOf(context).width >= 760) {
+                                  ref
+                                      .read(desktopSelectedChatProvider.notifier)
+                                      .setSelectedChat(chat.id);
+                                } else {
+                                  context.push('/chat/${chat.id}');
+                                }
+                              },
+                              onLongPress: () => _showChatContextMenu(context, chat),
+                            );
                           },
-                          onLongPress: () => _showChatContextMenu(context, chat),
                         ),
                       ),
                     ),

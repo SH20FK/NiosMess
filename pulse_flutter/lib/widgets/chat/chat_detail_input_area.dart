@@ -42,6 +42,9 @@ class ChatDetailInputArea extends ConsumerWidget {
     this.spamBlockUntil,
     this.spamBlockReason,
     this.onContactSupport,
+    this.isBlockedByMe = false,
+    this.isBlockedByUser = false,
+    this.onUnblockUser,
   });
 
   final bool canPostInChannel;
@@ -52,6 +55,9 @@ class ChatDetailInputArea extends ConsumerWidget {
   final String? spamBlockReason;
   final VoidCallback? onContactSupport;
   final void Function(InlineQueryResult result)? onSendInlineResult;
+  final bool isBlockedByMe;
+  final bool isBlockedByUser;
+  final VoidCallback? onUnblockUser;
 
   /// True while this chat has uploads in flight — swaps the attach button
   /// for a spinner in [ChatInputBar]. Per-message progress lives in the
@@ -84,6 +90,94 @@ class ChatDetailInputArea extends ConsumerWidget {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     final TextTheme textTheme = theme.textTheme;
+
+    if (isBlockedByMe) {
+      return SafeArea(
+        top: false,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHigh.withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.block_rounded, color: scheme.error, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Вы заблокировали этого пользователя',
+                  style: textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onSurface,
+                  ),
+                ),
+              ),
+              if (onUnblockUser != null)
+                FilledButton.tonal(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: onUnblockUser,
+                  child: const Text('Разблокировать'),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (isBlockedByUser) {
+      return SafeArea(
+        top: false,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: scheme.errorContainer.withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: scheme.error.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.lock_outline_rounded, color: scheme.error, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Отправка сообщений ограничена',
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onErrorContainer,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Пользователь ограничил круг лиц, которые могут отправлять ему сообщения',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onErrorContainer.withValues(alpha: 0.85),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     if (isSpamBlocked) {
       return SafeArea(

@@ -3445,6 +3445,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatTyping => 'печатает...';
 
   @override
+  String get online => 'в сети';
+
+  @override
+  String get offline => 'не в сети';
+
+  @override
   String chatReactedWith(Object emoji) {
     return 'Отреагировал(а) $emoji';
   }

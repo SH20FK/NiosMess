@@ -34,6 +34,7 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/providers/typing_provider.dart';
+import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/repositories/support_repository.dart';
@@ -667,6 +668,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     final ApiChatSummary? currentChat = ref.read(chatByIdProvider(chatId));
+    if (currentChat != null && currentChat.chatType == 'direct') {
+      final int? partnerId = currentChat.partnerUserId;
+      final bool isBlockedByMe = (partnerId != null && ref.read(privacyProvider).isUserBlocked(partnerId)) || currentChat.isBlockedByMe;
+      final bool isBlockedByUser = currentChat.isBlockedByUser;
+      if (isBlockedByMe) {
+        AppToast.showError(context, 'Разблокируйте пользователя, чтобы отправить сообщение');
+        return;
+      }
+      if (isBlockedByUser) {
+        AppToast.showError(context, 'Отправка сообщений ограничена пользователем');
+        return;
+      }
+    }
+
     final bool isSupportChat =
         currentChat?.username?.toLowerCase() == 'support' ||
         currentChat?.name.toLowerCase() == 'support';
@@ -1604,6 +1619,21 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? chatId = _chatId;
     if (chatId == null) return;
 
+    final ApiChatSummary? currentChat = ref.read(chatByIdProvider(chatId));
+    if (currentChat != null && currentChat.chatType == 'direct') {
+      final int? partnerId = currentChat.partnerUserId;
+      final bool isBlockedByMe = (partnerId != null && ref.read(privacyProvider).isUserBlocked(partnerId)) || currentChat.isBlockedByMe;
+      final bool isBlockedByUser = currentChat.isBlockedByUser;
+      if (isBlockedByMe) {
+        AppToast.showError(context, 'Разблокируйте пользователя, чтобы совершить звонок');
+        return;
+      }
+      if (isBlockedByUser) {
+        AppToast.showError(context, 'Пользователь ограничил возможность звонков');
+        return;
+      }
+    }
+
     try {
       final int callId = await startOutgoingCall(
         ref: ref,
@@ -1736,6 +1766,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           isBot: chat?.chatType == 'bot' ||
               (directUsername != null &&
                   directUsername.toLowerCase().endsWith('bot')),
+          isOnline: chat?.chatType == 'direct' && chat?.isOnline == true,
           onBack: () {
             if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
             _goBack();
@@ -1745,6 +1776,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           onSecurityTap: _showE2eeVerification,
           typingSubtitle: _TypingSubtitle(
             chatId: chatId,
+            isOnline: chat?.isOnline == true,
+            isDirect: chat?.chatType == 'direct' && !isGroup && !isChannel,
             fallback: _chatSubtitle(
               chat,
               isChannel,
@@ -1952,55 +1985,80 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 ],
               ),
             ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.zero,
-            child: ChatDetailInputArea(
-              chatId: chatId,
-              onSendSticker: _sendSticker,
-              onSendInlineResult: (InlineQueryResult result) {
-                _inputController.text = result.messageText;
-                _sendMessage();
-              },
-              canPostInChannel: canPostInChannel,
-              showDraftRestoredBanner: _showDraftRestoredBanner,
-              onClearDraft: () {
-                final int? cid = _chatId;
-                if (cid != null) {
-                  _draftStorage.remove(cid);
-                }
-                _inputController.clear();
-                setState(() {
-                  _showDraftRestoredBanner = false;
-                });
-              },
-              uploadingMedia:
-                  ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
-              inputController: _inputController,
-              inputFocusNode: _inputFocusNode,
-              isAiProcessing: _isAiProcessing,
-              editingMessageId: _editingMessageId,
-              editingOriginalText: _editingOriginalText,
-              replyToMessageId: _replyToMessageId,
-              replyPreviewText: _replyPreviewText,
-              onSend: _sendMessage,
-              onCommitEdit: _commitEdit,
-              onCancelEdit: _cancelEdit,
-              onClearReply: _clearReply,
-              onAttachMedia: _pickAndUploadMedia,
-              onAiPressed: () => _showAiBottomSheet(context, scheme),
-              onVoiceSend: _sendVoiceMessage,
-              onCircleSend: _sendCircleVideo,
-              hapticsEnabled: ref.watch(uiSettingsProvider).haptics,
-              sendOnEnter: ref.watch(uiSettingsProvider).sendOnEnter,
-              isSpamBlocked:
-                  ref.watch(authProvider).profile?.isRestrictedBySpamBlock ?? false,
-              spamBlockUntil: ref.watch(authProvider).profile?.spamBlockUntil,
-              spamBlockReason: ref.watch(authProvider).profile?.spamBlockReason,
-              onContactSupport: () => context.push('/chat/direct/support'),
-            ),
-          ),
+        Builder(
+          builder: (BuildContext ctx) {
+            final bool isDirectChat = chat?.chatType == 'direct';
+            final int? partnerId = chat?.partnerUserId ??
+                (directUsername != null ? members.where((m) => m.userId != myUserId).firstOrNull?.userId : null);
+            final bool isBlockedByMe = isDirectChat && partnerId != null &&
+                (ref.watch(privacyProvider).isUserBlocked(partnerId) || (chat?.isBlockedByMe ?? false));
+            final bool isBlockedByUser = isDirectChat && (chat?.isBlockedByUser ?? false);
+
+            return SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.zero,
+                child: ChatDetailInputArea(
+                  chatId: chatId,
+                  isBlockedByMe: isBlockedByMe,
+                  isBlockedByUser: isBlockedByUser,
+                  onUnblockUser: partnerId != null
+                      ? () async {
+                          HapticService.confirm();
+                          final bool success = await ref
+                              .read(privacyProvider.notifier)
+                              .unblockUser(partnerId);
+                          if (!context.mounted) return;
+                          if (success) {
+                            AppToast.showSuccess(context, 'Пользователь разблокирован');
+                          }
+                        }
+                      : null,
+                  onSendSticker: _sendSticker,
+                  onSendInlineResult: (InlineQueryResult result) {
+                    _inputController.text = result.messageText;
+                    _sendMessage();
+                  },
+                  canPostInChannel: canPostInChannel,
+                  showDraftRestoredBanner: _showDraftRestoredBanner,
+                  onClearDraft: () {
+                    final int? cid = _chatId;
+                    if (cid != null) {
+                      _draftStorage.remove(cid);
+                    }
+                    _inputController.clear();
+                    setState(() {
+                      _showDraftRestoredBanner = false;
+                    });
+                  },
+                  uploadingMedia:
+                      ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
+                  inputController: _inputController,
+                  inputFocusNode: _inputFocusNode,
+                  isAiProcessing: _isAiProcessing,
+                  editingMessageId: _editingMessageId,
+                  editingOriginalText: _editingOriginalText,
+                  replyToMessageId: _replyToMessageId,
+                  replyPreviewText: _replyPreviewText,
+                  onSend: _sendMessage,
+                  onCommitEdit: _commitEdit,
+                  onCancelEdit: _cancelEdit,
+                  onClearReply: _clearReply,
+                  onAttachMedia: _pickAndUploadMedia,
+                  onAiPressed: () => _showAiBottomSheet(context, scheme),
+                  onVoiceSend: _sendVoiceMessage,
+                  onCircleSend: _sendCircleVideo,
+                  hapticsEnabled: ref.watch(uiSettingsProvider).haptics,
+                  sendOnEnter: ref.watch(uiSettingsProvider).sendOnEnter,
+                  isSpamBlocked:
+                      ref.watch(authProvider).profile?.isRestrictedBySpamBlock ?? false,
+                  spamBlockUntil: ref.watch(authProvider).profile?.spamBlockUntil,
+                  spamBlockReason: ref.watch(authProvider).profile?.spamBlockReason,
+                  onContactSupport: () => context.push('/chat/direct/support'),
+                ),
+              ),
+            );
+          },
         ),
       ],
             ),
@@ -2076,9 +2134,16 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
 }
 
 class _TypingSubtitle extends ConsumerWidget {
-  const _TypingSubtitle({required this.chatId, required this.fallback});
+  const _TypingSubtitle({
+    required this.chatId,
+    required this.fallback,
+    this.isOnline = false,
+    this.isDirect = false,
+  });
   final int chatId;
   final String fallback;
+  final bool isOnline;
+  final bool isDirect;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2087,19 +2152,65 @@ class _TypingSubtitle extends ConsumerWidget {
     final ColorScheme scheme = theme.colorScheme;
     final int count = typing.typingUserIds.length;
 
-    String text = fallback;
     if (count == 1) {
-      text = context.l10n.chatTyping;
+      return Text(
+        context.l10n.chatTyping,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: scheme.primary,
+          fontWeight: FontWeight.w600,
+          height: 1.05,
+        ),
+      );
     } else if (count > 1) {
-      text = context.l10n.chatTypingMultiple;
+      return Text(
+        context.l10n.chatTypingMultiple,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: scheme.primary,
+          fontWeight: FontWeight.w600,
+          height: 1.05,
+        ),
+      );
+    }
+
+    if (isDirect && isOnline) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: 6.5,
+            height: 6.5,
+            margin: const EdgeInsets.only(right: 5),
+            decoration: const BoxDecoration(
+              color: Color(0xFF4CAF50),
+              shape: BoxShape.circle,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              context.l10n.online,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: const Color(0xFF4CAF50),
+                fontWeight: FontWeight.w600,
+                height: 1.05,
+              ),
+            ),
+          ),
+        ],
+      );
     }
 
     return Text(
-      text,
+      fallback,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: theme.textTheme.bodySmall?.copyWith(
-        color: count > 0 ? scheme.primary : scheme.onSurfaceVariant,
+        color: scheme.onSurfaceVariant,
         height: 1.05,
       ),
     );

@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
@@ -307,6 +308,30 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 // ── Hero Avatar & Header ───────────────────────────────
                 _buildHeroHeader(context, profile, scheme, textTheme, isMe),
                 const SizedBox(height: 16),
+
+                // ── Blocked Banner ─────────────────────────────────────
+                if (!isMe) ...[
+                  Builder(
+                    builder: (BuildContext ctx) {
+                      final bool isBlockedByMe = ref.watch(privacyProvider).isUserBlocked(profile.id) || profile.isBlockedByMe;
+                      final bool isBlockedByUser = profile.isBlockedByUser;
+                      if (isBlockedByMe || isBlockedByUser) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _buildBlockedBanner(
+                            ctx,
+                            profile,
+                            scheme,
+                            textTheme,
+                            isBlockedByMe: isBlockedByMe,
+                            isBlockedByUser: isBlockedByUser,
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ],
 
                 // ── Quick Action Dock ──────────────────────────────────
                 if (!isMe) ...[
@@ -727,7 +752,85 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     return row;
   }
 
+  Widget _buildBlockedBanner(
+    BuildContext context,
+    ApiProfile profile,
+    ColorScheme scheme,
+    TextTheme textTheme, {
+    required bool isBlockedByMe,
+    required bool isBlockedByUser,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: scheme.errorContainer.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: scheme.error.withValues(alpha: 0.3),
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: scheme.error,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.block_rounded,
+                color: scheme.onError,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isBlockedByMe
+                        ? 'Пользователь заблокирован вами'
+                        : 'Пользователь ограничил доступ',
+                    style: textTheme.titleSmall?.copyWith(
+                      color: scheme.onErrorContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isBlockedByMe
+                        ? 'Вы не можете обмениваться сообщениями и совершать звонки'
+                        : 'Вы добавлены в чёрный список этого пользователя',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onErrorContainer.withValues(alpha: 0.85),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isBlockedByMe) ...[
+              const SizedBox(width: 8),
+              FilledButton.tonal(
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  visualDensity: VisualDensity.compact,
+                ),
+                onPressed: () => _showUnblockDialog(profile),
+                child: const Text('Разблокировать'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showMoreActionsMenu(ApiProfile profile) {
+    final bool isBlocked = ref.read(privacyProvider).isUserBlocked(profile.id) || profile.isBlockedByMe;
     AppBottomSheets.show<void>(
       context: context,
       builder: (ctx) {
@@ -736,17 +839,33 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                leading: Icon(Icons.block_rounded, color: scheme.error),
-                title: Text(
-                  'Заблокировать @${profile.username}',
-                  style: TextStyle(color: scheme.error),
+              if (isBlocked)
+                ListTile(
+                  leading: Icon(Icons.lock_open_rounded, color: scheme.primary),
+                  title: Text(
+                    'Разблокировать @${profile.username}',
+                    style: TextStyle(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _showUnblockDialog(profile);
+                  },
+                )
+              else
+                ListTile(
+                  leading: Icon(Icons.block_rounded, color: scheme.error),
+                  title: Text(
+                    'Заблокировать @${profile.username}',
+                    style: TextStyle(color: scheme.error),
+                  ),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _showBlockDialog(profile);
+                  },
                 ),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _showBlockDialog(profile);
-                },
-              ),
               ListTile(
                 leading: Icon(Icons.flag_rounded, color: scheme.onSurface),
                 title: const Text('Пожаловаться'),
@@ -757,6 +876,74 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               ),
               const SizedBox(height: 12),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showUnblockDialog(ApiProfile profile) {
+    AppBottomSheets.show<void>(
+      context: context,
+      builder: (BuildContext ctx) {
+        final TextTheme textTheme = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Text(
+                  'Разблокировать пользователя',
+                  style: textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Вы сможете снова обмениваться сообщениями и звонить @${profile.username}.',
+                  style: textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () async {
+                          Navigator.of(ctx).pop();
+                          HapticService.confirm();
+                          final bool success = await ref
+                              .read(privacyProvider.notifier)
+                              .unblockUser(profile.id);
+                          if (!mounted) return;
+                          if (success) {
+                            AppToast.showSuccess(
+                              context,
+                              '@${profile.username} разблокирован',
+                            );
+                            setState(() {});
+                          } else {
+                            AppToast.showError(
+                              context,
+                              'Не удалось разблокировать пользователя',
+                            );
+                          }
+                        },
+                        child: const Text('Разблокировать'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.tonal(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Отмена'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -807,20 +994,28 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                           HapticService.confirm();
                           final bool success = await ref
                               .read(privacyProvider.notifier)
-                              .blockUser(profile.id);
+                              .blockUser(
+                                profile.id,
+                                user: BlockedUser(
+                                  id: profile.id,
+                                  username: profile.username,
+                                  displayName: profile.displayName,
+                                  avatarUrl: profile.avatarUrl,
+                                ),
+                              );
                           if (!mounted) return;
                           if (success) {
                             AppToast.showSuccess(
                               context,
                               '@${profile.username} заблокирован',
                             );
+                            setState(() {});
                           } else {
                             AppToast.showError(
                               context,
                               'Не удалось заблокировать пользователя',
                             );
                           }
-
                         },
                         child: const Text('Заблокировать'),
                       ),

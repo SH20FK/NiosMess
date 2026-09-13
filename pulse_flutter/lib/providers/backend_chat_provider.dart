@@ -125,7 +125,28 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         );
       case ChatPushEventKind.read:
         _handleReadPush(event.message.chatId, event.userId ?? 0);
+      case ChatPushEventKind.userStatus:
+        _handleUserStatusPush(event.message.chatId, event.userId ?? 0, event.isOnline);
     }
+  }
+
+  void _handleUserStatusPush(int chatId, int userId, bool isOnline) {
+    final List<ApiChatSummary>? currentChats = state.value;
+    if (currentChats == null) return;
+
+    final int index = currentChats.indexWhere((ApiChatSummary c) {
+      if (chatId > 0 && c.id == chatId) return true;
+      if (c.chatType == 'direct' && (c.partnerUserId == userId || c.id == userId)) return true;
+      return false;
+    });
+    if (index == -1) return;
+
+    final ApiChatSummary chat = currentChats[index];
+    if (chat.isOnline == isOnline) return;
+
+    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(currentChats);
+    updated[index] = chat.copyWith(isOnline: isOnline);
+    state = AsyncData<List<ApiChatSummary>>(updated);
   }
 
   void _handleReadPush(int chatId, int userId) {
@@ -462,6 +483,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         );
       case ChatPushEventKind.read:
         _handleReadPush(event.userId!);
+      case ChatPushEventKind.userStatus:
+        break;
     }
   }
 

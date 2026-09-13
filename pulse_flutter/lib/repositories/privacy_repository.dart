@@ -90,7 +90,7 @@ class PrivacyRepository {
         .read(webSocketClientProvider)
         .request('block_user', payload: <String, dynamic>{'user_id': userId});
     final Map<String, dynamic> map = asStringMap(response);
-    return map['success'] as bool? ?? true;
+    return (map['blocked'] == true) || (map['success'] as bool? ?? true);
   }
 
   Future<bool> unblockUser(int userId) async {
@@ -98,7 +98,7 @@ class PrivacyRepository {
         .read(webSocketClientProvider)
         .request('unblock_user', payload: <String, dynamic>{'user_id': userId});
     final Map<String, dynamic> map = asStringMap(response);
-    return map['success'] as bool? ?? true;
+    return (map['blocked'] == false) || (map['success'] as bool? ?? true);
   }
 
   Future<List<BlockedUser>> listBlockedUsers() async {
@@ -107,12 +107,34 @@ class PrivacyRepository {
         .request('list_blocked_users', payload: <String, dynamic>{});
     final Map<String, dynamic> map = asStringMap(response);
     final dynamic usersRaw = map['blocked_users'] ?? map['users'];
-    if (usersRaw is List) {
-      return usersRaw
-          .whereType<Map>()
-          .map((dynamic item) => BlockedUser.fromJson(asStringMap(item)))
+    if (usersRaw is List && usersRaw.isNotEmpty) {
+      final List<BlockedUser> list = <BlockedUser>[];
+      for (final dynamic item in usersRaw) {
+        if (item is Map) {
+          list.add(BlockedUser.fromJson(asStringMap(item)));
+        } else if (item is num) {
+          list.add(BlockedUser(
+            id: item.toInt(),
+            username: 'id${item.toInt()}',
+            displayName: 'ID: ${item.toInt()}',
+          ));
+        }
+      }
+      if (list.isNotEmpty) return list;
+    }
+
+    final dynamic userIdsRaw = map['user_ids'];
+    if (userIdsRaw is List && userIdsRaw.isNotEmpty) {
+      return userIdsRaw
+          .whereType<num>()
+          .map((num id) => BlockedUser(
+                id: id.toInt(),
+                username: 'id${id.toInt()}',
+                displayName: 'ID: ${id.toInt()}',
+              ))
           .toList(growable: false);
     }
+
     return const <BlockedUser>[];
   }
 }

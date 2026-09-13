@@ -20,6 +20,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.autoDeleteDuration,
     this.isVerified = false,
     this.isBot = false,
+    this.isOnline = false,
     required this.onBack,
     this.onVoiceCall,
     this.onVideoCall,
@@ -39,6 +40,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? autoDeleteDuration;
   final bool isVerified;
   final bool isBot;
+  final bool isOnline;
   final VoidCallback onBack;
   final VoidCallback? onVoiceCall;
   final VoidCallback? onVideoCall;
@@ -95,28 +97,46 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                       avatarUrl: avatarUrl,
                     ),
                   ),
-                  Positioned(
-                    right: -2,
-                    bottom: -2,
-                    child: Container(
-                      width: 15,
-                      height: 15,
-                      decoration: BoxDecoration(
-                        color: scheme.surface,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: scheme.surface,
-                          width: 1.5,
+                  if (isOnline && !isGroup && !isChannel)
+                    Positioned(
+                      right: -1,
+                      bottom: -1,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4CAF50),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: scheme.surface,
+                            width: 2,
+                          ),
                         ),
                       ),
-                      alignment: Alignment.center,
-                      child: Icon(
-                        headerIcon,
-                        size: 11,
-                        color: scheme.primary,
+                    )
+                  else
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Container(
+                        width: 15,
+                        height: 15,
+                        decoration: BoxDecoration(
+                          color: scheme.surface,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: scheme.surface,
+                            width: 1.5,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(
+                          headerIcon,
+                          size: 11,
+                          color: scheme.primary,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
               const SizedBox(width: 11),

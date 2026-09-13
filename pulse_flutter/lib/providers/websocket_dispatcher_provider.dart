@@ -36,29 +36,39 @@ class ChatPushEvent {
       : kind = ChatPushEventKind.newMessage,
         reactionEmoji = null,
         reactionAdded = false,
-        userId = null;
+        userId = null,
+        isOnline = false;
 
   const ChatPushEvent.edited(this.message)
       : kind = ChatPushEventKind.edited,
         reactionEmoji = null,
         reactionAdded = false,
-        userId = null;
+        userId = null,
+        isOnline = false;
 
   const ChatPushEvent.deleted(this.message)
       : kind = ChatPushEventKind.deleted,
         reactionEmoji = null,
         reactionAdded = false,
-        userId = null;
+        userId = null,
+        isOnline = false;
 
   const ChatPushEvent.reaction(
     this.message, {
     required this.reactionEmoji,
     required this.reactionAdded,
   })  : kind = ChatPushEventKind.reaction,
-        userId = null;
+        userId = null,
+        isOnline = false;
 
   const ChatPushEvent.read(this.message, {required this.userId})
       : kind = ChatPushEventKind.read,
+        reactionEmoji = null,
+        reactionAdded = false,
+        isOnline = false;
+
+  const ChatPushEvent.userStatus(this.message, {required this.userId, required this.isOnline})
+      : kind = ChatPushEventKind.userStatus,
         reactionEmoji = null,
         reactionAdded = false;
 
@@ -70,9 +80,10 @@ class ChatPushEvent {
   final String? reactionEmoji;
   final bool reactionAdded;
   final int? userId;
+  final bool isOnline;
 }
 
-enum ChatPushEventKind { newMessage, edited, deleted, reaction, read }
+enum ChatPushEventKind { newMessage, edited, deleted, reaction, read, userStatus }
 
 class WebSocketPushDispatcher {
   WebSocketPushDispatcher._();
@@ -153,6 +164,17 @@ class WebSocketPushDispatcher {
           if (chatId > 0 && userId > 0) {
             final ApiMessage stub = _stub(0, chatId, senderId: userId);
             emit(stub, ChatPushEvent.read(stub, userId: userId));
+          }
+          break;
+        case 'user_status':
+          final int chatId = int.tryParse(payload['chat_id']?.toString() ?? '') ?? 0;
+          final int userId = int.tryParse(payload['user_id']?.toString() ?? '') ?? 0;
+          final bool isOnline = payload['is_online'] == true ||
+              payload['is_online'] == 1 ||
+              payload['is_online']?.toString().toLowerCase() == 'true';
+          if (userId > 0) {
+            final ApiMessage stub = _stub(0, chatId, senderId: userId);
+            emit(stub, ChatPushEvent.userStatus(stub, userId: userId, isOnline: isOnline));
           }
           break;
         case 'end_call':

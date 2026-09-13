@@ -3421,6 +3421,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatTyping => 'typing...';
 
   @override
+  String get online => 'online';
+
+  @override
+  String get offline => 'offline';
+
+  @override
   String chatReactedWith(Object emoji) {
     return 'Reacted with $emoji';
   }
