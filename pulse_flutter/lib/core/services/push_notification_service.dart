@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/router/app_router.dart';
@@ -25,6 +26,8 @@ class PushNotificationService {
   static StreamSubscription<RemoteMessage>? _openedAppSubscription;
   static int _notificationIdCounter = 0;
   static int? _currentChatId;
+
+  static int? get currentChatId => _currentChatId;
 
   static void setCurrentChat(int? chatId) {
     _currentChatId = chatId;
@@ -54,34 +57,92 @@ class PushNotificationService {
     }
   }
 
+  static bool _shouldIgnorePush(String title, String body) {
+    final String cleanTitle = title.trim().toLowerCase();
+    final String cleanBody = body.trim().toLowerCase();
+    if (cleanTitle == 'new activity' ||
+        cleanBody == 'new activity' ||
+        (cleanTitle.isEmpty && cleanBody.isEmpty)) {
+      return true;
+    }
+    return false;
+  }
+
+  static NotificationDetails _buildNotificationDetails({
+    required String title,
+    required String body,
+    required bool isCall,
+    int? chatId,
+  }) {
+    final String channelId = isCall ? 'niosmess_calls' : 'niosmess_messages';
+    final String channelName = isCall ? 'NiosMess Calls' : 'NiosMess Messages';
+
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        channelId,
+        channelName,
+        channelDescription: isCall
+            ? 'Уведомления о входящих звонках NiosMess'
+            : 'Уведомления о новых сообщениях NiosMess',
+        importance: isCall ? Importance.max : Importance.high,
+        priority: isCall ? Priority.max : Priority.high,
+        icon: '@mipmap/ic_launcher',
+        color: const Color(0xFF6750A4),
+        category: isCall
+            ? AndroidNotificationCategory.call
+            : AndroidNotificationCategory.message,
+        styleInformation: BigTextStyleInformation(
+          body,
+          htmlFormatBigText: false,
+          contentTitle: title,
+          htmlFormatContentTitle: false,
+          summaryText: isCall ? 'Звонок NiosMess' : 'NiosMess',
+          htmlFormatSummaryText: false,
+        ),
+        groupKey: chatId != null ? 'niosmess_chat_$chatId' : 'niosmess_general',
+        subText: isCall ? 'Входящий звонок' : 'Новое сообщение',
+        enableLights: true,
+        ledColor: const Color(0xFF6750A4),
+        ledOnMs: 1000,
+        ledOffMs: 500,
+        enableVibration: true,
+        playSound: true,
+        sound: const RawResourceAndroidNotificationSound('notification'),
+        ticker: title,
+      ),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        interruptionLevel: isCall
+            ? InterruptionLevel.timeSensitive
+            : InterruptionLevel.active,
+        threadIdentifier: chatId != null ? 'chat_$chatId' : 'general',
+      ),
+    );
+  }
+
   static Future<void> showLocalNotification(Map<String, dynamic> data) async {
     final String title = data['title']?.toString() ?? data['route']?.toString() ?? 'NiosMess';
     final String body = data['body']?.toString() ?? '';
-    if (title.isEmpty && body.isEmpty) return;
+    if (_shouldIgnorePush(title, body)) return;
+
+    final Object? chatIdRaw = data['chat_id'];
+    final int? chatId = chatIdRaw is int
+        ? chatIdRaw
+        : int.tryParse(chatIdRaw?.toString() ?? '');
 
     final bool isCall = data['type'] == 'incoming_call';
-    final String channelId = isCall ? 'niosmess_calls' : 'niosmess_messages';
-    final String channelName = isCall ? 'NiosMess Calls' : 'NiosMess Messages';
 
     await _local.show(
       id: ++_notificationIdCounter,
       title: title,
       body: body,
-      notificationDetails: NotificationDetails(
-        android: AndroidNotificationDetails(
-          channelId,
-          channelName,
-          importance: isCall ? Importance.max : Importance.high,
-          priority: isCall ? Priority.max : Priority.high,
-          icon: '@mipmap/ic_launcher',
-          sound: const RawResourceAndroidNotificationSound('notification'),
-          playSound: true,
-        ),
-        iOS: const DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
+      notificationDetails: _buildNotificationDetails(
+        title: title,
+        body: body,
+        isCall: isCall,
+        chatId: chatId,
       ),
       payload: jsonEncode(data),
     );
@@ -184,6 +245,8 @@ class PushNotificationService {
         ?? data['body']?.toString()
         ?? '';
 
+    if (_shouldIgnorePush(title, body)) return;
+
     final Object? chatIdRaw = data['chat_id'];
     final int? chatId = chatIdRaw is int
         ? chatIdRaw
@@ -191,28 +254,16 @@ class PushNotificationService {
     if (chatId != null && chatId == _currentChatId) return;
 
     final bool isCall = data['type'] == 'incoming_call';
-    final String channelId = isCall ? 'niosmess_calls' : 'niosmess_messages';
-    final String channelName = isCall ? 'NiosMess Calls' : 'NiosMess Messages';
 
     await _local.show(
       id: ++_notificationIdCounter,
       title: title,
       body: body,
-      notificationDetails: NotificationDetails(
-        android: AndroidNotificationDetails(
-          channelId,
-          channelName,
-          importance: isCall ? Importance.max : Importance.high,
-          priority: isCall ? Priority.max : Priority.high,
-          icon: '@mipmap/ic_launcher',
-          sound: const RawResourceAndroidNotificationSound('notification'),
-          playSound: true,
-        ),
-        iOS: const DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
+      notificationDetails: _buildNotificationDetails(
+        title: title,
+        body: body,
+        isCall: isCall,
+        chatId: chatId,
       ),
       payload: jsonEncode(data),
     );

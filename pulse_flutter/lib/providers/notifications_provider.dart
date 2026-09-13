@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
+import 'package:pulse_flutter/providers/in_app_notification_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
 enum AppNotificationType { message, postLike, postComment, other }
@@ -111,6 +112,20 @@ class NotificationsNotifier extends Notifier<NotificationsState> {
       notifications: updated,
       unreadCount: state.unreadCount + 1,
     );
+
+    if (notification.title.toLowerCase() != 'new activity' &&
+        notification.body.toLowerCase() != 'new activity' &&
+        (notification.title.isNotEmpty || notification.body.isNotEmpty)) {
+      ref.read(inAppNotificationProvider.notifier).show(
+        InAppNotificationItem(
+          id: 'notif_${notification.id}',
+          title: notification.title,
+          body: notification.body,
+          route: notification.payload?['route']?.toString(),
+          timestamp: notification.createdAt,
+        ),
+      );
+    }
   }
 
   void markAllRead() {

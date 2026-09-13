@@ -12,7 +12,9 @@ import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
+import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/in_app_notification_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -263,9 +265,44 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
           body: body,
           route: '/chat/${message.chatId}',
         );
+
+        if (PushNotificationService.currentChatId != message.chatId) {
+          ref.read(inAppNotificationProvider.notifier).show(
+            InAppNotificationItem(
+              id: 'msg_${message.id}',
+              title: chatName,
+              body: body,
+              avatarUrl: chat.avatarUrl,
+              chatId: message.chatId,
+              route: '/chat/${message.chatId}',
+              timestamp: message.sentAt,
+            ),
+          );
+        }
       }
     } else {
       refresh();
+      final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+      if (message.senderId != myUserId && PushNotificationService.currentChatId != message.chatId) {
+        final String body = message.content.isNotEmpty
+            ? message.content
+            : (message.msgType == 'media' ? '📎 Media' : '...');
+        NotificationStorage.createAndSave(
+          title: 'NiosMess',
+          body: body,
+          route: '/chat/${message.chatId}',
+        );
+        ref.read(inAppNotificationProvider.notifier).show(
+          InAppNotificationItem(
+            id: 'msg_${message.id}',
+            title: 'NiosMess',
+            body: body,
+            chatId: message.chatId,
+            route: '/chat/${message.chatId}',
+            timestamp: message.sentAt,
+          ),
+        );
+      }
     }
   }
 

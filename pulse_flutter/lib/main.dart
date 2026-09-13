@@ -25,6 +25,7 @@ import 'package:pulse_flutter/firebase_options.dart';
 import 'package:pulse_flutter/providers/call_push_handler.dart';
 import 'package:pulse_flutter/widgets/calls/call_overlay.dart';
 import 'package:pulse_flutter/screens/calls/incoming_call_overlay.dart';
+import 'package:pulse_flutter/widgets/notifications/in_app_notification_banner.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 
@@ -158,6 +159,7 @@ class PulseApp extends ConsumerWidget {
                     ),
                     const IncomingCallOverlay(),
                     const CallOverlay(),
+                    const InAppNotificationBannerOverlay(),
                   ],
                 ),
               ),
