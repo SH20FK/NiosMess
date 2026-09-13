@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -19,19 +18,13 @@ class ActiveVoiceCallScreen extends ConsumerStatefulWidget {
   const ActiveVoiceCallScreen({super.key});
 
   @override
-  ConsumerState<ActiveVoiceCallScreen> createState() => _ActiveVoiceCallScreenState();
+  ConsumerState<ActiveVoiceCallScreen> createState() =>
+      _ActiveVoiceCallScreenState();
 }
 
 class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
-  // Breathing/ripple animation for avatar & soundwaves
   late final AnimationController _breathController;
-  // Controls fade animation for bottom dock
-  late final AnimationController _controlsFadeController;
-  late final Animation<double> _controlsFadeAnimation;
-  bool _areControlsVisible = true;
-  Timer? _controlsAutoHideTimer;
-
   final ValueNotifier<int> _timerNotifier = ValueNotifier<int>(0);
   StreamSubscription<CallSessionData>? _stateSubscription;
 
@@ -47,17 +40,6 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
       duration: CallTokens.rippleAnimationDuration,
     )..repeat();
 
-    _controlsFadeController = AnimationController(
-      vsync: this,
-      duration: CallTokens.controlsFadeDuration,
-    );
-    _controlsFadeAnimation = CurvedAnimation(
-      parent: _controlsFadeController,
-      curve: CallTokens.controlsFadeCurve,
-    );
-    _controlsFadeController.value = 1.0;
-    _resetControlsTimer();
-
     WidgetsBinding.instance.addPostFrameCallback((_) => _listenToState());
   }
 
@@ -71,7 +53,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     }
 
     _timerNotifier.value = session.currentData.durationSeconds;
-    _stateSubscription = session.stateStream.listen((data) {
+    _stateSubscription = session.stateStream.listen((CallSessionData data) {
       if (!mounted) return;
       if (data.state == CallSessionState.ended) {
         if (data.fatalError != null) {
@@ -89,39 +71,9 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
   @override
   void dispose() {
     _breathController.dispose();
-    _controlsFadeController.dispose();
-    _controlsAutoHideTimer?.cancel();
     _stateSubscription?.cancel();
     _timerNotifier.dispose();
     super.dispose();
-  }
-
-  void _resetControlsTimer() {
-    _controlsAutoHideTimer?.cancel();
-    _controlsAutoHideTimer = Timer(CallTokens.controlsAutoHideDuration, () {
-      if (mounted && _areControlsVisible) _hideControls();
-    });
-  }
-
-  void _showControls() {
-    if (!_areControlsVisible) {
-      setState(() => _areControlsVisible = true);
-      _controlsFadeController.forward();
-    }
-    _resetControlsTimer();
-  }
-
-  void _hideControls() {
-    setState(() => _areControlsVisible = false);
-    _controlsFadeController.reverse();
-  }
-
-  void _toggleControls() {
-    if (_areControlsVisible) {
-      _hideControls();
-    } else {
-      _showControls();
-    }
   }
 
   Future<void> _endCall() async {
@@ -136,243 +88,263 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     super.build(context);
     final session = ref.watch(callSessionProvider)?.session;
     if (session == null) {
-      final scheme = Theme.of(context).colorScheme;
-      return Scaffold(backgroundColor: scheme.surface);
+      return const Scaffold(backgroundColor: Color(0xFF0D0B14));
     }
 
-    final data = session.currentData;
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final CallSessionData data = session.currentData;
+    final ColorScheme appScheme = Theme.of(context).colorScheme;
+
+    // Enforce dedicated high-contrast dark tonal scheme for immersive calls
+    final ColorScheme callScheme = ColorScheme.fromSeed(
+      seedColor: appScheme.primary,
+      brightness: Brightness.dark,
+    );
 
     final participants = data.remoteParticipants;
-    final participantName = participants.isNotEmpty
+    final String participantName = participants.isNotEmpty
         ? participants.map((p) => p.nickname).join(', ')
         : (data.peerName?.isNotEmpty == true
             ? data.peerName!
             : context.l10n.callsInProgress);
-    const String? participantAvatar = null;
 
-    // Dark tonal background for expressive calls
-    final baseBg = Color.lerp(scheme.surfaceContainerLowest, scheme.surface, 0.4)!;
-    final bgDark = HSLColor.fromColor(baseBg)
-        .withLightness((HSLColor.fromColor(baseBg).lightness * 0.55).clamp(0.04, 0.2))
-        .toColor();
-
-    final tier = ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
-    final optimize = ref.watch(uiSettingsProvider.select((s) => s.optimizeForWeakDevices));
+    final tier =
+        ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
+    final optimize = ref.watch(
+        uiSettingsProvider.select((s) => s.optimizeForWeakDevices));
 
     return Scaffold(
-      backgroundColor: bgDark,
-      body: GestureDetector(
-        onTap: _toggleControls,
-        behavior: HitTestBehavior.translucent,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // ── Animated Tonal Mesh Background ──────────────────────────
-            Positioned.fill(
-              child: RepaintBoundary(
-                child: AnimatedBuilder(
-                  animation: _breathController,
-                  builder: (context, _) {
-                    final t = _breathController.value;
-                    return CustomPaint(
-                      painter: _TonalBlobPainter(
-                        t: t,
-                        primary: scheme.primary.withValues(alpha: 0.18),
-                        tertiary: scheme.tertiary.withValues(alpha: 0.14),
-                        tier: tier,
-                        optimizeForWeakDevices: optimize,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-
-            // ── Top Bar (Minimize & E2EE Info) ───────────────────────────
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + 8,
-              left: 16,
-              right: 16,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: scheme.onSurface.withValues(alpha: 0.8),
-                      size: 32,
-                    ),
-                    tooltip: context.l10n.callMinimize,
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: scheme.surface.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: scheme.onSurface.withValues(alpha: 0.08),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.lock_rounded,
-                          size: 13,
-                          color: scheme.tertiary,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          'E2EE PROTECTED',
-                          style: textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurface.withValues(alpha: 0.75),
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.8,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 48), // Balancing spacer
-                ],
-              ),
-            ),
-
-            // ── Strictly Centered Content ────────────────────────────────
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const Spacer(flex: 2),
-
-                    // Status Badge with icon
-                    _StatusPill(
-                      state: data.state,
-                      scheme: scheme,
-                      textTheme: textTheme,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Centered M3 Shape Hero Avatar with Audio Ripple
-                    CallAudioRipple(
-                      animation: _breathController,
-                      scheme: scheme,
-                      isActive: data.state == CallSessionState.inCall && !data.isMuted,
-                      size: CallTokens.avatarLargeSize,
-                      child: ClipPath(
-                        clipper: M3Clipper(Shapes.c9_sided_cookie),
-                        child: Container(
-                          width: CallTokens.avatarLargeSize,
-                          height: CallTokens.avatarLargeSize,
-                          color: scheme.primaryContainer,
-                          child: PulseAvatar(
-                            name: participantName,
-                            avatarUrl: participantAvatar,
-                            radius: CallTokens.avatarLargeSize / 2,
-                            fallbackColor: scheme.primaryContainer,
-                            textColor: scheme.onPrimaryContainer,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Participant Name
-                    Text(
-                      participantName,
-                      style: textTheme.headlineMedium?.copyWith(
-                        color: scheme.onSurface,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Monospace Timer
-                    ValueListenableBuilder<int>(
-                      valueListenable: _timerNotifier,
-                      builder: (context, seconds, _) {
-                        if (data.state != CallSessionState.inCall) {
-                          return const SizedBox(height: 28);
-                        }
-                        final m = seconds ~/ 60;
-                        final s = seconds % 60;
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: scheme.surface.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
-                            style: textTheme.titleMedium?.copyWith(
-                              fontFamily: 'monospace',
-                              color: scheme.onSurface.withValues(alpha: 0.85),
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-
-                    // E2EE verification emojis row
-                    if (data.verificationEmojis.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      _VerificationRow(
-                        emojis: data.verificationEmojis,
-                        scheme: scheme,
-                        textTheme: textTheme,
-                      ),
-                    ],
-
-                    const Spacer(flex: 3),
+      backgroundColor: const Color(0xFF0D0B14),
+      body: Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          // ── Ambient Background Gradient ───────────────────────────
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[
+                    Color(0xFF141022),
+                    Color(0xFF0D0B14),
+                    Color(0xFF0A0810),
                   ],
                 ),
               ),
             ),
+          ),
 
-            // ── Floating Glassmorphic Control Dock ───────────────────────
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
+          // ── Animated Ambient Breathing Blobs ─────────────────────────
+          Positioned.fill(
+            child: RepaintBoundary(
               child: AnimatedBuilder(
-                animation: _controlsFadeAnimation,
-                builder: (context, child) => Opacity(
-                  opacity: _controlsFadeAnimation.value,
-                  child: IgnorePointer(
-                    ignoring: _controlsFadeAnimation.value < 0.05,
-                    child: child,
+                animation: _breathController,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: _TonalBlobPainter(
+                      t: _breathController.value,
+                      primary: callScheme.primary.withValues(alpha: 0.18),
+                      tertiary: callScheme.tertiary.withValues(alpha: 0.14),
+                      tier: tier,
+                      optimizeForWeakDevices: optimize,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+
+          // ── Top Bar (Minimize & E2EE Info) ───────────────────────────
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 8,
+            left: 16,
+            right: 16,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                IconButton(
+                  icon: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Colors.white70,
+                    size: 32,
                   ),
-                ),
-                child: CallControlDock(
-                  session: session,
-                  data: data,
-                  scheme: scheme,
-                  onEnd: _endCall,
-                  onMinimize: () {
+                  tooltip: context.l10n.callMinimize,
+                  onPressed: () {
                     HapticFeedback.lightImpact();
                     Navigator.of(context).pop();
                   },
                 ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const Icon(
+                        Icons.lock_rounded,
+                        size: 13,
+                        color: Color(0xFF22C55E),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'E2EE ЗАЩИЩЕНО',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 48), // Balance for back button
+              ],
+            ),
+          ),
+
+          // ── Center Content: Avatar, Name, Status, Timer ──────────────
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  const Spacer(flex: 3),
+
+                  // Call Status Pill
+                  _StatusPill(
+                    state: data.state,
+                    scheme: callScheme,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Centered Avatar with Breathing Audio Ripple
+                  CallAudioRipple(
+                    animation: _breathController,
+                    scheme: callScheme,
+                    isActive: data.state == CallSessionState.inCall &&
+                        !data.isMuted,
+                    size: 136,
+                    child: Container(
+                      width: 136,
+                      height: 136,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: callScheme.primary.withValues(alpha: 0.35),
+                          width: 2.5,
+                        ),
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(
+                            color: callScheme.primary.withValues(alpha: 0.25),
+                            blurRadius: 32,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: PulseAvatar(
+                          name: participantName,
+                          avatarUrl: null,
+                          radius: 68,
+                          fallbackColor: callScheme.primaryContainer,
+                          textColor: callScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Participant Name (Crisp White Typography)
+                  Text(
+                    participantName,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Monospace Call Duration Timer
+                  ValueListenableBuilder<int>(
+                    valueListenable: _timerNotifier,
+                    builder: (context, seconds, _) {
+                      if (data.state != CallSessionState.inCall) {
+                        return const SizedBox(height: 32);
+                      }
+                      final int m = seconds ~/ 60;
+                      final int s = seconds % 60;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        child: Text(
+                          '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            color: Colors.white.withValues(alpha: 0.90),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2.0,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  // E2EE verification emojis row
+                  if (data.verificationEmojis.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 18),
+                    _VerificationRow(
+                      emojis: data.verificationEmojis,
+                      scheme: callScheme,
+                    ),
+                  ],
+
+                  const Spacer(flex: 4),
+                  const SizedBox(height: 90), // Space for bottom dock
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+
+          // ── Permanently Visible Bottom Control Dock ────────────────
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: CallControlDock(
+              session: session,
+              data: data,
+              scheme: callScheme,
+              onEnd: _endCall,
+              onMinimize: () {
+                HapticFeedback.lightImpact();
+                Navigator.of(context).pop();
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -384,12 +356,10 @@ class _StatusPill extends StatelessWidget {
   const _StatusPill({
     required this.state,
     required this.scheme,
-    required this.textTheme,
   });
 
   final CallSessionState state;
   final ColorScheme scheme;
-  final TextTheme textTheme;
 
   @override
   Widget build(BuildContext context) {
@@ -397,19 +367,19 @@ class _StatusPill extends StatelessWidget {
       CallSessionState.connecting || CallSessionState.connected => (
           context.l10n.callConnecting,
           Icons.sync_rounded,
-          scheme.primary,
+          const Color(0xFF60A5FA), // Crisp Sky Blue
         ),
       CallSessionState.inCall => (
           context.l10n.callStatusInCall,
           Icons.phone_in_talk_rounded,
-          scheme.tertiary,
+          const Color(0xFF22C55E), // Crisp Emerald Green
         ),
       CallSessionState.reconnecting => (
-          'RECONNECTING...',
+          'ПЕРЕПОДКЛЮЧЕНИЕ...',
           Icons.cloud_sync_rounded,
-          scheme.error,
+          const Color(0xFFF87171),
         ),
-      _ => ('', Icons.phone_rounded, scheme.onSurface),
+      _ => ('', Icons.phone_rounded, Colors.white),
     };
 
     if (label.isEmpty) return const SizedBox.shrink();
@@ -417,23 +387,24 @@ class _StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: color.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: color.withValues(alpha: 0.3),
+          color: color.withValues(alpha: 0.40),
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 6),
           Text(
             label.toUpperCase(),
-            style: textTheme.labelSmall?.copyWith(
+            style: TextStyle(
               color: color,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.1,
+              fontSize: 11,
             ),
           ),
         ],
@@ -448,31 +419,29 @@ class _VerificationRow extends StatelessWidget {
   const _VerificationRow({
     required this.emojis,
     required this.scheme,
-    required this.textTheme,
   });
 
   final List<String> emojis;
   final ColorScheme scheme;
-  final TextTheme textTheme;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [
+      children: <Widget>[
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: scheme.surface.withValues(alpha: 0.2),
+            color: Colors.white.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: scheme.onSurface.withValues(alpha: 0.1),
+              color: Colors.white.withValues(alpha: 0.15),
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: emojis
-                .map((e) => Padding(
+                .map((String e) => Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Text(e, style: const TextStyle(fontSize: 20)),
                     ))
@@ -482,9 +451,10 @@ class _VerificationRow extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           context.l10n.callE2eeSecurityCode,
-          style: textTheme.labelSmall?.copyWith(
-            color: scheme.onSurface.withValues(alpha: 0.45),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.5),
             fontSize: 11,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
@@ -511,42 +481,39 @@ class _TonalBlobPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
+    final double cx = size.width / 2;
+    final double cy = size.height / 2;
 
-    final b1x = cx - 70 + 40 * sin(t * 2 * pi);
-    final b1y = cy * 0.65 + 30 * cos(t * 2 * pi);
+    final double b1x = cx - 70 + 40 * sin(t * 2 * pi);
+    final double b1y = cy * 0.65 + 30 * cos(t * 2 * pi);
 
-    final b2x = cx + 60 + 35 * cos(t * 2 * pi);
-    final b2y = cy * 1.35 + 25 * sin(t * 2 * pi);
+    final double b2x = cx + 60 + 35 * cos(t * 2 * pi);
+    final double b2y = cy * 1.35 + 25 * sin(t * 2 * pi);
 
     if (tier == PerformanceTier.tierC || optimizeForWeakDevices) {
-      // Fast tonal radial gradient fill — zero blur passes
       final paint1 = Paint()
         ..shader = RadialGradient(
-          colors: [primary, primary.withValues(alpha: 0)],
+          colors: <Color>[primary, primary.withValues(alpha: 0)],
         ).createShader(Rect.fromCircle(center: Offset(b1x, b1y), radius: 170));
       canvas.drawCircle(Offset(b1x, b1y), 170, paint1);
 
       final paint2 = Paint()
         ..shader = RadialGradient(
-          colors: [tertiary, tertiary.withValues(alpha: 0)],
+          colors: <Color>[tertiary, tertiary.withValues(alpha: 0)],
         ).createShader(Rect.fromCircle(center: Offset(b2x, b2y), radius: 150));
       canvas.drawCircle(Offset(b2x, b2y), 150, paint2);
       return;
     }
 
-    final double blur1 = (tier == PerformanceTier.tierA) ? 80.0 : 24.0;
-    final double blur2 = (tier == PerformanceTier.tierA) ? 90.0 : 28.0;
+    final double blur1 = (tier == PerformanceTier.tierA) ? 80.0 : 28.0;
+    final double blur2 = (tier == PerformanceTier.tierA) ? 90.0 : 32.0;
 
-    // Blob 1 — upper floating glow
-    final paint1 = Paint()
+    final Paint paint1 = Paint()
       ..color = primary
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur1);
     canvas.drawCircle(Offset(b1x, b1y), 170, paint1);
 
-    // Blob 2 — lower floating glow
-    final paint2 = Paint()
+    final Paint paint2 = Paint()
       ..color = tertiary
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur2);
     canvas.drawCircle(Offset(b2x, b2y), 150, paint2);

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -151,13 +150,19 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     super.build(context);
     final session = ref.watch(callSessionProvider)?.session;
     if (session == null) {
-      final scheme = Theme.of(context).colorScheme;
-      return Scaffold(backgroundColor: scheme.surface);
+      return const Scaffold(backgroundColor: Color(0xFF0D0B14));
     }
 
     final data = session.currentData;
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final appScheme = Theme.of(context).colorScheme;
+    final scheme = ColorScheme.fromSeed(
+      seedColor: appScheme.primary,
+      brightness: Brightness.dark,
+    );
+    final textTheme = ThemeData(
+      brightness: Brightness.dark,
+      colorScheme: scheme,
+    ).textTheme;
     final remoteFrame = ref.watch(remoteVideoFrameProvider);
     final size = MediaQuery.sizeOf(context);
     final topPadding = MediaQuery.paddingOf(context).top;
@@ -177,7 +182,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     const String? participantAvatar = null;
 
     return Scaffold(
-      backgroundColor: scheme.surface,
+      backgroundColor: const Color(0xFF0D0B14),
       body: GestureDetector(
         onTap: _toggleControls,
         behavior: HitTestBehavior.translucent,
@@ -442,16 +447,28 @@ class _NoVideoPlaceholder extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            ClipPath(
-              clipper: M3Clipper(Shapes.c9_sided_cookie),
-              child: Container(
-                width: 100,
-                height: 100,
-                color: scheme.primaryContainer,
+            Container(
+              width: 110,
+              height: 110,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: scheme.primary.withValues(alpha: 0.35),
+                  width: 2.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: scheme.primary.withValues(alpha: 0.25),
+                    blurRadius: 28,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipOval(
                 child: PulseAvatar(
                   name: name,
                   avatarUrl: avatarUrl,
-                  radius: 50,
+                  radius: 55,
                   fallbackColor: scheme.primaryContainer,
                   textColor: scheme.onPrimaryContainer,
                 ),

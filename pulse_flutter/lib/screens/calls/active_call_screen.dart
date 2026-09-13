@@ -5,11 +5,32 @@ import 'package:pulse_flutter/router/app_router.dart';
 import 'active_voice_call_screen.dart';
 import 'active_video_call_screen.dart';
 
-class ActiveCallScreen extends ConsumerWidget {
+class ActiveCallScreen extends ConsumerStatefulWidget {
   const ActiveCallScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ActiveCallScreen> createState() => _ActiveCallScreenState();
+}
+
+class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(isCallScreenOpenProvider.notifier).setOpen(true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    ref.read(isCallScreenOpenProvider.notifier).setOpen(false);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(callSessionProvider)?.session;
     final scheme = Theme.of(context).colorScheme;
     if (session == null) {

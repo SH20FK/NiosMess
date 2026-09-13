@@ -53,3 +53,4 @@ app.*.map.json
 mock_quic/
 jobs.json
 pubspec.lock
+*.hive

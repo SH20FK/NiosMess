@@ -159,3 +159,16 @@ class CallSessionManager {
     ref.read(callSessionProvider.notifier).setSession(null);
   }
 }
+
+class IsCallScreenOpenNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void setOpen(bool open) => state = open;
+}
+
+final isCallScreenOpenProvider =
+    NotifierProvider<IsCallScreenOpenNotifier, bool>(
+  IsCallScreenOpenNotifier.new,
+);
+

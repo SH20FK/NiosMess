@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/widgets/adaptive/adaptive_glass.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -171,23 +170,21 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                           ),
                           const SizedBox(width: 10),
 
-                          // Decline Button (M3 9-sided cookie shape)
+                          // Decline Button (Clean Circular M3 Button)
                           _M3CallActionButton(
                             icon: Icons.call_end_rounded,
-                            color: scheme.onError,
-                            bg: scheme.error,
-                            shape: Shapes.c9_sided_cookie,
+                            color: Colors.white,
+                            bg: const Color(0xFFE53935),
                             label: context.l10n.callEnd,
                             onTap: () => _declineCall(data),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
 
-                          // Accept Button (M3 9-sided cookie shape)
+                          // Accept Button (Clean Circular M3 Button)
                           _M3CallActionButton(
                             icon: data.isVideo ? Icons.videocam_rounded : Icons.phone_rounded,
-                            color: scheme.onPrimary,
-                            bg: scheme.primary,
-                            shape: Shapes.c9_sided_cookie,
+                            color: Colors.white,
+                            bg: const Color(0xFF2E7D32),
                             label: 'Accept',
                             onTap: () => _acceptCall(context, ref, data),
                           ),
@@ -295,10 +292,20 @@ class _PulsingCallIcon extends StatelessWidget {
               ),
             ),
           ),
-          M3Container.c9SidedCookie(
+          Container(
             width: 44,
             height: 44,
-            color: scheme.primaryContainer,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: scheme.primaryContainer,
+              boxShadow: [
+                BoxShadow(
+                  color: scheme.primary.withValues(alpha: 0.20),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
             child: Center(
               child: Icon(
                 isVideo ? Icons.videocam_rounded : Icons.phone_rounded,
@@ -320,7 +327,6 @@ class _M3CallActionButton extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.bg,
-    required this.shape,
     required this.label,
     required this.onTap,
   });
@@ -328,7 +334,6 @@ class _M3CallActionButton extends StatelessWidget {
   final IconData icon;
   final Color color;
   final Color bg;
-  final Shapes shape;
   final String label;
   final VoidCallback onTap;
 
@@ -342,15 +347,22 @@ class _M3CallActionButton extends StatelessWidget {
           HapticFeedback.mediumImpact();
           onTap();
         },
-        child: SizedBox(
+        child: Container(
           width: CallTokens.incomingButtonSize,
           height: CallTokens.incomingButtonSize,
-          child: M3Container(
-            shape,
+          decoration: BoxDecoration(
             color: bg,
-            child: Center(
-              child: Icon(icon, color: color, size: 24),
-            ),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: bg.withValues(alpha: 0.35),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Icon(icon, color: color, size: 24),
           ),
         ),
       ),
