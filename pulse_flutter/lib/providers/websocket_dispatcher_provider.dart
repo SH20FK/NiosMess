@@ -37,21 +37,24 @@ class ChatPushEvent {
         reactionEmoji = null,
         reactionAdded = false,
         userId = null,
-        isOnline = false;
+        isOnline = false,
+        isBlocked = false;
 
   const ChatPushEvent.edited(this.message)
       : kind = ChatPushEventKind.edited,
         reactionEmoji = null,
         reactionAdded = false,
         userId = null,
-        isOnline = false;
+        isOnline = false,
+        isBlocked = false;
 
   const ChatPushEvent.deleted(this.message)
       : kind = ChatPushEventKind.deleted,
         reactionEmoji = null,
         reactionAdded = false,
         userId = null,
-        isOnline = false;
+        isOnline = false,
+        isBlocked = false;
 
   const ChatPushEvent.reaction(
     this.message, {
@@ -59,18 +62,27 @@ class ChatPushEvent {
     required this.reactionAdded,
   })  : kind = ChatPushEventKind.reaction,
         userId = null,
-        isOnline = false;
+        isOnline = false,
+        isBlocked = false;
 
   const ChatPushEvent.read(this.message, {required this.userId})
       : kind = ChatPushEventKind.read,
         reactionEmoji = null,
         reactionAdded = false,
-        isOnline = false;
+        isOnline = false,
+        isBlocked = false;
 
   const ChatPushEvent.userStatus(this.message, {required this.userId, required this.isOnline})
       : kind = ChatPushEventKind.userStatus,
         reactionEmoji = null,
-        reactionAdded = false;
+        reactionAdded = false,
+        isBlocked = false;
+
+  const ChatPushEvent.userBlocked(this.message, {required this.userId, required this.isBlocked})
+      : kind = ChatPushEventKind.userBlocked,
+        reactionEmoji = null,
+        reactionAdded = false,
+        isOnline = false;
 
   final ChatPushEventKind kind;
 
@@ -81,9 +93,10 @@ class ChatPushEvent {
   final bool reactionAdded;
   final int? userId;
   final bool isOnline;
+  final bool isBlocked;
 }
 
-enum ChatPushEventKind { newMessage, edited, deleted, reaction, read, userStatus }
+enum ChatPushEventKind { newMessage, edited, deleted, reaction, read, userStatus, userBlocked }
 
 class WebSocketPushDispatcher {
   WebSocketPushDispatcher._();
@@ -175,6 +188,16 @@ class WebSocketPushDispatcher {
           if (userId > 0) {
             final ApiMessage stub = _stub(0, chatId, senderId: userId);
             emit(stub, ChatPushEvent.userStatus(stub, userId: userId, isOnline: isOnline));
+          }
+          break;
+        case 'user_blocked':
+          final int byUserId = int.tryParse(payload['by_user_id']?.toString() ?? '') ?? 0;
+          final bool isBlocked = payload['is_blocked'] == true ||
+              payload['is_blocked'] == 1 ||
+              payload['is_blocked']?.toString().toLowerCase() == 'true';
+          if (byUserId > 0) {
+            final ApiMessage stub = _stub(0, 0, senderId: byUserId);
+            emit(stub, ChatPushEvent.userBlocked(stub, userId: byUserId, isBlocked: isBlocked));
           }
           break;
         case 'end_call':

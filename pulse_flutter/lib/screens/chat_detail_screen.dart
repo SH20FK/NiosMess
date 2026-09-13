@@ -36,6 +36,7 @@ import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/providers/typing_provider.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/repositories/support_repository.dart';
 import 'package:pulse_flutter/widgets/m3_file_picker_bottom_sheet.dart';
@@ -624,6 +625,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     try {
       await ref.read(chatMessagesProvider(chatId).notifier).refresh();
       await ref.read(chatMessagesProvider(chatId).notifier).markRead();
+      final ApiChatSummary? freshChat =
+          await ref.read(chatRepositoryProvider).getChat(chatId);
+      if (freshChat != null && mounted) {
+        ref.read(chatsProvider.notifier).upsertChat(freshChat);
+      }
     } catch (e) {
       debugPrint('Failed to refresh: $e');
     }
@@ -671,13 +677,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (currentChat != null && currentChat.chatType == 'direct') {
       final int? partnerId = currentChat.partnerUserId;
       final bool isBlockedByMe = (partnerId != null && ref.read(privacyProvider).isUserBlocked(partnerId)) || currentChat.isBlockedByMe;
-      final bool isBlockedByUser = currentChat.isBlockedByUser;
       if (isBlockedByMe) {
         AppToast.showError(context, context.l10n.chatUnblockToSend);
-        return;
-      }
-      if (isBlockedByUser) {
-        AppToast.showError(context, context.l10n.chatMessagesRestrictedByUser);
         return;
       }
     }
@@ -722,7 +723,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             _replyPreviewText = originalReplyPreview;
           });
         }
-        AppToast.showError(context, error);
+        final String errorStr = error.toString().toLowerCase();
+        if (errorStr.contains('not accept direct messages') ||
+            errorStr.contains('unavailable between these users') ||
+            errorStr.contains('restricted by user')) {
+          ref.read(chatsProvider.notifier).setChatBlockedByUser(chatId, true);
+          AppToast.showError(context, context.l10n.chatMessagesRestrictedByUser);
+        } else {
+          AppToast.showError(context, error);
+        }
       }),
     );
   }

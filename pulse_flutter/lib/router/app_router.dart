@@ -172,6 +172,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: '/chat/dm/:username',
         pageBuilder: (context, state) => _page(state, DirectChatResolverScreen(
           username: state.pathParameters['username']!,
+          userId: int.tryParse(state.uri.queryParameters['userId'] ?? (state.uri.queryParameters['isId'] == '1' ? state.pathParameters['username']! : '')),
           isSecret: state.uri.queryParameters['isSecret'] == '1',
         )),
       ),

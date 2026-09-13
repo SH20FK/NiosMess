@@ -13,11 +13,13 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 class DirectChatResolverScreen extends ConsumerStatefulWidget {
   const DirectChatResolverScreen({
     required this.username,
+    this.userId,
     this.isSecret = false,
     super.key,
   });
 
   final String username;
+  final int? userId;
   final bool isSecret;
 
   @override
@@ -55,8 +57,9 @@ class _DirectChatResolverScreenState
 
       final result = await ref
           .read(chatRepositoryProvider)
-          .openDirectChatByUsername(
-            widget.username,
+          .openDirectChat(
+            username: widget.username,
+            userId: widget.userId,
             isSecret: widget.isSecret,
             publicKey: publicKey,
           );

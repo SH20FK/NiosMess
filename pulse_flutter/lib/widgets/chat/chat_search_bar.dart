@@ -539,14 +539,16 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
                               : null,
                           onTap: () {
                             controller.closeView('');
-                            ref
-                                .read(desktopSelectedChatProvider.notifier)
-                                .setSelectedChat(user.id);
-                            final GoRouter router = GoRouter.of(context);
-                            final String currentPath =
-                                router.routeInformationProvider.value.uri.path;
-                            if (!currentPath.startsWith('/chat/${user.id}')) {
-                              context.push('/chat/${user.id}');
+                            HapticService.tap();
+                            final String uname = user.username.trim();
+                            if (uname.isNotEmpty) {
+                              context.push(
+                                '/chat/dm/${Uri.encodeComponent(uname)}',
+                              );
+                            } else {
+                              context.push(
+                                '/chat/dm/${user.id}?userId=${user.id}',
+                              );
                             }
                           },
                         ),

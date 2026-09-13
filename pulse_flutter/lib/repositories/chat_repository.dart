@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:universal_io/io.dart';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/network/api_constants.dart';
@@ -115,20 +115,22 @@ class ChatRepository {
     );
   }
 
-  Future<DirectChatOpenResult?> openDirectChatByUsername(
-    String username, {
+  Future<DirectChatOpenResult?> openDirectChat({
+    String? username,
+    int? userId,
     bool isSecret = false,
     String? publicKey,
   }) async {
-    final String trimmed = username.trim();
-    if (trimmed.isEmpty) {
-      return null;
-    }
-
     final Map<String, dynamic> payload = <String, dynamic>{
-      'username': trimmed,
       'is_secret': isSecret,
     };
+    if (userId != null && userId > 0) {
+      payload['user_id'] = userId;
+    } else if (username != null && username.trim().isNotEmpty) {
+      payload['username'] = username.trim().replaceFirst(RegExp(r'^@'), '');
+    } else {
+      return null;
+    }
     if (publicKey != null && publicKey.isNotEmpty) {
       payload['target_public_key'] = publicKey;
     }
@@ -145,6 +147,18 @@ class ChatRepository {
       response.map(
         (dynamic key, dynamic value) => MapEntry(key.toString(), value),
       ),
+    );
+  }
+
+  Future<DirectChatOpenResult?> openDirectChatByUsername(
+    String username, {
+    bool isSecret = false,
+    String? publicKey,
+  }) {
+    return openDirectChat(
+      username: username,
+      isSecret: isSecret,
+      publicKey: publicKey,
     );
   }
 

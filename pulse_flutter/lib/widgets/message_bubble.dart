@@ -1038,7 +1038,7 @@ class MessageBubble extends ConsumerWidget {
               child: LinearProgressIndicator(
                 value: p > 0.01 ? p : null,
                 minHeight: 4,
-                strokeCap: StrokeCap.round,
+                borderRadius: BorderRadius.circular(4),
                 backgroundColor: (isMine ? scheme.onPrimary : scheme.primary)
                     .withValues(alpha: 0.2),
                 valueColor: AlwaysStoppedAnimation<Color>(

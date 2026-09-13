@@ -127,7 +127,31 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         _handleReadPush(event.message.chatId, event.userId ?? 0);
       case ChatPushEventKind.userStatus:
         _handleUserStatusPush(event.message.chatId, event.userId ?? 0, event.isOnline);
+      case ChatPushEventKind.userBlocked:
+        _handleUserBlockedPush(event.userId ?? 0, event.isBlocked);
     }
+  }
+
+  void _handleUserBlockedPush(int userId, bool isBlocked) {
+    if (userId <= 0) return;
+    final List<ApiChatSummary>? currentChats = state.value;
+    if (currentChats == null) return;
+
+    final int index = currentChats.indexWhere((ApiChatSummary c) {
+      return c.chatType == 'direct' && (c.partnerUserId == userId || c.id == userId);
+    });
+    if (index == -1) return;
+
+    final ApiChatSummary chat = currentChats[index];
+    if (chat.isBlockedByUser == isBlocked) return;
+
+    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(currentChats);
+    updated[index] = chat.copyWith(
+      isBlockedByUser: isBlocked,
+      isBlocked: isBlocked || chat.isBlockedByMe,
+    );
+    state = AsyncData<List<ApiChatSummary>>(updated);
+    ref.read(cacheServiceProvider).saveChats(updated);
   }
 
   void _handleUserStatusPush(int chatId, int userId, bool isOnline) {
@@ -374,6 +398,39 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       }
     }
   }
+
+  void upsertChat(ApiChatSummary chat) {
+    final List<ApiChatSummary>? current = state.value;
+    if (current == null) {
+      state = AsyncData<List<ApiChatSummary>>(<ApiChatSummary>[chat]);
+      return;
+    }
+    final int idx = current.indexWhere((ApiChatSummary c) => c.id == chat.id);
+    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(current);
+    if (idx != -1) {
+      updated[idx] = chat;
+    } else {
+      updated.insert(0, chat);
+    }
+    state = AsyncData<List<ApiChatSummary>>(updated);
+    ref.read(cacheServiceProvider).saveChats(updated);
+  }
+
+  void setChatBlockedByUser(int chatId, bool isBlocked) {
+    final List<ApiChatSummary>? current = state.value;
+    if (current == null) return;
+    final int idx = current.indexWhere((ApiChatSummary c) => c.id == chatId);
+    if (idx == -1) return;
+    final ApiChatSummary chat = current[idx];
+    if (chat.isBlockedByUser == isBlocked) return;
+    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(current);
+    updated[idx] = chat.copyWith(
+      isBlockedByUser: isBlocked,
+      isBlocked: isBlocked || chat.isBlockedByMe,
+    );
+    state = AsyncData<List<ApiChatSummary>>(updated);
+    ref.read(cacheServiceProvider).saveChats(updated);
+  }
 }
 
 final AsyncNotifierProvider<ChatsNotifier, List<ApiChatSummary>> chatsProvider =
@@ -484,6 +541,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       case ChatPushEventKind.read:
         _handleReadPush(event.userId!);
       case ChatPushEventKind.userStatus:
+      case ChatPushEventKind.userBlocked:
         break;
     }
   }
@@ -958,6 +1016,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       state = AsyncData<List<ApiMessage>>(next);
       await _saveToCache(next);
       ref.read(chatsProvider.notifier)._handleNewMessagePush(sent);
+      ref.read(chatsProvider.notifier).setChatBlockedByUser(_chatId, false);
       await _playNotificationSound(volume: 0.65);
     } catch (e) {
       current = state.value ?? const <ApiMessage>[];

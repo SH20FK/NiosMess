@@ -47,8 +47,9 @@ class _PrivacyRuleDetailScreenState
     final chats = ref.read(chatsProvider).value ?? const [];
     for (final chat in chats) {
       if (chat.chatType == 'direct') {
-        _userCache[chat.id] = ApiSearchUser(
-          id: chat.id,
+        final int uid = chat.partnerUserId ?? chat.id;
+        _userCache[uid] = ApiSearchUser(
+          id: uid,
           username: chat.username ?? '',
           displayName: chat.name,
           avatarUrl: chat.avatarUrl,
