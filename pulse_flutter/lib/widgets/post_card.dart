@@ -291,70 +291,68 @@ class _PostCardState extends ConsumerState<PostCard>
                                       .where(BadgeResolver.isStatusBadge)
                                       .isNotEmpty) ...<Widget>[
                                     const SizedBox(width: 4),
-                                    ...post.author.badges
-                                        .where(BadgeResolver.isStatusBadge)
-                                        .take(2)
-                                        .map(
-                                          (ApiBadge b) => Padding(
-                                            padding: const EdgeInsets.only(left: 2),
-                                            child: BadgeChip(
-                                              id: b.id,
-                                              name: b.name,
-                                              icon: b.icon,
-                                              color: b.color,
-                                              mode: BadgeDisplayMode.statusIcon,
-                                              interactive: false,
-                                            ),
-                                          ),
+                                    Flexible(
+                                      fit: FlexFit.loose,
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: post.author.badges
+                                              .where(BadgeResolver.isStatusBadge)
+                                              .take(2)
+                                              .map(
+                                                (ApiBadge b) => Padding(
+                                                  padding: const EdgeInsets.only(left: 2),
+                                                  child: BadgeChip(
+                                                    id: b.id,
+                                                    name: b.name,
+                                                    icon: b.icon,
+                                                    color: b.color,
+                                                    mode: BadgeDisplayMode.statusIcon,
+                                                    interactive: false,
+                                                  ),
+                                                ),
+                                              )
+                                              .toList(growable: false),
                                         ),
+                                      ),
+                                    ),
                                   ],
                                 ],
                               ),
                               const SizedBox(height: 2),
-                              // Handle + Dot + Relative Time Badge
-                              Row(
-                                children: <Widget>[
-                                  Flexible(
-                                    child: Text(
-                                      '@${post.author.username}',
+                              // Handle + Dot + Relative Time Badge (Overflow-safe inline text)
+                              Text.rich(
+                                TextSpan(
+                                  children: <InlineSpan>[
+                                    TextSpan(
+                                      text: '@${post.author.username}',
                                       style: textTheme.bodySmall?.copyWith(
                                         color: scheme.onSurfaceVariant,
                                         fontSize: 12.5,
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    width: 3,
-                                    height: 3,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: scheme.outlineVariant,
+                                    TextSpan(
+                                      text: '  •  ',
+                                      style: TextStyle(
+                                        color: scheme.outlineVariant,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 1.5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: scheme.surfaceContainerHighest
-                                          .withValues(alpha: 0.5),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      formatRelativeTime(post.createdAt),
+                                    TextSpan(
+                                      text: formatRelativeTime(post.createdAt),
                                       style: textTheme.labelSmall?.copyWith(
                                         color: scheme.onSurfaceVariant,
                                         fontSize: 11,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
@@ -371,16 +369,19 @@ class _PostCardState extends ConsumerState<PostCard>
                             },
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
+                                horizontal: 8,
                                 vertical: 4,
                               ),
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
                             ),
                             child: Text(
                               post.isFollowing
                                   ? context.l10n.niosgramUnfollow
                                   : context.l10n.niosgramFollow,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: textTheme.labelMedium?.copyWith(
                                 color: post.isFollowing
                                     ? scheme.onSurfaceVariant
@@ -986,6 +987,8 @@ class _PostMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return PopupMenuButton<String>(
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
       icon: Icon(
         Icons.more_horiz_rounded,
         size: 20,
