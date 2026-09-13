@@ -57,12 +57,14 @@ class PushNotificationService {
     }
   }
 
-  static bool _shouldIgnorePush(String title, String body) {
+  static bool _shouldIgnorePush(String title, String body, {bool isCall = false}) {
     final String cleanTitle = title.trim().toLowerCase();
     final String cleanBody = body.trim().toLowerCase();
-    if (cleanTitle == 'new activity' ||
-        cleanBody == 'new activity' ||
-        (cleanTitle.isEmpty && cleanBody.isEmpty)) {
+    if (cleanTitle == 'new activity' || cleanBody == 'new activity') {
+      return true;
+    }
+    // If not a call and body is empty, ignore to prevent phantom notifications
+    if (!isCall && cleanBody.isEmpty) {
       return true;
     }
     return false;
@@ -125,14 +127,13 @@ class PushNotificationService {
   static Future<void> showLocalNotification(Map<String, dynamic> data) async {
     final String title = data['title']?.toString() ?? data['route']?.toString() ?? 'NiosMess';
     final String body = data['body']?.toString() ?? '';
-    if (_shouldIgnorePush(title, body)) return;
+    final bool isCall = data['type'] == 'incoming_call';
+    if (_shouldIgnorePush(title, body, isCall: isCall)) return;
 
     final Object? chatIdRaw = data['chat_id'];
     final int? chatId = chatIdRaw is int
         ? chatIdRaw
         : int.tryParse(chatIdRaw?.toString() ?? '');
-
-    final bool isCall = data['type'] == 'incoming_call';
 
     await _local.show(
       id: ++_notificationIdCounter,
@@ -244,16 +245,14 @@ class PushNotificationService {
     final String body = message.notification?.body
         ?? data['body']?.toString()
         ?? '';
-
-    if (_shouldIgnorePush(title, body)) return;
+    final bool isCall = data['type'] == 'incoming_call';
+    if (_shouldIgnorePush(title, body, isCall: isCall)) return;
 
     final Object? chatIdRaw = data['chat_id'];
     final int? chatId = chatIdRaw is int
         ? chatIdRaw
         : int.tryParse(chatIdRaw?.toString() ?? '');
     if (chatId != null && chatId == _currentChatId) return;
-
-    final bool isCall = data['type'] == 'incoming_call';
 
     await _local.show(
       id: ++_notificationIdCounter,
