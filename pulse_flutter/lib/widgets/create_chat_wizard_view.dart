@@ -162,8 +162,8 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                 ),
                 Text(
                   _chatType == 'channel'
-                      ? 'Аватарка канала'
-                      : 'Аватарка группы',
+                      ? sheetCtx.l10n.wizardChannelAvatar
+                      : sheetCtx.l10n.wizardGroupAvatar,
                   style: Theme.of(sheetCtx).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -177,7 +177,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                       color: scheme.onPrimaryContainer,
                     ),
                   ),
-                  title: const Text('Сделать снимок'),
+                  title: Text(sheetCtx.l10n.wizardTakePhoto),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -203,7 +203,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                       color: scheme.onSecondaryContainer,
                     ),
                   ),
-                  title: const Text('Выбрать из галереи'),
+                  title: Text(sheetCtx.l10n.wizardChooseGallery),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -233,7 +233,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                       ),
                     ),
                     title: Text(
-                      'Удалить фото',
+                      sheetCtx.l10n.wizardRemovePhoto,
                       style: TextStyle(color: scheme.error),
                     ),
                     shape: RoundedRectangleBorder(
@@ -436,10 +436,10 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                     ),
                     Text(
                       _step == 0
-                          ? 'Шаг 1 из 2: Имя и аватар'
+                          ? context.l10n.wizardStep1NameAvatar
                           : (isChannel
-                              ? 'Шаг 2 из 2: Настройки канала'
-                              : 'Шаг 2 из 2: Участники и доступ'),
+                              ? context.l10n.wizardStep2ChannelSettings
+                              : context.l10n.wizardStep2GroupMembers),
                       style: textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                         fontSize: 12,
@@ -625,10 +625,10 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                         maxLength: 128,
                         textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
-                          labelText: isChannel ? 'Название канала' : 'Название группы',
+                          labelText: isChannel ? context.l10n.wizardChannelName : context.l10n.wizardGroupName,
                           hintText: isChannel
-                              ? 'Введите имя канала...'
-                              : 'Введите имя группы...',
+                              ? context.l10n.wizardChannelNameHint
+                              : context.l10n.wizardGroupNameHint,
                           filled: true,
                           fillColor: scheme.surface,
                           contentPadding: const EdgeInsets.symmetric(
@@ -663,7 +663,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Нажмите на аватарку для выбора фото',
+                        context.l10n.wizardTapAvatarHint,
                         style: TextStyle(
                           color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
                           fontSize: 11,
@@ -734,8 +734,8 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                 Expanded(
                   child: Text(
                     isChannel
-                        ? 'В канале публикации видны всем подписчикам. Вы сможете делиться новостями и материалами от лица канала.'
-                        : 'В группе участники могут свободно общаться, отправлять фото, видео, файлы и голосовые сообщения.',
+                        ? context.l10n.wizardChannelDesc
+                        : context.l10n.wizardGroupDesc,
                     style: textTheme.bodySmall?.copyWith(
                       color: scheme.onSurface,
                       fontSize: 12,
@@ -795,7 +795,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'Выбрано участников: ${_selectedUsernames.length}',
+                    context.l10n.wizardSelectedCount(_selectedUsernames.length),
                     style: textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: scheme.primary,
@@ -805,32 +805,28 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    children: _selectedUsernames.entries.map((e) {
-                      final int uid = e.key;
-                      final String name = e.value;
-                      final String? avatar = _selectedUserAvatars[uid];
-                      return Chip(
-                        avatar: PulseAvatar(
-                          radius: 12,
-                          name: name,
-                          avatarUrl: avatar,
-                        ),
-                        label: Text(name, style: textTheme.labelMedium),
-                        deleteIcon: const Icon(Icons.close_rounded, size: 16),
-                        onDeleted: () {
-                          HapticService.tap();
-                          setState(() {
-                            _selectedUserIds.remove(uid);
-                            _selectedUsernames.remove(uid);
-                            _selectedUserAvatars.remove(uid);
-                          });
-                        },
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        backgroundColor: scheme.surfaceContainerHighest,
-                      );
-                    }).toList(growable: false),
+                    children: _selectedUsernames.entries
+                        .map(
+                          (MapEntry<int, String> e) => Chip(
+                            avatar: PulseAvatar(
+                              radius: 12,
+                              name: e.value,
+                              avatarUrl: _selectedUserAvatars[e.key],
+                            ),
+                            label: Text(e.value),
+                            deleteIcon:
+                                const Icon(Icons.close_rounded, size: 16),
+                            onDeleted: () {
+                              HapticService.tap();
+                              setState(() {
+                                _selectedUserIds.remove(e.key);
+                                _selectedUsernames.remove(e.key);
+                                _selectedUserAvatars.remove(e.key);
+                              });
+                            },
+                          ),
+                        )
+                        .toList(),
                   ),
                 ],
               ),
@@ -842,7 +838,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Поиск контактов или @username...',
+              hintText: context.l10n.wizardSearchMembersHint,
               prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
@@ -871,7 +867,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
 
           // Contact candidates
           Text(
-            _searchQuery.isEmpty ? 'Недавние диалоги' : 'Результаты поиска',
+            _searchQuery.isEmpty ? context.l10n.wizardRecentChats : context.l10n.wizardSearchResults,
             style: textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
               color: scheme.onSurfaceVariant,
@@ -907,7 +903,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
           borderRadius: BorderRadius.circular(18),
         ),
         child: Text(
-          'У вас пока нет недавних диалогов для быстрого добавления.',
+          context.l10n.wizardNoRecentChats,
           style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
@@ -931,8 +927,9 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
           color: scheme.outlineVariant.withValues(alpha: 0.12),
         ),
         itemBuilder: (BuildContext ctx, int index) {
-          final ApiChatSummary contact = contacts[index];
-          final bool isSelected = _selectedUserIds.contains(contact.id);
+          final ApiChatSummary c = contacts[index];
+          final String username = c.username ?? '';
+          final bool isSelected = _selectedUsernames.containsValue(c.name);
 
           return ListTile(
             dense: true,
@@ -940,15 +937,24 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
             leading: PulseAvatar(
               radius: 18,
-              name: contact.name,
-              avatarUrl: contact.avatarUrl,
+              name: c.name,
+              avatarUrl: c.avatarUrl,
             ),
             title: Text(
-              contact.name,
+              c.name,
               style: textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
+            subtitle: username.isNotEmpty
+                ? Text(
+                    '@$username',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+                  )
+                : null,
             trailing: Checkbox(
               value: isSelected,
               shape: RoundedRectangleBorder(
@@ -958,13 +964,11 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                 HapticService.tap();
                 setState(() {
                   if (val == true) {
-                    _selectedUserIds.add(contact.id);
-                    _selectedUsernames[contact.id] = contact.name;
-                    _selectedUserAvatars[contact.id] = contact.avatarUrl;
+                    _selectedUsernames[c.id] = c.name;
+                    _selectedUserAvatars[c.id] = c.avatarUrl;
                   } else {
-                    _selectedUserIds.remove(contact.id);
-                    _selectedUsernames.remove(contact.id);
-                    _selectedUserAvatars.remove(contact.id);
+                    _selectedUsernames.remove(c.id);
+                    _selectedUserAvatars.remove(c.id);
                   }
                 });
               },
@@ -973,13 +977,11 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               HapticService.tap();
               setState(() {
                 if (isSelected) {
-                  _selectedUserIds.remove(contact.id);
-                  _selectedUsernames.remove(contact.id);
-                  _selectedUserAvatars.remove(contact.id);
+                  _selectedUsernames.remove(c.id);
+                  _selectedUserAvatars.remove(c.id);
                 } else {
-                  _selectedUserIds.add(contact.id);
-                  _selectedUsernames[contact.id] = contact.name;
-                  _selectedUserAvatars[contact.id] = contact.avatarUrl;
+                  _selectedUsernames[c.id] = c.name;
+                  _selectedUserAvatars[c.id] = c.avatarUrl;
                 }
               });
             },
@@ -1007,7 +1009,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               borderRadius: BorderRadius.circular(18),
             ),
             child: Text(
-              'Пользователи по запросу «$_searchQuery» не найдены.',
+              context.l10n.wizardNoUsersFound(_searchQuery),
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -1111,7 +1113,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
           borderRadius: BorderRadius.circular(18),
         ),
         child: Text(
-          'Не удалось выполнить поиск пользователей.',
+          context.l10n.wizardSearchError,
           style: textTheme.bodySmall?.copyWith(color: scheme.error),
         ),
       ),
@@ -1203,7 +1205,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          'Доступ и приватность',
+          context.l10n.wizardAccessAndPrivacy,
           style: textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w700,
             color: scheme.onSurfaceVariant,
@@ -1215,7 +1217,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
           icon: Icons.lock_rounded,
           title: context.l10n.groupPrivate,
           subtitle: isChannel
-              ? 'Канал доступен только по защищенной ссылке'
+              ? context.l10n.wizardPrivateChannelDesc
               : context.l10n.groupPrivateSubtitle,
           scheme: scheme,
           textTheme: textTheme,
@@ -1230,7 +1232,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
           icon: Icons.public_rounded,
           title: context.l10n.groupPublic,
           subtitle: isChannel
-              ? 'Открыт в глобальном поиске и имеет постоянную ссылку'
+              ? context.l10n.wizardPublicChannelDesc
               : context.l10n.groupPublicSubtitle,
           scheme: scheme,
           textTheme: textTheme,
@@ -1248,7 +1250,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               hintText: isChannel ? 'channel_username' : 'group_username',
               prefixText: '@',
               prefixIcon: const Icon(Icons.alternate_email_rounded),
-              helperText: 'От 3 до 32 символов (латиница, цифры, _)',
+              helperText: context.l10n.wizardUsernameHelper,
               filled: true,
               fillColor: scheme.surfaceContainerLow,
               border: OutlineInputBorder(
@@ -1399,8 +1401,8 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               label: _step == 0
                   ? context.l10n.groupContinue
                   : (_chatType == 'channel'
-                      ? 'Создать канал'
-                      : 'Создать группу'),
+                      ? context.l10n.wizardCreateChannel
+                      : context.l10n.wizardCreateGroup),
               icon: _step == 0
                   ? Icons.arrow_forward_rounded
                   : (_chatType == 'channel'

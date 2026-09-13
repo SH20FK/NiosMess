@@ -30,20 +30,20 @@ class SettingsAppearanceScreen extends StatelessWidget {
 }
 
 class _PaletteEntry {
-  const _PaletteEntry(this.color, this.name);
+  const _PaletteEntry(this.color, this.getName);
   final Color color;
-  final String name;
+  final String Function(AppLocalizations l10n) getName;
 }
 
-const _palettes = <_PaletteEntry>[
-  _PaletteEntry(Color(0xFF6750A4), 'Аметист'),
-  _PaletteEntry(Color(0xFF006C5B), 'Лагуна'),
-  _PaletteEntry(Color(0xFF4C662B), 'Поляна'),
-  _PaletteEntry(Color(0xFFB3261E), 'Рубин'),
-  _PaletteEntry(Color(0xFF7D5260), 'Орхидея'),
-  _PaletteEntry(Color(0xFF475569), 'Графит'),
-  _PaletteEntry(Color(0xFF006874), 'Бирюза'),
-  _PaletteEntry(Color(0xFF984061), 'Роза'),
+final _palettes = <_PaletteEntry>[
+  _PaletteEntry(const Color(0xFF6750A4), (l) => l.appearanceLabelAmethyst),
+  _PaletteEntry(const Color(0xFF006C5B), (l) => l.appearanceLabelLagoon),
+  _PaletteEntry(const Color(0xFF4C662B), (l) => l.appearanceLabelMeadow),
+  _PaletteEntry(const Color(0xFFB3261E), (l) => l.appearanceLabelEmber),
+  _PaletteEntry(const Color(0xFF7D5260), (l) => l.appearanceLabelOrchid),
+  _PaletteEntry(const Color(0xFF475569), (l) => l.appearanceLabelSlate),
+  _PaletteEntry(const Color(0xFF006874), (l) => l.appearanceLabelSky),
+  _PaletteEntry(const Color(0xFF984061), (l) => l.appearanceLabelRose),
 ];
 
 const _customColorPresets = <Color>[
@@ -144,14 +144,14 @@ class _AppearanceScreen extends ConsumerWidget {
     );
 
     final Widget geometrySection = SettingsSection(
-      title: 'Геометрия и интерфейс',
-      subtitle: 'Индивидуальная настройка скруглений и масштаба',
+      title: context.l10n.appearanceGeometry,
+      subtitle: context.l10n.appearanceGeometryDesc,
       children: [
         // Message Bubble Radius Slider
         _SliderSettingTile(
           icon: Icons.chat_bubble_outline_rounded,
-          title: 'Скругление сообщений',
-          subtitle: 'Радиус углов облачков в диалогах',
+          title: context.l10n.appearanceMessageRounding,
+          subtitle: context.l10n.appearanceMessageRoundingDesc,
           badgeText: '${settings.messageBubbleRadius.toInt()} dp',
           value: settings.messageBubbleRadius,
           min: 4.0,
@@ -166,8 +166,8 @@ class _AppearanceScreen extends ConsumerWidget {
         // UI Corner Radius Slider
         _SliderSettingTile(
           icon: Icons.rounded_corner_rounded,
-          title: 'Скругление интерфейса',
-          subtitle: 'Радиус карточек, диалогов и системных панелей',
+          title: context.l10n.appearanceUiRounding,
+          subtitle: context.l10n.appearanceUiRoundingDesc,
           badgeText: '${settings.uiCornerRadius.toInt()} dp',
           value: settings.uiCornerRadius,
           min: 8.0,
@@ -191,14 +191,13 @@ class _AppearanceScreen extends ConsumerWidget {
     );
 
     final Widget contrastSection = SettingsSection(
-      title: 'Контраст и цвета',
-      subtitle: 'Настройки палитры и отображения поверхностей',
+      title: context.l10n.appearanceContrastColors,
+      subtitle: context.l10n.appearanceContrastColorsDesc,
       children: [
         SettingsSwitchTile(
           icon: Icons.contrast_rounded,
-          title: 'Глубокий черный (OLED)',
-          subtitle:
-              'Использовать абсолютно черный цвет (#000000) для поверхностей в темном режиме',
+          title: context.l10n.appearanceDeepBlackOled,
+          subtitle: context.l10n.appearanceDeepBlackOledDesc,
           iconColor: scheme.primary,
           value: settings.pureBlackOled,
           onChanged: (bool v) {
@@ -219,8 +218,8 @@ class _AppearanceScreen extends ConsumerWidget {
     );
 
     final Widget navSection = SettingsSection(
-      title: 'Интерфейс и навигация',
-      subtitle: 'Стиль панелей и системные анимации',
+      title: context.l10n.appearanceInterfaceNav,
+      subtitle: context.l10n.appearanceInterfaceNavDesc,
       children: [
         SettingsSwitchTile(
           icon: Icons.dock_rounded,
@@ -234,9 +233,8 @@ class _AppearanceScreen extends ConsumerWidget {
         ),
         SettingsSwitchTile(
           icon: Icons.swipe_left_rounded,
-          title: 'Предиктивный жест «Назад»',
-          subtitle:
-              'Плавная системная M3 анимация возврата на предыдущий экран',
+          title: context.l10n.appearancePredictiveBack,
+          subtitle: context.l10n.appearancePredictiveBackDesc,
           iconColor: scheme.secondary,
           value: settings.predictiveBackEnabled,
           onChanged: (bool v) {
@@ -255,14 +253,13 @@ class _AppearanceScreen extends ConsumerWidget {
     );
 
     final Widget wallpaperSection = SettingsSection(
-      title: 'Обои чатов',
-      subtitle:
-          'Живой генератор узоров на основе векторных иконок и цветов темы',
+      title: context.l10n.appearanceChatWallpaperTitle,
+      subtitle: context.l10n.appearanceChatWallpaperDesc,
       children: <Widget>[
         SettingsTile(
           icon: Icons.texture_rounded,
-          title: 'Генератор фона чатов',
-          subtitle: 'Выбор глифа, раскладки сетки, плотности и анимации',
+          title: context.l10n.appearanceWallpaperGenerator,
+          subtitle: context.l10n.appearanceWallpaperGeneratorDesc,
           iconColor: scheme.primary,
           trailing: Icon(
             Icons.chevron_right_rounded,
@@ -586,7 +583,7 @@ class _ConnectedMeshAndPaletteBannerState
                             settings.seedColor.toARGB32();
                         return _ColorOrbItem(
                           color: entry.color,
-                          label: entry.name,
+                          label: entry.getName(context.l10n),
                           isSelected: isSelected,
                           onTap: () {
                             HapticService.tap();
@@ -739,7 +736,7 @@ class _RainbowCustomOrbItemState extends State<_RainbowCustomOrbItem> {
 
     return Center(
       child: Tooltip(
-        message: 'Пользовательский цвет',
+        message: context.l10n.appearanceCustomColor,
         child: Listener(
           onPointerDown: (_) => setState(() => _isPressed = true),
           onPointerUp: (_) => setState(() => _isPressed = false),
@@ -861,14 +858,16 @@ class _AuthStyleThemeToggleCardState extends State<_AuthStyleThemeToggleCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Тёмная тема',
+                  context.l10n.appearanceThemeDark,
                   style: textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isDark ? 'Включена тёмная тема' : 'Включена светлая тема',
+                  isDark
+                      ? context.l10n.appearanceThemeDarkActive
+                      : context.l10n.appearanceThemeLightActive,
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
@@ -1129,13 +1128,13 @@ class _FontScaleSliderTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Масштаб текста',
+                      context.l10n.appearanceTextScale,
                       style: textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
-                      'Размер шрифта и пропорции интерфейса',
+                      context.l10n.appearanceTextScaleDesc,
                       style: textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -1216,13 +1215,13 @@ class _PredictiveBackStrengthTile extends StatelessWidget {
   final ColorScheme scheme;
   final ValueChanged<double> onChanged;
 
-  String _descriptionFor(double val) {
+  String _descriptionFor(BuildContext context, double val) {
     if (val <= 0.6) {
-      return 'Мягкий: деликатное уменьшение (до 95%), скругление 16dp';
+      return context.l10n.appearancePredictiveBackSoft;
     } else if (val >= 1.4) {
-      return 'Глубокий: выразительное сжатие (до 85%), скругление 48dp';
+      return context.l10n.appearancePredictiveBackDeep;
     }
-    return 'Стандарт: сбалансированное сжатие Android 14+ (до 90%), 32dp';
+    return context.l10n.appearancePredictiveBackStandard;
   }
 
   @override
@@ -1245,13 +1244,13 @@ class _PredictiveBackStrengthTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Сила анимации возврата',
+                      context.l10n.appearancePredictiveBackStrength,
                       style: textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
-                      _descriptionFor(strength),
+                      _descriptionFor(context, strength),
                       style: textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -1279,18 +1278,21 @@ class _PredictiveBackStrengthTile extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           SegmentedButton<double>(
-            segments: const <ButtonSegment<double>>[
+            segments: <ButtonSegment<double>>[
               ButtonSegment<double>(
                 value: 0.5,
-                label: Text('0.5x Мягкий', style: TextStyle(fontSize: 12)),
+                label: Text(context.l10n.appearancePredictiveBackSoftLabel,
+                    style: const TextStyle(fontSize: 12)),
               ),
               ButtonSegment<double>(
                 value: 1.0,
-                label: Text('1.0x Стандарт', style: TextStyle(fontSize: 12)),
+                label: Text(context.l10n.appearancePredictiveBackStandardLabel,
+                    style: const TextStyle(fontSize: 12)),
               ),
               ButtonSegment<double>(
                 value: 1.5,
-                label: Text('1.5x Глубокий', style: TextStyle(fontSize: 12)),
+                label: Text(context.l10n.appearancePredictiveBackDeepLabel,
+                    style: const TextStyle(fontSize: 12)),
               ),
             ],
             selected: <double>{normalized},
@@ -1361,7 +1363,7 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
       }
     }
     setState(() {
-      _hexError = 'Неверный HEX-код (например #6750A4)';
+      _hexError = mounted ? context.l10n.appearanceInvalidHex : 'Invalid HEX';
     });
   }
 
@@ -1428,13 +1430,13 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Пользовательский цвет',
+                      context.l10n.appearanceCustomColor,
                       style: textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      'Выберите оттенок или введите HEX-код',
+                      context.l10n.appearanceSelectHexPrompt,
                       style: textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -1534,7 +1536,7 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
             ],
             textCapitalization: TextCapitalization.characters,
             decoration: InputDecoration(
-              labelText: 'HEX-код палитры',
+              labelText: context.l10n.appearanceHexLabel,
               hintText: '#6750A4',
               errorText: _hexError,
               prefixIcon: const Icon(Icons.colorize_rounded),
@@ -1566,9 +1568,9 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
                   ),
                 ),
                 icon: const Icon(Icons.check_rounded),
-                label: const Text(
-                  'Применить',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                label: Text(
+                  context.l10n.appearanceApply,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 onPressed: () {
                   HapticService.confirm();

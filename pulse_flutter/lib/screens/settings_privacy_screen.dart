@@ -63,27 +63,27 @@ class SettingsPrivacyScreen extends ConsumerWidget {
 
         // 1. Связь
         SettingsSection(
-          title: 'Связь',
-          subtitle: 'Управление тем, кто может звонить и отправлять сообщения',
+          title: context.l10n.privacyCategoryCommunication,
+          subtitle: context.l10n.privacyCategoryCommunicationDesc,
           children: <Widget>[
             SettingsTile(
               icon: Icons.call_rounded,
-              title: 'Звонки',
-              subtitle: privacy.policyFor('calls').localizedTitle,
+              title: context.l10n.privacyRuleCalls,
+              subtitle: privacy.policyFor('calls').localizedTitle(context.l10n),
               iconColor: scheme.primary,
               onTap: () => _openRule(context, 'calls'),
             ),
             SettingsTile(
               icon: Icons.chat_bubble_outline_rounded,
-              title: 'Личные сообщения',
-              subtitle: privacy.policyFor('messages').localizedTitle,
+              title: context.l10n.privacyRuleDirectMessages,
+              subtitle: privacy.policyFor('messages').localizedTitle(context.l10n),
               iconColor: scheme.primary,
               onTap: () => _openRule(context, 'messages'),
             ),
             SettingsTile(
               icon: Icons.mic_none_rounded,
-              title: 'Голосовые сообщения',
-              subtitle: privacy.policyFor('voice_messages').localizedTitle,
+              title: context.l10n.privacyRuleVoiceMessages,
+              subtitle: privacy.policyFor('voice_messages').localizedTitle(context.l10n),
               iconColor: scheme.primary,
               onTap: () => _openRule(context, 'voice_messages'),
             ),
@@ -92,48 +92,48 @@ class SettingsPrivacyScreen extends ConsumerWidget {
 
         // 2. Личные данные
         SettingsSection(
-          title: 'Личные данные',
-          subtitle: 'Видимость персональной информации в профиле',
+          title: context.l10n.privacyCategoryPersonalData,
+          subtitle: context.l10n.privacyCategoryPersonalDataDesc,
           children: <Widget>[
             SettingsTile(
               icon: Icons.phone_rounded,
-              title: 'Номер телефона',
-              subtitle: privacy.policyFor('phone').localizedTitle,
+              title: context.l10n.privacyRulePhone,
+              subtitle: privacy.policyFor('phone').localizedTitle(context.l10n),
               iconColor: scheme.secondary,
               onTap: () => _openRule(context, 'phone'),
             ),
             SettingsTile(
               icon: Icons.cake_rounded,
-              title: 'Дата рождения',
-              subtitle: privacy.policyFor('birthday').localizedTitle,
+              title: context.l10n.privacyRuleBirthDate,
+              subtitle: privacy.policyFor('birthday').localizedTitle(context.l10n),
               iconColor: scheme.secondary,
               onTap: () => _openRule(context, 'birthday'),
             ),
             SettingsTile(
               icon: Icons.account_circle_outlined,
-              title: 'Фотографии профиля',
-              subtitle: privacy.policyFor('profile_photos').localizedTitle,
+              title: context.l10n.privacyRuleAvatar,
+              subtitle: privacy.policyFor('profile_photos').localizedTitle(context.l10n),
               iconColor: scheme.secondary,
               onTap: () => _openRule(context, 'profile_photos'),
             ),
             SettingsTile(
               icon: Icons.notes_rounded,
-              title: 'О себе',
-              subtitle: privacy.policyFor('bio').localizedTitle,
+              title: context.l10n.privacyRuleBio,
+              subtitle: privacy.policyFor('bio').localizedTitle(context.l10n),
               iconColor: scheme.secondary,
               onTap: () => _openRule(context, 'bio'),
             ),
             SettingsTile(
               icon: Icons.card_giftcard_rounded,
-              title: 'Подарки',
-              subtitle: privacy.policyFor('gifts').localizedTitle,
+              title: context.l10n.privacyRuleGifts,
+              subtitle: privacy.policyFor('gifts').localizedTitle(context.l10n),
               iconColor: scheme.secondary,
               onTap: () => _openRule(context, 'gifts'),
             ),
             SettingsTile(
               icon: Icons.music_note_rounded,
-              title: 'Сохранённая музыка',
-              subtitle: privacy.policyFor('saved_music').localizedTitle,
+              title: context.l10n.privacyRuleMusic,
+              subtitle: privacy.policyFor('saved_music').localizedTitle(context.l10n),
               iconColor: scheme.secondary,
               onTap: () => _openRule(context, 'saved_music'),
             ),
@@ -142,27 +142,27 @@ class SettingsPrivacyScreen extends ConsumerWidget {
 
         // 3. Активность
         SettingsSection(
-          title: 'Активность',
-          subtitle: 'Сетевой статус, пересылка и приглашения',
+          title: context.l10n.privacyCategoryActivity,
+          subtitle: context.l10n.privacyCategoryActivityDesc,
           children: <Widget>[
             SettingsTile(
               icon: Icons.access_time_rounded,
-              title: 'Время захода и статус в сети',
-              subtitle: privacy.policyFor('last_seen').localizedTitle,
+              title: context.l10n.privacyRuleLastSeen,
+              subtitle: privacy.policyFor('last_seen').localizedTitle(context.l10n),
               iconColor: scheme.tertiary,
               onTap: () => _openRule(context, 'last_seen'),
             ),
             SettingsTile(
               icon: Icons.forward_rounded,
-              title: 'Пересылка сообщений',
-              subtitle: privacy.policyFor('forwards').localizedTitle,
+              title: context.l10n.privacyRuleForwards,
+              subtitle: privacy.policyFor('forwards').localizedTitle(context.l10n),
               iconColor: scheme.tertiary,
               onTap: () => _openRule(context, 'forwards'),
             ),
             SettingsTile(
               icon: Icons.group_add_rounded,
-              title: 'Приглашения в группы и каналы',
-              subtitle: privacy.policyFor('invites').localizedTitle,
+              title: context.l10n.privacyRuleInvites,
+              subtitle: privacy.policyFor('invites').localizedTitle(context.l10n),
               iconColor: scheme.tertiary,
               onTap: () => _openRule(context, 'invites'),
             ),
@@ -181,14 +181,14 @@ class SettingsPrivacyScreen extends ConsumerWidget {
 
         // 4. Безопасность и блокировки
         SettingsSection(
-          title: 'Безопасность и блокировки',
+          title: context.l10n.privacyCategorySecurity,
           children: <Widget>[
             SettingsTile(
               icon: Icons.block_rounded,
-              title: 'Черный список',
+              title: context.l10n.privacyBlacklist,
               subtitle: privacy.blockedUsers.isEmpty
-                  ? 'Нет заблокированных пользователей'
-                  : 'Заблокировано: ${privacy.blockedUsers.length}',
+                  ? context.l10n.privacyNoBlocked
+                  : context.l10n.privacyBlockedCount(privacy.blockedUsers.length),
               iconColor: scheme.error,
               onTap: () => _openBlockedUsers(context),
             ),
@@ -255,9 +255,8 @@ class SettingsPrivacyScreen extends ConsumerWidget {
             if (isAndroid)
               SettingsTile(
                 icon: Icons.battery_charging_full_rounded,
-                title: 'Работа без ограничений батареи',
-                subtitle:
-                    'Исключить NiosMess из ограничений энергопотребления Android для стабильной доставки пушей',
+                title: context.l10n.privacyBatteryOptimization,
+                subtitle: context.l10n.privacyBatteryOptimizationDesc,
                 iconColor: scheme.secondary,
                 trailing: const Icon(Icons.open_in_new_rounded, size: 18),
                 onTap: () async {

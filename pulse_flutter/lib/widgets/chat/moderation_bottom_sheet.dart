@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
@@ -45,19 +46,19 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
   int _selectedDurationSeconds = 3600; // default: 1 hour
   bool _isActionLoading = false;
 
-  static const List<Map<String, dynamic>> _durations = <Map<String, dynamic>>[
-    <String, dynamic>{'label': '1 час', 'seconds': 3600},
-    <String, dynamic>{'label': '24 часа', 'seconds': 86400},
-    <String, dynamic>{'label': '7 дней', 'seconds': 604800},
-    <String, dynamic>{'label': 'Навсегда', 'seconds': 0},
+  List<Map<String, dynamic>> _getDurations(BuildContext context) => <Map<String, dynamic>>[
+    <String, dynamic>{'label': context.l10n.modDuration1h, 'seconds': 3600},
+    <String, dynamic>{'label': context.l10n.modDuration24h, 'seconds': 86400},
+    <String, dynamic>{'label': context.l10n.modDuration7d, 'seconds': 604800},
+    <String, dynamic>{'label': context.l10n.modDurationForever, 'seconds': 0},
   ];
 
-  static const List<String> _quickReasons = <String>[
-    'Спам',
-    'Оскорбления',
-    'Флуд',
-    'Нарушение правил',
-    'Реклама',
+  List<String> _getQuickReasons(BuildContext context) => <String>[
+    context.l10n.modReasonSpam,
+    context.l10n.modReasonInsults,
+    context.l10n.modReasonFlood,
+    context.l10n.modReasonRules,
+    context.l10n.modReasonAds,
   ];
 
   bool get _isSupportUser {
@@ -77,15 +78,15 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
     return false;
   }
 
-  String? get _restrictionError {
+  String? _restrictionError(BuildContext context) {
     if (_isSupportUser) {
-      return 'Пользователь Support защищён от модерации';
+      return context.l10n.modErrorSupportProtected;
     }
     if (_isOwnerProtected) {
-      return 'Создатель группы защищён от модерации';
+      return context.l10n.modErrorOwnerProtected;
     }
     if (_isAdminProtected) {
-      return 'Администратор не может применить санкции к равному администратору';
+      return context.l10n.modErrorAdminProtected;
     }
     return null;
   }
@@ -113,7 +114,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
       HapticService.confirm();
       AppToast.showSuccess(
         context,
-        mute ? 'Участник заглушен' : 'Ограничение снято',
+        mute ? context.l10n.modSuccessMuted : context.l10n.modSuccessUnmuted,
       );
       Navigator.of(context).pop();
     } catch (e) {
@@ -142,7 +143,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
       HapticService.confirm();
       AppToast.showSuccess(
         context,
-        ban ? 'Участник заблокирован в группе' : 'Участник разблокирован',
+        ban ? context.l10n.modSuccessBanned : context.l10n.modSuccessUnbanned,
       );
       Navigator.of(context).pop();
     } catch (e) {
@@ -158,7 +159,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final String? errorText = _restrictionError;
+    final String? errorText = _restrictionError(context);
 
     return SafeArea(
       child: Padding(
@@ -228,7 +229,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        'Владелец',
+                        context.l10n.chatMembersRoleOwner,
                         style: textTheme.labelSmall?.copyWith(
                           color: scheme.onPrimaryContainer,
                           fontWeight: FontWeight.bold,
@@ -244,7 +245,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        'Администратор',
+                        context.l10n.chatMembersRoleAdmin,
                         style: textTheme.labelSmall?.copyWith(
                           color: scheme.onTertiaryContainer,
                           fontWeight: FontWeight.bold,
@@ -288,7 +289,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
 
                 // Duration presets
                 Text(
-                  'Длительность ограничения',
+                  context.l10n.modDurationTitle,
                   style: textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: scheme.onSurfaceVariant,
@@ -298,7 +299,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _durations.map((Map<String, dynamic> item) {
+                  children: _getDurations(context).map((Map<String, dynamic> item) {
                     final int sec = item['seconds'] as int;
                     final bool isSelected = _selectedDurationSeconds == sec;
                     return ChoiceChip(
@@ -317,7 +318,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
 
                 // Reason Field
                 Text(
-                  'Причина ограничения',
+                  context.l10n.modReasonTitle,
                   style: textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: scheme.onSurfaceVariant,
@@ -327,7 +328,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
-                  children: _quickReasons.map((String reason) {
+                  children: _getQuickReasons(context).map((String reason) {
                     return ActionChip(
                       label: Text(reason),
                       onPressed: () {
@@ -343,7 +344,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
                 TextField(
                   controller: _reasonController,
                   decoration: InputDecoration(
-                    hintText: 'Укажите причину (необязательно)...',
+                    hintText: context.l10n.modReasonHint,
                     filled: true,
                     fillColor: scheme.surfaceContainerLow,
                     border: OutlineInputBorder(
@@ -365,7 +366,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
                       child: widget.member.isMuted
                           ? OutlinedButton.icon(
                               icon: const Icon(Icons.volume_up_rounded),
-                              label: const Text('Снять мут'),
+                              label: Text(context.l10n.chatMembersUnmute),
                               onPressed: _isActionLoading
                                   ? null
                                   : () => _executeMute(false),
@@ -379,7 +380,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
                             )
                           : FilledButton.tonalIcon(
                               icon: const Icon(Icons.volume_off_rounded),
-                              label: const Text('Заглушить'),
+                              label: Text(context.l10n.chatMembersMute),
                               onPressed: _isActionLoading
                                   ? null
                                   : () => _executeMute(true),
@@ -397,7 +398,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
                       child: widget.member.isBanned
                           ? OutlinedButton.icon(
                               icon: const Icon(Icons.lock_open_rounded),
-                              label: const Text('Разбанить'),
+                              label: Text(context.l10n.chatMembersUnban),
                               onPressed: _isActionLoading
                                   ? null
                                   : () => _executeBan(false),
@@ -411,7 +412,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
                             )
                           : FilledButton.icon(
                               icon: const Icon(Icons.block_rounded),
-                              label: const Text('Заблокировать'),
+                              label: Text(context.l10n.chatMembersBan),
                               onPressed: _isActionLoading
                                   ? null
                                   : () => _executeBan(true),

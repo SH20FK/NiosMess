@@ -4454,4 +4454,97 @@ class AppLocalizationsEn extends AppLocalizations {
   String get refreshAction => 'Refresh';
   @override
   String chatStickerSendFailed(Object error) => 'Failed to send sticker: $error';
+
+  @override
+  String get appearanceGeometry => 'Geometry & interface';
+
+  @override
+  String get appearanceGeometryDesc => 'Custom corner radius and scale settings';
+
+  @override
+  String get appearancePredictiveBackStrength => 'Back animation intensity';
+
+  @override
+  String get appearancePredictiveBackSoft => 'Soft: subtle scale down (to 95%), 16dp rounding';
+
+  @override
+  String get appearancePredictiveBackStandard => 'Standard: balanced Android 14+ compression (to 90%), 32dp';
+
+  @override
+  String get appearancePredictiveBackDeep => 'Deep: expressive compression (to 85%), 48dp rounding';
+
+  @override
+  String get appearancePredictiveBackSoftLabel => '0.5x Soft';
+
+  @override
+  String get appearancePredictiveBackStandardLabel => '1.0x Standard';
+
+  @override
+  String get appearancePredictiveBackDeepLabel => '1.5x Deep';
+
+  @override
+  String get updateClose => 'Close';
+
+  @override
+  String get errorTechnicalDetails => 'Technical details';
+
+  @override
+  String get errorNoAdditionalData => 'No additional details';
+
+  @override
+  String get modDurationTitle => 'Restriction duration';
+
+  @override
+  String get modDuration1h => '1 hour';
+
+  @override
+  String get modDuration24h => '24 hours';
+
+  @override
+  String get modDuration7d => '7 days';
+
+  @override
+  String get modDurationForever => 'Forever';
+
+  @override
+  String get modReasonTitle => 'Restriction reason';
+
+  @override
+  String get modReasonHint => 'Specify reason (optional)...';
+
+  @override
+  String get modReasonSpam => 'Spam';
+
+  @override
+  String get modReasonInsults => 'Insults';
+
+  @override
+  String get modReasonFlood => 'Flood';
+
+  @override
+  String get modReasonRules => 'Rule violation';
+
+  @override
+  String get modReasonAds => 'Advertisement';
+
+  @override
+  String get modErrorSupportProtected => 'Support account is protected from moderation';
+
+  @override
+  String get modErrorOwnerProtected => 'Group creator is protected from moderation';
+
+  @override
+  String get modErrorAdminProtected => 'Admins cannot sanction other admins';
+
+  @override
+  String get modSuccessMuted => 'Member muted';
+
+  @override
+  String get modSuccessUnmuted => 'Restriction removed';
+
+  @override
+  String get modSuccessBanned => 'Member banned from group';
+
+  @override
+  String get modSuccessUnbanned => 'Member unbanned';
 }

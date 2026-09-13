@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
@@ -85,9 +86,11 @@ class _PrivacyRuleDetailScreenState
 
     final ApiSearchUser? picked = await showUserSearchPickerSheet(
       context,
-      title: isAlwaysAllow ? 'Всегда разрешать' : 'Никогда не разрешать',
-      subtitle: 'Выберите пользователя из списка или введите @username',
-      hintText: 'Поиск по @username или имени...',
+      title: isAlwaysAllow
+          ? context.l10n.privacyAlwaysAllow
+          : context.l10n.privacyNeverAllow,
+      subtitle: context.l10n.privacySelectUserSubtitle,
+      hintText: context.l10n.searchByUsernameOrNameHint,
       excludedUserIds: alreadyExcluded,
     );
 
@@ -129,7 +132,7 @@ class _PrivacyRuleDetailScreenState
 
   @override
   Widget build(BuildContext context) {
-    final String title = PrivacyRule.localizedKeyName(widget.ruleKey);
+    final String title = PrivacyRule.localizedKeyName(widget.ruleKey, context.l10n);
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -147,13 +150,13 @@ class _PrivacyRuleDetailScreenState
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         children: <Widget>[
           SettingsSection(
-            title: 'Кто может видеть / взаимодействовать',
+            title: context.l10n.privacyWhoCanInteract,
             children: <Widget>[
               RadioListTile<PrivacyPolicy>(
                 value: PrivacyPolicy.everyone,
                 groupValue: _selectedPolicy,
-                title: const Text('Все'),
-                subtitle: const Text('Доступно всем пользователям NiosMess'),
+                title: Text(context.l10n.privacyPolicyEveryone),
+                subtitle: Text(context.l10n.privacyPolicyEveryoneDesc),
                 onChanged: (PrivacyPolicy? val) {
                   if (val != null) _savePolicy(val);
                 },
@@ -161,8 +164,8 @@ class _PrivacyRuleDetailScreenState
               RadioListTile<PrivacyPolicy>(
                 value: PrivacyPolicy.contacts,
                 groupValue: _selectedPolicy,
-                title: const Text('Мои контакты'),
-                subtitle: const Text('Только пользователи из списка диалогов'),
+                title: Text(context.l10n.privacyPolicyContacts),
+                subtitle: Text(context.l10n.privacyPolicyContactsDesc),
                 onChanged: (PrivacyPolicy? val) {
                   if (val != null) _savePolicy(val);
                 },
@@ -170,8 +173,8 @@ class _PrivacyRuleDetailScreenState
               RadioListTile<PrivacyPolicy>(
                 value: PrivacyPolicy.nobody,
                 groupValue: _selectedPolicy,
-                title: const Text('Никто'),
-                subtitle: const Text('Скрыто от всех (кроме исключений)'),
+                title: Text(context.l10n.privacyPolicyNobody),
+                subtitle: Text(context.l10n.privacyPolicyNobodyDesc),
                 onChanged: (PrivacyPolicy? val) {
                   if (val != null) _savePolicy(val);
                 },
@@ -180,20 +183,20 @@ class _PrivacyRuleDetailScreenState
           ),
           const SizedBox(height: 16),
           SettingsSection(
-            title: 'Исключения',
-            subtitle: 'Исключения имеют приоритет над основным правилом',
+            title: context.l10n.privacyExceptions,
+            subtitle: context.l10n.privacyExceptionsDesc,
             children: <Widget>[
               ListTile(
                 leading: Icon(Icons.check_circle_outline_rounded,
                     color: Colors.green.shade600),
-                title: const Text('Всегда разрешать'),
+                title: Text(context.l10n.privacyAlwaysAllow),
                 subtitle: Text(_alwaysAllow.isEmpty
-                    ? 'Нет добавленных пользователей'
-                    : 'Пользователей: ${_alwaysAllow.length}'),
+                    ? context.l10n.privacyNoAddedUsers
+                    : context.l10n.privacyUsersCount(_alwaysAllow.length)),
                 trailing: IconButton(
                   icon: const Icon(Icons.person_add_alt_1_rounded),
                   onPressed: () => _addException(isAlwaysAllow: true),
-                  tooltip: 'Добавить пользователя',
+                  tooltip: context.l10n.privacyAddUserTooltip,
                 ),
               ),
               if (_alwaysAllow.isNotEmpty)
@@ -228,14 +231,14 @@ class _PrivacyRuleDetailScreenState
               ListTile(
                 leading: Icon(Icons.do_not_disturb_on_outlined,
                     color: scheme.error),
-                title: const Text('Никогда не разрешать'),
+                title: Text(context.l10n.privacyNeverAllow),
                 subtitle: Text(_neverAllow.isEmpty
-                    ? 'Нет добавленных пользователей'
-                    : 'Пользователей: ${_neverAllow.length}'),
+                    ? context.l10n.privacyNoAddedUsers
+                    : context.l10n.privacyUsersCount(_neverAllow.length)),
                 trailing: IconButton(
                   icon: const Icon(Icons.person_add_alt_1_rounded),
                   onPressed: () => _addException(isAlwaysAllow: false),
-                  tooltip: 'Добавить пользователя',
+                  tooltip: context.l10n.privacyAddUserTooltip,
                 ),
               ),
               if (_neverAllow.isNotEmpty)

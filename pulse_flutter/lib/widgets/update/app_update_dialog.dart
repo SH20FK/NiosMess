@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/ota_update_provider.dart';
@@ -33,9 +34,9 @@ class AppUpdateDialog extends ConsumerWidget {
   }
 
   String _formatBytes(int bytes) {
-    if (bytes <= 0) return '0 МБ';
+    if (bytes <= 0) return '0 MB';
     final double mb = bytes / (1024 * 1024);
-    return '${mb.toStringAsFixed(1)} МБ';
+    return '${mb.toStringAsFixed(1)} MB';
   }
 
   @override
@@ -95,7 +96,7 @@ class AppUpdateDialog extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'Доступно обновление',
+                      context.l10n.updateAvailable,
                       style: textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.2,
@@ -142,7 +143,7 @@ class AppUpdateDialog extends ConsumerWidget {
           // Changelog Section (Strictly latest version only)
           if (!isDownloading && latestChangelog.isNotEmpty) ...<Widget>[
             Text(
-              'Что нового:',
+              context.l10n.updateWhatsNew,
               style: textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: scheme.onSurface,
@@ -190,8 +191,8 @@ class AppUpdateDialog extends ConsumerWidget {
               children: <Widget>[
                 Text(
                   otaState.progress > 0
-                      ? 'Загрузка: ${(otaState.progress * 100).toInt()}%'
-                      : 'Загрузка пакета...',
+                      ? context.l10n.updateDownloadingProgress((otaState.progress * 100).toInt())
+                      : context.l10n.updateDownloadingPackage,
                   style: textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: scheme.primary,
@@ -227,7 +228,7 @@ class AppUpdateDialog extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Пакет обновления полностью загружен и готов к установке.',
+                      context.l10n.updateReadyToInstall,
                       style: textTheme.bodySmall?.copyWith(
                         color: scheme.onSurface,
                         fontWeight: FontWeight.w500,
@@ -255,7 +256,7 @@ class AppUpdateDialog extends ConsumerWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      otaState.errorMessage ?? 'Ошибка при скачивании файла обновления',
+                      otaState.errorMessage ?? context.l10n.updateDownloadFailed,
                       style: textTheme.bodySmall?.copyWith(
                         color: scheme.onErrorContainer,
                       ),
@@ -292,7 +293,7 @@ class AppUpdateDialog extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Скачивать в фоне',
+                        context.l10n.updateDownloadInBackground,
                         style: textTheme.labelLarge?.copyWith(
                           color: scheme.onPrimary,
                           fontWeight: FontWeight.w700,
@@ -312,7 +313,7 @@ class AppUpdateDialog extends ConsumerWidget {
               style: TextButton.styleFrom(
                 foregroundColor: scheme.error,
               ),
-              child: const Text('Отменить загрузку'),
+              child: Text(context.l10n.updateCancelDownload),
             ),
           ] else if (isReady) ...<Widget>[
             TouchContainer(
@@ -338,7 +339,7 @@ class AppUpdateDialog extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Установить сейчас',
+                        context.l10n.updateInstallNow,
                         style: textTheme.labelLarge?.copyWith(
                           color: scheme.onPrimary,
                           fontWeight: FontWeight.w700,
@@ -358,7 +359,7 @@ class AppUpdateDialog extends ConsumerWidget {
               style: TextButton.styleFrom(
                 foregroundColor: scheme.onSurfaceVariant,
               ),
-              child: const Text('Закрыть'),
+              child: Text(context.l10n.updateClose),
             ),
           ] else if (isInstalling) ...<Widget>[
             SizedBox(
@@ -373,7 +374,7 @@ class AppUpdateDialog extends ConsumerWidget {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'Запуск установщика...',
+                      context.l10n.updateStartingInstaller,
                       style: textTheme.bodyMedium?.copyWith(
                         color: scheme.onSurface,
                         fontWeight: FontWeight.w600,
@@ -407,7 +408,7 @@ class AppUpdateDialog extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        isError ? 'Повторить попытку' : 'Обновить сейчас',
+                        isError ? context.l10n.updateRetry : context.l10n.updateNow,
                         style: textTheme.labelLarge?.copyWith(
                           color: scheme.onPrimary,
                           fontWeight: FontWeight.w700,
@@ -427,7 +428,7 @@ class AppUpdateDialog extends ConsumerWidget {
               style: TextButton.styleFrom(
                 foregroundColor: scheme.onSurfaceVariant,
               ),
-              child: const Text('Позже'),
+              child: Text(context.l10n.updateLater),
             ),
           ],
         ],

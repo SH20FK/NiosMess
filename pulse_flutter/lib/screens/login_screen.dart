@@ -130,9 +130,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    final l10n = context.l10n;
     setState(() {
       _isExchanging = true;
-      _statusText = context.l10n.loginNiosIdAuthorizing;
+      _statusText = l10n.loginNiosIdAuthorizing;
     });
 
     try {
@@ -144,7 +145,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         throw Exception(
           tokenResponse.errorDescription ??
               tokenResponse.error ??
-              context.l10n.loginNiosIdTokenFailed,
+              l10n.loginNiosIdTokenFailed,
         );
       }
 
@@ -152,7 +153,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       HapticService.destructive();
       if (mounted) {
-        AppToast.showError(context, context.l10n.loginAuthError(e));
+        AppToast.showError(context, l10n.loginAuthError(e));
       }
     } finally {
       if (mounted) {
@@ -279,7 +280,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (_lastBackPressTime == null ||
             now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
           _lastBackPressTime = now;
-          AppToast.showInfo(context, 'Нажмите ещё раз для выхода');
+          AppToast.showInfo(context, context.l10n.loginTapAgainToExit);
           return;
         }
         SystemUtils.minimizeApp();
@@ -380,7 +381,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
         // Subtitle without awkward line wraps
         Text(
-          'Единый доступ к чатам, звонкам и\u00A0Nios\u00A0ID',
+          context.l10n.loginSlogan,
           style: TextStyle(
             fontFamily: AppFonts.body,
             fontSize: 15,
@@ -414,7 +415,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               )
             : const Icon(Icons.all_inclusive_rounded, size: 22),
         label: Text(
-          'Войти через Nios ID',
+          context.l10n.loginSignInWithNiosId,
           style: TextStyle(
             fontFamily: AppFonts.ui,
             fontSize: 16,
@@ -443,7 +444,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           elevation: 0,
         ),
         child: Text(
-          'Создать аккаунт Nios ID',
+          context.l10n.loginCreateNiosId,
           style: TextStyle(
             fontFamily: AppFonts.ui,
             fontSize: 15,
@@ -482,7 +483,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                'Подтверждение входа',
+                context.l10n.loginConfirmTitle,
                 style: TextStyle(
                   fontFamily: AppFonts.ui,
                   fontSize: 16,
@@ -494,7 +495,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Откройте страницу Nios ID и подтвердите совпадение одноразового кода:',
+            context.l10n.loginConfirmDesc,
             style: TextStyle(
               fontFamily: AppFonts.body,
               fontSize: 13.5,
@@ -510,7 +511,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             onTap: () {
               Clipboard.setData(ClipboardData(text: resp.userCode));
               HapticFeedback.lightImpact();
-              AppToast.showSuccess(context, 'Код скопирован');
+              AppToast.showSuccess(context, context.l10n.loginCodeCopied);
             },
             borderRadius: BorderRadius.circular(16),
             child: Container(
@@ -549,7 +550,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Нажмите, чтобы скопировать',
+                    context.l10n.loginTapToCopy,
                     style: TextStyle(
                       fontFamily: AppFonts.body,
                       fontSize: 11,
@@ -573,7 +574,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               },
               icon: const Icon(Icons.open_in_browser_rounded, size: 20),
               label: Text(
-                'Подтвердить в браузере',
+                context.l10n.loginConfirmInBrowser,
                 style: TextStyle(
                   fontFamily: AppFonts.ui,
                   fontSize: 15,
@@ -597,7 +598,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               foregroundColor: scheme.onSurfaceVariant,
             ),
             child: Text(
-              'Отмена',
+              context.l10n.commonCancel,
               style: TextStyle(
                 fontFamily: AppFonts.ui,
                 fontSize: 14,
@@ -614,7 +615,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       children: [
         Text(
-          'Входя в приложение, вы соглашаетесь с документами:',
+          context.l10n.loginAgreeTermsPrefix,
           style: TextStyle(
             fontFamily: AppFonts.body,
             fontSize: 11.5,
@@ -633,7 +634,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Text(
-                  'Условия использования',
+                  context.l10n.loginTermsOfService,
                   style: TextStyle(
                     fontFamily: AppFonts.ui,
                     fontSize: 12,
@@ -657,7 +658,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Text(
-                  'Политика конфиденциальности',
+                  context.l10n.loginPrivacyPolicy,
                   style: TextStyle(
                     fontFamily: AppFonts.ui,
                     fontSize: 12,

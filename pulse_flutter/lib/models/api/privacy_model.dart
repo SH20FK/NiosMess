@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:pulse_flutter/l10n/app_localizations.dart';
 
 enum PrivacyPolicy {
   everyone,
@@ -29,14 +30,14 @@ enum PrivacyPolicy {
     }
   }
 
-  String get localizedTitle {
+  String localizedTitle([AppLocalizations? l10n]) {
     switch (this) {
       case PrivacyPolicy.everyone:
-        return 'Все';
+        return l10n?.privacyPolicyEveryone ?? 'Все';
       case PrivacyPolicy.contacts:
-        return 'Мои контакты';
+        return l10n?.privacyPolicyContacts ?? 'Мои контакты';
       case PrivacyPolicy.nobody:
-        return 'Никто';
+        return l10n?.privacyPolicyNobody ?? 'Никто';
     }
   }
 }
@@ -70,7 +71,37 @@ class PrivacyRule {
     'invites',
   ];
 
-  static String localizedKeyName(String key) {
+  static String localizedKeyName(String key, [AppLocalizations? l10n]) {
+    if (l10n != null) {
+      switch (key) {
+        case 'phone':
+          return l10n.privacyRulePhone;
+        case 'last_seen':
+          return l10n.privacyRuleLastSeen;
+        case 'profile_photos':
+          return l10n.privacyRuleAvatar;
+        case 'forwards':
+          return l10n.privacyRuleForwards;
+        case 'calls':
+          return l10n.privacyRuleCalls;
+        case 'voice_messages':
+          return l10n.privacyRuleVoiceMessages;
+        case 'messages':
+          return l10n.privacyRuleDirectMessages;
+        case 'birthday':
+          return l10n.privacyRuleBirthDate;
+        case 'gifts':
+          return l10n.privacyRuleGifts;
+        case 'bio':
+          return l10n.privacyRuleBio;
+        case 'saved_music':
+          return l10n.privacyRuleMusic;
+        case 'invites':
+          return l10n.privacyRuleInvites;
+        default:
+          return key;
+      }
+    }
     switch (key) {
       case 'phone':
         return 'Номер телефона';

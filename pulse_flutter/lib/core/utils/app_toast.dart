@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
@@ -15,7 +16,7 @@ class AppToast {
   }) {
     final AppFormattedError formatted = error is AppFormattedError
         ? error
-        : AppErrorFormatter.format(error);
+        : AppErrorFormatter.format(error, l10n: context.l10n);
 
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final ScaffoldMessengerState? scaffoldMessenger =
@@ -64,7 +65,7 @@ class AppToast {
             ),
             if (formatted.technicalDetails != null)
               IconButton(
-                tooltip: 'Технические подробности',
+                tooltip: context.l10n.errorTechnicalDetails,
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -81,7 +82,7 @@ class AppToast {
         ),
         action: onRetry != null
             ? SnackBarAction(
-                label: 'Повторить',
+                label: context.l10n.updateRetry,
                 textColor: scheme.error,
                 backgroundColor: scheme.surface,
                 onPressed: onRetry,
@@ -170,11 +171,11 @@ class AppToast {
         final ColorScheme scheme = Theme.of(dialogContext).colorScheme;
         return AppDialog(
           icon: Icons.bug_report_outlined,
-          title: 'Технические подробности',
+          title: dialogContext.l10n.errorTechnicalDetails,
           actions: [
             AppDialogAction(
               icon: Icons.copy_rounded,
-              label: 'Копировать',
+              label: dialogContext.l10n.chatManageCopy,
               onPressed: () {
                 Clipboard.setData(
                   ClipboardData(
@@ -182,11 +183,11 @@ class AppToast {
                   ),
                 );
                 Navigator.of(dialogContext).pop();
-                showInfo(context, 'Скопировано в буфер обмена');
+                showInfo(context, dialogContext.l10n.chatMessageTextCopied);
               },
             ),
             AppDialogAction(
-              label: 'Закрыть',
+              label: dialogContext.l10n.updateClose,
               isPrimary: true,
               onPressed: () => Navigator.of(dialogContext).pop(),
             ),
@@ -208,7 +209,7 @@ class AppToast {
                   borderRadius: AppRadii.smRadius,
                 ),
                 child: SelectableText(
-                  formatted.technicalDetails ?? 'Нет дополнительных данных',
+                  formatted.technicalDetails ?? dialogContext.l10n.errorNoAdditionalData,
                   style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
                 ),
               ),

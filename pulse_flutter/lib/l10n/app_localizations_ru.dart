@@ -4478,4 +4478,97 @@ class AppLocalizationsRu extends AppLocalizations {
   String get refreshAction => 'Обновить';
   @override
   String chatStickerSendFailed(Object error) => 'Не удалось отправить стикер: $error';
+
+  @override
+  String get appearanceGeometry => 'Геометрия и интерфейс';
+
+  @override
+  String get appearanceGeometryDesc => 'Индивидуальная настройка скруглений и масштаба';
+
+  @override
+  String get appearancePredictiveBackStrength => 'Сила анимации возврата';
+
+  @override
+  String get appearancePredictiveBackSoft => 'Мягкий: деликатное уменьшение (до 95%), скругление 16dp';
+
+  @override
+  String get appearancePredictiveBackStandard => 'Стандарт: сбалансированное сжатие Android 14+ (до 90%), 32dp';
+
+  @override
+  String get appearancePredictiveBackDeep => 'Глубокий: выразительное сжатие (до 85%), скругление 48dp';
+
+  @override
+  String get appearancePredictiveBackSoftLabel => '0.5x Мягкий';
+
+  @override
+  String get appearancePredictiveBackStandardLabel => '1.0x Стандарт';
+
+  @override
+  String get appearancePredictiveBackDeepLabel => '1.5x Глубокий';
+
+  @override
+  String get updateClose => 'Закрыть';
+
+  @override
+  String get errorTechnicalDetails => 'Технические подробности';
+
+  @override
+  String get errorNoAdditionalData => 'Нет дополнительных данных';
+
+  @override
+  String get modDurationTitle => 'Длительность ограничения';
+
+  @override
+  String get modDuration1h => '1 час';
+
+  @override
+  String get modDuration24h => '24 часа';
+
+  @override
+  String get modDuration7d => '7 дней';
+
+  @override
+  String get modDurationForever => 'Навсегда';
+
+  @override
+  String get modReasonTitle => 'Причина ограничения';
+
+  @override
+  String get modReasonHint => 'Укажите причину (необязательно)...';
+
+  @override
+  String get modReasonSpam => 'Спам';
+
+  @override
+  String get modReasonInsults => 'Оскорбления';
+
+  @override
+  String get modReasonFlood => 'Флуд';
+
+  @override
+  String get modReasonRules => 'Нарушение правил';
+
+  @override
+  String get modReasonAds => 'Реклама';
+
+  @override
+  String get modErrorSupportProtected => 'Пользователь Support защищён от модерации';
+
+  @override
+  String get modErrorOwnerProtected => 'Создатель группы защищён от модерации';
+
+  @override
+  String get modErrorAdminProtected => 'Администратор не может применить санкции к равному администратору';
+
+  @override
+  String get modSuccessMuted => 'Участник заглушен';
+
+  @override
+  String get modSuccessUnmuted => 'Ограничение снято';
+
+  @override
+  String get modSuccessBanned => 'Участник заблокирован в группе';
+
+  @override
+  String get modSuccessUnbanned => 'Участник разблокирован';
 }

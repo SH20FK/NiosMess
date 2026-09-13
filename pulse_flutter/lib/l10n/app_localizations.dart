@@ -7337,6 +7337,37 @@ abstract class AppLocalizations {
   String get blockUserAction;
   String get refreshAction;
   String chatStickerSendFailed(Object error);
+  String get appearanceGeometry;
+  String get appearanceGeometryDesc;
+  String get appearancePredictiveBackStrength;
+  String get appearancePredictiveBackSoft;
+  String get appearancePredictiveBackStandard;
+  String get appearancePredictiveBackDeep;
+  String get appearancePredictiveBackSoftLabel;
+  String get appearancePredictiveBackStandardLabel;
+  String get appearancePredictiveBackDeepLabel;
+  String get updateClose;
+  String get errorTechnicalDetails;
+  String get errorNoAdditionalData;
+  String get modDurationTitle;
+  String get modDuration1h;
+  String get modDuration24h;
+  String get modDuration7d;
+  String get modDurationForever;
+  String get modReasonTitle;
+  String get modReasonHint;
+  String get modReasonSpam;
+  String get modReasonInsults;
+  String get modReasonFlood;
+  String get modReasonRules;
+  String get modReasonAds;
+  String get modErrorSupportProtected;
+  String get modErrorOwnerProtected;
+  String get modErrorAdminProtected;
+  String get modSuccessMuted;
+  String get modSuccessUnmuted;
+  String get modSuccessBanned;
+  String get modSuccessUnbanned;
 }
 
 class _AppLocalizationsDelegate
