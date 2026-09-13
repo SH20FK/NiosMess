@@ -215,7 +215,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.65),
+                      scheme.scrim.withValues(alpha: 0.65),
                       Colors.transparent,
                     ],
                   ),
@@ -237,9 +237,9 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.keyboard_arrow_down_rounded,
-                        color: Colors.white,
+                        color: scheme.onSurface,
                         size: 32,
                       ),
                       tooltip: context.l10n.callMinimize,
@@ -257,11 +257,11 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                           Text(
                             participantName,
                             style: textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
+                              color: scheme.onSurface,
                               fontWeight: FontWeight.w700,
                               shadows: [
                                 Shadow(
-                                  color: Colors.black.withValues(alpha: 0.6),
+                                  color: scheme.shadow.withValues(alpha: 0.6),
                                   blurRadius: 6,
                                 ),
                               ],
@@ -282,7 +282,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                               Text(
                                 'E2EE PROTECTED',
                                 style: textTheme.labelSmall?.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.75),
+                                  color: scheme.onSurface.withValues(alpha: 0.75),
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 0.6,
@@ -301,17 +301,17 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                         return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.4),
+                            color: scheme.scrim.withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.15),
+                              color: scheme.outlineVariant.withValues(alpha: 0.25),
                             ),
                           ),
                           child: Text(
                             '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
                             style: textTheme.labelMedium?.copyWith(
                               fontFamily: 'monospace',
-                              color: Colors.white,
+                              color: scheme.onSurface,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -331,7 +331,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                 onPanUpdate: (details) {
                   setState(() {
                     _pipX = (_pipX + details.delta.dx).clamp(
-                      12.0,
+                       12.0,
                       size.width - CallTokens.videoPipWidth - 12.0,
                     );
                     _pipY = (_pipY + details.delta.dy).clamp(
@@ -345,7 +345,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                     borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.45),
+                        color: scheme.shadow.withValues(alpha: 0.45),
                         blurRadius: 18,
                         offset: const Offset(0, 6),
                       ),
@@ -357,7 +357,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                       width: CallTokens.videoPipWidth,
                       height: CallTokens.videoPipHeight,
                       decoration: BoxDecoration(
-                        color: Colors.black87,
+                        color: scheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
                         border: Border.all(
                           color: scheme.outlineVariant.withValues(alpha: 0.35),
@@ -509,18 +509,20 @@ class _LocalCameraPreview extends ConsumerWidget {
     final isEnabled = ref.watch(localVideoEnabledProvider);
     final controller = ref.watch(localCameraControllerProvider);
 
+    final scheme = Theme.of(context).colorScheme;
+
     if (!isEnabled) {
-      return const Center(
-        child: Icon(Icons.videocam_off_rounded, color: Colors.white38, size: 28),
+      return Center(
+        child: Icon(Icons.videocam_off_rounded, color: scheme.onSurface.withValues(alpha: 0.38), size: 28),
       );
     }
 
     if (controller == null || !controller.value.isInitialized) {
-      return const Center(
+      return Center(
         child: SizedBox(
           width: 20,
           height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
+          child: CircularProgressIndicator(strokeWidth: 2, color: scheme.onSurface.withValues(alpha: 0.38)),
         ),
       );
     }

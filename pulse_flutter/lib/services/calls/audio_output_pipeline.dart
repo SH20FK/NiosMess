@@ -97,10 +97,8 @@ class AudioOutputPipeline {
     if (_stopped || _decoder == null) return;
     try {
       final Int16List pcm = _decoder!.decode(input: opusData);
-      for (final int sample in pcm) {
-        _pcmBuffer.add(sample & 0xFF);
-        _pcmBuffer.add((sample >> 8) & 0xFF);
-      }
+      final Uint8List bytes = pcm.buffer.asUint8List(pcm.offsetInBytes, pcm.lengthInBytes);
+      _pcmBuffer.addAll(bytes);
       _trimToMaxBuffer();
     } catch (e) {
       debugPrint('[AudioOutput] Decode error: $e');
@@ -210,11 +208,9 @@ class AudioOutputPipeline {
     wav.setUint8(39, 0x61); // a
     wav.setUint32(40, dataSize, Endian.little);
 
-    for (int i = 0; i < dataSize; i++) {
-      wav.setUint8(44 + i, pcm16[i]);
-    }
-
-    return wav.buffer.asUint8List();
+    final Uint8List out = wav.buffer.asUint8List();
+    out.setRange(44, 44 + dataSize, pcm16);
+    return out;
   }
 
   Future<void> stop() async {

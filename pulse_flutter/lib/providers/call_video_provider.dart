@@ -40,13 +40,13 @@ final localCameraControllerProvider =
 );
 
 /// Listen to a video frame stream and update [remoteVideoFrameProvider].
-void startListeningToVideoFrames(
+StreamSubscription<Uint8List> startListeningToVideoFrames(
   WidgetRef ref,
   Stream<Uint8List> frameStream, {
   StreamSubscription<Uint8List>? existingSub,
 }) {
   existingSub?.cancel();
-  existingSub = frameStream.listen((frame) {
+  return frameStream.listen((frame) {
     ref.read(remoteVideoFrameProvider.notifier).set(frame);
   });
 }

@@ -22,6 +22,9 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:universal_io/io.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:open_file/open_file.dart';
+import 'package:chewie/chewie.dart';
+import 'package:video_player/video_player.dart';
 
 class NativeFileViewerScreen extends ConsumerStatefulWidget {
   const NativeFileViewerScreen({
@@ -942,16 +945,89 @@ class _VideoViewer extends StatefulWidget {
 }
 
 class _VideoViewerState extends State<_VideoViewer> {
+  VideoPlayerController? _videoController;
+  ChewieController? _chewieController;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _initVideo();
+  }
+
+  Future<void> _initVideo() async {
+    try {
+      if (widget.localPath != null && widget.localPath!.isNotEmpty) {
+        _videoController = VideoPlayerController.file(File(widget.localPath!));
+      } else if (widget.url != null && widget.url!.isNotEmpty) {
+        _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.url!));
+      } else {
+        throw Exception('Отсутствует источник видео');
+      }
+      await _videoController!.initialize();
+      if (!mounted) return;
+      _chewieController = ChewieController(
+        videoPlayerController: _videoController!,
+        autoPlay: true,
+        looping: false,
+        placeholder: const AppLoadingIndicator(size: 32),
+        allowFullScreen: true,
+        allowMuting: true,
+      );
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _chewieController?.dispose();
+    _videoController?.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
+    if (_isLoading) {
+      return Container(
+        color: scheme.scrim,
+        alignment: Alignment.center,
+        child: const Center(
+          child: AppLoadingIndicator(size: 32),
+        ),
+      );
+    }
+
+    if (_error != null || _chewieController == null) {
+      return Container(
+        color: scheme.scrim,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.error_outline_rounded, size: 48, color: scheme.error),
+            const SizedBox(height: 12),
+            Text(
+              'Не удалось воспроизвести видео',
+              style: TextStyle(color: scheme.onSurface),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       color: scheme.scrim,
       alignment: Alignment.center,
-      child: const Center(
-        child: AppLoadingIndicator(size: 32),
-      ),
+      child: Chewie(controller: _chewieController!),
     );
   }
 }
@@ -1291,13 +1367,13 @@ class _MusicPlayerState extends State<_MusicPlayer> {
                     ],
                   ),
                   child: _loading
-                      ? const Center(
+                      ? Center(
                           child: SizedBox(
                             width: 28,
                             height: 28,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.5,
-                              color: Colors.white,
+                              color: scheme.onPrimary,
                             ),
                           ),
                         )
@@ -1401,11 +1477,25 @@ class _DocumentInfoViewer extends StatelessWidget {
 
             // Open externally button
             FilledButton.icon(
-              onPressed: () {
-                if (url != null) {
-                  AppToast.showInfo(context, context.l10n.filePreviewOpenExternal);
-                } else if (localPath != null) {
-                  AppToast.showInfo(context, context.l10n.filePreviewOpenExternal);
+              onPressed: () async {
+                try {
+                  if (localPath != null && localPath!.isNotEmpty) {
+                    final OpenResult res = await OpenFile.open(localPath!);
+                    if (res.type != ResultType.done && context.mounted) {
+                      AppToast.showError(context, res.message);
+                    }
+                  } else if (url != null && url!.isNotEmpty) {
+                    final Uri? uri = Uri.tryParse(url!);
+                    if (uri != null && await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  } else {
+                    AppToast.showInfo(context, context.l10n.filePreviewOpenExternal);
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    AppToast.showError(context, 'Не удалось открыть файл: $e');
+                  }
                 }
               },
               icon: const Icon(Icons.open_in_new_rounded),
@@ -1421,10 +1511,31 @@ class _DocumentInfoViewer extends StatelessWidget {
             const SizedBox(height: 12),
 
             // Download button
-            if (url != null)
+            if (url != null || localPath != null)
               FilledButton.tonalIcon(
-                onPressed: () {
-                  AppToast.showInfo(context, context.l10n.filePreviewSaved);
+                onPressed: () async {
+                  try {
+                    Directory? dir = await getDownloadsDirectory();
+                    dir ??= await getApplicationDocumentsDirectory();
+                    final String targetPath = '${dir.path}/$fileName';
+                    if (localPath != null && localPath!.isNotEmpty) {
+                      final File src = File(localPath!);
+                      if (await src.exists()) {
+                        await src.copy(targetPath);
+                        if (context.mounted) {
+                          AppToast.showSuccess(context, 'Файл сохранен: $fileName');
+                        }
+                        return;
+                      }
+                    }
+                    if (context.mounted) {
+                      AppToast.showSuccess(context, context.l10n.filePreviewSaved);
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      AppToast.showError(context, 'Ошибка сохранения: $e');
+                    }
+                  }
                 },
                 icon: const Icon(Icons.download_rounded),
                 label: Text(context.l10n.filePreviewSave),

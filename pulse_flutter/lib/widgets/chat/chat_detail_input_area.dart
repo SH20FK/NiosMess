@@ -114,7 +114,7 @@ class ChatDetailInputArea extends ConsumerWidget {
                     children: <Widget>[
                       if (showInlineOverlay)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
                           child: InlineQueryOverlay(
                             state: inlineState,
                             onSelectResult: (InlineQueryResult result) {

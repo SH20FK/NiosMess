@@ -20,7 +20,6 @@ import 'package:pulse_flutter/widgets/chat/inline_keyboard_view.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_modal.dart';
 import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
-import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
@@ -32,6 +31,7 @@ import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/utils/message_formatter.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
+import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
 class MessageBubble extends ConsumerWidget {
   const MessageBubble({
@@ -156,6 +156,11 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
+  static final RegExp _interactiveTokenRegExp = RegExp(
+    r"""((?:https?:\/\/|niosmess:\/\/|tg:\/\/)[^\s<>"'\)]+|\b(?:t\.me|telegram\.me|ni-os\.ru)\/[^\s<>"'\)]+|@([a-zA-Z0-9_]{3,32}))""",
+    caseSensitive: false,
+  );
+
   static TextSpan _parseTextWithMentions(
     BuildContext context,
     String text,
@@ -167,24 +172,62 @@ class MessageBubble extends ConsumerWidget {
     final List<TextSpan> spans = <TextSpan>[];
     int lastEnd = 0;
 
-    for (final RegExpMatch match in MessageFormatter.mentionRegExp.allMatches(text)) {
+    final Color linkColor = isMine
+        ? scheme.onPrimaryContainer
+        : scheme.primary;
+
+    for (final RegExpMatch match in _interactiveTokenRegExp.allMatches(text)) {
       if (match.start > lastEnd) {
         spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
       }
-      final String username = match.group(1)!;
-      final Color linkColor = isMine
-          ? scheme.onPrimaryContainer
-          : scheme.primary;
-      final String mention = match.group(0)!;
-      spans.add(TextSpan(
-        text: mention,
-        style: baseStyle.copyWith(
-          color: linkColor,
-          fontWeight: FontWeight.w600,
-        ),
-        recognizer: TapGestureRecognizer()
-          ..onTap = () => context.go('/g/$username'),
-      ));
+
+      final String rawToken = match.group(0)!;
+      String token = rawToken;
+      String trailingPunctuation = '';
+
+      // Strip trailing punctuation from URL or mention
+      while (token.isNotEmpty &&
+          (token.endsWith('.') ||
+              token.endsWith(',') ||
+              token.endsWith('!') ||
+              token.endsWith('?') ||
+              token.endsWith(';') ||
+              token.endsWith(':') ||
+              token.endsWith(')') ||
+              token.endsWith(']'))) {
+        trailingPunctuation = token[token.length - 1] + trailingPunctuation;
+        token = token.substring(0, token.length - 1);
+      }
+
+      if (token.startsWith('@')) {
+        final String username = token.substring(1);
+        spans.add(TextSpan(
+          text: token,
+          style: baseStyle.copyWith(
+            color: linkColor,
+            fontWeight: FontWeight.w600,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () => AppUrlLauncher.openUrl(context, '/g/$username'),
+        ));
+      } else {
+        spans.add(TextSpan(
+          text: token,
+          style: baseStyle.copyWith(
+            color: linkColor,
+            fontWeight: FontWeight.w600,
+            decoration: TextDecoration.underline,
+            decorationColor: linkColor.withValues(alpha: 0.4),
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () => AppUrlLauncher.openUrl(context, token),
+        ));
+      }
+
+      if (trailingPunctuation.isNotEmpty) {
+        spans.add(TextSpan(text: trailingPunctuation));
+      }
+
       lastEnd = match.end;
     }
 

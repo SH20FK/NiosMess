@@ -64,7 +64,11 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
       }
     } else {
       HapticService.destructive();
-      AppToast.showError(context, result.message ?? context.l10n.verifyEmailDone);
+      final bool isRu = context.l10n.localeName.startsWith('ru');
+      AppToast.showError(
+        context,
+        result.message ?? (isRu ? 'Неверный код подтверждения email' : 'Invalid email verification code'),
+      );
     }
   }
 

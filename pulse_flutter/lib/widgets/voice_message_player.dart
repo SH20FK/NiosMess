@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -11,6 +12,7 @@ import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/widgets/chat/md3_squiggle_progress.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/services/global_voice_playback_service.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
 class VoiceMessagePlayer extends StatefulWidget {
@@ -23,6 +25,7 @@ class VoiceMessagePlayer extends StatefulWidget {
     required this.wsClient,
     this.e2eeFileKey,
     this.formattedTime,
+    this.waveformAmplitudes,
     this.isRead = false,
     this.isE2ee = false,
     this.isEdited = false,
@@ -39,6 +42,7 @@ class VoiceMessagePlayer extends StatefulWidget {
   /// Base64 AES key from the E2EE message envelope; null for plain media.
   final String? e2eeFileKey;
   final String? formattedTime;
+  final List<double>? waveformAmplitudes;
   final bool isRead;
   final bool isE2ee;
   final bool isEdited;
@@ -59,7 +63,10 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     super.initState();
     _player = AudioPlayer(handleInterruptions: true);
     _initAudioSession();
-    _waveformBars = _generateWaveform(widget.audioUrl.hashCode);
+    _waveformBars = (widget.waveformAmplitudes != null &&
+            widget.waveformAmplitudes!.isNotEmpty)
+        ? _resampleWaveform(widget.waveformAmplitudes!, 50)
+        : _generateWaveform(widget.audioUrl.hashCode);
     _setupPlayer();
   }
 
@@ -85,6 +92,23 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     return bars;
   }
 
+  static List<double> _resampleWaveform(List<double> source, int targetCount) {
+    if (source.isEmpty) return List.filled(targetCount, 0.15);
+    if (source.length == targetCount) return source.map((v) => v.clamp(0.08, 1.0)).toList();
+    final List<double> resampled = [];
+    final double step = source.length / targetCount;
+    for (int i = 0; i < targetCount; i++) {
+      final int start = (i * step).floor();
+      final int end = math.min(((i + 1) * step).ceil(), source.length);
+      double maxVal = 0.08;
+      for (int j = start; j < end; j++) {
+        if (source[j] > maxVal) maxVal = source[j];
+      }
+      resampled.add(maxVal.clamp(0.08, 1.0));
+    }
+    return resampled;
+  }
+
   Future<void> _initAudioSession() async {
     try {
       final AudioSession session = await AudioSession.instance;
@@ -100,7 +124,21 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     } catch (_) {}
   }
 
+  StreamSubscription<Duration>? _posSub;
+  StreamSubscription<PlayerState>? _stateSub;
+  StreamSubscription<Duration?>? _durationSub;
+
+  void _cancelSubscriptions() {
+    _posSub?.cancel();
+    _posSub = null;
+    _stateSub?.cancel();
+    _stateSub = null;
+    _durationSub?.cancel();
+    _durationSub = null;
+  }
+
   Future<void> _setupPlayer() async {
+    _cancelSubscriptions();
     if (widget.audioUrl.startsWith('local://')) {
       return;
     }
@@ -118,13 +156,16 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
         AudioSource.file(localPath),
       );
       _duration = Duration(seconds: widget.durationSeconds);
-      _player.positionStream.listen((p) {
+      _posSub = _player.positionStream.listen((p) {
         if (mounted && !_seeking) setState(() => _position = p);
       });
-      _player.playerStateStream.listen((_) {
+      _stateSub = _player.playerStateStream.listen((state) {
+        if (state.processingState == ProcessingState.completed) {
+          GlobalVoicePlaybackService.instance.unregisterPlaying(widget.audioUrl);
+        }
         if (mounted) setState(() {});
       });
-      _player.durationStream.listen((d) {
+      _durationSub = _player.durationStream.listen((d) {
         if (d != null && mounted) setState(() => _duration = d);
       });
     } catch (_) {}
@@ -132,6 +173,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
 
   @override
   void dispose() {
+    GlobalVoicePlaybackService.instance.unregisterPlaying(widget.audioUrl);
+    _cancelSubscriptions();
     _player.dispose();
     super.dispose();
   }
@@ -139,12 +182,20 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   void _togglePlay() {
     if (_player.playing) {
       _player.pause();
-    } else if (_position >= _duration && _duration > Duration.zero) {
-      _player.seek(Duration.zero);
-      _player.play();
+      GlobalVoicePlaybackService.instance.unregisterPlaying(widget.audioUrl);
     } else {
+      GlobalVoicePlaybackService.instance.registerPlaying(widget.audioUrl, () {
+        if (mounted && _player.playing) {
+          _player.pause();
+          if (mounted) setState(() {});
+        }
+      });
+      if (_position >= _duration && _duration > Duration.zero) {
+        _player.seek(Duration.zero);
+      }
       _player.play();
     }
+    if (mounted) setState(() {});
   }
 
   void _seekTo(double fraction) {

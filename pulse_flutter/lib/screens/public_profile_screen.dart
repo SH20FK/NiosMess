@@ -116,10 +116,15 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         _loading = false;
         if (_profile == null) {
           final errStr = e.toString();
+          final bool isRu = context.l10n.localeName.startsWith('ru');
           if (errStr.contains('timed out') || errStr.contains('SocketException')) {
-            _error = 'Сервер временно недоступен. Проверьте соединение с интернетом.';
+            _error = isRu
+                ? 'Сервер временно недоступен. Проверьте соединение с интернетом.'
+                : 'Server temporarily unavailable. Check your internet connection.';
           } else {
-            _error = 'Не удалось загрузить профиль. Попробуйте позже.';
+            _error = isRu
+                ? 'Не удалось загрузить профиль. Попробуйте позже.'
+                : 'Failed to load profile. Please try again later.';
           }
         }
       });

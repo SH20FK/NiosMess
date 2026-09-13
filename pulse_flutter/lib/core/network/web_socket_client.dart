@@ -522,6 +522,7 @@ class WebSocketClient {
   }
 
   void disconnect() {
+    _closed = true;
     _stopHeartbeat();
     _reconnectTimer?.cancel();
     _reconnectTimer = null;

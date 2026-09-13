@@ -1,13 +1,14 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
+import 'package:pulse_flutter/models/api/search_models.dart';
+import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
-import 'package:pulse_flutter/widgets/app_dialogs.dart';
-import 'package:pulse_flutter/widgets/common/app_pill_field.dart';
+import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
+import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class PrivacyRuleDetailScreen extends ConsumerStatefulWidget {
@@ -28,6 +29,7 @@ class _PrivacyRuleDetailScreenState
   late PrivacyPolicy _selectedPolicy;
   late List<int> _alwaysAllow;
   late List<int> _neverAllow;
+  final Map<int, ApiSearchUser> _userCache = <int, ApiSearchUser>{};
   bool _saving = false;
 
   @override
@@ -39,6 +41,20 @@ class _PrivacyRuleDetailScreenState
     _selectedPolicy = rule.policy;
     _alwaysAllow = List<int>.from(rule.alwaysAllow);
     _neverAllow = List<int>.from(rule.neverAllow);
+
+    final chats = ref.read(chatsProvider).value ?? const [];
+    for (final chat in chats) {
+      if (chat.chatType == 'direct') {
+        _userCache[chat.id] = ApiSearchUser(
+          id: chat.id,
+          username: chat.username ?? '',
+          displayName: chat.name,
+          avatarUrl: chat.avatarUrl,
+          bio: chat.description,
+          badges: chat.partnerBadges,
+        );
+      }
+    }
   }
 
   Future<void> _savePolicy(PrivacyPolicy policy) async {
@@ -62,44 +78,26 @@ class _PrivacyRuleDetailScreenState
   }
 
   Future<void> _addException({required bool isAlwaysAllow}) async {
-    final TextEditingController idController = TextEditingController();
-    final int? id = await showDialog<int>(
-      context: context,
-      builder: (BuildContext context) => AppDialog(
-        title: isAlwaysAllow ? 'Всегда разрешать' : 'Никогда не разрешать',
-        subtitle: 'Укажите числовой идентификатор пользователя',
-        actions: <AppDialogAction>[
-          AppDialogAction(
-            label: 'Отмена',
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          AppDialogAction(
-            label: 'Добавить',
-            isPrimary: true,
-            onPressed: () {
-              final int? parsed = int.tryParse(idController.text.trim());
-              if (parsed != null) {
-                Navigator.of(context).pop(parsed);
-              }
-            },
-          ),
-        ],
-        child: AppPillField(
-          controller: idController,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          hintText: 'ID пользователя (например, 42)',
-        ),
-      ),
+    final Set<int> alreadyExcluded = isAlwaysAllow
+        ? _alwaysAllow.toSet()
+        : _neverAllow.toSet();
+
+    final ApiSearchUser? picked = await showUserSearchPickerSheet(
+      context,
+      title: isAlwaysAllow ? 'Всегда разрешать' : 'Никогда не разрешать',
+      subtitle: 'Выберите пользователя из списка или введите @username',
+      hintText: 'Поиск по @username или имени...',
+      excludedUserIds: alreadyExcluded,
     );
 
-    if (id == null || !mounted) return;
+    if (picked == null || !mounted) return;
 
     setState(() {
+      _userCache[picked.id] = picked;
       if (isAlwaysAllow) {
-        if (!_alwaysAllow.contains(id)) _alwaysAllow.add(id);
+        if (!_alwaysAllow.contains(picked.id)) _alwaysAllow.add(picked.id);
       } else {
-        if (!_neverAllow.contains(id)) _neverAllow.add(id);
+        if (!_neverAllow.contains(picked.id)) _neverAllow.add(picked.id);
       }
     });
 
@@ -209,9 +207,20 @@ class _PrivacyRuleDetailScreenState
                     spacing: 8,
                     runSpacing: 4,
                     children: _alwaysAllow.map((int id) {
+                      final ApiSearchUser? user = _userCache[id];
+                      final String label = user != null && user.username.isNotEmpty
+                          ? '@${user.username}'
+                          : (user?.displayName ?? 'ID: $id');
                       return Chip(
-                        label: Text('ID: $id'),
-                        deleteIcon: const Icon(Icons.close, size: 16),
+                        avatar: user != null
+                            ? PulseAvatar(
+                                radius: 11,
+                                name: user.displayName,
+                                avatarUrl: user.avatarUrl,
+                              )
+                            : const Icon(Icons.person_outline_rounded, size: 16),
+                        label: Text(label),
+                        deleteIcon: const Icon(Icons.close_rounded, size: 16),
                         onDeleted: () =>
                             _removeException(id, isAlwaysAllow: true),
                       );
@@ -240,9 +249,20 @@ class _PrivacyRuleDetailScreenState
                     spacing: 8,
                     runSpacing: 4,
                     children: _neverAllow.map((int id) {
+                      final ApiSearchUser? user = _userCache[id];
+                      final String label = user != null && user.username.isNotEmpty
+                          ? '@${user.username}'
+                          : (user?.displayName ?? 'ID: $id');
                       return Chip(
-                        label: Text('ID: $id'),
-                        deleteIcon: const Icon(Icons.close, size: 16),
+                        avatar: user != null
+                            ? PulseAvatar(
+                                radius: 11,
+                                name: user.displayName,
+                                avatarUrl: user.avatarUrl,
+                              )
+                            : const Icon(Icons.person_outline_rounded, size: 16),
+                        label: Text(label),
+                        deleteIcon: const Icon(Icons.close_rounded, size: 16),
                         onDeleted: () =>
                             _removeException(id, isAlwaysAllow: false),
                       );

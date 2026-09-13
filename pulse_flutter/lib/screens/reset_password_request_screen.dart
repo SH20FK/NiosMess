@@ -54,7 +54,11 @@ class _ResetPasswordRequestScreenState
       context.go('/reset-password/confirm?email=${Uri.encodeComponent(email)}');
     } else {
       HapticService.destructive();
-      AppToast.showError(context, result.message ?? context.l10n.resetPasswordRequestSent);
+      final bool isRu = context.l10n.localeName.startsWith('ru');
+      AppToast.showError(
+        context,
+        result.message ?? (isRu ? 'Не удалось отправить код сброса' : 'Failed to send reset code'),
+      );
     }
   }
 

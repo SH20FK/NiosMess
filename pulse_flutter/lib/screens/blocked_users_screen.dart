@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
+import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
+import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
 class BlockedUsersScreen extends ConsumerStatefulWidget {
@@ -21,6 +23,34 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _promptBlockUser() async {
+    final PrivacyState state = ref.read(privacyProvider);
+    final Set<int> alreadyBlocked = state.blockedUsers.map((u) => u.id).toSet();
+
+    final ApiSearchUser? picked = await showUserSearchPickerSheet(
+      context,
+      title: 'Заблокировать пользователя',
+      subtitle: 'Поиск по @username или имени',
+      hintText: 'Поиск по @username или имени...',
+      excludedUserIds: alreadyBlocked,
+    );
+
+    if (picked == null || !mounted) return;
+
+    HapticService.confirm();
+    final bool success =
+        await ref.read(privacyProvider.notifier).blockUser(picked.id);
+    if (!mounted) return;
+    if (success) {
+      AppToast.showSuccess(
+        context,
+        '${picked.displayName} заблокирован(а)',
+      );
+    } else {
+      AppToast.showError(context, 'Не удалось заблокировать пользователя');
+    }
   }
 
   Future<void> _unblock(BlockedUser user) async {
@@ -52,6 +82,18 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Заблокированные пользователи'),
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.person_add_rounded),
+            tooltip: 'Заблокировать пользователя',
+            onPressed: _promptBlockUser,
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _promptBlockUser,
+        icon: const Icon(Icons.block_rounded),
+        label: const Text('Заблокировать'),
       ),
       body: Column(
         children: <Widget>[

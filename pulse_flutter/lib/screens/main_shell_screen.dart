@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -18,6 +19,8 @@ import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
 import 'package:pulse_flutter/widgets/chat_creation_surfaces.dart';
+import 'package:pulse_flutter/widgets/chat/m3_speed_dial_fab.dart';
+import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
@@ -178,7 +181,10 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     final BiometricService biometric = ref.read(biometricServiceProvider);
     final bool authenticated = await biometric.authenticateIfEnabled();
     if (!authenticated && mounted) {
-      Navigator.of(context).pop();
+      await SystemUtils.minimizeApp();
+      if (mounted) {
+        await SystemNavigator.pop();
+      }
     }
   }
 
@@ -223,20 +229,26 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   }
 
   Widget _composeFab(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return FloatingActionButton.extended(
+    final bool isWide = MediaQuery.sizeOf(context).width >= 720;
+    final bool isVisible = ref.watch(chatListFabVisibleProvider);
+
+    return M3SpeedDialFab(
+      visible: isVisible,
       heroTag: 'compose_chat_fab',
-      onPressed: () {
-        if (ref.read(uiSettingsProvider).haptics) {
-          HapticService.tap();
+      onSelectGroup: () {
+        if (isWide) {
+          showCreateChatDialog(context, initialType: 'group');
+        } else {
+          context.push('/chat/create?type=group');
         }
-        _showCreateMenu(context);
       },
-      elevation: 3,
-      backgroundColor: scheme.primaryContainer,
-      foregroundColor: scheme.onPrimaryContainer,
-      icon: const Icon(Icons.edit_rounded),
-      label: Text(context.l10n.commonCreate),
+      onSelectChannel: () {
+        if (isWide) {
+          showCreateChatDialog(context, initialType: 'channel');
+        } else {
+          context.push('/chat/create?type=channel');
+        }
+      },
     );
   }
 
@@ -501,10 +513,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     );
   }
 
-  Future<void> _showStartDirectChatDialog(BuildContext context) {
-    return showStartDirectChatDialog(context);
-  }
-
   Future<void> _showCreateMenu(BuildContext context) async {
     final String? action = await showCreateChatMenu(context);
 
@@ -519,12 +527,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         } else {
           context.push('/chat/create?type=$action');
         }
-        return;
-      case 'join':
-        context.push('/join');
-        return;
-      case 'direct':
-        _showStartDirectChatDialog(context);
         return;
     }
   }

@@ -1,7 +1,9 @@
+import 'dart:math' as math;
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
@@ -66,6 +68,12 @@ class ChatInputBar extends StatefulWidget {
 class _ChatInputBarState extends State<ChatInputBar> {
   bool _showEmojiPicker = false;
   int _pickerTabIndex = 0;
+  late final PageController _pickerPageController =
+      PageController(initialPage: _pickerTabIndex);
+
+  double _cachedKeyboardHeight = 310.0;
+  bool _isFocused = false;
+
   bool _isInputEmpty = true;
   bool _isRecording = false;
   bool _isVideoMode = false;
@@ -89,6 +97,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
   void dispose() {
     widget.inputController.removeListener(_onTextChanged);
     widget.inputFocusNode.removeListener(_onFocusChanged);
+    _pickerPageController.dispose();
     super.dispose();
   }
 
@@ -102,9 +111,18 @@ class _ChatInputBarState extends State<ChatInputBar> {
   }
 
   void _onFocusChanged() {
-    if (widget.inputFocusNode.hasFocus && _showEmojiPicker) {
-      setState(() {
-        _showEmojiPicker = false;
+    final bool hasFocus = widget.inputFocusNode.hasFocus;
+    if (hasFocus != _isFocused) {
+      setState(() => _isFocused = hasFocus);
+    }
+    if (hasFocus && _showEmojiPicker) {
+      // Delay closing picker slightly to allow keyboard to slide up synchronously
+      Future<void>.delayed(const Duration(milliseconds: 140), () {
+        if (mounted && widget.inputFocusNode.hasFocus) {
+          setState(() {
+            _showEmojiPicker = false;
+          });
+        }
       });
     }
   }
@@ -112,13 +130,57 @@ class _ChatInputBarState extends State<ChatInputBar> {
   void _toggleEmojiPicker() {
     if (widget.hapticsEnabled) HapticService.tap();
     if (_showEmojiPicker) {
+      // Switching from emoji panel back to keyboard
       widget.inputFocusNode.requestFocus();
+      Future<void>.delayed(const Duration(milliseconds: 140), () {
+        if (mounted) {
+          setState(() {
+            _showEmojiPicker = false;
+          });
+        }
+      });
     } else {
-      widget.inputFocusNode.unfocus();
-      SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+      // Switching to emoji panel
+      final bool keyboardOpen =
+          MediaQuery.viewInsetsOf(context).bottom > 0 ||
+              widget.inputFocusNode.hasFocus;
       setState(() {
         _showEmojiPicker = true;
       });
+      if (keyboardOpen) {
+        widget.inputFocusNode.unfocus();
+        SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+      }
+    }
+  }
+
+  void _onEmojiBackspace() {
+    if (widget.hapticsEnabled) HapticService.tap();
+    final String text = widget.inputController.text;
+    final TextSelection selection = widget.inputController.selection;
+    if (text.isEmpty) return;
+
+    if (selection.isValid && selection.start != selection.end) {
+      final String newText =
+          text.replaceRange(selection.start, selection.end, '');
+      widget.inputController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: selection.start),
+      );
+      return;
+    }
+
+    final int cursorOffset =
+        selection.isValid ? selection.start : text.length;
+    if (cursorOffset <= 0) return;
+
+    final Characters chars = text.characters;
+    if (chars.isNotEmpty) {
+      final String newText = chars.skipLast(1).toString();
+      widget.inputController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: newText.length),
+      );
     }
   }
 
@@ -219,8 +281,24 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme textTheme = theme.textTheme;
+
+    // Cache physical keyboard height dynamically for 1:1 zero-jolt panel parity
+    final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    if (bottomInset > 0) {
+      final double clamped = bottomInset.clamp(260.0, 440.0);
+      if ((_cachedKeyboardHeight - clamped).abs() > 1.0) {
+        _cachedKeyboardHeight = clamped;
+      }
+    }
+
+    // Mathematical zero-jolt height: when switching, the sum of keyboardInset + panelHeight
+    // remains constant so the message list doesn't move a single pixel!
+    final double effectivePanelHeight = _showEmojiPicker
+        ? math.max(0.0, _cachedKeyboardHeight - bottomInset)
+        : 0.0;
 
     return PopScope(
       canPop: !_showEmojiPicker,
@@ -231,439 +309,559 @@ class _ChatInputBarState extends State<ChatInputBar> {
           });
         }
       },
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            // ── Edit panel ──
-            if (widget.editingMessageId != null)
-              AnimatedSize(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 6),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: scheme.primaryContainer.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border(
-                        left: BorderSide(color: scheme.primary, width: 3)),
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Icon(Icons.edit_rounded,
-                          size: 16, color: scheme.primary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Text(
-                              context.l10n.chatEditingMessage,
-                              style: textTheme.labelSmall?.copyWith(
-                                color: scheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              (widget.editingOriginalText ?? '').length > 80
-                                  ? '${(widget.editingOriginalText ?? '').substring(0, 80)}...'
-                                  : (widget.editingOriginalText ?? ''),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.bodySmall
-                                  ?.copyWith(color: scheme.onSurfaceVariant),
-                            ),
-                          ],
-                        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          // Floating Input Bar Row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 4, 10, 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                // ── Edit panel ──
+                if (widget.editingMessageId != null)
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: scheme.primaryContainer.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border(
+                            left:
+                                BorderSide(color: scheme.primary, width: 3)),
                       ),
-                      IconButton(
-                        onPressed: widget.onCancelEdit,
-                        icon: const Icon(Icons.close_rounded),
-                        tooltip: context.l10n.chatEditCancel,
-                        iconSize: 18,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-            // ── Reply panel ──
-            if (widget.replyToMessageId != null)
-              AnimatedSize(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 6),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border(
-                        left: BorderSide(color: scheme.secondary, width: 3)),
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Icon(Icons.reply_rounded,
-                          size: 16, color: scheme.secondary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.replyPreviewText ?? context.l10n.chatReply,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: textTheme.bodySmall,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: widget.onClearReply,
-                        icon: const Icon(Icons.close_rounded),
-                        tooltip: context.l10n.chatCancelReply,
-                        iconSize: 18,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-            // ── Voice Recording Panel (replaces input row when recording) ──
-            if (_isRecording)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: VoiceRecordingPanel(
-                  elapsed: _recordingElapsed,
-                  dragOffset: _recordingDragOffset,
-                  isLocked: _isRecordingLocked,
-                  amplitudeHistory: _amplitudeHistory,
-                  onSend: _sendVoiceRecording,
-                  onCancel: _cancelVoiceRecording,
-                ),
-              ),
-
-            // ── Input Row (hidden when recording — no duplicate) ──
-            if (!_isRecording) ...<Widget>[
-              const SizedBox(height: 4),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  // Text input field
-                  Expanded(
-                    child: ConstrainedBox(
-                      constraints:
-                          const BoxConstraints(minHeight: 52, maxHeight: 140),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(28),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: <Widget>[
-                            // Emoji Toggle Button
-                            Tooltip(
-                              message: context.l10n.chatEmojiToggle,
-                              child: InkWell(
-                                onTap: _toggleEmojiPicker,
-                                borderRadius: BorderRadius.circular(20),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 12),
-                                  child: Icon(
-                                    _showEmojiPicker
-                                        ? Icons.keyboard_outlined
-                                        : Icons.emoji_emotions_outlined,
-                                    size: 22,
-                                    color: scheme.onSurfaceVariant
-                                        .withValues(alpha: 0.7),
+                      child: Row(
+                        children: <Widget>[
+                          Icon(Icons.edit_rounded,
+                              size: 16, color: scheme.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Text(
+                                  context.l10n.chatEditingMessage,
+                                  style: textTheme.labelSmall?.copyWith(
+                                    color: scheme.primary,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              ),
+                                Text(
+                                  (widget.editingOriginalText ?? '').length > 80
+                                      ? '${(widget.editingOriginalText ?? '').substring(0, 80)}...'
+                                      : (widget.editingOriginalText ?? ''),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.bodySmall?.copyWith(
+                                      color: scheme.onSurfaceVariant),
+                                ),
+                              ],
                             ),
+                          ),
+                          IconButton(
+                            onPressed: widget.onCancelEdit,
+                            icon: const Icon(Icons.close_rounded),
+                            tooltip: context.l10n.chatEditCancel,
+                            iconSize: 18,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
-                            // Text Field
-                            Expanded(
-                              child: Focus(
-                                onKeyEvent:
-                                    (FocusNode node, KeyEvent event) {
-                                  if (event is KeyDownEvent &&
-                                      event.logicalKey ==
-                                          LogicalKeyboardKey.enter) {
-                                    if (!widget.sendOnEnter ||
-                                        HardwareKeyboard
-                                            .instance.isShiftPressed) {
-                                      return KeyEventResult.ignored;
-                                    } else {
-                                      if (widget.editingMessageId !=
-                                          null) {
-                                        widget.onCommitEdit();
-                                      } else if (!_isInputEmpty) {
-                                        widget.onSend();
-                                      }
-                                      return KeyEventResult.handled;
-                                    }
-                                  }
-                                  return KeyEventResult.ignored;
-                                },
-                                child: TextField(
-                                  controller: widget.inputController,
-                                  focusNode: widget.inputFocusNode,
-                                  readOnly: widget.isAiProcessing,
-                                  textInputAction: widget.sendOnEnter
-                                      ? TextInputAction.send
-                                      : TextInputAction.newline,
-                                  onSubmitted: widget.sendOnEnter
-                                      ? (_) {
+                // ── Reply panel ──
+                if (widget.replyToMessageId != null)
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border(
+                            left: BorderSide(
+                                color: scheme.secondary, width: 3)),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          Icon(Icons.reply_rounded,
+                              size: 16, color: scheme.secondary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.replyPreviewText ??
+                                  context.l10n.chatReply,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.bodySmall,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: widget.onClearReply,
+                            icon: const Icon(Icons.close_rounded),
+                            tooltip: context.l10n.chatCancelReply,
+                            iconSize: 18,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // ── Voice Recording Panel ──
+                if (_isRecording)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: VoiceRecordingPanel(
+                      elapsed: _recordingElapsed,
+                      dragOffset: _recordingDragOffset,
+                      isLocked: _isRecordingLocked,
+                      amplitudeHistory: _amplitudeHistory,
+                      onSend: _sendVoiceRecording,
+                      onCancel: _cancelVoiceRecording,
+                    ),
+                  ),
+
+                // ── Input Row ──
+                if (!_isRecording) ...<Widget>[
+                  const SizedBox(height: 4),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      // Text input field
+                      Expanded(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                              minHeight: 52, maxHeight: 140),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            curve: M3SpringCurves.spatial,
+                            decoration: BoxDecoration(
+                              color: _isFocused
+                                  ? scheme.surfaceContainerHighest
+                                  : scheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(
+                                color: _isFocused
+                                    ? scheme.primary.withValues(alpha: 0.45)
+                                    : scheme.outlineVariant
+                                        .withValues(alpha: 0.18),
+                                width: 1.4,
+                              ),
+                              boxShadow: _isFocused
+                                  ? <BoxShadow>[
+                                      BoxShadow(
+                                        color: scheme.primary
+                                            .withValues(alpha: 0.08),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: <Widget>[
+                                // Animated Emoji <-> Keyboard Toggle Button
+                                Tooltip(
+                                  message: context.l10n.chatEmojiToggle,
+                                  child: TouchContainer(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: _toggleEmojiPicker,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 12),
+                                      child: AnimatedSwitcher(
+                                        duration:
+                                            const Duration(milliseconds: 220),
+                                        switchInCurve: M3SpringCurves.snappy,
+                                        switchOutCurve: M3SpringCurves.snappy,
+                                        transitionBuilder: (Widget child,
+                                            Animation<double> anim) {
+                                          return RotationTransition(
+                                            turns: Tween<double>(
+                                                    begin: 0.88, end: 1.0)
+                                                .animate(anim),
+                                            child: ScaleTransition(
+                                                scale: anim, child: child),
+                                          );
+                                        },
+                                        child: Icon(
+                                          _showEmojiPicker
+                                              ? Icons.keyboard_rounded
+                                              : Icons
+                                                  .emoji_emotions_outlined,
+                                          key: ValueKey<bool>(
+                                              _showEmojiPicker),
+                                          size: 22,
+                                          color: _showEmojiPicker
+                                              ? scheme.primary
+                                              : scheme.onSurfaceVariant
+                                                  .withValues(alpha: 0.75),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // Text Field
+                                Expanded(
+                                  child: Focus(
+                                    onKeyEvent: (FocusNode node,
+                                        KeyEvent event) {
+                                      if (event is KeyDownEvent &&
+                                          event.logicalKey ==
+                                              LogicalKeyboardKey.enter) {
+                                        if (!widget.sendOnEnter ||
+                                            HardwareKeyboard
+                                                .instance.isShiftPressed) {
+                                          return KeyEventResult.ignored;
+                                        } else {
                                           if (widget.editingMessageId !=
                                               null) {
                                             widget.onCommitEdit();
                                           } else if (!_isInputEmpty) {
                                             widget.onSend();
                                           }
+                                          return KeyEventResult.handled;
                                         }
-                                      : null,
-                                  maxLines: 5,
-                                  minLines: 1,
-                                  keyboardType:
-                                      TextInputType.multiline,
-                                  textCapitalization:
-                                      TextCapitalization.sentences,
-                                  style: textTheme.bodyMedium
-                                      ?.copyWith(fontSize: 15),
-                                  decoration: InputDecoration(
-                                    hintText:
-                                        context.l10n.chatMessageHint,
-                                    hintStyle: textTheme.bodyMedium
-                                        ?.copyWith(
-                                      fontSize: 15,
-                                      color: scheme.onSurfaceVariant
-                                          .withValues(alpha: 0.50),
+                                      }
+                                      return KeyEventResult.ignored;
+                                    },
+                                    child: TextField(
+                                      controller: widget.inputController,
+                                      focusNode: widget.inputFocusNode,
+                                      readOnly: widget.isAiProcessing,
+                                      textInputAction: widget.sendOnEnter
+                                          ? TextInputAction.send
+                                          : TextInputAction.newline,
+                                      onSubmitted: widget.sendOnEnter
+                                          ? (_) {
+                                              if (widget.editingMessageId !=
+                                                  null) {
+                                                widget.onCommitEdit();
+                                              } else if (!_isInputEmpty) {
+                                                widget.onSend();
+                                              }
+                                            }
+                                          : null,
+                                      maxLines: 5,
+                                      minLines: 1,
+                                      keyboardType:
+                                          TextInputType.multiline,
+                                      textCapitalization:
+                                          TextCapitalization.sentences,
+                                      style: textTheme.bodyMedium
+                                          ?.copyWith(fontSize: 15),
+                                      decoration: InputDecoration(
+                                        hintText:
+                                            context.l10n.chatMessageHint,
+                                        hintStyle: textTheme.bodyMedium
+                                            ?.copyWith(
+                                          fontSize: 15,
+                                          color: scheme.onSurfaceVariant
+                                              .withValues(alpha: 0.50),
+                                        ),
+                                        filled: false,
+                                        fillColor: Colors.transparent,
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 4, vertical: 10),
+                                        isDense: true,
+                                        alignLabelWithHint: false,
+                                      ),
+                                      textAlignVertical:
+                                          TextAlignVertical.center,
                                     ),
-                                    filled: false,
-                                    fillColor: Colors.transparent,
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 4, vertical: 10),
-                                    isDense: true,
-                                    alignLabelWithHint: false,
                                   ),
-                                  textAlignVertical:
-                                      TextAlignVertical.center,
+                                ),
+
+                                // AI Assistant Button
+                                if (widget.isAiProcessing)
+                                  SizedBox(
+                                    width: 44,
+                                    height: 44,
+                                    child: AppLoadingIndicator(
+                                        size: 18, color: scheme.primary),
+                                  )
+                                else
+                                  Tooltip(
+                                    message: context.l10n.chatAiAssistant,
+                                    child: TouchContainer(
+                                      borderRadius: AppRadii.fullRadius,
+                                      onTap: widget.onAiPressed,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 12),
+                                        child: Icon(
+                                          Icons.auto_awesome_rounded,
+                                          size: 20,
+                                          color: _isInputEmpty
+                                              ? scheme.onSurfaceVariant
+                                                  .withValues(alpha: 0.4)
+                                              : scheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                // Attach Media Button
+                                Tooltip(
+                                  message: context.l10n.chatAttachMedia,
+                                  child: TouchContainer(
+                                    borderRadius: AppRadii.fullRadius,
+                                    onTap: widget.onAttachMedia,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 12),
+                                      child: Icon(
+                                        Icons.add_rounded,
+                                        size: 24,
+                                        color: scheme.onSurfaceVariant
+                                            .withValues(alpha: 0.75),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // ── Mic/Video or Send button (Animated Morph) ──
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: M3SpringCurves.bouncy,
+                        switchOutCurve: M3SpringCurves.snappy,
+                        transitionBuilder:
+                            (Widget child, Animation<double> anim) {
+                          return ScaleTransition(
+                            scale: anim,
+                            child: child,
+                          );
+                        },
+                        child: (_isInputEmpty &&
+                                widget.editingMessageId == null)
+                            ? KeyedSubtree(
+                                key: const ValueKey<String>(
+                                    'record_action'),
+                                child: _buildRecordButton(scheme),
+                              )
+                            : KeyedSubtree(
+                                key: const ValueKey<String>('send_action'),
+                                child: _buildSendButton(scheme),
+                              ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // ── Edge-to-Edge Material 3 Expressive Emoji & Sticker Hub ──
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: M3SpringCurves.spatial,
+            height: effectivePanelHeight,
+            clipBehavior: Clip.hardEdge,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
+              boxShadow: effectivePanelHeight > 0
+                  ? <BoxShadow>[
+                      BoxShadow(
+                        color: scheme.shadow.withValues(alpha: 0.09),
+                        blurRadius: 18,
+                        offset: const Offset(0, -4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: effectivePanelHeight > 0
+                ? Column(
+                    children: <Widget>[
+                      // Drag handle for smooth pull-down to dismiss
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onVerticalDragUpdate:
+                            (DragUpdateDetails details) {
+                          if (details.primaryDelta != null &&
+                              details.primaryDelta! > 5) {
+                            if (widget.hapticsEnabled) {
+                              HapticService.tap();
+                            }
+                            setState(() => _showEmojiPicker = false);
+                          }
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          color: Colors.transparent,
+                          padding: const EdgeInsets.only(top: 8, bottom: 4),
+                          child: Center(
+                            child: Container(
+                              width: 38,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: scheme.onSurfaceVariant
+                                    .withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Expressive Tab Bar: [ 😊 Эмодзи | 🏷️ Стикеры ] + Backspace
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(12, 2, 8, 8),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerLow,
+                          border: Border(
+                            bottom: BorderSide(
+                              color: scheme.outlineVariant
+                                  .withValues(alpha: 0.15),
+                              width: 0.5,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            const SizedBox(width: 40), // Balances backspace button
+                            Expanded(
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: scheme.surfaceContainerHighest
+                                        .withValues(alpha: 0.55),
+                                    borderRadius:
+                                        BorderRadius.circular(24),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      _buildPickerTab(
+                                        index: 0,
+                                        label: 'Эмодзи',
+                                        icon: Icons.emoji_emotions_outlined,
+                                        scheme: scheme,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      _buildPickerTab(
+                                        index: 1,
+                                        label: 'Стикеры',
+                                        icon: Icons.sticky_note_2_outlined,
+                                        scheme: scheme,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-
-                            // AI Assistant Button
-                            if (widget.isAiProcessing)
-                              SizedBox(
-                                width: 44,
-                                height: 44,
-                                child: AppLoadingIndicator(
-                                    size: 18, color: scheme.primary),
-                              )
-                            else
-                              Tooltip(
-                                message: context.l10n.chatAiAssistant,
-                                child: TouchContainer(
-                                  borderRadius: AppRadii.fullRadius,
-                                  onTap: widget.onAiPressed,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 12),
-                                    child: Icon(
-                                      Icons.auto_awesome_rounded,
-                                      size: 20,
-                                      color: _isInputEmpty
-                                          ? scheme.onSurfaceVariant
-                                              .withValues(alpha: 0.4)
-                                          : scheme.primary,
-                                    ),
-                                  ),
-                                ),
+                            // Quick backspace button for emojis
+                            IconButton(
+                              onPressed: _onEmojiBackspace,
+                              icon: Icon(
+                                Icons.backspace_outlined,
+                                size: 19,
+                                color: scheme.onSurfaceVariant
+                                    .withValues(alpha: 0.75),
                               ),
-
-                            // Attach Media Button
-                            Tooltip(
-                              message: context.l10n.chatAttachMedia,
-                              child: TouchContainer(
-                                borderRadius: AppRadii.fullRadius,
-                                onTap: widget.onAttachMedia,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 12),
-                                  child: Icon(
-                                    Icons.add_rounded,
-                                    size: 24,
-                                    color: scheme.onSurfaceVariant
-                                        .withValues(alpha: 0.7),
-                                  ),
-                                ),
-                              ),
+                              tooltip: 'Удалить',
+                              visualDensity: VisualDensity.compact,
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // ── Mic/Video or Send button (Animated Morph) ──
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    switchInCurve: Curves.easeOutBack,
-                    switchOutCurve: Curves.easeInBack,
-                    transitionBuilder: (Widget child, Animation<double> anim) {
-                      return ScaleTransition(
-                        scale: anim,
-                        child: child,
-                      );
-                    },
-                    child: (_isInputEmpty && widget.editingMessageId == null)
-                        ? KeyedSubtree(
-                            key: const ValueKey<String>('record_action'),
-                            child: _buildRecordButton(scheme),
-                          )
-                        : KeyedSubtree(
-                            key: const ValueKey<String>('send_action'),
-                            child: _buildSendButton(scheme),
-                          ),
-                  ),
-                ],
-              ),
-            ],
 
-            // ── Emoji Picker ──
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOutCubic,
-              height: _showEmojiPicker ? 380 : 0,
-              clipBehavior: Clip.hardEdge,
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerLow,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.08),
-                    blurRadius: 16,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: _showEmojiPicker
-                  ? Column(
-                      children: <Widget>[
-                        // Tab Selector: [Emoji | Stickers]
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHigh
-                                .withValues(alpha: 0.4),
-                            border: Border(
-                              bottom: BorderSide(
-                                color: scheme.outlineVariant
-                                    .withValues(alpha: 0.15),
-                                width: 0.5,
-                              ),
-                            ),
-                          ),
-                          child: Center(
-                            child: Container(
-                              padding: const EdgeInsets.all(3),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: <Widget>[
-                                  _buildPickerTab(
-                                    index: 0,
-                                    label: 'Эмодзи',
-                                    icon: Icons.emoji_emotions_outlined,
-                                    scheme: scheme,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  _buildPickerTab(
-                                    index: 1,
-                                    label: 'Стикеры',
-                                    icon: Icons.sticky_note_2_outlined,
-                                    scheme: scheme,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Active Picker View
-                        Expanded(
-                          child: _pickerTabIndex == 0
-                              ? EmojiPicker(
-                                  textEditingController: widget.inputController,
-                                  config: Config(
-                                    height: 338,
-                                    checkPlatformCompatibility: true,
-                                    emojiViewConfig: EmojiViewConfig(
-                                      backgroundColor: Colors.transparent,
-                                      columns: 8,
-                                      emojiSizeMax: 26,
-                                      verticalSpacing: 2,
-                                      horizontalSpacing: 2,
-                                      gridPadding:
-                                          const EdgeInsets.symmetric(horizontal: 8),
-                                      buttonMode: ButtonMode.NONE,
-                                    ),
-                                    skinToneConfig: const SkinToneConfig(),
-                                    categoryViewConfig: CategoryViewConfig(
-                                      backgroundColor: Colors.transparent,
-                                      tabBarHeight: 36,
-                                      indicatorColor: scheme.primary,
-                                      iconColor: scheme.onSurfaceVariant
-                                          .withValues(alpha: 0.5),
-                                      iconColorSelected: scheme.primary,
-                                      backspaceColor: scheme.onSurfaceVariant,
-                                      dividerColor: Colors.transparent,
-                                    ),
-                                    bottomActionBarConfig: BottomActionBarConfig(
-                                      backgroundColor: Colors.transparent,
-                                      buttonColor: scheme.surfaceContainerHigh,
-                                      buttonIconColor: scheme.onSurfaceVariant,
-                                    ),
-                                    searchViewConfig: SearchViewConfig(
-                                      backgroundColor: Colors.transparent,
-                                      buttonIconColor: scheme.onSurfaceVariant,
-                                      customSearchView:
-                                          (config, state, showEmojiView) {
-                                        return M3EmojiSearchView(
-                                            config, state, showEmojiView);
-                                      },
-                                    ),
-                                  ),
-                                )
-                              : StickerPickerView(
-                                  chatId: widget.chatId,
-                                  onStickerSelected: (ApiSticker sticker) {
-                                    if (widget.onSendSticker != null) {
-                                      widget.onSendSticker!(sticker);
-                                    }
+                      // Horizontal PageView for smooth swiping between Emojis and Stickers
+                      Expanded(
+                        child: PageView(
+                          controller: _pickerPageController,
+                          physics: const BouncingScrollPhysics(),
+                          onPageChanged: (int page) {
+                            if (widget.hapticsEnabled) {
+                              HapticService.tap();
+                            }
+                            setState(() => _pickerTabIndex = page);
+                          },
+                          children: <Widget>[
+                            // Page 0: Emoji Picker
+                            EmojiPicker(
+                              textEditingController:
+                                  widget.inputController,
+                              config: Config(
+                                checkPlatformCompatibility: true,
+                                emojiViewConfig: const EmojiViewConfig(
+                                  backgroundColor: Colors.transparent,
+                                  columns: 8,
+                                  emojiSizeMax: 28,
+                                  verticalSpacing: 3,
+                                  horizontalSpacing: 3,
+                                  gridPadding: EdgeInsets.symmetric(
+                                      horizontal: 8),
+                                  buttonMode: ButtonMode.NONE,
+                                ),
+                                skinToneConfig: const SkinToneConfig(),
+                                categoryViewConfig: CategoryViewConfig(
+                                  backgroundColor: Colors.transparent,
+                                  tabBarHeight: 38,
+                                  indicatorColor: scheme.primary,
+                                  iconColor: scheme.onSurfaceVariant
+                                      .withValues(alpha: 0.5),
+                                  iconColorSelected: scheme.primary,
+                                  backspaceColor: scheme.onSurfaceVariant,
+                                  dividerColor: Colors.transparent,
+                                ),
+                                bottomActionBarConfig:
+                                    BottomActionBarConfig(
+                                  backgroundColor: Colors.transparent,
+                                  buttonColor: scheme.surfaceContainerHigh,
+                                  buttonIconColor: scheme.onSurfaceVariant,
+                                ),
+                                searchViewConfig: SearchViewConfig(
+                                  backgroundColor: Colors.transparent,
+                                  buttonIconColor: scheme.onSurfaceVariant,
+                                  customSearchView:
+                                      (config, state, showEmojiView) {
+                                    return M3EmojiSearchView(
+                                        config, state, showEmojiView);
                                   },
                                 ),
+                              ),
+                            ),
+
+                            // Page 1: Sticker Picker
+                            StickerPickerView(
+                              chatId: widget.chatId,
+                              onStickerSelected: (ApiSticker sticker) {
+                                if (widget.onSendSticker != null) {
+                                  widget.onSendSticker!(sticker);
+                                }
+                              },
+                            ),
+                          ],
                         ),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ],
-        ),
+                      ),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
       ),
     );
   }
@@ -675,27 +873,44 @@ class _ChatInputBarState extends State<ChatInputBar> {
     required ColorScheme scheme,
   }) {
     final bool isSelected = _pickerTabIndex == index;
-    return InkWell(
+    return TouchContainer(
       onTap: () {
         if (widget.hapticsEnabled) HapticService.tap();
         setState(() => _pickerTabIndex = index);
+        if (_pickerPageController.hasClients) {
+          _pickerPageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 260),
+            curve: M3SpringCurves.snappy,
+          );
+        }
       },
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+        duration: const Duration(milliseconds: 200),
+        curve: M3SpringCurves.snappy,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
               ? scheme.secondaryContainer
               : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
+          boxShadow: isSelected
+              ? <BoxShadow>[
+                  BoxShadow(
+                    color: scheme.shadow.withValues(alpha: 0.06),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
               icon,
-              size: 17,
+              size: 16,
               color: isSelected
                   ? scheme.onSecondaryContainer
                   : scheme.onSurfaceVariant,
@@ -704,8 +919,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 12.5,
+                fontWeight:
+                    isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected
                     ? scheme.onSecondaryContainer
                     : scheme.onSurfaceVariant,

@@ -119,19 +119,19 @@ class AppTheme {
         ),
       ),
       searchBarTheme: SearchBarThemeData(
-        elevation: WidgetStateProperty.all<double>(0),
-        backgroundColor: WidgetStateProperty.all<Color>(
+        elevation: const WidgetStatePropertyAll<double>(0),
+        backgroundColor: WidgetStatePropertyAll<Color>(
           scheme.surfaceContainerHigh,
         ),
-        surfaceTintColor: WidgetStateProperty.all<Color>(Colors.transparent),
-        padding: WidgetStateProperty.all<EdgeInsetsGeometry>(
-          const EdgeInsets.symmetric(horizontal: 14),
+        surfaceTintColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
+        padding: const WidgetStatePropertyAll<EdgeInsetsGeometry>(
+          EdgeInsets.symmetric(horizontal: 14),
         ),
-        shape: WidgetStateProperty.all<OutlinedBorder>(
+        shape: WidgetStatePropertyAll<OutlinedBorder>(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         ),
-        textStyle: WidgetStateProperty.all<TextStyle?>(textTheme.bodyLarge),
-        hintStyle: WidgetStateProperty.all<TextStyle?>(
+        textStyle: WidgetStatePropertyAll<TextStyle?>(textTheme.bodyLarge),
+        hintStyle: WidgetStatePropertyAll<TextStyle?>(
           textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
         ),
       ),
@@ -260,10 +260,10 @@ class AppTheme {
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
-          padding: WidgetStateProperty.all<EdgeInsetsGeometry>(
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const WidgetStatePropertyAll<EdgeInsetsGeometry>(
+            EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
-          shape: WidgetStateProperty.all<OutlinedBorder>(
+          shape: WidgetStatePropertyAll<OutlinedBorder>(
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           ),
           side: WidgetStateProperty.resolveWith<BorderSide?>((

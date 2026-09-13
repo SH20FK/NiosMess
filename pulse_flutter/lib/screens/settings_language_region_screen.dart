@@ -128,9 +128,12 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-              onTap: settings.timeZoneMode == AppTimeZoneMode.manual
-                  ? () => _showTimeZonePicker(context, ref, manualZone)
-                  : () {},
+              enabled: settings.timeZoneMode == AppTimeZoneMode.manual,
+              onTap: () {
+                if (settings.timeZoneMode == AppTimeZoneMode.manual) {
+                  _showTimeZonePicker(context, ref, manualZone);
+                }
+              },
             ),
           ],
         ),

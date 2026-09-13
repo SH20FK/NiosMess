@@ -122,6 +122,7 @@ class NgPost {
             ? null
             : (myReaction! ? 'like' : 'dislike'),
         'is_following': isFollowing,
+        'author': author.toJson(),
         'created_at': createdAt.toIso8601String(),
       };
 

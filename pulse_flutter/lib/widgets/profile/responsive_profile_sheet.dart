@@ -12,11 +12,12 @@ Future<void> openResponsiveProfile(BuildContext context, {required String userna
     return;
   }
 
+  final scheme = Theme.of(context).colorScheme;
   await showGeneralDialog(
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Profile',
-    barrierColor: Colors.black.withValues(alpha: 0.45),
+    barrierColor: scheme.scrim.withValues(alpha: 0.45),
     transitionDuration: const Duration(milliseconds: 280),
     pageBuilder: (dialogContext, anim1, anim2) {
       final scheme = Theme.of(dialogContext).colorScheme;
@@ -58,11 +59,12 @@ Future<void> openResponsiveGroupProfile(BuildContext context, {required int chat
     return;
   }
 
+  final scheme = Theme.of(context).colorScheme;
   await showGeneralDialog(
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Chat Info',
-    barrierColor: Colors.black.withValues(alpha: 0.45),
+    barrierColor: scheme.scrim.withValues(alpha: 0.45),
     transitionDuration: const Duration(milliseconds: 280),
     pageBuilder: (dialogContext, anim1, anim2) {
       final scheme = Theme.of(dialogContext).colorScheme;

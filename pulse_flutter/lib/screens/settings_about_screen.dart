@@ -8,16 +8,15 @@ import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
-import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
-import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
 class SettingsAboutScreen extends StatefulWidget {
   const SettingsAboutScreen({
@@ -31,39 +30,24 @@ class SettingsAboutScreen extends StatefulWidget {
   State<SettingsAboutScreen> createState() => _SettingsAboutScreenState();
 }
 
-class _SettingsAboutScreenState extends State<SettingsAboutScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _heroController;
+class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
   late final Future<PackageInfo> _packageInfo;
   int _selectedTabIndex = 0;
+  bool _isCheckingUpdate = false;
 
   @override
   void initState() {
     super.initState();
-    _heroController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..forward();
     _packageInfo = PackageInfo.fromPlatform();
   }
 
-  @override
-  void dispose() {
-    _heroController.dispose();
-    super.dispose();
-  }
-
   Future<void> _openUrl(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    await AppUrlLauncher.openUrl(context, url);
   }
-
-  bool _isCheckingUpdate = false;
 
   void _copyVersion(String version) {
     Clipboard.setData(ClipboardData(text: version));
+    HapticService.tap();
     AppToast.showSuccess(context, 'Версия $version скопирована');
   }
 
@@ -101,268 +85,209 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SettingsScaffold(
       title: context.l10n.settingsAboutTitle,
       isEmbedded: widget.isEmbedded,
       children: <Widget>[
-        // 1. Compact Hero Header
-        _buildHeroCard(context, scheme, textTheme),
+        // 1. Google Material 3 Expressive Hero Card
+        _buildHeroCard(context, scheme, textTheme, isDark),
         const SizedBox(height: 14),
 
-        // 1.1 Expressive OTA Update Banner
-        _buildUpdateBanner(context, scheme, textTheme),
-        const SizedBox(height: 14),
-
-        // 2. Material 3 Expressive Pill Tab Selector
-        _buildPillTabSelector(context, scheme, textTheme),
+        // 2. Android System Update Style Card
+        _buildUpdateCard(context, scheme, textTheme, isDark),
         const SizedBox(height: 16),
 
-        // 3. Tab Content View (Smooth Transition)
-        _buildCurrentTabContent(context, scheme, textTheme),
+        // 3. Native Material 3 SegmentedButton Tab Selector
+        _buildSegmentedTabSelector(context, scheme, textTheme),
+        const SizedBox(height: 16),
 
-        const SizedBox(height: 12),
+        // 4. Tab Content View with M3 Spring Transition
+        _buildCurrentTabContent(context, scheme, textTheme, isDark),
+        const SizedBox(height: 14),
 
-        // 4. Proprietary Closed-Source Footer
+        // 5. Authentic M3 Minimalist Footer
         _buildFooter(context, scheme, textTheme),
       ],
     );
   }
 
   // ---------------------------------------------------------------------------
-  // 1. Hero Header
+  // 1. Material 3 Expressive Hero Card
   // ---------------------------------------------------------------------------
   Widget _buildHeroCard(
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
+    bool isDark,
   ) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.28 : 0.35),
+            width: 1,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+      child: Column(
+        children: <Widget>[
+          // Interactive spring scale hero logo (no infinite rotation)
+          _InteractiveHeroLogo(scheme: scheme),
+          const SizedBox(height: 14),
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.25 : 0.35),
-          width: 1,
-        ),
-        gradient: RadialGradient(
-          center: Alignment.topCenter,
-          radius: 1.25,
-          colors: <Color>[
-            scheme.primary.withValues(alpha: isDark ? 0.16 : 0.08),
-            isDark ? scheme.surfaceContainerLow : scheme.surface,
-          ],
-        ),
-        boxShadow: isDark
-            ? null
-            : <BoxShadow>[
-                BoxShadow(
-                  color: scheme.shadow.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-        child: Column(
-          children: <Widget>[
-            // Rotating Animated M3 Cookie Badge with Logo (Isolated with RepaintBoundary)
-            RepaintBoundary(
-              child: SizedBox(
-                width: 72,
-                height: 72,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: <Widget>[
-                    M3Container.c9SidedCookie(
-                      width: 72,
-                      height: 72,
-                      color: scheme.primary,
-                      child: const SizedBox(),
-                    )
-                        .animate(onPlay: (AnimationController c) => c.repeat())
-                        .rotate(duration: 14.seconds, curve: Curves.linear),
-                    SvgPicture.asset(
-                      'assets/svg/niosmess_logo_tintable.svg',
-                      width: 42,
-                      height: 42,
-                      colorFilter: ColorFilter.mode(
-                        scheme.onPrimary,
-                        BlendMode.srcIn,
+          // App Name
+          Text(
+            context.l10n.appName,
+            textAlign: TextAlign.center,
+            style: textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              fontSize: 22,
+              color: scheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Tagline
+          Text(
+            context.l10n.aboutTagline,
+            textAlign: TextAlign.center,
+            style: textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Copyable Version Badge
+          FutureBuilder<PackageInfo>(
+            future: _packageInfo,
+            builder: (BuildContext context, AsyncSnapshot<PackageInfo> snapshot) {
+              final String ver = snapshot.data != null
+                  ? 'v${snapshot.data!.version}+${snapshot.data!.buildNumber}'
+                  : AppConstants.appFullVersion;
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _copyVersion(ver),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.6 : 0.75),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: scheme.outlineVariant.withValues(alpha: isDark ? 0.25 : 0.35),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            )
-                .animate(controller: _heroController)
-                .scale(
-                  begin: const Offset(0.7, 0.7),
-                  end: const Offset(1.0, 1.0),
-                  curve: Curves.easeOutBack,
-                  duration: 500.ms,
-                )
-                .fade(duration: 350.ms),
-            const SizedBox(height: 14),
-
-            // App Name
-            Text(
-              context.l10n.appName,
-              textAlign: TextAlign.center,
-              style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.6,
-                color: scheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 3),
-
-            // Tagline
-            Text(
-              context.l10n.aboutTagline,
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // Version Pill (Tappable to copy)
-            FutureBuilder<PackageInfo>(
-              future: _packageInfo,
-              builder: (BuildContext context, AsyncSnapshot<PackageInfo> snapshot) {
-                final String ver = snapshot.data != null
-                    ? 'v${snapshot.data!.version}+${snapshot.data!.buildNumber}'
-                    : AppConstants.appFullVersion;
-                return Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => _copyVersion(ver),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: scheme.primaryContainer.withValues(alpha: 0.55),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: scheme.primary.withValues(alpha: 0.25),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Icons.verified_rounded,
+                          size: 14,
+                          color: scheme.primary,
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Icon(
-                            Icons.verified_rounded,
-                            size: 14,
-                            color: scheme.primary,
+                        const SizedBox(width: 6),
+                        Text(
+                          ver,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: scheme.onSurface,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            ver,
-                            style: textTheme.labelMedium?.copyWith(
-                              color: scheme.onPrimaryContainer,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.copy_rounded,
-                            size: 12,
-                            color: scheme.onPrimaryContainer.withValues(alpha: 0.7),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.copy_rounded,
+                          size: 12,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ],
                     ),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 14),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
 
-            // Quick Actions Bar (Closed-source links only: Alpha-test, Telegram, ni-os.ru)
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: <Widget>[
-                if (!kIsWeb)
-                  _QuickHeroButton(
-                    icon: Icons.memory_rounded,
-                    label: 'Устройство',
-                    color: scheme.primary,
-                    onTap: () => context.push('/settings/system-device'),
-                  ),
-                _QuickHeroButton(
-                  icon: _isCheckingUpdate
-                      ? Icons.hourglass_top_rounded
-                      : Icons.system_update_rounded,
-                  label: 'Проверить',
-                  color: scheme.primary,
-                  onTap: _checkForUpdate,
+          // Quick Action M3 Tonal Chips
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: <Widget>[
+              if (!kIsWeb)
+                _M3ActionChip(
+                  icon: Icons.smartphone_rounded,
+                  label: 'Устройство',
+                  onTap: () => context.push('/settings/system-device'),
                 ),
-                _QuickHeroButton(
-                  icon: Icons.science_rounded,
-                  label: 'Альфа-тест',
-                  color: const Color(0xFFFF9800),
-                  onTap: () => AlphaTestDialog.show(context),
-                ),
-                _QuickHeroButton(
-                  svgAsset: 'assets/svg/telegram_logo.svg',
-                  label: 'Telegram',
-                  color: const Color(0xFF03A9F4),
-                  onTap: () => _openUrl('https://t.me/niosmess'),
-                ),
-                _QuickHeroButton(
-                  svgAsset: 'assets/svg/globe.svg',
-                  label: 'ni-os.ru',
-                  color: const Color(0xFF00BCD4),
-                  onTap: () => _openUrl('https://ni-os.ru'),
-                ),
-              ],
-            ),
-          ],
-        ),
+              _M3ActionChip(
+                icon: Icons.science_rounded,
+                label: 'Альфа-тест',
+                onTap: () => AlphaTestDialog.show(context),
+              ),
+              _M3ActionChip(
+                svgAsset: 'assets/svg/telegram_logo.svg',
+                label: 'Telegram',
+                onTap: () => _openUrl('https://t.me/niosmess'),
+              ),
+              _M3ActionChip(
+                svgAsset: 'assets/svg/globe.svg',
+                label: 'ni-os.ru',
+                onTap: () => _openUrl('https://ni-os.ru'),
+              ),
+            ],
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ---------------------------------------------------------------------------
-  // 1.1 Expressive OTA Update Banner
+  // 2. Android System Update Style Card
   // ---------------------------------------------------------------------------
-  Widget _buildUpdateBanner(
+  Widget _buildUpdateCard(
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
+    bool isDark,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: AppRadii.mdRadius,
+        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.25),
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.28 : 0.35),
+          width: 1,
         ),
       ),
       child: Row(
         children: <Widget>[
           Container(
-            width: 44,
-            height: 44,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: scheme.primaryContainer,
-              borderRadius: AppRadii.smRadius,
+              color: scheme.primaryContainer.withValues(alpha: isDark ? 0.45 : 0.65),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
-              Icons.cloud_download_rounded,
-              size: 24,
+              Icons.system_update_rounded,
+              size: 22,
               color: scheme.primary,
             ),
           ),
@@ -372,9 +297,10 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'Обновления приложения',
+                  'Обновление системы',
                   style: textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
                     color: scheme.onSurface,
                   ),
                 ),
@@ -383,177 +309,147 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                   'GitHub Releases (OTA)',
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
           ),
-          TouchContainer(
-            onTap: _isCheckingUpdate ? null : _checkForUpdate,
-            borderRadius: AppRadii.fullRadius,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: scheme.primary,
-                borderRadius: AppRadii.fullRadius,
+          FilledButton.tonal(
+            onPressed: _isCheckingUpdate ? null : _checkForUpdate,
+            style: FilledButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: _isCheckingUpdate
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(scheme.onPrimary),
-                      ),
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(
-                          Icons.refresh_rounded,
-                          size: 16,
-                          color: scheme.onPrimary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Проверить',
-                          style: textTheme.labelMedium?.copyWith(
-                            color: scheme.onPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              minimumSize: const Size(0, 38),
             ),
+            child: _isCheckingUpdate
+                ? SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(Icons.refresh_rounded, size: 16, color: scheme.onSecondaryContainer),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Проверить',
+                        style: textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),
     );
   }
 
-
   // ---------------------------------------------------------------------------
-  // 2. Material 3 Expressive Pill Tab Selector
+  // 3. Material 3 SegmentedButton Tab Selector
   // ---------------------------------------------------------------------------
-  Widget _buildPillTabSelector(
+  Widget _buildSegmentedTabSelector(
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final List<_AboutTabItem> tabs = <_AboutTabItem>[
-      _AboutTabItem(
-        icon: Icons.people_alt_rounded,
-        label: context.l10n.aboutTabDevelopers,
-      ),
-      _AboutTabItem(
-        icon: Icons.gavel_rounded,
-        label: context.l10n.aboutTabLegal,
-      ),
-      _AboutTabItem(
-        icon: Icons.help_outline_rounded,
-        label: context.l10n.aboutTabFaq,
-      ),
-      _AboutTabItem(
-        icon: Icons.history_rounded,
-        label: context.l10n.aboutTabChangelog,
-      ),
-    ];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? scheme.surfaceContainerLowest : scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.3),
-        ),
-      ),
-      padding: const EdgeInsets.all(4),
-      child: Row(
-        children: tabs.asMap().entries.map((MapEntry<int, _AboutTabItem> entry) {
-          final int index = entry.key;
-          final _AboutTabItem tab = entry.value;
-          final bool isSelected = _selectedTabIndex == index;
-
-          return Expanded(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                color: isSelected ? scheme.primary : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: scheme.primary.withValues(alpha: 0.25),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Material(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-                child: InkWell(
-                  onTap: () {
-                    if (_selectedTabIndex != index) {
-                      HapticService.selection();
-                      setState(() => _selectedTabIndex = index);
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(
-                          tab.icon,
-                          size: 18,
-                          color: isSelected
-                              ? scheme.onPrimary
-                              : scheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          tab.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: textTheme.labelSmall?.copyWith(
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                            fontSize: 11,
-                            color: isSelected
-                                ? scheme.onPrimary
-                                : scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        return SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<int>(
+            segments: <ButtonSegment<int>>[
+              ButtonSegment<int>(
+                value: 0,
+                icon: const Icon(Icons.people_alt_rounded, size: 18),
+                label: Text(
+                  context.l10n.aboutTabDevelopers,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
                 ),
               ),
+              ButtonSegment<int>(
+                value: 1,
+                icon: const Icon(Icons.gavel_rounded, size: 18),
+                label: Text(
+                  context.l10n.aboutTabLegal,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                ),
+              ),
+              ButtonSegment<int>(
+                value: 2,
+                icon: const Icon(Icons.help_outline_rounded, size: 18),
+                label: Text(
+                  context.l10n.aboutTabFaq,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                ),
+              ),
+              ButtonSegment<int>(
+                value: 3,
+                icon: const Icon(Icons.history_rounded, size: 18),
+                label: Text(
+                  context.l10n.aboutTabChangelog,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+            selected: <int>{_selectedTabIndex},
+            onSelectionChanged: (Set<int> newSelection) {
+              HapticService.selection();
+              setState(() {
+                _selectedTabIndex = newSelection.first;
+              });
+            },
+            showSelectedIcon: false,
+            style: SegmentedButton.styleFrom(
+              backgroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? scheme.surfaceContainerLowest
+                  : scheme.surfaceContainerLow,
+              selectedBackgroundColor: scheme.secondaryContainer,
+              selectedForegroundColor: scheme.onSecondaryContainer,
+              foregroundColor: scheme.onSurfaceVariant,
+              side: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.35),
+                width: 1,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
             ),
-          );
-        }).toList(),
-      ),
+          ),
+        );
+      },
     );
   }
 
   // ---------------------------------------------------------------------------
-  // 3. Current Tab Content Switcher (Animated with smooth M3 transitions)
+  // 4. Current Tab Content with M3 Spring Transitions
   // ---------------------------------------------------------------------------
   Widget _buildCurrentTabContent(
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
+    bool isDark,
   ) {
     return RepaintBoundary(
       child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 240),
-        switchInCurve: Curves.easeOutCubic,
+        duration: const Duration(milliseconds: 250),
+        switchInCurve: M3SpringCurves.spatial,
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (Widget child, Animation<double> animation) {
           return FadeTransition(
@@ -567,7 +463,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
                 end: Offset.zero,
               ).animate(CurvedAnimation(
                 parent: animation,
-                curve: Curves.easeOutCubic,
+                curve: M3SpringCurves.spatial,
               )),
               child: child,
             ),
@@ -575,7 +471,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
         },
         child: KeyedSubtree(
           key: ValueKey<int>(_selectedTabIndex),
-          child: _tabWidgetForIndex(_selectedTabIndex, context, scheme, textTheme),
+          child: _tabWidgetForIndex(_selectedTabIndex, context, scheme, textTheme, isDark),
         ),
       ),
     );
@@ -586,150 +482,157 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
+    bool isDark,
   ) {
     switch (index) {
       case 0:
-        return _buildDevelopersTab(context, scheme, textTheme);
+        return _buildDevelopersTab(context, scheme, textTheme, isDark);
       case 1:
-        return _buildLegalTab(context, scheme, textTheme);
+        return _buildLegalTab(context, scheme, textTheme, isDark);
       case 2:
-        return _buildFaqTab(context, scheme, textTheme);
+        return _buildFaqTab(context, scheme, textTheme, isDark);
       case 3:
       default:
-        return _buildChangelogTab(context, scheme, textTheme);
+        return _buildChangelogTab(context, scheme, textTheme, isDark);
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Tab 1: Developers (High-Contrast Full-Color Avatars)
+  // Tab 1: Developers (Google Contacts Style Tiles)
   // ---------------------------------------------------------------------------
   Widget _buildDevelopersTab(
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
+    bool isDark,
   ) {
-    final Widget sanlsanTile = _DeveloperTile(
+    final Widget sanlsanTile = _GoogleContactsDeveloperTile(
       name: 'Sanlsan',
       role: 'Основатель & Главный Архитектор',
+      telegramHandle: 'hello_sanlsan',
       assetPath: 'assets/developers/Sanlsan_clean.png',
       svgAssetPath: 'assets/svg/developer_sanlsan.svg',
       fallbackIcon: Icons.dns_rounded,
-      accentColor: const Color(0xFF2196F3),
-      telegramHandle: 'hello_sanlsan',
       onOpenTelegram: () => _openUrl('https://t.me/hello_sanlsan'),
     );
 
-    final Widget sh20fkTile = _DeveloperTile(
+    final Widget sh20fkTile = _GoogleContactsDeveloperTile(
       name: 'SH20FK',
       role: 'Руководитель разработки клиента & UX',
+      telegramHandle: 'Door0S',
       assetPath: 'assets/developers/SH20FK_clean.png',
       svgAssetPath: 'assets/svg/developer_sh20fk.svg',
       fallbackIcon: Icons.phone_iphone_rounded,
-      accentColor: const Color(0xFF7C4DFF),
-      telegramHandle: 'Door0S',
       onOpenTelegram: () => _openUrl('https://t.me/Door0S'),
     );
 
-    return SettingsSection(
-      title: context.l10n.aboutTabDevelopers,
-      subtitle: 'Архитекторы и создатели экосистемы защищённого мессенджера NiosMess',
-      isCard: false,
-      children: <Widget>[
-        LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            if (constraints.maxWidth >= 620) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(child: sanlsanTile),
-                  const SizedBox(width: 14),
-                  Expanded(child: sh20fkTile),
-                ],
-              );
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                sanlsanTile,
-                const SizedBox(height: 14),
-                sh20fkTile,
-              ],
-            );
-          },
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        if (constraints.maxWidth >= 600) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(child: sanlsanTile),
+              const SizedBox(width: 12),
+              Expanded(child: sh20fkTile),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            sanlsanTile,
+            const SizedBox(height: 12),
+            sh20fkTile,
+          ],
+        );
+      },
     );
   }
 
   // ---------------------------------------------------------------------------
-  // Tab 2: Legal Documents (All 4 Official Documents Included)
+  // Tab 2: Legal Documents (Grouped M3 Surface with Subtle Dividers)
   // ---------------------------------------------------------------------------
   Widget _buildLegalTab(
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
+    bool isDark,
   ) {
-    return SettingsSection(
-      title: context.l10n.aboutTabLegal,
-      subtitle: 'Правовые документы, условия сервиса и лицензии',
-      children: <Widget>[
-        _ActionRow(
-          icon: Icons.shield_outlined,
-          iconColor: const Color(0xFF4CAF50),
-          title: context.l10n.settingsPrivacyPolicy,
-          subtitle: 'Политика конфиденциальности: обработка данных и криптография',
-          trailing: const Icon(Icons.chevron_right_rounded, size: 18),
-          onTap: () => context.push('/legal/privacy'),
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.28 : 0.35),
+          width: 1,
         ),
-        _ActionRow(
-          icon: Icons.gavel_rounded,
-          iconColor: const Color(0xFF3F51B5),
-          title: context.l10n.settingsTermsOfService,
-          subtitle: 'Пользовательское соглашение и правила платформы Nios',
-          trailing: const Icon(Icons.chevron_right_rounded, size: 18),
-          onTap: () => context.push('/legal/terms'),
-        ),
-        _ActionRow(
-          icon: Icons.assignment_turned_in_outlined,
-          iconColor: const Color(0xFF009688),
-          title: 'Согласие на обработку данных',
-          subtitle: 'Согласие субъекта на сбор и хранение учетных данных',
-          trailing: const Icon(Icons.chevron_right_rounded, size: 18),
-          onTap: () => context.push('/legal/consent'),
-        ),
-        _ActionRow(
-          icon: Icons.receipt_long_rounded,
-          iconColor: const Color(0xFFFF5722),
-          title: 'Сторонние лицензии и библиотеки',
-          subtitle: 'Информация об открытых библиотеках, используемых в клиенте',
-          trailing: const Icon(Icons.chevron_right_rounded, size: 18),
-          onTap: () {
-            showLicensePage(
-              context: context,
-              applicationName: 'NiosMess',
-              applicationVersion: AppConstants.appVersion,
-              applicationIcon: Padding(
-                padding: const EdgeInsets.all(12),
-                child: SizedBox(
-                  width: 52,
-                  height: 52,
-                  child: SvgPicture.asset('assets/svg/niosmess_logo_tintable.svg'),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: <Widget>[
+          _ActionRow(
+            icon: Icons.shield_outlined,
+            iconColor: scheme.primary,
+            title: context.l10n.settingsPrivacyPolicy,
+            subtitle: 'Обработка данных, сквозное шифрование и безопасность',
+            trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+            onTap: () => context.push('/legal/privacy'),
+          ),
+          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          _ActionRow(
+            icon: Icons.gavel_rounded,
+            iconColor: scheme.secondary,
+            title: context.l10n.settingsTermsOfService,
+            subtitle: 'Пользовательское соглашение и правила сервиса',
+            trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+            onTap: () => context.push('/legal/terms'),
+          ),
+          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          _ActionRow(
+            icon: Icons.assignment_turned_in_outlined,
+            iconColor: scheme.tertiary,
+            title: 'Согласие на обработку данных',
+            subtitle: 'Согласие субъекта на сбор и хранение данных',
+            trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+            onTap: () => context.push('/legal/consent'),
+          ),
+          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          _ActionRow(
+            icon: Icons.receipt_long_rounded,
+            iconColor: scheme.onSurfaceVariant,
+            title: 'Сторонние лицензии и библиотеки',
+            subtitle: 'Информация об открытых компонентах клиента',
+            trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+            onTap: () {
+              showLicensePage(
+                context: context,
+                applicationName: 'NiosMess',
+                applicationVersion: AppConstants.appVersion,
+                applicationIcon: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: SvgPicture.asset('assets/svg/niosmess_logo_tintable.svg'),
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
-      ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
   // ---------------------------------------------------------------------------
-  // Tab 3: FAQ (All 10 Questions)
+  // Tab 3: FAQ (Material 3 Grouped Accordion)
   // ---------------------------------------------------------------------------
   Widget _buildFaqTab(
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
+    bool isDark,
   ) {
     final List<(String, String)> allFaqs = <(String, String)>[
       (context.l10n.aboutFaqQ1, context.l10n.aboutFaqA1),
@@ -744,17 +647,34 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
       (context.l10n.aboutFaqQ10, context.l10n.aboutFaqA10),
     ];
 
-    return SettingsSection(
-      title: context.l10n.aboutTabFaq,
-      subtitle: 'Ответы на популярные вопросы о безопасности и возможностях',
-      children: allFaqs.map((faq) {
-        final (String q, String a) = faq;
-        return _ExpandableFaqTile(
-          question: q,
-          answer: a,
-          iconColor: const Color(0xFFFFB300),
-        );
-      }).toList(),
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.28 : 0.35),
+          width: 1,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: allFaqs.asMap().entries.map((MapEntry<int, (String, String)> entry) {
+          final int index = entry.key;
+          final (String q, String a) = entry.value;
+          final bool isLast = index == allFaqs.length - 1;
+
+          return Column(
+            children: <Widget>[
+              _ExpandableFaqTile(
+                question: q,
+                answer: a,
+              ),
+              if (!isLast)
+                Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.12)),
+            ],
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -765,12 +685,13 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
+    bool isDark,
   ) {
     final List<_ReleaseInfo> pastReleases = <_ReleaseInfo>[
       _ReleaseInfo(
         version: 'v2.1.0',
         date: context.l10n.aboutChangelogDateJune2026,
-        accentColor: const Color(0xFF26A69A),
+        accentColor: scheme.primary,
         changes: <String>[
           context.l10n.aboutChangelogV210C1,
           context.l10n.aboutChangelogV210C2,
@@ -782,7 +703,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
       _ReleaseInfo(
         version: 'v2.0.5',
         date: context.l10n.aboutChangelogDateMarch2026,
-        accentColor: const Color(0xFF5C6BC0),
+        accentColor: scheme.secondary,
         changes: <String>[
           context.l10n.aboutChangelogV205C1,
           context.l10n.aboutChangelogV205C2,
@@ -793,7 +714,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
       _ReleaseInfo(
         version: 'v2.0.0',
         date: context.l10n.aboutChangelogDateJanuary2026,
-        accentColor: const Color(0xFF7E57C2),
+        accentColor: scheme.tertiary,
         changes: <String>[
           context.l10n.aboutChangelogV200C1,
           context.l10n.aboutChangelogV200C2,
@@ -805,90 +726,101 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
       ),
     ];
 
-    return SettingsSection(
-      title: context.l10n.aboutTabChangelog,
-      subtitle: 'История релизов и обновлений платформы NiosMess',
-      children: <Widget>[
-        // Current Major Release Highlight
-        Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.28 : 0.35),
+          width: 1,
+        ),
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // Current Major Release Highlight
+          Row(
             children: <Widget>[
-              Row(
-                children: <Widget>[
-                  _SquircleIcon(
-                    icon: Icons.auto_awesome_rounded,
-                    color: const Color(0xFF9C27B0),
-                    size: 40,
-                    iconSize: 22,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer.withValues(alpha: isDark ? 0.45 : 0.65),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  color: scheme.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: <Widget>[
-                        Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 8,
-                          runSpacing: 4,
-                          children: <Widget>[
-                            Text(
-                              '${AppConstants.appVersionWithPrefix} (Expressive)',
-                              style: textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.primary.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                'Текущая',
-                                style: textTheme.labelSmall?.copyWith(
-                                  color: scheme.primary,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
                         Text(
-                          context.l10n.aboutChangelogDateJuly2026,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
+                          '${AppConstants.appVersionWithPrefix} (Expressive)',
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: scheme.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'Текущая',
+                            style: textTheme.labelSmall?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 10,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      context.l10n.aboutChangelogDateJuly2026,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 14),
-              _buildChangeItem(scheme, textTheme, 'Ультра-плавный движок анимаций (120 FPS без рывков и дерганий списков)'),
-              _buildChangeItem(scheme, textTheme, 'Комплексная оптимизация рендеринга для Web и Android APK'),
-              _buildChangeItem(scheme, textTheme, 'Исключение аппаратной диагностики в веб-клиенте для чистоты интерфейса'),
-              _buildChangeItem(scheme, textTheme, 'Адаптивные и безопасные переходы экранов Material 3 Expressive'),
-              _buildChangeItem(scheme, textTheme, 'Мгновенный отклик переключателей с тактильной индикацией thumbIcon'),
-              _buildChangeItem(scheme, textTheme, 'Информативные статусные бейджи в Master-Detail режиме настроек'),
-              _buildChangeItem(scheme, textTheme, context.l10n.aboutChangelogV300C6),
             ],
           ),
-        ),
+          const SizedBox(height: 16),
+          _buildChangeItem(scheme, textTheme, 'Ультра-плавный движок анимаций (120 FPS без рывков и дерганий списков)'),
+          _buildChangeItem(scheme, textTheme, 'Комплексная оптимизация рендеринга для Web и Android APK'),
+          _buildChangeItem(scheme, textTheme, 'Исключение аппаратной диагностики в веб-клиенте для чистоты интерфейса'),
+          _buildChangeItem(scheme, textTheme, 'Адаптивные и безопасные переходы экранов Material 3 Expressive'),
+          _buildChangeItem(scheme, textTheme, 'Мгновенный отклик переключателей с тактильной индикацией thumbIcon'),
+          _buildChangeItem(scheme, textTheme, 'Информативные статусные бейджи в Master-Detail режиме настроек'),
+          _buildChangeItem(scheme, textTheme, context.l10n.aboutChangelogV300C6),
 
-        // Past Releases
-        ...pastReleases.map(
-          (release) => _PreviousReleaseTile(release: release),
-        ),
-      ],
+          const SizedBox(height: 14),
+          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          const SizedBox(height: 10),
+
+          // Past Releases
+          ...pastReleases.map(
+            (release) => _PreviousReleaseTile(release: release),
+          ),
+        ],
+      ),
     );
   }
 
@@ -928,7 +860,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // 4. Closed-Source Footer
+  // 5. Minimalist M3 Footer
   // ---------------------------------------------------------------------------
   Widget _buildFooter(
     BuildContext context,
@@ -936,34 +868,31 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
     TextTheme textTheme,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       child: Center(
         child: Column(
           children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(
-                    Icons.shield_rounded,
-                    size: 13,
-                    color: scheme.primary.withValues(alpha: 0.8),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      'Безопасность и сквозное шифрование по умолчанию',
-                      style: textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Icon(
+                  Icons.shield_rounded,
+                  size: 13,
+                  color: scheme.primary.withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Безопасность и сквозное шифрование по умолчанию',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
+                      fontWeight: FontWeight.w600,
                     ),
+                    textAlign: TextAlign.center,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(
@@ -984,127 +913,128 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen>
 // Helper Widgets & Data Structures
 // =============================================================================
 
-class _AboutTabItem {
-  const _AboutTabItem({
-    required this.icon,
-    required this.label,
+class _InteractiveHeroLogo extends StatefulWidget {
+  const _InteractiveHeroLogo({
+    required this.scheme,
   });
 
-  final IconData icon;
-  final String label;
+  final ColorScheme scheme;
+
+  @override
+  State<_InteractiveHeroLogo> createState() => _InteractiveHeroLogoState();
 }
 
-class _SquircleIcon extends StatelessWidget {
-  const _SquircleIcon({
-    required this.icon,
-    required this.color,
-    this.size = 38,
-    this.iconSize = 20,
-  });
-
-  final IconData icon;
-  final Color color;
-  final double size;
-  final double iconSize;
+class _InteractiveHeroLogoState extends State<_InteractiveHeroLogo> {
+  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(size * 0.32),
-        border: Border.all(
-          color: color.withValues(alpha: 0.25),
-          width: 1,
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: () {
+        HapticService.tap();
+      },
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.92 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        curve: M3SpringCurves.bouncy,
+        child: M3Container(
+          Shapes.c9_sided_cookie,
+          width: 76,
+          height: 76,
+          color: widget.scheme.primary,
+          child: Center(
+            child: SvgPicture.asset(
+              'assets/svg/niosmess_logo_tintable.svg',
+              width: 44,
+              height: 44,
+              colorFilter: ColorFilter.mode(
+                widget.scheme.onPrimary,
+                BlendMode.srcIn,
+              ),
+            ),
+          ),
         ),
       ),
-      alignment: Alignment.center,
-      child: Icon(icon, color: color, size: iconSize),
-    );
+    ).animate().scale(duration: 400.ms, curve: M3SpringCurves.spatial).fade(duration: 300.ms);
   }
 }
 
-class _QuickHeroButton extends StatelessWidget {
-  const _QuickHeroButton({
+class _M3ActionChip extends StatelessWidget {
+  const _M3ActionChip({
     required this.label,
-    required this.color,
     required this.onTap,
     this.icon,
     this.svgAsset,
   });
 
+  final String label;
+  final VoidCallback onTap;
   final IconData? icon;
   final String? svgAsset;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
 
     return Material(
-      color: color.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withValues(alpha: 0.25)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              if (svgAsset != null)
-                SvgPicture.asset(
-                  svgAsset!,
-                  width: 15,
-                  height: 15,
-                  colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-                )
-              else if (icon != null)
-                Icon(icon, size: 15, color: color),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: scheme.onSurface,
-                ),
-              ),
-            ],
+      type: MaterialType.transparency,
+      child: ActionChip(
+        avatar: svgAsset != null
+            ? SvgPicture.asset(
+                svgAsset!,
+                width: 15,
+                height: 15,
+                colorFilter: ColorFilter.mode(scheme.primary, BlendMode.srcIn),
+              )
+            : (icon != null ? Icon(icon, size: 15, color: scheme.primary) : null),
+        label: Text(
+          label,
+          style: textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: scheme.onSurface,
+            fontSize: 12,
           ),
         ),
+        onPressed: () {
+          HapticService.tap();
+          onTap();
+        },
+        backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        side: BorderSide(
+          color: scheme.outlineVariant.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       ),
     );
   }
 }
 
-class _DeveloperTile extends StatelessWidget {
-  const _DeveloperTile({
+class _GoogleContactsDeveloperTile extends StatelessWidget {
+  const _GoogleContactsDeveloperTile({
     required this.name,
     required this.role,
+    required this.telegramHandle,
     required this.assetPath,
     required this.fallbackIcon,
-    required this.accentColor,
     required this.onOpenTelegram,
     this.svgAssetPath,
-    this.telegramHandle,
   });
 
   final String name;
   final String role;
+  final String telegramHandle;
   final String assetPath;
   final String? svgAssetPath;
   final IconData fallbackIcon;
-  final Color accentColor;
-  final String? telegramHandle;
   final VoidCallback onOpenTelegram;
 
   @override
@@ -1113,183 +1043,135 @@ class _DeveloperTile extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final Color avatarBg = isDark
-        ? Color.alphaBlend(
-            accentColor.withValues(alpha: 0.16),
-            scheme.surfaceContainerHighest,
-          )
-        : Color.alphaBlend(
-            accentColor.withValues(alpha: 0.08),
-            scheme.surfaceContainerHighest,
-          );
-
-    final Widget avatarWidget = Container(
-      width: 76,
-      height: 76,
+    final Widget avatar = Container(
+      width: 52,
+      height: 52,
       decoration: BoxDecoration(
-        color: avatarBg,
-        borderRadius: BorderRadius.circular(22),
+        color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.6 : 0.8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: accentColor.withValues(alpha: isDark ? 0.40 : 0.25),
-          width: 1.5,
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.3 : 0.4),
+          width: 1,
         ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: accentColor.withValues(alpha: isDark ? 0.20 : 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
-      padding: const EdgeInsets.all(7),
+      padding: const EdgeInsets.all(6),
       child: svgAssetPath != null
           ? SvgPicture.asset(
               svgAssetPath!,
               fit: BoxFit.contain,
-              colorFilter: ColorFilter.mode(accentColor, BlendMode.srcIn),
-              placeholderBuilder: (BuildContext context) => Image.asset(
+              colorFilter: ColorFilter.mode(scheme.primary, BlendMode.srcIn),
+              placeholderBuilder: (_) => Image.asset(
                 assetPath,
                 fit: BoxFit.contain,
-                color: accentColor,
-                colorBlendMode: BlendMode.srcIn,
-                errorBuilder: (_, _, _) =>
-                    Center(child: Icon(fallbackIcon, size: 36, color: accentColor)),
+                errorBuilder: (_, _, _) => Center(
+                  child: Icon(fallbackIcon, size: 26, color: scheme.primary),
+                ),
               ),
             )
           : Image.asset(
               assetPath,
               fit: BoxFit.contain,
-              color: accentColor,
-              colorBlendMode: BlendMode.srcIn,
-              errorBuilder: (BuildContext context, Object error, StackTrace? trace) =>
-                  Center(child: Icon(fallbackIcon, size: 36, color: accentColor)),
+              errorBuilder: (_, _, _) => Center(
+                child: Icon(fallbackIcon, size: 26, color: scheme.primary),
+              ),
             ),
     );
 
     return Container(
       decoration: BoxDecoration(
         color: isDark ? scheme.surfaceContainerLow : scheme.surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: accentColor.withValues(alpha: isDark ? 0.35 : 0.22),
-          width: 1.2,
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.28 : 0.35),
+          width: 1,
         ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: accentColor.withValues(alpha: isDark ? 0.08 : 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          avatarWidget,
+          avatar,
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                // Name + Verified Badge
                 Row(
                   children: <Widget>[
                     Flexible(
                       child: Text(
                         name,
                         style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 17,
-                          letterSpacing: -0.3,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          letterSpacing: -0.2,
                           color: scheme.onSurface,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 6),
                     Icon(
                       Icons.verified_rounded,
-                      size: 18,
-                      color: accentColor,
+                      size: 16,
+                      color: scheme.primary,
                     ),
                   ],
                 ),
-                if (telegramHandle != null) ...<Widget>[
-                  const SizedBox(height: 2),
-                  Text(
-                    '@$telegramHandle',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
+                const SizedBox(height: 2),
+                Text(
+                  '@$telegramHandle',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
                   ),
-                ],
-                const SizedBox(height: 6),
-                // Role pill
+                ),
+                const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: isDark ? 0.18 : 0.10),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: accentColor.withValues(alpha: isDark ? 0.35 : 0.25),
-                    ),
+                    color: scheme.secondaryContainer.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     role,
                     style: textTheme.labelSmall?.copyWith(
-                      color: accentColor,
+                      color: scheme.onSecondaryContainer,
                       fontWeight: FontWeight.w700,
-                      fontSize: 11,
+                      fontSize: 10.5,
                     ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // Telegram Action Button
-                FilledButton.tonal(
-                  onPressed: onOpenTelegram,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: accentColor.withValues(alpha: isDark ? 0.20 : 0.12),
-                    foregroundColor: accentColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color: accentColor.withValues(alpha: isDark ? 0.35 : 0.28),
-                        width: 1.2,
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    minimumSize: const Size(0, 36),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      SvgPicture.asset(
-                        'assets/svg/telegram_logo.svg',
-                        width: 15,
-                        height: 15,
-                        colorFilter: ColorFilter.mode(accentColor, BlendMode.srcIn),
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          telegramHandle != null
-                              ? 'Написать (@$telegramHandle)'
-                              : 'Связаться в Telegram',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: accentColor,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Tooltip(
+            message: 'Написать @$telegramHandle в Telegram',
+            child: IconButton.filledTonal(
+              onPressed: () {
+                HapticService.tap();
+                onOpenTelegram();
+              },
+              icon: SvgPicture.asset(
+                'assets/svg/telegram_logo.svg',
+                width: 18,
+                height: 18,
+                colorFilter: ColorFilter.mode(
+                  scheme.primary,
+                  BlendMode.srcIn,
+                ),
+              ),
+              style: IconButton.styleFrom(
+                backgroundColor: scheme.primaryContainer.withValues(alpha: isDark ? 0.45 : 0.6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
             ),
           ),
         ],
@@ -1319,19 +1201,32 @@ class _ActionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Material(
       color: Colors.transparent,
       child: ListTile(
-        onTap: onTap,
+        onTap: () {
+          HapticService.tap();
+          onTap();
+        },
         dense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: _SquircleIcon(icon: icon, color: iconColor),
+        leading: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.7 : 0.85),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: iconColor, size: 18),
+        ),
         title: Text(
           title,
           style: textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 14,
+            color: scheme.onSurface,
           ),
         ),
         subtitle: Text(
@@ -1351,27 +1246,29 @@ class _ExpandableFaqTile extends StatelessWidget {
   const _ExpandableFaqTile({
     required this.question,
     required this.answer,
-    required this.iconColor,
   });
 
   final String question;
   final String answer;
-  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ExpansionTile(
       shape: const Border(),
       collapsedShape: const Border(),
       tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      leading: _SquircleIcon(
-        icon: Icons.help_outline_rounded,
-        color: iconColor,
-        size: 34,
-        iconSize: 18,
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.7 : 0.85),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(Icons.help_outline_rounded, color: scheme.primary, size: 18),
       ),
       title: Text(
         question,
@@ -1418,30 +1315,36 @@ class _PreviousReleaseTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ExpansionTile(
       shape: const Border(),
       collapsedShape: const Border(),
-      tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-      leading: _SquircleIcon(
-        icon: Icons.history_rounded,
-        color: release.accentColor,
-        size: 34,
-        iconSize: 18,
+      tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.7 : 0.85),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(Icons.history_rounded, color: release.accentColor, size: 18),
       ),
       title: Text(
         release.version,
         style: textTheme.titleSmall?.copyWith(
           fontWeight: FontWeight.w700,
+          color: scheme.onSurface,
         ),
       ),
       subtitle: Text(
         release.date,
         style: textTheme.bodySmall?.copyWith(
           color: scheme.onSurfaceVariant,
+          fontSize: 12,
         ),
       ),
-      childrenPadding: const EdgeInsets.fromLTRB(64, 0, 18, 14),
+      childrenPadding: const EdgeInsets.fromLTRB(58, 0, 18, 14),
       children: release.changes
           .map(
             (String change) => Padding(

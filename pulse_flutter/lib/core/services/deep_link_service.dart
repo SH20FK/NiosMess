@@ -3,8 +3,7 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:pulse_flutter/router/app_router.dart';
+import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
 class DeepLinkService {
   static StreamSubscription<Uri>? _sub;
@@ -14,6 +13,20 @@ class DeepLinkService {
 
     final AppLinks appLinks = AppLinks();
 
+    // 1. Cold start deep link handling
+    try {
+      final Uri? initialUri = await appLinks.getInitialLink();
+      if (initialUri != null) {
+        debugPrint('[DeepLink] Cold start link detected: $initialUri');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _handleUri(initialUri);
+        });
+      }
+    } catch (e) {
+      debugPrint('[DeepLink] Error reading initial URI: $e');
+    }
+
+    // 2. Runtime stream listening
     await _sub?.cancel();
     _sub = appLinks.uriLinkStream.listen(_handleUri);
   }
@@ -24,38 +37,7 @@ class DeepLinkService {
   }
 
   static void _handleUri(Uri uri) {
-    debugPrint('[DeepLink] Received: $uri');
-
-    String path = uri.path;
-    if (uri.scheme == 'niosmess') {
-      if (uri.host.isNotEmpty && !path.startsWith('/${uri.host}')) {
-        path = '/${uri.host}$path';
-      }
-    }
-    if (path.isEmpty || path == '/') return;
-
-    // Rewrite server URL patterns to app routes
-    // /join/{slug} → /join?slug={slug}
-    if (path.startsWith('/join/')) {
-      final String slug = path.substring(6);
-      if (slug.isNotEmpty) {
-        path = '/join?slug=$slug';
-      }
-    } else if (path.startsWith('/u/')) {
-      final String slug = path.substring(3);
-      if (slug.isNotEmpty) {
-        path = '/u/$slug';
-      }
-    } else if (path.startsWith('/g/')) {
-      final String username = path.substring(3);
-      if (username.isNotEmpty) {
-        path = '/g/$username';
-      }
-    }
-
-    final BuildContext? ctx = AppRouter.navigatorKey.currentContext;
-    if (ctx == null) return;
-
-    ctx.go(path + (uri.query.isNotEmpty ? '?${uri.query}' : ''));
+    debugPrint('[DeepLink] Received runtime link: $uri');
+    AppUrlLauncher.handleDeepLink(uri);
   }
 }

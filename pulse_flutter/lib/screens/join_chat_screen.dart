@@ -209,7 +209,7 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
                         ? context.l10n.commonLoading
                         : context.l10n.groupPreviewInvite,
                     icon: Icons.visibility_rounded,
-                    onPressed: _loadingPreview ? () {} : _loadPreview,
+                    onPressed: _loadingPreview ? null : _loadPreview,
                   ),
                 ],
               ),
@@ -332,7 +332,7 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
                 ? context.l10n.groupJoining
                 : context.l10n.groupJoinChat,
             icon: Icons.login_rounded,
-            onPressed: _joining ? () {} : _join,
+            onPressed: _joining ? null : _join,
           ),
         ],
       ),

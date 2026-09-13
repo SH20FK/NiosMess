@@ -288,3 +288,41 @@ Specification reference: f:\Niosmess V2\NIOSMESS_NEW_FEATURES_API.md
 - [ ] Отсутствие прямых импортов dart:io (использование package:universal_io/io.dart).
 - [ ] Версия приложения в pubspec.yaml повышена в соответствии с SemVer Protocol.
 
+## 2026-09-13T07:57:21Z
+
+Conduct a comprehensive, end-to-end audit of the entire NiosMess (pulse_flutter) codebase across all 45+ screens and architectural layers to detect deprecated Flutter/Dart patterns, deviations from Material 3 Expressive standards, architectural anti-patterns, and UI/UX shortcomings, compiling an actionable report into pulse_flutter/AUDIT_REPORT.md.
+
+Working directory: F:\Niosmess V2\pulse_flutter
+Integrity mode: development
+
+## Requirements
+
+### R1. Full-Stack Client Codebase Audit
+Inspect all 45+ screens in lib/screens/, reusable components in lib/widgets/, state providers in lib/providers/, services in lib/services/, and core theming in lib/core/ across four functional pillars:
+1. Communication & Calls: Chat list, chat detail, message bubbles, voice player, sticker modals, and WebRTC call UI/flow.
+2. Social Feed (NiosGram) & Media: NiosGram feed, post cards, comments, native document/media viewers, and circular video recording.
+3. Settings & Customization: All settings screens (About, Appearance, System/Device, Wallpaper Studio, Storage, Privacy, Account, Language).
+4. Auth & Shell Navigation: Splash, onboarding, login/Nios ID, 2FA, main shell navigation, bottom nav, and predictive back motion transitions.
+
+### R2. Material 3 Expressive & Modern Flutter Heuristics
+Evaluate each file and screen against the project's strict architecture guidelines:
+- Material 3 Expressive Visuals: Dynamic Color integration (colorScheme.*), proper tonal elevation, cookie/squircle geometry via flutter_m3shapes, spring-physics curves (Curves.easeOutCubic, m3_spring_constants.dart), haptics (HapticService), and elimination of hardcoded Colors.white / Colors.black.
+- Modern API Compliance: Replacement of deprecated withOpacity(...) with withValues(alpha: ...), WidgetStatePropertyAll<Color>, and verification that no raw dart:io imports exist (use package:universal_io/io.dart).
+- Riverpod 3.x State Management: Verification of NotifierProvider / AsyncNotifierProvider usage (strictly no deprecated StateProvider or legacy StateNotifierProvider).
+- Localization & Cleanliness: All user-facing UI copy mapped through context.l10n.* (no raw hardcoded Russian/English strings in widgets).
+- UX & Functional Completeness: Identification of stubbed buttons without handlers, missing loading/error empty states, unhandled edge cases, and responsive layout constraints on mobile vs desktop.
+
+### R3. Comprehensive Audit Report Deliverable
+Compile all verified findings into pulse_flutter/AUDIT_REPORT.md with:
+1. Executive Summary Dashboard: Overall health score, metrics table by severity (P0 Critical, P1 High, P2 Polish/Style), and breakdown by subsystem.
+2. Categorized Findings Matrix: For each issue, include File Path + Line Number, Severity, Category, Problem Description, Impact, and a Ready-to-Apply Diff / Code Snippet.
+3. Ranked Roadmap: A clear step-by-step phased execution roadmap for remediating the findings.
+
+## Acceptance Criteria
+
+### Audit Completeness & Quality
+- [ ] Every screen file in lib/screens/ and major widget in lib/widgets/ is analyzed.
+- [ ] All reported issues include valid, verified file paths and line numbers that exist in the codebase.
+- [ ] No vague, hallucinatory, or generic complaints — every finding has concrete code evidence and a specific recommended fix.
+- [ ] The report distinguishes clearly between P0 (bugs/broken flows/security), P1 (M3 Expressive deviations/deprecated APIs/l10n gaps), and P2 (visual polish/styling nuances).
+- [ ] pulse_flutter/AUDIT_REPORT.md is generated with clean, valid GitHub Flavored Markdown and is readable as a standalone document.

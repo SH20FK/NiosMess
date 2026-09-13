@@ -72,7 +72,11 @@ class _ResetPasswordConfirmScreenState
       context.go('/login');
     } else {
       HapticService.destructive();
-      AppToast.showError(context, result.message ?? context.l10n.resetPasswordConfirmDone);
+      final bool isRu = context.l10n.localeName.startsWith('ru');
+      AppToast.showError(
+        context,
+        result.message ?? (isRu ? 'Неверный код или ошибка сброса пароля' : 'Invalid code or password reset error'),
+      );
     }
   }
 

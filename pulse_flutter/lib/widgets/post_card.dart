@@ -21,9 +21,9 @@ import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/vector_illustrations.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
+import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
 class PostCard extends ConsumerStatefulWidget {
   const PostCard({
@@ -418,10 +418,7 @@ class _PostCardState extends ConsumerState<PostCard>
                         ),
                         onTapLink: (String text, String? href, String title) {
                           if (href != null) {
-                            launchUrl(
-                              Uri.parse(href),
-                              mode: LaunchMode.externalApplication,
-                            );
+                            AppUrlLauncher.openUrl(context, href);
                           }
                         },
                       ),
@@ -688,7 +685,9 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
               ),
             ),
             child: AspectRatio(
-              aspectRatio: 16 / 9,
+              aspectRatio: widget.post.isVideo
+                  ? (16 / 9)
+                  : (isMultiple ? 1.0 : (4 / 3)),
               child: Stack(
                 children: <Widget>[
                   if (isMultiple)
@@ -760,9 +759,9 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
-                            const Icon(
+                            Icon(
                               Icons.play_arrow_rounded,
-                              color: Colors.white,
+                              color: scheme.onSurface,
                               size: 16,
                             ),
                             const SizedBox(width: 4),
@@ -772,7 +771,7 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                                   .textTheme
                                   .labelSmall
                                   ?.copyWith(
-                                    color: Colors.white,
+                                    color: scheme.onSurface,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 10,
                                     letterSpacing: 0.5,
@@ -803,7 +802,7 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                               .textTheme
                               .labelSmall
                               ?.copyWith(
-                                color: Colors.white,
+                                color: scheme.onSurface,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 11,
                               ),

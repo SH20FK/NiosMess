@@ -1839,7 +1839,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            padding: EdgeInsets.zero,
             child: ChatDetailInputArea(
               chatId: chatId,
               onSendSticker: _sendSticker,

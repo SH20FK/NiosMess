@@ -94,6 +94,31 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
     }
   }
 
+  String? _extractInviteSlug(String input) {
+    final String trimmed = input.trim();
+    if (trimmed.isEmpty) return null;
+
+    final RegExp uPlusRegex = RegExp(r'(?:/u/\+|ni-os\.ru/u/\+|^u/\+)(\+?[A-Za-z0-9_-]+)');
+    final RegExpMatch? match = uPlusRegex.firstMatch(trimmed);
+    if (match != null) {
+      final String slug = match.group(1)!;
+      return slug.startsWith('+') ? slug : '+$slug';
+    }
+
+    if (RegExp(r'^\+[A-Za-z0-9_-]{4,}$').hasMatch(trimmed)) {
+      return trimmed;
+    }
+
+    final int joinIdx = trimmed.indexOf('/join/');
+    if (joinIdx != -1) {
+      final String part =
+          trimmed.substring(joinIdx + 6).split('?').first.split('/').first.trim();
+      if (part.isNotEmpty) return part;
+    }
+
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -258,7 +283,140 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
                               _selectedCategory == SearchCategory.posts) &&
                           result.posts.isNotEmpty;
 
-                  if (!showChats && !showUsers && !showMessages && !showPosts) {
+                  final String? inviteSlug = _extractInviteSlug(query);
+                  final String trimmedQuery = query.trim();
+                  final bool isExplicitUsername = trimmedQuery.startsWith('@');
+                  final String cleanUsername =
+                      isExplicitUsername ? trimmedQuery.substring(1) : trimmedQuery;
+                  final bool isValidUsername = cleanUsername.length >= 3 &&
+                      cleanUsername.length <= 32 &&
+                      RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(cleanUsername);
+
+                  Widget? inviteTile;
+                  if (inviteSlug != null && inviteSlug.isNotEmpty) {
+                    inviteTile = Container(
+                      margin: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+                      decoration: BoxDecoration(
+                        color: scheme.primaryContainer.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: scheme.primary.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        leading: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.link_rounded,
+                            color: scheme.onPrimary,
+                            size: 22,
+                          ),
+                        ),
+                        title: const Text(
+                          'Вступить по ссылке-приглашению',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Код: $inviteSlug',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.arrow_forward_rounded,
+                          color: scheme.primary,
+                          size: 20,
+                        ),
+                        onTap: () {
+                          HapticService.tap();
+                          controller.closeView('');
+                          context.push(
+                            '/join?slug=${Uri.encodeComponent(inviteSlug)}',
+                          );
+                        },
+                      ),
+                    );
+                  }
+
+                  Widget? directUserTile;
+                  if (isValidUsername &&
+                      (isExplicitUsername ||
+                          result.users.every((u) =>
+                              u.username.toLowerCase() !=
+                              cleanUsername.toLowerCase()))) {
+                    directUserTile = Container(
+                      margin: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: scheme.outlineVariant.withValues(alpha: 0.20),
+                        ),
+                      ),
+                      child: ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: scheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.person_add_alt_1_rounded,
+                            color: scheme.onSecondaryContainer,
+                            size: 20,
+                          ),
+                        ),
+                        title: Text(
+                          'Написать @$cleanUsername',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Открыть личный диалог',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right_rounded,
+                          color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                          size: 20,
+                        ),
+                        onTap: () {
+                          HapticService.tap();
+                          controller.closeView('');
+                          context.push(
+                            '/chat/dm/${Uri.encodeComponent(cleanUsername)}',
+                          );
+                        },
+                      ),
+                    );
+                  }
+
+                  if (inviteTile != null) resultsList.add(inviteTile);
+                  if (directUserTile != null) resultsList.add(directUserTile);
+
+                  if (!showChats &&
+                      !showUsers &&
+                      !showMessages &&
+                      !showPosts &&
+                      resultsList.isEmpty) {
                     return Padding(
                       padding: const EdgeInsets.all(32),
                       child: Center(

@@ -7,6 +7,10 @@ import 'package:pulse_flutter/screens/settings_about_screen.dart';
 Widget _wrapWithApp(Widget child) {
   return ProviderScope(
     child: MaterialApp(
+      theme: ThemeData(
+        useMaterial3: true,
+        splashFactory: InkRipple.splashFactory,
+      ),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: const Locale('ru'),

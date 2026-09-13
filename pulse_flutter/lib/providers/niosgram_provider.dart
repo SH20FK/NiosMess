@@ -280,7 +280,16 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
       }
     } catch (e) {
       debugPrint('[niosgram_provider] Like error: $e');
-      state = AsyncData<NiosgramState>(current.value);
+      final NgPost? originalPost = current.value.posts.where((p) => p.id == postId).firstOrNull;
+      if (originalPost != null) {
+        final AsyncData<NiosgramState>? fresh = state.asData;
+        if (fresh != null) {
+          final List<NgPost> reverted = fresh.value.posts
+              .map((NgPost p) => p.id == postId ? originalPost : p)
+              .toList(growable: false);
+          state = AsyncData<NiosgramState>(fresh.value.copyWith(posts: reverted));
+        }
+      }
     }
   }
 
@@ -371,8 +380,16 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
         payload: <String, dynamic>{'post_id': postId},
       );
     } catch (_) {
-      state = AsyncData<NiosgramState>(current.value);
-      ref.read(cacheServiceProvider).saveFeed(current.value.posts);
+      final NgPost? originalPost = current.value.posts.where((p) => p.id == postId).firstOrNull;
+      if (originalPost != null) {
+        final AsyncData<NiosgramState>? fresh = state.asData;
+        if (fresh != null && !fresh.value.posts.any((p) => p.id == postId)) {
+          final List<NgPost> reverted = <NgPost>[...fresh.value.posts, originalPost];
+          reverted.sort((a, b) => b.id.compareTo(a.id));
+          state = AsyncData<NiosgramState>(fresh.value.copyWith(posts: reverted));
+          ref.read(cacheServiceProvider).saveFeed(reverted);
+        }
+      }
     }
   }
 
@@ -380,6 +397,7 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     final AsyncData<NiosgramState>? current = state.asData;
     if (current == null) return;
     final String trimmed = text.trim();
+    final NgPost? originalPost = current.value.posts.where((p) => p.id == postId).firstOrNull;
     state = AsyncData<NiosgramState>(
       current.value.copyWith(
         posts: current.value.posts
@@ -396,17 +414,28 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
         final NgPost updated = NgPost.fromJson(
           response.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
         );
-        state = AsyncData<NiosgramState>(
-          current.value.copyWith(
-            posts: current.value.posts
-                .map((NgPost p) => p.id == postId ? updated : p)
-                .toList(growable: false),
-          ),
-        );
+        final AsyncData<NiosgramState>? fresh = state.asData;
+        if (fresh != null) {
+          state = AsyncData<NiosgramState>(
+            fresh.value.copyWith(
+              posts: fresh.value.posts
+                  .map((NgPost p) => p.id == postId ? updated : p)
+                  .toList(growable: false),
+            ),
+          );
+        }
       }
     } catch (e) {
-      debugPrint('[niosgram_provider] Toggle repost error: $e');
-      state = AsyncData<NiosgramState>(current.value);
+      debugPrint('[niosgram_provider] Edit post error: $e');
+      if (originalPost != null) {
+        final AsyncData<NiosgramState>? fresh = state.asData;
+        if (fresh != null) {
+          final List<NgPost> reverted = fresh.value.posts
+              .map((NgPost p) => p.id == postId ? originalPost : p)
+              .toList(growable: false);
+          state = AsyncData<NiosgramState>(fresh.value.copyWith(posts: reverted));
+        }
+      }
     }
   }
 
@@ -435,7 +464,14 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
       );
     } catch (e) {
       debugPrint('[niosgram_provider] Follow/unfollow error: $e');
-      state = AsyncData<NiosgramState>(current.value);
+      final AsyncData<NiosgramState>? fresh = state.asData;
+      if (fresh != null) {
+        final List<NgPost> reverted = fresh.value.posts.map((NgPost p) {
+          if (p.author.username != username) return p;
+          return p.copyWith(isFollowing: wasFollowing);
+        }).toList(growable: false);
+        state = AsyncData<NiosgramState>(fresh.value.copyWith(posts: reverted));
+      }
     }
   }
 }

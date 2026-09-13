@@ -427,7 +427,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                   ? context.l10n.commonLoading
                   : context.l10n.groupManageSaveChanges,
               icon: Icons.check_circle_outline_rounded,
-              onPressed: _saving ? () {} : _save,
+              onPressed: _saving ? null : _save,
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(

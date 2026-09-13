@@ -1331,16 +1331,16 @@ class _SharedMediaVideoTile extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.55),
+                color: scheme.scrim.withValues(alpha: 0.55),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.4),
+                  color: scheme.onSurface.withValues(alpha: 0.4),
                   width: 1.5,
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.play_arrow_rounded,
-                color: Colors.white,
+                color: scheme.onSurface,
                 size: 24,
               ),
             ),
@@ -1351,22 +1351,22 @@ class _SharedMediaVideoTile extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.5),
+                color: scheme.scrim.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     Icons.videocam_rounded,
-                    color: Colors.white70,
+                    color: scheme.onSurface.withValues(alpha: 0.7),
                     size: 12,
                   ),
-                  SizedBox(width: 3),
+                  const SizedBox(width: 3),
                   Text(
                     'MP4',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: scheme.onSurface,
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1386,7 +1386,7 @@ class _SharedMediaVideoTile extends StatelessWidget {
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.75),
+                    scheme.scrim.withValues(alpha: 0.75),
                     Colors.transparent,
                   ],
                 ),
@@ -1399,8 +1399,8 @@ class _SharedMediaVideoTile extends StatelessWidget {
                       item.mediaName ?? 'Видео',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: scheme.onSurface,
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                       ),
@@ -1409,8 +1409,8 @@ class _SharedMediaVideoTile extends StatelessWidget {
                   if (item.duration != null && item.duration! > 0)
                     Text(
                       _formatDuration(item.duration!),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: scheme.onSurface,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                       ),

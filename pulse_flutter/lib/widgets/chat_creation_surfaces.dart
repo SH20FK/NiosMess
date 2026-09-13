@@ -4,75 +4,21 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
-import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/models/api/search_models.dart';
+import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
 import 'package:pulse_flutter/widgets/create_chat_wizard_view.dart';
 
-Future<void> showStartDirectChatDialog(BuildContext context) {
-  final TextEditingController usernameController = TextEditingController();
-  return showAppDialog<void>(
-    context: context,
-    builder: (BuildContext ctx) {
-      return StatefulBuilder(
-        builder: (BuildContext context, StateSetter setState) {
-          String? errorText;
-
-          void submit() {
-            String username = usernameController.text.trim();
-            if (username.startsWith('@')) {
-              username = username.substring(1);
-            }
-            if (username.isEmpty) {
-              setState(() {
-                errorText = context.l10n.chatCreatePersonalErrorEmpty;
-              });
-              return;
-            }
-            Navigator.of(ctx).pop();
-            context.push('/chat/dm/${Uri.encodeComponent(username)}');
-          }
-
-          return AppDialog(
-            title: context.l10n.chatCreatePersonalPrompt,
-            subtitle: context.l10n.chatCreatePersonalSubtitle,
-            icon: Icons.person_add_alt_1_rounded,
-            actions: <AppDialogAction>[
-              AppDialogAction(
-                label: context.l10n.commonCancel,
-                onPressed: () => Navigator.of(ctx).pop(),
-              ),
-              AppDialogAction(
-                label: context.l10n.chatCreatePersonalStart,
-                icon: Icons.arrow_forward_rounded,
-                isPrimary: true,
-                onPressed: submit,
-              ),
-            ],
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                AppTextFieldDialogContent(
-                  controller: usernameController,
-                  label: context.l10n.chatCreatePersonalUsernameLabel,
-                  hint: context.l10n.chatCreatePersonalUsernameHint,
-                  prefixIcon: Icons.alternate_email_rounded,
-                ),
-                if (errorText != null) ...<Widget>[
-                  const SizedBox(height: 10),
-                  Text(
-                    errorText!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                  ),
-                ],
-              ],
-            ),
-          );
-        },
-      );
-    },
-  ).whenComplete(() => usernameController.dispose());
+Future<void> showStartDirectChatDialog(BuildContext context) async {
+  final ApiSearchUser? user = await showUserSearchPickerSheet(
+    context,
+    title: context.l10n.chatCreatePersonalPrompt,
+    subtitle: context.l10n.chatCreatePersonalSubtitle,
+    hintText: context.l10n.chatCreatePersonalUsernameHint,
+    allowCustomUsername: true,
+  );
+  if (user != null && context.mounted && user.username.isNotEmpty) {
+    context.push('/chat/dm/${Uri.encodeComponent(user.username)}');
+  }
 }
 
 /// Compact Material 3 Expressive dialog for desktop/web chat creation
@@ -270,7 +216,7 @@ Future<String?> showCreateChatMenu(BuildContext context) {
               iconContainerColor: scheme.primaryContainer,
               iconColor: scheme.onPrimaryContainer,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             actionTile(
               value: 'channel',
               icon: Icons.campaign_rounded,
@@ -278,24 +224,6 @@ Future<String?> showCreateChatMenu(BuildContext context) {
               subtitle: 'Канал для публикаций, новостей и контента',
               iconContainerColor: scheme.tertiaryContainer,
               iconColor: scheme.onTertiaryContainer,
-            ),
-            const SizedBox(height: 8),
-            actionTile(
-              value: 'direct',
-              icon: Icons.person_add_alt_1_rounded,
-              title: context.l10n.chatCreatePersonal,
-              subtitle: 'Начать прямой чат по @username',
-              iconContainerColor: scheme.secondaryContainer,
-              iconColor: scheme.onSecondaryContainer,
-            ),
-            const SizedBox(height: 8),
-            actionTile(
-              value: 'join',
-              icon: Icons.link_rounded,
-              title: 'Войти по ссылке',
-              subtitle: 'Вступить по ссылке-приглашению /u/+TOKEN',
-              iconContainerColor: scheme.surfaceContainerHighest,
-              iconColor: scheme.onSurfaceVariant,
             ),
           ],
         ),

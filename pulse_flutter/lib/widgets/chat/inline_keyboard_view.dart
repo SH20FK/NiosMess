@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
 /// Semantic color resolved for an [InlineKeyboardButtonStyle] under Material 3 Expressive.
 class InlineButtonColors {
@@ -153,25 +152,7 @@ class _InlineButton extends StatelessWidget {
 
     if (button.isUrl) {
       final String rawUrl = button.url!.trim();
-      final Uri? uri = Uri.tryParse(rawUrl);
-      if (uri == null) {
-        if (context.mounted) AppToast.showError(context, 'Неверная ссылка');
-        return;
-      }
-
-      if (rawUrl.startsWith('niosmess://')) {
-        final String deepPath = rawUrl.substring('niosmess://'.length);
-        final String route = deepPath.startsWith('/') ? deepPath : '/$deepPath';
-        if (context.mounted) {
-          context.push(route);
-        }
-        return;
-      }
-
-      final bool launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      final bool launched = await AppUrlLauncher.openUrl(context, rawUrl);
       if (!launched && context.mounted) {
         AppToast.showError(context, 'Не удалось открыть ссылку: $rawUrl');
       }

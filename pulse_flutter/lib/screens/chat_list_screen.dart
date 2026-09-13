@@ -26,6 +26,8 @@ import 'package:pulse_flutter/providers/chat_filter_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_filter_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_search_field.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
+import 'package:flutter/rendering.dart';
+import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 
@@ -149,6 +151,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   bool _handleUserScroll(UserScrollNotification notification) {
+    if (notification.direction == ScrollDirection.reverse) {
+      ref.read(chatListFabVisibleProvider.notifier).hide();
+    } else if (notification.direction == ScrollDirection.forward) {
+      ref.read(chatListFabVisibleProvider.notifier).show();
+    }
     return false;
   }
 

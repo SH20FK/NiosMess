@@ -3,7 +3,6 @@ import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image/image.dart' as img;
 
 import '../../services/permission_service.dart';
@@ -145,40 +144,34 @@ class VideoPipeline {
       final int height = image.height;
       final int maxWidth = this.maxWidth;
       final int maxHeight = this.maxHeight;
+      final int quality = this.quality;
 
-      // BGRA→RGBA, resize and PNG encode are pure Dart and heavy — run them
-      // off the UI thread, then JPEG-compress on the platform thread.
-      final Uint8List png = await Isolate.run(() {
-        return _encodeFramePng(
+      // Direct single-pass JPEG encoding off the UI thread
+      return await Isolate.run(() {
+        return _encodeFrameJpeg(
           planes: planes,
           width: width,
           height: height,
           group: group,
           maxWidth: maxWidth,
           maxHeight: maxHeight,
+          quality: quality,
         );
       });
-
-      final result = await FlutterImageCompress.compressWithList(
-        png,
-        quality: quality,
-        format: CompressFormat.jpeg,
-      );
-
-      return Uint8List.fromList(result);
     } catch (e) {
       debugPrint('[VideoPipeline] JPEG convert error: $e');
       return Uint8List(0);
     }
   }
 
-  static Uint8List _encodeFramePng({
+  static Uint8List _encodeFrameJpeg({
     required List<Uint8List> planes,
     required int width,
     required int height,
     required ImageFormatGroup group,
     required int maxWidth,
     required int maxHeight,
+    required int quality,
   }) {
     img.Image? dartImage;
     if (group == ImageFormatGroup.bgra8888) {
@@ -203,14 +196,15 @@ class VideoPipeline {
     }
     if (dartImage == null) return Uint8List(0);
 
-    if (dartImage.width <= maxWidth && dartImage.height <= maxHeight) {
-      return img.encodePng(dartImage);
+    img.Image targetImage = dartImage;
+    if (dartImage.width > maxWidth || dartImage.height > maxHeight) {
+      final double scale =
+          math.min(maxWidth / dartImage.width, maxHeight / dartImage.height);
+      final int w = (dartImage.width * scale).round();
+      final int h = (dartImage.height * scale).round();
+      targetImage = img.copyResize(dartImage, width: w, height: h);
     }
-    final double scale =
-        math.min(maxWidth / dartImage.width, maxHeight / dartImage.height);
-    final int w = (dartImage.width * scale).round();
-    final int h = (dartImage.height * scale).round();
-    return img.encodePng(img.copyResize(dartImage, width: w, height: h));
+    return img.encodeJpg(targetImage, quality: quality);
   }
 
   static Uint8List _yuv420ToNv21(List<Uint8List> planes, int width, int height) {

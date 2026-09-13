@@ -13,6 +13,10 @@ class VoiceRecorderService {
   static Duration _duration = Duration.zero;
   static String? _currentPath;
 
+  static final List<double> _recordedAmplitudes = [];
+  static List<double> get lastRecordedAmplitudes =>
+      List<double>.unmodifiable(_recordedAmplitudes);
+
   static Future<bool> get isRecording => _recorder.isRecording();
 
   static Future<bool> startRecording({
@@ -21,6 +25,7 @@ class VoiceRecorderService {
   }) async {
     if (!await _recorder.hasPermission()) return false;
 
+    _recordedAmplitudes.clear();
     final Directory tempDir = await getTemporaryDirectory();
     final String path =
         '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
@@ -41,25 +46,24 @@ class VoiceRecorderService {
       onTick(_duration);
     });
 
-    // Amplitude polling for waveform visualization
-    if (onAmplitude != null) {
-      _amplitudeTimer = Timer.periodic(
-        const Duration(milliseconds: 100),
-        (_) async {
-          try {
-            final Amplitude amp = await _recorder.getAmplitude();
-            // amp.current is in dBFS (typically -160 to 0).
-            // Normalize to 0.0–1.0 range for UI.
-            final double dbfs = amp.current;
-            final double normalized =
-                ((dbfs + 50.0) / 50.0).clamp(0.0, 1.0);
-            onAmplitude(normalized);
-          } catch (_) {
-            // Recorder may have been disposed
-          }
-        },
-      );
-    }
+    // Amplitude polling for waveform visualization & persistence
+    _amplitudeTimer = Timer.periodic(
+      const Duration(milliseconds: 100),
+      (_) async {
+        try {
+          final Amplitude amp = await _recorder.getAmplitude();
+          // amp.current is in dBFS (typically -160 to 0).
+          // Normalize to 0.0–1.0 range for UI.
+          final double dbfs = amp.current;
+          final double normalized =
+              ((dbfs + 50.0) / 50.0).clamp(0.0, 1.0);
+          _recordedAmplitudes.add(normalized);
+          onAmplitude?.call(normalized);
+        } catch (_) {
+          // Recorder may have been disposed
+        }
+      },
+    );
 
     return true;
   }

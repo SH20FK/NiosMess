@@ -91,7 +91,7 @@ class NotificationsNotifier extends Notifier<NotificationsState> {
     final Map<String, dynamic> msg = asStringMap(event);
     if (msg['action'] != 'notification') return;
 
-    final dynamic data = msg['data'];
+    final dynamic data = msg['payload'] ?? msg['data'];
     if (data is! Map) return;
     final Map<String, dynamic> dataMap = asStringMap(data);
 

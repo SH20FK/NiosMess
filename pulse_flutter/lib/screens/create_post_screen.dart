@@ -50,6 +50,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     super.dispose();
   }
 
+  bool _isVideoFile(String name) {
+    final String ext = name.split('.').last.toLowerCase();
+    return ext == 'mp4' || ext == 'mov' || ext == 'mkv' || ext == 'webm' || ext == 'avi' || ext == '3gp';
+  }
+
   Future<void> _pickMedia() async {
     final int availableSlots = 5 - _selectedFiles.length;
     if (availableSlots <= 0) {
@@ -71,12 +76,18 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         setState(() => _error = context.l10n.postFileTooLarge);
         continue;
       }
-      Uint8List previewBytes = await file.readAsBytes();
-      final Uint8List? compressed = await ImageCompressor.compressImageBytes(
-        bytes: previewBytes,
-        fileName: file.name,
-      );
-      if (compressed != null) previewBytes = compressed;
+      final bool isVideo = _isVideoFile(file.name);
+      Uint8List previewBytes;
+      if (isVideo) {
+        previewBytes = Uint8List(0);
+      } else {
+        previewBytes = await file.readAsBytes();
+        final Uint8List? compressed = await ImageCompressor.compressImageBytes(
+          bytes: previewBytes,
+          fileName: file.name,
+        );
+        if (compressed != null) previewBytes = compressed;
+      }
       validFiles.add(file);
       previews.add(previewBytes);
     }
@@ -453,23 +464,48 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                                 );
                               }
 
+                              final bool isVideo = _isVideoFile(_selectedFiles[index].name);
                               return Stack(
                                 children: <Widget>[
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(14),
-                                    child: Image.memory(
-                                      _previewBytesList[index],
-                                      width: 84,
-                                      height: 84,
-                                      fit: BoxFit.cover,
-                                    ),
+                                    child: isVideo
+                                        ? Container(
+                                            width: 84,
+                                            height: 84,
+                                            decoration: BoxDecoration(
+                                              color: scheme.surfaceContainerHighest,
+                                              borderRadius: BorderRadius.circular(14),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: <Widget>[
+                                                Icon(Icons.videocam_rounded, size: 30, color: scheme.primary),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  'Видео',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: scheme.primary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          )
+                                        : Image.memory(
+                                            _previewBytesList[index],
+                                            width: 84,
+                                            height: 84,
+                                            fit: BoxFit.cover,
+                                          ),
                                   ),
                                   Positioned(
                                     top: 4,
                                     right: 4,
                                     child: Material(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.65),
+                                      color: scheme.scrim.withValues(alpha: 0.65),
                                       shape: const CircleBorder(),
                                       child: Tooltip(
                                         message: 'Удалить',
@@ -481,12 +517,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                                             _selectedFile =
                                                 _selectedFiles.firstOrNull;
                                           }),
-                                          child: const Padding(
-                                            padding: EdgeInsets.all(4),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(4),
                                             child: Icon(
                                               Icons.close_rounded,
                                               size: 14,
-                                              color: Colors.white,
+                                              color: scheme.onPrimary,
                                             ),
                                           ),
                                         ),
@@ -603,12 +639,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                     FilledButton.icon(
                       onPressed: _isLoading ? null : _submit,
                       icon: _isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: scheme.onPrimary,
                               ),
                             )
                           : const Icon(Icons.send_rounded, size: 16),
