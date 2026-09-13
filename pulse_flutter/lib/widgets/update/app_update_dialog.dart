@@ -1,16 +1,14 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:open_file/open_file.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
-enum _DownloadStatus { idle, downloading, installing, error }
-
 /// An expressive Material 3 dialog informing the user about an available update
-/// with release notes and a streaming in-app progress bar.
-class AppUpdateDialog extends ConsumerStatefulWidget {
+/// with release notes, streaming progress, and background download capability.
+class AppUpdateDialog extends ConsumerWidget {
   const AppUpdateDialog({
     super.key,
     required this.updateInfo,
@@ -31,75 +29,23 @@ class AppUpdateDialog extends ConsumerStatefulWidget {
     );
   }
 
-  @override
-  ConsumerState<AppUpdateDialog> createState() => _AppUpdateDialogState();
-}
-
-class _AppUpdateDialogState extends ConsumerState<AppUpdateDialog> {
-  _DownloadStatus _status = _DownloadStatus.idle;
-  double _progress = 0.0;
-  int _receivedBytes = 0;
-  int _totalBytes = 0;
-  String? _errorMessage;
-
   String _formatBytes(int bytes) {
     if (bytes <= 0) return '0 МБ';
     final double mb = bytes / (1024 * 1024);
     return '${mb.toStringAsFixed(1)} МБ';
   }
 
-  Future<void> _startDownload() async {
-    setState(() {
-      _status = _DownloadStatus.downloading;
-      _progress = 0.0;
-      _errorMessage = null;
-    });
-
-    HapticService.confirm();
-
-    final AppUpdateService service = ref.read(appUpdateServiceProvider);
-
-    try {
-      final OpenResult result = await service.downloadAndInstall(
-        downloadUrl: widget.updateInfo.downloadUrl,
-        onProgress: (double progress, int received, int total) {
-          if (mounted) {
-            setState(() {
-              _progress = progress;
-              _receivedBytes = received;
-              _totalBytes = total;
-            });
-          }
-        },
-      );
-
-      if (!mounted) return;
-
-      if (result.type == ResultType.done) {
-        setState(() {
-          _status = _DownloadStatus.installing;
-        });
-        Navigator.of(context).pop();
-      } else {
-        setState(() {
-          _status = _DownloadStatus.error;
-          _errorMessage = result.message;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _status = _DownloadStatus.error;
-          _errorMessage = e.toString();
-        });
-      }
-    }
-  }
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final OtaUpdateState otaState = ref.watch(otaUpdateProvider);
+    final OtaUpdateNotifier notifier = ref.read(otaUpdateProvider.notifier);
+
+    final bool isDownloading = otaState.status == OtaStatus.downloading;
+    final bool isReady = otaState.status == OtaStatus.readyToInstall;
+    final bool isInstalling = otaState.status == OtaStatus.installing;
+    final bool isError = otaState.status == OtaStatus.error;
 
     return Dialog(
       backgroundColor: scheme.surfaceContainerHigh,
@@ -123,14 +69,24 @@ class _AppUpdateDialogState extends ConsumerState<AppUpdateDialog> {
                     width: 52,
                     height: 52,
                     decoration: BoxDecoration(
-                      color: scheme.primaryContainer,
+                      color: isReady
+                          ? scheme.primaryContainer
+                          : (isError ? scheme.errorContainer : scheme.primaryContainer),
                       borderRadius: AppRadii.mdRadius,
                     ),
                     child: Center(
                       child: Icon(
-                        Icons.system_update_rounded,
+                        isReady
+                            ? Icons.check_circle_rounded
+                            : (isDownloading
+                                ? Icons.cloud_download_rounded
+                                : (isError
+                                    ? Icons.error_outline_rounded
+                                    : Icons.system_update_rounded)),
                         size: 28,
-                        color: scheme.primary,
+                        color: isReady
+                            ? scheme.primary
+                            : (isError ? scheme.error : scheme.primary),
                       ),
                     ),
                   ),
@@ -140,7 +96,11 @@ class _AppUpdateDialogState extends ConsumerState<AppUpdateDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          'Доступно обновление',
+                          isReady
+                              ? 'Обновление готово'
+                              : (isDownloading
+                                  ? 'Загрузка обновления'
+                                  : 'Доступно обновление'),
                           style: textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: scheme.onSurface,
@@ -152,7 +112,7 @@ class _AppUpdateDialogState extends ConsumerState<AppUpdateDialog> {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: <Widget>[
                             Text(
-                              'v${widget.updateInfo.currentVersion}',
+                              'v${updateInfo.currentVersion}',
                               style: textTheme.labelMedium?.copyWith(
                                 color: scheme.onSurfaceVariant,
                               ),
@@ -172,16 +132,16 @@ class _AppUpdateDialogState extends ConsumerState<AppUpdateDialog> {
                                 borderRadius: AppRadii.smRadius,
                               ),
                               child: Text(
-                                'v${widget.updateInfo.latestVersion}',
+                                'v${updateInfo.latestVersion}',
                                 style: textTheme.labelSmall?.copyWith(
                                   color: scheme.onPrimary,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
-                            if (widget.updateInfo.apkSize != null)
+                            if (updateInfo.apkSize != null)
                               Text(
-                                _formatBytes(widget.updateInfo.apkSize!),
+                                _formatBytes(updateInfo.apkSize!),
                                 style: textTheme.labelMedium?.copyWith(
                                   color: scheme.onSurfaceVariant,
                                 ),
@@ -195,8 +155,8 @@ class _AppUpdateDialogState extends ConsumerState<AppUpdateDialog> {
               ),
               const SizedBox(height: 20),
 
-              // Changelog Section
-              if (widget.updateInfo.changelog.trim().isNotEmpty) ...<Widget>[
+              // Changelog Section (hide when downloading to keep concise)
+              if (!isDownloading && updateInfo.changelog.trim().isNotEmpty) ...<Widget>[
                 Text(
                   'Что нового:',
                   style: textTheme.labelLarge?.copyWith(
@@ -217,7 +177,7 @@ class _AppUpdateDialogState extends ConsumerState<AppUpdateDialog> {
                   ),
                   child: SingleChildScrollView(
                     child: Text(
-                      widget.updateInfo.changelog.trim(),
+                      updateInfo.changelog.trim(),
                       style: textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                         height: 1.45,
@@ -229,11 +189,11 @@ class _AppUpdateDialogState extends ConsumerState<AppUpdateDialog> {
               ],
 
               // Downloading Progress State
-              if (_status == _DownloadStatus.downloading) ...<Widget>[
+              if (isDownloading) ...<Widget>[
                 ClipRRect(
                   borderRadius: AppRadii.fullRadius,
                   child: LinearProgressIndicator(
-                    value: _progress > 0 ? _progress : null,
+                    value: otaState.progress > 0 ? otaState.progress : null,
                     minHeight: 10,
                     backgroundColor: scheme.surfaceContainerHighest,
                     valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
@@ -244,17 +204,17 @@ class _AppUpdateDialogState extends ConsumerState<AppUpdateDialog> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
                     Text(
-                      _progress > 0
-                          ? 'Загрузка: ${(_progress * 100).toInt()}%'
+                      otaState.progress > 0
+                          ? 'Загрузка: ${(otaState.progress * 100).toInt()}%'
                           : 'Загрузка пакета...',
                       style: textTheme.labelMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: scheme.primary,
                       ),
                     ),
-                    if (_totalBytes > 0)
+                    if (otaState.totalBytes > 0)
                       Text(
-                        '${_formatBytes(_receivedBytes)} / ${_formatBytes(_totalBytes)}',
+                        '${_formatBytes(otaState.receivedBytes)} / ${_formatBytes(otaState.totalBytes)}',
                         style: textTheme.labelSmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
@@ -264,8 +224,39 @@ class _AppUpdateDialogState extends ConsumerState<AppUpdateDialog> {
                 const SizedBox(height: 20),
               ],
 
+              // Ready State message
+              if (isReady) ...<Widget>[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer.withValues(alpha: 0.4),
+                    borderRadius: AppRadii.mdRadius,
+                    border: Border.all(
+                      color: scheme.primary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(Icons.check_circle_outline_rounded,
+                          color: scheme.primary, size: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Пакет обновления полностью загружен и готов к установке.',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurface,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
               // Error banner
-              if (_status == _DownloadStatus.error) ...<Widget>[
+              if (isError) ...<Widget>[
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -279,7 +270,7 @@ class _AppUpdateDialogState extends ConsumerState<AppUpdateDialog> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          _errorMessage ?? 'Ошибка при скачивании файла обновления',
+                          otaState.errorMessage ?? 'Ошибка при скачивании файла обновления',
                           style: textTheme.bodySmall?.copyWith(
                             color: scheme.onErrorContainer,
                           ),
@@ -291,72 +282,177 @@ class _AppUpdateDialogState extends ConsumerState<AppUpdateDialog> {
                 const SizedBox(height: 16),
               ],
 
-              // Primary & Secondary Action Buttons
-              if (_status == _DownloadStatus.downloading)
-                SizedBox(
-                  height: AppHeights.lg,
-                  child: Center(
-                    child: Text(
-                      'Пожалуйста, не закрывайте приложение...',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+              // Action Buttons
+              if (isDownloading) ...<Widget>[
+                // Seamless background minimize button
+                TouchContainer(
+                  onTap: () {
+                    HapticService.tap();
+                    Navigator.of(context).pop();
+                  },
+                  borderRadius: AppRadii.fullRadius,
+                  child: Container(
+                    height: AppHeights.lg,
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: AppRadii.fullRadius,
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            Icons.arrow_downward_rounded,
+                            color: scheme.onPrimary,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Скачивать в фоне',
+                            style: textTheme.labelLarge?.copyWith(
+                              color: scheme.onPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    TouchContainer(
-                      onTap: _startDownload,
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    HapticService.tap();
+                    notifier.cancelDownload();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: scheme.error,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text('Отменить загрузку'),
+                ),
+              ] else if (isReady) ...<Widget>[
+                TouchContainer(
+                  onTap: () {
+                    HapticService.confirm();
+                    notifier.installApk(context: context);
+                  },
+                  borderRadius: AppRadii.fullRadius,
+                  child: Container(
+                    height: AppHeights.lg,
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
                       borderRadius: AppRadii.fullRadius,
-                      child: Container(
-                        height: AppHeights.lg,
-                        decoration: BoxDecoration(
-                          color: scheme.primary,
-                          borderRadius: AppRadii.fullRadius,
-                        ),
-                        child: Center(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              Icon(
-                                _status == _DownloadStatus.error
-                                    ? Icons.refresh_rounded
-                                    : Icons.download_rounded,
-                                color: scheme.onPrimary,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _status == _DownloadStatus.error
-                                    ? 'Повторить попытку'
-                                    : 'Обновить сейчас',
-                                style: textTheme.labelLarge?.copyWith(
-                                  color: scheme.onPrimary,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            Icons.system_update_rounded,
+                            color: scheme.onPrimary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Установить сейчас',
+                            style: textTheme.labelLarge?.copyWith(
+                              color: scheme.onPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    HapticService.tap();
+                    Navigator.of(context).pop();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: scheme.onSurfaceVariant,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text('Закрыть'),
+                ),
+              ] else if (isInstalling) ...<Widget>[
+                SizedBox(
+                  height: AppHeights.lg,
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: scheme.primary,
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Запуск установщика...',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () {
-                        HapticService.tap();
-                        Navigator.of(context).pop();
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: scheme.onSurfaceVariant,
-                        shape: const StadiumBorder(),
-                      ),
-                      child: const Text('Позже'),
-                    ),
-                  ],
+                  ),
                 ),
+              ] else ...<Widget>[
+                TouchContainer(
+                  onTap: () {
+                    HapticService.confirm();
+                    notifier.startDownload(info: updateInfo);
+                  },
+                  borderRadius: AppRadii.fullRadius,
+                  child: Container(
+                    height: AppHeights.lg,
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: AppRadii.fullRadius,
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            isError ? Icons.refresh_rounded : Icons.download_rounded,
+                            color: scheme.onPrimary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isError ? 'Повторить попытку' : 'Обновить сейчас',
+                            style: textTheme.labelLarge?.copyWith(
+                              color: scheme.onPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    HapticService.tap();
+                    Navigator.of(context).pop();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: scheme.onSurfaceVariant,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text('Позже'),
+                ),
+              ],
             ],
           ),
         ),

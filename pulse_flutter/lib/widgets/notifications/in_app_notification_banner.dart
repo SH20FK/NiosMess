@@ -1,9 +1,10 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/providers/in_app_notification_provider.dart';
+import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/router/app_router.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
@@ -77,6 +78,11 @@ class _InAppNotificationBannerOverlayState
     ref.read(inAppNotificationProvider.notifier).dismiss();
     final BuildContext? ctx = AppRouter.navigatorKey.currentContext;
     if (ctx == null) return;
+
+    if (item.id.startsWith('ota_ready')) {
+      ref.read(otaUpdateProvider.notifier).installApk(context: ctx);
+      return;
+    }
 
     if (item.route != null && item.route!.isNotEmpty) {
       ctx.push(item.route!);
@@ -154,11 +160,26 @@ class _InAppNotificationBannerOverlayState
                           ),
                           child: Row(
                             children: [
-                              PulseAvatar(
-                                name: item.title,
-                                avatarUrl: item.avatarUrl,
-                                radius: 22,
-                              ),
+                              if (item.icon != null)
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primaryContainer,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    item.icon,
+                                    color: colorScheme.primary,
+                                    size: 24,
+                                  ),
+                                )
+                              else
+                                PulseAvatar(
+                                  name: item.title,
+                                  avatarUrl: item.avatarUrl,
+                                  radius: 22,
+                                ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(

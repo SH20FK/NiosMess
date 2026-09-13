@@ -12,13 +12,15 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
-class SettingsAboutScreen extends StatefulWidget {
+class SettingsAboutScreen extends ConsumerStatefulWidget {
   const SettingsAboutScreen({
     this.isEmbedded = false,
     super.key,
@@ -27,10 +29,10 @@ class SettingsAboutScreen extends StatefulWidget {
   final bool isEmbedded;
 
   @override
-  State<SettingsAboutScreen> createState() => _SettingsAboutScreenState();
+  ConsumerState<SettingsAboutScreen> createState() => _SettingsAboutScreenState();
 }
 
-class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
+class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
   late final Future<PackageInfo> _packageInfo;
   int _selectedTabIndex = 0;
   bool _isCheckingUpdate = false;
@@ -96,7 +98,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
         const SizedBox(height: 14),
 
         // 2. Android System Update Style Card
-        _buildUpdateCard(context, scheme, textTheme, isDark),
+        _buildOtaUpdateCard(context, scheme, textTheme, isDark),
         const SizedBox(height: 16),
 
         // 3. Native Material 3 SegmentedButton Tab Selector
@@ -260,12 +262,16 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
   // ---------------------------------------------------------------------------
   // 2. Android System Update Style Card
   // ---------------------------------------------------------------------------
-  Widget _buildUpdateCard(
+  Widget _buildOtaUpdateCard(
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
     bool isDark,
   ) {
+    final OtaUpdateState otaState = ref.watch(otaUpdateProvider);
+    final bool isDownloading = otaState.status == OtaStatus.downloading;
+    final bool isReady = otaState.status == OtaStatus.readyToInstall;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
@@ -282,13 +288,24 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: scheme.primaryContainer.withValues(alpha: isDark ? 0.45 : 0.65),
+              color: (isReady
+                      ? scheme.primaryContainer
+                      : (isDownloading
+                          ? scheme.secondaryContainer
+                          : scheme.primaryContainer))
+                  .withValues(alpha: isDark ? 0.45 : 0.65),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
-              Icons.system_update_rounded,
+              isReady
+                  ? Icons.check_circle_rounded
+                  : (isDownloading
+                      ? Icons.cloud_download_rounded
+                      : Icons.system_update_rounded),
               size: 22,
-              color: scheme.primary,
+              color: isReady
+                  ? scheme.primary
+                  : (isDownloading ? scheme.secondary : scheme.primary),
             ),
           ),
           const SizedBox(width: 14),
@@ -306,9 +323,16 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'OTA-обновления NiosMess',
+                  isReady
+                      ? 'Готово к установке (v${otaState.updateInfo?.latestVersion})'
+                      : (isDownloading
+                          ? 'Загрузка: ${(otaState.progress * 100).toInt()}% • в фоне'
+                          : 'OTA-обновления NiosMess'),
                   style: textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
+                    color: isReady
+                        ? scheme.primary
+                        : (isDownloading ? scheme.secondary : scheme.onSurfaceVariant),
+                    fontWeight: isReady ? FontWeight.w600 : FontWeight.w400,
                     fontSize: 12,
                   ),
                 ),
@@ -316,7 +340,19 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
             ),
           ),
           FilledButton.tonal(
-            onPressed: _isCheckingUpdate ? null : _checkForUpdate,
+            onPressed: _isCheckingUpdate
+                ? null
+                : () {
+                    if (isReady) {
+                      HapticService.confirm();
+                      ref.read(otaUpdateProvider.notifier).installApk(context: context);
+                    } else if (isDownloading && otaState.updateInfo != null) {
+                      HapticService.tap();
+                      AppUpdateDialog.show(context, otaState.updateInfo!);
+                    } else {
+                      _checkForUpdate();
+                    }
+                  },
             style: FilledButton.styleFrom(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
@@ -336,10 +372,20 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Icon(Icons.refresh_rounded, size: 16, color: scheme.onSecondaryContainer),
+                      Icon(
+                        isReady
+                            ? Icons.system_update_rounded
+                            : (isDownloading
+                                ? Icons.open_in_new_rounded
+                                : Icons.refresh_rounded),
+                        size: 16,
+                        color: scheme.onSecondaryContainer,
+                      ),
                       const SizedBox(width: 6),
                       Text(
-                        'Проверить',
+                        isReady
+                            ? 'Установить'
+                            : (isDownloading ? 'Прогресс' : 'Проверить'),
                         style: textTheme.labelMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),

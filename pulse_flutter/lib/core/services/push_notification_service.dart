@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_file/open_file.dart';
 import 'package:pulse_flutter/router/app_router.dart';
 
 @pragma('vm:entry-point')
@@ -27,6 +28,7 @@ class PushNotificationService {
   static int _notificationIdCounter = 0;
   static int? _currentChatId;
 
+  static FlutterLocalNotificationsPlugin get localNotifications => _local;
   static int? get currentChatId => _currentChatId;
 
   static void setCurrentChat(int? chatId) {
@@ -194,6 +196,14 @@ class PushNotificationService {
       playSound: true,
       enableVibration: true,
     );
+    const AndroidNotificationChannel updatesChannel = AndroidNotificationChannel(
+      'niosmess_updates',
+      'NiosMess Updates',
+      description: 'Уведомления о загрузке и установке обновлений',
+      importance: Importance.low,
+      playSound: false,
+      enableVibration: false,
+    );
 
     final AndroidFlutterLocalNotificationsPlugin? androidPlugin = _local
         .resolvePlatformSpecificImplementation<
@@ -201,6 +211,7 @@ class PushNotificationService {
     if (androidPlugin != null) {
       await androidPlugin.createNotificationChannel(messagesChannel);
       await androidPlugin.createNotificationChannel(callsChannel);
+      await androidPlugin.createNotificationChannel(updatesChannel);
     }
 
     await _foregroundSubscription?.cancel();
@@ -281,6 +292,15 @@ class PushNotificationService {
   }
 
   static void _handleNavigation(Map<String, dynamic> data) {
+    final String? action = data['action']?.toString();
+    if (action == 'install_update') {
+      final String? apkPath = data['apk_path']?.toString();
+      if (apkPath != null && apkPath.isNotEmpty) {
+        OpenFile.open(apkPath, type: 'application/vnd.android.package-archive');
+      }
+      return;
+    }
+
     final String? route = data['route']?.toString();
     if (route != null && route.isNotEmpty) {
       AppRouter.navigatorKey.currentContext?.go(route);
