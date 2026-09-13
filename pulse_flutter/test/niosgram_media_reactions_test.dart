@@ -256,7 +256,9 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             home: Scaffold(
-              body: PostCard(post: post),
+              body: SingleChildScrollView(
+                child: PostCard(post: post),
+              ),
             ),
           ),
         ),
@@ -288,7 +290,9 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             home: Scaffold(
-              body: PostCard(post: post),
+              body: SingleChildScrollView(
+                child: PostCard(post: post),
+              ),
             ),
           ),
         ),
