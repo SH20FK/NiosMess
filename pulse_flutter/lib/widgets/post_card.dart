@@ -22,6 +22,7 @@ import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/vector_illustrations.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
@@ -108,7 +109,7 @@ class _PostCardState extends ConsumerState<PostCard>
   void _onDoubleTapLike() {
     final UiSettingsState settings = ref.read(uiSettingsProvider);
     if (settings.haptics) HapticService.reaction();
-    _handleLike();
+    _handleLike(triggerHaptic: false);
     if (!mounted) return;
     setState(() => _showHeart = true);
     _heartController.forward(from: 0.0).then((_) {
@@ -116,9 +117,11 @@ class _PostCardState extends ConsumerState<PostCard>
     });
   }
 
-  void _handleLike() {
-    final UiSettingsState settings = ref.read(uiSettingsProvider);
-    if (settings.haptics) HapticService.reaction();
+  void _handleLike({bool triggerHaptic = true}) {
+    if (triggerHaptic) {
+      final UiSettingsState settings = ref.read(uiSettingsProvider);
+      if (settings.haptics) HapticService.reaction();
+    }
     if (widget.onLike != null) {
       widget.onLike!();
     } else {
@@ -711,7 +714,8 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                             httpHeaders: cachedAuthHeaders(),
                             fit: BoxFit.cover,
                             width: double.infinity,
-                            memCacheWidth: 1600,
+                            memCacheWidth: 960,
+                            memCacheHeight: 1280,
                             fadeInDuration: const Duration(milliseconds: 250),
                             fadeOutDuration: const Duration(milliseconds: 150),
                             placeholder: (_, _) =>
@@ -732,7 +736,8 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                           httpHeaders: cachedAuthHeaders(),
                           fit: BoxFit.cover,
                           width: double.infinity,
-                          memCacheWidth: 1600,
+                          memCacheWidth: 960,
+                          memCacheHeight: 1280,
                           fadeInDuration: const Duration(milliseconds: 250),
                           fadeOutDuration: const Duration(milliseconds: 150),
                           placeholder: (_, _) =>
@@ -881,26 +886,28 @@ class _ActionChipState extends State<_ActionChip>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 380),
     );
     _scale = TweenSequence<double>(<TweenSequenceItem<double>>[
       TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1.0, end: 1.35),
-        weight: 30,
+        tween: Tween<double>(begin: 1.0, end: 1.32)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 35,
       ),
       TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1.35, end: 0.9),
-        weight: 20,
+        tween: Tween<double>(begin: 1.32, end: 1.0)
+            .chain(CurveTween(curve: M3SpringCurves.bouncy)),
+        weight: 65,
       ),
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 0.9, end: 1.1),
-        weight: 20,
-      ),
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1.1, end: 1.0),
-        weight: 30,
-      ),
-    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    ]).animate(_ctrl);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ActionChip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.active && widget.active) {
+      _ctrl.forward(from: 0.0);
+    }
   }
 
   @override

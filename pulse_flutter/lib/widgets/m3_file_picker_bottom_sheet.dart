@@ -81,7 +81,8 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
 
   Future<void> _loadRecentMedia() async {
     try {
-      final PermissionState perm = await PhotoManager.requestPermissionExtend();
+      final PermissionState perm = await PhotoManager.requestPermissionExtend()
+          .timeout(const Duration(seconds: 4), onTimeout: () => PermissionState.denied);
       if (!perm.isAuth) {
         if (mounted) {
           setState(() {
@@ -92,27 +93,24 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
         return;
       }
 
-      // Query newest assets first (asc: false)
-      final FilterOptionGroup filterOption = FilterOptionGroup(
-        orders: const <OrderOption>[
-          OrderOption(
-            type: OrderOptionType.createDate,
-            asc: false,
-          ),
-        ],
-      );
-
       final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
         type: RequestType.common,
-        onlyAll: true,
-        filterOption: filterOption,
-      );
+        hasAll: true,
+      ).timeout(const Duration(seconds: 4), onTimeout: () => <AssetPathEntity>[]);
 
       if (albums.isNotEmpty) {
         final List<AssetEntity> assets = await albums.first.getAssetListRange(
           start: 0,
-          end: 36,
-        );
+          end: 45,
+        ).timeout(const Duration(seconds: 4), onTimeout: () => <AssetEntity>[]);
+        
+        // Sort newest first by createDateTime in Dart
+        assets.sort((AssetEntity a, AssetEntity b) {
+          final DateTime da = a.createDateTime;
+          final DateTime db = b.createDateTime;
+          return db.compareTo(da);
+        });
+
         if (mounted) {
           setState(() {
             _recentAssets.clear();
@@ -180,8 +178,11 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
     final List<MediaGridPickerResult>? results =
         await AppBottomSheets.show<List<MediaGridPickerResult>?>(
       context: context,
-      showDragHandle: false,
-      builder: (_) => const MediaGridPicker(),
+      showDragHandle: true,
+      builder: (BuildContext ctx) => SizedBox(
+        height: MediaQuery.sizeOf(ctx).height * 0.50,
+        child: const MediaGridPicker(),
+      ),
     );
 
     if (results == null || results.isEmpty || !mounted) return;
@@ -328,11 +329,13 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool hasSelection = _selectedAssets.isNotEmpty;
+    final double maxSheetHeight = MediaQuery.sizeOf(context).height * 0.50;
 
     return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
+      child: SizedBox(
+        height: maxSheetHeight,
+        child: Column(
+          children: <Widget>[
           // ── Category Pills Row ──────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -409,17 +412,36 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
                 ],
               ),
             ),
-            SizedBox(
-              height: 240,
+            Expanded(
               child: _isLoading
                   ? const Center(
                       child: PulseLoadingIndicator(size: 32),
                     )
                   : _recentAssets.isEmpty
                       ? Center(
-                          child: Text(
-                            'Нет недавних фото',
-                            style: TextStyle(color: scheme.onSurfaceVariant),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Icon(
+                                Icons.photo_library_outlined,
+                                size: 36,
+                                color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Нет недавних фото или доступ ограничен',
+                                style: TextStyle(
+                                  color: scheme.onSurfaceVariant,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              TextButton.icon(
+                                onPressed: _openFullGallery,
+                                icon: const Icon(Icons.folder_open_rounded, size: 16),
+                                label: const Text('Выбрать из галереи'),
+                              ),
+                            ],
                           ),
                         )
                       : GridView.builder(
@@ -560,8 +582,9 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
           const SizedBox(height: 8),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _CategoryActionPill extends StatelessWidget {

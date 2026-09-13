@@ -2,15 +2,17 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Maximum recording duration for circle video (60 seconds).
 const int _kMaxRecordSeconds = 60;
 
-class CircleVideoRecorderScreen extends StatefulWidget {
+class CircleVideoRecorderScreen extends ConsumerStatefulWidget {
   const CircleVideoRecorderScreen({
     this.autoStart = false,
     super.key,
@@ -20,12 +22,12 @@ class CircleVideoRecorderScreen extends StatefulWidget {
   final bool autoStart;
 
   @override
-  State<CircleVideoRecorderScreen> createState() =>
+  ConsumerState<CircleVideoRecorderScreen> createState() =>
       _CircleVideoRecorderScreenState();
 }
 
 class _CircleVideoRecorderScreenState
-    extends State<CircleVideoRecorderScreen> with TickerProviderStateMixin {
+    extends ConsumerState<CircleVideoRecorderScreen> with TickerProviderStateMixin {
   static const String _kCameraLensPrefKey = 'circle_video_preferred_lens';
 
   CameraController? _controller;
@@ -202,32 +204,21 @@ class _CircleVideoRecorderScreenState
 
     setState(() => _isSwitchingCamera = true);
 
+    final bool useCamera2 = ref.read(uiSettingsProvider).camera2Api;
+
     try {
-      if (_controller!.value.isRecordingVideo) {
-        // Active recording in progress: use setDescription if supported while recording
+      if (useCamera2) {
+        // Fast seamless hardware switch via Camera2 API (setDescription preserves surface & audio)
         try {
           await _controller!.setDescription(next);
           _currentLensDirection = next.lensDirection;
         } catch (e) {
-          debugPrint('[CircleVideoRecorder] Live switch failed: $e');
+          debugPrint('[CircleVideoRecorder] Camera2 live switch fallback: $e');
+          await _reinitializeController(next);
         }
       } else {
-        // Not recording: switch camera description
-        try {
-          await _controller!.setDescription(next);
-          _currentLensDirection = next.lensDirection;
-        } catch (_) {
-          // Fallback: re-initialize with fresh CameraController
-          await _controller?.dispose();
-          _controller = CameraController(
-            next,
-            ResolutionPreset.high,
-            enableAudio: true,
-            imageFormatGroup: ImageFormatGroup.jpeg,
-          );
-          await _controller!.initialize();
-          _currentLensDirection = next.lensDirection;
-        }
+        // Standard full re-initialization (legacy / fallback)
+        await _reinitializeController(next);
       }
 
       final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -241,6 +232,24 @@ class _CircleVideoRecorderScreenState
       if (mounted) {
         setState(() => _isSwitchingCamera = false);
       }
+    }
+  }
+
+  Future<void> _reinitializeController(CameraDescription description) async {
+    final bool wasRecording = _controller?.value.isRecordingVideo ?? false;
+    await _controller?.dispose();
+    _controller = CameraController(
+      description,
+      ResolutionPreset.high,
+      enableAudio: true,
+      imageFormatGroup: ImageFormatGroup.jpeg,
+    );
+    await _controller!.initialize();
+    _currentLensDirection = description.lensDirection;
+    if (wasRecording && mounted) {
+      try {
+        await _controller!.startVideoRecording();
+      } catch (_) {}
     }
   }
 
@@ -495,13 +504,8 @@ class _CircleVideoRecorderScreenState
                           ),
                         ),
                       const Spacer(),
-                      // Flip camera button (always accessible!)
-                      _CircleButton(
-                        icon: Icons.flip_camera_ios_rounded,
-                        tooltip: context.l10n.mediaViewerFlipCamera,
-                        onTap: _switchCamera,
-                        scheme: scheme,
-                      ),
+                      // Symmetrical spacer to balance the close button on the left
+                      const SizedBox(width: 44, height: 44),
                     ],
                   ),
                 ),

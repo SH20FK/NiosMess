@@ -48,30 +48,43 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   @override
   void didUpdateWidget(covariant PublicProfileScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.username != widget.username) {
+    if (oldWidget.username.toLowerCase() != widget.username.toLowerCase()) {
+      setState(() {
+        _profile = null;
+        _resolvedChatId = null;
+        _error = null;
+      });
       _checkCacheAndLoad();
     }
   }
 
   void _checkCacheAndLoad() {
-    // 1. Try local cache box
+    setState(() {
+      _resolvedChatId = null;
+    });
+
+    final String targetUser = widget.username.trim().toLowerCase();
+
+    // 1. Try local cache box strictly for this username
     final cached = ref.read(cacheServiceProvider).getCachedProfile(widget.username);
-    if (cached != null) {
+    if (cached != null && cached.username.trim().toLowerCase() == targetUser) {
       _profile = cached;
       _resolveChatId(cached);
     } else {
       // 2. Try auth self profile
       final myProfile = ref.read(authProvider).profile;
       if (myProfile != null &&
-          myProfile.username.toLowerCase() == widget.username.toLowerCase()) {
+          myProfile.username.trim().toLowerCase() == targetUser) {
         _profile = myProfile;
         _resolveChatId(myProfile);
       } else {
-        // 3. Try finding in active chats
+        // 3. Try finding in active chats strictly by partner username
+        _profile = null;
         final chats = ref.read(chatsProvider).value ?? [];
         for (final c in chats) {
-          if (c.username != null &&
-              c.username!.toLowerCase() == widget.username.toLowerCase()) {
+          if (c.chatType == 'direct' &&
+              c.username != null &&
+              c.username!.trim().toLowerCase() == targetUser) {
             _profile = ApiProfile(
               id: c.id,
               username: c.username!,
@@ -103,13 +116,14 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           .getPublicProfile(widget.username);
 
       if (!mounted) return;
-      setState(() {
-        _profile = profile;
-        _loading = false;
-        _error = null;
-      });
-
-      _resolveChatId(profile);
+      if (profile.username.trim().toLowerCase() == widget.username.trim().toLowerCase()) {
+        setState(() {
+          _profile = profile;
+          _loading = false;
+          _error = null;
+        });
+        _resolveChatId(profile);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -132,13 +146,18 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   }
 
   Future<void> _resolveChatId(ApiProfile profile) async {
-    // 1. Check existing chats
+    final String targetUsername = profile.username.trim().toLowerCase();
+    if (targetUsername.isEmpty) return;
+
+    // 1. Check existing chats strictly by partner username (never by displayName)
     final chats = ref.read(chatsProvider).value ?? [];
     for (final c in chats) {
       if (c.chatType == 'direct' &&
-          (c.name == profile.displayName ||
-              (c.username != null && c.username == profile.username))) {
-        if (mounted) setState(() => _resolvedChatId = c.id);
+          c.username != null &&
+          c.username!.trim().toLowerCase() == targetUsername) {
+        if (mounted && widget.username.trim().toLowerCase() == targetUsername) {
+          setState(() => _resolvedChatId = c.id);
+        }
         return;
       }
     }
@@ -149,9 +168,17 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           .read(chatRepositoryProvider)
           .openDirectChatByUsername(profile.username);
       if (result != null && result.chatId > 0 && mounted) {
-        setState(() => _resolvedChatId = result.chatId);
+        if (widget.username.trim().toLowerCase() == targetUsername) {
+          setState(() => _resolvedChatId = result.chatId);
+        }
+      } else if (mounted && widget.username.trim().toLowerCase() == targetUsername) {
+        setState(() => _resolvedChatId = -1);
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted && widget.username.trim().toLowerCase() == targetUsername) {
+        setState(() => _resolvedChatId = -1);
+      }
+    }
   }
 
   @override

@@ -48,9 +48,22 @@ class _CommentsBottomSheetState extends ConsumerState<CommentsBottomSheet> {
   }
 
   void _setReply(ApiMessage message) {
+    final String author = message.senderDisplayName.trim().isNotEmpty
+        ? message.senderDisplayName.trim()
+        : (message.senderUsername.trim().isNotEmpty
+            ? message.senderUsername.trim()
+            : 'Пользователь');
+    final String snippet = message.isSticker
+        ? (message.sticker?.emoji.isNotEmpty == true
+            ? '🖼️ Стикер ${message.sticker!.emoji}'
+            : '🖼️ Стикер')
+        : (message.content.trim().isNotEmpty
+            ? message.content.trim()
+            : 'Сообщение');
     setState(() {
       _replyToMessageId = message.id;
-      _replyPreviewText = message.content.isNotEmpty ? message.content : null;
+      _replyPreviewText =
+          '$author: ${snippet.length > 60 ? "${snippet.substring(0, 60)}..." : snippet}';
     });
   }
 
@@ -128,12 +141,32 @@ class _CommentsBottomSheetState extends ConsumerState<CommentsBottomSheet> {
                         ),
                       );
                     }
+                    final Map<int, ApiMessage> byId = <int, ApiMessage>{
+                      for (final ApiMessage m in comments) m.id: m,
+                    };
                     return ListView.builder(
                       controller: scrollController,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       itemCount: comments.length,
                       itemBuilder: (BuildContext context, int index) {
                         final ApiMessage comment = comments[index];
+                        String? replyPreview;
+                        if (comment.replyToId != null) {
+                          final ApiMessage? parent = byId[comment.replyToId];
+                          if (parent != null) {
+                            final String pAuthor = parent.senderDisplayName.trim().isNotEmpty
+                                ? parent.senderDisplayName.trim()
+                                : 'Пользователь';
+                            final String pSnippet = parent.isSticker
+                                ? (parent.sticker?.emoji.isNotEmpty == true
+                                    ? '🖼️ Стикер ${parent.sticker!.emoji}'
+                                    : '🖼️ Стикер')
+                                : (parent.content.trim().isNotEmpty
+                                    ? parent.content.trim()
+                                    : 'Сообщение');
+                            replyPreview = '$pAuthor: $pSnippet';
+                          }
+                        }
                         return GestureDetector(
                           onLongPress: () => _setReply(comment),
                           child: MessageBubble(
@@ -146,6 +179,8 @@ class _CommentsBottomSheetState extends ConsumerState<CommentsBottomSheet> {
                             senderDisplayName: comment.senderDisplayName,
                             senderAvatarUrl: comment.senderAvatarUrl,
                             senderBadges: comment.senderBadges,
+                            replyToId: comment.replyToId,
+                            replyPreview: replyPreview,
                           ),
                         );
                       },

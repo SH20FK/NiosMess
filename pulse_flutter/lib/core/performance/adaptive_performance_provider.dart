@@ -286,14 +286,16 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
       }
     }
 
-    state = state.copyWith(
-      mode: currentMode,
-      isDegraded: isDegraded,
-      recentJankRatio: _monitor.getJankRatio(budget),
-      consecutiveSmoothFrames: _monitor.consecutiveSmoothFrames,
-      averageBuildMs: _monitor.averageBuildMs,
-      averageRasterMs: _monitor.averageRasterMs,
-    );
+    if (currentMode != state.mode || isDegraded != state.isDegraded) {
+      state = state.copyWith(
+        mode: currentMode,
+        isDegraded: isDegraded,
+        recentJankRatio: _monitor.getJankRatio(budget),
+        consecutiveSmoothFrames: _monitor.consecutiveSmoothFrames,
+        averageBuildMs: _monitor.averageBuildMs,
+        averageRasterMs: _monitor.averageRasterMs,
+      );
+    }
   }
 
   /// Manually forces a performance mode.

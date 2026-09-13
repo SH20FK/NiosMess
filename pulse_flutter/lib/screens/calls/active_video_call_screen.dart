@@ -184,11 +184,13 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0B14),
-      body: GestureDetector(
-        onTap: _toggleControls,
-        behavior: HitTestBehavior.translucent,
-        child: Stack(
-          children: [
+      body: SizedBox.expand(
+        child: GestureDetector(
+          onTap: _toggleControls,
+          behavior: HitTestBehavior.translucent,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
             // ── Remote Video Stream / Placeholder ────────────────────────
             Positioned.fill(
               child: RepaintBoundary(
@@ -434,8 +436,9 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 // ── No Video Placeholder ──────────────────────────────────────────────────────

@@ -212,12 +212,21 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
       cacheWidth = widget.memCacheWidth;
       cacheHeight = widget.memCacheHeight;
     } else {
-      cacheWidth = widget.width != null && widget.width!.isFinite
-          ? (widget.width! * dpr).round()
-          : null;
-      cacheHeight = widget.height != null && widget.height!.isFinite
-          ? (widget.height! * dpr).round()
-          : null;
+      final bool hasFiniteWidth =
+          widget.width != null && widget.width!.isFinite;
+      final bool hasFiniteHeight =
+          widget.height != null && widget.height!.isFinite;
+
+      if (hasFiniteWidth) {
+        cacheWidth = (widget.width! * dpr).round();
+        cacheHeight = hasFiniteHeight ? (widget.height! * dpr).round() : null;
+      } else if (hasFiniteHeight) {
+        cacheWidth = null;
+        cacheHeight = (widget.height! * dpr).round();
+      } else {
+        cacheWidth = 1080;
+        cacheHeight = null;
+      }
     }
 
     return Image.memory(

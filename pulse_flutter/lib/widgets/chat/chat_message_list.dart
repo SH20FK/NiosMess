@@ -84,6 +84,8 @@ class ChatMessageList extends ConsumerStatefulWidget {
     required this.authUserId,
     required this.amAdminOrOwner,
     required this.isChannel,
+    this.isGroup = false,
+    this.onOpenComments,
     required this.onOpenMedia,
     required this.onLongPressMedia,
     required this.onLongPress,
@@ -105,6 +107,8 @@ class ChatMessageList extends ConsumerStatefulWidget {
   final int authUserId;
   final bool amAdminOrOwner;
   final bool isChannel;
+  final bool isGroup;
+  final void Function(ApiMessage)? onOpenComments;
   final void Function(ApiMessage) onOpenMedia;
   final void Function(ApiMessage, bool isMine, bool amAdminOrOwner)
       onLongPressMedia;
@@ -156,7 +160,44 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOutCubic,
         );
+      } else {
+        final int msgIndex =
+            widget.messages.indexWhere((ApiMessage m) => m.id == messageId);
+        if (msgIndex != -1 && widget.scrollController.hasClients) {
+          final int reversedIndex = widget.messages.length - 1 - msgIndex;
+          final double targetOffset = (reversedIndex * 76.0).clamp(
+            0.0,
+            widget.scrollController.position.maxScrollExtent,
+          );
+          widget.scrollController
+              .animateTo(
+            targetOffset,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOutCubic,
+          )
+              .then((_) {
+            if (!mounted) return;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              final GlobalKey? updatedKey = _messageKeys[messageId];
+              if (updatedKey != null && updatedKey.currentContext != null) {
+                Scrollable.ensureVisible(
+                  updatedKey.currentContext!,
+                  alignment: 0.3,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOutCubic,
+                );
+              }
+            });
+          });
+        }
       }
+
+      Future<void>.delayed(const Duration(milliseconds: 1600), () {
+        if (mounted && _highlightedMessageId == messageId) {
+          setState(() => _highlightedMessageId = null);
+        }
+      });
     });
   }
 
@@ -205,6 +246,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
         cacheExtent: 350,
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
         addAutomaticKeepAlives: false,
+        addRepaintBoundaries: false,
         itemCount: messages.length,
       itemBuilder: (BuildContext context, int index) {
         final int reversedIndex = messages.length - 1 - index;
@@ -321,7 +363,13 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             },
             mediaDuration: mediaDuration,
             senderBadges: message.senderBadges,
-            senderDisplayName: message.senderDisplayName,
+            senderDisplayName:
+                widget.isGroup ? message.senderDisplayName : null,
+            isChannel: widget.isChannel,
+            commentsCount: message.commentsCount,
+            onOpenComments: widget.onOpenComments != null
+                ? () => widget.onOpenComments!(message)
+                : null,
             animate: now.difference(message.resolvedSentAt).inSeconds < 4,
             isSending: isLocalSending,
             isFailed: message.isFailed,
@@ -343,18 +391,16 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
           );
         }
 
-        final Widget bubble = RepaintBoundary(
-          child: isLocalSending
-              ? Consumer(
-                  builder: (context, ref, _) {
-                    final uploadTask = ref.watch(
-                      uploadTaskProvider(message.id.toString()),
-                    );
-                    return buildBubble(progress: uploadTask?.progress ?? 0.0);
-                  },
-                )
-              : buildBubble(progress: null),
-        );
+        final Widget bubble = isLocalSending
+            ? Consumer(
+                builder: (context, ref, _) {
+                  final uploadTask = ref.watch(
+                    uploadTaskProvider(message.id.toString()),
+                  );
+                  return buildBubble(progress: uploadTask?.progress ?? 0.0);
+                },
+              )
+            : buildBubble(progress: null);
 
         final bool isNewest = index == 0;
 
@@ -427,46 +473,58 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: <Widget>[
-                  if (!data.isNextSame) ...[
-                    Hero(
-                      tag: 'sender-avatar-${message.senderId}',
-                      child: GestureDetector(
-                        onTap: () {},
-                        child: message.senderAvatarUrl != null
-                            ? ClipOval(
-                                child: CachedNetworkImage(
-                                  imageUrl: ApiConstants.resolve(message.senderAvatarUrl),
-                                  httpHeaders: cachedAuthHeaders(),
-                                  memCacheWidth: 56,
-                                  width: 28,
-                                  height: 28,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) => CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    child: const Icon(Icons.person, size: 16),
+                  if (widget.isGroup) ...<Widget>[
+                    if (!data.isNextSame) ...[
+                      Hero(
+                        tag: 'sender-avatar-${message.senderId}',
+                        child: GestureDetector(
+                          onTap: () {},
+                          child: message.senderAvatarUrl != null
+                              ? ClipOval(
+                                  child: CachedNetworkImage(
+                                    imageUrl: ApiConstants.resolve(
+                                      message.senderAvatarUrl,
+                                    ),
+                                    httpHeaders: cachedAuthHeaders(),
+                                    memCacheWidth: 56,
+                                    width: 28,
+                                    height: 28,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) =>
+                                        CircleAvatar(
+                                      radius: 14,
+                                      backgroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                                      child: const Icon(Icons.person, size: 16),
+                                    ),
+                                    errorWidget: (context, url, error) =>
+                                        CircleAvatar(
+                                      radius: 14,
+                                      backgroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                                      child: const Icon(Icons.person, size: 16),
+                                    ),
                                   ),
-                                  errorWidget: (context, url, error) => CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    child: const Icon(Icons.person, size: 16),
+                                )
+                              : CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest,
+                                  child: Text(
+                                    message.senderDisplayName.isNotEmpty
+                                        ? message.senderDisplayName[0]
+                                        : '?',
                                   ),
                                 ),
-                              )
-                            : CircleAvatar(
-                                radius: 14,
-                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                child: Text(
-                                  message.senderDisplayName.isNotEmpty
-                                      ? message.senderDisplayName[0]
-                                      : '?',
-                                ),
-                              ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                  ] else
-                    const SizedBox(width: 36),
+                      const SizedBox(width: 8),
+                    ] else
+                      const SizedBox(width: 36),
+                  ],
                   Flexible(child: animatedBubble),
                 ],
               ),

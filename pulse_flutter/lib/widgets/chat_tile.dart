@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_curves.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
 /// Google Messages / M3 Expressive Chat List Tile with unread pills,
@@ -133,13 +134,13 @@ class _ChatTileState extends State<ChatTile>
         child: Semantics(
           button: true,
           label: semanticsLabel,
-          child: InkWell(
-            onTap: () {
-              HapticService.tap();
-              widget.onTap();
-            },
+          child: TouchContainer(
+            onTap: widget.onTap,
             onLongPress: _handleLongPress,
             borderRadius: BorderRadius.circular(24),
+            scaleDown: 0.98,
+            releaseCurve: M3SpringCurves.spatial,
+            enableHaptics: true,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               curve: Curves.easeOutCubic,

@@ -265,10 +265,12 @@ class _ProfileSharedMediaTabViewState
   List<_SharedMediaItem> _extractPhotosAndVideos(List<ApiMessage> messages) {
     final List<_SharedMediaItem> list = <_SharedMediaItem>[];
     for (final m in messages) {
+      if (m.isSticker) continue;
       final raw = (m.mediaUrl ?? '').trim();
       if (raw.isEmpty) continue;
       final msgType = m.msgType.toLowerCase();
-      if (msgType == 'voice' ||
+      if (msgType == 'sticker' ||
+          msgType == 'voice' ||
           msgType == 'circle_video' ||
           msgType == 'video_note' ||
           msgType == 'round_video') {
@@ -305,8 +307,10 @@ class _ProfileSharedMediaTabViewState
   }
 
   bool _isVoiceOrVideoNote(ApiMessage m) {
-    final type = (m.mediaType ?? '').toLowerCase();
+    if (m.isSticker) return false;
     final msgType = m.msgType.toLowerCase();
+    if (msgType == 'sticker') return false;
+    final type = (m.mediaType ?? '').toLowerCase();
     final name = (m.mediaName ?? '').toLowerCase();
 
     return msgType == 'voice' ||
@@ -321,11 +325,13 @@ class _ProfileSharedMediaTabViewState
   }
 
   bool _isFile(ApiMessage m) {
+    if (m.isSticker) return false;
+    final msgType = m.msgType.toLowerCase();
+    if (msgType == 'sticker') return false;
     if ((m.mediaUrl ?? '').isEmpty) return false;
     if (_isVoiceOrVideoNote(m)) return false;
     final type = (m.mediaType ?? '').toLowerCase();
     final name = (m.mediaName ?? '').toLowerCase();
-    final msgType = m.msgType.toLowerCase();
     final urlLower = (m.mediaUrl ?? '').toLowerCase();
 
     // If it is pure image or pure video, it belongs in Media tab, not in Files tab

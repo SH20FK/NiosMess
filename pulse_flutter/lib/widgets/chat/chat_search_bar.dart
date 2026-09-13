@@ -123,12 +123,14 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final authState = ref.watch(authProvider);
-    final profile = authState.profile;
-    final session = authState.session;
-    final String displayName =
-        profile?.displayName ?? session?.displayName ?? 'Me';
-    final String? avatarUrl = profile?.avatarUrl;
+    final String displayName = ref.watch(
+      authProvider.select(
+        (a) => a.profile?.displayName ?? a.session?.displayName ?? 'Me',
+      ),
+    );
+    final String? avatarUrl = ref.watch(
+      authProvider.select((a) => a.profile?.avatarUrl),
+    );
 
     return SearchAnchor.bar(
       isFullScreen: false,

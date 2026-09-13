@@ -29,6 +29,8 @@ class CallControlDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bool isVideoActive =
+        isVideoCall ? data.isSelfVideoEnabled : data.isVideo;
 
     return Center(
       child: Container(
@@ -37,19 +39,19 @@ class CallControlDock extends StatelessWidget {
           right: 16,
           bottom: bottomInset > 0 ? bottomInset + 8 : 24,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
+          color: CallTokens.darkSurfaceContainerHigh.withValues(alpha: 0.94),
           borderRadius: BorderRadius.circular(CallTokens.dockBorderRadius),
           border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.25),
+            color: Colors.white.withValues(alpha: 0.10),
             width: 1.0,
           ),
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: scheme.shadow.withValues(alpha: 0.12),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 28,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -58,7 +60,7 @@ class CallControlDock extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            // Mute / Unmute
+            // ── Mute / Unmute ──────────────────────────────────────────
             _CallActionButton(
               icon: data.isMuted
                   ? Icons.mic_off_rounded
@@ -69,16 +71,16 @@ class CallControlDock extends StatelessWidget {
               isActive: data.isMuted,
               activeBg: scheme.errorContainer,
               activeFg: scheme.onErrorContainer,
-              inactiveBg: scheme.surfaceContainerHighest,
+              inactiveBg: CallTokens.darkSurfaceContainerHighest,
               inactiveFg: scheme.onSurface,
               onTap: () {
                 HapticService.tap();
                 session.setMuted(!data.isMuted);
               },
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
 
-            // Speaker (or Flip Camera in Video call)
+            // ── Speaker (or Flip Camera in Video call) ────────────────
             if (!isVideoCall)
               _CallActionButton(
                 icon: data.isSpeakerOn
@@ -90,7 +92,7 @@ class CallControlDock extends StatelessWidget {
                 isActive: data.isSpeakerOn,
                 activeBg: scheme.primary,
                 activeFg: scheme.onPrimary,
-                inactiveBg: scheme.surfaceContainerHighest,
+                inactiveBg: CallTokens.darkSurfaceContainerHighest,
                 inactiveFg: scheme.onSurface,
                 onTap: () {
                   HapticService.tap();
@@ -104,7 +106,7 @@ class CallControlDock extends StatelessWidget {
                 isActive: false,
                 activeBg: scheme.primary,
                 activeFg: scheme.onPrimary,
-                inactiveBg: scheme.surfaceContainerHighest,
+                inactiveBg: CallTokens.darkSurfaceContainerHighest,
                 inactiveFg: scheme.onSurface,
                 onTap: () {
                   HapticService.tap();
@@ -112,20 +114,20 @@ class CallControlDock extends StatelessWidget {
                 },
               ),
 
-            // Video button
+            // ── Video Toggle Button ────────────────────────────────────
             if (onToggleVideo != null) ...<Widget>[
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               _CallActionButton(
-                icon: data.isVideo
+                icon: isVideoActive
                     ? Icons.videocam_rounded
                     : Icons.videocam_off_rounded,
-                label: data.isVideo
+                label: isVideoActive
                     ? context.l10n.activeCallCameraOff
                     : context.l10n.activeCallCameraOn,
-                isActive: data.isVideo,
+                isActive: isVideoActive,
                 activeBg: scheme.primary,
                 activeFg: scheme.onPrimary,
-                inactiveBg: scheme.surfaceContainerHighest,
+                inactiveBg: CallTokens.darkSurfaceContainerHighest,
                 inactiveFg: scheme.onSurface,
                 onTap: () {
                   HapticService.tap();
@@ -134,39 +136,44 @@ class CallControlDock extends StatelessWidget {
               ),
             ],
 
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
 
-            // End Call Button (Prominent M3 Error Button)
+            // ── End Call Button (Google Meet Red Stadium Pill) ────────
             Semantics(
               button: true,
               label: context.l10n.callEnd,
               child: Tooltip(
                 message: context.l10n.callEnd,
-                child: GestureDetector(
-                  onTap: () {
-                    HapticService.tap();
-                    onEnd();
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: CallTokens.controlButtonSize,
-                    height: CallTokens.controlButtonSize,
-                    decoration: BoxDecoration(
-                      color: scheme.error,
-                      shape: BoxShape.circle,
-                      boxShadow: <BoxShadow>[
-                        BoxShadow(
-                          color: scheme.error.withValues(alpha: 0.35),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(CallTokens.meetEndButtonHeight / 2),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(CallTokens.meetEndButtonHeight / 2),
+                    onTap: () {
+                      HapticService.tap();
+                      onEnd();
+                    },
+                    child: Container(
+                      width: CallTokens.meetEndButtonWidth,
+                      height: CallTokens.meetEndButtonHeight,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE53935),
+                        borderRadius: BorderRadius.circular(CallTokens.meetEndButtonHeight / 2),
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(
+                            color: const Color(0xFFE53935).withValues(alpha: 0.45),
+                            blurRadius: 18,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.call_end_rounded,
+                          color: Colors.white,
+                          size: 28,
                         ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.call_end_rounded,
-                        color: scheme.onError,
-                        size: 26,
                       ),
                     ),
                   ),
@@ -211,23 +218,28 @@ class _CallActionButton extends StatelessWidget {
       label: label,
       child: Tooltip(
         message: label,
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: bgColor,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Icon(
-                icon,
-                color: fgColor,
-                size: 24,
+        child: Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: bgColor,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Icon(
+                  icon,
+                  color: fgColor,
+                  size: 25,
+                ),
               ),
             ),
           ),

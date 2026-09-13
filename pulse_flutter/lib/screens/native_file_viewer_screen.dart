@@ -909,8 +909,17 @@ class _ImageViewer extends StatelessWidget {
       );
     }
 
+    final MediaQueryData? mq = MediaQuery.maybeOf(context);
+    final double dpr = mq?.devicePixelRatio ?? 1.0;
+    final double screenW = mq?.size.width ?? 1080.0;
+    final int safeDecodeWidth = (screenW * dpr).round().clamp(1080, 2048);
+
     if (bytes != null) {
-      return Image.memory(bytes!, fit: BoxFit.contain);
+      return Image.memory(
+        bytes!,
+        fit: BoxFit.contain,
+        cacheWidth: safeDecodeWidth,
+      );
     }
 
     if (url != null) {
@@ -918,6 +927,7 @@ class _ImageViewer extends StatelessWidget {
         imageUrl: url!,
         httpHeaders: cachedAuthHeaders(),
         fit: BoxFit.contain,
+        memCacheWidth: safeDecodeWidth,
         placeholder: (_, _) => const Center(
           child: AppLoadingIndicator(size: 32),
         ),

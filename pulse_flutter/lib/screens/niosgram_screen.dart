@@ -124,6 +124,7 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
                 onRefresh: () => ref.read(niosgramProvider.notifier).refresh(),
                 child: ListView.builder(
                   controller: _scrollController,
+                  addRepaintBoundaries: false,
                   padding: EdgeInsets.only(
                     top: 4,
                     bottom: isWide ? 84 : 96,
@@ -161,10 +162,7 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
                         horizontal: horizontalGutter,
                         vertical: isWide ? 8 : 6,
                       ),
-                      child: RepaintBoundary(
-                        key: ValueKey<String>('post_${post.id}'),
-                        child: PostCard(key: ValueKey<int>(post.id), post: post),
-                      ),
+                      child: PostCard(key: ValueKey<int>(post.id), post: post),
                     );
                   },
                 ),
@@ -935,6 +933,8 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                                 _previewBytesList[index],
                                 width: 76,
                                 height: 76,
+                                cacheWidth: 200,
+                                cacheHeight: 200,
                                 fit: BoxFit.cover,
                               ),
                             ),

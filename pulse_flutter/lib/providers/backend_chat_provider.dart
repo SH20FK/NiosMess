@@ -1289,6 +1289,19 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
 
     await _playNotificationSound();
   }
+
+  Future<void> deleteComment(int commentId) async {
+    final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    state = AsyncData<List<ApiMessage>>(
+      current.where((ApiMessage message) => message.id != commentId).toList(),
+    );
+    try {
+      await ref.read(chatRepositoryProvider).deleteMessage(
+        _args.channelId > 0 ? _args.channelId : _args.postId,
+        commentId,
+      );
+    } catch (_) {}
+  }
 }
 
 final postCommentsProvider =

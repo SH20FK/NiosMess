@@ -22,17 +22,23 @@ class ChatMediaCache {
   /// Checks if a message qualifies as shared media (photo, video, audio, file, voice, link).
   static bool isMediaMessage(ApiMessage m) {
     if (m.isDeleted) return false;
-    final String mediaUrl = (m.mediaUrl ?? '').trim();
-    if (mediaUrl.isNotEmpty) return true;
+    if (m.isSticker) return false;
     final String msgType = m.msgType.toLowerCase();
+    if (msgType == 'sticker') return false;
+
+    final String mediaUrl = (m.mediaUrl ?? '').trim();
+    if (mediaUrl.isNotEmpty) {
+      if (m.isSticker || msgType == 'sticker') return false;
+      return true;
+    }
+
     if (msgType == 'voice' ||
         msgType == 'circle_video' ||
         msgType == 'video_note' ||
         msgType == 'round_video' ||
         msgType == 'file' ||
         msgType == 'image' ||
-        msgType == 'video' ||
-        msgType == 'sticker') {
+        msgType == 'video') {
       return true;
     }
     final String mediaType = (m.mediaType ?? '').toLowerCase();
@@ -83,6 +89,7 @@ class ChatMediaCache {
                   (dynamic k, dynamic v) => MapEntry(k.toString(), v),
                 ),
               ))
+          .where(isMediaMessage)
           .toList(growable: false);
     } catch (e) {
       debugPrint('[ChatMediaCache] getCachedMediaSync error: $e');
@@ -119,7 +126,9 @@ class ChatMediaCache {
       final Map<int, ApiMessage> byId = <int, ApiMessage>{};
 
       for (final ApiMessage m in existing) {
-        byId[m.id] = m;
+        if (isMediaMessage(m)) {
+          byId[m.id] = m;
+        }
       }
       for (final ApiMessage m in newMedia) {
         byId[m.id] = m;

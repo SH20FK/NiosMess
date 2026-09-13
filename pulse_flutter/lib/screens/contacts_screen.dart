@@ -244,7 +244,8 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final AuthState auth = ref.watch(authProvider);
+    final bool isAuthenticated =
+        ref.watch(authProvider.select((a) => a.isAuthenticated));
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final bool compact = settings.compactMode;
     final TextTheme textTheme = Theme.of(context).textTheme;
@@ -383,7 +384,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               child: _selectedTab == _ContactsMainTab.calls
                   ? const CallLogView()
                   : _buildContactsTab(
-                      auth: auth,
+                      isAuthenticated: isAuthenticated,
                       chatsAsync: chatsAsync,
                       compact: compact,
                       textTheme: textTheme,
@@ -397,13 +398,13 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
   }
 
   Widget _buildContactsTab({
-    required AuthState auth,
+    required bool isAuthenticated,
     required AsyncValue<List<ApiChatSummary>> chatsAsync,
     required bool compact,
     required TextTheme textTheme,
     required ColorScheme scheme,
   }) {
-    if (!auth.isAuthenticated) {
+    if (!isAuthenticated) {
       return CenteredNote(context.l10n.contactsNotAuth);
     }
 

@@ -151,8 +151,11 @@ class PulseApp extends ConsumerWidget {
               child: MediaQuery(
                 data: mediaQuery,
                 child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    child ?? const SizedBox.shrink(),
+                    SizedBox.expand(
+                      child: child ?? const SizedBox.shrink(),
+                    ),
                     const IncomingCallOverlay(),
                     const CallOverlay(),
                   ],

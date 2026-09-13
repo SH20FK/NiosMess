@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/motion/pulse_predictive_back_transition.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -300,11 +301,11 @@ class AppTheme {
               ? PulsePredictiveBackPageTransitionsBuilder(
                   strength: settings.predictiveBackStrength,
                 )
-              : const FadeUpwardsPageTransitionsBuilder(),
-          TargetPlatform.iOS: const FadeUpwardsPageTransitionsBuilder(),
-          TargetPlatform.macOS: const FadeUpwardsPageTransitionsBuilder(),
-          TargetPlatform.windows: const FadeUpwardsPageTransitionsBuilder(),
-          TargetPlatform.linux: const FadeUpwardsPageTransitionsBuilder(),
+              : const ZoomPageTransitionsBuilder(),
+          TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: const CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: const ZoomPageTransitionsBuilder(),
+          TargetPlatform.linux: const ZoomPageTransitionsBuilder(),
         },
       ),
     );

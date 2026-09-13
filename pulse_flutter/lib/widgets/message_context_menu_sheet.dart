@@ -108,7 +108,47 @@ class _MessagePreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final bool hasText = message.content.trim().isNotEmpty;
+    String previewText = message.content.trim();
+    if (previewText.isEmpty) {
+      if (message.isSticker) {
+        final String emoji = message.sticker?.emoji.trim() ?? '';
+        previewText = emoji.isNotEmpty ? '🖼️ Стикер $emoji' : '🖼️ Стикер';
+      } else if (message.msgType == 'voice' ||
+          (message.mediaType ?? '').toLowerCase().startsWith('audio/')) {
+        previewText = '🎤 Голосовое сообщение';
+      } else if (message.msgType == 'circle' ||
+          message.msgType == 'circle_video' ||
+          message.msgType == 'video_note') {
+        previewText = '📹 Видеосообщение';
+      } else if (message.hasMedia) {
+        final String name = (message.mediaName ?? '').trim();
+        previewText = name.isNotEmpty ? '📎 $name' : '📎 Вложение';
+      }
+    }
+
+    final Widget? mediaIcon = message.isSticker
+        ? Icon(Icons.emoji_emotions_rounded, size: 20, color: scheme.primary)
+        : (message.mediaType != null && message.mediaType!.isNotEmpty)
+            ? Icon(
+                message.msgType == 'voice' ||
+                        (message.mediaType ?? '')
+                            .toLowerCase()
+                            .startsWith('audio/')
+                    ? Icons.mic_rounded
+                    : message.msgType == 'circle'
+                        ? Icons.videocam_rounded
+                        : (message.msgType == 'image' ||
+                                (message.mediaType ?? '').startsWith('image/'))
+                            ? Icons.image_rounded
+                            : (message.msgType == 'video' ||
+                                    (message.mediaType ?? '')
+                                        .startsWith('video/'))
+                                ? Icons.videocam_rounded
+                                : Icons.insert_drive_file_rounded,
+                size: 18,
+                color: scheme.primary,
+              )
+            : null;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -133,11 +173,11 @@ class _MessagePreviewCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                if (hasText)
+                if (previewText.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Text(
-                      message.content,
+                      previewText,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.bodySmall?.copyWith(height: 1.3),
@@ -164,7 +204,7 @@ class _MessagePreviewCard extends StatelessWidget {
               ],
             ),
           ),
-          if (message.mediaType != null && message.mediaType!.isNotEmpty)
+          if (mediaIcon != null)
             Container(
               width: 36,
               height: 36,
@@ -173,17 +213,7 @@ class _MessagePreviewCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               alignment: Alignment.center,
-              child: Icon(
-                message.msgType == 'voice'
-                    ? Icons.mic_rounded
-                    : message.msgType == 'circle'
-                        ? Icons.videocam_rounded
-                        : message.msgType == 'image'
-                            ? Icons.image_rounded
-                            : Icons.insert_drive_file_rounded,
-                size: 18,
-                color: scheme.primary,
-              ),
+              child: mediaIcon,
             ),
         ],
       ),

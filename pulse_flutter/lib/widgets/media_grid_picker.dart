@@ -79,28 +79,22 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
 
   Future<void> _loadMedia() async {
     try {
-      final PermissionState perm =
-          await PhotoManager.requestPermissionExtend();
+      final PermissionState perm = await PhotoManager.requestPermissionExtend()
+          .timeout(const Duration(seconds: 4), onTimeout: () => PermissionState.denied);
       if (!perm.isAuth) {
-        if (mounted) setState(() => _error = 'Permission denied');
+        if (mounted) {
+          setState(() {
+            _error = 'Разрешение на доступ к галерее не предоставлено';
+            _loading = false;
+          });
+        }
         return;
       }
-
-      // Sort order: NEWEST FIRST (descending by createDate)
-      final FilterOptionGroup filterOption = FilterOptionGroup(
-        orders: const <OrderOption>[
-          OrderOption(
-            type: OrderOptionType.createDate,
-            asc: false,
-          ),
-        ],
-      );
 
       final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
         type: RequestType.common,
         hasAll: true,
-        filterOption: filterOption,
-      );
+      ).timeout(const Duration(seconds: 4), onTimeout: () => <AssetPathEntity>[]);
 
       if (albums.isEmpty) {
         if (mounted) setState(() => _loading = false);
@@ -114,7 +108,14 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
       final List<AssetEntity> assets = await recent.getAssetListPaged(
         page: 0,
         size: _pageSize,
-      );
+      ).timeout(const Duration(seconds: 5), onTimeout: () => <AssetEntity>[]);
+
+      // Sort newest first by createDateTime in Dart
+      assets.sort((AssetEntity a, AssetEntity b) {
+        final DateTime da = a.createDateTime;
+        final DateTime db = b.createDateTime;
+        return db.compareTo(da);
+      });
 
       if (mounted) {
         setState(() {
@@ -148,7 +149,14 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
       final List<AssetEntity> assets = await album.getAssetListPaged(
         page: 0,
         size: _pageSize,
-      );
+      ).timeout(const Duration(seconds: 5), onTimeout: () => <AssetEntity>[]);
+
+      assets.sort((AssetEntity a, AssetEntity b) {
+        final DateTime da = a.createDateTime;
+        final DateTime db = b.createDateTime;
+        return db.compareTo(da);
+      });
+
       if (mounted) {
         setState(() {
           _allAssets = assets;
@@ -179,7 +187,14 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
       final List<AssetEntity> nextBatch = await album.getAssetListPaged(
         page: nextPage,
         size: _pageSize,
-      );
+      ).timeout(const Duration(seconds: 5), onTimeout: () => <AssetEntity>[]);
+
+      nextBatch.sort((AssetEntity a, AssetEntity b) {
+        final DateTime da = a.createDateTime;
+        final DateTime db = b.createDateTime;
+        return db.compareTo(da);
+      });
+
       if (mounted) {
         setState(() {
           _currentPage = nextPage;
@@ -602,11 +617,15 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
       );
     }
 
+    final double maxHeight = MediaQuery.sizeOf(context).height * 0.50;
+
     return SafeArea(
-      child: Column(
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+      child: SizedBox(
+        height: maxHeight,
+        child: Column(
+          children: <Widget>[
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
             child: Row(
               children: <Widget>[
                 InkWell(
@@ -725,8 +744,9 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
             ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   String _formatDuration(Duration d) {
     final String minutes = d.inMinutes.toString().padLeft(2, '0');

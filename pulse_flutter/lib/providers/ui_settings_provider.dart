@@ -84,6 +84,7 @@ class UiSettingsState {
     this.autoDownloadCellular = false,
     this.messageBubbleRadius = 16.0,
     this.uiCornerRadius = 20.0,
+    this.camera2Api = true,
   });
 
   VisualThemeSettings get visualTheme => VisualThemeSettings(
@@ -120,7 +121,8 @@ class UiSettingsState {
       autoDownloadWifi = true,
       autoDownloadCellular = false,
       messageBubbleRadius = 16.0,
-      uiCornerRadius = 20.0;
+      uiCornerRadius = 20.0,
+      camera2Api = true;
 
   final ThemeMode themeMode;
   final Color seedColor;
@@ -147,6 +149,7 @@ class UiSettingsState {
   final bool autoDownloadCellular;
   final double messageBubbleRadius;
   final double uiCornerRadius;
+  final bool camera2Api;
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
@@ -176,6 +179,7 @@ class UiSettingsState {
     bool? autoDownloadCellular,
     double? messageBubbleRadius,
     double? uiCornerRadius,
+    bool? camera2Api,
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -208,6 +212,7 @@ class UiSettingsState {
           autoDownloadCellular ?? this.autoDownloadCellular,
       messageBubbleRadius: messageBubbleRadius ?? this.messageBubbleRadius,
       uiCornerRadius: uiCornerRadius ?? this.uiCornerRadius,
+      camera2Api: camera2Api ?? this.camera2Api,
     );
   }
 
@@ -244,6 +249,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _autoDownloadCellularKey = 'ui.autoDownloadCellular';
   static const String _messageBubbleRadiusKey = 'ui.messageBubbleRadius';
   static const String _uiCornerRadiusKey = 'ui.cornerRadius';
+  static const String _camera2ApiKey = 'ui.camera2Api';
 
   bool _loaded = false;
 
@@ -314,6 +320,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
           prefs.getDouble(_messageBubbleRadiusKey) ?? state.messageBubbleRadius,
       uiCornerRadius:
           prefs.getDouble(_uiCornerRadiusKey) ?? state.uiCornerRadius,
+      camera2Api: prefs.getBool(_camera2ApiKey) ?? state.camera2Api,
     );
     } catch (e) {
       debugPrint('[UiSettingsNotifier] Failed to load settings: $e');
@@ -354,6 +361,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.setBool(_autoDownloadCellularKey, nextState.autoDownloadCellular),
       prefs.setDouble(_messageBubbleRadiusKey, nextState.messageBubbleRadius),
       prefs.setDouble(_uiCornerRadiusKey, nextState.uiCornerRadius),
+      prefs.setBool(_camera2ApiKey, nextState.camera2Api),
     ]);
   }
 
@@ -459,6 +467,9 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
 
   void setAutoDownloadCellular(bool value) =>
       _set(state.copyWith(autoDownloadCellular: value));
+
+  void setCamera2Api(bool value) =>
+      _set(state.copyWith(camera2Api: value));
 }
 
 final NotifierProvider<UiSettingsNotifier, UiSettingsState> uiSettingsProvider =

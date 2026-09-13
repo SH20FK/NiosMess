@@ -13,6 +13,7 @@ import 'package:pulse_flutter/widgets/chat/sticker_picker_view.dart';
 import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
 class ChatInputBar extends StatefulWidget {
@@ -80,7 +81,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
   Offset _recordingDragOffset = Offset.zero;
   bool _isRecordingLocked = false;
   Duration _recordingElapsed = Duration.zero;
-  List<double> _amplitudeHistory = <double>[];
+  final ValueNotifier<List<double>> _amplitudeNotifier =
+      ValueNotifier<List<double>>(<double>[]);
   bool _isStartingRecording = false;
   bool _sendOnStart = false;
   bool _cancelOnStart = false;
@@ -98,6 +100,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     widget.inputController.removeListener(_onTextChanged);
     widget.inputFocusNode.removeListener(_onFocusChanged);
     _pickerPageController.dispose();
+    _amplitudeNotifier.dispose();
     super.dispose();
   }
 
@@ -206,7 +209,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   Future<void> _startVoiceRecording() async {
     HapticService.tap();
-    _amplitudeHistory = <double>[];
+    _amplitudeNotifier.value = <double>[];
     _isStartingRecording = true;
     _sendOnStart = false;
     _cancelOnStart = false;
@@ -218,15 +221,13 @@ class _ChatInputBarState extends State<ChatInputBar> {
         }
       },
       onAmplitude: (double amp) {
-        if (mounted) {
-          setState(() {
-            _amplitudeHistory.add(amp);
-            // Keep only the last 48 samples for UI
-            if (_amplitudeHistory.length > 48) {
-              _amplitudeHistory =
-                  _amplitudeHistory.sublist(_amplitudeHistory.length - 48);
-            }
-          });
+        if (!mounted) return;
+        final List<double> history = List<double>.from(_amplitudeNotifier.value);
+        history.add(amp);
+        if (history.length > 48) {
+          _amplitudeNotifier.value = history.sublist(history.length - 48);
+        } else {
+          _amplitudeNotifier.value = history;
         }
       },
     );
@@ -241,29 +242,34 @@ class _ChatInputBarState extends State<ChatInputBar> {
       }
       if (_sendOnStart) {
         _sendOnStart = false;
-        await Future<void>.delayed(const Duration(milliseconds: 300));
         await _sendVoiceRecording();
         return;
       }
-
       setState(() {
         _isRecording = true;
+        _recordingElapsed = Duration.zero;
         _recordingDragOffset = Offset.zero;
         _isRecordingLocked = false;
-        _recordingElapsed = Duration.zero;
       });
+    } else if (mounted) {
+      AppToast.showError(
+        context,
+        'Не удалось начать запись. Проверьте разрешение на микрофон.',
+      );
     }
   }
 
   Future<void> _sendVoiceRecording() async {
     HapticService.confirm();
     final String? path = await VoiceRecorderService.stopRecording();
-    if (path != null && mounted) {
+    if (mounted) {
+      _amplitudeNotifier.value = <double>[];
       setState(() {
         _isRecording = false;
-        _amplitudeHistory = <double>[];
       });
-      widget.onVoiceSend(path);
+      if (path != null) {
+        widget.onVoiceSend(path);
+      }
     }
   }
 
@@ -271,10 +277,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
     HapticService.destructive();
     await VoiceRecorderService.cancelRecording();
     if (mounted) {
+      _amplitudeNotifier.value = <double>[];
       setState(() {
         _isRecording = false;
         _recordingDragOffset = Offset.zero;
-        _amplitudeHistory = <double>[];
       });
     }
   }
@@ -419,13 +425,18 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 if (_isRecording)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: VoiceRecordingPanel(
-                      elapsed: _recordingElapsed,
-                      dragOffset: _recordingDragOffset,
-                      isLocked: _isRecordingLocked,
-                      amplitudeHistory: _amplitudeHistory,
-                      onSend: _sendVoiceRecording,
-                      onCancel: _cancelVoiceRecording,
+                    child: ValueListenableBuilder<List<double>>(
+                      valueListenable: _amplitudeNotifier,
+                      builder: (BuildContext context, List<double> amplitudes, _) {
+                        return VoiceRecordingPanel(
+                          elapsed: _recordingElapsed,
+                          dragOffset: _recordingDragOffset,
+                          isLocked: _isRecordingLocked,
+                          amplitudeHistory: amplitudes,
+                          onSend: _sendVoiceRecording,
+                          onCancel: _cancelVoiceRecording,
+                        );
+                      },
                     ),
                   ),
 

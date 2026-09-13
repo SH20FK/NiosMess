@@ -1007,11 +1007,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   }
 
   void _setReply(ApiMessage message) {
-    final String text = _displayText(message);
+    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+    final String author = _resolveReplyAuthor(message, myUserId);
+    final String snippet = _resolveReplySnippet(message);
     setState(() {
       _replyToMessageId = message.id;
       _replyPreviewText =
-           '${message.senderDisplayName}: ${text.length > 80 ? "${text.substring(0, 80)}..." : text}';
+          '$author: ${snippet.length > 80 ? "${snippet.substring(0, 80)}..." : snippet}';
     });
   }
 
@@ -1482,6 +1484,86 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     return isImageExt(lower) || (fileName.isNotEmpty && isImageExt(fileName));
   }
 
+  String _resolveReplySnippet(ApiMessage message) {
+    if (message.isSticker) {
+      final String emoji = message.sticker?.emoji.trim() ?? '';
+      return emoji.isNotEmpty ? '🖼️ Стикер $emoji' : '🖼️ Стикер';
+    }
+
+    if (message.msgType == 'voice' ||
+        (message.mediaType ?? '').toLowerCase().startsWith('audio/')) {
+      final int? duration = message.mediaDuration;
+      if (duration != null && duration > 0) {
+        final int minutes = duration ~/ 60;
+        final int seconds = duration % 60;
+        final String formatted =
+            '$minutes:${seconds.toString().padLeft(2, '0')}';
+        return '🎤 Голосовое сообщение ($formatted)';
+      }
+      return '🎤 Голосовое сообщение';
+    }
+
+    if (message.msgType == 'circle' ||
+        message.msgType == 'circle_video' ||
+        message.msgType == 'video_note' ||
+        message.msgType == 'round_video') {
+      return '📹 Видеосообщение';
+    }
+
+    final String? mediaUrl = _mediaUrlFor(message);
+    if (mediaUrl != null && mediaUrl.trim().isNotEmpty) {
+      final String caption = message.content.trim();
+      if (_isImageMedia(message, mediaUrl)) {
+        return caption.isNotEmpty ? '📷 $caption' : '📷 Фотография';
+      }
+      if (_isVideoMedia(message, mediaUrl)) {
+        return caption.isNotEmpty ? '🎥 $caption' : '🎥 Видео';
+      }
+      final String name = (message.mediaName ?? '').trim();
+      final String label =
+          name.isNotEmpty ? name : _mediaLabel(message, mediaUrl);
+      return caption.isNotEmpty ? '📎 $label • $caption' : '📎 $label';
+    }
+
+    if (message.isCallEvent) {
+      return '📞 Звонок';
+    }
+
+    final String text = _displayText(message).trim();
+    if (text.isNotEmpty) {
+      return text;
+    }
+
+    if (message.hasMedia) {
+      return '📎 Вложение';
+    }
+
+    return 'Сообщение';
+  }
+
+  String _resolveReplyAuthor(ApiMessage message, int myUserId) {
+    if (message.senderId == myUserId) {
+      return 'Вы';
+    }
+    final String name = message.senderDisplayName.trim();
+    if (name.isNotEmpty && name.toLowerCase() != 'unknown') {
+      return name;
+    }
+    final String username = message.senderUsername.trim();
+    if (username.isNotEmpty && username.toLowerCase() != 'unknown') {
+      return username.startsWith('@') ? username : '@$username';
+    }
+    final int? cid = _chatId;
+    if (cid != null) {
+      final ApiChatSummary? chat = ref.read(chatByIdProvider(cid));
+      final String chatName = (chat?.name ?? '').trim();
+      if (chatName.isNotEmpty) {
+        return chatName;
+      }
+    }
+    return 'Собеседник';
+  }
+
   String? _replyPreviewFor(ApiMessage message, Map<int, ApiMessage> byId) {
     final int? replyToId = message.replyToId;
     if (replyToId == null) {
@@ -1491,8 +1573,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (target == null) {
       return context.l10n.chatReplyToId(replyToId);
     }
-    final String text = _displayText(target);
-    return '${target.senderDisplayName}: ${text.length > 64 ? '${text.substring(0, 64)}...' : text}';
+    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+    final String author = _resolveReplyAuthor(target, myUserId);
+    final String snippet = _resolveReplySnippet(target);
+    final String text = '$author: $snippet';
+    return text.length > 64 ? '${text.substring(0, 64)}...' : text;
   }
 
   Future<void> _retrySend(ApiMessage message) async {
@@ -1681,7 +1766,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             ),
             Column(
               children: <Widget>[
-                OfflineBanner(isOffline: !(ref.watch(connectivityProvider).value ?? true)),
+                Consumer(
+                  builder: (BuildContext context, WidgetRef ref, _) {
+                    final bool isOffline =
+                        !(ref.watch(connectivityProvider).value ?? true);
+                    return OfflineBanner(isOffline: isOffline);
+                  },
+                ),
                 if (chat?.isSecret == true)
                   GestureDetector(
                     onTap: _showE2eeVerification,
@@ -1758,6 +1849,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                         authUserId: myUserId,
                         amAdminOrOwner: amAdminOrOwner,
                         isChannel: isChannel,
+                        isGroup: isGroup,
+                        onOpenComments: (ApiMessage msg) {
+                          context.push('/channel/$chatId/post/${msg.id}/comments');
+                        },
                         onOpenMedia: _handleOpenMediaFor,
                         onLongPressMedia: _handleLongPressMediaFor,
                         onLongPress: _handleLongPressFor,

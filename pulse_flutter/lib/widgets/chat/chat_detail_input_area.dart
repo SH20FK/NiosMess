@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/inline_query_model.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
+import 'package:pulse_flutter/providers/chat_muted_provider.dart';
 import 'package:pulse_flutter/providers/inline_query_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_input_bar.dart';
 import 'package:pulse_flutter/widgets/chat/inline_query_overlay.dart';
@@ -196,21 +199,110 @@ class ChatDetailInputArea extends ConsumerWidget {
                     ],
                   ),
                 )
-              : Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: Text(
-                      context.l10n.chatOnlyAdminsCanPost,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+              : _ChannelSubscriberBar(
+                  chatId: chatId,
+                  hapticsEnabled: hapticsEnabled,
                 ),
         ),
       ),
     );
   }
 }
+
+class _ChannelSubscriberBar extends ConsumerWidget {
+  const _ChannelSubscriberBar({
+    required this.chatId,
+    required this.hapticsEnabled,
+  });
+
+  final int? chatId;
+  final bool hapticsEnabled;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme textTheme = theme.textTheme;
+
+    final bool isMuted = chatId != null
+        ? (ref.watch(chatMutedProvider(chatId!)).value ?? false)
+        : false;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(
+          top: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.25),
+            width: 0.8,
+          ),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              context.l10n.chatOnlyAdminsCanPost,
+              style: textTheme.labelSmall?.copyWith(
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: FilledButton.tonalIcon(
+              style: FilledButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                backgroundColor: isMuted
+                    ? scheme.surfaceContainerHighest
+                    : scheme.primaryContainer.withValues(alpha: 0.6),
+                foregroundColor: isMuted
+                    ? scheme.onSurfaceVariant
+                    : scheme.onPrimaryContainer,
+              ),
+              icon: Icon(
+                isMuted
+                    ? Icons.notifications_off_rounded
+                    : Icons.notifications_active_rounded,
+                size: 20,
+              ),
+              label: Text(
+                isMuted ? 'ВКЛЮЧИТЬ УВЕДОМЛЕНИЯ' : 'ОТКЛЮЧИТЬ УВЕДОМЛЕНИЯ',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                  fontSize: 13,
+                ),
+              ),
+              onPressed: () async {
+                if (hapticsEnabled) {
+                  HapticService.tap();
+                }
+                if (chatId != null) {
+                  await ref.read(chatMutedProvider(chatId!).notifier).toggle();
+                  if (context.mounted) {
+                    AppToast.showInfo(
+                      context,
+                      isMuted
+                          ? 'Уведомления включены'
+                          : 'Уведомления отключены',
+                    );
+                  }
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

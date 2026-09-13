@@ -26,6 +26,7 @@ class TouchContainer extends StatefulWidget {
     this.enabled = true,
     this.enableHaptics = true,
     this.scaleDown = AppMotion.scalePressed,
+    this.releaseCurve,
     this.boxShadow,
   });
 
@@ -73,6 +74,9 @@ class TouchContainer extends StatefulWidget {
 
   /// The scale factor applied when pressed (defaults to 0.975x).
   final double scaleDown;
+
+  /// Custom curve used when releasing the touch press.
+  final Curve? releaseCurve;
 
   /// Optional box shadows.
   final List<BoxShadow>? boxShadow;
@@ -182,7 +186,9 @@ class _TouchContainerState extends State<TouchContainer> {
         duration: _isPressed
             ? AppMotion.durationPress
             : AppMotion.durationRelease,
-        curve: _isPressed ? Curves.easeOutCubic : AppMotion.spring,
+        curve: _isPressed
+            ? Curves.easeOutCubic
+            : (widget.releaseCurve ?? AppMotion.spring),
         child: container,
       ),
     );

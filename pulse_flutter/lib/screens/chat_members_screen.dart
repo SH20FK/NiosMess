@@ -11,6 +11,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/app_error_banner.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/chat/moderation_bottom_sheet.dart';
@@ -211,6 +212,32 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
     }
   }
 
+  Future<void> _kick(ApiChatMember member) async {
+    final bool? confirm = await showAppConfirmDialog(
+      context: context,
+      title: 'Исключить участника?',
+      subtitle: 'Участник @${member.username} будет исключен из группы.',
+      confirmLabel: 'Исключить',
+      cancelLabel: context.l10n.commonCancel,
+      destructive: true,
+      icon: Icons.person_remove_rounded,
+    );
+    if (confirm != true || !mounted) return;
+    setState(() => _actionBusy = true);
+    try {
+      await ref
+          .read(chatRepositoryProvider)
+          .banUser(widget.chatId, member.userId, true);
+      if (!mounted) return;
+      AppToast.showSuccess(context, 'Участник исключен');
+      await _loadMembers();
+    } catch (e) {
+      if (mounted) AppToast.showError(context, e);
+    } finally {
+      if (mounted) setState(() => _actionBusy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
@@ -342,18 +369,66 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                                                   ],
                                                   if (member.isOwner) ...<Widget>[
                                                     const SizedBox(width: 6),
-                                                    Icon(
-                                                      Icons.star_rounded,
-                                                      size: 16,
-                                                      color: scheme.primary,
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: scheme.primaryContainer.withValues(alpha: 0.7),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: <Widget>[
+                                                          Icon(
+                                                            Icons.star_rounded,
+                                                            size: 11,
+                                                            color: scheme.primary,
+                                                          ),
+                                                          const SizedBox(width: 3),
+                                                          Text(
+                                                            context.l10n.chatMembersRoleOwner,
+                                                            style: textTheme.labelSmall?.copyWith(
+                                                              color: scheme.primary,
+                                                              fontWeight: FontWeight.w700,
+                                                              fontSize: 10,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
                                                     ),
                                                   ],
                                                   if (member.isAdmin && !member.isOwner) ...<Widget>[
                                                     const SizedBox(width: 6),
-                                                    Icon(
-                                                      Icons.shield_rounded,
-                                                      size: 14,
-                                                      color: scheme.tertiary,
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: scheme.tertiaryContainer.withValues(alpha: 0.7),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: <Widget>[
+                                                          Icon(
+                                                            Icons.shield_rounded,
+                                                            size: 11,
+                                                            color: scheme.tertiary,
+                                                          ),
+                                                          const SizedBox(width: 3),
+                                                          Text(
+                                                            context.l10n.chatMembersRoleAdmin,
+                                                            style: textTheme.labelSmall?.copyWith(
+                                                              color: scheme.tertiary,
+                                                              fontWeight: FontWeight.w700,
+                                                              fontSize: 10,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
                                                     ),
                                                   ],
                                                 ],
@@ -373,13 +448,13 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                                             onSelected: (String action) {
                                               switch (action) {
                                                 case 'moderate':
-                                                case 'ban':
-                                                case 'mute':
                                                   _openModeration(member);
                                                 case 'admin':
                                                   _promote(member, 'admin');
                                                 case 'member':
                                                   _promote(member, 'member');
+                                                case 'kick':
+                                                  _kick(member);
                                               }
                                             },
                                             itemBuilder: (BuildContext ctx) =>
@@ -397,15 +472,41 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                                                   if (!member.isAdmin && !member.isOwner)
                                                     PopupMenuItem<String>(
                                                       value: 'admin',
-                                                      child: Text(
-                                                        context.l10n.chatMembersPromoteAdmin,
+                                                      child: Row(
+                                                        children: <Widget>[
+                                                          Icon(Icons.shield_rounded, size: 18, color: scheme.tertiary),
+                                                          const SizedBox(width: 8),
+                                                          Text(
+                                                            context.l10n.chatMembersPromoteAdmin,
+                                                          ),
+                                                        ],
                                                       ),
                                                     ),
                                                   if (member.isAdmin && !member.isOwner)
                                                     PopupMenuItem<String>(
                                                       value: 'member',
-                                                      child: Text(
-                                                        context.l10n.chatMembersDemoteMember,
+                                                      child: Row(
+                                                        children: <Widget>[
+                                                          Icon(Icons.person_outline_rounded, size: 18, color: scheme.onSurfaceVariant),
+                                                          const SizedBox(width: 8),
+                                                          Text(
+                                                            context.l10n.chatMembersDemoteMember,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  if (!member.isOwner)
+                                                    PopupMenuItem<String>(
+                                                      value: 'kick',
+                                                      child: Row(
+                                                        children: <Widget>[
+                                                          Icon(Icons.person_remove_rounded, size: 18, color: scheme.error),
+                                                          const SizedBox(width: 8),
+                                                          Text(
+                                                            'Исключить из группы',
+                                                            style: TextStyle(color: scheme.error),
+                                                          ),
+                                                        ],
                                                       ),
                                                     ),
                                                 ],

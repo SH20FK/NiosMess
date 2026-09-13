@@ -27,6 +27,7 @@ import 'package:pulse_flutter/widgets/offline_banner.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/core/services/biometric_service.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 class MainShellScreen extends ConsumerStatefulWidget {
@@ -39,7 +40,7 @@ class MainShellScreen extends ConsumerStatefulWidget {
 }
 
 class _MainShellScreenState extends ConsumerState<MainShellScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   static const List<String> _tabs = <String>[
     'chats',
     'contacts',
@@ -48,6 +49,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   ];
 
   late final Set<int> _activatedTabs;
+  late final AnimationController _tabAnimController;
+  late final Animation<double> _tabFadeAnimation;
+  late final Animation<double> _tabScaleAnimation;
 
   bool _biometricLocked = false;
   double _desktopChatListWidth = 360.0;
@@ -58,6 +62,20 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _activatedTabs = <int>{_tabIndex(widget.tab)};
+    _tabAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    )..value = 1.0;
+    _tabFadeAnimation = CurvedAnimation(
+      parent: _tabAnimController,
+      curve: Curves.easeOutCubic,
+    );
+    _tabScaleAnimation = Tween<double>(begin: 0.98, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _tabAnimController,
+        curve: M3SpringCurves.spatial,
+      ),
+    );
     _checkBiometricLock();
     _showAlphaDialog();
     _checkWebPushPrompt();
@@ -200,12 +218,14 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
           _activatedTabs.add(nextIndex);
         });
       }
+      _tabAnimController.forward(from: 0.0);
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _tabAnimController.dispose();
     super.dispose();
   }
 
@@ -339,14 +359,20 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               : const NiosgramScreen(),
           const ProfileScreen(),
         ];
-        final Widget body = IndexedStack(
-          index: currentIndex,
-          children: List<Widget>.generate(pages.length, (int index) {
-            if (!_activatedTabs.contains(index)) {
-              return const SizedBox.shrink();
-            }
-            return RepaintBoundary(child: pages[index]);
-          }),
+        final Widget body = FadeTransition(
+          opacity: _tabFadeAnimation,
+          child: ScaleTransition(
+            scale: _tabScaleAnimation,
+            child: IndexedStack(
+              index: currentIndex,
+              children: List<Widget>.generate(pages.length, (int index) {
+                if (!_activatedTabs.contains(index)) {
+                  return const SizedBox.shrink();
+                }
+                return RepaintBoundary(child: pages[index]);
+              }),
+            ),
+          ),
         );
 
         if (isWide) {

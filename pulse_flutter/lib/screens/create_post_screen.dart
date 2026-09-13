@@ -498,6 +498,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                                             _previewBytesList[index],
                                             width: 84,
                                             height: 84,
+                                            cacheWidth: 200,
+                                            cacheHeight: 200,
                                             fit: BoxFit.cover,
                                           ),
                                   ),

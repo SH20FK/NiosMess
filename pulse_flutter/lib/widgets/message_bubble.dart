@@ -32,6 +32,11 @@ import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
+final RegExp _interactiveTokenRegExp = RegExp(
+  r"""((?:https?:\/\/|niosmess:\/\/|tg:\/\/)[^\s<>"'\)]+|\b(?:t\.me|telegram\.me|ni-os\.ru)\/[^\s<>"'\)]+|@([a-zA-Z0-9_]{3,32}))""",
+  caseSensitive: false,
+);
+
 class MessageBubble extends ConsumerWidget {
   const MessageBubble({
     required this.text,
@@ -76,6 +81,9 @@ class MessageBubble extends ConsumerWidget {
     this.onRetrySend,
     this.uploadProgress,
     this.localId,
+    this.isChannel = false,
+    this.commentsCount = 0,
+    this.onOpenComments,
     super.key,
   });
 
@@ -123,6 +131,9 @@ class MessageBubble extends ConsumerWidget {
   final VoidCallback? onRetrySend;
   final double? uploadProgress;
   final String? localId;
+  final bool isChannel;
+  final int commentsCount;
+  final VoidCallback? onOpenComments;
 
   List<String> get mediaUrls {
     if (mediaUrl == null || mediaUrl!.trim().isEmpty) return [];
@@ -153,88 +164,6 @@ class MessageBubble extends ConsumerWidget {
       position: position,
       baseRadius: outer,
     );
-  }
-
-  static final RegExp _interactiveTokenRegExp = RegExp(
-    r"""((?:https?:\/\/|niosmess:\/\/|tg:\/\/)[^\s<>"'\)]+|\b(?:t\.me|telegram\.me|ni-os\.ru)\/[^\s<>"'\)]+|@([a-zA-Z0-9_]{3,32}))""",
-    caseSensitive: false,
-  );
-
-  static TextSpan _parseTextWithMentions(
-    BuildContext context,
-    String text,
-    TextStyle baseStyle,
-    bool isMine,
-    ColorScheme scheme,
-  ) {
-    final int lastMatch = text.length;
-    final List<TextSpan> spans = <TextSpan>[];
-    int lastEnd = 0;
-
-    final Color linkColor = isMine
-        ? scheme.onPrimaryContainer
-        : scheme.primary;
-
-    for (final RegExpMatch match in _interactiveTokenRegExp.allMatches(text)) {
-      if (match.start > lastEnd) {
-        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
-      }
-
-      final String rawToken = match.group(0)!;
-      String token = rawToken;
-      String trailingPunctuation = '';
-
-      // Strip trailing punctuation from URL or mention
-      while (token.isNotEmpty &&
-          (token.endsWith('.') ||
-              token.endsWith(',') ||
-              token.endsWith('!') ||
-              token.endsWith('?') ||
-              token.endsWith(';') ||
-              token.endsWith(':') ||
-              token.endsWith(')') ||
-              token.endsWith(']'))) {
-        trailingPunctuation = token[token.length - 1] + trailingPunctuation;
-        token = token.substring(0, token.length - 1);
-      }
-
-      if (token.startsWith('@')) {
-        final String username = token.substring(1);
-        spans.add(TextSpan(
-          text: token,
-          style: baseStyle.copyWith(
-            color: linkColor,
-            fontWeight: FontWeight.w600,
-          ),
-          recognizer: TapGestureRecognizer()
-            ..onTap = () => AppUrlLauncher.openUrl(context, '/g/$username'),
-        ));
-      } else {
-        spans.add(TextSpan(
-          text: token,
-          style: baseStyle.copyWith(
-            color: linkColor,
-            fontWeight: FontWeight.w600,
-            decoration: TextDecoration.underline,
-            decorationColor: linkColor.withValues(alpha: 0.4),
-          ),
-          recognizer: TapGestureRecognizer()
-            ..onTap = () => AppUrlLauncher.openUrl(context, token),
-        ));
-      }
-
-      if (trailingPunctuation.isNotEmpty) {
-        spans.add(TextSpan(text: trailingPunctuation));
-      }
-
-      lastEnd = match.end;
-    }
-
-    if (lastEnd < lastMatch) {
-      spans.add(TextSpan(text: text.substring(lastEnd)));
-    }
-
-    return TextSpan(style: baseStyle, children: spans);
   }
 
   @override
@@ -290,8 +219,39 @@ class MessageBubble extends ConsumerWidget {
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: <Widget>[
-            if (isSticker && (sticker != null || hasMedia))
-              _buildStickerContent(context, scheme, textTheme)
+            if (isSticker && (sticker != null || hasMedia)) ...<Widget>[
+              if ((replyPreview ?? '').trim().isNotEmpty)
+                GestureDetector(
+                  onTap: onReplyTap,
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border(
+                        left: BorderSide(
+                          color: isMine ? scheme.primary : scheme.secondary,
+                          width: 3,
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      replyPreview!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              _buildStickerContent(context, scheme, textTheme),
+            ]
             else if (isCircleVideo && hasMedia)
               _buildCircleVideoContent(context, scheme, textTheme,
                 ref: ref,
@@ -362,30 +322,42 @@ class MessageBubble extends ConsumerWidget {
                         textTheme: textTheme,
                       ),
                       if ((replyPreview ?? '').trim().isNotEmpty)
-                        GestureDetector(
-                          onTap: onReplyTap,
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.only(left: 8),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                left: BorderSide(
-                                  color: isMine
-                                      ? scheme.primary
-                                      : scheme.secondary,
-                                  width: 2.5,
+                        MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: onReplyTap,
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: (isMine ? scheme.primary : scheme.secondary)
+                                    .withValues(alpha: 0.12),
+                                borderRadius: const BorderRadius.only(
+                                  topRight: Radius.circular(8),
+                                  bottomRight: Radius.circular(8),
+                                ),
+                                border: Border(
+                                  left: BorderSide(
+                                    color: isMine
+                                        ? scheme.primary
+                                        : scheme.secondary,
+                                    width: 3,
+                                  ),
                                 ),
                               ),
-                            ),
-                            child: Text(
-                              replyPreview!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.labelSmall?.copyWith(
-                                color: isMine
-                                    ? scheme.primary
-                                    : scheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w600,
+                              child: Text(
+                                replyPreview!,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: isMine
+                                      ? scheme.primary
+                                      : scheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),
@@ -492,6 +464,15 @@ class MessageBubble extends ConsumerWidget {
                             textTheme: textTheme,
                           ),
                         ),
+                      if (isChannel && onOpenComments != null) ...<Widget>[
+                        const SizedBox(height: 6),
+                        _ChannelCommentsBar(
+                          commentsCount: commentsCount,
+                          scheme: scheme,
+                          textTheme: textTheme,
+                          onTap: onOpenComments!,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -561,33 +542,11 @@ class MessageBubble extends ConsumerWidget {
       );
     }
 
-if (onSwipeToReply != null) {
+      if (onSwipeToReply != null) {
         content = _SwipeToReply(
           onReply: onSwipeToReply!,
           scheme: scheme,
           child: content,
-        );
-      }
-
-      // Add indentation for replies
-      if (replyToId != null) {
-        content = Padding(
-          padding: const EdgeInsets.only(left: 48),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              content,
-              Positioned(
-                left: -40,
-                top: 0,
-                bottom: 0,
-                child: Container(
-                  width: 2,
-                  color: scheme.outlineVariant.withValues(alpha: 0.4),
-                ),
-              ),
-            ],
-          ),
         );
       }
 
@@ -1047,19 +1006,16 @@ if (onSwipeToReply != null) {
     required bool hideFooter,
     required Widget footer,
   }) {
-    final Widget textWidget = Text.rich(
-      _parseTextWithMentions(
-        context,
-        text,
-        textTheme.bodyMedium?.copyWith(
-          color: textColor,
-          fontSize: 15,
-          height: 1.35,
-          fontStyle: isDeleted ? FontStyle.italic : null,
-        ) ?? const TextStyle(fontSize: 15, height: 1.35),
-        isMine,
-        scheme,
-      ),
+    final Widget textWidget = _InteractiveMessageText(
+      text: text,
+      baseStyle: textTheme.bodyMedium?.copyWith(
+        color: textColor,
+        fontSize: 15,
+        height: 1.35,
+        fontStyle: isDeleted ? FontStyle.italic : null,
+      ) ?? const TextStyle(fontSize: 15, height: 1.35),
+      isMine: isMine,
+      scheme: scheme,
     );
 
     if (hideFooter) {
@@ -1095,6 +1051,151 @@ if (onSwipeToReply != null) {
         footer,
       ],
     );
+  }
+}
+
+class _InteractiveMessageText extends StatefulWidget {
+  const _InteractiveMessageText({
+    required this.text,
+    required this.baseStyle,
+    required this.isMine,
+    required this.scheme,
+  });
+
+  final String text;
+  final TextStyle baseStyle;
+  final bool isMine;
+  final ColorScheme scheme;
+
+  @override
+  State<_InteractiveMessageText> createState() => _InteractiveMessageTextState();
+}
+
+class _InteractiveMessageTextState extends State<_InteractiveMessageText> {
+  final List<TapGestureRecognizer> _recognizers = <TapGestureRecognizer>[];
+  late TextSpan _cachedSpan;
+
+  @override
+  void initState() {
+    super.initState();
+    _rebuildSpans();
+  }
+
+  @override
+  void didUpdateWidget(covariant _InteractiveMessageText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text ||
+        oldWidget.baseStyle != widget.baseStyle ||
+        oldWidget.isMine != widget.isMine ||
+        oldWidget.scheme != widget.scheme) {
+      _disposeRecognizers();
+      _rebuildSpans();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposeRecognizers();
+    super.dispose();
+  }
+
+  void _disposeRecognizers() {
+    for (final TapGestureRecognizer recognizer in _recognizers) {
+      recognizer.dispose();
+    }
+    _recognizers.clear();
+  }
+
+  void _rebuildSpans() {
+    final Color linkColor = widget.isMine
+        ? widget.scheme.onPrimaryContainer
+        : widget.scheme.primary;
+
+    final String text = widget.text;
+    final int lastMatch = text.length;
+    final List<TextSpan> spans = <TextSpan>[];
+    int lastEnd = 0;
+
+    for (final RegExpMatch match
+        in _interactiveTokenRegExp.allMatches(text)) {
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
+      }
+
+      final String rawToken = match.group(0)!;
+      String token = rawToken;
+      String trailingPunctuation = '';
+
+      while (token.isNotEmpty &&
+          (token.endsWith('.') ||
+              token.endsWith(',') ||
+              token.endsWith('!') ||
+              token.endsWith('?') ||
+              token.endsWith(';') ||
+              token.endsWith(':') ||
+              token.endsWith(')') ||
+              token.endsWith(']'))) {
+        trailingPunctuation = token[token.length - 1] + trailingPunctuation;
+        token = token.substring(0, token.length - 1);
+      }
+
+      if (token.startsWith('@')) {
+        final String username = token.substring(1);
+        final TapGestureRecognizer recognizer = TapGestureRecognizer()
+          ..onTap = () {
+            if (mounted) {
+              AppUrlLauncher.openUrl(context, '/g/$username');
+            }
+          };
+        _recognizers.add(recognizer);
+        spans.add(TextSpan(
+          text: token,
+          style: widget.baseStyle.copyWith(
+            color: linkColor,
+            fontWeight: FontWeight.w600,
+          ),
+          recognizer: recognizer,
+        ));
+      } else {
+        final TapGestureRecognizer recognizer = TapGestureRecognizer()
+          ..onTap = () {
+            if (mounted) {
+              AppUrlLauncher.openUrl(context, token);
+            }
+          };
+        _recognizers.add(recognizer);
+        spans.add(TextSpan(
+          text: token,
+          style: widget.baseStyle.copyWith(
+            color: linkColor,
+            fontWeight: FontWeight.w600,
+            decoration: TextDecoration.underline,
+            decorationColor: linkColor.withValues(alpha: 0.4),
+          ),
+          recognizer: recognizer,
+        ));
+      }
+
+      if (trailingPunctuation.isNotEmpty) {
+        spans.add(TextSpan(text: trailingPunctuation));
+      }
+
+      lastEnd = match.end;
+    }
+
+    if (lastEnd < lastMatch) {
+      spans.add(TextSpan(text: text.substring(lastEnd)));
+    }
+
+    _cachedSpan = TextSpan(
+      style: widget.baseStyle,
+      children: spans,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(_cachedSpan);
   }
 }
 
@@ -1155,7 +1256,10 @@ class _MessageBubbleHeader extends StatelessWidget {
               senderDisplayName!,
               style: textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w800,
-                color: scheme.primary,
+                color: _getAuthorColor(
+                  senderDisplayName!,
+                  Theme.of(context).brightness == Brightness.dark,
+                ),
               ),
             ),
           ...visibleBadges.map(
@@ -1169,6 +1273,113 @@ class _MessageBubbleHeader extends StatelessWidget {
           ),
           if (hiddenBadgeCount > 0) BadgeOverflowChip(count: hiddenBadgeCount),
         ],
+      ),
+    );
+  }
+
+  static Color _getAuthorColor(String name, bool isDark) {
+    const lightPalette = <Color>[
+      Color(0xFF00796B), // Teal
+      Color(0xFFE65100), // Deep Orange
+      Color(0xFF6A1B9A), // Purple
+      Color(0xFF1565C0), // Blue
+      Color(0xFF2E7D32), // Green
+      Color(0xFFC2185B), // Pink
+      Color(0xFFD84315), // Rust
+      Color(0xFF0277BD), // Light Blue
+    ];
+    const darkPalette = <Color>[
+      Color(0xFF4DB6AC), // Teal light
+      Color(0xFFFFB74D), // Orange light
+      Color(0xFFBA68C8), // Purple light
+      Color(0xFF64B5F6), // Blue light
+      Color(0xFF81C784), // Green light
+      Color(0xFFFF80AB), // Pink light
+      Color(0xFFFF8A65), // Rust light
+      Color(0xFF4FC3F7), // Light blue
+    ];
+    final palette = isDark ? darkPalette : lightPalette;
+    if (name.isEmpty) return palette[0];
+    final int hash = name.codeUnits.fold(0, (int prev, int elem) => prev + elem);
+    return palette[hash.abs() % palette.length];
+  }
+}
+
+class _ChannelCommentsBar extends StatelessWidget {
+  const _ChannelCommentsBar({
+    required this.commentsCount,
+    required this.scheme,
+    required this.textTheme,
+    required this.onTap,
+  });
+
+  final int commentsCount;
+  final ColorScheme scheme;
+  final TextTheme textTheme;
+  final VoidCallback onTap;
+
+  static String _pluralComments(int n) {
+    final int mod10 = n % 10;
+    final int mod100 = n % 100;
+    if (mod100 >= 11 && mod100 <= 19) return 'комментариев';
+    if (mod10 == 1) return 'комментарий';
+    if (mod10 >= 2 && mod10 <= 4) return 'комментария';
+    return 'комментариев';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String label = commentsCount > 0
+        ? '$commentsCount ${_pluralComments(commentsCount)}'
+        : 'Прокомментировать';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticService.tap();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.25),
+              width: 0.5,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 15,
+                    color: scheme.primary,
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    label,
+                    style: textTheme.labelMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: scheme.primary.withValues(alpha: 0.7),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

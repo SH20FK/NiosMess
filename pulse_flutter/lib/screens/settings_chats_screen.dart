@@ -190,7 +190,26 @@ class SettingsChatsScreen extends ConsumerWidget {
           ],
         ),
 
-        // 4. Chat wallpaper & visual
+        // 4. Camera & Video circles
+        SettingsSection(
+          title: 'Камера и видеосообщения',
+          subtitle: 'Аппаратная оптимизация и бесшовное переключение сенсоров',
+          children: <Widget>[
+            SettingsSwitchTile(
+              icon: Icons.camera_enhance_rounded,
+              title: 'Camera2 API',
+              subtitle:
+                  'Бесшовное переключение камер без задержки и рывков при записи видео и кружков',
+              iconColor: scheme.primary,
+              value: settings.camera2Api,
+              onChanged: (bool value) {
+                ref.read(uiSettingsProvider.notifier).setCamera2Api(value);
+              },
+            ),
+          ],
+        ),
+
+        // 5. Chat wallpaper & visual
         SettingsSection(
           title: 'Оформление и фон',
           subtitle: 'Индивидуальные обои и генератор векторных узоров',

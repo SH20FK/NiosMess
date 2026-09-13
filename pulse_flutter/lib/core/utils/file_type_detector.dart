@@ -265,8 +265,9 @@ class FileTypeDetector {
     String? fileName,
     String? url,
   }) {
-    final String type = (mediaType ?? '').toLowerCase();
     final String msg = (msgType ?? '').toLowerCase();
+    if (msg == 'sticker') return false;
+    final String type = (mediaType ?? '').toLowerCase();
     final String name = (fileName ?? '').toLowerCase();
     final String urlLower = (url ?? '').toLowerCase();
 
@@ -296,8 +297,9 @@ class FileTypeDetector {
     String? fileName,
     String? url,
   }) {
-    final String type = (mediaType ?? '').toLowerCase();
     final String msg = (msgType ?? '').toLowerCase();
+    if (msg == 'sticker') return false;
+    final String type = (mediaType ?? '').toLowerCase();
     final String name = (fileName ?? '').toLowerCase();
     final String urlLower = (url ?? '').toLowerCase();
 

@@ -39,16 +39,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _startFlow() async {
-    await Future<void>.delayed(2200.ms);
-    if (!mounted) {
-      return;
-    }
-
-    await Future.wait(<Future<void>>[
+    final Future<void> minDisplayDelay =
+        Future<void>.delayed(const Duration(milliseconds: 350));
+    final Future<void> initialization = Future.wait(<Future<void>>[
       ref.read(sessionProvider.notifier).ensureLoaded(),
       ref.read(authProvider.notifier).ensureLoaded(),
       PermissionService().requestInitialPermissionsIfNeeded(),
     ]);
+
+    await Future.wait(<Future<void>>[minDisplayDelay, initialization]);
     if (!mounted) {
       return;
     }
