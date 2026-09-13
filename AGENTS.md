@@ -72,6 +72,27 @@ flutter analyze                # Static analysis
 - **Integration**: `flutter test integration_test/` (integration_test SDK)
 - Location: `test/` (unit/widget), `integration_test/` (integration)
 
+## Material 3 Expressive Component Protocol (MANDATORY FOR ALL TASKS)
+Always prioritize true Material 3 Expressive (M3E) components over legacy Material 2 (MD2) widgets. Before using any standard Flutter Material widget, verify against [m3.material.io/components](https://m3.material.io/components) to confirm whether it is a modern M3 Expressive component or a legacy MD2 remnant.
+
+### STRICTLY PROHIBITED (without explicit justification):
+1. **Direct `CircularProgressIndicator` / `LinearProgressIndicator`**:
+   - MUST use `AppLoadingIndicator` (`package:pulse_flutter/widgets/pulse_loading_indicator.dart`).
+   - It wraps `loading_indicator_m3e` — true M3 Expressive morphing/wave animated indicator, never a bare circle or bar.
+2. **`ElevatedButton` with elevation > 0**:
+   - MD3 buttons are flat by default (`elevation: 0`).
+   - Elevation is only permitted for `FloatingActionButton` (and kept minimal).
+3. **`Card` / `Container` with harsh `BoxShadow` drop shadows**:
+   - Visual depth and layering MUST be achieved through tonal color surfaces (`colorScheme.surfaceContainer`, `surfaceContainerLow`, `surfaceContainerHigh`, `surfaceContainerHighest`), NOT drop shadows.
+4. **`PopupMenuButton` for user actions**:
+   - Prefer `MenuAnchor` (modern Flutter M3 API) or a custom inline expressive action panel / sheet (similar to the chat action bar).
+5. **Plain rectangular `Container` for accent icons/badges/logos**:
+   - Use `flutter_m3shapes` (already installed) or expressively rounded squircles instead of plain squares or circles.
+6. **Unchecked `Switch` / `Checkbox`**:
+   - Ensure the widget uses M3 styling with `useMaterial3: true` explicitly guaranteed in the theme. Always prefer M3 Expressive switches/checkboxes.
+7. **Always Material 3 Expressive**:
+   - Whenever an M3 Expressive component, spring motion curve (`M3SpringCurves`), tonal elevation, or expressive shape exists, ALWAYS use it across all tasks and screens without exception.
+
 ## Code Style / Lints
 - `flutter_lints: ^6.0.0` (via `analysis_options.yaml`)
 - Run `flutter analyze` before commit
