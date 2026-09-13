@@ -318,7 +318,11 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
           );
         }
 
-        Widget buildBubble({double? progress}) {
+        Widget buildBubble({
+          double? progress,
+          int? bytesSent,
+          int? totalBytes,
+        }) {
           return MessageBubble(
             key: ValueKey<int>(message.id),
             chatId: message.chatId,
@@ -346,6 +350,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             mediaUrl: mediaUrl,
             mediaIsImage: isImageMedia,
             mediaLabel: mediaLabel,
+            mediaSize: totalBytes ?? message.mediaSize,
             isVoice: isVoice,
             isCircleVideo: isCircleVideo,
             isSticker: isSticker,
@@ -380,6 +385,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             isFailed: message.isFailed,
             onRetrySend: () => widget.onRetrySend(message),
             uploadProgress: progress,
+            uploadBytesSent: bytesSent,
+            uploadTotalBytes: totalBytes,
             localId: isLocalSending ? message.id.toString() : null,
             onOpenMedia: hasMedia ? () => widget.onOpenMedia(message) : null,
             onLongPressMedia: hasMedia
@@ -402,7 +409,13 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
                   final uploadTask = ref.watch(
                     uploadTaskProvider(message.id.toString()),
                   );
-                  return buildBubble(progress: uploadTask?.progress ?? 0.0);
+                  return buildBubble(
+                    progress: uploadTask?.progress ?? 0.0,
+                    bytesSent: uploadTask?.bytesSent,
+                    totalBytes: uploadTask != null && uploadTask.fileSize > 0
+                        ? uploadTask.fileSize
+                        : message.mediaSize,
+                  );
                 },
               )
             : buildBubble(progress: null);
@@ -440,7 +453,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: <Widget>[
-                    if (message.isSending)
+                    if (message.isSending && !hasMedia && !isVoice && !isCircleVideo && !isSticker)
                       const Padding(
                         padding: EdgeInsets.only(right: 8, bottom: 12),
                         child: SizedBox(

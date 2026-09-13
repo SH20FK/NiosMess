@@ -17,6 +17,7 @@ class UploadTask {
     required this.mediaSubtype,
     required this.fileSize,
     required this.progress,
+    this.bytesSent = 0,
     required this.status,
     this.text = '',
     this.replyToId,
@@ -32,6 +33,7 @@ class UploadTask {
   final String mediaSubtype;
   final int fileSize;
   final double progress;
+  final int bytesSent;
   final UploadStatus status;
   final String text;
   final int? replyToId;
@@ -42,6 +44,7 @@ class UploadTask {
 
   UploadTask copyWith({
     double? progress,
+    int? bytesSent,
     UploadStatus? status,
     String? error,
   }) {
@@ -54,6 +57,7 @@ class UploadTask {
       mediaSubtype: mediaSubtype,
       fileSize: fileSize,
       progress: progress ?? this.progress,
+      bytesSent: bytesSent ?? this.bytesSent,
       status: status ?? this.status,
       text: text,
       replyToId: replyToId,
@@ -148,7 +152,10 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
           if (currentTask != null && total > 0) {
             state = {
               ...state,
-              localId: currentTask.copyWith(progress: sent / total),
+              localId: currentTask.copyWith(
+                progress: (sent / total).clamp(0.0, 1.0),
+                bytesSent: sent,
+              ),
             };
           }
         },
@@ -188,12 +195,16 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
         }..remove(localId);
         _pump();
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[UploadQueue] Upload failed for $localId: $e\n$st');
       final currentTask = state[localId];
       if (currentTask != null) {
         state = {
           ...state,
-          localId: currentTask.copyWith(status: UploadStatus.error, error: e.toString()),
+          localId: currentTask.copyWith(
+            status: UploadStatus.error,
+            error: e.toString(),
+          ),
         };
         ref.read(chatMessagesProvider(task.chatId).notifier).markLocalMessageFailed(localId);
         _pump();
@@ -206,7 +217,12 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
     if (task == null || task.status == UploadStatus.uploading) return;
     state = {
       ...state,
-      localId: task.copyWith(status: UploadStatus.pending, progress: 0.0, error: null),
+      localId: task.copyWith(
+        status: UploadStatus.pending,
+        progress: 0.0,
+        bytesSent: 0,
+        error: null,
+      ),
     };
     _pump();
   }

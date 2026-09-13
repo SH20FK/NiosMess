@@ -80,6 +80,9 @@ class MessageBubble extends ConsumerWidget {
     this.isFailed = false,
     this.onRetrySend,
     this.uploadProgress,
+    this.uploadBytesSent,
+    this.uploadTotalBytes,
+    this.mediaSize,
     this.localId,
     this.isChannel = false,
     this.commentsCount = 0,
@@ -130,6 +133,9 @@ class MessageBubble extends ConsumerWidget {
   final bool isFailed;
   final VoidCallback? onRetrySend;
   final double? uploadProgress;
+  final int? uploadBytesSent;
+  final int? uploadTotalBytes;
+  final int? mediaSize;
   final String? localId;
   final bool isChannel;
   final int commentsCount;
@@ -745,6 +751,8 @@ class MessageBubble extends ConsumerWidget {
                 child: ClipOval(
                   child: _UploadProgressOverlay(
                     progress: uploadProgress,
+                    bytesSent: uploadBytesSent,
+                    totalBytes: uploadTotalBytes ?? mediaSize,
                     isMine: isMine,
                     scheme: scheme,
                     onCancel: isMine && localId != null
@@ -855,6 +863,8 @@ class MessageBubble extends ConsumerWidget {
           if (isSending)
             _UploadProgressOverlay(
               progress: uploadProgress,
+              bytesSent: uploadBytesSent,
+              totalBytes: uploadTotalBytes ?? mediaSize,
               isMine: isMine,
               scheme: scheme,
               onCancel: isMine && localId != null
@@ -872,63 +882,130 @@ class MessageBubble extends ConsumerWidget {
       fileName: mediaLabel ?? 'file',
     );
 
-    return Stack(
-      children: [
-        InkWell(
-          onTap: onOpenMedia,
-          onLongPress: onLongPressMedia,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            width: 220,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            decoration: BoxDecoration(
-              color: isMine
-                  ? scheme.onPrimary.withValues(alpha: 0.15)
-                  : scheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: (isMine ? scheme.onPrimary : scheme.primary).withValues(
-                      alpha: 0.12,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
+    final double p = (uploadProgress ?? 0.0).clamp(0.0, 1.0);
+    final int percent = (p * 100).toInt();
+
+    final int? total = uploadTotalBytes ?? mediaSize;
+    final int? sent = uploadBytesSent;
+
+    final String progressSubtitle;
+    if (total != null && total > 0) {
+      if (sent != null && sent > 0) {
+        progressSubtitle = '$percent% • ${FileTypeDetector.formatFileSize(sent)} из ${FileTypeDetector.formatFileSize(total)}';
+      } else {
+        progressSubtitle = '$percent% из ${FileTypeDetector.formatFileSize(total)}';
+      }
+    } else {
+      progressSubtitle = '$percent% • Загрузка...';
+    }
+
+    final String normalSubtitle;
+    if (mediaSize != null && mediaSize! > 0) {
+      normalSubtitle = '${typeInfo.label} • ${FileTypeDetector.formatFileSize(mediaSize!)}';
+    } else {
+      normalSubtitle = '${typeInfo.label} • ${context.l10n.chatTapToPreview}';
+    }
+
+    return Container(
+      width: 240,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: isMine
+            ? scheme.onPrimary.withValues(alpha: 0.15)
+            : scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              if (isSending)
+                SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        value: p > 0.01 ? p : null,
+                        strokeWidth: 3.0,
+                        strokeCap: StrokeCap.round,
+                        color: isMine ? scheme.onPrimary : scheme.primary,
+                        backgroundColor: (isMine ? scheme.onPrimary : scheme.primary)
+                            .withValues(alpha: 0.2),
+                      ),
+                      if (isMine && localId != null)
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(20),
+                            onTap: () {
+                              HapticService.destructive();
+                              ref.read(uploadQueueProvider.notifier).cancel(localId!);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: Icon(
+                                Icons.close_rounded,
+                                color: isMine ? scheme.onPrimary : scheme.primary,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    getIconDataByName(
-                      FileTypeDetector.detect(fileName: mediaLabel ?? '').icon,
+                )
+              else
+                InkWell(
+                  onTap: onOpenMedia,
+                  onLongPress: onLongPressMedia,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: (isMine ? scheme.onPrimary : scheme.primary).withValues(
+                        alpha: 0.12,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    color: isMine ? scheme.onPrimary : scheme.primary,
-                    size: 20,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      getIconDataByName(
+                        FileTypeDetector.detect(fileName: mediaLabel ?? '').icon,
+                      ),
+                      color: isMine ? scheme.onPrimary : scheme.primary,
+                      size: 20,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
+              const SizedBox(width: 10),
+              Expanded(
+                child: InkWell(
+                  onTap: isSending ? null : onOpenMedia,
+                  onLongPress: isSending ? null : onLongPressMedia,
+                  borderRadius: BorderRadius.circular(6),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        (mediaLabel ?? context.l10n.chatOpenAttachment)
-                                .trim()
-                                .isEmpty
+                        (mediaLabel ?? context.l10n.chatOpenAttachment).trim().isEmpty
                             ? context.l10n.chatOpenAttachment
                             : mediaLabel!,
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.bodyMedium?.copyWith(
                           color: textColor,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
-                        '${typeInfo.label} • ${context.l10n.chatTapToPreview}',
+                        isSending ? progressSubtitle : normalSubtitle,
                         style: textTheme.labelSmall?.copyWith(
                           color: isMine
                               ? scheme.onPrimary.withValues(alpha: 0.82)
@@ -938,31 +1015,40 @@ class MessageBubble extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 6),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: isMine ? scheme.onPrimary : scheme.onSurfaceVariant,
-                  size: 18,
+              ),
+              if (!isSending) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isMine ? scheme.onPrimary : scheme.onSurfaceVariant,
+                    size: 20,
+                  ),
+                  onPressed: onOpenMedia,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ],
-            ),
+            ],
           ),
-        ),
-        if (isSending)
-          Positioned.fill(
-            child: _UploadProgressOverlay(
-              progress: uploadProgress,
-              isMine: isMine,
-              scheme: scheme,
-              onCancel: isMine && localId != null
-                  ? () {
-                      HapticService.destructive();
-                      ref.read(uploadQueueProvider.notifier).cancel(localId!);
-                    }
-                  : null,
+          if (isSending) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: p > 0.01 ? p : null,
+                minHeight: 4,
+                strokeCap: StrokeCap.round,
+                backgroundColor: (isMine ? scheme.onPrimary : scheme.primary)
+                    .withValues(alpha: 0.2),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  isMine ? scheme.onPrimary : scheme.primary,
+                ),
+              ),
             ),
-          ),
-      ],
+          ],
+        ],
+      ),
     );
   }
 
@@ -1949,12 +2035,16 @@ class _MediaCarouselState extends State<_MediaCarousel> {
 class _UploadProgressOverlay extends StatelessWidget {
   const _UploadProgressOverlay({
     required this.progress,
+    this.bytesSent,
+    this.totalBytes,
     required this.isMine,
     required this.scheme,
     this.onCancel,
   });
 
   final double? progress;
+  final int? bytesSent;
+  final int? totalBytes;
   final bool isMine;
   final ColorScheme scheme;
   final VoidCallback? onCancel;
@@ -1964,55 +2054,93 @@ class _UploadProgressOverlay extends StatelessWidget {
     final double p = (progress ?? 0.0).clamp(0.0, 1.0);
     final int percent = (p * 100).toInt();
 
+    final String progressLabel;
+    if (totalBytes != null && totalBytes! > 0) {
+      if (bytesSent != null && bytesSent! > 0) {
+        progressLabel = '$percent% • ${FileTypeDetector.formatFileSize(bytesSent!)} / ${FileTypeDetector.formatFileSize(totalBytes!)}';
+      } else {
+        progressLabel = '$percent% • ${FileTypeDetector.formatFileSize(totalBytes!)}';
+      }
+    } else {
+      progressLabel = '$percent%';
+    }
+
     return Center(
       child: Material(
         color: Colors.transparent,
-        child: Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.62),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 10,
-              ),
-            ],
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                width: 44,
-                height: 44,
-                child: CircularProgressIndicator(
-                  value: p > 0.01 ? p : null,
-                  strokeWidth: 3.2,
-                  strokeCap: StrokeCap.round,
-                  backgroundColor: scheme.onSurface.withValues(alpha: 0.25),
-                  valueColor: AlwaysStoppedAnimation<Color>(scheme.onSurface),
-                ),
-              ),
-              if (onCancel != null)
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
-                  onPressed: onCancel,
-                  tooltip: 'Отменить',
-                )
-              else
-                Text(
-                  '$percent%',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.85),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: scheme.shadow.withValues(alpha: 0.2),
+                    blurRadius: 10,
                   ),
+                ],
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: CircularProgressIndicator(
+                      value: p > 0.01 ? p : null,
+                      strokeWidth: 3.2,
+                      strokeCap: StrokeCap.round,
+                      backgroundColor: scheme.onSurface.withValues(alpha: 0.2),
+                      valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+                    ),
+                  ),
+                  if (onCancel != null)
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: Icon(Icons.close_rounded, color: scheme.onSurface, size: 22),
+                      onPressed: onCancel,
+                      tooltip: 'Отменить',
+                    )
+                  else
+                    Text(
+                      '$percent%',
+                      style: TextStyle(
+                        color: scheme.onSurface,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.88),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: scheme.shadow.withValues(alpha: 0.15),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: Text(
+                progressLabel,
+                style: TextStyle(
+                  color: scheme.onSurface,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
                 ),
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );

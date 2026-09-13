@@ -418,6 +418,7 @@ class ChatRepository {
             'chunk_index': chunkIndex,
             'chunk_base64': base64Encode(chunk),
           },
+          timeout: const Duration(seconds: 60),
         );
 
     final Map<String, dynamic> map = asStringMap(response);
@@ -452,6 +453,7 @@ class ChatRepository {
         onProgress: onProgress,
       );
     } catch (e) {
+      debugPrint('[chat_repository] HTTP upload failed: $e, falling back to WS chunked upload...');
       return await _wsChunkedUpload(
         bytes: bytes,
         filePath: filePath,
@@ -476,6 +478,7 @@ class ChatRepository {
     final uri = Uri.parse(uploadUrl);
 
     final request = http.MultipartRequest('POST', uri);
+    request.headers['Authorization'] = 'Bearer $token';
     request.fields['token'] = token;
     request.fields['media_subtype'] = mediaSubtype;
 
