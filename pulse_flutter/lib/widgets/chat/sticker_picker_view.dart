@@ -10,6 +10,7 @@ import 'package:pulse_flutter/widgets/chat/add_sticker_dialog.dart';
 import 'package:pulse_flutter/widgets/chat/create_sticker_set_dialog.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_modal.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 /// Material 3 Expressive Sticker Picker View with fluid spring physics,
 /// bouncy press feedback, compact header, and animated squircle pack dock.
@@ -70,15 +71,9 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
         ref.watch(stickerSetsProvider);
 
     return stickerSetsAsync.when(
-      loading: () => Center(
-        child: SizedBox(
-          width: 32,
-          height: 32,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            color: scheme.primary,
-          ),
-        ),
+      loading: () => AppLoadingIndicator(
+        size: 32,
+        color: scheme.primary,
       ),
       error: (Object error, StackTrace? _) => Center(
         child: Column(
@@ -611,15 +606,9 @@ class _ExpressiveStickerTileState extends State<_ExpressiveStickerTile> {
             fit: BoxFit.contain,
             memCacheWidth: 200,
             memCacheHeight: 200,
-            placeholder: (_, _) => Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: scheme.primary.withValues(alpha: 0.4),
-                ),
-              ),
+            placeholder: (_, _) => AppLoadingIndicator(
+              size: 18,
+              color: scheme.primary.withValues(alpha: 0.4),
             ),
             errorWidget: (_, _, _) => Icon(
               Icons.sticky_note_2_outlined,

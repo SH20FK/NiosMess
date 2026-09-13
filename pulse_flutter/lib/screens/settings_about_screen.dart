@@ -19,6 +19,7 @@ import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class SettingsAboutScreen extends ConsumerStatefulWidget {
   const SettingsAboutScreen({
@@ -361,13 +362,9 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
               minimumSize: const Size(0, 38),
             ),
             child: _isCheckingUpdate
-                ? SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
-                    ),
+                ? AppLoadingIndicator(
+                    size: 16,
+                    color: scheme.primary,
                   )
                 : Row(
                     mainAxisSize: MainAxisSize.min,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
@@ -8,6 +9,7 @@ import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class BlockedUsersScreen extends ConsumerStatefulWidget {
   const BlockedUsersScreen({super.key});
@@ -40,9 +42,9 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
 
     final ApiSearchUser? picked = await showUserSearchPickerSheet(
       context,
-      title: 'Заблокировать пользователя',
-      subtitle: 'Поиск по @username или имени',
-      hintText: 'Поиск по @username или имени...',
+      title: context.l10n.blockUserAction,
+      subtitle: context.l10n.searchByUsernameOrName,
+      hintText: context.l10n.searchByUsernameOrNameHint,
       excludedUserIds: alreadyBlocked,
     );
 
@@ -62,10 +64,10 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
     if (success) {
       AppToast.showSuccess(
         context,
-        '${picked.displayName} заблокирован(а)',
+        context.l10n.userBlockedToast(picked.displayName),
       );
     } else {
-      AppToast.showError(context, 'Не удалось заблокировать пользователя');
+      AppToast.showError(context, context.l10n.userBlockFailed);
     }
   }
 
@@ -77,10 +79,10 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
     if (success) {
       AppToast.showSuccess(
         context,
-        '${user.displayName} разблокирован(а)',
+        context.l10n.userUnblockedToast(user.displayName),
       );
     } else {
-      AppToast.showError(context, 'Не удалось разблокировать пользователя');
+      AppToast.showError(context, context.l10n.userUnblockFailed);
     }
   }
 
@@ -97,16 +99,16 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Заблокированные пользователи'),
+        title: Text(context.l10n.blockedUsersTitle),
         actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Обновить',
+            tooltip: context.l10n.refreshAction,
             onPressed: () => ref.read(privacyProvider.notifier).refresh(),
           ),
           IconButton(
             icon: const Icon(Icons.person_add_rounded),
-            tooltip: 'Заблокировать пользователя',
+            tooltip: context.l10n.blockUserAction,
             onPressed: _promptBlockUser,
           ),
         ],
@@ -114,7 +116,7 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _promptBlockUser,
         icon: const Icon(Icons.block_rounded),
-        label: const Text('Заблокировать'),
+        label: Text(context.l10n.profileBlock),
       ),
       body: RefreshIndicator(
         onRefresh: () => ref.read(privacyProvider.notifier).refresh(),
@@ -125,7 +127,7 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Поиск заблокированных...',
+                  hintText: context.l10n.searchBlockedHint,
                   prefixIcon: const Icon(Icons.search_rounded),
                   suffixIcon: _query.isNotEmpty
                       ? IconButton(
@@ -149,7 +151,7 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
             ),
             Expanded(
               child: state.isLoading && state.blockedUsers.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: AppLoadingIndicator())
                   : filtered.isEmpty
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -168,8 +170,8 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
                                   const SizedBox(height: 12),
                                   Text(
                                     _query.isEmpty
-                                        ? 'Черный список пуст'
-                                        : 'Пользователи не найдены',
+                                        ? context.l10n.noBlockedUsersDesc
+                                        : context.l10n.noBlockedUsersFound,
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium
@@ -180,8 +182,8 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     _query.isEmpty
-                                        ? 'Заблокированные пользователи не смогут писать и звонить вам'
-                                        : 'Попробуйте изменить поисковый запрос',
+                                        ? context.l10n.privacyNoBlocked
+                                        : context.l10n.noBlockedUsersFound,
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
@@ -229,7 +231,7 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
                                   ),
                                 ),
                                 onPressed: () => _unblock(user),
-                                child: const Text('Разблокировать'),
+                                child: Text(context.l10n.unblockAction),
                               ),
                             );
                           },

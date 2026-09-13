@@ -4035,4 +4035,447 @@ class AppLocalizationsRu extends AppLocalizations {
   String nativeFileFailed(Object error) => 'Ошибка загрузки файла: $error';
   @override
   String get routerNotFound => '404 — Страница не найдена';
+
+  @override
+  String get unblockAction => 'Разблокировать';
+  @override
+  String unblockUserPrompt(Object username) => 'Разблокировать @$username';
+  @override
+  String blockUserPrompt(Object username) => 'Заблокировать @$username';
+  @override
+  String unblockUserConfirmDesc(Object username) => 'Вы сможете снова обмениваться сообщениями и звонить @$username.';
+  @override
+  String blockUserConfirmDesc(Object username) => 'Вы уверены, что хотите заблокировать @$username? Вы больше не сможете обмениваться сообщениями.';
+  @override
+  String userBlockedToast(Object username) => '@$username заблокирован';
+  @override
+  String userUnblockedToast(Object username) => '@$username разблокирован';
+  @override
+  String get userBlockedSuccess => 'Пользователь заблокирован';
+  @override
+  String get userUnblockedSuccess => 'Пользователь разблокирован';
+  @override
+  String get userBlockFailed => 'Не удалось заблокировать пользователя';
+  @override
+  String get userUnblockFailed => 'Не удалось разблокировать пользователя';
+  @override
+  String get supportCannotBeBlocked => 'Службу поддержки NiosMess нельзя заблокировать';
+  @override
+  String get supportCannotBeReported => 'На службу поддержки NiosMess нельзя пожаловаться';
+  @override
+  String get reportSentSuccess => 'Жалоба отправлена';
+  @override
+  String get blockedUsersTitle => 'Заблокированные пользователи';
+  @override
+  String get searchByUsernameOrName => 'Поиск по @username или имени';
+  @override
+  String get searchByUsernameOrNameHint => 'Поиск по @username или имени...';
+  @override
+  String get searchBlockedHint => 'Поиск по заблокированным...';
+  @override
+  String get noBlockedUsersFound => 'По запросу ничего не найдено';
+  @override
+  String get noBlockedUsersDesc => 'Вы еще никого не заблокировали';
+  @override
+  String get blockedBannerTitle => 'Вы заблокировали этого пользователя';
+  @override
+  String get blockedByUserBannerTitle => 'Отправка сообщений ограничена. Пользователь ограничил круг лиц, которые могут отправлять ему сообщения';
+  @override
+  String get reportReasonInappropriate => 'Неприемлемый контент';
+  @override
+  String get reportReasonCopyright => 'Нарушение авторских прав (copyright)';
+  @override
+  String get reportReasonDoxxing => 'Доксинг (личные данные)';
+  @override
+  String get reportReasonThreats => 'Сваттинг / угрозы';
+  @override
+  String get chatAccountRestricted => 'Ваш аккаунт временно ограничен';
+  @override
+  String get chatUnblockToSend => 'Разблокируйте пользователя, чтобы отправить сообщение';
+  @override
+  String get chatMessagesRestrictedByUser => 'Отправка сообщений ограничена пользователем';
+  @override
+  String get chatUnblockToCall => 'Разблокируйте пользователя, чтобы совершить звонок';
+  @override
+  String get chatCallsRestrictedByUser => 'Пользователь ограничил возможность звонков';
+  @override
+  String chatPreviewStickerWithEmoji(Object emoji) => '🖼️ Стикер $emoji';
+  @override
+  String get chatPreviewSticker => '🖼️ Стикер';
+  @override
+  String chatPreviewVoiceWithDuration(Object duration) => '🎤 Голосовое сообщение ($duration)';
+  @override
+  String get chatPreviewVoice => '🎤 Голосовое сообщение';
+  @override
+  String get chatPreviewVideoNote => '📹 Видеосообщение';
+  @override
+  String get chatPreviewCall => '📞 Звонок';
+  @override
+  String get chatPreviewAttachment => '📎 Вложение';
+  @override
+  String get chatPreviewMessage => 'Сообщение';
+  @override
+  String get chatSenderYou => 'Вы';
+  @override
+  String get chatSenderPartner => 'Собеседник';
+  @override
+  String get secretChatTitle => 'Секретный чат';
+  @override
+  String get secretChatDesc => 'Переписка в этом чате защищена сквозным шифрованием';
+  @override
+  String get secretChatFeature1 => 'Сквозное шифрование (E2EE v1)';
+  @override
+  String get secretChatFeature2 => 'Сообщения не сохраняются на сервере';
+  @override
+  String get secretChatFeature3 => 'Ключи хранятся только на ваших устройствах';
+  @override
+  String get secretChatFeature4 => 'Никто третий не может прочитать переписку';
+  @override
+  String get chatConnecting => 'Подключение к серверу...';
+  @override
+  String get chatReconnecting => 'Восстанавливаем соединение с чатом';
+  @override
+  String get chatWallpaperMenu => 'Обои чата';
+  @override
+  String get deleteForEveryone => 'Удалить для всех';
+  @override
+  String get deleteForMe => 'Удалить только у меня';
+  @override
+  String get spamBannerSpam => 'Это спам';
+  @override
+  String get addToContacts => 'Добавить в контакты';
+  @override
+  String get loginNiosIdNotGranted => 'Доступ Nios ID не предоставлен.';
+  @override
+  String get loginNiosIdStateMismatch => 'Не удалось проверить ответ Nios ID (state mismatch).';
+  @override
+  String get loginNiosIdAuthorizing => 'Авторизация в Nios ID...';
+  @override
+  String get loginNiosIdTokenFailed => 'Не удалось получить токен доступа Nios ID';
+  @override
+  String loginAuthError(Object error) => 'Ошибка авторизации: $error';
+  @override
+  String get loginConnectingNiosMess => 'Вход выполнен. Подключаем NiosMess...';
+  @override
+  String get loginNiosMessRejected => 'NiosMess не принял вход Nios ID';
+  @override
+  String get loginTapAgainToExit => 'Нажмите ещё раз для выхода';
+  @override
+  String get loginSlogan => 'Единый доступ к чатам, звонкам и Nios ID';
+  @override
+  String get loginSignInWithNiosId => 'Войти через Nios ID';
+  @override
+  String get loginCreateNiosId => 'Создать аккаунт Nios ID';
+  @override
+  String get loginConfirmTitle => 'Подтверждение входа';
+  @override
+  String get loginConfirmDesc => 'Откройте страницу Nios ID и подтвердите совпадение одноразового кода:';
+  @override
+  String get loginCodeCopied => 'Код скопирован';
+  @override
+  String get loginTapToCopy => 'Нажмите, чтобы скопировать';
+  @override
+  String get loginConfirmInBrowser => 'Подтвердить в браузере';
+  @override
+  String get loginAgreeTermsPrefix => 'Входя в приложение, вы соглашаетесь с документами:';
+  @override
+  String get loginTermsOfService => 'Условия использования';
+  @override
+  String get loginPrivacyPolicy => 'Политика конфиденциальности';
+  @override
+  String get wizardStep1NameAvatar => 'Шаг 1 из 2: Имя и аватар';
+  @override
+  String get wizardStep2ChannelSettings => 'Шаг 2 из 2: Настройки канала';
+  @override
+  String get wizardStep2GroupMembers => 'Шаг 2 из 2: Участники и доступ';
+  @override
+  String get wizardChannelAvatar => 'Аватарка канала';
+  @override
+  String get wizardGroupAvatar => 'Аватарка группы';
+  @override
+  String get wizardTakePhoto => 'Сделать снимок';
+  @override
+  String get wizardChooseGallery => 'Выбрать из галереи';
+  @override
+  String get wizardRemovePhoto => 'Удалить фото';
+  @override
+  String get wizardChannelName => 'Название канала';
+  @override
+  String get wizardGroupName => 'Название группы';
+  @override
+  String get wizardChannelNameHint => 'Введите имя канала...';
+  @override
+  String get wizardGroupNameHint => 'Введите имя группы...';
+  @override
+  String get wizardTapAvatarHint => 'Нажмите на аватарку для выбора фото';
+  @override
+  String get wizardChannelDesc => 'В канале публикации видны всем подписчикам. Вы сможете делиться новостями и материалами от лица канала.';
+  @override
+  String get wizardGroupDesc => 'В группе участники могут свободно общаться, отправлять фото, видео, файлы и голосовые сообщения.';
+  @override
+  String wizardSelectedCount(Object count) => 'Выбрано участников: $count';
+  @override
+  String get wizardSearchMembersHint => 'Поиск контактов или @username...';
+  @override
+  String get wizardRecentChats => 'Недавние диалоги';
+  @override
+  String get wizardSearchResults => 'Результаты поиска';
+  @override
+  String get wizardNoRecentChats => 'У вас пока нет недавних диалогов для быстрого добавления.';
+  @override
+  String wizardNoUsersFound(Object query) => 'Пользователи по запросу «$query» не найдены.';
+  @override
+  String get wizardSearchError => 'Не удалось выполнить поиск пользователей.';
+  @override
+  String get wizardAccessAndPrivacy => 'Доступ и приватность';
+  @override
+  String get wizardPrivateChannelDesc => 'Канал доступен только по защищенной ссылке';
+  @override
+  String get wizardPublicChannelDesc => 'Открыт в глобальном поиске и имеет постоянную ссылку';
+  @override
+  String get wizardUsernameHelper => 'От 3 до 32 символов (латиница, цифры, _)';
+  @override
+  String get wizardCreateChannel => 'Создать канал';
+  @override
+  String get wizardCreateGroup => 'Создать группу';
+  @override
+  String get privacyCategoryCommunication => 'Связь';
+  @override
+  String get privacyCategoryCommunicationDesc => 'Управление тем, кто может звонить и отправлять сообщения';
+  @override
+  String get privacyRuleCalls => 'Звонки';
+  @override
+  String get privacyRuleDirectMessages => 'Личные сообщения';
+  @override
+  String get privacyRuleVoiceMessages => 'Голосовые сообщения';
+  @override
+  String get privacyCategoryPersonalData => 'Личные данные';
+  @override
+  String get privacyCategoryPersonalDataDesc => 'Видимость персональной информации в профиле';
+  @override
+  String get privacyRulePhone => 'Номер телефона';
+  @override
+  String get privacyRuleBirthDate => 'Дата рождения';
+  @override
+  String get privacyRuleAvatar => 'Фотографии профиля';
+  @override
+  String get privacyRuleBio => 'О себе';
+  @override
+  String get privacyRuleGifts => 'Подарки';
+  @override
+  String get privacyRuleMusic => 'Сохранённая музыка';
+  @override
+  String get privacyCategoryActivity => 'Активность';
+  @override
+  String get privacyCategoryActivityDesc => 'Сетевой статус, пересылка и приглашения';
+  @override
+  String get privacyRuleLastSeen => 'Время захода и статус в сети';
+  @override
+  String get privacyRuleForwards => 'Пересылка сообщений';
+  @override
+  String get privacyRuleInvites => 'Приглашения в группы и каналы';
+  @override
+  String get privacyCategorySecurity => 'Безопасность и блокировки';
+  @override
+  String get privacyBlacklist => 'Черный список';
+  @override
+  String get privacyNoBlocked => 'Нет заблокированных пользователей';
+  @override
+  String privacyBlockedCount(Object count) => 'Заблокировано: $count';
+  @override
+  String get privacyBatteryOptimization => 'Работа без ограничений батареи';
+  @override
+  String get privacyBatteryOptimizationDesc => 'Исключить NiosMess из ограничений энергопотребления Android для стабильной доставки пушей';
+  @override
+  String get privacyPolicyEveryone => 'Все';
+  @override
+  String get privacyPolicyEveryoneDesc => 'Доступно всем пользователям NiosMess';
+  @override
+  String get privacyPolicyContacts => 'Мои контакты';
+  @override
+  String get privacyPolicyContactsDesc => 'Только пользователи из списка диалогов';
+  @override
+  String get privacyPolicyNobody => 'Никто';
+  @override
+  String get privacyPolicyNobodyDesc => 'Скрыто от всех (кроме исключений)';
+  @override
+  String get privacyWhoCanInteract => 'Кто может видеть / взаимодействовать';
+  @override
+  String get privacyExceptions => 'Исключения';
+  @override
+  String get privacyExceptionsDesc => 'Исключения имеют приоритет над основным правилом';
+  @override
+  String get privacyAlwaysAllow => 'Всегда разрешать';
+  @override
+  String get privacyNeverAllow => 'Никогда не разрешать';
+  @override
+  String get privacyNoAddedUsers => 'Нет добавленных пользователей';
+  @override
+  String privacyUsersCount(Object count) => 'Пользователей: $count';
+  @override
+  String get privacyAddUserTooltip => 'Добавить пользователя';
+  @override
+  String get privacySelectUserSubtitle => 'Выберите пользователя из списка или введите @username';
+  @override
+  String get appearanceMessageRounding => 'Скругление сообщений';
+  @override
+  String get appearanceMessageRoundingDesc => 'Радиус углов облачков в диалогах';
+  @override
+  String get appearanceUiRounding => 'Скругление интерфейса';
+  @override
+  String get appearanceUiRoundingDesc => 'Радиус карточек, диалогов и системных панелей';
+  @override
+  String get appearanceContrastColors => 'Контраст и цвета';
+  @override
+  String get appearanceContrastColorsDesc => 'Настройки палитры и отображения поверхностей';
+  @override
+  String get appearanceDeepBlackOled => 'Глубокий черный (OLED)';
+  @override
+  String get appearanceDeepBlackOledDesc => 'Использовать абсолютно черный цвет (#000000) для поверхностей в темном режиме';
+  @override
+  String get appearanceInterfaceNav => 'Интерфейс и навигация';
+  @override
+  String get appearanceInterfaceNavDesc => 'Стиль панелей и системные анимации';
+  @override
+  String get appearancePredictiveBack => 'Предиктивный жест «Назад»';
+  @override
+  String get appearancePredictiveBackDesc => 'Плавная системная M3 анимация возврата на предыдущий экран';
+  @override
+  String get appearanceChatWallpaperTitle => 'Обои чатов';
+  @override
+  String get appearanceChatWallpaperDesc => 'Живой генератор узоров на основе векторных иконок и цветов темы';
+  @override
+  String get appearanceWallpaperGenerator => 'Генератор фона чатов';
+  @override
+  String get appearanceWallpaperGeneratorDesc => 'Выбор глифа, раскладки сетки, плотности и анимации';
+  @override
+  String get appearanceCustomColor => 'Пользовательский цвет';
+  @override
+  String get appearanceThemeDark => 'Тёмная тема';
+  @override
+  String get appearanceThemeDarkActive => 'Включена тёмная тема';
+  @override
+  String get appearanceThemeLightActive => 'Включена светлая тема';
+  @override
+  String get appearanceTextScale => 'Масштаб текста';
+  @override
+  String get appearanceTextScaleDesc => 'Размер шрифта и пропорции интерфейса';
+  @override
+  String get appearanceInvalidHex => 'Неверный HEX-код (например #6750A4)';
+  @override
+  String get appearanceSelectHexPrompt => 'Выберите оттенок или введите HEX-код';
+  @override
+  String get appearanceHexLabel => 'HEX-код палитры';
+  @override
+  String get appearanceApply => 'Применить';
+  @override
+  String get errorServerUnavailable => 'Сервер временно недоступен';
+  @override
+  String get errorServerUnavailableDesc => 'Ведутся технические работы или сервер перегружен. Попробуйте позже.';
+  @override
+  String get errorConnectionLost => 'Соединение прервано';
+  @override
+  String get errorConnectionLostDesc => 'Связь с сервером была потеряна. Проверяем подключение...';
+  @override
+  String get errorServerCommunication => 'Ошибка связи с сервером';
+  @override
+  String get errorTryAgainLater => 'Попробуйте повторить действие позже.';
+  @override
+  String get errorNoInternet => 'Нет подключения к интернету';
+  @override
+  String get errorNoInternetDesc => 'Проверьте связь Wi-Fi или сотовые данные и повторите попытку.';
+  @override
+  String get errorServerTimeout => 'Сервер не ответил вовремя';
+  @override
+  String get errorServerTimeoutDesc => 'Пожалуйста, попробуйте снова через пару секунд.';
+  @override
+  String get errorTlsHandshake => 'Ошибка безопасного соединения';
+  @override
+  String get errorTlsHandshakeDesc => 'Не удалось проверить сертификат безопасности сервера.';
+  @override
+  String get errorServerReset => 'Соединение с сервером прервано';
+  @override
+  String get errorServerResetDesc => 'Сервер временно не отвечает. Повторите попытку через минуту.';
+  @override
+  String get errorUserNotFound => 'Пользователь не найден';
+  @override
+  String get errorUserNotFoundDesc => 'Проверьте правильность логина или ID пользователя.';
+  @override
+  String get errorChatNotFound => 'Чат не найден';
+  @override
+  String get errorChatNotFoundDesc => 'Возможно, этот чат был удалён или у вас нет к нему доступа.';
+  @override
+  String get errorChannelNotFound => 'Канал не найден';
+  @override
+  String get errorChannelNotFoundDesc => 'Указанный канал не существует или был удалён.';
+  @override
+  String get errorAlreadyTaken => 'Уже занято';
+  @override
+  String get errorAlreadyTakenDesc => 'Это имя пользователя или ресурс уже существует.';
+  @override
+  String get errorAlreadyInChat => 'Вы уже в этом чате';
+  @override
+  String get errorAlreadyInChatDesc => 'Вы уже являетесь участником данной группы.';
+  @override
+  String get errorNotInChat => 'Вы не состоите в этом чате';
+  @override
+  String get errorNotInChatDesc => 'Для выполнения этого действия необходимо вступить в чат.';
+  @override
+  String get errorSessionExpired => 'Сессия устарела';
+  @override
+  String get errorSessionExpiredDesc => 'Пожалуйста, войдите в аккаунт заново.';
+  @override
+  String get errorRateLimited => 'Слишком много запросов';
+  @override
+  String get errorRateLimitedDesc => 'Пожалуйста, подождите немного перед следующей попыткой.';
+  @override
+  String get errorPermissionDenied => 'Недостаточно прав';
+  @override
+  String get errorPermissionDeniedDesc => 'У вас нет разрешения на выполнение этого действия.';
+  @override
+  String get errorFileUploadFailed => 'Ошибка отправки файла';
+  @override
+  String get errorFileUploadFailedDesc => 'Не удалось загрузить файл на сервер. Попробуйте снова.';
+  @override
+  String get errorInvalidCredentials => 'Неверные данные для входа';
+  @override
+  String get errorInvalidCredentialsDesc => 'Проверьте введённый логин и пароль.';
+  @override
+  String get errorFileNotFound => 'Файл не найден';
+  @override
+  String get errorFileNotFoundDesc => 'Файл был перемещён, удалён или недоступен.';
+  @override
+  String get errorUnknown => 'Неизвестная ошибка';
+  @override
+  String get updateAvailable => 'Доступно обновление';
+  @override
+  String get updateWhatsNew => 'Что нового:';
+  @override
+  String updateDownloadingProgress(Object percent) => 'Загрузка: $percent%';
+  @override
+  String get updateDownloadingPackage => 'Загрузка пакета...';
+  @override
+  String get updateReadyToInstall => 'Пакет обновления полностью загружен и готов к установке.';
+  @override
+  String get updateDownloadFailed => 'Ошибка при скачивании файла обновления';
+  @override
+  String get updateDownloadInBackground => 'Скачивать в фоне';
+  @override
+  String get updateCancelDownload => 'Отменить загрузку';
+  @override
+  String get updateInstallNow => 'Установить сейчас';
+  @override
+  String get updateStartingInstaller => 'Запуск установщика...';
+  @override
+  String get updateRetry => 'Повторить попытку';
+  @override
+  String get updateNow => 'Обновить сейчас';
+  @override
+  String get updateLater => 'Позже';
+  @override
+  String get blockUserAction => 'Заблокировать пользователя';
+  @override
+  String get refreshAction => 'Обновить';
+  @override
+  String chatStickerSendFailed(Object error) => 'Не удалось отправить стикер: $error';
 }

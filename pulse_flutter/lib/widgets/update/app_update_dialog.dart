@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 /// An expressive Material 3 bottom sheet informing the user about an available update
 /// with release notes, live streaming progress, and seamless background download capability.
@@ -177,7 +178,8 @@ class AppUpdateDialog extends ConsumerWidget {
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(
                 value: otaState.progress > 0 ? otaState.progress : null,
-                minHeight: 10,
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(8),
                 backgroundColor: scheme.surfaceContainerHighest,
                 valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
               ),
@@ -365,13 +367,9 @@ class AppUpdateDialog extends ConsumerWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: scheme.primary,
-                      ),
+                    AppLoadingIndicator(
+                      size: 20,
+                      color: scheme.primary,
                     ),
                     const SizedBox(width: 12),
                     Text(

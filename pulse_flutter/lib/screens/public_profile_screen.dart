@@ -820,7 +820,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                   visualDensity: VisualDensity.compact,
                 ),
                 onPressed: () => _showUnblockDialog(profile),
-                child: const Text('Разблокировать'),
+                child: Text(context.l10n.unblockAction),
               ),
             ],
           ],
@@ -843,7 +843,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 ListTile(
                   leading: Icon(Icons.lock_open_rounded, color: scheme.primary),
                   title: Text(
-                    'Разблокировать @${profile.username}',
+                    context.l10n.unblockUserPrompt(profile.username),
                     style: TextStyle(
                       color: scheme.primary,
                       fontWeight: FontWeight.w600,
@@ -858,7 +858,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 ListTile(
                   leading: Icon(Icons.block_rounded, color: scheme.error),
                   title: Text(
-                    'Заблокировать @${profile.username}',
+                    context.l10n.blockUserPrompt(profile.username),
                     style: TextStyle(color: scheme.error),
                   ),
                   onTap: () {
@@ -868,7 +868,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 ),
               ListTile(
                 leading: Icon(Icons.flag_rounded, color: scheme.onSurface),
-                title: const Text('Пожаловаться'),
+                title: Text(context.l10n.reportUser),
                 onTap: () {
                   Navigator.of(ctx).pop();
                   _showReportUserDialog(profile);
@@ -895,14 +895,14 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Text(
-                  'Разблокировать пользователя',
+                  context.l10n.unblockAction,
                   style: textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Вы сможете снова обмениваться сообщениями и звонить @${profile.username}.',
+                  context.l10n.unblockUserConfirmDesc(profile.username),
                   style: textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 20),
@@ -920,24 +920,24 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                           if (success) {
                             AppToast.showSuccess(
                               context,
-                              '@${profile.username} разблокирован',
+                              context.l10n.userUnblockedToast(profile.username),
                             );
                             setState(() {});
                           } else {
                             AppToast.showError(
                               context,
-                              'Не удалось разблокировать пользователя',
+                              context.l10n.userUnblockFailed,
                             );
                           }
                         },
-                        child: const Text('Разблокировать'),
+                        child: Text(context.l10n.unblockAction),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton.tonal(
                         onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text('Отмена'),
+                        child: Text(context.l10n.commonCancel),
                       ),
                     ),
                   ],
@@ -963,14 +963,14 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Text(
-                  'Заблокировать пользователя',
+                  context.l10n.profileBlock,
                   style: textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Вы уверены, что хотите заблокировать @${profile.username}? Вы больше не сможете обмениваться сообщениями.',
+                  context.l10n.blockUserConfirmDesc(profile.username),
                   style: textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 20),
@@ -987,7 +987,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                               profile.id == 1) {
                             AppToast.showError(
                               context,
-                              'Службу поддержки NiosMess нельзя заблокировать',
+                              context.l10n.supportCannotBeBlocked,
                             );
                             return;
                           }
@@ -1007,24 +1007,24 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                           if (success) {
                             AppToast.showSuccess(
                               context,
-                              '@${profile.username} заблокирован',
+                              context.l10n.userBlockedToast(profile.username),
                             );
                             setState(() {});
                           } else {
                             AppToast.showError(
                               context,
-                              'Не удалось заблокировать пользователя',
+                              context.l10n.userBlockFailed,
                             );
                           }
                         },
-                        child: const Text('Заблокировать'),
+                        child: Text(context.l10n.profileBlock),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton.tonal(
                         onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text('Отмена'),
+                        child: Text(context.l10n.commonCancel),
                       ),
                     ),
                   ],
@@ -1051,7 +1051,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Выберите причину жалобы',
+                  context.l10n.reportSelectReason,
                   style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -1059,7 +1059,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.report_gmailerrorred_rounded, color: scheme.error),
-                title: const Text('Спам'),
+                title: Text(context.l10n.reportReasonSpam),
                 onTap: () {
                   Navigator.of(ctx).pop();
                   _submitUserReport(profile, 'spam');
@@ -1067,7 +1067,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.report_problem_rounded, color: scheme.error),
-                title: const Text('Мошенничество'),
+                title: Text(context.l10n.reportReasonScam),
                 onTap: () {
                   Navigator.of(ctx).pop();
                   _submitUserReport(profile, 'scam');
@@ -1075,7 +1075,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.gavel_rounded, color: scheme.error),
-                title: const Text('Неприемлемый контент'),
+                title: Text(context.l10n.reportReasonInappropriate),
                 onTap: () {
                   Navigator.of(ctx).pop();
                   _submitUserReport(profile, 'illegal');
@@ -1083,7 +1083,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.copyright_rounded, color: scheme.error),
-                title: const Text('Нарушение авторских прав (copyright)'),
+                title: Text(context.l10n.reportReasonCopyright),
                 onTap: () {
                   Navigator.of(ctx).pop();
                   _submitUserReport(profile, 'copyright');
@@ -1091,7 +1091,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.privacy_tip_rounded, color: scheme.error),
-                title: const Text('Доксинг (личные данные)'),
+                title: Text(context.l10n.reportReasonDoxxing),
                 onTap: () {
                   Navigator.of(ctx).pop();
                   _submitUserReport(profile, 'doxing');
@@ -1099,7 +1099,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.warning_amber_rounded, color: scheme.error),
-                title: const Text('Сваттинг / угрозы'),
+                title: Text(context.l10n.reportReasonThreats),
                 onTap: () {
                   Navigator.of(ctx).pop();
                   _submitUserReport(profile, 'swatting');
@@ -1115,7 +1115,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
 
   Future<void> _submitUserReport(ApiProfile profile, String reason) async {
     if (profile.id == 1 || profile.username.toLowerCase() == 'support') {
-      AppToast.showError(context, 'Службу поддержки NiosMess нельзя пожаловаться');
+      AppToast.showError(context, context.l10n.supportCannotBeReported);
       return;
     }
     try {
@@ -1126,7 +1126,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       );
       if (!mounted) return;
       HapticService.confirm();
-      AppToast.showSuccess(context, 'Жалоба отправлена');
+      AppToast.showSuccess(context, context.l10n.reportSentSuccess);
     } catch (e) {
       if (!mounted) return;
       HapticService.destructive();

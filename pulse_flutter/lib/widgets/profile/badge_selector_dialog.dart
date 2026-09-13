@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class BadgeSelectorDialog extends ConsumerStatefulWidget {
   const BadgeSelectorDialog({
@@ -153,7 +154,7 @@ class _BadgeSelectorDialogState extends ConsumerState<BadgeSelectorDialog> {
               const SizedBox(height: 16),
               Flexible(
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const AppLoadingIndicator()
                     : _availableBadges.isEmpty
                         ? Center(
                             child: Padding(
@@ -254,11 +255,7 @@ class _BadgeSelectorDialogState extends ConsumerState<BadgeSelectorDialog> {
                   FilledButton(
                     onPressed: _isSaving ? null : _save,
                     child: _isSaving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? const AppLoadingIndicator(size: 18)
                         : const Text('Сохранить'),
                   ),
                 ],

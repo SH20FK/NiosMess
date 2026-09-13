@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/oauth_navigation_helper.dart';
 import 'package:pulse_flutter/core/storage/ephemeral_storage.dart';
 import 'package:pulse_flutter/core/theme/app_typography.dart';
@@ -98,7 +99,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         AppToast.showError(
           context,
-          errorDesc ?? 'Доступ Nios ID не предоставлен.',
+          errorDesc ?? context.l10n.loginNiosIdNotGranted,
         );
       }
       return;
@@ -124,14 +125,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         stateParam != expectedState) {
       HapticService.destructive();
       if (mounted) {
-        AppToast.showError(context, 'Не удалось проверить ответ Nios ID (state mismatch).');
+        AppToast.showError(context, context.l10n.loginNiosIdStateMismatch);
       }
       return;
     }
 
     setState(() {
       _isExchanging = true;
-      _statusText = 'Авторизация в Nios ID...';
+      _statusText = context.l10n.loginNiosIdAuthorizing;
     });
 
     try {
@@ -143,7 +144,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         throw Exception(
           tokenResponse.errorDescription ??
               tokenResponse.error ??
-              'Не удалось получить токен доступа Nios ID',
+              context.l10n.loginNiosIdTokenFailed,
         );
       }
 
@@ -151,7 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       HapticService.destructive();
       if (mounted) {
-        AppToast.showError(context, 'Ошибка авторизации: $e');
+        AppToast.showError(context, context.l10n.loginAuthError(e));
       }
     } finally {
       if (mounted) {
@@ -165,7 +166,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _completeLoginWithToken(String accessToken) async {
     setState(() {
-      _statusText = 'Вход выполнен. Подключаем NiosMess...';
+      _statusText = context.l10n.loginConnectingNiosMess;
     });
 
     final AuthActionResult result = await ref
@@ -181,7 +182,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       HapticService.destructive();
       AppToast.showError(
         context,
-        result.message ?? 'NiosMess не принял вход Nios ID',
+        result.message ?? context.l10n.loginNiosMessRejected,
       );
     }
   }
@@ -407,13 +408,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           foregroundColor: scheme.onPrimary,
         ),
         icon: _isStartingAuth
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(scheme.onPrimary),
-                ),
+            ? AppLoadingIndicator(
+                size: 20,
+                color: scheme.onPrimary,
               )
             : const Icon(Icons.all_inclusive_rounded, size: 22),
         label: Text(
@@ -471,13 +468,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           color: scheme.outlineVariant.withValues(alpha: 0.35),
           width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: scheme.shadow.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
+
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -485,13 +476,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.2,
-                  valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
-                ),
+              AppLoadingIndicator(
+                size: 18,
+                color: scheme.primary,
               ),
               const SizedBox(width: 12),
               Text(

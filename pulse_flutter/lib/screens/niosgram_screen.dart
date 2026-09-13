@@ -1059,13 +1059,9 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                         FilledButton.icon(
                           onPressed: _isLoading ? null : _submit,
                           icon: _isLoading
-                              ? SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: scheme.onPrimary,
-                                  ),
+                              ? AppLoadingIndicator(
+                                  size: 14,
+                                  color: scheme.onPrimary,
                                 )
                               : const Icon(Icons.send_rounded, size: 14),
                           label: Text(

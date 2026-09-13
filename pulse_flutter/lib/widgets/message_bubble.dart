@@ -624,15 +624,9 @@ class MessageBubble extends ConsumerWidget {
                             fit: BoxFit.contain,
                             memCacheWidth: 400,
                             memCacheHeight: 400,
-                            placeholder: (_, _) => Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: scheme.primary.withValues(alpha: 0.4),
-                                ),
-                              ),
+                            placeholder: (_, _) => AppLoadingIndicator(
+                              size: 24,
+                              color: scheme.primary.withValues(alpha: 0.4),
                             ),
                             errorWidget: (_, _, _) => Center(
                               child: Text(
@@ -690,15 +684,9 @@ class MessageBubble extends ConsumerWidget {
                       color: scheme.surface.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Center(
-                      child: SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: scheme.primary,
-                        ),
-                      ),
+                    child: AppLoadingIndicator(
+                      size: 28,
+                      color: scheme.primary,
                     ),
                   ),
                 ),
@@ -2001,8 +1989,9 @@ class _UploadProgressOverlay extends StatelessWidget {
                 child: CircularProgressIndicator(
                   value: p > 0.01 ? p : null,
                   strokeWidth: 3.2,
-                  backgroundColor: Colors.white.withValues(alpha: 0.25),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeCap: StrokeCap.round,
+                  backgroundColor: scheme.onSurface.withValues(alpha: 0.25),
+                  valueColor: AlwaysStoppedAnimation<Color>(scheme.onSurface),
                 ),
               ),
               if (onCancel != null)
@@ -2085,11 +2074,7 @@ class _StickerVideoPlayerState extends State<_StickerVideoPlayer> {
       fit: BoxFit.contain,
       memCacheWidth: 400,
       memCacheHeight: 400,
-      placeholder: (_, _) => const SizedBox(
-        width: 24,
-        height: 24,
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      ),
+      placeholder: (_, _) => const AppLoadingIndicator(size: 24),
       errorWidget: (_, _, _) => const Icon(Icons.sticky_note_2_outlined),
     );
   }

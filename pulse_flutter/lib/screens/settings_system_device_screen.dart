@@ -12,6 +12,7 @@ import 'package:pulse_flutter/providers/device_hardware_provider.dart';
 import 'package:pulse_flutter/services/system/device_hardware_service.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class SettingsSystemDeviceScreen extends ConsumerWidget {
   const SettingsSystemDeviceScreen({
@@ -52,8 +53,8 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 60),
-        child: CircularProgressIndicator.adaptive(
-          valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+        child: AppLoadingIndicator(
+          color: scheme.primary,
         ),
       ),
     );
@@ -701,11 +702,12 @@ class _AnimatedResourceMeterState extends State<_AnimatedResourceMeter>
             ),
             const SizedBox(height: 8),
             ClipRRect(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
               child: SizedBox(
                 height: 8,
                 child: LinearProgressIndicator(
                   value: currentProgress,
+                  borderRadius: BorderRadius.circular(8),
                   backgroundColor: widget.scheme.surfaceContainerHighest,
                   valueColor: AlwaysStoppedAnimation<Color>(widget.barColor),
                 ),

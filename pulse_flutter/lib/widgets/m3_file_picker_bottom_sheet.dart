@@ -677,13 +677,9 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
                         ),
                         onPressed: _isSending ? null : _sendSelected,
                         child: _isSending
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
+                            ? AppLoadingIndicator(
+                                size: 18,
+                                color: Theme.of(context).colorScheme.onPrimary,
                               )
                             : Row(
                                 mainAxisSize: MainAxisSize.min,

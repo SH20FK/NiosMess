@@ -7,6 +7,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
 import 'package:pulse_flutter/widgets/chat/add_sticker_dialog.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class StickerSetModal extends ConsumerStatefulWidget {
   const StickerSetModal({
@@ -99,10 +100,8 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
     if (_isFetchingSet && currentSet == null) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-        child: Center(
-          child: CircularProgressIndicator(
-            color: scheme.primary,
-          ),
+        child: AppLoadingIndicator(
+          color: scheme.primary,
         ),
       );
     }
@@ -283,12 +282,7 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
                                 }
                               },
                         icon: _isActionLoading
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
+                            ? const AppLoadingIndicator(size: 16)
                             : const Icon(Icons.delete_outline_rounded,
                                 size: 18),
                         label: const Text('Удалить'),
@@ -339,13 +333,9 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
                                 }
                               },
                         icon: _isActionLoading
-                            ? SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: scheme.onPrimary,
-                                ),
+                            ? AppLoadingIndicator(
+                                size: 16,
+                                color: scheme.onPrimary,
                               )
                             : const Icon(Icons.add_rounded, size: 18),
                         label: const Text('В коллекцию'),
@@ -457,16 +447,10 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
                                   fit: BoxFit.contain,
                                   memCacheWidth: 200,
                                   memCacheHeight: 200,
-                                  placeholder: (_, _) => Center(
-                                    child: SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: scheme.primary
-                                            .withValues(alpha: 0.5),
-                                      ),
-                                    ),
+                                  placeholder: (_, _) => AppLoadingIndicator(
+                                    size: 20,
+                                    color: scheme.primary
+                                        .withValues(alpha: 0.5),
                                   ),
                                   errorWidget: (_, _, _) => Center(
                                     child: Text(

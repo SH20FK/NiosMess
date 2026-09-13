@@ -206,11 +206,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _terminatingAll ? null : _terminateAllOther,
                   icon: _terminatingAll
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const AppLoadingIndicator(size: 18)
                       : const Icon(Icons.devices_other_rounded, size: 20),
                   label: Text(context.l10n.sessionsTerminateAll),
                   style: OutlinedButton.styleFrom(
@@ -372,11 +368,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                         ),
                         const SizedBox(width: 8),
                         if (isRevoking)
-                          const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2.5),
-                          )
+                          const AppLoadingIndicator(size: 24)
                         else
                           IconButton(
                             onPressed: () => _revokeSession(session.id),

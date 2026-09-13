@@ -14,6 +14,7 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class PostCommentsScreen extends ConsumerStatefulWidget {
   const PostCommentsScreen({
@@ -541,13 +542,9 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                                 ),
                                 onPressed: (_busy || !hasText) ? null : _send,
                                 child: _busy
-                                    ? SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: scheme.onPrimary,
-                                        ),
+                                    ? AppLoadingIndicator(
+                                        size: 18,
+                                        color: scheme.onPrimary,
                                       )
                                     : const Icon(Icons.arrow_upward_rounded, size: 20),
                               ),

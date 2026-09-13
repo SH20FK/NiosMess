@@ -12,6 +12,7 @@ import 'package:pulse_flutter/services/calls/call_session.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
 import 'package:pulse_flutter/widgets/calls/call_control_dock.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class ActiveVideoCallScreen extends ConsumerStatefulWidget {
   const ActiveVideoCallScreen({super.key});
@@ -562,7 +563,7 @@ class _LocalCameraPreview extends ConsumerWidget {
         child: SizedBox(
           width: 20,
           height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2, color: scheme.onSurface.withValues(alpha: 0.38)),
+          child: AppLoadingIndicator(size: 20, color: scheme.onSurface.withValues(alpha: 0.38)),
         ),
       );
     }

@@ -1377,15 +1377,9 @@ class _MusicPlayerState extends State<_MusicPlayer> {
                     ],
                   ),
                   child: _loading
-                      ? Center(
-                          child: SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: scheme.onPrimary,
-                            ),
-                          ),
+                      ? AppLoadingIndicator(
+                          size: 28,
+                          color: scheme.onPrimary,
                         )
                       : IconButton(
                           onPressed: _togglePlay,

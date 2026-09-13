@@ -993,63 +993,65 @@ class _PostMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return PopupMenuButton<String>(
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-      icon: Icon(
-        Icons.more_horiz_rounded,
-        size: 20,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
-      onSelected: (String value) async {
-        if (value == 'delete') {
-          final bool? confirm = await showAppConfirmDialog(
-            context: context,
-            title: context.l10n.niosgramDeletePost,
-            subtitle: context.l10n.niosgramDeletePostConfirm,
-            confirmLabel: context.l10n.commonDelete,
-            cancelLabel: context.l10n.commonCancel,
-            icon: Icons.delete_rounded,
-            destructive: true,
-          );
-          if (confirm == true) {
-            ref.read(niosgramProvider.notifier).deletePost(post.id);
-          }
-        } else if (value == 'edit') {
-          _showEditSheet(context, ref);
-        } else if (value == 'copy') {
-          await Clipboard.setData(ClipboardData(text: post.content));
-          if (context.mounted) {
-            AppToast.showInfo(context, context.l10n.niosgramCopied);
-          }
-        }
-      },
-      itemBuilder: (_) => <PopupMenuEntry<String>>[
-        if (isOwn) ...<PopupMenuEntry<String>>[
-          PopupMenuItem<String>(
-            value: 'edit',
-            child: ListTile(
-              leading: Icon(Icons.edit_rounded),
-              title: Text(context.l10n.niosgramEdit),
-              contentPadding: EdgeInsets.zero,
-            ),
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return MenuAnchor(
+      builder:
+          (BuildContext context, MenuController controller, Widget? child) {
+        return IconButton(
+          icon: Icon(
+            Icons.more_horiz_rounded,
+            size: 20,
+            color: scheme.onSurfaceVariant,
           ),
-          PopupMenuItem<String>(
-            value: 'delete',
-            child: ListTile(
-              leading: Icon(Icons.delete_rounded),
-              title: Text(context.l10n.commonDelete),
-              contentPadding: EdgeInsets.zero,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          onPressed: () {
+            if (controller.isOpen) {
+              controller.close();
+            } else {
+              controller.open();
+            }
+          },
+        );
+      },
+      menuChildren: <Widget>[
+        if (isOwn) ...<Widget>[
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.edit_rounded),
+            onPressed: () => _showEditSheet(context, ref),
+            child: Text(context.l10n.niosgramEdit),
+          ),
+          MenuItemButton(
+            leadingIcon: Icon(Icons.delete_rounded, color: scheme.error),
+            onPressed: () async {
+              final bool? confirm = await showAppConfirmDialog(
+                context: context,
+                title: context.l10n.niosgramDeletePost,
+                subtitle: context.l10n.niosgramDeletePostConfirm,
+                confirmLabel: context.l10n.commonDelete,
+                cancelLabel: context.l10n.commonCancel,
+                icon: Icons.delete_rounded,
+                destructive: true,
+              );
+              if (confirm == true) {
+                ref.read(niosgramProvider.notifier).deletePost(post.id);
+              }
+            },
+            child: Text(
+              context.l10n.commonDelete,
+              style: TextStyle(color: scheme.error),
             ),
           ),
         ],
-        PopupMenuItem<String>(
-          value: 'copy',
-          child: ListTile(
-            leading: Icon(Icons.copy_rounded),
-            title: Text(context.l10n.niosgramCopyText),
-            contentPadding: EdgeInsets.zero,
-          ),
+        MenuItemButton(
+          leadingIcon: const Icon(Icons.copy_rounded),
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: post.content));
+            if (context.mounted) {
+              AppToast.showInfo(context, context.l10n.niosgramCopied);
+            }
+          },
+          child: Text(context.l10n.niosgramCopyText),
         ),
       ],
     );

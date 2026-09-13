@@ -295,11 +295,7 @@ class _StickerSetScreenState extends ConsumerState<StickerSetScreen> {
                   ? OutlinedButton.icon(
                       onPressed: _isActionLoading ? null : () => _toggleSave(true),
                       icon: _isActionLoading
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const AppLoadingIndicator(size: 16)
                           : const Icon(Icons.delete_outline_rounded, size: 18),
                       label: const Text('Удалить из коллекции'),
                       style: OutlinedButton.styleFrom(
@@ -316,13 +312,9 @@ class _StickerSetScreenState extends ConsumerState<StickerSetScreen> {
                   : FilledButton.icon(
                       onPressed: _isActionLoading ? null : () => _toggleSave(false),
                       icon: _isActionLoading
-                          ? SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: scheme.onPrimary,
-                              ),
+                          ? AppLoadingIndicator(
+                              size: 16,
+                              color: scheme.onPrimary,
                             )
                           : const Icon(Icons.add_rounded, size: 18),
                       label: const Text('Добавить в коллекцию'),
@@ -374,15 +366,9 @@ class _StickerSetScreenState extends ConsumerState<StickerSetScreen> {
                   fit: BoxFit.contain,
                   memCacheWidth: 200,
                   memCacheHeight: 200,
-                  placeholder: (_, _) => Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: scheme.primary.withValues(alpha: 0.3),
-                      ),
-                    ),
+                  placeholder: (_, _) => AppLoadingIndicator(
+                    size: 20,
+                    color: scheme.primary.withValues(alpha: 0.3),
                   ),
                   errorWidget: (_, _, _) => Center(
                     child: Text(

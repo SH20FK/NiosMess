@@ -111,7 +111,7 @@ class ChatDetailInputArea extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Вы заблокировали этого пользователя',
+                  context.l10n.blockedBannerTitle,
                   style: textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: scheme.onSurface,
@@ -125,7 +125,7 @@ class ChatDetailInputArea extends ConsumerWidget {
                     visualDensity: VisualDensity.compact,
                   ),
                   onPressed: onUnblockUser,
-                  child: const Text('Разблокировать'),
+                  child: Text(context.l10n.unblockAction),
                 ),
             ],
           ),
@@ -157,7 +157,7 @@ class ChatDetailInputArea extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Отправка сообщений ограничена',
+                      context.l10n.chatMessagesRestrictedByUser,
                       style: textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: scheme.onErrorContainer,
@@ -165,7 +165,7 @@ class ChatDetailInputArea extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Пользователь ограничил круг лиц, которые могут отправлять ему сообщения',
+                      context.l10n.blockedByUserBannerTitle,
                       style: textTheme.bodySmall?.copyWith(
                         color: scheme.onErrorContainer.withValues(alpha: 0.85),
                       ),

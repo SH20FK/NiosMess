@@ -762,15 +762,9 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
               child: Container(
                 color: scheme.surface.withValues(alpha: 0.75),
                 padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: scheme.primary,
-                    ),
-                  ),
+                child: AppLoadingIndicator(
+                  size: 20,
+                  color: scheme.primary,
                 ),
               ),
             ),

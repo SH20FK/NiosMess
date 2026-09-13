@@ -4,6 +4,7 @@ import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/router/app_router.dart';
 import 'active_voice_call_screen.dart';
 import 'active_video_call_screen.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class ActiveCallScreen extends ConsumerStatefulWidget {
   const ActiveCallScreen({super.key});
@@ -51,7 +52,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
           ),
         ),
         body: Center(
-          child: CircularProgressIndicator(color: scheme.primary),
+          child: AppLoadingIndicator(color: scheme.primary),
         ),
       );
     }

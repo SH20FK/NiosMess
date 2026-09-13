@@ -243,6 +243,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                           child: CircularProgressIndicator(
                             value: uploadProgress,
                             strokeWidth: 2.5,
+                            strokeCap: StrokeCap.round,
+                            backgroundColor: fg.withValues(alpha: 0.2),
                             valueColor: AlwaysStoppedAnimation<Color>(fg),
                           ),
                         ),

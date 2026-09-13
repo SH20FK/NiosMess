@@ -37,6 +37,7 @@ import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/common/app_pill_field.dart';
 import 'package:pulse_flutter/widgets/profile/ai_usage_card.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -581,13 +582,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         child: Padding(
                           padding: const EdgeInsets.all(4),
                           child: _uploadingAvatar
-                              ? SizedBox(
-                                  width: 10,
-                                  height: 10,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: scheme.onPrimary,
-                                  ),
+                              ? AppLoadingIndicator(
+                                  size: 10,
+                                  color: scheme.onPrimary,
                                 )
                               : Icon(
                                   Icons.photo_camera_rounded,
@@ -790,13 +787,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           border: Border.all(color: scheme.surface, width: 2),
                         ),
                         child: _uploadingAvatar
-                            ? SizedBox(
-                                width: 10,
-                                height: 10,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: scheme.onPrimary,
-                                ),
+                            ? AppLoadingIndicator(
+                                size: 10,
+                                color: scheme.onPrimary,
                               )
                             : Icon(
                                 Icons.photo_camera_rounded,

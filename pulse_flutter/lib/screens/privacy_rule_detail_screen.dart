@@ -10,6 +10,7 @@ import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class PrivacyRuleDetailScreen extends ConsumerStatefulWidget {
   const PrivacyRuleDetailScreen({
@@ -138,11 +139,7 @@ class _PrivacyRuleDetailScreenState
           if (_saving)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+              child: AppLoadingIndicator(size: 18),
             ),
         ],
       ),

@@ -444,72 +444,51 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                                           ),
                                         ),
                                         if (!isMe && !_actionBusy)
-                                          PopupMenuButton<String>(
-                                            onSelected: (String action) {
-                                              switch (action) {
-                                                case 'moderate':
-                                                  _openModeration(member);
-                                                case 'admin':
-                                                  _promote(member, 'admin');
-                                                case 'member':
-                                                  _promote(member, 'member');
-                                                case 'kick':
-                                                  _kick(member);
-                                              }
+                                          MenuAnchor(
+                                            builder: (BuildContext context, MenuController controller, Widget? child) {
+                                              return IconButton(
+                                                icon: const Icon(Icons.more_vert_rounded),
+                                                onPressed: () {
+                                                  if (controller.isOpen) {
+                                                    controller.close();
+                                                  } else {
+                                                    controller.open();
+                                                  }
+                                                },
+                                              );
                                             },
-                                            itemBuilder: (BuildContext ctx) =>
-                                                <PopupMenuEntry<String>>[
-                                                  PopupMenuItem<String>(
-                                                    value: 'moderate',
-                                                    child: Row(
-                                                      children: <Widget>[
-                                                        Icon(Icons.gavel_rounded, size: 18, color: scheme.primary),
-                                                        const SizedBox(width: 8),
-                                                        const Text('Модерация (мут/бан)'),
-                                                      ],
-                                                    ),
+                                            menuChildren: <Widget>[
+                                              MenuItemButton(
+                                                leadingIcon: Icon(Icons.gavel_rounded, size: 18, color: scheme.primary),
+                                                onPressed: () => _openModeration(member),
+                                                child: const Text('Модерация (мут/бан)'),
+                                              ),
+                                              if (!member.isAdmin && !member.isOwner)
+                                                MenuItemButton(
+                                                  leadingIcon: Icon(Icons.shield_rounded, size: 18, color: scheme.tertiary),
+                                                  onPressed: () => _promote(member, 'admin'),
+                                                  child: Text(
+                                                    context.l10n.chatMembersPromoteAdmin,
                                                   ),
-                                                  if (!member.isAdmin && !member.isOwner)
-                                                    PopupMenuItem<String>(
-                                                      value: 'admin',
-                                                      child: Row(
-                                                        children: <Widget>[
-                                                          Icon(Icons.shield_rounded, size: 18, color: scheme.tertiary),
-                                                          const SizedBox(width: 8),
-                                                          Text(
-                                                            context.l10n.chatMembersPromoteAdmin,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  if (member.isAdmin && !member.isOwner)
-                                                    PopupMenuItem<String>(
-                                                      value: 'member',
-                                                      child: Row(
-                                                        children: <Widget>[
-                                                          Icon(Icons.person_outline_rounded, size: 18, color: scheme.onSurfaceVariant),
-                                                          const SizedBox(width: 8),
-                                                          Text(
-                                                            context.l10n.chatMembersDemoteMember,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  if (!member.isOwner)
-                                                    PopupMenuItem<String>(
-                                                      value: 'kick',
-                                                      child: Row(
-                                                        children: <Widget>[
-                                                          Icon(Icons.person_remove_rounded, size: 18, color: scheme.error),
-                                                          const SizedBox(width: 8),
-                                                          Text(
-                                                            'Исключить из группы',
-                                                            style: TextStyle(color: scheme.error),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                ],
+                                                ),
+                                              if (member.isAdmin && !member.isOwner)
+                                                MenuItemButton(
+                                                  leadingIcon: Icon(Icons.person_outline_rounded, size: 18, color: scheme.onSurfaceVariant),
+                                                  onPressed: () => _promote(member, 'member'),
+                                                  child: Text(
+                                                    context.l10n.chatMembersDemoteMember,
+                                                  ),
+                                                ),
+                                              if (!member.isOwner)
+                                                MenuItemButton(
+                                                  leadingIcon: Icon(Icons.person_remove_rounded, size: 18, color: scheme.error),
+                                                  onPressed: () => _kick(member),
+                                                  child: Text(
+                                                    'Исключить из группы',
+                                                    style: TextStyle(color: scheme.error),
+                                                  ),
+                                                ),
+                                            ],
                                           ),
                                       ],
                                     ),

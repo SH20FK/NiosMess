@@ -130,7 +130,8 @@ class AiUsageIndicatorCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: percent / 100.0,
-              minHeight: 6,
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(8),
               backgroundColor: scheme.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation<Color>(
                 percent > 90

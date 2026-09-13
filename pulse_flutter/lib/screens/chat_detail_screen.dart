@@ -658,7 +658,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     final myProfile = ref.read(authProvider).profile;
     if (myProfile?.isRestrictedBySpamBlock == true) {
-      AppToast.showError(context, 'Ваш аккаунт временно ограничен');
+      AppToast.showError(context, context.l10n.chatAccountRestricted);
       return;
     }
 
@@ -673,11 +673,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       final bool isBlockedByMe = (partnerId != null && ref.read(privacyProvider).isUserBlocked(partnerId)) || currentChat.isBlockedByMe;
       final bool isBlockedByUser = currentChat.isBlockedByUser;
       if (isBlockedByMe) {
-        AppToast.showError(context, 'Разблокируйте пользователя, чтобы отправить сообщение');
+        AppToast.showError(context, context.l10n.chatUnblockToSend);
         return;
       }
       if (isBlockedByUser) {
-        AppToast.showError(context, 'Отправка сообщений ограничена пользователем');
+        AppToast.showError(context, context.l10n.chatMessagesRestrictedByUser);
         return;
       }
     }
@@ -852,7 +852,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       _clearReply();
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Не удалось отправить стикер: $e');
+        AppToast.showError(context, context.l10n.chatStickerSendFailed(e));
       }
     }
   }
@@ -1502,7 +1502,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   String _resolveReplySnippet(ApiMessage message) {
     if (message.isSticker) {
       final String emoji = message.sticker?.emoji.trim() ?? '';
-      return emoji.isNotEmpty ? '🖼️ Стикер $emoji' : '🖼️ Стикер';
+      return emoji.isNotEmpty
+          ? context.l10n.chatPreviewStickerWithEmoji(emoji)
+          : context.l10n.chatPreviewSticker;
     }
 
     if (message.msgType == 'voice' ||
@@ -1513,26 +1515,26 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         final int seconds = duration % 60;
         final String formatted =
             '$minutes:${seconds.toString().padLeft(2, '0')}';
-        return '🎤 Голосовое сообщение ($formatted)';
+        return context.l10n.chatPreviewVoiceWithDuration(formatted);
       }
-      return '🎤 Голосовое сообщение';
+      return context.l10n.chatPreviewVoice;
     }
 
     if (message.msgType == 'circle' ||
         message.msgType == 'circle_video' ||
         message.msgType == 'video_note' ||
         message.msgType == 'round_video') {
-      return '📹 Видеосообщение';
+      return context.l10n.chatPreviewVideoNote;
     }
 
     final String? mediaUrl = _mediaUrlFor(message);
     if (mediaUrl != null && mediaUrl.trim().isNotEmpty) {
       final String caption = message.content.trim();
       if (_isImageMedia(message, mediaUrl)) {
-        return caption.isNotEmpty ? '📷 $caption' : '📷 Фотография';
+        return caption.isNotEmpty ? '📷 $caption' : context.l10n.chatPreviewPhoto;
       }
       if (_isVideoMedia(message, mediaUrl)) {
-        return caption.isNotEmpty ? '🎥 $caption' : '🎥 Видео';
+        return caption.isNotEmpty ? '🎥 $caption' : context.l10n.chatPreviewVideo;
       }
       final String name = (message.mediaName ?? '').trim();
       final String label =
@@ -1541,7 +1543,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     if (message.isCallEvent) {
-      return '📞 Звонок';
+      return context.l10n.chatPreviewCall;
     }
 
     final String text = _displayText(message).trim();
@@ -1550,15 +1552,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     if (message.hasMedia) {
-      return '📎 Вложение';
+      return context.l10n.chatPreviewAttachment;
     }
 
-    return 'Сообщение';
+    return context.l10n.chatPreviewMessage;
   }
 
   String _resolveReplyAuthor(ApiMessage message, int myUserId) {
     if (message.senderId == myUserId) {
-      return 'Вы';
+      return context.l10n.chatSenderYou;
     }
     final String name = message.senderDisplayName.trim();
     if (name.isNotEmpty && name.toLowerCase() != 'unknown') {
@@ -1576,7 +1578,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         return chatName;
       }
     }
-    return 'Собеседник';
+    return context.l10n.chatSenderPartner;
   }
 
   String? _replyPreviewFor(ApiMessage message, Map<int, ApiMessage> byId) {
@@ -1625,11 +1627,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       final bool isBlockedByMe = (partnerId != null && ref.read(privacyProvider).isUserBlocked(partnerId)) || currentChat.isBlockedByMe;
       final bool isBlockedByUser = currentChat.isBlockedByUser;
       if (isBlockedByMe) {
-        AppToast.showError(context, 'Разблокируйте пользователя, чтобы совершить звонок');
+        AppToast.showError(context, context.l10n.chatUnblockToCall);
         return;
       }
       if (isBlockedByUser) {
-        AppToast.showError(context, 'Пользователь ограничил возможность звонков');
+        AppToast.showError(context, context.l10n.chatCallsRestrictedByUser);
         return;
       }
     }
@@ -1854,13 +1856,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                         if (isSecretChat) {
                           return EmptyFeedWidget(
                             icon: Icons.lock_rounded,
-                            title: 'Секретный чат',
-                            description: 'Переписка в этом чате защищена сквозным шифрованием',
-                            features: const [
-                              'Сквозное шифрование (E2EE v1)',
-                              'Сообщения не сохраняются на сервере',
-                              'Ключи хранятся только на ваших устройствах',
-                              'Никто третий не может прочитать переписку',
+                            title: context.l10n.secretChatTitle,
+                            description: context.l10n.secretChatDesc,
+                            features: [
+                              context.l10n.secretChatFeature1,
+                              context.l10n.secretChatFeature2,
+                              context.l10n.secretChatFeature3,
+                              context.l10n.secretChatFeature4,
                             ],
                             actionLabel: context.l10n.chatSendFirst,
                             onAction: () => _inputFocusNode.requestFocus(),
@@ -1939,14 +1941,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Подключение к серверу...',
+                                context.l10n.chatConnecting,
                                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Восстанавливаем соединение с чатом',
+                                context.l10n.chatReconnecting,
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: scheme.onSurfaceVariant,
                                 ),
@@ -1957,7 +1959,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                                   chatMessagesProvider(chatId),
                                 ),
                                 icon: const Icon(Icons.refresh_rounded, size: 18),
-                                label: const Text('Обновить'),
+                                label: Text(context.l10n.refreshAction),
                               ),
                             ],
                           ),
@@ -2010,7 +2012,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                               .unblockUser(partnerId);
                           if (!context.mounted) return;
                           if (success) {
-                            AppToast.showSuccess(context, 'Пользователь разблокирован');
+                            AppToast.showSuccess(context, context.l10n.userUnblockedSuccess);
                           }
                         }
                       : null,

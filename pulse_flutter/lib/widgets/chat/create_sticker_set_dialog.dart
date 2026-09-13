@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/sticker_formatter.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class CreateStickerSetDialog extends ConsumerStatefulWidget {
   const CreateStickerSetDialog({super.key});
@@ -355,13 +356,9 @@ class _CreateStickerSetDialogState extends ConsumerState<CreateStickerSetDialog>
                 ),
               ),
               child: _isLoading
-                  ? SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: scheme.onPrimary,
-                      ),
+                  ? AppLoadingIndicator(
+                      size: 22,
+                      color: scheme.onPrimary,
                     )
                   : const Text(
                       'Создать набор',

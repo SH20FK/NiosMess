@@ -4011,4 +4011,447 @@ class AppLocalizationsEn extends AppLocalizations {
   String nativeFileFailed(Object error) => 'Failed to load file: $error';
   @override
   String get routerNotFound => '404 — Page not found';
+
+  @override
+  String get unblockAction => 'Unblock';
+  @override
+  String unblockUserPrompt(Object username) => 'Unblock @$username';
+  @override
+  String blockUserPrompt(Object username) => 'Block @$username';
+  @override
+  String unblockUserConfirmDesc(Object username) => 'You will be able to exchange messages and call @$username again.';
+  @override
+  String blockUserConfirmDesc(Object username) => 'Are you sure you want to block @$username? You will no longer be able to message each other.';
+  @override
+  String userBlockedToast(Object username) => '@$username has been blocked';
+  @override
+  String userUnblockedToast(Object username) => '@$username has been unblocked';
+  @override
+  String get userBlockedSuccess => 'User blocked';
+  @override
+  String get userUnblockedSuccess => 'User unblocked';
+  @override
+  String get userBlockFailed => 'Failed to block user';
+  @override
+  String get userUnblockFailed => 'Failed to unblock user';
+  @override
+  String get supportCannotBeBlocked => 'NiosMess support cannot be blocked';
+  @override
+  String get supportCannotBeReported => 'Cannot report NiosMess support';
+  @override
+  String get reportSentSuccess => 'Report submitted';
+  @override
+  String get blockedUsersTitle => 'Blocked Users';
+  @override
+  String get searchByUsernameOrName => 'Search by @username or name';
+  @override
+  String get searchByUsernameOrNameHint => 'Search by @username or name...';
+  @override
+  String get searchBlockedHint => 'Search blocked users...';
+  @override
+  String get noBlockedUsersFound => 'No users found for this query';
+  @override
+  String get noBlockedUsersDesc => 'You have not blocked anyone yet';
+  @override
+  String get blockedBannerTitle => 'You have blocked this user';
+  @override
+  String get blockedByUserBannerTitle => 'Messaging is restricted. This user has limited who can send them messages';
+  @override
+  String get reportReasonInappropriate => 'Inappropriate content';
+  @override
+  String get reportReasonCopyright => 'Copyright infringement';
+  @override
+  String get reportReasonDoxxing => 'Doxxing (personal data)';
+  @override
+  String get reportReasonThreats => 'Swatting / Threats';
+  @override
+  String get chatAccountRestricted => 'Your account is temporarily restricted';
+  @override
+  String get chatUnblockToSend => 'Unblock user to send a message';
+  @override
+  String get chatMessagesRestrictedByUser => 'Messaging is restricted by user';
+  @override
+  String get chatUnblockToCall => 'Unblock user to make a call';
+  @override
+  String get chatCallsRestrictedByUser => 'User restricted incoming calls';
+  @override
+  String chatPreviewStickerWithEmoji(Object emoji) => '🖼️ Sticker $emoji';
+  @override
+  String get chatPreviewSticker => '🖼️ Sticker';
+  @override
+  String chatPreviewVoiceWithDuration(Object duration) => '🎤 Voice message ($duration)';
+  @override
+  String get chatPreviewVoice => '🎤 Voice message';
+  @override
+  String get chatPreviewVideoNote => '📹 Video message';
+  @override
+  String get chatPreviewCall => '📞 Call';
+  @override
+  String get chatPreviewAttachment => '📎 Attachment';
+  @override
+  String get chatPreviewMessage => 'Message';
+  @override
+  String get chatSenderYou => 'You';
+  @override
+  String get chatSenderPartner => 'Partner';
+  @override
+  String get secretChatTitle => 'Secret Chat';
+  @override
+  String get secretChatDesc => 'Messages in this chat are end-to-end encrypted';
+  @override
+  String get secretChatFeature1 => 'End-to-end encryption (E2EE v1)';
+  @override
+  String get secretChatFeature2 => 'Messages are not stored on the server';
+  @override
+  String get secretChatFeature3 => 'Keys are stored only on your devices';
+  @override
+  String get secretChatFeature4 => 'No third party can read messages';
+  @override
+  String get chatConnecting => 'Connecting to server...';
+  @override
+  String get chatReconnecting => 'Restoring chat connection';
+  @override
+  String get chatWallpaperMenu => 'Chat wallpaper';
+  @override
+  String get deleteForEveryone => 'Delete for everyone';
+  @override
+  String get deleteForMe => 'Delete for me';
+  @override
+  String get spamBannerSpam => 'Report spam';
+  @override
+  String get addToContacts => 'Add to contacts';
+  @override
+  String get loginNiosIdNotGranted => 'Nios ID access not granted.';
+  @override
+  String get loginNiosIdStateMismatch => 'Failed to verify Nios ID response (state mismatch).';
+  @override
+  String get loginNiosIdAuthorizing => 'Signing in with Nios ID...';
+  @override
+  String get loginNiosIdTokenFailed => 'Failed to obtain Nios ID access token';
+  @override
+  String loginAuthError(Object error) => 'Authorization error: $error';
+  @override
+  String get loginConnectingNiosMess => 'Signed in. Connecting to NiosMess...';
+  @override
+  String get loginNiosMessRejected => 'NiosMess rejected Nios ID sign-in';
+  @override
+  String get loginTapAgainToExit => 'Press back again to exit';
+  @override
+  String get loginSlogan => 'Unified access to chats, calls and Nios ID';
+  @override
+  String get loginSignInWithNiosId => 'Sign in with Nios ID';
+  @override
+  String get loginCreateNiosId => 'Create Nios ID account';
+  @override
+  String get loginConfirmTitle => 'Sign-in confirmation';
+  @override
+  String get loginConfirmDesc => 'Open the Nios ID page and confirm matching one-time code:';
+  @override
+  String get loginCodeCopied => 'Code copied';
+  @override
+  String get loginTapToCopy => 'Tap to copy';
+  @override
+  String get loginConfirmInBrowser => 'Confirm in browser';
+  @override
+  String get loginAgreeTermsPrefix => 'By signing in, you agree to the documents:';
+  @override
+  String get loginTermsOfService => 'Terms of Service';
+  @override
+  String get loginPrivacyPolicy => 'Privacy Policy';
+  @override
+  String get wizardStep1NameAvatar => 'Step 1 of 2: Name and avatar';
+  @override
+  String get wizardStep2ChannelSettings => 'Step 2 of 2: Channel settings';
+  @override
+  String get wizardStep2GroupMembers => 'Step 2 of 2: Members and access';
+  @override
+  String get wizardChannelAvatar => 'Channel avatar';
+  @override
+  String get wizardGroupAvatar => 'Group avatar';
+  @override
+  String get wizardTakePhoto => 'Take photo';
+  @override
+  String get wizardChooseGallery => 'Choose from gallery';
+  @override
+  String get wizardRemovePhoto => 'Remove photo';
+  @override
+  String get wizardChannelName => 'Channel name';
+  @override
+  String get wizardGroupName => 'Group name';
+  @override
+  String get wizardChannelNameHint => 'Enter channel name...';
+  @override
+  String get wizardGroupNameHint => 'Enter group name...';
+  @override
+  String get wizardTapAvatarHint => 'Tap the avatar to select a photo';
+  @override
+  String get wizardChannelDesc => 'In a channel, posts are visible to all subscribers. You can share news and media on behalf of the channel.';
+  @override
+  String get wizardGroupDesc => 'In a group, members can chat freely, share photos, videos, files, and voice messages.';
+  @override
+  String wizardSelectedCount(Object count) => 'Selected members: $count';
+  @override
+  String get wizardSearchMembersHint => 'Search contacts or @username...';
+  @override
+  String get wizardRecentChats => 'Recent chats';
+  @override
+  String get wizardSearchResults => 'Search results';
+  @override
+  String get wizardNoRecentChats => 'You do not have recent chats to add quickly.';
+  @override
+  String wizardNoUsersFound(Object query) => 'No users found for "$query".';
+  @override
+  String get wizardSearchError => 'Failed to search users.';
+  @override
+  String get wizardAccessAndPrivacy => 'Access and privacy';
+  @override
+  String get wizardPrivateChannelDesc => 'Channel is accessible only via invite link';
+  @override
+  String get wizardPublicChannelDesc => 'Visible in global search and has a permanent link';
+  @override
+  String get wizardUsernameHelper => '3 to 32 characters (letters, numbers, _)';
+  @override
+  String get wizardCreateChannel => 'Create channel';
+  @override
+  String get wizardCreateGroup => 'Create group';
+  @override
+  String get privacyCategoryCommunication => 'Communication';
+  @override
+  String get privacyCategoryCommunicationDesc => 'Manage who can call and send messages';
+  @override
+  String get privacyRuleCalls => 'Calls';
+  @override
+  String get privacyRuleDirectMessages => 'Direct messages';
+  @override
+  String get privacyRuleVoiceMessages => 'Voice messages';
+  @override
+  String get privacyCategoryPersonalData => 'Personal data';
+  @override
+  String get privacyCategoryPersonalDataDesc => 'Visibility of personal info in profile';
+  @override
+  String get privacyRulePhone => 'Phone number';
+  @override
+  String get privacyRuleBirthDate => 'Date of birth';
+  @override
+  String get privacyRuleAvatar => 'Profile photos';
+  @override
+  String get privacyRuleBio => 'Bio';
+  @override
+  String get privacyRuleGifts => 'Gifts';
+  @override
+  String get privacyRuleMusic => 'Saved music';
+  @override
+  String get privacyCategoryActivity => 'Activity';
+  @override
+  String get privacyCategoryActivityDesc => 'Online presence, forwards and invites';
+  @override
+  String get privacyRuleLastSeen => 'Last seen & online status';
+  @override
+  String get privacyRuleForwards => 'Message forwarding';
+  @override
+  String get privacyRuleInvites => 'Group & channel invites';
+  @override
+  String get privacyCategorySecurity => 'Security & blocks';
+  @override
+  String get privacyBlacklist => 'Blocked list';
+  @override
+  String get privacyNoBlocked => 'No blocked users';
+  @override
+  String privacyBlockedCount(Object count) => 'Blocked: $count';
+  @override
+  String get privacyBatteryOptimization => 'Unrestricted battery mode';
+  @override
+  String get privacyBatteryOptimizationDesc => 'Exclude NiosMess from Android battery optimization for reliable push delivery';
+  @override
+  String get privacyPolicyEveryone => 'Everyone';
+  @override
+  String get privacyPolicyEveryoneDesc => 'Available to all NiosMess users';
+  @override
+  String get privacyPolicyContacts => 'My contacts';
+  @override
+  String get privacyPolicyContactsDesc => 'Only users from your chat list';
+  @override
+  String get privacyPolicyNobody => 'Nobody';
+  @override
+  String get privacyPolicyNobodyDesc => 'Hidden from everyone (except exceptions)';
+  @override
+  String get privacyWhoCanInteract => 'Who can see / interact';
+  @override
+  String get privacyExceptions => 'Exceptions';
+  @override
+  String get privacyExceptionsDesc => 'Exceptions take precedence over the main rule';
+  @override
+  String get privacyAlwaysAllow => 'Always allow';
+  @override
+  String get privacyNeverAllow => 'Never allow';
+  @override
+  String get privacyNoAddedUsers => 'No users added';
+  @override
+  String privacyUsersCount(Object count) => 'Users: $count';
+  @override
+  String get privacyAddUserTooltip => 'Add user';
+  @override
+  String get privacySelectUserSubtitle => 'Select a user from the list or enter @username';
+  @override
+  String get appearanceMessageRounding => 'Message rounding';
+  @override
+  String get appearanceMessageRoundingDesc => 'Corner radius of bubbles in chats';
+  @override
+  String get appearanceUiRounding => 'Interface rounding';
+  @override
+  String get appearanceUiRoundingDesc => 'Radius of cards, dialogs and panels';
+  @override
+  String get appearanceContrastColors => 'Contrast & colors';
+  @override
+  String get appearanceContrastColorsDesc => 'Palette and surface appearance settings';
+  @override
+  String get appearanceDeepBlackOled => 'Pure Black (OLED)';
+  @override
+  String get appearanceDeepBlackOledDesc => 'Use pure black (#000000) for surfaces in dark mode';
+  @override
+  String get appearanceInterfaceNav => 'Interface & navigation';
+  @override
+  String get appearanceInterfaceNavDesc => 'Panel style and system animations';
+  @override
+  String get appearancePredictiveBack => 'Predictive back gesture';
+  @override
+  String get appearancePredictiveBackDesc => 'Smooth system M3 back animation to the previous screen';
+  @override
+  String get appearanceChatWallpaperTitle => 'Chat wallpapers';
+  @override
+  String get appearanceChatWallpaperDesc => 'Live pattern generator based on vector icons and theme colors';
+  @override
+  String get appearanceWallpaperGenerator => 'Chat background generator';
+  @override
+  String get appearanceWallpaperGeneratorDesc => 'Select glyph, grid layout, density and animation';
+  @override
+  String get appearanceCustomColor => 'Custom color';
+  @override
+  String get appearanceThemeDark => 'Dark theme';
+  @override
+  String get appearanceThemeDarkActive => 'Dark theme is enabled';
+  @override
+  String get appearanceThemeLightActive => 'Light theme is enabled';
+  @override
+  String get appearanceTextScale => 'Text scale';
+  @override
+  String get appearanceTextScaleDesc => 'Font size and interface proportions';
+  @override
+  String get appearanceInvalidHex => 'Invalid HEX code (e.g. #6750A4)';
+  @override
+  String get appearanceSelectHexPrompt => 'Pick a shade or enter a HEX code';
+  @override
+  String get appearanceHexLabel => 'Palette HEX code';
+  @override
+  String get appearanceApply => 'Apply';
+  @override
+  String get errorServerUnavailable => 'Server temporarily unavailable';
+  @override
+  String get errorServerUnavailableDesc => 'Maintenance in progress or server overloaded. Please try again later.';
+  @override
+  String get errorConnectionLost => 'Connection interrupted';
+  @override
+  String get errorConnectionLostDesc => 'Lost connection to server. Checking connection...';
+  @override
+  String get errorServerCommunication => 'Server communication error';
+  @override
+  String get errorTryAgainLater => 'Please try again later.';
+  @override
+  String get errorNoInternet => 'No internet connection';
+  @override
+  String get errorNoInternetDesc => 'Check your Wi-Fi or mobile data and try again.';
+  @override
+  String get errorServerTimeout => 'Server timed out';
+  @override
+  String get errorServerTimeoutDesc => 'Please try again in a few seconds.';
+  @override
+  String get errorTlsHandshake => 'Secure connection error';
+  @override
+  String get errorTlsHandshakeDesc => 'Failed to verify server security certificate.';
+  @override
+  String get errorServerReset => 'Connection reset by server';
+  @override
+  String get errorServerResetDesc => 'Server is not responding. Try again in a minute.';
+  @override
+  String get errorUserNotFound => 'User not found';
+  @override
+  String get errorUserNotFoundDesc => 'Check username or user ID.';
+  @override
+  String get errorChatNotFound => 'Chat not found';
+  @override
+  String get errorChatNotFoundDesc => 'This chat may have been deleted or you lack access.';
+  @override
+  String get errorChannelNotFound => 'Channel not found';
+  @override
+  String get errorChannelNotFoundDesc => 'The specified channel does not exist or was deleted.';
+  @override
+  String get errorAlreadyTaken => 'Already taken';
+  @override
+  String get errorAlreadyTakenDesc => 'This username or resource already exists.';
+  @override
+  String get errorAlreadyInChat => 'Already in this chat';
+  @override
+  String get errorAlreadyInChatDesc => 'You are already a member of this group.';
+  @override
+  String get errorNotInChat => 'You are not in this chat';
+  @override
+  String get errorNotInChatDesc => 'You need to join the chat to perform this action.';
+  @override
+  String get errorSessionExpired => 'Session expired';
+  @override
+  String get errorSessionExpiredDesc => 'Please sign in to your account again.';
+  @override
+  String get errorRateLimited => 'Too many requests';
+  @override
+  String get errorRateLimitedDesc => 'Please wait a moment before trying again.';
+  @override
+  String get errorPermissionDenied => 'Permission denied';
+  @override
+  String get errorPermissionDeniedDesc => 'You do not have permission to perform this action.';
+  @override
+  String get errorFileUploadFailed => 'File upload error';
+  @override
+  String get errorFileUploadFailedDesc => 'Failed to upload file to the server. Try again.';
+  @override
+  String get errorInvalidCredentials => 'Invalid login credentials';
+  @override
+  String get errorInvalidCredentialsDesc => 'Check the entered username and password.';
+  @override
+  String get errorFileNotFound => 'File not found';
+  @override
+  String get errorFileNotFoundDesc => 'File was moved, deleted, or unavailable.';
+  @override
+  String get errorUnknown => 'Unknown error';
+  @override
+  String get updateAvailable => 'Update available';
+  @override
+  String get updateWhatsNew => 'What\'s new:';
+  @override
+  String updateDownloadingProgress(Object percent) => 'Downloading: $percent%';
+  @override
+  String get updateDownloadingPackage => 'Downloading package...';
+  @override
+  String get updateReadyToInstall => 'Update package is downloaded and ready to install.';
+  @override
+  String get updateDownloadFailed => 'Failed to download update file';
+  @override
+  String get updateDownloadInBackground => 'Download in background';
+  @override
+  String get updateCancelDownload => 'Cancel download';
+  @override
+  String get updateInstallNow => 'Install now';
+  @override
+  String get updateStartingInstaller => 'Starting installer...';
+  @override
+  String get updateRetry => 'Retry';
+  @override
+  String get updateNow => 'Update now';
+  @override
+  String get updateLater => 'Later';
+  @override
+  String get blockUserAction => 'Block user';
+  @override
+  String get refreshAction => 'Refresh';
+  @override
+  String chatStickerSendFailed(Object error) => 'Failed to send sticker: $error';
 }

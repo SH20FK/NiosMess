@@ -1244,8 +1244,9 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
                   CircularProgressIndicator(
                     value: _progress > 0 ? _progress : null,
                     strokeWidth: 3,
+                    strokeCap: StrokeCap.round,
                     color: scheme.primary,
-                    backgroundColor: scheme.primary.withValues(alpha: 0.2),
+                    backgroundColor: scheme.surfaceContainerHighest,
                   ),
                   Text(
                     '${(_progress * 100).toInt()}%',

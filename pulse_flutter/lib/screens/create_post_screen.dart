@@ -14,6 +14,7 @@ import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key, this.autoPickMedia = false});
@@ -287,11 +288,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               child: FilledButton(
                 onPressed: _isLoading ? null : _submit,
                 child: _isLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const AppLoadingIndicator(size: 18)
                     : Text(context.l10n.postPublish),
               ),
             ),
@@ -641,13 +638,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                     FilledButton.icon(
                       onPressed: _isLoading ? null : _submit,
                       icon: _isLoading
-                          ? SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: scheme.onPrimary,
-                              ),
+                          ? AppLoadingIndicator(
+                              size: 16,
+                              color: scheme.onPrimary,
                             )
                           : const Icon(Icons.send_rounded, size: 16),
                       label: Text(

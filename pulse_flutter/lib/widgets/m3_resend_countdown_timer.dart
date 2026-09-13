@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 /// Material 3 Expressive Resend Countdown Timer.
 ///
@@ -156,13 +157,9 @@ class _M3ResendCountdownTimerState extends State<M3ResendCountdownTimer> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (_isResending)
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: scheme.onPrimaryContainer,
-                  ),
+                AppLoadingIndicator(
+                  size: 16,
+                  color: scheme.onPrimaryContainer,
                 )
               else
                 Icon(

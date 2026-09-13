@@ -12,6 +12,7 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class ChatManageScreen extends ConsumerStatefulWidget {
   const ChatManageScreen({required this.chatId, super.key});
@@ -480,11 +481,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                             OutlinedButton.icon(
                               onPressed: _rotatingLink ? null : _rotateInviteLink,
                               icon: _rotatingLink
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
+                                  ? const AppLoadingIndicator(size: 16)
                                   : Icon(Icons.sync_rounded, color: scheme.error),
                               label: Text(
                                 'Перевыпустить',

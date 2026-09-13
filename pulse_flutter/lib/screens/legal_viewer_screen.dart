@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 enum LegalDocType { privacy, tos, consent }
 
@@ -297,7 +298,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
       ),
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: AppLoadingIndicator())
             : _parsedDoc == null
                 ? Center(
                     child: Padding(

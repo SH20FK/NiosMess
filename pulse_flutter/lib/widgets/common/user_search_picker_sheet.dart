@@ -9,6 +9,7 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 /// Shows an expressive Material 3 bottom sheet for finding and picking a user
 /// by @username or display name with live search suggestions.
@@ -292,7 +293,7 @@ class _UserSearchPickerSheetState extends ConsumerState<UserSearchPickerSheet> {
     return searchAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: 32),
-        child: Center(child: CircularProgressIndicator()),
+        child: AppLoadingIndicator(),
       ),
       error: (Object e, _) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),

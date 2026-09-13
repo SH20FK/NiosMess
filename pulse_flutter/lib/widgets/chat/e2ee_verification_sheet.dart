@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class E2eeVerificationSheet extends ConsumerStatefulWidget {
   const E2eeVerificationSheet({
@@ -91,7 +92,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
             if (!snapshot.hasData) {
               return const SizedBox(
                 height: 100,
-                child: Center(child: CircularProgressIndicator()),
+                child: AppLoadingIndicator(),
               );
             }
 
@@ -230,7 +231,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                   Center(
                     child: Column(
                       children: [
-                        const CircularProgressIndicator(),
+                        const AppLoadingIndicator(),
                         const SizedBox(height: 12),
                         Text(
                           'Waiting for peer handshake response...',

@@ -91,11 +91,11 @@ class FileUploadProgressWidget extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
-              
               value: progress.clamp(0.0, 1.0),
-              minHeight: 6,
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(8),
               backgroundColor: colorScheme.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
             ),

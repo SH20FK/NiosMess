@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/sticker_formatter.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class _PickedStickerFile {
   _PickedStickerFile({
@@ -516,11 +517,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                             ),
                             if (_isFormatting) ...[
                               const SizedBox(width: 8),
-                              const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
+                              const AppLoadingIndicator(size: 14),
                             ],
                             const Spacer(),
                             TextButton.icon(
@@ -629,13 +626,9 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
             FilledButton.icon(
               onPressed: (_isLoading || _files.isEmpty) ? null : _submitUpload,
               icon: _isLoading
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: scheme.onPrimary,
-                      ),
+                  ? AppLoadingIndicator(
+                      size: 18,
+                      color: scheme.onPrimary,
                     )
                   : const Icon(Icons.check_rounded, size: 20),
               label: Text(
