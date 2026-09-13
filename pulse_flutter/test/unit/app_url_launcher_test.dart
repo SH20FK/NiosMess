@@ -30,6 +30,14 @@ void main() {
       expect(AppUrlLauncher.resolveInternalAppRoute(customScheme), equals('/g/creator'));
     });
 
+    test('Resolves sticker set deep links /stickers/:setId', () {
+      final Uri uri = Uri.parse('https://ni-os.ru/stickers/902');
+      expect(AppUrlLauncher.resolveInternalAppRoute(uri), equals('/stickers/902'));
+
+      final Uri customScheme = Uri.parse('niosmess://stickers/902');
+      expect(AppUrlLauncher.resolveInternalAppRoute(customScheme), equals('/stickers/902'));
+    });
+
     test('Resolves chat and group routes', () {
       final Uri uri = Uri.parse('https://ni-os.ru/chat/1024?highlight=55');
       expect(AppUrlLauncher.resolveInternalAppRoute(uri), equals('/chat/1024?highlight=55'));

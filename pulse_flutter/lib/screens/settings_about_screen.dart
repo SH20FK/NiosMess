@@ -306,7 +306,7 @@ class _SettingsAboutScreenState extends State<SettingsAboutScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'GitHub Releases (OTA)',
+                  'OTA-обновления NiosMess',
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                     fontSize: 12,

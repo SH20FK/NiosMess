@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:pulse_flutter/widgets/adaptive/adaptive_glass.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
@@ -79,7 +78,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     if (incoming != null && _lastIncoming == null) {
       _lastIncoming = incoming;
       _slideController.forward();
-      Future.microtask(() => HapticFeedback.vibrate());
+      Future.microtask(() => HapticService.notification());
     } else if (incoming == null && _lastIncoming != null) {
       _slideController.reverse().then((_) {
         if (mounted) setState(() => _lastIncoming = null);
@@ -101,103 +100,96 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
           position: _slideAnimation,
           child: FadeTransition(
             opacity: _fadeAnimation,
-          child: RepaintBoundary(
             child: Container(
               decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.25),
+                  width: 1.0,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.35),
+                    color: scheme.shadow.withValues(alpha: 0.16),
                     blurRadius: 24,
                     offset: const Offset(0, 8),
                   ),
                 ],
               ),
-              child: AdaptiveGlass(
-                borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
-                tierASigma: CallTokens.glassBlur,
-                tierBSigma: 8.0,
-                tintColor: scheme.surfaceContainerHigh.withValues(alpha: 0.88),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.3),
-                  width: CallTokens.glassBorderWidth,
-                ),
-                child: GestureDetector(
-                      onVerticalDragEnd: (details) {
-                        final v = details.primaryVelocity ?? 0;
-                        if (v > 120) _acceptCall(context, ref, data);
-                        if (v < -120) _declineCall(data);
-                      },
-                      child: Row(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: GestureDetector(
+                onVerticalDragEnd: (details) {
+                  final v = details.primaryVelocity ?? 0;
+                  if (v > 120) _acceptCall(context, ref, data);
+                  if (v < -120) _declineCall(data);
+                },
+                child: Row(
+                  children: [
+                    // Pulsing Icon in M3 Shape
+                    _PulsingCallIcon(
+                      isVideo: data.isVideo,
+                      pulseScale: _pulseScale,
+                      pulseOpacity: _pulseOpacity,
+                      scheme: scheme,
+                    ),
+                    const SizedBox(width: 14),
+
+                    // Name + Subtitle
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Pulsing Icon in M3 Shape
-                          _PulsingCallIcon(
-                            isVideo: data.isVideo,
-                            pulseScale: _pulseScale,
-                            pulseOpacity: _pulseOpacity,
-                            scheme: scheme,
-                          ),
-                          const SizedBox(width: 14),
-
-                          // Name + Subtitle
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  data.initiatorName,
-                                  style: textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.1,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  data.isVideo
-                                      ? context.l10n.callIncomingVideo
-                                      : context.l10n.callIncomingVoice,
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
+                          Text(
+                            data.initiatorName,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.1,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 10),
-
-                          // Decline Button (Clean Circular M3 Button)
-                          _M3CallActionButton(
-                            icon: Icons.call_end_rounded,
-                            color: Colors.white,
-                            bg: const Color(0xFFE53935),
-                            label: context.l10n.callEnd,
-                            onTap: () => _declineCall(data),
-                          ),
-                          const SizedBox(width: 12),
-
-                          // Accept Button (Clean Circular M3 Button)
-                          _M3CallActionButton(
-                            icon: data.isVideo ? Icons.videocam_rounded : Icons.phone_rounded,
-                            color: Colors.white,
-                            bg: const Color(0xFF2E7D32),
-                            label: 'Accept',
-                            onTap: () => _acceptCall(context, ref, data),
+                          const SizedBox(height: 2),
+                          Text(
+                            data.isVideo
+                                ? context.l10n.callIncomingVideo
+                                : context.l10n.callIncomingVoice,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+
+                    // Decline Button (M3 ErrorContainer)
+                    _M3CallActionButton(
+                      icon: Icons.call_end_rounded,
+                      color: scheme.onErrorContainer,
+                      bg: scheme.errorContainer,
+                      label: context.l10n.callEnd,
+                      onTap: () => _declineCall(data),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Accept Button (M3 Primary)
+                    _M3CallActionButton(
+                      icon: data.isVideo ? Icons.videocam_rounded : Icons.phone_rounded,
+                      color: scheme.onPrimary,
+                      bg: scheme.primary,
+                      label: 'Accept',
+                      onTap: () => _acceptCall(context, ref, data),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
   }
 
   void _declineCall(IncomingCallData incoming) {
@@ -344,7 +336,7 @@ class _M3CallActionButton extends StatelessWidget {
       label: label,
       child: GestureDetector(
         onTap: () {
-          HapticFeedback.mediumImpact();
+          HapticService.tap();
           onTap();
         },
         child: Container(

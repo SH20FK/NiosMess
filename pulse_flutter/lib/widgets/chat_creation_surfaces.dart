@@ -21,6 +21,42 @@ Future<void> showStartDirectChatDialog(BuildContext context) async {
   }
 }
 
+/// Adaptive modal for Group / Channel creation:
+/// - Mobile / narrow screens (< 720dp): Material 3 Expressive Bottom Sheet modal.
+/// - Desktop / wide screens (>= 720dp): Centered Material 3 Expressive Dialog card.
+Future<void> showCreateChatModal(
+  BuildContext context, {
+  required String chatType,
+}) {
+  final bool isWide = MediaQuery.sizeOf(context).width >= 720;
+  if (isWide) {
+    return showCreateChatDialog(context, initialType: chatType);
+  }
+
+  return AppBottomSheets.show<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (BuildContext ctx) {
+      return ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(ctx).height * 0.88,
+        ),
+        child: CreateChatWizardView(
+          initialType: chatType,
+          isDialog: true,
+          lockType: true,
+          onClose: () => Navigator.of(ctx).pop(),
+          onChatCreated: (int chatId) {
+            Navigator.of(ctx).pop();
+            context.push('/chat/$chatId');
+          },
+        ),
+      );
+    },
+  );
+}
+
 /// Compact Material 3 Expressive dialog for desktop/web chat creation
 Future<void> showCreateChatDialog(
   BuildContext context, {
@@ -47,6 +83,7 @@ Future<void> showCreateChatDialog(
             child: CreateChatWizardView(
               initialType: initialType,
               isDialog: true,
+              lockType: true,
               onClose: () => Navigator.of(ctx).pop(),
               onChatCreated: (int chatId) {
                 Navigator.of(ctx).pop();

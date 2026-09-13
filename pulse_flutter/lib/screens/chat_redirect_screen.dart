@@ -32,34 +32,33 @@ class _ChatRedirectScreenState extends ConsumerState<ChatRedirectScreen> {
     });
 
     try {
+      final String cleanSlug = widget.slug.startsWith('@')
+          ? widget.slug.substring(1)
+          : widget.slug;
+
       if (widget.slug.startsWith('+')) {
-        // Private invite link (/u/+TOKEN)
-        final joinRes =
-            await ref.read(chatRepositoryProvider).joinBySlug(widget.slug);
-        if (!mounted) return;
-        if (joinRes != null && joinRes.chatId > 0) {
-          context.go('/chat/${joinRes.chatId}');
-          return;
-        } else {
-          context.go('/join?slug=${Uri.encodeComponent(widget.slug)}');
-          return;
-        }
+        // Private invite link (/u/+TOKEN): show invite info and require confirmation to join
+        context.go('/join?slug=${Uri.encodeComponent(widget.slug)}');
+        return;
       }
 
       final result = await ref
           .read(chatRepositoryProvider)
-          .resolveShortLink(widget.slug);
+          .resolveShortLink(cleanSlug);
 
       if (!mounted) return;
 
       if (result != null && result.isNotEmpty) {
         context.go(result);
       } else {
-        context.go('/chat/dm/${widget.slug}');
+        context.go('/chat/dm/$cleanSlug');
       }
     } catch (e) {
       if (!mounted) return;
-      context.go('/chat/dm/${widget.slug}');
+      final String clean = widget.slug.startsWith('@')
+          ? widget.slug.substring(1)
+          : widget.slug;
+      context.go('/chat/dm/$clean');
     }
   }
 

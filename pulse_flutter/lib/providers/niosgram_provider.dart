@@ -82,16 +82,9 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     if (cached.isEmpty) return fresh;
 
     final Set<int> freshIds = fresh.map((NgPost p) => p.id).toSet();
-    final int minFreshId =
-        fresh.map((NgPost p) => p.id).reduce((int a, int b) => a < b ? a : b);
-
-    // Any cached post whose id is within the fresh range (>= minFreshId)
-    // but not returned in fresh was deleted on the server!
-    final List<NgPost> olderPosts = cached.where((NgPost p) {
-      if (freshIds.contains(p.id)) return false;
-      if (p.id >= minFreshId) return false; // Deleted on backend
-      return true;
-    }).toList(growable: false);
+    final List<NgPost> olderPosts = cached
+        .where((NgPost p) => !freshIds.contains(p.id))
+        .toList(growable: false);
 
     return <NgPost>[...fresh, ...olderPosts];
   }
@@ -174,17 +167,12 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
   }
 
   Future<void> refresh() async {
-    final AsyncData<NiosgramState>? current = state.asData;
-    final List<NgPost> existing = current?.value.posts ??
-        ref.read(cacheServiceProvider).getCachedFeed();
-
     final List<NgPost> freshPosts = await _fetchPage(1);
-    final List<NgPost> reconciled = _reconcilePosts(existing, freshPosts);
-    await ref.read(cacheServiceProvider).saveFeed(reconciled);
+    await ref.read(cacheServiceProvider).saveFeed(freshPosts);
 
     state = AsyncData<NiosgramState>(
       NiosgramState(
-        posts: reconciled,
+        posts: freshPosts,
         page: 1,
         hasMore: freshPosts.length >= 20,
       ),
@@ -199,14 +187,20 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     final int nextPage = current.value.page + 1;
     try {
       final List<NgPost> more = await _fetchPage(nextPage);
+      final Set<int> existingIds = current.value.posts.map((NgPost p) => p.id).toSet();
+      final List<NgPost> newUnique = more
+          .where((NgPost p) => !existingIds.contains(p.id))
+          .toList(growable: false);
+      final List<NgPost> combined = <NgPost>[...current.value.posts, ...newUnique];
       state = AsyncData<NiosgramState>(
         current.value.copyWith(
-          posts: <NgPost>[...current.value.posts, ...more],
+          posts: combined,
           page: nextPage,
           hasMore: more.length >= 20,
           isLoadingMore: false,
         ),
       );
+      ref.read(cacheServiceProvider).saveFeed(combined);
     } catch (e) {
       debugPrint('[niosgram_provider] Load more error: $e');
       state = AsyncData<NiosgramState>(
@@ -219,25 +213,37 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     final AsyncData<NiosgramState>? current = state.asData;
     if (current == null) return;
 
-    // Optimistic update
-    final List<NgPost> updated = current.value.posts.map((NgPost p) {
-      if (p.id != postId) return p;
-      final bool? prev = p.myReaction;
-      final bool? next = prev == isLike ? null : isLike;
-      int likes = p.likesCount;
-      int dislikes = p.dislikesCount;
-      if (prev == true) likes--;
-      if (prev == false) dislikes--;
-      if (next == true) likes++;
-      if (next == false) dislikes++;
-      return p.copyWith(
-        likesCount: likes,
-        dislikesCount: dislikes,
-        myReaction: () => next,
-      );
-    }).toList(growable: false);
+    final NgPost? target =
+        current.value.posts.where((NgPost p) => p.id == postId).firstOrNull;
+    final bool? prev = target?.myReaction;
+    final bool? next = prev == isLike ? null : isLike;
 
-    state = AsyncData<NiosgramState>(current.value.copyWith(posts: updated));
+    if (next == false) {
+      // Disliked post: exclude immediately from user's feed
+      final List<NgPost> filtered = current.value.posts
+          .where((NgPost p) => p.id != postId)
+          .toList(growable: false);
+      state = AsyncData<NiosgramState>(current.value.copyWith(posts: filtered));
+      ref.read(cacheServiceProvider).saveFeed(filtered);
+    } else {
+      // Optimistic update of single post card in-place without reloading feed
+      final List<NgPost> updated = current.value.posts.map((NgPost p) {
+        if (p.id != postId) return p;
+        int likes = p.likesCount;
+        int dislikes = p.dislikesCount;
+        if (prev == true) likes--;
+        if (prev == false) dislikes--;
+        if (next == true) likes++;
+        if (next == false) dislikes++;
+        return p.copyWith(
+          likesCount: likes,
+          dislikesCount: dislikes,
+          myReaction: () => next,
+        );
+      }).toList(growable: false);
+
+      state = AsyncData<NiosgramState>(current.value.copyWith(posts: updated));
+    }
 
     try {
       final dynamic response = await ref.read(webSocketClientProvider).request(
@@ -265,28 +271,38 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
 
           final AsyncData<NiosgramState>? fresh = state.asData;
           if (fresh != null) {
-            final List<NgPost> synced = fresh.value.posts.map((NgPost p) {
-              if (p.id != postId) return p;
-              return p.copyWith(
-                likesCount: likes ?? p.likesCount,
-                dislikesCount: dislikes ?? p.dislikesCount,
-                myReaction: () => serverReaction,
-              );
-            }).toList(growable: false);
-            state =
-                AsyncData<NiosgramState>(fresh.value.copyWith(posts: synced));
+            if (serverReaction == false) {
+              // Ensure post remains excluded from feed if server confirms dislike
+              final List<NgPost> withoutDisliked = fresh.value.posts
+                  .where((NgPost p) => p.id != postId)
+                  .toList(growable: false);
+              state = AsyncData<NiosgramState>(fresh.value.copyWith(posts: withoutDisliked));
+              ref.read(cacheServiceProvider).saveFeed(withoutDisliked);
+            } else {
+              // Update only the post card in place
+              final List<NgPost> synced = fresh.value.posts.map((NgPost p) {
+                if (p.id != postId) return p;
+                return p.copyWith(
+                  likesCount: likes ?? p.likesCount,
+                  dislikesCount: dislikes ?? p.dislikesCount,
+                  myReaction: () => serverReaction,
+                );
+              }).toList(growable: false);
+              state =
+                  AsyncData<NiosgramState>(fresh.value.copyWith(posts: synced));
+            }
           }
         }
       }
     } catch (e) {
       debugPrint('[niosgram_provider] Like error: $e');
-      final NgPost? originalPost = current.value.posts.where((p) => p.id == postId).firstOrNull;
-      if (originalPost != null) {
+      if (target != null) {
         final AsyncData<NiosgramState>? fresh = state.asData;
         if (fresh != null) {
-          final List<NgPost> reverted = fresh.value.posts
-              .map((NgPost p) => p.id == postId ? originalPost : p)
-              .toList(growable: false);
+          final bool exists = fresh.value.posts.any((NgPost p) => p.id == postId);
+          final List<NgPost> reverted = exists
+              ? fresh.value.posts.map((NgPost p) => p.id == postId ? target : p).toList(growable: false)
+              : <NgPost>[...fresh.value.posts, target];
           state = AsyncData<NiosgramState>(fresh.value.copyWith(posts: reverted));
         }
       }
@@ -385,7 +401,6 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
         final AsyncData<NiosgramState>? fresh = state.asData;
         if (fresh != null && !fresh.value.posts.any((p) => p.id == postId)) {
           final List<NgPost> reverted = <NgPost>[...fresh.value.posts, originalPost];
-          reverted.sort((a, b) => b.id.compareTo(a.id));
           state = AsyncData<NiosgramState>(fresh.value.copyWith(posts: reverted));
           ref.read(cacheServiceProvider).saveFeed(reverted);
         }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Maximum recording duration for circle video (60 seconds).
 const int _kMaxRecordSeconds = 60;
@@ -25,7 +26,12 @@ class CircleVideoRecorderScreen extends StatefulWidget {
 
 class _CircleVideoRecorderScreenState
     extends State<CircleVideoRecorderScreen> with TickerProviderStateMixin {
+  static const String _kCameraLensPrefKey = 'circle_video_preferred_lens';
+
   CameraController? _controller;
+  List<CameraDescription> _availableCameras = <CameraDescription>[];
+  CameraLensDirection _currentLensDirection = CameraLensDirection.front;
+  bool _isSwitchingCamera = false;
   bool _isRecording = false;
   bool _initialized = false;
   Timer? _recordingTimer;
@@ -36,6 +42,8 @@ class _CircleVideoRecorderScreenState
   late AnimationController _progressController;
   late AnimationController _scrimController;
   late Animation<double> _scrimAnim;
+  late AnimationController _flipController;
+  late Animation<double> _flipAnim;
 
   @override
   void initState() {
@@ -63,21 +71,41 @@ class _CircleVideoRecorderScreenState
       curve: Curves.easeOut,
     );
 
+    _flipController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _flipAnim = CurvedAnimation(
+      parent: _flipController,
+      curve: Curves.easeInOutCubic,
+    );
+
     _initCamera();
   }
 
   Future<void> _initCamera() async {
     try {
-      final List<CameraDescription> cameras = await availableCameras();
-      if (cameras.isEmpty) {
+      _availableCameras = await availableCameras();
+      if (_availableCameras.isEmpty) {
         if (mounted) Navigator.of(context).pop();
         return;
       }
 
-      final CameraDescription defaultCam = cameras.firstWhere(
-        (CameraDescription c) => c.lensDirection == CameraLensDirection.front,
-        orElse: () => cameras.first,
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? savedLens = prefs.getString(_kCameraLensPrefKey);
+      final CameraLensDirection targetDirection = savedLens == 'back'
+          ? CameraLensDirection.back
+          : CameraLensDirection.front;
+
+      final CameraDescription defaultCam = _availableCameras.firstWhere(
+        (CameraDescription c) => c.lensDirection == targetDirection,
+        orElse: () => _availableCameras.firstWhere(
+          (CameraDescription c) => c.lensDirection == CameraLensDirection.front,
+          orElse: () => _availableCameras.first,
+        ),
       );
+
+      _currentLensDirection = defaultCam.lensDirection;
 
       _controller = CameraController(
         defaultCam,
@@ -94,7 +122,7 @@ class _CircleVideoRecorderScreenState
 
         if (widget.autoStart) {
           // Small delay for smooth animation before auto-start
-          Future<void>.delayed(const Duration(milliseconds: 300), () {
+          Future<void>.delayed(const Duration(milliseconds: 350), () {
             if (mounted && !_isRecording) _startRecording();
           });
         }
@@ -151,26 +179,69 @@ class _CircleVideoRecorderScreenState
   }
 
   Future<void> _switchCamera() async {
-    if (_controller == null || _isRecording) return;
+    if (_controller == null || _isSwitchingCamera) return;
+    if (_availableCameras.length < 2) {
+      try {
+        _availableCameras = await availableCameras();
+      } catch (_) {}
+      if (_availableCameras.length < 2) return;
+    }
+
     HapticService.tap();
+    _flipController.forward(from: 0.0);
+
     final CameraDescription current = _controller!.description;
-    final List<CameraDescription> cameras = await availableCameras();
-    final CameraDescription next = cameras.firstWhere(
+    final CameraDescription next = _availableCameras.firstWhere(
       (CameraDescription c) => c.lensDirection != current.lensDirection,
-      orElse: () => cameras.first,
+      orElse: () => _availableCameras.firstWhere(
+        (CameraDescription c) => c != current,
+        orElse: () => current,
+      ),
     );
     if (next == current) return;
 
-    await _controller!.dispose();
-    _controller = CameraController(
-      next,
-      ResolutionPreset.high,
-      enableAudio: true,
-    );
+    setState(() => _isSwitchingCamera = true);
+
     try {
-      await _controller!.initialize();
-    } catch (_) {}
-    if (mounted) setState(() {});
+      if (_controller!.value.isRecordingVideo) {
+        // Active recording in progress: use setDescription if supported while recording
+        try {
+          await _controller!.setDescription(next);
+          _currentLensDirection = next.lensDirection;
+        } catch (e) {
+          debugPrint('[CircleVideoRecorder] Live switch failed: $e');
+        }
+      } else {
+        // Not recording: switch camera description
+        try {
+          await _controller!.setDescription(next);
+          _currentLensDirection = next.lensDirection;
+        } catch (_) {
+          // Fallback: re-initialize with fresh CameraController
+          await _controller?.dispose();
+          _controller = CameraController(
+            next,
+            ResolutionPreset.high,
+            enableAudio: true,
+            imageFormatGroup: ImageFormatGroup.jpeg,
+          );
+          await _controller!.initialize();
+          _currentLensDirection = next.lensDirection;
+        }
+      }
+
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _kCameraLensPrefKey,
+        _currentLensDirection == CameraLensDirection.back ? 'back' : 'front',
+      );
+    } catch (e) {
+      debugPrint('[CircleVideoRecorder] Camera switch error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isSwitchingCamera = false);
+      }
+    }
   }
 
   void _cancelAndPop() {
@@ -190,6 +261,7 @@ class _CircleVideoRecorderScreenState
     _pulseController.dispose();
     _progressController.dispose();
     _scrimController.dispose();
+    _flipController.dispose();
     _controller?.dispose();
     super.dispose();
   }
@@ -273,30 +345,53 @@ class _CircleVideoRecorderScreenState
                             ),
                           ),
 
-                        // Camera preview clipped strictly into circle
-                        ClipOval(
-                          child: SizedBox(
-                            width: circleSize,
-                            height: circleSize,
-                            child: _initialized &&
-                                    _controller != null &&
-                                    _controller!.value.isInitialized
-                                ? FittedBox(
-                                    fit: BoxFit.cover,
-                                    child: SizedBox(
-                                      width: previewW,
-                                      height: previewH,
-                                      child: CameraPreview(_controller!),
+                        // Camera preview clipped strictly into circle with double-tap flip
+                        GestureDetector(
+                          onDoubleTap: _switchCamera,
+                          child: ClipOval(
+                            child: SizedBox(
+                              width: circleSize,
+                              height: circleSize,
+                              child: AnimatedBuilder(
+                                animation: _flipAnim,
+                                builder: (BuildContext context, Widget? child) {
+                                  final double value = _flipAnim.value;
+                                  final double angle = value * math.pi;
+                                  final bool isHalfway = value > 0.5;
+                                  return Transform(
+                                    transform: Matrix4.identity()
+                                      ..setEntry(3, 2, 0.0015)
+                                      ..rotateY(angle),
+                                    alignment: Alignment.center,
+                                    child: Transform(
+                                      transform: Matrix4.identity()
+                                        ..rotateY(isHalfway ? math.pi : 0.0),
+                                      alignment: Alignment.center,
+                                      child: child,
                                     ),
-                                  )
-                                : Container(
-                                    color: scheme.surfaceContainerHighest,
-                                    child: Center(
-                                      child: AppLoadingIndicator(
-                                        color: scheme.onSurface,
+                                  );
+                                },
+                                child: _initialized &&
+                                        _controller != null &&
+                                        _controller!.value.isInitialized
+                                    ? FittedBox(
+                                        fit: BoxFit.cover,
+                                        child: SizedBox(
+                                          width: previewW,
+                                          height: previewH,
+                                          child: CameraPreview(_controller!),
+                                        ),
+                                      )
+                                    : Container(
+                                        color: scheme.surfaceContainerHighest,
+                                        child: Center(
+                                          child: AppLoadingIndicator(
+                                            color: scheme.onSurface,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -318,7 +413,7 @@ class _CircleVideoRecorderScreenState
                         scheme: scheme,
                       ),
                       const Spacer(),
-                      // Timer badge
+                      // Timer badge or Camera Lens indicator badge
                       if (_isRecording)
                         AnimatedBuilder(
                           animation: _pulseAnim,
@@ -362,17 +457,51 @@ class _CircleVideoRecorderScreenState
                               ],
                             ),
                           ),
-                        ),
-                      const Spacer(),
-                      // Flip camera button (hidden during recording)
-                      if (!_isRecording)
-                        _CircleButton(
-                          icon: Icons.flip_camera_ios_rounded,
-                          onTap: _switchCamera,
-                          scheme: scheme,
                         )
                       else
-                        const SizedBox(width: 48),
+                        // Lens indicator badge (Front / Rear)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: scheme.surface.withValues(alpha: 0.50),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Icon(
+                                _currentLensDirection ==
+                                        CameraLensDirection.front
+                                    ? Icons.face_rounded
+                                    : Icons.photo_camera_back_rounded,
+                                size: 16,
+                                color: scheme.onSurface.withValues(alpha: 0.85),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _currentLensDirection ==
+                                        CameraLensDirection.front
+                                    ? 'Фронтальная'
+                                    : 'Основная',
+                                style: textTheme.labelMedium?.copyWith(
+                                  color: scheme.onSurface.withValues(alpha: 0.85),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const Spacer(),
+                      // Flip camera button (always accessible!)
+                      _CircleButton(
+                        icon: Icons.flip_camera_ios_rounded,
+                        tooltip: context.l10n.mediaViewerFlipCamera,
+                        onTap: _switchCamera,
+                        scheme: scheme,
+                      ),
                     ],
                   ),
                 ),
@@ -385,50 +514,74 @@ class _CircleVideoRecorderScreenState
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      // Record / Stop button
-                      GestureDetector(
-                        onTap: () {
-                          if (_isRecording) {
-                            _stopRecording();
-                          } else {
-                            _startRecording();
-                          }
-                        },
-                        child: AnimatedBuilder(
-                          animation: _pulseAnim,
-                          builder: (BuildContext context, Widget? child) {
-                            final double outerSize =
-                                _isRecording ? 72 * _pulseAnim.value : 80;
-                            return Container(
-                              width: outerSize,
-                              height: outerSize,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: _isRecording
-                                      ? scheme.error
-                                      : scheme.onSurface.withValues(alpha: 0.6),
-                                  width: 4,
-                                ),
-                              ),
-                              child: Center(
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  curve: Curves.easeInOutCubic,
-                                  width: _isRecording ? 24 : 36,
-                                  height: _isRecording ? 24 : 36,
-                                  decoration: BoxDecoration(
-                                    color: _isRecording
-                                        ? scheme.error
-                                        : scheme.onSurface,
-                                    borderRadius: BorderRadius.circular(
-                                      _isRecording ? 6 : 18,
+                      // Controls row: [SizedBox spacer, Record/Stop button, Flip button]
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 48),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            // Left spacer to symmetrically balance right flip button
+                            const SizedBox(width: 48, height: 48),
+
+                            // Record / Stop button
+                            GestureDetector(
+                              onTap: () {
+                                if (_isRecording) {
+                                  _stopRecording();
+                                } else {
+                                  _startRecording();
+                                }
+                              },
+                              child: AnimatedBuilder(
+                                animation: _pulseAnim,
+                                builder: (BuildContext context, Widget? child) {
+                                  final double outerSize =
+                                      _isRecording ? 72 * _pulseAnim.value : 80;
+                                  return Container(
+                                    width: outerSize,
+                                    height: outerSize,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: _isRecording
+                                            ? scheme.error
+                                            : scheme.onSurface
+                                                .withValues(alpha: 0.6),
+                                        width: 4,
+                                      ),
                                     ),
-                                  ),
-                                ),
+                                    child: Center(
+                                      child: AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        curve: Curves.easeInOutCubic,
+                                        width: _isRecording ? 24 : 36,
+                                        height: _isRecording ? 24 : 36,
+                                        decoration: BoxDecoration(
+                                          color: _isRecording
+                                              ? scheme.error
+                                              : scheme.onSurface,
+                                          borderRadius: BorderRadius.circular(
+                                            _isRecording ? 6 : 18,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                            );
-                          },
+                            ),
+
+                            // Flip camera button right next to user's thumb
+                            _CircleButton(
+                              icon: Icons.cameraswitch_rounded,
+                              tooltip: context.l10n.mediaViewerFlipCamera,
+                              onTap: _switchCamera,
+                              scheme: scheme,
+                              size: 48,
+                              iconSize: 24,
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -460,27 +613,41 @@ class _CircleButton extends StatelessWidget {
     required this.icon,
     required this.onTap,
     required this.scheme,
+    this.tooltip,
+    this.size = 44,
+    this.iconSize = 24,
   });
 
   final IconData icon;
   final VoidCallback onTap;
   final ColorScheme scheme;
+  final String? tooltip;
+  final double size;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    Widget button = Material(
       color: scheme.surface.withValues(alpha: 0.35),
       shape: const CircleBorder(),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Icon(icon, color: scheme.onSurface, size: 24),
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: Icon(icon, color: scheme.onSurface, size: iconSize),
+          ),
         ),
       ),
     );
+
+    if (tooltip != null) {
+      button = Tooltip(message: tooltip!, child: button);
+    }
+    return button;
   }
 }
 

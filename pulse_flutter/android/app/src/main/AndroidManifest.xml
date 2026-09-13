@@ -15,6 +15,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:enableOnBackInvokedCallback="true"
@@ -46,9 +47,15 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="ni-os.ru" />
+                <data android:scheme="https" android:host="ni-os.ru" />
+                <data android:scheme="https" android:host="www.ni-os.ru" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" android:host="ni-os.ru" />
+                <data android:scheme="http" android:host="www.ni-os.ru" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

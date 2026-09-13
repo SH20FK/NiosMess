@@ -6,6 +6,7 @@ import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
+import 'package:pulse_flutter/services/permission_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -60,6 +61,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     _checkBiometricLock();
     _showAlphaDialog();
     _checkWebPushPrompt();
+    PermissionService().requestInitialPermissionsIfNeeded();
   }
 
   @override
@@ -229,32 +231,28 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   }
 
   Widget _composeFab(BuildContext context) {
-    final bool isWide = MediaQuery.sizeOf(context).width >= 720;
     final bool isVisible = ref.watch(chatListFabVisibleProvider);
 
     return M3SpeedDialFab(
       visible: isVisible,
       heroTag: 'compose_chat_fab',
       onSelectGroup: () {
-        if (isWide) {
-          showCreateChatDialog(context, initialType: 'group');
-        } else {
-          context.push('/chat/create?type=group');
-        }
+        showCreateChatModal(context, chatType: 'group');
       },
       onSelectChannel: () {
-        if (isWide) {
-          showCreateChatDialog(context, initialType: 'channel');
-        } else {
-          context.push('/chat/create?type=channel');
-        }
+        showCreateChatModal(context, chatType: 'channel');
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final UiSettingsState settings = ref.watch(uiSettingsProvider);
+    final bool navBarFloating = ref.watch(
+      uiSettingsProvider.select((s) => s.navBarFloating),
+    );
+    final bool haptics = ref.watch(
+      uiSettingsProvider.select((s) => s.haptics),
+    );
     final int? desktopChatId = ref.watch(desktopSelectedChatProvider);
     final int currentIndex = _tabIndex(widget.tab);
     final bool isOffline = !(ref.watch(connectivityProvider).value ?? true);
@@ -347,7 +345,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
             if (!_activatedTabs.contains(index)) {
               return const SizedBox.shrink();
             }
-            return pages[index];
+            return RepaintBoundary(child: pages[index]);
           }),
         );
 
@@ -371,7 +369,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                           child: FloatingActionButton(
                             elevation: 0,
                             onPressed: () {
-                              if (ref.read(uiSettingsProvider).haptics) {
+                              if (haptics) {
                                 HapticService.tap();
                               }
                               _showCreateMenu(context);
@@ -420,7 +418,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         }
 
         return Scaffold(
-          extendBody: settings.navBarFloating,
+          extendBody: navBarFloating,
           body: Column(
             children: [
               OfflineBanner(isOffline: isOffline),
@@ -438,7 +436,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
             child: AppBottomNav(
               currentIndex: currentIndex,
               onTap: _onTapTab,
-              hapticsEnabled: settings.haptics,
+              hapticsEnabled: haptics,
             ),
           ),
           floatingActionButton: currentIndex == 0 ? _composeFab(context) : null,
@@ -517,16 +515,11 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     final String? action = await showCreateChatMenu(context);
 
     if (action == null || !context.mounted) return;
-    final bool isWide = MediaQuery.sizeOf(context).width >= 720;
 
     switch (action) {
       case 'group':
       case 'channel':
-        if (isWide) {
-          await showCreateChatDialog(context, initialType: action);
-        } else {
-          context.push('/chat/create?type=$action');
-        }
+        await showCreateChatModal(context, chatType: action);
         return;
     }
   }

@@ -155,6 +155,9 @@ class ApiStickerSet {
     required this.title,
     this.isPublic = true,
     this.authorId,
+    this.isSaved,
+    this.isOwner,
+    this.shareUrl,
     this.stickers = const <ApiSticker>[],
   });
 
@@ -163,6 +166,9 @@ class ApiStickerSet {
   final String title;
   final bool isPublic;
   final int? authorId;
+  final bool? isSaved;
+  final bool? isOwner;
+  final String? shareUrl;
   final List<ApiSticker> stickers;
 
   ApiSticker? get coverSticker => stickers.isNotEmpty ? stickers.first : null;
@@ -197,6 +203,9 @@ class ApiStickerSet {
       title: json['title'] as String? ?? '',
       isPublic: _parseBool(json['is_public']),
       authorId: (json['author_id'] as num?)?.toInt(),
+      isSaved: json['is_saved'] != null ? _parseBool(json['is_saved']) : null,
+      isOwner: json['is_owner'] != null ? _parseBool(json['is_owner']) : null,
+      shareUrl: json['share_url'] as String?,
       stickers: parsedStickers,
     );
   }
@@ -208,6 +217,9 @@ class ApiStickerSet {
       'title': title,
       'is_public': isPublic,
       if (authorId != null) 'author_id': authorId,
+      if (isSaved != null) 'is_saved': isSaved,
+      if (isOwner != null) 'is_owner': isOwner,
+      if (shareUrl != null) 'share_url': shareUrl,
       'stickers': stickers.map((ApiSticker s) => s.toJson()).toList(growable: false),
     };
   }
@@ -218,6 +230,9 @@ class ApiStickerSet {
     String? title,
     bool? isPublic,
     int? authorId,
+    bool? isSaved,
+    bool? isOwner,
+    String? shareUrl,
     List<ApiSticker>? stickers,
   }) {
     return ApiStickerSet(
@@ -226,6 +241,9 @@ class ApiStickerSet {
       title: title ?? this.title,
       isPublic: isPublic ?? this.isPublic,
       authorId: authorId ?? this.authorId,
+      isSaved: isSaved ?? this.isSaved,
+      isOwner: isOwner ?? this.isOwner,
+      shareUrl: shareUrl ?? this.shareUrl,
       stickers: stickers ?? this.stickers,
     );
   }
@@ -240,6 +258,9 @@ class ApiStickerSet {
           title == other.title &&
           isPublic == other.isPublic &&
           authorId == other.authorId &&
+          isSaved == other.isSaved &&
+          isOwner == other.isOwner &&
+          shareUrl == other.shareUrl &&
           listEquals(stickers, other.stickers);
 
   @override
@@ -249,6 +270,9 @@ class ApiStickerSet {
         title,
         isPublic,
         authorId,
+        isSaved,
+        isOwner,
+        shareUrl,
         Object.hashAll(stickers),
       );
 }

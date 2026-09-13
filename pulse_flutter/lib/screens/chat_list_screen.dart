@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -265,21 +264,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     ),
                   );
 
-                  if (index >= 6) {
-                    return RepaintBoundary(child: item);
-                  }
-
-                  final int delayMs = index * 35;
-                  return RepaintBoundary(child: item)
-                      .animate()
-                      .fade(duration: 250.ms, delay: delayMs.ms, curve: Curves.easeOutCubic)
-                      .slideY(
-                        begin: 0.06,
-                        end: 0,
-                        duration: 250.ms,
-                        delay: delayMs.ms,
-                        curve: Curves.easeOutCubic,
-                      );
+                  return RepaintBoundary(child: item);
                 },
                 addAutomaticKeepAlives: false,
                 addRepaintBoundaries: false,

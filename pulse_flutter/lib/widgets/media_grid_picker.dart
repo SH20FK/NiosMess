@@ -4,6 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/quick_camera_capture_screen.dart';
 import 'package:universal_io/io.dart';
 
 class MediaGridPickerResult {
@@ -11,31 +14,44 @@ class MediaGridPickerResult {
     required this.filePath,
     required this.fileName,
     required this.fileSize,
+    this.caption,
+    this.sendAsDocument = false,
   });
 
   final String filePath;
   final String fileName;
   final int fileSize;
+  final String? caption;
+  final bool sendAsDocument;
 }
 
 class MediaGridPicker extends StatefulWidget {
-  const MediaGridPicker({super.key});
+  const MediaGridPicker({
+    this.onSelected,
+    super.key,
+  });
+
+  final ValueChanged<List<MediaGridPickerResult>>? onSelected;
 
   @override
   State<MediaGridPicker> createState() => _MediaGridPickerState();
 }
 
 class _MediaGridPickerState extends State<MediaGridPicker> {
-  static const int _pageSize = 80;
+  static const int _pageSize = 90;
 
-  List<AssetEntity> _allAssets = [];
-  final Set<String> _selectedIds = {};
+  List<AssetEntity> _allAssets = <AssetEntity>[];
+  final List<String> _selectedIds = <String>[];
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _captionController = TextEditingController();
+
+  List<AssetPathEntity> _albums = <AssetPathEntity>[];
   AssetPathEntity? _recentAlbum;
   int _currentPage = 0;
   bool _hasMore = true;
   bool _loadingMore = false;
   bool _loading = true;
+  bool _sendAsDocument = false;
   String? _error;
 
   @override
@@ -48,7 +64,7 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
   void _onScroll() {
     if (!_scrollController.hasClients) return;
     if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 350) {
+        _scrollController.position.maxScrollExtent - 400) {
       _loadNextPage();
     }
   }
@@ -57,27 +73,41 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _captionController.dispose();
     super.dispose();
   }
 
   Future<void> _loadMedia() async {
     try {
-      final PermissionState perm = await PhotoManager.requestPermissionExtend();
+      final PermissionState perm =
+          await PhotoManager.requestPermissionExtend();
       if (!perm.isAuth) {
-        setState(() => _error = 'Permission denied');
+        if (mounted) setState(() => _error = 'Permission denied');
         return;
       }
+
+      // Sort order: NEWEST FIRST (descending by createDate)
+      final FilterOptionGroup filterOption = FilterOptionGroup(
+        orders: const <OrderOption>[
+          OrderOption(
+            type: OrderOptionType.createDate,
+            asc: false,
+          ),
+        ],
+      );
 
       final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
         type: RequestType.common,
         hasAll: true,
+        filterOption: filterOption,
       );
 
       if (albums.isEmpty) {
-        setState(() => _loading = false);
+        if (mounted) setState(() => _loading = false);
         return;
       }
 
+      _albums = albums;
       final AssetPathEntity recent = albums.first;
       _recentAlbum = recent;
       _currentPage = 0;
@@ -103,8 +133,44 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
     }
   }
 
+  Future<void> _switchAlbum(AssetPathEntity album) async {
+    if (_recentAlbum?.id == album.id) return;
+    HapticService.tap();
+    setState(() {
+      _recentAlbum = album;
+      _loading = true;
+      _currentPage = 0;
+      _allAssets = <AssetEntity>[];
+      _hasMore = true;
+    });
+
+    try {
+      final List<AssetEntity> assets = await album.getAssetListPaged(
+        page: 0,
+        size: _pageSize,
+      );
+      if (mounted) {
+        setState(() {
+          _allAssets = assets;
+          _hasMore = assets.length >= _pageSize;
+          _loading = false;
+        });
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(0);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _loadNextPage() async {
-    final album = _recentAlbum;
+    final AssetPathEntity? album = _recentAlbum;
     if (album == null || _loadingMore || !_hasMore) return;
     _loadingMore = true;
 
@@ -139,33 +205,238 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
     });
   }
 
+  Future<void> _openCameraCapture() async {
+    HapticService.tap();
+    final String? photoPath =
+        await QuickCameraCaptureScreen.capturePhoto(context);
+    if (photoPath == null || !mounted) return;
+
+    final File file = File(photoPath);
+    final int size = await file.length();
+    final String name = photoPath.split('/').last.split('\\').last;
+
+    final MediaGridPickerResult captured = MediaGridPickerResult(
+      filePath: photoPath,
+      fileName: name,
+      fileSize: size,
+      caption: _captionController.text.trim(),
+      sendAsDocument: _sendAsDocument,
+    );
+
+    final List<MediaGridPickerResult> resultList = <MediaGridPickerResult>[
+      captured,
+    ];
+    if (widget.onSelected != null) {
+      widget.onSelected!(resultList);
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop(resultList);
+  }
+
+  Future<void> _openMediaPreview(int initialIndex) async {
+    HapticService.tap();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => _MediaPreviewScreen(
+          assets: _allAssets,
+          initialIndex: initialIndex,
+          selectedIds: _selectedIds,
+          onToggleSelection: _toggleSelection,
+          onSendDirect: (String caption, bool asDocument) async {
+            final AssetEntity current = _allAssets[initialIndex];
+            if (!_selectedIds.contains(current.id)) {
+              _selectedIds.add(current.id);
+            }
+            _captionController.text = caption;
+            _sendAsDocument = asDocument;
+            await _sendSelected();
+          },
+          scheme: Theme.of(context).colorScheme,
+        ),
+      ),
+    );
+  }
+
   Future<void> _sendSelected() async {
     if (_selectedIds.isEmpty) return;
+    HapticService.confirm();
 
     final List<AssetEntity> selected = _allAssets
-        .where((a) => _selectedIds.contains(a.id))
+        .where((AssetEntity a) => _selectedIds.contains(a.id))
         .toList();
 
-    final List<MediaGridPickerResult> results = [];
+    selected.sort((AssetEntity a, AssetEntity b) {
+      return _selectedIds.indexOf(a.id).compareTo(_selectedIds.indexOf(b.id));
+    });
+
+    final String caption = _captionController.text.trim();
+    final List<MediaGridPickerResult> results = <MediaGridPickerResult>[];
+
     for (final AssetEntity asset in selected) {
       final File? file = await asset.file;
       if (file == null) continue;
-      results.add(MediaGridPickerResult(
-        filePath: file.path,
-        fileName: (asset.title != null && asset.title!.isNotEmpty)
-            ? asset.title!
-            : file.path.split('/').last,
-        fileSize: await file.length(),
-      ));
+      results.add(
+        MediaGridPickerResult(
+          filePath: file.path,
+          fileName: (asset.title != null && asset.title!.isNotEmpty)
+              ? asset.title!
+              : file.path.split('/').last.split('\\').last,
+          fileSize: await file.length(),
+          caption: caption,
+          sendAsDocument: _sendAsDocument,
+        ),
+      );
     }
 
     if (results.isNotEmpty && mounted) {
+      if (widget.onSelected != null) {
+        widget.onSelected!(results);
+      }
       Navigator.of(context).pop(results);
     }
   }
 
+  void _showAlbumSelector() {
+    if (_albums.isEmpty) return;
+    HapticService.tap();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) {
+        final ColorScheme scheme = Theme.of(ctx).colorScheme;
+        final TextTheme textTheme = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const SizedBox(height: 8),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: <Widget>[
+                    Text(
+                      'Альбомы',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _albums.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    final AssetPathEntity album = _albums[index];
+                    final bool isSelected = album.id == _recentAlbum?.id;
+                    return ListTile(
+                      leading: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: _AlbumLeadingThumbnail(
+                          album: album,
+                          scheme: scheme,
+                        ),
+                      ),
+                      title: Text(
+                        album.name,
+                        style: textTheme.bodyLarge?.copyWith(
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color:
+                              isSelected ? scheme.primary : scheme.onSurface,
+                        ),
+                      ),
+                      trailing: FutureBuilder<int>(
+                        future: album.assetCountAsync,
+                        builder:
+                            (BuildContext context, AsyncSnapshot<int> snapshot) {
+                          return Text(
+                            snapshot.hasData ? '${snapshot.data}' : '',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          );
+                        },
+                      ),
+                      selected: isSelected,
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        _switchAlbum(album);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _openFilePicker() {
     Navigator.of(context).pop(null);
+  }
+
+  Widget _buildSelectionBadge(String id, ColorScheme scheme) {
+    final int index = _selectedIds.indexOf(id);
+    final bool selected = index != -1;
+    final int number = index + 1;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutBack,
+      width: 26,
+      height: 26,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected
+            ? scheme.primary
+            : scheme.scrim.withValues(alpha: 0.38),
+        border: Border.all(
+          color: selected
+              ? scheme.primary
+              : scheme.surface.withValues(alpha: 0.85),
+          width: 2,
+        ),
+      ),
+      child: Center(
+        child: selected
+            ? Text(
+                '$number',
+                style: TextStyle(
+                  color: scheme.onPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              )
+            : null,
+      ),
+    );
   }
 
   @override
@@ -173,36 +444,49 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
+    final bool showCameraTile = _recentAlbum?.isAll ?? true;
+    final int totalGridItems = _allAssets.length + (showCameraTile ? 1 : 0);
+
     final Widget body;
     if (_loading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = Center(child: AppLoadingIndicator(color: scheme.primary));
     } else if (_error != null) {
       body = Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
+          children: <Widget>[
             Icon(Icons.error_outline_rounded, size: 48, color: scheme.error),
             const SizedBox(height: 8),
-            Text(_error!, style: textTheme.bodyMedium?.copyWith(color: scheme.error)),
+            Text(
+              _error!,
+              style: textTheme.bodyMedium?.copyWith(color: scheme.error),
+            ),
           ],
         ),
       );
-    } else if (_allAssets.isEmpty) {
+    } else if (_allAssets.isEmpty && !showCameraTile) {
       body = Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.photo_library_outlined, size: 64,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.4)),
+          children: <Widget>[
+            Icon(
+              Icons.photo_library_outlined,
+              size: 64,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
             const SizedBox(height: 12),
-            Text(context.l10n.mediaViewerCannotPreview,
-                style: textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+            Text(
+              context.l10n.mediaViewerCannotPreview,
+              style: textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       );
     } else {
       body = Stack(
-        children: [
+        children: <Widget>[
           GridView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.all(2),
@@ -211,33 +495,57 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
               mainAxisSpacing: 2,
               crossAxisSpacing: 2,
             ),
-            itemCount: _allAssets.length,
-            itemBuilder: (context, index) {
-              final AssetEntity asset = _allAssets[index];
-              final bool selected = _selectedIds.contains(asset.id);
-              return GestureDetector(
-                onTap: () => _toggleSelection(asset.id),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _AssetThumbnail(asset: asset, scheme: scheme),
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: selected ? scheme.primary : scheme.scrim.withValues(alpha: 0.38),
-                          border: Border.all(
-                            color: selected ? scheme.primary : scheme.surface.withValues(alpha: 0.7),
-                            width: 2,
+            itemCount: totalGridItems,
+            itemBuilder: (BuildContext context, int index) {
+              if (showCameraTile && index == 0) {
+                return GestureDetector(
+                  onTap: _openCameraCapture,
+                  child: Container(
+                    color: scheme.surfaceContainerHighest,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        Icon(
+                          Icons.photo_camera_rounded,
+                          size: 32,
+                          color: scheme.primary,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Камера',
+                          style: textTheme.labelMedium?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        child: selected
-                            ? Icon(Icons.check_rounded, size: 16, color: scheme.onPrimary)
-                            : null,
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final int assetIndex = showCameraTile ? index - 1 : index;
+              final AssetEntity asset = _allAssets[assetIndex];
+
+              return GestureDetector(
+                onTap: () => _openMediaPreview(assetIndex),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    _AssetThumbnail(asset: asset, scheme: scheme),
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          HapticService.tap();
+                          _toggleSelection(asset.id);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: _buildSelectionBadge(asset.id, scheme),
+                        ),
                       ),
                     ),
                     if (asset.type == AssetType.video)
@@ -245,14 +553,23 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
                         left: 6,
                         bottom: 6,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: scheme.scrim.withValues(alpha: 0.65),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            _formatDuration(Duration(milliseconds: asset.duration)),
-                            style: TextStyle(color: scheme.onInverseSurface, fontSize: 11, fontWeight: FontWeight.w500),
+                            _formatDuration(
+                              Duration(milliseconds: asset.duration),
+                            ),
+                            style: TextStyle(
+                              color: scheme.onInverseSurface,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ),
@@ -287,14 +604,34 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
 
     return SafeArea(
       child: Column(
-        children: [
+        children: <Widget>[
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
             child: Row(
-              children: [
-                Text(
-                  context.l10n.filePickerGallery,
-                  style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              children: <Widget>[
+                InkWell(
+                  onTap: _showAlbumSelector,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          _recentAlbum?.name ?? context.l10n.filePickerGallery,
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 const Spacer(),
                 TextButton.icon(
@@ -311,22 +648,77 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
             Container(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               decoration: BoxDecoration(
-                color: scheme.surface,
-                border: Border(top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3))),
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    '${_selectedIds.length} ${context.l10n.filePickerGallery}',
-                    style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                color: scheme.surfaceContainerHigh,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
+                border: Border(
+                  top: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.25),
                   ),
-                  const Spacer(),
-                  FilledButton.icon(
-                    onPressed: _sendSelected,
-                    icon: const Icon(Icons.send_rounded, size: 18),
-                    label: Text(
-                      '${context.l10n.chatAttachment} (${_selectedIds.length})',
-                    ),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: TextField(
+                          controller: _captionController,
+                          decoration: InputDecoration(
+                            hintText: 'Добавить подпись...',
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 8),
+                            hintStyle: TextStyle(
+                              color: scheme.onSurfaceVariant
+                                  .withValues(alpha: 0.6),
+                              fontSize: 14,
+                            ),
+                          ),
+                          style: TextStyle(
+                            color: scheme.onSurface,
+                            fontSize: 14,
+                          ),
+                          maxLines: 2,
+                          minLines: 1,
+                        ),
+                      ),
+                      FilterChip(
+                        label: Text(_sendAsDocument ? 'Как файл' : 'Фото'),
+                        selected: _sendAsDocument,
+                        showCheckmark: false,
+                        avatar: Icon(
+                          _sendAsDocument
+                              ? Icons.insert_drive_file_outlined
+                              : Icons.photo_outlined,
+                          size: 16,
+                        ),
+                        onSelected: (bool val) {
+                          HapticService.tap();
+                          setState(() => _sendAsDocument = val);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Text(
+                        'Выбрано: ${_selectedIds.length}',
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurface,
+                        ),
+                      ),
+                      FilledButton.icon(
+                        onPressed: _sendSelected,
+                        icon: const Icon(Icons.send_rounded, size: 18),
+                        label: Text('Отправить (${_selectedIds.length})'),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -337,19 +729,293 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
   }
 
   String _formatDuration(Duration d) {
-    final minutes = d.inMinutes.toString().padLeft(2, '0');
-    final seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
+    final String minutes = d.inMinutes.toString().padLeft(2, '0');
+    final String seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
+  }
+}
+
+class _AlbumLeadingThumbnail extends StatelessWidget {
+  const _AlbumLeadingThumbnail({required this.album, required this.scheme});
+  final AssetPathEntity album;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<AssetEntity>>(
+      future: album.getAssetListPaged(page: 0, size: 1),
+      builder:
+          (BuildContext context, AsyncSnapshot<List<AssetEntity>> snapshot) {
+        if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+          return _AssetThumbnail(asset: snapshot.data!.first, scheme: scheme);
+        }
+        return Icon(
+          Icons.photo_library_outlined,
+          color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+        );
+      },
+    );
+  }
+}
+
+class _MediaPreviewScreen extends StatefulWidget {
+  const _MediaPreviewScreen({
+    required this.assets,
+    required this.initialIndex,
+    required this.selectedIds,
+    required this.onToggleSelection,
+    required this.onSendDirect,
+    required this.scheme,
+  });
+
+  final List<AssetEntity> assets;
+  final int initialIndex;
+  final List<String> selectedIds;
+  final void Function(String id) onToggleSelection;
+  final void Function(String caption, bool asDocument) onSendDirect;
+  final ColorScheme scheme;
+
+  @override
+  State<_MediaPreviewScreen> createState() => _MediaPreviewScreenState();
+}
+
+class _MediaPreviewScreenState extends State<_MediaPreviewScreen> {
+  late final PageController _pageController;
+  late int _currentIndex;
+  final TextEditingController _captionController = TextEditingController();
+  bool _sendAsDocument = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _captionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AssetEntity currentAsset = widget.assets[_currentIndex];
+    final bool isSelected = widget.selectedIds.contains(currentAsset.id);
+    final int selectNum = widget.selectedIds.indexOf(currentAsset.id) + 1;
+
+    return Scaffold(
+      backgroundColor: widget.scheme.scrim,
+      body: SafeArea(
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            PageView.builder(
+              controller: _pageController,
+              itemCount: widget.assets.length,
+              onPageChanged: (int index) {
+                setState(() => _currentIndex = index);
+              },
+              itemBuilder: (BuildContext context, int index) {
+                final AssetEntity asset = widget.assets[index];
+                return Center(
+                  child: InteractiveViewer(
+                    minScale: 1.0,
+                    maxScale: 4.0,
+                    child: _AssetFullView(asset: asset, scheme: widget.scheme),
+                  ),
+                );
+              },
+            ),
+            Positioned(
+              top: 8,
+              left: 12,
+              right: 12,
+              child: Row(
+                children: <Widget>[
+                  IconButton.filledTonal(
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: widget.scheme.surface.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '${_currentIndex + 1} из ${widget.assets.length}',
+                      style: TextStyle(
+                        color: widget.scheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () {
+                      HapticService.tap();
+                      widget.onToggleSelection(currentAsset.id);
+                      setState(() {});
+                    },
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isSelected
+                            ? widget.scheme.primary
+                            : widget.scheme.surface.withValues(alpha: 0.5),
+                        border: Border.all(
+                          color: isSelected
+                              ? widget.scheme.primary
+                              : widget.scheme.onSurface,
+                          width: 2,
+                        ),
+                      ),
+                      child: Center(
+                        child: isSelected
+                            ? Text(
+                                '$selectNum',
+                                style: TextStyle(
+                                  color: widget.scheme.onPrimary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: <Color>[
+                      widget.scheme.scrim.withValues(alpha: 0.95),
+                      widget.scheme.scrim.withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: widget.scheme.surface.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: TextField(
+                          controller: _captionController,
+                          style: TextStyle(color: widget.scheme.onSurface),
+                          decoration: InputDecoration(
+                            hintText: 'Добавить подпись...',
+                            hintStyle: TextStyle(
+                              color: widget.scheme.onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: Icon(
+                        _sendAsDocument
+                            ? Icons.insert_drive_file_rounded
+                            : Icons.photo_rounded,
+                        color: _sendAsDocument
+                            ? widget.scheme.primary
+                            : widget.scheme.onSurface,
+                      ),
+                      tooltip: _sendAsDocument
+                          ? 'Как файл (без сжатия)'
+                          : 'Как фото',
+                      onPressed: () {
+                        HapticService.tap();
+                        setState(() => _sendAsDocument = !_sendAsDocument);
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(14),
+                      ),
+                      onPressed: () {
+                        HapticService.confirm();
+                        Navigator.of(context).pop();
+                        widget.onSendDirect(
+                          _captionController.text.trim(),
+                          _sendAsDocument,
+                        );
+                      },
+                      child: const Icon(Icons.send_rounded, size: 20),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AssetFullView extends StatelessWidget {
+  const _AssetFullView({required this.asset, required this.scheme});
+  final AssetEntity asset;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Uint8List?>(
+      future: asset.thumbnailDataWithSize(const ThumbnailSize(1920, 1920)),
+      builder:
+          (BuildContext context, AsyncSnapshot<Uint8List?> snapshot) {
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.data != null) {
+          return Image.memory(
+            snapshot.data!,
+            fit: BoxFit.contain,
+          );
+        }
+        return Center(
+          child: AppLoadingIndicator(color: scheme.onSurface),
+        );
+      },
+    );
   }
 }
 
 class _AssetThumbnailCache {
   static final Map<String, Uint8List> _cache = <String, Uint8List>{};
   static final List<String> _lru = <String>[];
-  static const int _maxSize = 250;
+  static const int _maxSize = 350;
 
   static Uint8List? get(String id) {
-    final data = _cache[id];
+    final Uint8List? data = _cache[id];
     if (data != null) {
       _lru.remove(id);
       _lru.add(id);
@@ -359,7 +1025,7 @@ class _AssetThumbnailCache {
 
   static void put(String id, Uint8List data) {
     if (_cache.length >= _maxSize && _lru.isNotEmpty) {
-      final oldest = _lru.removeAt(0);
+      final String oldest = _lru.removeAt(0);
       _cache.remove(oldest);
     }
     _cache[id] = data;
@@ -398,7 +1064,7 @@ class _AssetThumbnailState extends State<_AssetThumbnail> {
   }
 
   Future<void> _checkCacheAndLoad() async {
-    final cached = _AssetThumbnailCache.get(widget.asset.id);
+    final Uint8List? cached = _AssetThumbnailCache.get(widget.asset.id);
     if (cached != null) {
       _data = cached;
       _loading = false;
@@ -409,7 +1075,7 @@ class _AssetThumbnailState extends State<_AssetThumbnail> {
     _loading = true;
     try {
       final Uint8List? data = await widget.asset.thumbnailDataWithSize(
-        const ThumbnailSize(240, 240),
+        const ThumbnailSize(280, 280),
       );
       if (mounted) {
         if (data != null) {
@@ -433,8 +1099,8 @@ class _AssetThumbnailState extends State<_AssetThumbnail> {
       return Image.memory(
         _data!,
         fit: BoxFit.cover,
-        cacheWidth: 240,
-        cacheHeight: 240,
+        cacheWidth: 280,
+        cacheHeight: 280,
       );
     }
 

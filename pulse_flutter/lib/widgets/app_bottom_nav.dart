@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -57,12 +58,14 @@ class AppBottomNav extends ConsumerWidget {
       backgroundColor: isFloating ? scheme.surfaceContainerHighest.withValues(alpha: 0.92) : scheme.surfaceContainerLow,
       indicatorColor: scheme.secondaryContainer,
       onDestinationSelected: (int index) {
-            ref.read(appSoundProvider).playUiTick();
-            if (hapticsEnabled && index != currentIndex) {
-              HapticService.tap();
-            }
-            onTap(index);
-          },
+        if (ref.read(uiSettingsProvider).soundEffects) {
+          unawaited(ref.read(appSoundProvider).playUiTick());
+        }
+        if (hapticsEnabled && index != currentIndex) {
+          HapticService.tap();
+        }
+        onTap(index);
+      },
           destinations: items
               .asMap()
           .entries

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/router/app_router.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
@@ -70,7 +70,7 @@ class CallOverlay extends ConsumerWidget {
                   }
                 },
                 onEnd: () async {
-                  HapticFeedback.mediumImpact();
+                  HapticService.tap();
                   await manager?.end();
                 },
               );

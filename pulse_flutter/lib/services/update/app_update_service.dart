@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -7,7 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:universal_io/io.dart';
 
-/// Information about an available application update on GitHub Releases.
+/// Information about an available application update.
 class AppUpdateInfo {
   const AppUpdateInfo({
     required this.hasUpdate,
@@ -23,43 +23,51 @@ class AppUpdateInfo {
   /// Whether a newer version is available.
   final bool hasUpdate;
 
-  /// Currently installed version string (e.g. "3.36.1").
+  /// Currently installed version string (e.g. "3.47.0+98").
   final String currentVersion;
 
-  /// Latest remote release version string (e.g. "3.37.0").
+  /// Latest remote release version string (e.g. "3.49.1+102").
   final String latestVersion;
 
-  /// Git tag name of the release (e.g. "v3.37.0").
+  /// Git tag name of the release (e.g. "v3.49.1" or "latest").
   final String tagName;
 
   /// Direct browser download URL for the APK file.
   final String downloadUrl;
 
-  /// Markdown release notes and changelog from GitHub.
+  /// Release notes and changelog.
   final String changelog;
 
-  /// File size in bytes, if reported by GitHub.
+  /// File size in bytes, if reported by update service.
   final int? apkSize;
 
   /// Date and time when the release was published.
   final DateTime? publishedAt;
 }
 
-/// Service for checking and downloading OTA updates via GitHub Releases.
+/// Service for checking and downloading OTA updates for NiosMess.
 class AppUpdateService {
   const AppUpdateService({
-    this.repoOwner = 'sh20fk',
-    this.repoName = 'niosmess',
+    this.repoOwner = 'SH20FK',
+    this.repoName = 'NiosMess',
   });
 
   final String repoOwner;
   final String repoName;
 
-  /// GitHub Releases API URL for the latest release.
+  /// Remote raw pubspec URL to reliably fetch latest version without API rate limits.
+  String get _rawPubspecUrl =>
+      'https://raw.githubusercontent.com/$repoOwner/$repoName/main/pulse_flutter/pubspec.yaml';
+
+  /// Release API URL for latest release notes and assets.
   String get _latestReleaseUrl =>
       'https://api.github.com/repos/$repoOwner/$repoName/releases/latest';
 
-  /// Compares two Semantic Versioning strings (e.g. "3.37.0" vs "3.36.1").
+  /// Canonical fallback direct download URL for latest APK.
+  String get _canonicalApkUrl =>
+      'https://github.com/$repoOwner/$repoName/releases/download/latest/niosmess.apk';
+
+  /// Compares two Semantic Versioning strings (e.g. "3.49.1+102" vs "3.47.0+98").
   /// Returns `true` if [latest] is strictly greater than [current].
   static bool isNewerVersion(String latest, String current) {
     final List<int> latestParts = _parseSemVer(latest);
@@ -77,6 +85,8 @@ class AppUpdateService {
     final int currentBuild = _parseBuildNumber(current);
     if (latestBuild > 0 && currentBuild > 0) {
       return latestBuild > currentBuild;
+    } else if (latestBuild > 0 && currentBuild == 0) {
+      return true;
     }
 
     return false;
@@ -85,7 +95,7 @@ class AppUpdateService {
   static List<int> _parseSemVer(String ver) {
     final String clean = ver
         .trim()
-        .replaceFirst(RegExp(r'^v'), '')
+        .replaceFirst(RegExp(r'^v', caseSensitive: false), '')
         .split('+')
         .first
         .split('-')
@@ -100,65 +110,120 @@ class AppUpdateService {
     return int.tryParse(buildStr) ?? 0;
   }
 
-  /// Checks GitHub Releases for a newer version of the application.
+  /// Checks for a newer version of the application using multi-source verification.
   Future<AppUpdateInfo> checkForUpdate() async {
     final PackageInfo packageInfo = await PackageInfo.fromPlatform();
-    final String currentVersion = packageInfo.version;
+    final String currentBaseVersion = packageInfo.version;
+    final String currentBuildNumber = packageInfo.buildNumber;
+    final String fullCurrentVersion = currentBuildNumber.isNotEmpty
+        ? '$currentBaseVersion+$currentBuildNumber'
+        : currentBaseVersion;
 
-    final http.Response response = await http.get(
-      Uri.parse(_latestReleaseUrl),
-      headers: <String, String>{
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'NiosMess-App-Updater',
-      },
-    );
-
-    if (response.statusCode != 200) {
-      throw HttpException(
-        'GitHub API error: HTTP ${response.statusCode}',
-        uri: Uri.parse(_latestReleaseUrl),
-      );
-    }
-
-    final dynamic decoded = jsonDecode(response.body);
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('Invalid JSON response from GitHub API');
-    }
-
-    final String tagName = decoded['tag_name'] as String? ?? '';
-    final String cleanLatestVersion =
-        tagName.replaceFirst(RegExp(r'^v'), '').trim();
-    final String changelog = decoded['body'] as String? ?? '';
-    final String? publishedAtStr = decoded['published_at'] as String?;
-    final DateTime? publishedAt =
-        publishedAtStr != null ? DateTime.tryParse(publishedAtStr) : null;
-
-    final List<dynamic> assets =
-        decoded['assets'] as List<dynamic>? ?? <dynamic>[];
-
-    String downloadUrl = '';
+    String latestVersion = '';
+    String tagName = 'latest';
+    String downloadUrl = _canonicalApkUrl;
+    String changelog = '';
     int? apkSize;
+    DateTime? publishedAt;
 
-    for (final dynamic asset in assets) {
-      if (asset is Map<String, dynamic>) {
-        final String name = (asset['name'] as String? ?? '').toLowerCase();
-        if (name.endsWith('.apk')) {
-          downloadUrl = asset['browser_download_url'] as String? ?? '';
-          apkSize = asset['size'] as int?;
-          break;
+    // 1. Primary: Read version directly from raw pubspec.yaml on main branch
+    // (Fast, 100% reliable, zero GitHub API rate limits)
+    try {
+      final http.Response pubspecResponse = await http.get(
+        Uri.parse(_rawPubspecUrl),
+        headers: <String, String>{
+          'User-Agent': 'NiosMess-App-Updater',
+        },
+      ).timeout(const Duration(seconds: 8));
+
+      if (pubspecResponse.statusCode == 200) {
+        final String content = pubspecResponse.body;
+        for (final String line in content.split('\n')) {
+          final String trimmed = line.trim();
+          if (trimmed.startsWith('version:')) {
+            latestVersion = trimmed.replaceFirst('version:', '').trim();
+            break;
+          }
         }
       }
+    } catch (e) {
+      debugPrint('[AppUpdateService] Error fetching raw pubspec: $e');
     }
 
-    final bool hasUpdate = isNewerVersion(cleanLatestVersion, currentVersion) &&
+    // 2. Secondary: Query release metadata for assets, size and changelog
+    try {
+      final http.Response response = await http.get(
+        Uri.parse(_latestReleaseUrl),
+        headers: <String, String>{
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'NiosMess-App-Updater',
+        },
+      ).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        final dynamic decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          tagName = decoded['tag_name'] as String? ?? 'latest';
+          final String releaseName = decoded['name'] as String? ?? '';
+          final String releaseBody = decoded['body'] as String? ?? '';
+          final String? publishedAtStr = decoded['published_at'] as String?;
+
+          if (publishedAtStr != null) {
+            publishedAt = DateTime.tryParse(publishedAtStr);
+          }
+
+          if (releaseBody.isNotEmpty &&
+              !releaseBody.contains('Full Changelog')) {
+            changelog = releaseBody;
+          }
+
+          // If latestVersion was not retrieved from pubspec, extract from release
+          if (latestVersion.isEmpty) {
+            final String cleanTag =
+                tagName.replaceFirst(RegExp(r'^v', caseSensitive: false), '').trim();
+            if (cleanTag.isNotEmpty && cleanTag.toLowerCase() != 'latest') {
+              latestVersion = cleanTag;
+            } else if (releaseName.isNotEmpty) {
+              final RegExp verRegex = RegExp(r'v?(\d+\.\d+\.\d+(?:\+\d+)?)');
+              final RegExpMatch? match = verRegex.firstMatch(releaseName);
+              if (match != null) {
+                latestVersion = match.group(1)!;
+              }
+            }
+          }
+
+          final List<dynamic> assets =
+              decoded['assets'] as List<dynamic>? ?? <dynamic>[];
+
+          for (final dynamic asset in assets) {
+            if (asset is Map<String, dynamic>) {
+              final String name = (asset['name'] as String? ?? '').toLowerCase();
+              if (name.endsWith('.apk')) {
+                final String? url = asset['browser_download_url'] as String?;
+                if (url != null && url.isNotEmpty) {
+                  downloadUrl = url;
+                }
+                apkSize = asset['size'] as int?;
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[AppUpdateService] Error fetching release metadata: $e');
+    }
+
+    if (latestVersion.isEmpty) {
+      latestVersion = fullCurrentVersion;
+    }
+
+    final bool hasUpdate = isNewerVersion(latestVersion, fullCurrentVersion) &&
         downloadUrl.isNotEmpty;
 
     return AppUpdateInfo(
       hasUpdate: hasUpdate,
-      currentVersion: currentVersion,
-      latestVersion: cleanLatestVersion.isNotEmpty
-          ? cleanLatestVersion
-          : currentVersion,
+      currentVersion: fullCurrentVersion,
+      latestVersion: latestVersion,
       tagName: tagName,
       downloadUrl: downloadUrl,
       changelog: changelog,
@@ -168,10 +233,10 @@ class AppUpdateService {
   }
 
   /// Downloads the APK file from [downloadUrl] into the device temporary folder,
-  /// streaming download progress via [onProgress] (0.0 to 1.0).
+  /// following redirects explicitly and streaming download progress via [onProgress] (0.0 to 1.0).
   ///
-  /// Upon successful download, triggers [OpenFile.open] to launch the system
-  /// package installer.
+  /// Upon successful download, triggers [OpenFile.open] with APK MIME type to launch
+  /// the system package installer.
   Future<OpenResult> downloadAndInstall({
     required String downloadUrl,
     required void Function(
@@ -181,7 +246,7 @@ class AppUpdateService {
     ) onProgress,
   }) async {
     if (kIsWeb) {
-      throw UnsupportedError('APK installation is not supported on web.');
+      throw UnsupportedError('Установка APK не поддерживается в веб-версии.');
     }
 
     final Directory tempDir = await getTemporaryDirectory();
@@ -195,15 +260,36 @@ class AppUpdateService {
 
     final http.Client client = http.Client();
     try {
-      final http.Request request = http.Request('GET', Uri.parse(downloadUrl));
-      request.headers['User-Agent'] = 'NiosMess-App-Updater';
+      Uri currentUri = Uri.parse(downloadUrl);
+      http.StreamedResponse? streamedResponse;
+      int redirectCount = 0;
 
-      final http.StreamedResponse streamedResponse = await client.send(request);
+      while (redirectCount < 5) {
+        final http.Request request = http.Request('GET', currentUri);
+        request.headers['User-Agent'] = 'NiosMess-App-Updater';
+        request.followRedirects = true;
+        request.maxRedirects = 5;
 
-      if (streamedResponse.statusCode != 200) {
+        final http.StreamedResponse resp = await client.send(request);
+        if (resp.statusCode == 301 ||
+            resp.statusCode == 302 ||
+            resp.statusCode == 307 ||
+            resp.statusCode == 308) {
+          final String? loc = resp.headers['location'];
+          if (loc != null && loc.isNotEmpty) {
+            currentUri = Uri.parse(loc);
+            redirectCount++;
+            continue;
+          }
+        }
+        streamedResponse = resp;
+        break;
+      }
+
+      if (streamedResponse == null || streamedResponse.statusCode != 200) {
         throw HttpException(
-          'Failed to download APK: HTTP ${streamedResponse.statusCode}',
-          uri: Uri.parse(downloadUrl),
+          'Не удалось скачать файл обновления: HTTP ${streamedResponse?.statusCode}',
+          uri: currentUri,
         );
       }
 
@@ -228,8 +314,11 @@ class AppUpdateService {
       await sink.flush();
       await sink.close();
 
-      // Launch the Android package installer
-      final OpenResult openResult = await OpenFile.open(apkFile.path);
+      // Launch the Android package installer with explicit APK MIME type
+      final OpenResult openResult = await OpenFile.open(
+        apkFile.path,
+        type: 'application/vnd.android.package-archive',
+      );
       return openResult;
     } finally {
       client.close();

@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -592,22 +591,7 @@ if (onSwipeToReply != null) {
         );
       }
 
-      final bool optimize = ref.read(uiSettingsProvider).optimizeForWeakDevices;
-    if (optimize || !animate) {
-      return content;
-    }
-
-    return RepaintBoundary(
-      child: content
-          .animate()
-          .fade(duration: 180.ms, curve: Curves.easeOutCubic)
-          .slideY(
-            begin: 0.04,
-            end: 0,
-            duration: 180.ms,
-            curve: Curves.easeOutCubic,
-          ),
-    );
+    return content;
   }
 
   Widget _buildStickerContent(

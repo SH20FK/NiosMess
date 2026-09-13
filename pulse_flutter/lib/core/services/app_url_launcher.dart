@@ -139,10 +139,22 @@ class AppUrlLauncher {
       if (slug.isNotEmpty) return '/u/$slug';
     }
 
+    // /c/{slug} (alias for /u/)
+    if (path.startsWith('/c/')) {
+      final String slug = path.substring(3);
+      if (slug.isNotEmpty) return '/u/$slug';
+    }
+
     // 3. /g/{username} (NiosGram public profile / direct chat resolver)
     if (path.startsWith('/g/')) {
       final String username = path.substring(3);
       if (username.isNotEmpty) return '/g/$username';
+    }
+
+    // /stickers/{setId} (sticker pack view and save)
+    if (path.startsWith('/stickers/')) {
+      final String setId = path.substring(10);
+      if (setId.isNotEmpty) return '/stickers/$setId';
     }
 
     // 4. /chat/{chatId} or /chat/dm/{username}

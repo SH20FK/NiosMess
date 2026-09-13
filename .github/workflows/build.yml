@@ -96,6 +96,19 @@ jobs:
       - run: flutter build apk --release
       - run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/niosmess.apk
 
+      - name: Generate Version Metadata
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | head -n 1 | awk '{print $2}')
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          cat > build/app/outputs/flutter-apk/version.json << EOF
+          {
+            "version": "$VERSION",
+            "tag_name": "latest",
+            "download_url": "https://github.com/SH20FK/NiosMess/releases/download/latest/niosmess.apk",
+            "published_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk-release
@@ -105,9 +118,12 @@ jobs:
         if: (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') && github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          files: pulse_flutter/build/app/outputs/flutter-apk/niosmess.apk
+          files: |
+            pulse_flutter/build/app/outputs/flutter-apk/niosmess.apk
+            pulse_flutter/build/app/outputs/flutter-apk/version.json
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'latest' }}
-          name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'NiosMess Release' }}
+          name: NiosMess v${{ env.APP_VERSION }}
+          make_latest: true
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

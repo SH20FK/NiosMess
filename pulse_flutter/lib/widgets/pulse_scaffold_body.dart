@@ -80,25 +80,24 @@ class _PulseBackdrop extends ConsumerStatefulWidget {
 
 class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  AnimationController? _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 80),
-    );
     if (widget.animated && !kIsWeb) {
-      _controller.repeat(reverse: true);
-    } else {
-      _controller.value = 0.5;
+      final ctrl = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 80),
+      );
+      _controller = ctrl;
+      ctrl.repeat(reverse: true);
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -107,23 +106,28 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     final Brightness brightness = theme.brightness;
-    final UiSettingsState settings = ref.watch(uiSettingsProvider);
-    final bool optimize = settings.optimizeForWeakDevices;
+    final bool optimize = ref.watch(
+      uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
+    );
 
     final bool shouldAnimate = widget.animated && !optimize && !kIsWeb;
 
     if (shouldAnimate) {
-      if (!_controller.isAnimating) {
-        _controller.repeat(reverse: true);
+      if (_controller == null) {
+        _controller = AnimationController(
+          vsync: this,
+          duration: const Duration(seconds: 80),
+        )..repeat(reverse: true);
+      } else if (!_controller!.isAnimating) {
+        _controller!.repeat(reverse: true);
       }
     } else {
-      if (_controller.isAnimating) {
-        _controller.stop();
-        _controller.value = 0.5;
+      if (_controller != null && _controller!.isAnimating) {
+        _controller!.stop();
       }
     }
 
-    if (!shouldAnimate) {
+    if (!shouldAnimate || _controller == null) {
       return RepaintBoundary(
         child: CustomPaint(
           painter: _BackdropPainter(
@@ -138,11 +142,11 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
 
     return RepaintBoundary(
       child: AnimatedBuilder(
-        animation: _controller,
+        animation: _controller!,
         builder: (BuildContext context, Widget? child) {
           return CustomPaint(
             painter: _BackdropPainter(
-              t: _controller.value,
+              t: _controller!.value,
               scheme: scheme,
               brightness: brightness,
             ),

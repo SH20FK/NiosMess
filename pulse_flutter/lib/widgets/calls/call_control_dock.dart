@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 
 class CallControlDock extends StatelessWidget {
@@ -36,19 +37,19 @@ class CallControlDock extends StatelessWidget {
           right: 16,
           bottom: bottomInset > 0 ? bottomInset + 8 : 24,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1B2E).withValues(alpha: 0.88),
-          borderRadius: BorderRadius.circular(32),
+          color: scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(CallTokens.dockBorderRadius),
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.15),
+            color: scheme.outlineVariant.withValues(alpha: 0.25),
             width: 1.0,
           ),
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.45),
-              blurRadius: 28,
-              offset: const Offset(0, 10),
+              color: scheme.shadow.withValues(alpha: 0.12),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -66,16 +67,16 @@ class CallControlDock extends StatelessWidget {
                   ? context.l10n.callUnmute
                   : context.l10n.callMute,
               isActive: data.isMuted,
-              activeBg: Colors.white,
-              activeFg: Colors.black87,
-              inactiveBg: Colors.white.withValues(alpha: 0.14),
-              inactiveFg: Colors.white,
+              activeBg: scheme.errorContainer,
+              activeFg: scheme.onErrorContainer,
+              inactiveBg: scheme.surfaceContainerHighest,
+              inactiveFg: scheme.onSurface,
               onTap: () {
-                HapticFeedback.lightImpact();
+                HapticService.tap();
                 session.setMuted(!data.isMuted);
               },
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
 
             // Speaker (or Flip Camera in Video call)
             if (!isVideoCall)
@@ -87,12 +88,12 @@ class CallControlDock extends StatelessWidget {
                     ? context.l10n.callSpeakerOff
                     : context.l10n.callSpeakerOn,
                 isActive: data.isSpeakerOn,
-                activeBg: Colors.white,
-                activeFg: Colors.black87,
-                inactiveBg: Colors.white.withValues(alpha: 0.14),
-                inactiveFg: Colors.white,
+                activeBg: scheme.primary,
+                activeFg: scheme.onPrimary,
+                inactiveBg: scheme.surfaceContainerHighest,
+                inactiveFg: scheme.onSurface,
                 onTap: () {
-                  HapticFeedback.lightImpact();
+                  HapticService.tap();
                   session.setSpeakerOn(!data.isSpeakerOn);
                 },
               )
@@ -101,19 +102,19 @@ class CallControlDock extends StatelessWidget {
                 icon: Icons.flip_camera_ios_rounded,
                 label: context.l10n.mediaViewerFlipCamera,
                 isActive: false,
-                activeBg: Colors.white,
-                activeFg: Colors.black87,
-                inactiveBg: Colors.white.withValues(alpha: 0.14),
-                inactiveFg: Colors.white,
+                activeBg: scheme.primary,
+                activeFg: scheme.onPrimary,
+                inactiveBg: scheme.surfaceContainerHighest,
+                inactiveFg: scheme.onSurface,
                 onTap: () {
-                  HapticFeedback.lightImpact();
+                  HapticService.tap();
                   onFlipCamera!();
                 },
               ),
 
             // Video button
             if (onToggleVideo != null) ...<Widget>[
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               _CallActionButton(
                 icon: data.isVideo
                     ? Icons.videocam_rounded
@@ -122,20 +123,20 @@ class CallControlDock extends StatelessWidget {
                     ? context.l10n.activeCallCameraOff
                     : context.l10n.activeCallCameraOn,
                 isActive: data.isVideo,
-                activeBg: Colors.white,
-                activeFg: Colors.black87,
-                inactiveBg: Colors.white.withValues(alpha: 0.14),
-                inactiveFg: Colors.white,
+                activeBg: scheme.primary,
+                activeFg: scheme.onPrimary,
+                inactiveBg: scheme.surfaceContainerHighest,
+                inactiveFg: scheme.onSurface,
                 onTap: () {
-                  HapticFeedback.lightImpact();
+                  HapticService.tap();
                   onToggleVideo!();
                 },
               ),
             ],
 
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
 
-            // End Call Button (Prominent Red Button)
+            // End Call Button (Prominent M3 Error Button)
             Semantics(
               button: true,
               label: context.l10n.callEnd,
@@ -143,29 +144,29 @@ class CallControlDock extends StatelessWidget {
                 message: context.l10n.callEnd,
                 child: GestureDetector(
                   onTap: () {
-                    HapticFeedback.mediumImpact();
+                    HapticService.tap();
                     onEnd();
                   },
                   behavior: HitTestBehavior.opaque,
                   child: Container(
-                    width: 58,
-                    height: 58,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFE53935),
+                    width: CallTokens.controlButtonSize,
+                    height: CallTokens.controlButtonSize,
+                    decoration: BoxDecoration(
+                      color: scheme.error,
                       shape: BoxShape.circle,
                       boxShadow: <BoxShadow>[
                         BoxShadow(
-                          color: Color(0x66E53935),
-                          blurRadius: 16,
-                          offset: Offset(0, 4),
+                          color: scheme.error.withValues(alpha: 0.35),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Icon(
                         Icons.call_end_rounded,
-                        color: Colors.white,
-                        size: 28,
+                        color: scheme.onError,
+                        size: 26,
                       ),
                     ),
                   ),

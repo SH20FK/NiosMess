@@ -1,16 +1,11 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
-import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
-import 'package:pulse_flutter/widgets/calls/call_audio_ripple.dart';
 import 'package:pulse_flutter/widgets/calls/call_control_dock.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
@@ -23,8 +18,7 @@ class ActiveVoiceCallScreen extends ConsumerStatefulWidget {
 }
 
 class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
-    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
-  late final AnimationController _breathController;
+    with AutomaticKeepAliveClientMixin {
   final ValueNotifier<int> _timerNotifier = ValueNotifier<int>(0);
   StreamSubscription<CallSessionData>? _stateSubscription;
 
@@ -34,12 +28,6 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
   @override
   void initState() {
     super.initState();
-
-    _breathController = AnimationController(
-      vsync: this,
-      duration: CallTokens.rippleAnimationDuration,
-    )..repeat();
-
     WidgetsBinding.instance.addPostFrameCallback((_) => _listenToState());
   }
 
@@ -70,14 +58,13 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
 
   @override
   void dispose() {
-    _breathController.dispose();
     _stateSubscription?.cancel();
     _timerNotifier.dispose();
     super.dispose();
   }
 
   Future<void> _endCall() async {
-    HapticFeedback.mediumImpact();
+    HapticService.tap();
     final manager = ref.read(callSessionProvider);
     await manager?.end();
     if (mounted) Navigator.of(context).pop();
@@ -87,19 +74,14 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final session = ref.watch(callSessionProvider)?.session;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
     if (session == null) {
-      return const Scaffold(backgroundColor: Color(0xFF0D0B14));
+      return Scaffold(backgroundColor: scheme.surfaceContainerLowest);
     }
 
     final CallSessionData data = session.currentData;
-    final ColorScheme appScheme = Theme.of(context).colorScheme;
-
-    // Enforce dedicated high-contrast dark tonal scheme for immersive calls
-    final ColorScheme callScheme = ColorScheme.fromSeed(
-      seedColor: appScheme.primary,
-      brightness: Brightness.dark,
-    );
-
     final participants = data.remoteParticipants;
     final String participantName = participants.isNotEmpty
         ? participants.map((p) => p.nickname).join(', ')
@@ -107,49 +89,24 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
             ? data.peerName!
             : context.l10n.callsInProgress);
 
-    final tier =
-        ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
-    final optimize = ref.watch(
-        uiSettingsProvider.select((s) => s.optimizeForWeakDevices));
-
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0B14),
+      backgroundColor: scheme.surfaceContainerLowest,
       body: Stack(
         alignment: Alignment.center,
         children: <Widget>[
-          // ── Ambient Background Gradient ───────────────────────────
+          // ── Adaptive M3 Surface Background ───────────────────────
           Positioned.fill(
             child: DecoratedBox(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: <Color>[
-                    Color(0xFF141022),
-                    Color(0xFF0D0B14),
-                    Color(0xFF0A0810),
+                    scheme.surfaceContainerLowest,
+                    scheme.surfaceContainerLow,
+                    scheme.surface,
                   ],
                 ),
-              ),
-            ),
-          ),
-
-          // ── Animated Ambient Breathing Blobs ─────────────────────────
-          Positioned.fill(
-            child: RepaintBoundary(
-              child: AnimatedBuilder(
-                animation: _breathController,
-                builder: (context, _) {
-                  return CustomPaint(
-                    painter: _TonalBlobPainter(
-                      t: _breathController.value,
-                      primary: callScheme.primary.withValues(alpha: 0.18),
-                      tertiary: callScheme.tertiary.withValues(alpha: 0.14),
-                      tier: tier,
-                      optimizeForWeakDevices: optimize,
-                    ),
-                  );
-                },
               ),
             ),
           ),
@@ -163,14 +120,14 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    color: Colors.white70,
-                    size: 32,
+                    color: scheme.onSurface,
+                    size: 30,
                   ),
                   tooltip: context.l10n.callMinimize,
                   onPressed: () {
-                    HapticFeedback.lightImpact();
+                    HapticService.tap();
                     Navigator.of(context).pop();
                   },
                 ),
@@ -178,25 +135,25 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
+                    color: scheme.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
+                      color: scheme.outlineVariant.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      const Icon(
+                      Icon(
                         Icons.lock_rounded,
                         size: 13,
-                        color: Color(0xFF22C55E),
+                        color: scheme.primary,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         'E2EE ЗАЩИЩЕНО',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
+                          color: scheme.onSurfaceVariant,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.8,
                           fontSize: 11,
@@ -205,12 +162,12 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                     ],
                   ),
                 ),
-                const SizedBox(width: 48), // Balance for back button
+                const SizedBox(width: 48), // Balance for minimize button
               ],
             ),
           ),
 
-          // ── Center Content: Avatar, Name, Status, Timer ──────────────
+          // ── Center Content: Status, Avatar, Name, Timer ──────────────
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -223,87 +180,80 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                   // Call Status Pill
                   _StatusPill(
                     state: data.state,
-                    scheme: callScheme,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Centered Avatar with Breathing Audio Ripple
-                  CallAudioRipple(
-                    animation: _breathController,
-                    scheme: callScheme,
-                    isActive: data.state == CallSessionState.inCall &&
-                        !data.isMuted,
-                    size: 136,
-                    child: Container(
-                      width: 136,
-                      height: 136,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: callScheme.primary.withValues(alpha: 0.35),
-                          width: 2.5,
-                        ),
-                        boxShadow: <BoxShadow>[
-                          BoxShadow(
-                            color: callScheme.primary.withValues(alpha: 0.25),
-                            blurRadius: 32,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child: PulseAvatar(
-                          name: participantName,
-                          avatarUrl: null,
-                          radius: 68,
-                          fallbackColor: callScheme.primaryContainer,
-                          textColor: callScheme.onPrimaryContainer,
-                        ),
-                      ),
-                    ),
+                    scheme: scheme,
                   ),
                   const SizedBox(height: 28),
 
-                  // Participant Name (Crisp White Typography)
+                  // Minimalist M3 Avatar
+                  Container(
+                    width: 136,
+                    height: 136,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: scheme.primary.withValues(alpha: 0.35),
+                        width: 3.0,
+                      ),
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(
+                          color: scheme.shadow.withValues(alpha: 0.08),
+                          blurRadius: 24,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: ClipOval(
+                      child: PulseAvatar(
+                        name: participantName,
+                        avatarUrl: null,
+                        radius: 68,
+                        fallbackColor: scheme.primaryContainer,
+                        textColor: scheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Participant Name
                   Text(
                     participantName,
-                    style: const TextStyle(
-                      fontSize: 28,
+                    style: textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
-                      color: Colors.white,
+                      color: scheme.onSurface,
+                      letterSpacing: -0.2,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
 
                   // Monospace Call Duration Timer
                   ValueListenableBuilder<int>(
                     valueListenable: _timerNotifier,
                     builder: (context, seconds, _) {
                       if (data.state != CallSessionState.inCall) {
-                        return const SizedBox(height: 32);
+                        return const SizedBox(height: 36);
                       }
                       final int m = seconds ~/ 60;
                       final int s = seconds % 60;
                       return Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 6),
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.10),
+                          color: scheme.surfaceContainerHigh,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.12),
+                            color: scheme.outlineVariant.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Text(
                           '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
-                          style: TextStyle(
+                          style: textTheme.titleMedium?.copyWith(
                             fontFamily: 'monospace',
-                            color: Colors.white.withValues(alpha: 0.90),
-                            fontSize: 18,
+                            color: scheme.onSurface,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 2.0,
                           ),
@@ -317,7 +267,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                     const SizedBox(height: 18),
                     _VerificationRow(
                       emojis: data.verificationEmojis,
-                      scheme: callScheme,
+                      scheme: scheme,
                     ),
                   ],
 
@@ -328,7 +278,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
             ),
           ),
 
-          // ── Permanently Visible Bottom Control Dock ────────────────
+          // ── Permanently Visible Bottom M3 Pill Dock ────────────────
           Positioned(
             bottom: 0,
             left: 0,
@@ -336,10 +286,10 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
             child: CallControlDock(
               session: session,
               data: data,
-              scheme: callScheme,
+              scheme: scheme,
               onEnd: _endCall,
               onMinimize: () {
-                HapticFeedback.lightImpact();
+                HapticService.tap();
                 Navigator.of(context).pop();
               },
             ),
@@ -363,23 +313,26 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, icon, color) = switch (state) {
+    final (label, icon, fg, bg) = switch (state) {
       CallSessionState.connecting || CallSessionState.connected => (
           context.l10n.callConnecting,
           Icons.sync_rounded,
-          const Color(0xFF60A5FA), // Crisp Sky Blue
+          scheme.primary,
+          scheme.primaryContainer.withValues(alpha: 0.6),
         ),
       CallSessionState.inCall => (
           context.l10n.callStatusInCall,
           Icons.phone_in_talk_rounded,
-          const Color(0xFF22C55E), // Crisp Emerald Green
+          const Color(0xFF16A34A),
+          const Color(0xFF16A34A).withValues(alpha: 0.12),
         ),
       CallSessionState.reconnecting => (
           'ПЕРЕПОДКЛЮЧЕНИЕ...',
           Icons.cloud_sync_rounded,
-          const Color(0xFFF87171),
+          scheme.error,
+          scheme.errorContainer,
         ),
-      _ => ('', Icons.phone_rounded, Colors.white),
+      _ => ('', Icons.phone_rounded, scheme.onSurface, scheme.surfaceContainer),
     };
 
     if (label.isEmpty) return const SizedBox.shrink();
@@ -387,23 +340,23 @@ class _StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
+        color: bg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: color.withValues(alpha: 0.40),
+          color: fg.withValues(alpha: 0.35),
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(icon, size: 14, color: color),
+          Icon(icon, size: 14, color: fg),
           const SizedBox(width: 6),
           Text(
             label.toUpperCase(),
             style: TextStyle(
-              color: color,
+              color: fg,
               fontWeight: FontWeight.w700,
-              letterSpacing: 1.1,
+              letterSpacing: 1.0,
               fontSize: 11,
             ),
           ),
@@ -432,10 +385,10 @@ class _VerificationRow extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.10),
+            color: scheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: scheme.outlineVariant.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -452,7 +405,7 @@ class _VerificationRow extends StatelessWidget {
         Text(
           context.l10n.callE2eeSecurityCode,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.5),
+            color: scheme.onSurfaceVariant,
             fontSize: 11,
             fontWeight: FontWeight.w500,
           ),
@@ -460,70 +413,4 @@ class _VerificationRow extends StatelessWidget {
       ],
     );
   }
-}
-
-// ── Tonal Blob Background Painter ────────────────────────────────────────────
-
-class _TonalBlobPainter extends CustomPainter {
-  _TonalBlobPainter({
-    required this.t,
-    required this.primary,
-    required this.tertiary,
-    this.tier = PerformanceTier.tierB,
-    this.optimizeForWeakDevices = false,
-  });
-
-  final double t;
-  final Color primary;
-  final Color tertiary;
-  final PerformanceTier tier;
-  final bool optimizeForWeakDevices;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double cx = size.width / 2;
-    final double cy = size.height / 2;
-
-    final double b1x = cx - 70 + 40 * sin(t * 2 * pi);
-    final double b1y = cy * 0.65 + 30 * cos(t * 2 * pi);
-
-    final double b2x = cx + 60 + 35 * cos(t * 2 * pi);
-    final double b2y = cy * 1.35 + 25 * sin(t * 2 * pi);
-
-    if (tier == PerformanceTier.tierC || optimizeForWeakDevices) {
-      final paint1 = Paint()
-        ..shader = RadialGradient(
-          colors: <Color>[primary, primary.withValues(alpha: 0)],
-        ).createShader(Rect.fromCircle(center: Offset(b1x, b1y), radius: 170));
-      canvas.drawCircle(Offset(b1x, b1y), 170, paint1);
-
-      final paint2 = Paint()
-        ..shader = RadialGradient(
-          colors: <Color>[tertiary, tertiary.withValues(alpha: 0)],
-        ).createShader(Rect.fromCircle(center: Offset(b2x, b2y), radius: 150));
-      canvas.drawCircle(Offset(b2x, b2y), 150, paint2);
-      return;
-    }
-
-    final double blur1 = (tier == PerformanceTier.tierA) ? 80.0 : 28.0;
-    final double blur2 = (tier == PerformanceTier.tierA) ? 90.0 : 32.0;
-
-    final Paint paint1 = Paint()
-      ..color = primary
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur1);
-    canvas.drawCircle(Offset(b1x, b1y), 170, paint1);
-
-    final Paint paint2 = Paint()
-      ..color = tertiary
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur2);
-    canvas.drawCircle(Offset(b2x, b2y), 150, paint2);
-  }
-
-  @override
-  bool shouldRepaint(_TonalBlobPainter old) =>
-      old.t != t ||
-      old.primary != primary ||
-      old.tertiary != tertiary ||
-      old.tier != tier ||
-      old.optimizeForWeakDevices != optimizeForWeakDevices;
 }

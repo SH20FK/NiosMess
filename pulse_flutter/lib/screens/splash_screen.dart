@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/session_provider.dart';
+import 'package:pulse_flutter/services/permission_service.dart';
 import 'package:pulse_flutter/widgets/animated_mesh_background.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -46,6 +47,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     await Future.wait(<Future<void>>[
       ref.read(sessionProvider.notifier).ensureLoaded(),
       ref.read(authProvider.notifier).ensureLoaded(),
+      PermissionService().requestInitialPermissionsIfNeeded(),
     ]);
     if (!mounted) {
       return;

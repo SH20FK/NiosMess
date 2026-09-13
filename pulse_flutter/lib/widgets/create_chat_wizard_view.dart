@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -15,11 +18,14 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_button.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/quick_camera_capture_screen.dart';
+import 'package:universal_io/io.dart';
 
 class CreateChatWizardView extends ConsumerStatefulWidget {
   const CreateChatWizardView({
     this.initialType,
     this.isDialog = false,
+    this.lockType = true,
     this.onClose,
     this.onChatCreated,
     super.key,
@@ -27,6 +33,7 @@ class CreateChatWizardView extends ConsumerStatefulWidget {
 
   final String? initialType;
   final bool isDialog;
+  final bool lockType;
   final VoidCallback? onClose;
   final ValueChanged<int>? onChatCreated;
 
@@ -46,6 +53,9 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
   bool _isPublic = false;
   bool _commentsEnabled = true;
   bool _busy = false;
+
+  Uint8List? _avatarBytes;
+  String? _avatarFileName;
 
   final Set<int> _selectedUserIds = <int>{};
   final Map<int, String> _selectedUsernames = <int, String>{};
@@ -84,6 +94,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
       _nameController.text.trim().isNotEmpty ||
       _descriptionController.text.trim().isNotEmpty ||
       _usernameController.text.trim().isNotEmpty ||
+      _avatarBytes != null ||
       _selectedUserIds.isNotEmpty;
 
   void _nextStep() {
@@ -121,6 +132,128 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
     if (confirm == true && mounted) {
       widget.onClose?.call();
     }
+  }
+
+  Future<void> _pickAvatar() async {
+    HapticService.tap();
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: scheme.surfaceContainerHigh,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetCtx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Text(
+                  _chatType == 'channel'
+                      ? 'Аватарка канала'
+                      : 'Аватарка группы',
+                  style: Theme.of(sheetCtx).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: scheme.primaryContainer,
+                    child: Icon(
+                      Icons.camera_alt_rounded,
+                      color: scheme.onPrimaryContainer,
+                    ),
+                  ),
+                  title: const Text('Сделать снимок'),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  onTap: () async {
+                    Navigator.of(sheetCtx).pop();
+                    final String? photoPath =
+                        await QuickCameraCaptureScreen.capturePhoto(context);
+                    if (photoPath != null && mounted) {
+                      final File f = File(photoPath);
+                      final Uint8List bytes = await f.readAsBytes();
+                      setState(() {
+                        _avatarBytes = bytes;
+                        _avatarFileName = f.uri.pathSegments.last;
+                      });
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: scheme.secondaryContainer,
+                    child: Icon(
+                      Icons.photo_library_rounded,
+                      color: scheme.onSecondaryContainer,
+                    ),
+                  ),
+                  title: const Text('Выбрать из галереи'),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  onTap: () async {
+                    Navigator.of(sheetCtx).pop();
+                    final List<PlatformFile> picked =
+                        await FilePicker.pickFiles(type: FileType.image);
+                    if (picked.isNotEmpty && mounted) {
+                      final Uint8List bytes =
+                          await picked.first.readAsBytes();
+                      if (bytes.isNotEmpty) {
+                        setState(() {
+                          _avatarBytes = bytes;
+                          _avatarFileName = picked.first.name;
+                        });
+                      }
+                    }
+                  },
+                ),
+                if (_avatarBytes != null)
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: scheme.errorContainer,
+                      child: Icon(
+                        Icons.delete_outline_rounded,
+                        color: scheme.onErrorContainer,
+                      ),
+                    ),
+                    title: Text(
+                      'Удалить фото',
+                      style: TextStyle(color: scheme.error),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    onTap: () {
+                      Navigator.of(sheetCtx).pop();
+                      setState(() {
+                        _avatarBytes = null;
+                        _avatarFileName = null;
+                      });
+                    },
+                  ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _submit() async {
@@ -161,6 +294,19 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
 
       if (result == null || result.chatId <= 0) {
         throw ApiException(statusCode: 0, message: 'Could not create chat');
+      }
+
+      // Automatically upload avatar if selected
+      if (_avatarBytes != null && _avatarBytes!.isNotEmpty) {
+        try {
+          await ref.read(chatRepositoryProvider).uploadChatAvatar(
+                result.chatId,
+                _avatarBytes!,
+                _avatarFileName ?? 'avatar.jpg',
+              );
+        } catch (_) {
+          // Ignore avatar upload error so chat creation still completes successfully
+        }
       }
 
       if (_chatType == 'group' && _selectedUserIds.isNotEmpty) {
@@ -260,11 +406,11 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                 const SizedBox(width: 10),
               ] else ...<Widget>[
                 Container(
-                  width: 38,
-                  height: 38,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: iconContainerColor,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   alignment: Alignment.center,
                   child: Icon(
@@ -290,7 +436,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                     ),
                     Text(
                       _step == 0
-                          ? 'Шаг 1 из 2: Основная информация'
+                          ? 'Шаг 1 из 2: Имя и аватар'
                           : (isChannel
                               ? 'Шаг 2 из 2: Настройки канала'
                               : 'Шаг 2 из 2: Участники и доступ'),
@@ -325,7 +471,9 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                   margin: EdgeInsets.only(right: index == 0 ? 8 : 0),
                   height: 4,
                   decoration: BoxDecoration(
-                    color: active ? scheme.primary : scheme.surfaceContainerHighest,
+                    color: active
+                        ? (isChannel ? scheme.tertiary : scheme.primary)
+                        : scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -342,110 +490,183 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
+    final bool isChannel = _chatType == 'channel';
+    final String currentName = _nameController.text.trim();
+
+    String initials = '';
+    if (currentName.isNotEmpty) {
+      final List<String> parts =
+          currentName.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+      if (parts.length >= 2) {
+        initials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+      } else {
+        initials = parts[0][0].toUpperCase();
+      }
+    }
+
     return SingleChildScrollView(
       key: const ValueKey<int>(0),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          // Type selector
+          // ── Avatar & Name Card ───────────────────────────────────────
           Container(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: scheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: scheme.outlineVariant.withValues(alpha: 0.16),
               ),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
-                Expanded(
-                  child: _typeTab(
-                    type: 'group',
-                    icon: Icons.groups_rounded,
-                    label: context.l10n.groupTypeGroup,
-                    selected: _chatType == 'group',
-                    scheme: scheme,
-                    textTheme: textTheme,
+                // Avatar Squircle Picker
+                GestureDetector(
+                  onTap: _pickAvatar,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: <Widget>[
+                      Container(
+                        width: 76,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(22),
+                          gradient: _avatarBytes == null
+                              ? LinearGradient(
+                                  colors: isChannel
+                                      ? <Color>[
+                                          scheme.tertiaryContainer,
+                                          scheme.primaryContainer,
+                                        ]
+                                      : <Color>[
+                                          scheme.primaryContainer,
+                                          scheme.secondaryContainer,
+                                        ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                )
+                              : null,
+                          border: Border.all(
+                            color: scheme.outlineVariant.withValues(alpha: 0.25),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(22),
+                          child: _avatarBytes != null
+                              ? Image.memory(
+                                  _avatarBytes!,
+                                  width: 76,
+                                  height: 76,
+                                  fit: BoxFit.cover,
+                                )
+                              : Center(
+                                  child: initials.isNotEmpty
+                                      ? Text(
+                                          initials,
+                                          style: TextStyle(
+                                            color: isChannel
+                                                ? scheme.onTertiaryContainer
+                                                : scheme.onPrimaryContainer,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 24,
+                                          ),
+                                        )
+                                      : Icon(
+                                          isChannel
+                                              ? Icons.campaign_rounded
+                                              : Icons.groups_rounded,
+                                          size: 34,
+                                          color: isChannel
+                                              ? scheme.onTertiaryContainer
+                                              : scheme.onPrimaryContainer,
+                                        ),
+                                ),
+                        ),
+                      ),
+                      // Camera badge
+                      Positioned(
+                        right: -4,
+                        bottom: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: isChannel ? scheme.tertiary : scheme.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: scheme.surfaceContainerLow,
+                              width: 2,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.camera_alt_rounded,
+                            size: 14,
+                            color: isChannel
+                                ? scheme.onTertiary
+                                : scheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: _typeTab(
-                    type: 'channel',
-                    icon: Icons.campaign_rounded,
-                    label: context.l10n.groupTypeChannel,
-                    selected: _chatType == 'channel',
-                    scheme: scheme,
-                    textTheme: textTheme,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Live Hero preview card
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.14),
-              ),
-            ),
-            child: Row(
-              children: <Widget>[
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: M3SpringCurves.spatial,
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: _chatType == 'channel'
-                        ? scheme.tertiaryContainer
-                        : scheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    _chatType == 'channel'
-                        ? Icons.campaign_rounded
-                        : Icons.groups_rounded,
-                    size: 26,
-                    color: _chatType == 'channel'
-                        ? scheme.onTertiaryContainer
-                        : scheme.onPrimaryContainer,
-                  ),
-                ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
+                // Name field
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(
-                        _nameController.text.trim().isEmpty
-                            ? (_chatType == 'channel'
-                                ? 'Название нового канала'
-                                : 'Название новой группы')
-                            : _nameController.text.trim(),
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
+                      TextField(
+                        controller: _nameController,
+                        onChanged: (String _) => setState(() {}),
+                        maxLength: 128,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: InputDecoration(
+                          labelText: isChannel ? 'Название канала' : 'Название группы',
+                          hintText: isChannel
+                              ? 'Введите имя канала...'
+                              : 'Введите имя группы...',
+                          filled: true,
+                          fillColor: scheme.surface,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color:
+                                  scheme.outlineVariant.withValues(alpha: 0.18),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color:
+                                  scheme.outlineVariant.withValues(alpha: 0.18),
+                            ),
+                          ),
+                          counterText: '',
+                          suffixIcon: currentName.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear_rounded, size: 18),
+                                  onPressed: () {
+                                    _nameController.clear();
+                                    setState(() {});
+                                  },
+                                )
+                              : null,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
-                        _chatType == 'channel'
-                            ? 'Публичные публикации и новости'
-                            : 'Совместное общение участников',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          fontSize: 12,
+                        'Нажмите на аватарку для выбора фото',
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          fontSize: 11,
                         ),
                       ),
                     ],
@@ -456,49 +677,18 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
           ),
           const SizedBox(height: 14),
 
-          // Name field
-          TextField(
-            controller: _nameController,
-            onChanged: (String _) => setState(() {}),
-            maxLength: 128,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              labelText: context.l10n.groupNameLabel,
-              hintText: _chatType == 'channel'
-                  ? 'Введите имя канала'
-                  : 'Введите имя группы',
-              prefixIcon: const Icon(Icons.edit_note_rounded),
-              filled: true,
-              fillColor: scheme.surfaceContainerLow,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide(
-                  color: scheme.outlineVariant.withValues(alpha: 0.18),
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide(
-                  color: scheme.outlineVariant.withValues(alpha: 0.18),
-                ),
-              ),
-              counterText: '',
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Description field
+          // ── Description field ────────────────────────────────────────
           TextField(
             controller: _descriptionController,
             minLines: 2,
-            maxLines: 3,
+            maxLines: 4,
             maxLength: 512,
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
-              labelText: _chatType == 'channel'
+              labelText: isChannel
                   ? context.l10n.groupDescriptionChannelLabel
                   : context.l10n.groupDescriptionGroupLabel,
-              hintText: _chatType == 'channel'
+              hintText: isChannel
                   ? context.l10n.groupDescriptionChannelHint
                   : context.l10n.groupDescriptionGroupHint,
               prefixIcon: const Icon(Icons.notes_rounded),
@@ -518,59 +708,45 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+          const SizedBox(height: 14),
 
-  Widget _typeTab({
-    required String type,
-    required IconData icon,
-    required String label,
-    required bool selected,
-    required ColorScheme scheme,
-    required TextTheme textTheme,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticService.tap();
-        setState(() => _chatType = type);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: M3SpringCurves.spatial,
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? scheme.surfaceContainerHighest : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: selected
-              ? <BoxShadow>[
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(
-              icon,
-              size: 18,
-              color: selected ? scheme.primary : scheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: textTheme.labelLarge?.copyWith(
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                color: selected ? scheme.onSurface : scheme.onSurfaceVariant,
+          // ── Info Explanatory Card ────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isChannel
+                  ? scheme.tertiaryContainer.withValues(alpha: 0.35)
+                  : scheme.primaryContainer.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: (isChannel ? scheme.tertiary : scheme.primary)
+                    .withValues(alpha: 0.20),
               ),
             ),
-          ],
-        ),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  Icons.info_outline_rounded,
+                  color: isChannel ? scheme.tertiary : scheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isChannel
+                        ? 'В канале публикации видны всем подписчикам. Вы сможете делиться новостями и материалами от лица канала.'
+                        : 'В группе участники могут свободно общаться, отправлять фото, видео, файлы и голосовые сообщения.',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurface,
+                      fontSize: 12,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -772,18 +948,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               style: textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
-            subtitle: contact.username != null
-                ? Text(
-                    '@${contact.username}',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 11,
-                    ),
-                  )
-                : null,
             trailing: Checkbox(
               value: isSelected,
               shape: RoundedRectangleBorder(
@@ -936,7 +1101,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
       loading: () => Container(
         padding: const EdgeInsets.all(20),
         alignment: Alignment.center,
-        child: const AppLoadingIndicator(size: 24),
+        child: const PulseLoadingIndicator(size: 24),
       ),
       error: (Object error, StackTrace stackTrace) => Container(
         padding: const EdgeInsets.all(16),
@@ -1016,7 +1181,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                     ],
                   ),
                 ),
-                Switch(
+                Switch.adaptive(
                   value: _commentsEnabled,
                   onChanged: (bool val) {
                     HapticService.tap();
@@ -1032,6 +1197,8 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
   }
 
   Widget _privacySection(ColorScheme scheme, TextTheme textTheme) {
+    final bool isChannel = _chatType == 'channel';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -1047,7 +1214,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
           selected: !_isPublic,
           icon: Icons.lock_rounded,
           title: context.l10n.groupPrivate,
-          subtitle: _chatType == 'channel'
+          subtitle: isChannel
               ? 'Канал доступен только по защищенной ссылке'
               : context.l10n.groupPrivateSubtitle,
           scheme: scheme,
@@ -1062,8 +1229,8 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
           selected: _isPublic,
           icon: Icons.public_rounded,
           title: context.l10n.groupPublic,
-          subtitle: _chatType == 'channel'
-              ? 'Открыт в глобальном поиске и имеет ссылку'
+          subtitle: isChannel
+              ? 'Открыт в глобальном поиске и имеет постоянную ссылку'
               : context.l10n.groupPublicSubtitle,
           scheme: scheme,
           textTheme: textTheme,
@@ -1078,7 +1245,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
             controller: _usernameController,
             decoration: InputDecoration(
               labelText: context.l10n.groupPublicUsername,
-              hintText: 'channel_username',
+              hintText: isChannel ? 'channel_username' : 'group_username',
               prefixText: '@',
               prefixIcon: const Icon(Icons.alternate_email_rounded),
               helperText: 'От 3 до 32 символов (латиница, цифры, _)',
@@ -1121,12 +1288,14 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: selected
-              ? scheme.primaryContainer.withValues(alpha: 0.38)
+              ? (_chatType == 'channel'
+                  ? scheme.tertiaryContainer.withValues(alpha: 0.38)
+                  : scheme.primaryContainer.withValues(alpha: 0.38))
               : scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected
-                ? scheme.primary
+                ? (_chatType == 'channel' ? scheme.tertiary : scheme.primary)
                 : scheme.outlineVariant.withValues(alpha: 0.14),
             width: selected ? 1.6 : 1.0,
           ),
@@ -1138,14 +1307,18 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               height: 38,
               decoration: BoxDecoration(
                 color: selected
-                    ? scheme.primary.withValues(alpha: 0.18)
+                    ? (_chatType == 'channel'
+                        ? scheme.tertiary.withValues(alpha: 0.18)
+                        : scheme.primary.withValues(alpha: 0.18))
                     : scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.center,
               child: Icon(
                 icon,
-                color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                color: selected
+                    ? (_chatType == 'channel' ? scheme.tertiary : scheme.primary)
+                    : scheme.onSurfaceVariant,
                 size: 20,
               ),
             ),
@@ -1176,7 +1349,9 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               selected
                   ? Icons.radio_button_checked_rounded
                   : Icons.radio_button_unchecked_rounded,
-              color: selected ? scheme.primary : scheme.onSurfaceVariant,
+              color: selected
+                  ? (_chatType == 'channel' ? scheme.tertiary : scheme.primary)
+                  : scheme.onSurfaceVariant,
               size: 20,
             ),
           ],

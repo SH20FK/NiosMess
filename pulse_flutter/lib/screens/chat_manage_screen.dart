@@ -28,6 +28,10 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
   bool _commentsEnabled = true;
   bool _saving = false;
   bool _uploadingAvatar = false;
+  String? _inviteLink;
+  String? _shareLink;
+  bool _canRotate = false;
+  bool _rotatingLink = false;
 
   @override
   void initState() {
@@ -37,6 +41,58 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
     _descController = TextEditingController(text: chat?.description ?? '');
     _usernameController = TextEditingController(text: chat?.username ?? '');
     _commentsEnabled = chat?.commentsEnabled ?? false;
+    _inviteLink = chat?.inviteLink;
+    _shareLink = chat?.shareLink;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadInviteLink());
+  }
+
+  Future<void> _loadInviteLink() async {
+    try {
+      final Map<String, dynamic>? res =
+          await ref.read(chatRepositoryProvider).getInviteLink(widget.chatId);
+      if (res != null && mounted) {
+        setState(() {
+          _inviteLink = res['invite_link'] as String? ?? _inviteLink;
+          _shareLink = res['share_link'] as String? ?? _shareLink;
+          _canRotate = res['can_rotate'] == true;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _rotateInviteLink() async {
+    if (_rotatingLink) return;
+    final bool? confirmed = await showAppConfirmDialog(
+      context: context,
+      title: 'Перевыпустить ссылку?',
+      subtitle:
+          'Предыдущая ссылка перестанет работать немедленно. Новые участники не смогут присоединиться по старой ссылке.',
+      confirmLabel: 'Перевыпустить',
+      cancelLabel: context.l10n.commonCancel,
+      destructive: true,
+      icon: Icons.link_off_rounded,
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _rotatingLink = true);
+    try {
+      final Map<String, dynamic>? res =
+          await ref.read(chatRepositoryProvider).rotateInviteLink(widget.chatId);
+      if (res != null && mounted) {
+        setState(() {
+          _inviteLink = res['invite_link'] as String? ?? _inviteLink;
+          _shareLink = res['share_link'] as String? ?? _shareLink;
+        });
+        await ref.read(chatsProvider.notifier).refresh();
+        if (mounted) {
+          AppToast.showSuccess(context, 'Ссылка успешно обновлена');
+        }
+      }
+    } catch (e) {
+      if (mounted) AppToast.showError(context, e);
+    } finally {
+      if (mounted) setState(() => _rotatingLink = false);
+    }
   }
 
   @override
@@ -51,16 +107,25 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
+      final chat = ref.read(chatByIdProvider(widget.chatId));
+      final bool isChannel = chat?.chatType == 'channel';
+      final bool isGroup = chat?.chatType == 'group';
+      final bool isPrivate = chat?.isPrivate ?? false;
+
+      final String? targetUsername = (isGroup && isPrivate)
+          ? null
+          : (_usernameController.text.trim().isEmpty
+              ? null
+              : _usernameController.text.trim());
+
       await ref
           .read(chatRepositoryProvider)
           .updateChat(
             widget.chatId,
             name: _nameController.text.trim(),
             description: _descController.text.trim(),
-            username: _usernameController.text.trim().isEmpty
-                ? null
-                : _usernameController.text.trim(),
-            commentsEnabled: _commentsEnabled,
+            username: targetUsername,
+            commentsEnabled: isChannel ? _commentsEnabled : null,
           );
       await ref.read(chatsProvider.notifier).refresh();
       if (!mounted) return;
@@ -135,10 +200,15 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
 
   bool _hasChanges(dynamic chat) {
     if (chat == null) return false;
+    final bool isChannel = chat.chatType == 'channel';
+    final bool isGroup = chat.chatType == 'group';
+    final bool isPrivate = chat.isPrivate ?? false;
+    final bool canHaveUsername = !isGroup || !isPrivate;
+
     return _nameController.text != (chat.name ?? '') ||
         _descController.text != (chat.description ?? '') ||
-        _usernameController.text != (chat.username ?? '') ||
-        _commentsEnabled != (chat.commentsEnabled ?? false);
+        (canHaveUsername && _usernameController.text != (chat.username ?? '')) ||
+        (isChannel && _commentsEnabled != (chat.commentsEnabled ?? false));
   }
 
   @override
@@ -147,8 +217,12 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final chat = ref.watch(chatByIdProvider(widget.chatId));
     final bool isChannel = chat?.chatType == 'channel';
+    final bool isGroup = chat?.chatType == 'group';
+    final bool isPrivate = chat?.isPrivate ?? false;
     final bool isPublic = (chat?.username ?? '').trim().isNotEmpty;
     final bool hasChanges = _hasChanges(chat);
+    final String effectiveInviteLink = _inviteLink ?? chat?.inviteLink ?? '';
+    final String effectiveShareLink = _shareLink ?? chat?.shareLink ?? '';
 
     final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
     return PopScope(
@@ -316,16 +390,18 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                       prefixIcon: Icon(Icons.description_rounded),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _usernameController,
-                    decoration: InputDecoration(
-                      labelText: isChannel
-                          ? context.l10n.groupPublicUsername
-                          : context.l10n.groupPublicUsername,
-                      prefixIcon: const Icon(Icons.alternate_email_rounded),
+                  if (!isGroup || !isPrivate) ...<Widget>[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _usernameController,
+                      decoration: InputDecoration(
+                        labelText: isChannel
+                            ? context.l10n.groupPublicUsername
+                            : context.l10n.groupPublicUsername,
+                        prefixIcon: const Icon(Icons.alternate_email_rounded),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -362,8 +438,8 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                 ),
               ),
             ],
-            if ((chat?.inviteLink ?? '').isNotEmpty ||
-                (chat?.shareLink ?? '').isNotEmpty ||
+            if (effectiveInviteLink.isNotEmpty ||
+                effectiveShareLink.isNotEmpty ||
                 chat?.commentsChatId != null) ...<Widget>[
               const SizedBox(height: 12),
               _panel(
@@ -375,12 +451,12 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                       context.l10n.groupManageLinks,
                       style: textTheme.titleLarge,
                     ),
-                     if ((chat?.inviteLink ?? '').isNotEmpty) ...<Widget>[
+                     if (effectiveInviteLink.isNotEmpty) ...<Widget>[
                       const SizedBox(height: 12),
                       _metaRow(
                         context,
                         title: context.l10n.chatManageInviteLink,
-                        value: chat!.inviteLink!,
+                        value: effectiveInviteLink,
                       ),
                       const SizedBox(height: 10),
                       Wrap(
@@ -388,24 +464,42 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
                         runSpacing: 10,
                         children: <Widget>[
                           OutlinedButton.icon(
-                            onPressed: () => _copyMeta(context.l10n.chatManageInviteLink, chat.inviteLink!),
+                            onPressed: () => _copyMeta(context.l10n.chatManageInviteLink, effectiveInviteLink),
                             icon: const Icon(Icons.copy_rounded),
                             label: Text(context.l10n.chatManageCopyInvite),
                           ),
                           OutlinedButton.icon(
-                            onPressed: () => _copyMeta(context.l10n.chatManageInviteLink, chat.inviteLink!),
+                            onPressed: () => _copyMeta(context.l10n.chatManageInviteLink, effectiveInviteLink),
                             icon: const Icon(Icons.share_rounded),
                             label: Text(context.l10n.chatManageShareInvite),
                           ),
+                          if (_canRotate)
+                            OutlinedButton.icon(
+                              onPressed: _rotatingLink ? null : _rotateInviteLink,
+                              icon: _rotatingLink
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : Icon(Icons.sync_rounded, color: scheme.error),
+                              label: Text(
+                                'Перевыпустить',
+                                style: TextStyle(color: scheme.error),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: scheme.error.withValues(alpha: 0.5)),
+                              ),
+                            ),
                         ],
                       ),
                     ],
-                    if ((chat?.shareLink ?? '').isNotEmpty) ...<Widget>[
+                    if (effectiveShareLink.isNotEmpty) ...<Widget>[
                       const SizedBox(height: 12),
                       _metaRow(
                         context,
                         title: context.l10n.chatManageShareLink,
-                        value: chat!.shareLink!,
+                        value: effectiveShareLink,
                       ),
                     ],
                     if (chat?.commentsChatId != null) ...<Widget>[

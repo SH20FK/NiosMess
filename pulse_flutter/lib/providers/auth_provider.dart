@@ -474,6 +474,14 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
+  void updateAiUsage(ApiAiUsage aiUsage) {
+    if (state.profile != null) {
+      state = state.copyWith(
+        profile: state.profile!.copyWith(aiUsage: aiUsage),
+      );
+    }
+  }
+
   Future<AuthActionResult> updateProfile({
     String? displayName,
     String? username,

@@ -128,7 +128,7 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
     }
 
     final ApiStickerSet resolvedSet = currentSet;
-    final bool isInstalled =
+    final bool isInstalled = (resolvedSet.isSaved ?? false) ||
         installedSets.any((ApiStickerSet s) => s.id == resolvedSet.id);
 
     return ConstrainedBox(
@@ -257,6 +257,12 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
                                   await ref
                                       .read(stickerSetsProvider.notifier)
                                       .removeStickerSet(resolvedSet.id);
+                                  if (mounted) {
+                                    setState(() {
+                                      _fetchedSet = (_fetchedSet ?? resolvedSet)
+                                          .copyWith(isSaved: false);
+                                    });
+                                  }
                                   if (context.mounted) {
                                     AppToast.showSuccess(
                                       context,
@@ -307,6 +313,12 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
                                   await ref
                                       .read(stickerSetsProvider.notifier)
                                       .saveStickerSet(resolvedSet.id);
+                                  if (mounted) {
+                                    setState(() {
+                                      _fetchedSet = (_fetchedSet ?? resolvedSet)
+                                          .copyWith(isSaved: true);
+                                    });
+                                  }
                                   if (context.mounted) {
                                     AppToast.showSuccess(
                                       context,

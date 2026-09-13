@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/call_video_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
@@ -245,11 +246,11 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                       icon: Icon(
                         Icons.keyboard_arrow_down_rounded,
                         color: scheme.onSurface,
-                        size: 32,
+                        size: 30,
                       ),
                       tooltip: context.l10n.callMinimize,
                       onPressed: () {
-                        HapticFeedback.lightImpact();
+                        HapticService.tap();
                         Navigator.of(context).pop();
                       },
                     ),
@@ -264,12 +265,6 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                             style: textTheme.titleMedium?.copyWith(
                               color: scheme.onSurface,
                               fontWeight: FontWeight.w700,
-                              shadows: [
-                                Shadow(
-                                  color: scheme.shadow.withValues(alpha: 0.6),
-                                  blurRadius: 6,
-                                ),
-                              ],
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -281,13 +276,13 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                               Icon(
                                 Icons.lock_rounded,
                                 size: 12,
-                                color: scheme.tertiary,
+                                color: scheme.primary,
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                'E2EE PROTECTED',
+                                'E2EE ЗАЩИЩЕНО',
                                 style: textTheme.labelSmall?.copyWith(
-                                  color: scheme.onSurface.withValues(alpha: 0.75),
+                                  color: scheme.onSurfaceVariant,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 0.6,
@@ -304,9 +299,9 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                         final m = seconds ~/ 60;
                         final s = seconds % 60;
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                           decoration: BoxDecoration(
-                            color: scheme.scrim.withValues(alpha: 0.4),
+                            color: scheme.surfaceContainerHigh.withValues(alpha: 0.85),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: scheme.outlineVariant.withValues(alpha: 0.25),
@@ -314,10 +309,11 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                           ),
                           child: Text(
                             '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
-                            style: textTheme.labelMedium?.copyWith(
+                            style: textTheme.labelLarge?.copyWith(
                               fontFamily: 'monospace',
                               color: scheme.onSurface,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.5,
                             ),
                           ),
                         );
@@ -328,7 +324,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
               ),
             ),
 
-            // ── Draggable PiP (Self Camera) ──────────────────────────────
+            // ── Draggable M3 Squircle PiP (Self Camera) ─────────────────
             Positioned(
               left: _pipX,
               top: _pipY,
@@ -346,37 +342,61 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                   });
                 },
                 child: Container(
+                  width: CallTokens.videoPipWidth,
+                  height: CallTokens.videoPipHeight,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
-                    boxShadow: [
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(CallTokens.pipBorderRadius),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.35),
+                      width: 1.5,
+                    ),
+                    boxShadow: <BoxShadow>[
                       BoxShadow(
-                        color: scheme.shadow.withValues(alpha: 0.45),
-                        blurRadius: 18,
+                        color: scheme.shadow.withValues(alpha: 0.20),
+                        blurRadius: 16,
                         offset: const Offset(0, 6),
                       ),
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
-                    child: Container(
-                      width: CallTokens.videoPipWidth,
-                      height: CallTokens.videoPipHeight,
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
-                        border: Border.all(
-                          color: scheme.outlineVariant.withValues(alpha: 0.35),
-                          width: 1.5,
+                    borderRadius: BorderRadius.circular(CallTokens.pipBorderRadius - 1.5),
+                    child: Stack(
+                      children: <Widget>[
+                        const Positioned.fill(
+                          child: _LocalCameraPreview(),
                         ),
-                      ),
-                      child: const _LocalCameraPreview(),
+                        // Quick flip camera button inside PiP
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticService.tap();
+                              session.switchCamera();
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerHigh.withValues(alpha: 0.75),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.flip_camera_ios_rounded,
+                                size: 16,
+                                color: scheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
 
-            // ── Floating Glassmorphic Control Dock ───────────────────────
+            // ── Floating M3 Control Dock ────────────────────────────────
             Positioned(
               bottom: 0,
               left: 0,
@@ -396,15 +416,15 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                   scheme: scheme,
                   isVideoCall: true,
                   onToggleVideo: () {
-                    HapticFeedback.lightImpact();
+                    HapticService.tap();
                     session.setLocalVideoEnabled(!data.isSelfVideoEnabled);
                   },
                   onFlipCamera: () {
-                    HapticFeedback.lightImpact();
+                    HapticService.tap();
                     session.switchCamera();
                   },
                   onMinimize: () {
-                    HapticFeedback.lightImpact();
+                    HapticService.tap();
                     Navigator.of(context).pop();
                   },
                   onEnd: _endCall,

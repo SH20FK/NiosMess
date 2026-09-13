@@ -36,6 +36,8 @@ class ApiMessage {
     this.senderAvatarUrl,
     this.replyMarkup,
     this.sticker,
+    this.stickerSetId,
+    this.isStickerExplicit,
     this.isSending = false,
     this.isFailed = false,
     this.isE2ee = false,
@@ -77,6 +79,8 @@ class ApiMessage {
   final String? e2eeFileKey;
   final bool isRead;
   final ApiSticker? sticker;
+  final int? stickerSetId;
+  final bool? isStickerExplicit;
   final String? systemEventType;
   final Map<String, dynamic>? systemEvent;
 
@@ -84,7 +88,12 @@ class ApiMessage {
 
   bool get hasMedia => (mediaUrl ?? '').isNotEmpty;
 
-  bool get isSticker => msgType == 'sticker' || sticker != null;
+  bool get isSticker =>
+      msgType == 'sticker' ||
+      (isStickerExplicit ?? false) ||
+      sticker != null;
+
+  int? get resolvedStickerSetId => stickerSetId ?? sticker?.setId;
 
   bool get isCallEvent => systemEventType == 'call' || msgType == 'call';
 
@@ -115,6 +124,8 @@ class ApiMessage {
     bool? isDeleted,
     InlineKeyboardMarkup? replyMarkup,
     ApiSticker? sticker,
+    int? stickerSetId,
+    bool? isStickerExplicit,
     bool? isSending,
     bool? isFailed,
     bool? isE2ee,
@@ -147,6 +158,8 @@ class ApiMessage {
       isDeleted: isDeleted ?? this.isDeleted,
       replyMarkup: replyMarkup ?? this.replyMarkup,
       sticker: sticker ?? this.sticker,
+      stickerSetId: stickerSetId ?? this.stickerSetId,
+      isStickerExplicit: isStickerExplicit ?? this.isStickerExplicit,
       isSending: isSending ?? this.isSending,
       isFailed: isFailed ?? this.isFailed,
       isE2ee: isE2ee ?? this.isE2ee,
@@ -232,6 +245,12 @@ class ApiMessage {
               ),
             )
           : null,
+      stickerSetId: (json['sticker_set_id'] as num?)?.toInt() ??
+          (json['sticker'] is Map
+              ? ((json['sticker'] as Map)['set_id'] as num?)?.toInt()
+              : null),
+      isStickerExplicit:
+          json['is_sticker'] != null ? _parseBool(json['is_sticker']) : null,
       systemEventType: json['system_event_type'] as String?,
       systemEvent: json['system_event'] is Map
           ? (json['system_event'] as Map).map(
@@ -266,6 +285,8 @@ class ApiMessage {
       'is_e2ee': isE2ee,
       'is_read': isRead,
       if (sticker != null) 'sticker': sticker!.toJson(),
+      if (stickerSetId != null) 'sticker_set_id': stickerSetId,
+      if (isStickerExplicit != null) 'is_sticker': isStickerExplicit,
       if (e2eeContent != null) 'e2ee_content': e2eeContent,
       if (e2eeFileKey != null) 'e2ee_file_key': e2eeFileKey,
       if (replyMarkup != null) 'reply_markup': replyMarkup!.toJson(),

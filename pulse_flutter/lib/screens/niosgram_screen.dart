@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -162,23 +161,8 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
                         horizontal: horizontalGutter,
                         vertical: isWide ? 8 : 6,
                       ),
-                      child: Animate(
+                      child: RepaintBoundary(
                         key: ValueKey<String>('post_${post.id}'),
-                        effects: <Effect<dynamic>>[
-                          FadeEffect(
-                            begin: 0,
-                            end: 1,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOut,
-                          ),
-                          SlideEffect(
-                            begin: const Offset(0, 0.04),
-                            end: Offset.zero,
-                            duration: const Duration(milliseconds: 350),
-                            curve: Curves.easeOutCubic,
-                          ),
-                        ],
-                        delay: Duration(milliseconds: (postIndex % 10) * 50),
                         child: PostCard(key: ValueKey<int>(post.id), post: post),
                       ),
                     );

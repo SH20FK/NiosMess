@@ -274,9 +274,21 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? cid = _chatId;
     if (cid != null) PushNotificationService.setCurrentChat(cid);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _restoreDraft();
-      _refreshNow();
       _applySecureFlag();
+      final routeAnim = ModalRoute.of(context)?.animation;
+      if (routeAnim != null && !routeAnim.isCompleted) {
+        void onAnimEnd(AnimationStatus status) {
+          if (status == AnimationStatus.completed) {
+            routeAnim.removeStatusListener(onAnimEnd);
+            if (mounted) _refreshNow();
+          }
+        }
+        routeAnim.addStatusListener(onAnimEnd);
+      } else {
+        _refreshNow();
+      }
     });
   }
 
@@ -609,7 +621,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? chatId = _chatId;
     if (chatId == null) return;
     try {
-      await ref.read(chatsProvider.notifier).refresh();
       await ref.read(chatMessagesProvider(chatId).notifier).refresh();
       await ref.read(chatMessagesProvider(chatId).notifier).markRead();
     } catch (e) {
@@ -865,11 +876,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     for (int i = 0; i < results.length; i++) {
       final M3FilePickerResult result = results[i];
       final String filename = result.fileName;
-      final String mediaSubtype = result.mediaSubtype;
+      final String mediaSubtype =
+          result.sendAsDocument ? 'document' : result.mediaSubtype;
 
       final String? uploadFilePath = result.filePath;
       final Uint8List? uploadBytes = result.fileBytes;
       final int uploadFileSize = result.fileSize;
+      final String caption =
+          (result.caption != null && result.caption!.isNotEmpty)
+              ? result.caption!
+              : (i == 0 ? initialText : '');
 
       _uploadAndSend(
         chatId: chatId,
@@ -878,7 +894,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         filename: filename,
         mediaSubtype: mediaSubtype,
         fileSize: uploadFileSize,
-        text: i == 0 ? initialText : '',
+        text: caption,
         showSentSnackBar: false,
       );
     }
@@ -1556,13 +1572,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return Scaffold(
         appBar: AppBar(title: Text(context.l10n.chatTitleFallback(0))),
         body: PulseScaffoldBody(
+          animatedBackdrop: false,
           maxWidth: 1560,
           child: Center(child: Text(context.l10n.chatInvalidId)),
         ),
       );
     }
 
-    final AuthState auth = ref.watch(authProvider);
+    final int myUserId = ref.watch(
+      authProvider.select((a) => a.session?.userId ?? -1),
+    );
     final chat = ref.watch(chatByIdProvider(chatId));
     final bool isChannel = chat?.chatType == 'channel';
     final bool isGroup = chat?.chatType == 'group';
@@ -1590,7 +1609,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final int myUserId = auth.session?.userId ?? -1;
     final String? directUsername = _resolveDirectUsername(
       chat,
       currentMessages,
@@ -1651,6 +1669,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           ),
         ),
       body: PulseScaffoldBody(
+        animatedBackdrop: false,
         expand: true,
         bottomSafe: false,
         child: Stack(
@@ -1736,7 +1755,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                       return ChatMessageList(
                         messages: messages,
                         scrollController: _scrollController,
-                        authUserId: auth.session?.userId ?? -1,
+                        authUserId: myUserId,
                         amAdminOrOwner: amAdminOrOwner,
                         isChannel: isChannel,
                         onOpenMedia: _handleOpenMediaFor,
@@ -1916,42 +1935,43 @@ class _AnimatedMessage extends StatefulWidget {
 
 class _AnimatedMessageState extends State<_AnimatedMessage>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _fade;
-  late final Animation<Offset> _slide;
+  AnimationController? _controller;
+  Animation<double>? _fade;
+  Animation<Offset>? _slide;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-    _slide = Tween<Offset>(
-      begin: const Offset(0.0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-
     if (widget.animate) {
-      _controller.forward();
-    } else {
-      _controller.value = 1.0;
+      final ctrl = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 250),
+      );
+      _controller = ctrl;
+      _fade = CurvedAnimation(parent: ctrl, curve: Curves.easeOut);
+      _slide = Tween<Offset>(
+        begin: const Offset(0.0, 0.2),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeOutCubic));
+      ctrl.forward();
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.animate || _controller == null) {
+      return widget.child;
+    }
     return FadeTransition(
-      opacity: _fade,
+      opacity: _fade!,
       child: SlideTransition(
-        position: _slide,
+        position: _slide!,
         child: widget.child,
       ),
     );

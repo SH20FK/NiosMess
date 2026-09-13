@@ -145,16 +145,19 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
   int? _highlightedMessageId;
 
   void _scrollToMessage(int messageId) {
-    final GlobalKey? key = _messageKeys[messageId];
-    if (key != null && key.currentContext != null) {
-      setState(() => _highlightedMessageId = messageId);
-      Scrollable.ensureVisible(
-        key.currentContext!,
-        alignment: 0.3,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOutCubic,
-      );
-    }
+    setState(() => _highlightedMessageId = messageId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final GlobalKey? key = _messageKeys[messageId];
+      if (key != null && key.currentContext != null) {
+        Scrollable.ensureVisible(
+          key.currentContext!,
+          alignment: 0.3,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
   }
 
   @override
@@ -188,15 +191,21 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
         };
 
     final DateTime now = AppTimeSettings.now();
+    final Set<int> replyTargets = <int>{
+      for (final ApiMessage m in messages)
+        if (m.replyToId != null) m.replyToId!,
+      ?_highlightedMessageId,
+    };
 
-    return ListView.builder(
-      controller: widget.scrollController,
-      reverse: true,
-      // ignore: deprecated_member_use
-      cacheExtent: 600,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-      addAutomaticKeepAlives: false,
-      itemCount: messages.length,
+    return RepaintBoundary(
+      child: ListView.builder(
+        controller: widget.scrollController,
+        reverse: true,
+        // ignore: deprecated_member_use
+        cacheExtent: 350,
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        addAutomaticKeepAlives: false,
+        itemCount: messages.length,
       itemBuilder: (BuildContext context, int index) {
         final int reversedIndex = messages.length - 1 - index;
         final ApiMessage message = messages[reversedIndex];
@@ -295,8 +304,9 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             isSticker: isSticker,
             sticker: message.sticker,
             onStickerTap: () {
-              if (message.sticker?.setId != null) {
-                StickerSetModal.show(context, setId: message.sticker!.setId);
+              final int? targetSetId = message.resolvedStickerSetId;
+              if (targetSetId != null && targetSetId > 0) {
+                StickerSetModal.show(context, setId: targetSetId);
               } else if (message.sticker?.id != null) {
                 final List<ApiStickerSet> sets =
                     ref.read(stickerSetsProvider).value ??
@@ -348,13 +358,16 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
 
         final bool isNewest = index == 0;
 
-        _messageKeys.putIfAbsent(message.id, () => GlobalKey());
+        final bool isReplyTarget = replyTargets.contains(message.id);
+        final Key itemKey = isReplyTarget
+            ? _messageKeys.putIfAbsent(message.id, GlobalKey.new)
+            : ValueKey<int>(message.id);
 
         final Widget animatedBubble = InkWell(
           onLongPress: () => widget.onLongPress(
               message, isMine, widget.isChannel, widget.amAdminOrOwner),
           child: Container(
-            key: _messageKeys[message.id],
+            key: itemKey,
             child: widget.animatedMessageBuilder(
               messageId: message.id,
               animate: isNewest,
@@ -468,8 +481,9 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
         if (index < 0) return null;
         return messages.length - 1 - index;
       },
-    );
-  }
+    ),
+  );
+}
 }
 
 class _CallEventPill extends StatelessWidget {

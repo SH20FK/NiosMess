@@ -19,6 +19,7 @@ import 'package:pulse_flutter/screens/group_profile_screen.dart';
 import 'package:pulse_flutter/screens/onboarding_screen.dart';
 import 'package:pulse_flutter/screens/post_comments_screen.dart';
 import 'package:pulse_flutter/screens/public_profile_screen.dart';
+import 'package:pulse_flutter/screens/sticker_set_screen.dart';
 import 'package:pulse_flutter/screens/setup_onboarding_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
@@ -156,6 +157,14 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         pageBuilder: (context, state) => _page(state, JoinChatScreen(initialSlug: state.uri.queryParameters['slug'])),
       ),
       GoRoute(
+        path: '/join/:slug',
+        redirect: (context, state) => '/join?slug=${state.pathParameters['slug']}',
+      ),
+      GoRoute(
+        path: '/c/:slug',
+        redirect: (context, state) => '/u/${state.pathParameters['slug']}',
+      ),
+      GoRoute(
         path: '/chat/:chatId',
         pageBuilder: (context, state) => _page(state, ChatDetailScreen(chatId: state.pathParameters['chatId']!, highlightMessageId: int.tryParse(state.uri.queryParameters['highlight'] ?? '')), pageKey: state.pageKey),
       ),
@@ -223,7 +232,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: '/g/:username',
         pageBuilder: (context, state) => _page(
           state,
-          DirectChatResolverScreen(
+          PublicProfileScreen(
             username: state.pathParameters['username']!,
           ),
         ),
@@ -231,6 +240,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/u/:slug',
         pageBuilder: (context, state) => _page(state, ChatRedirectScreen(slug: state.pathParameters['slug']!)),
+      ),
+      GoRoute(
+        path: '/stickers/:setId',
+        pageBuilder: (context, state) => _page(
+          state,
+          StickerSetScreen(
+            setId: int.tryParse(state.pathParameters['setId'] ?? '') ?? 0,
+          ),
+        ),
       ),
       GoRoute(
         path: '/contact/:username',

@@ -7,13 +7,13 @@ class AppConstants {
   static const double buttonRadius = 999;
 
   /// Public web origin used for share links and invites.
-  static const String webOrigin = 'https://niosmess.com';
+  static const String webOrigin = 'https://ni-os.ru';
 
   /// Application version constants matching pubspec.yaml.
-  static const String appVersion = '3.34.1';
-  static const String appBuildNumber = '74';
-  static const String appVersionWithPrefix = 'v3.34.1';
-  static const String appFullVersion = 'v3.34.1+74';
+  static const String appVersion = '3.49.2';
+  static const String appBuildNumber = '103';
+  static const String appVersionWithPrefix = 'v3.49.2';
+  static const String appFullVersion = 'v3.49.2+103';
 
   static String chatShareUrl(int chatId) => '$webOrigin/chat/$chatId';
 }

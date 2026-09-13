@@ -182,9 +182,14 @@ class ChatRepository {
       return null;
     }
 
+    final Map<String, dynamic> payload = <String, dynamic>{'slug': slug};
+    if (slug.startsWith('+')) {
+      payload['invite_token'] = slug.substring(1);
+    }
+
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request('get_invite_info', payload: <String, dynamic>{'slug': slug});
+        .request('get_invite_info', payload: payload);
 
     if (response is! Map) {
       return null;
@@ -203,9 +208,14 @@ class ChatRepository {
       return null;
     }
 
+    final Map<String, dynamic> payload = <String, dynamic>{'slug': slug};
+    if (slug.startsWith('+')) {
+      payload['invite_token'] = slug.substring(1);
+    }
+
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request('join_chat', payload: <String, dynamic>{'slug': slug});
+        .request('join_chat', payload: payload);
 
     if (response is! Map) {
       return null;
@@ -955,11 +965,15 @@ class ChatRepository {
 
   Future<String?> resolveShortLink(String slug) async {
     try {
+      final Map<String, dynamic> payload = <String, dynamic>{'slug': slug};
+      if (slug.startsWith('+')) {
+        payload['invite_token'] = slug.substring(1);
+      }
       final dynamic response = await _ref
           .read(webSocketClientProvider)
-          .request('get_invite_info', payload: <String, dynamic>{'slug': slug});
+          .request('get_invite_info', payload: payload);
       if (response is Map && response['slug'] != null) {
-        return '/join/${response['slug']}';
+        return '/join?slug=${response['slug']}';
       }
       if (response is Map && response['path'] != null) {
         return response['path'] as String;
@@ -968,6 +982,22 @@ class ChatRepository {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<Map<String, dynamic>?> getInviteLink(int chatId) async {
+    final dynamic response = await _ref
+        .read(webSocketClientProvider)
+        .request('get_invite_link', payload: <String, dynamic>{'chat_id': chatId});
+    if (response is! Map) return null;
+    return asStringMap(response);
+  }
+
+  Future<Map<String, dynamic>?> rotateInviteLink(int chatId) async {
+    final dynamic response = await _ref
+        .read(webSocketClientProvider)
+        .request('rotate_invite_link', payload: <String, dynamic>{'chat_id': chatId});
+    if (response is! Map) return null;
+    return asStringMap(response);
   }
 }
 

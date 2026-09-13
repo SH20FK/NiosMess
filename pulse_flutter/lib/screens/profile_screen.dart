@@ -35,6 +35,7 @@ import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/common/app_pill_field.dart';
+import 'package:pulse_flutter/widgets/profile/ai_usage_card.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -257,6 +258,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   username,
                   bio,
                 ),
+                if (auth.profile?.aiUsage != null) ...<Widget>[
+                  const SizedBox(height: 10),
+                  AiUsageIndicatorCard(usage: auth.profile!.aiUsage!),
+                ],
                 const SizedBox(height: 14),
 
                 // 1. Account & Sessions
@@ -1017,6 +1022,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             username,
             bio,
           ),
+          if (auth.profile?.aiUsage != null) ...<Widget>[
+            const SizedBox(height: 12),
+            AiUsageIndicatorCard(usage: auth.profile!.aiUsage!),
+          ],
           const SizedBox(height: 12),
 
           // Working Hours

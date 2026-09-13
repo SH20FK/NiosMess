@@ -1,5 +1,65 @@
+import 'package:flutter/foundation.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
+
+@immutable
+class ApiAiUsage {
+  const ApiAiUsage({
+    required this.limitTokens,
+    required this.usedTokens,
+    required this.remainingTokens,
+    required this.usedPercent,
+    required this.windowHours,
+    this.resetsAt,
+  });
+
+  final int limitTokens;
+  final int usedTokens;
+  final int remainingTokens;
+  final double usedPercent;
+  final int windowHours;
+  final DateTime? resetsAt;
+
+  factory ApiAiUsage.fromJson(Map<String, dynamic> json) {
+    return ApiAiUsage(
+      limitTokens: (json['limit_tokens'] as num?)?.toInt() ?? 200000,
+      usedTokens: (json['used_tokens'] as num?)?.toInt() ?? 0,
+      remainingTokens: (json['remaining_tokens'] as num?)?.toInt() ?? 0,
+      usedPercent: (json['used_percent'] as num?)?.toDouble() ?? 0.0,
+      windowHours: (json['window_hours'] as num?)?.toInt() ?? 72,
+      resetsAt: json['resets_at'] != null
+          ? DateTime.tryParse(json['resets_at'].toString())
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'limit_tokens': limitTokens,
+        'used_tokens': usedTokens,
+        'remaining_tokens': remainingTokens,
+        'used_percent': usedPercent,
+        'window_hours': windowHours,
+        if (resetsAt != null) 'resets_at': resetsAt!.toIso8601String(),
+      };
+
+  ApiAiUsage copyWith({
+    int? limitTokens,
+    int? usedTokens,
+    int? remainingTokens,
+    double? usedPercent,
+    int? windowHours,
+    DateTime? resetsAt,
+  }) {
+    return ApiAiUsage(
+      limitTokens: limitTokens ?? this.limitTokens,
+      usedTokens: usedTokens ?? this.usedTokens,
+      remainingTokens: remainingTokens ?? this.remainingTokens,
+      usedPercent: usedPercent ?? this.usedPercent,
+      windowHours: windowHours ?? this.windowHours,
+      resetsAt: resetsAt ?? this.resetsAt,
+    );
+  }
+}
 
 class ApiProfile {
   const ApiProfile({
@@ -18,6 +78,7 @@ class ApiProfile {
     this.birthday,
     this.workingHours,
     this.visibleBadgeIds = const <int>[],
+    this.aiUsage,
   });
 
   final int id;
@@ -35,6 +96,7 @@ class ApiProfile {
   final String? birthday;
   final WorkingHours? workingHours;
   final List<int> visibleBadgeIds;
+  final ApiAiUsage? aiUsage;
 
   bool get isRestrictedBySpamBlock {
     if (spamBlock == true) return true;
@@ -130,6 +192,13 @@ class ApiProfile {
       birthday: json['birthday'] as String?,
       workingHours: workingHours,
       visibleBadgeIds: visibleBadgeIds,
+      aiUsage: json['ai_usage'] is Map
+          ? ApiAiUsage.fromJson(
+              (json['ai_usage'] as Map).map(
+                (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+              ),
+            )
+          : null,
     );
   }
 
@@ -151,6 +220,7 @@ class ApiProfile {
       if (birthday != null) 'birthday': birthday,
       if (workingHours != null) 'working_hours': workingHours!.toJson(),
       'visible_badge_ids': visibleBadgeIds,
+      if (aiUsage != null) 'ai_usage': aiUsage!.toJson(),
     };
   }
 
@@ -170,6 +240,7 @@ class ApiProfile {
     String? birthday,
     WorkingHours? workingHours,
     List<int>? visibleBadgeIds,
+    ApiAiUsage? aiUsage,
   }) {
     return ApiProfile(
       id: id ?? this.id,
@@ -187,6 +258,7 @@ class ApiProfile {
       birthday: birthday ?? this.birthday,
       workingHours: workingHours ?? this.workingHours,
       visibleBadgeIds: visibleBadgeIds ?? this.visibleBadgeIds,
+      aiUsage: aiUsage ?? this.aiUsage,
     );
   }
 }
