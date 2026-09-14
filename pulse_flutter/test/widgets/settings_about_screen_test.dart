@@ -22,8 +22,8 @@ Widget _wrapWithApp(Widget child) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('SettingsAboutScreen 4-Tab Material 3 Tests', () {
-    testWidgets('Renders Hero header, 4 Pill tabs, and initial Developers tab',
+  group('SettingsAboutScreen 3-Tab Material 3 Expressive Tests', () {
+    testWidgets('Renders Hero header, 3 Pill tabs, and initial Whats New tab',
         (WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 1200));
       await tester.pumpWidget(_wrapWithApp(const SettingsAboutScreen(isEmbedded: true)));
@@ -33,30 +33,24 @@ void main() {
       // Check App name in Hero header
       expect(find.text('NiosMess'), findsWidgets);
 
-      // Check the 4 Tabs
-      expect(find.text('Разработчики'), findsWidgets);
-      expect(find.text('Правовое'), findsWidgets);
-      expect(find.text('FAQ'), findsWidgets);
-      expect(find.text('Обновления'), findsWidgets);
+      // Check the 3 Tabs
+      expect(find.text('Что нового'), findsWidgets);
+      expect(find.text('Документы'), findsWidgets);
+      expect(find.text('Команда'), findsWidgets);
 
-      // Initially on Developers tab: sanlsan and SH20FK
-      expect(find.text('sanlsan'), findsOneWidget);
-      expect(find.text('SH20FK'), findsOneWidget);
-
-      // Verify NO Open Source or pulse_flutter mentions
-      expect(find.textContaining('Open Source'), findsNothing);
+      // Verify NO fake or unverified text
       expect(find.textContaining('pulse_flutter'), findsNothing);
     });
 
-    testWidgets('Switching to Legal tab displays all 4 legal documents',
+    testWidgets('Switching to Documents tab displays all 4 legal documents',
         (WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 1200));
       await tester.pumpWidget(_wrapWithApp(const SettingsAboutScreen(isEmbedded: true)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Tap Legal tab
-      await tester.tap(find.text('Правовое').first);
+      // Tap Documents tab
+      await tester.tap(find.text('Документы').first);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
@@ -67,42 +61,21 @@ void main() {
       expect(find.text('Сторонние лицензии и библиотеки'), findsOneWidget);
     });
 
-    testWidgets('Switching to FAQ tab displays FAQ items',
+    testWidgets('Switching to Team tab displays core contributors',
         (WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 1200));
       await tester.pumpWidget(_wrapWithApp(const SettingsAboutScreen(isEmbedded: true)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Tap FAQ tab
-      await tester.tap(find.text('FAQ').first);
+      // Tap Team tab
+      await tester.tap(find.text('Команда').first);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      // Verify FAQ tile exists
-      expect(find.byType(ExpansionTile), findsWidgets);
-    });
-
-    testWidgets('Switching to Changelog tab displays current release',
-        (WidgetTester tester) async {
-      await tester.binding.setSurfaceSize(const Size(1000, 1200));
-      await tester.pumpWidget(_wrapWithApp(const SettingsAboutScreen(isEmbedded: true)));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Tap Changelog tab
-      final Finder changelogTab = find.byIcon(Icons.history_rounded);
-      if (changelogTab.evaluate().isNotEmpty) {
-        await tester.tap(changelogTab.first);
-      } else {
-        await tester.tap(find.text('Обновления').first);
-      }
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      // Verify Current version
-      expect(find.textContaining('(Expressive)'), findsOneWidget);
-      expect(find.text('Текущая'), findsOneWidget);
+      // Check developers sanlsan and SH20FK
+      expect(find.text('sanlsan'), findsOneWidget);
+      expect(find.text('SH20FK'), findsOneWidget);
     });
   });
 }

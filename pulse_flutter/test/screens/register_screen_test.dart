@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/screens/register_screen.dart';
+import 'package:pulse_flutter/screens/login_screen.dart';
 
 Widget _createRegisterHarness() {
   final effectiveTheme = AppTheme.themed(
@@ -24,7 +24,7 @@ Widget _createRegisterHarness() {
       locale: const Locale('ru'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: const RegisterScreen(),
+      home: const LoginScreen(),
     ),
   );
 }

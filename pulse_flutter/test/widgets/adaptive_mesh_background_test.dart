@@ -111,11 +111,11 @@ void main() {
         (p) => p.painter is AdaptiveOrganicBlobsPainter,
       );
       final painter = organicPaint.painter as AdaptiveOrganicBlobsPainter;
-      expect(painter.blurSigma, equals(54.0));
+      expect(painter.blurSigma, equals(36.0));
       expect(painter.isTierB, isFalse);
     });
 
-    testWidgets('renders CustomPaint with 16 blur on Tier B', (tester) async {
+    testWidgets('renders CustomPaint with 0 blur on Tier B (zero blur passes)', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -140,7 +140,7 @@ void main() {
         (p) => p.painter is AdaptiveOrganicBlobsPainter,
       );
       final painter = organicPaint.painter as AdaptiveOrganicBlobsPainter;
-      expect(painter.blurSigma, equals(16.0));
+      expect(painter.blurSigma, equals(0.0));
       expect(painter.isTierB, isTrue);
     });
 

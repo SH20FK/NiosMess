@@ -351,10 +351,10 @@ class FrameTimingMonitor {
     return false;
   }
 
-  /// Enters downgrade cooldown state (minimum 5 seconds).
+  /// Enters downgrade cooldown state (minimum 8 seconds).
   void markDegraded({DateTime? currentTime}) {
     final now = currentTime ?? _nowProvider();
-    _downgradeCooldownUntil = now.add(const Duration(seconds: 5));
+    _downgradeCooldownUntil = now.add(const Duration(seconds: 8));
     _consecutiveSevereJankFrames = 0;
     _consecutiveSmoothFrames = 0;
   }

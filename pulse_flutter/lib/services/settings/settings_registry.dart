@@ -675,8 +675,12 @@ class SettingsRegistry {
         final SettingsNavNode? parent = childNode.parentNavId != null
             ? getParentSection(childNode.parentNavId!)
             : null;
-        final String route = parent?.route ?? '/settings';
-        final SettingsSectionId? sectionId = parent?.sectionId;
+        final String route = (childNode is SettingsNavNode && childNode.route.isNotEmpty)
+            ? childNode.route
+            : (parent?.route ?? '/settings');
+        final SettingsSectionId? sectionId = (childNode is SettingsNavNode && childNode.sectionId != null)
+            ? childNode.sectionId
+            : parent?.sectionId;
         final String parentTitle = parent != null ? parent.title(l10n) : childNode.group.localizedTitle(l10n);
 
         results.add(

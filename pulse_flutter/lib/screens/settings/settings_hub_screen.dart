@@ -316,6 +316,18 @@ class _SettingsHubScreenState extends ConsumerState<SettingsHubScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (auth.profile?.bio case final bio? when bio.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 2),
+                  Text(
+                    bio,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
@@ -587,6 +599,8 @@ class _SettingsHubScreenState extends ConsumerState<SettingsHubScreen> {
               ],
             ),
           ),
+
+          const VerticalDivider(thickness: 1, width: 1),
 
           // Right Detail Pane
           Expanded(

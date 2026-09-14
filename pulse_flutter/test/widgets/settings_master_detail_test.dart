@@ -9,7 +9,6 @@ import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
@@ -19,6 +18,7 @@ import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
+import 'package:pulse_flutter/screens/settings/settings_hub_screen.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -62,12 +62,17 @@ Widget _buildProfileScreenTestHarness({
   );
 
   final GoRouter router = GoRouter(
-    initialLocation: '/main/profile',
+    initialLocation: '/settings',
     routes: <RouteBase>[
+      GoRoute(
+        path: '/settings',
+        builder: (BuildContext context, GoRouterState state) =>
+            const SettingsHubScreen(),
+      ),
       GoRoute(
         path: '/main/profile',
         builder: (BuildContext context, GoRouterState state) =>
-            const ProfileScreen(),
+            const SettingsHubScreen(),
       ),
       GoRoute(
         path: '/settings/account',

@@ -208,7 +208,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Заблокированные пользователи'), findsOneWidget);
-      expect(find.text('Черный список пуст'), findsOneWidget);
+      expect(find.text('Вы еще никого не заблокировали'), findsOneWidget);
     });
   });
 }

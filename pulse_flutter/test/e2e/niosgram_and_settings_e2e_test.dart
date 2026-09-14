@@ -14,13 +14,13 @@ import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/notifications_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/screens/niosgram_screen.dart';
-import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
+import 'package:pulse_flutter/screens/settings/settings_hub_screen.dart';
 import 'package:pulse_flutter/widgets/post_card.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -256,9 +256,9 @@ void main() {
       final niosgramNotifier = MockE2eNiosgramNotifier(NiosgramState(posts: posts, hasMore: false));
 
       final router = GoRouter(
-        initialLocation: '/main/profile',
+        initialLocation: '/settings',
         routes: [
-          GoRoute(path: '/main/profile', builder: (_, _) => const ProfileScreen()),
+          GoRoute(path: '/settings', builder: (_, _) => const SettingsHubScreen()),
         ],
       );
 
@@ -298,9 +298,9 @@ void main() {
       final niosgramNotifier = MockE2eNiosgramNotifier(NiosgramState(posts: posts, hasMore: false));
 
       final router = GoRouter(
-        initialLocation: '/main/profile',
+        initialLocation: '/settings',
         routes: [
-          GoRoute(path: '/main/profile', builder: (_, _) => const ProfileScreen()),
+          GoRoute(path: '/settings', builder: (_, _) => const SettingsHubScreen()),
           GoRoute(path: '/main/niosgram', builder: (_, _) => const NiosgramScreen()),
         ],
       );
@@ -315,7 +315,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       // Select Privacy section in master pane
-      final privacyFinder = find.byIcon(Icons.lock_rounded);
+      final privacyFinder = find.byIcon(Icons.security_rounded);
       await tester.scrollUntilVisible(
         privacyFinder,
         100.0,
@@ -337,11 +337,11 @@ void main() {
       expect(find.byType(NiosgramScreen), findsOneWidget);
 
       // Navigate back to Settings
-      router.go('/main/profile');
+      router.go('/settings');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(ProfileScreen), findsOneWidget);
+      expect(find.byType(SettingsHubScreen), findsOneWidget);
       expect(find.byType(SettingsPrivacyScreen), findsOneWidget);
     });
   });
@@ -436,9 +436,9 @@ void main() {
       final niosgramNotifier = MockE2eNiosgramNotifier(NiosgramState(posts: posts, hasMore: false));
 
       final router = GoRouter(
-        initialLocation: '/main/profile',
+        initialLocation: '/settings',
         routes: [
-          GoRoute(path: '/main/profile', builder: (_, _) => const ProfileScreen()),
+          GoRoute(path: '/settings', builder: (_, _) => const SettingsHubScreen()),
         ],
       );
 
@@ -490,7 +490,7 @@ void main() {
       expect(find.byType(Slider), findsOneWidget);
 
       // 3. Switch to Privacy & toggle hideOnline
-      final privacyFinder = find.byIcon(Icons.lock_rounded);
+      final privacyFinder = find.byIcon(Icons.security_rounded);
       await tester.scrollUntilVisible(
         privacyFinder,
         -100.0,
@@ -543,9 +543,9 @@ void main() {
       final niosgramNotifier = MockE2eNiosgramNotifier(NiosgramState(posts: posts, hasMore: false));
 
       final router = GoRouter(
-        initialLocation: '/main/profile',
+        initialLocation: '/settings',
         routes: [
-          GoRoute(path: '/main/profile', builder: (_, _) => const ProfileScreen()),
+          GoRoute(path: '/settings', builder: (_, _) => const SettingsHubScreen()),
           GoRoute(path: '/settings/account', builder: (_, _) => const SettingsAccountScreen()),
           GoRoute(path: '/settings/appearance', builder: (_, _) => const SettingsAppearanceScreen()),
           GoRoute(path: '/settings/privacy', builder: (_, _) => const SettingsPrivacyScreen()),
@@ -566,7 +566,7 @@ void main() {
       expect(find.byType(VerticalDivider), findsNothing);
 
       // Tap Appearance tile -> navigate full-screen
-      final appearanceTile = find.widgetWithText(SettingsTile, 'Внешний вид');
+      final appearanceTile = find.text('Внешний вид');
       await tester.ensureVisible(appearanceTile.first);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -576,12 +576,12 @@ void main() {
 
       expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
 
-      // Pop back to profile screen
+      // Pop back to settings hub screen
       router.pop();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(ProfileScreen), findsOneWidget);
+      expect(find.byType(SettingsHubScreen), findsOneWidget);
     });
   });
 }

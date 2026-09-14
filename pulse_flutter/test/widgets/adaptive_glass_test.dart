@@ -31,11 +31,12 @@ void main() {
       expect(backdropFinder, findsOneWidget);
 
       final backdrop = tester.widget<BackdropFilter>(backdropFinder);
-      expect(backdrop.filter.toString(), contains('22.0'));
+      // Bounded to 10.0 under Anti-Regression Motion & Performance Protocol
+      expect(backdrop.filter.toString(), contains('10.0'));
       expect(find.text('Tier A Glass'), findsOneWidget);
     });
 
-    testWidgets('renders BackdropFilter with tierBSigma on Tier B', (tester) async {
+    testWidgets('renders crisp tonal surface without BackdropFilter on Tier B (zero blur passes)', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -56,11 +57,8 @@ void main() {
         ),
       );
 
-      final backdropFinder = find.byType(BackdropFilter);
-      expect(backdropFinder, findsOneWidget);
-
-      final backdrop = tester.widget<BackdropFilter>(backdropFinder);
-      expect(backdrop.filter.toString(), contains('7.0'));
+      // Under Anti-Regression Protocol, Tier B omits BackdropFilter completely
+      expect(find.byType(BackdropFilter), findsNothing);
       expect(find.text('Tier B Glass'), findsOneWidget);
     });
 
