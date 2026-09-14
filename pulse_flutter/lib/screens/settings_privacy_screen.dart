@@ -219,55 +219,86 @@ class SettingsPrivacyScreen extends ConsumerWidget {
           title: context.l10n.settingsBackgroundTitle,
           subtitle: context.l10n.settingsBackgroundSubtitle,
           children: <Widget>[
-            if (isAndroid)
-              SettingsSwitchTile(
-                icon: Icons.battery_saver_rounded,
-                title: context.l10n.settingsBackgroundEconomy,
-                subtitle: context.l10n.settingsBackgroundEconomyDesc,
-                iconColor: scheme.tertiary,
-                value: settings.backgroundMode == BackgroundMode.economy,
-                onChanged: (bool value) async {
-                  final BackgroundMode newMode = value
-                      ? BackgroundMode.economy
-                      : BackgroundMode.off;
-                  ref.read(uiSettingsProvider.notifier).setBackgroundMode(newMode);
-                  if (value) {
-                    await SystemUtils.requestIgnoreBatteryOptimizations();
-                  }
-                },
+            if (isAndroid) ...<Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    SegmentedButton<BackgroundMode>(
+                      showSelectedIcon: false,
+                      segments: const <ButtonSegment<BackgroundMode>>[
+                        ButtonSegment<BackgroundMode>(
+                          value: BackgroundMode.off,
+                          label: Text('Отключен'),
+                          icon: Icon(Icons.power_settings_new_rounded, size: 18),
+                        ),
+                        ButtonSegment<BackgroundMode>(
+                          value: BackgroundMode.economy,
+                          label: Text('Экономный'),
+                          icon: Icon(Icons.battery_saver_rounded, size: 18),
+                        ),
+                        ButtonSegment<BackgroundMode>(
+                          value: BackgroundMode.reliable,
+                          label: Text('Надежный'),
+                          icon: Icon(Icons.shield_rounded, size: 18),
+                        ),
+                      ],
+                      selected: <BackgroundMode>{settings.backgroundMode},
+                      onSelectionChanged: (Set<BackgroundMode> selected) async {
+                        final BackgroundMode newMode = selected.first;
+                        ref.read(uiSettingsProvider.notifier).setBackgroundMode(newMode);
+                        if (newMode == BackgroundMode.reliable) {
+                          await BackgroundService.startReliable();
+                          await BackgroundService.requestDisableBatteryOptimization();
+                        } else if (newMode == BackgroundMode.economy) {
+                          await BackgroundService.stop();
+                          await SystemUtils.requestIgnoreBatteryOptimizations();
+                        } else {
+                          await BackgroundService.stop();
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      switch (settings.backgroundMode) {
+                        BackgroundMode.off =>
+                          'Фоновое соединение отключено. Уведомления поступают через Google Play / FCM.',
+                        BackgroundMode.economy =>
+                          context.l10n.settingsBackgroundEconomyDesc,
+                        BackgroundMode.reliable =>
+                          context.l10n.settingsBackgroundReliableDesc,
+                      },
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            height: 1.35,
+                          ),
+                    ),
+                    if (settings.backgroundMode == BackgroundMode.reliable) ...<Widget>[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () async {
+                            await BackgroundService.requestDisableBatteryOptimization();
+                          },
+                          icon: const Icon(Icons.battery_charging_full_rounded, size: 16),
+                          label: Text(
+                            context.l10n.privacyBatteryOptimization,
+                            style: const TextStyle(fontSize: 12.5),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            if (isAndroid)
-              SettingsSwitchTile(
-                icon: Icons.shield_rounded,
-                title: context.l10n.settingsBackgroundReliable,
-                subtitle: context.l10n.settingsBackgroundReliableDesc,
-                iconColor: scheme.primary,
-                value: settings.backgroundMode == BackgroundMode.reliable,
-                onChanged: (bool value) async {
-                  final BackgroundMode newMode = value
-                      ? BackgroundMode.reliable
-                      : BackgroundMode.off;
-                  ref.read(uiSettingsProvider.notifier).setBackgroundMode(newMode);
-                  if (value) {
-                    await BackgroundService.startReliable();
-                    await BackgroundService.requestDisableBatteryOptimization();
-                  } else {
-                    await BackgroundService.stop();
-                  }
-                },
-              ),
-            if (isAndroid)
-              SettingsTile(
-                icon: Icons.battery_charging_full_rounded,
-                title: context.l10n.privacyBatteryOptimization,
-                subtitle: context.l10n.privacyBatteryOptimizationDesc,
-                iconColor: scheme.secondary,
-                trailing: const Icon(Icons.open_in_new_rounded, size: 18),
-                onTap: () async {
-                  await BackgroundService.requestDisableBatteryOptimization();
-                },
-              ),
-            if (!isAndroid)
+            ] else
               SettingsInfoTile(
                 icon: Icons.info_outline_rounded,
                 title: context.l10n.settingsBackgroundNotAvailable,

@@ -248,3 +248,22 @@ class LocalStorageService {
 
 final Provider<LocalStorageService> localStorageServiceProvider =
     Provider<LocalStorageService>((Ref ref) => const LocalStorageService());
+
+class StorageSnapshotNotifier extends AsyncNotifier<LocalStorageSnapshot> {
+  @override
+  Future<LocalStorageSnapshot> build() async {
+    return ref.watch(localStorageServiceProvider).snapshot();
+  }
+
+  Future<void> refresh({bool forceRefresh = true}) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() =>
+        ref.read(localStorageServiceProvider).snapshot(forceRefresh: forceRefresh));
+  }
+}
+
+final AsyncNotifierProvider<StorageSnapshotNotifier, LocalStorageSnapshot>
+    storageSnapshotProvider =
+    AsyncNotifierProvider<StorageSnapshotNotifier, LocalStorageSnapshot>(
+  StorageSnapshotNotifier.new,
+);

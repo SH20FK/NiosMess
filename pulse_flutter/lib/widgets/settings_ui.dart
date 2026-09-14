@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/vector_illustrations.dart';
@@ -516,43 +514,6 @@ class SettingsInfoTile extends ConsumerWidget {
       subtitle: subtitle,
       onTap: onTap,
       iconColor: iconColor,
-    );
-  }
-}
-
-class SettingsConfirmDialog extends StatelessWidget {
-  const SettingsConfirmDialog({
-    required this.title,
-    required this.body,
-    required this.confirmLabel,
-    this.cancelLabel,
-    this.destructive = false,
-    super.key,
-  });
-
-  final String title;
-  final String body;
-  final String confirmLabel;
-  final String? cancelLabel;
-  final bool destructive;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppDialog(
-      title: title,
-      actions: <AppDialogAction>[
-        AppDialogAction(
-          label: cancelLabel ?? context.l10n.dialogCancel,
-          onPressed: () => Navigator.of(context).pop(false),
-        ),
-        AppDialogAction(
-          label: confirmLabel,
-          isPrimary: !destructive,
-          destructive: destructive,
-          onPressed: () => Navigator.of(context).pop(true),
-        ),
-      ],
-      child: Text(body),
     );
   }
 }

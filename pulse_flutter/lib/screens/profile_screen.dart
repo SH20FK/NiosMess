@@ -48,24 +48,6 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _uploadingAvatar = false;
-  LocalStorageSnapshot? _storageSnapshot;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadStorageSize();
-  }
-
-  Future<void> _loadStorageSize() async {
-    try {
-      final LocalStorageSnapshot snapshot =
-          await ref.read(localStorageServiceProvider).snapshot();
-      if (!mounted) return;
-      setState(() => _storageSnapshot = snapshot);
-    } catch (e, st) {
-      debugPrint('Failed to load storage snapshot: $e\n$st');
-    }
-  }
 
   Future<void> _uploadAvatar() async {
     final String? choice = await AppBottomSheets.show<String>(
@@ -173,7 +155,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? auth.profile!.bio.trim()
         : '';
 
-    final LocalStorageSnapshot? snapshot = _storageSnapshot;
+    final LocalStorageSnapshot? snapshot =
+        ref.watch(storageSnapshotProvider).value;
     final String storageUsed = snapshot != null
         ? FileTypeDetector.formatFileSize(snapshot.totalBytes)
         : '';
@@ -265,10 +248,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
                 const SizedBox(height: 14),
 
-                // 1. Account & Sessions
+                // 1. Account
                 SettingsSection(
                   isCard: false,
-                  title: 'Аккаунт и сессии',
+                  title: context.l10n.settingsAccountTitle,
                   children: <Widget>[
                     SettingsTile(
                       icon: Icons.manage_accounts_rounded,
@@ -279,15 +262,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onTap: () => ref
                           .read(desktopSelectedSettingsSectionProvider.notifier)
                           .setSelectedSection(SettingsSectionId.account),
-                    ),
-                    SettingsTile(
-                      icon: Icons.devices_rounded,
-                      title: context.l10n.settingsActiveSessions,
-                      iconColor: scheme.primary,
-                      isSelected: selectedSection == SettingsSectionId.sessions,
-                      onTap: () => ref
-                          .read(desktopSelectedSettingsSectionProvider.notifier)
-                          .setSelectedSection(SettingsSectionId.sessions),
                     ),
                   ],
                 ),
@@ -342,7 +316,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 // 4. Privacy & Security
                 SettingsSection(
                   isCard: false,
-                  title: 'Безопасность и E2EE',
+                  title: context.l10n.settingsPrivacyTitle,
                   children: <Widget>[
                     SettingsTile(
                       icon: Icons.lock_rounded,
@@ -352,15 +326,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onTap: () => ref
                           .read(desktopSelectedSettingsSectionProvider.notifier)
                           .setSelectedSection(SettingsSectionId.privacy),
-                    ),
-                    SettingsTile(
-                      icon: Icons.enhanced_encryption_rounded,
-                      title: context.l10n.settingsSecretChatsTitle,
-                      iconColor: scheme.tertiary,
-                      isSelected: selectedSection == SettingsSectionId.e2ee,
-                      onTap: () => ref
-                          .read(desktopSelectedSettingsSectionProvider.notifier)
-                          .setSelectedSection(SettingsSectionId.e2ee),
                     ),
                   ],
                 ),
@@ -514,13 +479,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  void _openEditProfile(
+  Future<void> _openEditProfile(
     BuildContext context,
     String displayName,
     AuthState auth,
     String bio,
-  ) {
-    _EditProfileSheet.show(
+  ) async {
+    final bool? updated = await _EditProfileSheet.show(
       context,
       initialName: auth.profile?.displayName.isNotEmpty == true
           ? auth.profile!.displayName
@@ -536,6 +501,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       initialWorkingHours: auth.profile?.workingHours,
       onUploadAvatar: _uploadAvatar,
     );
+    if (updated == true && context.mounted) {
+      AppToast.showSuccess(context, 'Профиль успешно сохранён');
+    }
   }
 
   Widget _buildMasterProfileHeader(
@@ -1049,9 +1017,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 12),
           ],
 
-          // 1. Account & Sessions
+          // 1. Account
           SettingsSection(
-            title: 'Аккаунт и сессии',
+            title: context.l10n.settingsAccountTitle,
             children: <Widget>[
               SettingsTile(
                 icon: Icons.person_rounded,
@@ -1059,12 +1027,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 value: username.isNotEmpty ? '@$username' : null,
                 iconColor: scheme.primary,
                 onTap: () => context.push('/settings/account'),
-              ),
-              SettingsTile(
-                icon: Icons.devices_rounded,
-                title: context.l10n.settingsActiveSessions,
-                iconColor: scheme.secondary,
-                onTap: () => context.push('/settings/sessions'),
               ),
             ],
           ),
@@ -1102,21 +1064,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ],
           ),
 
-          // 4. Security & E2EE
+          // 4. Security & Privacy
           SettingsSection(
-            title: 'Безопасность и E2EE',
+            title: context.l10n.settingsPrivacyTitle,
             children: <Widget>[
               SettingsTile(
                 icon: Icons.security_rounded,
                 title: context.l10n.settingsPrivacyTitle,
                 iconColor: scheme.primary,
                 onTap: () => context.push('/settings/privacy'),
-              ),
-              SettingsTile(
-                icon: Icons.lock_rounded,
-                title: 'E2EE и секретные чаты',
-                iconColor: scheme.tertiary,
-                onTap: () => context.push('/settings/e2ee'),
               ),
             ],
           ),
@@ -1229,7 +1185,7 @@ class _EditProfileSheet extends ConsumerStatefulWidget {
   final Future<void> Function()? onUploadAvatar;
   final bool isDialog;
 
-  static Future<void> show(
+  static Future<bool?> show(
     BuildContext context, {
     required String initialName,
     required String initialUsername,
@@ -1241,7 +1197,7 @@ class _EditProfileSheet extends ConsumerStatefulWidget {
   }) {
     final bool isWide = MediaQuery.sizeOf(context).width >= 600;
     if (isWide) {
-      return showDialog<void>(
+      return showDialog<bool>(
         context: context,
         builder: (BuildContext ctx) => Dialog(
           backgroundColor: Colors.transparent,
@@ -1263,7 +1219,7 @@ class _EditProfileSheet extends ConsumerStatefulWidget {
       );
     }
 
-    return AppBottomSheets.show<void>(
+    return AppBottomSheets.show<bool>(
       context: context,
       builder: (BuildContext ctx) => _EditProfileSheet(
         initialName: initialName,
@@ -1551,12 +1507,6 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
         (workingHours == null || workingHours.isEmpty) &&
             widget.initialWorkingHours != null;
 
-    final ScaffoldMessengerState scaffoldMessenger =
-        ScaffoldMessenger.of(context);
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-
-    Navigator.of(context).pop();
-
     try {
       final AuthActionResult result =
           await ref.read(authProvider.notifier).updateProfile(
@@ -1571,54 +1521,19 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                 clearWorkingHours: clearWorkingHours,
               );
 
+      if (!mounted) return;
       if (result.success) {
-        scaffoldMessenger.hideCurrentSnackBar();
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Row(
-              children: <Widget>[
-                Icon(Icons.check_circle_outline_rounded,
-                    color: scheme.onPrimary, size: 20),
-                const SizedBox(width: 10),
-                const Text('Профиль успешно сохранён'),
-              ],
-            ),
-            backgroundColor: scheme.primary,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        Navigator.of(context).pop(true);
       } else {
-        scaffoldMessenger.hideCurrentSnackBar();
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Row(
-              children: <Widget>[
-                Icon(Icons.error_outline_rounded,
-                    color: scheme.onError, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    result.message ?? 'Ошибка сохранения профиля',
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: scheme.error,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
-          ),
+        AppToast.showError(
+          context,
+          result.message ?? 'Ошибка сохранения профиля',
         );
       }
     } catch (e) {
-      scaffoldMessenger.hideCurrentSnackBar();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('$e'),
-          backgroundColor: scheme.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (mounted) {
+        AppToast.showError(context, e);
+      }
     }
   }
 

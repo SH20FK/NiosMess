@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:mesh_gradient/mesh_gradient.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -252,26 +251,6 @@ class _AppearanceScreen extends ConsumerWidget {
       ],
     );
 
-    final Widget wallpaperSection = SettingsSection(
-      title: context.l10n.appearanceChatWallpaperTitle,
-      subtitle: context.l10n.appearanceChatWallpaperDesc,
-      children: <Widget>[
-        SettingsTile(
-          icon: Icons.texture_rounded,
-          title: context.l10n.appearanceWallpaperGenerator,
-          subtitle: context.l10n.appearanceWallpaperGeneratorDesc,
-          iconColor: scheme.primary,
-          trailing: Icon(
-            Icons.chevron_right_rounded,
-            color: scheme.onSurfaceVariant,
-          ),
-          onTap: () {
-            context.push('/settings/wallpaper');
-          },
-        ),
-      ],
-    );
-
     return Container(
       color: scheme.surface,
       child: LayoutBuilder(
@@ -296,8 +275,6 @@ class _AppearanceScreen extends ConsumerWidget {
                           heroBanner,
                           const SizedBox(height: 16),
                           themeCard,
-                          const SizedBox(height: 16),
-                          wallpaperSection,
                         ],
                       ),
                     ),
@@ -337,8 +314,6 @@ class _AppearanceScreen extends ConsumerWidget {
               contrastSection,
               const SizedBox(height: 16),
               navSection,
-              const SizedBox(height: 16),
-              wallpaperSection,
               const SizedBox(height: 32),
             ],
           );

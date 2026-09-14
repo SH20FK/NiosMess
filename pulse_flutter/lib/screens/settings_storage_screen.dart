@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
-import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:pulse_flutter/core/storage/local_storage_service.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -23,24 +23,11 @@ class SettingsStorageScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
-  late Future<LocalStorageSnapshot> _snapshotFuture;
   bool _busy = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _snapshotFuture = _loadSnapshot();
-  }
-
-  Future<LocalStorageSnapshot> _loadSnapshot({bool forceRefresh = false}) {
-    return ref.read(localStorageServiceProvider).snapshot(forceRefresh: forceRefresh);
-  }
 
   void _refresh() {
     if (_busy) return;
-    setState(() {
-      _snapshotFuture = _loadSnapshot(forceRefresh: true);
-    });
+    ref.read(storageSnapshotProvider.notifier).refresh(forceRefresh: true);
   }
 
   Future<void> _clearTemporaryFiles() async {
@@ -51,7 +38,6 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     if (!confirmed) return;
     await _runStorageAction(() async {
       await ref.read(localStorageServiceProvider).clearTemporaryFiles();
-      await EncryptedMessageCache.clearAll();
       await ref.read(cacheServiceProvider).clearAll();
     });
   }
@@ -73,7 +59,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     try {
       await action();
       if (!mounted) return;
-      _refresh();
+      ref.read(storageSnapshotProvider.notifier).refresh(forceRefresh: true);
       AppToast.showSuccess(context, context.l10n.settingsStorageCleared);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -81,15 +67,13 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
   }
 
   Future<bool> _confirm({required String title, required String body}) async {
-    final bool? result = await showDialog<bool>(
+    final bool? result = await showAppConfirmDialog(
       context: context,
-      builder: (BuildContext ctx) => SettingsConfirmDialog(
-        title: title,
-        body: body,
-        confirmLabel: context.l10n.commonDelete,
-        cancelLabel: context.l10n.commonCancel,
-        destructive: true,
-      ),
+      title: title,
+      subtitle: body,
+      confirmLabel: context.l10n.commonDelete,
+      cancelLabel: context.l10n.commonCancel,
+      destructive: true,
     );
     return result == true;
   }
@@ -98,146 +82,155 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final AsyncValue<LocalStorageSnapshot> snapshotAsync =
+        ref.watch(storageSnapshotProvider);
 
     return SettingsShell(
       title: context.l10n.settingsStorageTitle,
       isEmbedded: widget.isEmbedded,
+      onRefresh: () async => _refresh(),
       children: <Widget>[
         SettingsNavBanner(
           illustrationCategory: SettingsIllustrationCategory.storage,
           subtitle: context.l10n.settingsStorageBannerSubtitle,
           iconColor: scheme.primary,
         ),
-        FutureBuilder<LocalStorageSnapshot>(
-          future: _snapshotFuture,
-          builder: (
-            BuildContext context,
-            AsyncSnapshot<LocalStorageSnapshot> snapshot,
-          ) {
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                !snapshot.hasData) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 40),
-                child: Center(child: AppLoadingIndicator()),
-              );
-            }
+        snapshotAsync.when(
+          data: (LocalStorageSnapshot data) =>
+              _buildContent(context, scheme, textTheme, data),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(child: AppLoadingIndicator()),
+          ),
+          error: (Object err, _) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            child: Center(
+              child: Text(
+                'Ошибка загрузки данных хранилища',
+                style: TextStyle(color: scheme.error),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-            final LocalStorageSnapshot data =
-                snapshot.data ?? const LocalStorageSnapshot.empty();
+  Widget _buildContent(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+    LocalStorageSnapshot data,
+  ) {
+    final int appDataBytes = data.documentsBytes + data.supportBytes;
+    final int cacheBytes = data.temporaryBytes;
+    final int draftBytes = data.draftBytes;
+    final int totalBytes = data.totalBytes;
 
-            final int appDataBytes = data.documentsBytes + data.supportBytes;
-            final int cacheBytes = data.temporaryBytes;
-            final int draftBytes = data.draftBytes;
-            final int totalBytes = data.totalBytes;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Container(
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: scheme.outlineVariant.withValues(alpha: 0.14),
-                    ),
-                  ),
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  _format(totalBytes),
-                                  style: textTheme.headlineMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.6,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  context.l10n.settingsStorageUsedByApp,
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Container(
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.14),
+            ),
+          ),
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          _format(totalBytes),
+                          style: textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
                           ),
-                          IconButton.filledTonal(
-                            onPressed: _busy ? null : _refresh,
-                            icon: const Icon(Icons.refresh_rounded, size: 20),
-                            style: IconButton.styleFrom(
-                              backgroundColor: scheme.secondaryContainer,
-                              foregroundColor: scheme.onSecondaryContainer,
-                            ),
-                            tooltip: context.l10n.settingsStorageRefresh,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Semantics(
-                        label: '${context.l10n.settingsStorageAppData}: ${_format(appDataBytes)}, '
-                            '${context.l10n.settingsStorageLegendCache}: ${_format(cacheBytes)}, '
-                            '${context.l10n.settingsStorageLegendDrafts}: ${_format(draftBytes)}',
-                        child: _SegmentedProgressBar(
-                          appDataBytes: appDataBytes,
-                          cacheBytes: cacheBytes,
-                          draftBytes: draftBytes,
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 16,
-                        runSpacing: 8,
-                        children: <Widget>[
-                          _LegendItem(
-                            color: scheme.primary,
-                            label: context.l10n.settingsStorageAppData,
+                        const SizedBox(height: 4),
+                        Text(
+                          context.l10n.settingsStorageUsedByApp,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
                           ),
-                          _LegendItem(color: scheme.tertiary, label: context.l10n.settingsStorageLegendCache),
-                          _LegendItem(color: scheme.secondary, label: context.l10n.settingsStorageLegendDrafts),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
+                  IconButton.filledTonal(
+                    onPressed: _busy ? null : _refresh,
+                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                    style: IconButton.styleFrom(
+                      backgroundColor: scheme.secondaryContainer,
+                      foregroundColor: scheme.onSecondaryContainer,
+                    ),
+                    tooltip: context.l10n.settingsStorageRefresh,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Semantics(
+                label: '${context.l10n.settingsStorageAppData}: ${_format(appDataBytes)}, '
+                    '${context.l10n.settingsStorageLegendCache}: ${_format(cacheBytes)}, '
+                    '${context.l10n.settingsStorageLegendDrafts}: ${_format(draftBytes)}',
+                child: _SegmentedProgressBar(
+                  appDataBytes: appDataBytes,
+                  cacheBytes: cacheBytes,
+                  draftBytes: draftBytes,
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: <Widget>[
-                    _StorageCategoryCard(
-                      icon: Icons.folder_rounded,
-                      title: context.l10n.settingsStorageCategoryAppData,
-                      value: _format(appDataBytes),
-                      color: scheme.primary,
-                    ),
-                    const SizedBox(width: 10),
-                    _StorageCategoryCard(
-                      icon: Icons.cached_rounded,
-                      title: context.l10n.settingsStorageCategoryCache,
-                      value: _format(cacheBytes),
-                      color: scheme.tertiary,
-                      onDelete: cacheBytes > 0 && !_busy ? _clearTemporaryFiles : null,
-                      deleteTooltip: context.l10n.settingsStorageClearTemporary,
-                    ),
-                    const SizedBox(width: 10),
-                    _StorageCategoryCard(
-                      icon: Icons.edit_note_rounded,
-                      title: context.l10n.settingsStorageCategoryDrafts,
-                      value: _format(draftBytes),
-                      color: scheme.secondary,
-                      onDelete: draftBytes > 0 && !_busy ? _clearDrafts : null,
-                      deleteTooltip: context.l10n.settingsStorageClearDrafts,
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                children: <Widget>[
+                  _LegendItem(
+                    color: scheme.primary,
+                    label: context.l10n.settingsStorageAppData,
+                  ),
+                  _LegendItem(color: scheme.tertiary, label: context.l10n.settingsStorageLegendCache),
+                  _LegendItem(color: scheme.secondary, label: context.l10n.settingsStorageLegendDrafts),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: <Widget>[
+            _StorageCategoryCard(
+              icon: Icons.folder_rounded,
+              title: context.l10n.settingsStorageCategoryAppData,
+              value: _format(appDataBytes),
+              color: scheme.primary,
+            ),
+            const SizedBox(width: 10),
+            _StorageCategoryCard(
+              icon: Icons.cached_rounded,
+              title: context.l10n.settingsStorageCategoryCache,
+              value: _format(cacheBytes),
+              color: scheme.tertiary,
+              onDelete: cacheBytes > 0 && !_busy ? _clearTemporaryFiles : null,
+              deleteTooltip: context.l10n.settingsStorageClearTemporary,
+            ),
+            const SizedBox(width: 10),
+            _StorageCategoryCard(
+              icon: Icons.edit_note_rounded,
+              title: context.l10n.settingsStorageCategoryDrafts,
+              value: _format(draftBytes),
+              color: scheme.secondary,
+              onDelete: draftBytes > 0 && !_busy ? _clearDrafts : null,
+              deleteTooltip: context.l10n.settingsStorageClearDrafts,
+            ),
+          ],
         ),
       ],
     );
