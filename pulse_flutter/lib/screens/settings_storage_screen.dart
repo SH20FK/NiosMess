@@ -424,21 +424,21 @@ class _StorageCategoryCard extends StatelessWidget {
             ),
             if (onDelete != null)
               Positioned(
-                top: 6,
-                right: 6,
-                child: SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    icon: Icon(
-                      Icons.delete_outline_rounded,
-                      color: scheme.error.withValues(alpha: 0.84),
-                      size: 16,
-                    ),
-                    onPressed: onDelete,
-                    tooltip: deleteTooltip,
+                top: 2,
+                right: 2,
+                child: IconButton(
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size(44, 44),
+                    padding: const EdgeInsets.all(8),
+                    tapTargetSize: MaterialTapTargetSize.padded,
                   ),
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    color: scheme.error.withValues(alpha: 0.84),
+                    size: 18,
+                  ),
+                  onPressed: onDelete,
+                  tooltip: deleteTooltip,
                 ),
               ),
           ],

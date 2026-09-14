@@ -10,10 +10,10 @@ class AppConstants {
   static const String webOrigin = 'https://ni-os.ru';
 
   /// Application version constants matching pubspec.yaml.
-  static const String appVersion = '3.49.2';
-  static const String appBuildNumber = '103';
-  static const String appVersionWithPrefix = 'v3.49.2';
-  static const String appFullVersion = 'v3.49.2+103';
+  static const String appVersion = '3.60.5';
+  static const String appBuildNumber = '141';
+  static const String appVersionWithPrefix = 'v3.60.5';
+  static const String appFullVersion = 'v3.60.5+141';
 
   static String chatShareUrl(int chatId) => '$webOrigin/chat/$chatId';
 }

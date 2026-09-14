@@ -11,7 +11,6 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
-import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
@@ -36,7 +35,6 @@ class SettingsAboutScreen extends ConsumerStatefulWidget {
 class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
   late final Future<PackageInfo> _packageInfo;
   int _selectedTabIndex = 0;
-  bool _isCheckingUpdate = false;
 
   @override
   void initState() {
@@ -55,32 +53,32 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
   }
 
   Future<void> _checkForUpdate() async {
-    if (_isCheckingUpdate) return;
-    setState(() => _isCheckingUpdate = true);
+    final OtaUpdateState current = ref.read(otaUpdateProvider);
+    if (current.status == OtaStatus.checking ||
+        current.status == OtaStatus.downloading) {
+      return;
+    }
     HapticService.tap();
 
-    try {
-      final AppUpdateService updateService = const AppUpdateService();
-      final AppUpdateInfo updateInfo = await updateService.checkForUpdate();
+    await ref.read(otaUpdateProvider.notifier).checkForUpdate();
+    if (!mounted) return;
 
-      if (!mounted) return;
-
-      if (updateInfo.hasUpdate) {
-        await AppUpdateDialog.show(context, updateInfo);
-      } else {
-        AppToast.showSuccess(
-          context,
-          'У вас установлена последняя версия (v${updateInfo.currentVersion})',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.showError(context, 'Не удалось проверить обновления: $e');
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isCheckingUpdate = false);
-      }
+    final OtaUpdateState updated = ref.read(otaUpdateProvider);
+    if (updated.status == OtaStatus.available && updated.updateInfo != null) {
+      await AppUpdateDialog.show(context, updated.updateInfo!);
+    } else if (updated.status == OtaStatus.readyToInstall &&
+        updated.updateInfo != null) {
+      await AppUpdateDialog.show(context, updated.updateInfo!);
+    } else if (updated.status == OtaStatus.error) {
+      AppToast.showError(
+        context,
+        'Не удалось проверить обновления: ${updated.errorMessage}',
+      );
+    } else {
+      AppToast.showSuccess(
+        context,
+        'У вас установлена последняя версия (v${updated.updateInfo?.currentVersion ?? AppConstants.appVersion})',
+      );
     }
   }
 
@@ -273,6 +271,8 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     final bool isDownloading = otaState.status == OtaStatus.downloading;
     final bool isReady = otaState.status == OtaStatus.readyToInstall;
 
+    final bool isChecking = otaState.status == OtaStatus.checking;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
@@ -341,7 +341,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             ),
           ),
           FilledButton.tonal(
-            onPressed: _isCheckingUpdate
+            onPressed: isChecking
                 ? null
                 : () {
                     if (isReady) {
@@ -361,7 +361,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               minimumSize: const Size(0, 38),
             ),
-            child: _isCheckingUpdate
+            child: isChecking
                 ? AppLoadingIndicator(
                     size: 16,
                     color: scheme.primary,
@@ -732,39 +732,36 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
   ) {
     final List<_ReleaseInfo> pastReleases = <_ReleaseInfo>[
       _ReleaseInfo(
-        version: 'v2.1.0',
-        date: context.l10n.aboutChangelogDateJune2026,
+        version: 'v3.60.3',
+        date: 'Сентябрь 2026',
         accentColor: scheme.primary,
-        changes: <String>[
-          context.l10n.aboutChangelogV210C1,
-          context.l10n.aboutChangelogV210C2,
-          context.l10n.aboutChangelogV210C3,
-          context.l10n.aboutChangelogV210C4,
-          context.l10n.aboutChangelogV210C5,
+        changes: const <String>[
+          'Точечная запись настроек: сохраняется только изменённый параметр, а не все 26 сразу',
+          'Плавные ползунки: задержка записи на диск при перетаскивании исключает микрофризы',
+          'Мгновенный холодный запуск: настройки оформления загружаются до первого кадра',
+          'Оптимизация фона оформления под возможности устройства',
         ],
       ),
       _ReleaseInfo(
-        version: 'v2.0.5',
-        date: context.l10n.aboutChangelogDateMarch2026,
+        version: 'v3.60.2',
+        date: 'Сентябрь 2026',
         accentColor: scheme.secondary,
-        changes: <String>[
-          context.l10n.aboutChangelogV205C1,
-          context.l10n.aboutChangelogV205C2,
-          context.l10n.aboutChangelogV205C3,
-          context.l10n.aboutChangelogV205C4,
+        changes: const <String>[
+          'Оживлен ползунок скругления интерфейса: динамическое изменение формы карточек и диалогов',
+          'Настоящая автозагрузка медиа с разделением по типу сети (Wi-Fi и сотовая)',
+          'Честный экран характеристик устройства без синтетических заглушек',
+          'Безопасный сброс всех настроек с сохранением фоновой доставки сообщений',
         ],
       ),
       _ReleaseInfo(
-        version: 'v2.0.0',
-        date: context.l10n.aboutChangelogDateJanuary2026,
+        version: 'v3.60.1',
+        date: 'Сентябрь 2026',
         accentColor: scheme.tertiary,
-        changes: <String>[
-          context.l10n.aboutChangelogV200C1,
-          context.l10n.aboutChangelogV200C2,
-          context.l10n.aboutChangelogV200C3,
-          context.l10n.aboutChangelogV200C4,
-          context.l10n.aboutChangelogV200C5,
-          context.l10n.aboutChangelogV200C6,
+        changes: const <String>[
+          'Устранено дублирование пунктов меню: обои закреплены за разделом «Чаты»',
+          'Единый переключатель фонового режима: Отключен, Экономный или Надежный',
+          'Мгновенная синхронизация размера занятой памяти между профилем и хранилищем',
+          'Защита сохраненных секретных сообщений при очистке временного кэша',
         ],
       ),
     ];
@@ -834,7 +831,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      context.l10n.aboutChangelogDateJuly2026,
+                      'Сентябрь 2026',
                       style: textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                         fontSize: 12,
@@ -846,13 +843,12 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildChangeItem(scheme, textTheme, 'Ультра-плавный движок анимаций (120 FPS без рывков и дерганий списков)'),
-          _buildChangeItem(scheme, textTheme, 'Комплексная оптимизация рендеринга для Web и Android APK'),
-          _buildChangeItem(scheme, textTheme, 'Исключение аппаратной диагностики в веб-клиенте для чистоты интерфейса'),
-          _buildChangeItem(scheme, textTheme, 'Адаптивные и безопасные переходы экранов Material 3 Expressive'),
-          _buildChangeItem(scheme, textTheme, 'Мгновенный отклик переключателей с тактильной индикацией thumbIcon'),
-          _buildChangeItem(scheme, textTheme, 'Информативные статусные бейджи в Master-Detail режиме настроек'),
-          _buildChangeItem(scheme, textTheme, context.l10n.aboutChangelogV300C6),
+          _buildChangeItem(scheme, textTheme, 'Новый отдельный экран «Все настройки» (/settings) с быстрым поиском'),
+          _buildChangeItem(scheme, textTheme, 'Умный поиск с хлебными крошками на русском и английском языках'),
+          _buildChangeItem(scheme, textTheme, 'Разделение профиля и настроек: профиль освобожден от дубликатов'),
+          _buildChangeItem(scheme, textTheme, 'Адаптивный двухпанельный режим на планшетах и компьютерах'),
+          _buildChangeItem(scheme, textTheme, 'Точечная запись параметров на диск без задержек и фризов'),
+          _buildChangeItem(scheme, textTheme, 'Полная поддержка Material 3 Expressive с пружинной физикой движения'),
 
           const SizedBox(height: 14),
           Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
