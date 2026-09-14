@@ -19,7 +19,6 @@ import 'privacy_blocklist_test.dart' as privacy_blocklist;
 import 'profile_schedule_badges_test.dart' as profile_schedule_badges;
 import 'reports_support_spamblock_test.dart' as reports_support_spamblock;
 import 'stickers_test.dart' as stickers;
-import 'verification_screens_test.dart' as verification_screens;
 import 'core/m3_spring_constants_test.dart' as core_m3_spring_constants;
 import 'e2e/niosgram_and_settings_e2e_test.dart' as e2e_niosgram_and_settings;
 import 'integration/e2e_auth_flow_test.dart' as integration_e2e_auth_flow;
@@ -114,7 +113,6 @@ void main() {
     chat_list_m1.main();
     legal_viewer_screen.main();
     onboarding_screens.main();
-    verification_screens.main();
     screens_login_screen_adversarial.main();
     screens_login_screen.main();
     screens_register_screen.main();

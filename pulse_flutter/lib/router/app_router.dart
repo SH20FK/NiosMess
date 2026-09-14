@@ -77,10 +77,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       final bool isAuth = authState.isAuthenticated;
       final String path = state.uri.path;
 
-      final bool isPublic = path == '/' || path == '/web' || path == '/login' || path == '/register' || path == '/onboarding' || path.startsWith('/reset-password') || path.startsWith('/verify-email') || path.startsWith('/2fa') || path.startsWith('/setup') || path.startsWith('/legal');
+      final bool isPublic = path == '/' || path == '/web' || path == '/login' || path == '/register' || path == '/onboarding' || path.startsWith('/setup') || path.startsWith('/legal');
 
       if (!isAuth && !isPublic) return '/login';
-      if (isAuth && (path == '/login' || path == '/web' || path == '/onboarding' || path == '/register' || path.startsWith('/setup') || path.startsWith('/2fa'))) return '/main/chats';
+      if (isAuth && (path == '/login' || path == '/web' || path == '/onboarding' || path == '/register' || path.startsWith('/setup'))) return '/main/chats';
       return null;
     },
     routes: <RouteBase>[
@@ -131,22 +131,6 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/setup',
         pageBuilder: (context, state) => _page(state, const SetupOnboardingScreen()),
-      ),
-      GoRoute(
-        path: '/verify-email',
-        redirect: (context, state) => '/login',
-      ),
-      GoRoute(
-        path: '/2fa',
-        redirect: (context, state) => '/login',
-      ),
-      GoRoute(
-        path: '/reset-password/request',
-        redirect: (context, state) => '/login',
-      ),
-      GoRoute(
-        path: '/reset-password/confirm',
-        redirect: (context, state) => '/login',
       ),
       GoRoute(
         path: '/main/:tab',

@@ -1,35 +1,36 @@
 import 'dart:io';
-import 'package:flutter_test/flutter_test.dart';
+// ignore: depend_on_referenced_packages
+import 'package:test/test.dart';
 
 void main() {
-  group('Entry Screens Reachability Baseline (Phase 0)', () {
+  group('Entry Screens Reachability (Phase 1)', () {
     final File routerFile = File('lib/router/app_router.dart');
+    final File authProviderFile = File('lib/providers/auth_provider.dart');
 
-    test('verifies router file exists', () {
+    test('verifies router and auth provider files exist', () {
       expect(routerFile.existsSync(), isTrue);
+      expect(authProviderFile.existsSync(), isTrue);
     });
 
-    test('documents dead entry screens are not imported in app_router.dart', () {
-      final String routerContent = routerFile.readAsStringSync();
-
-      const List<String> deadScreenFiles = <String>[
-        'verify_email_screen.dart',
-        'two_fa_screen.dart',
-        'reset_password_request_screen.dart',
-        'reset_password_confirm_screen.dart',
-        'register_screen.dart',
+    test('verifies dead screen files are completely removed from filesystem', () {
+      const List<String> deadFiles = <String>[
+        'lib/screens/verify_email_screen.dart',
+        'lib/screens/two_fa_screen.dart',
+        'lib/screens/reset_password_request_screen.dart',
+        'lib/screens/reset_password_confirm_screen.dart',
+        'lib/screens/register_screen.dart',
       ];
 
-      for (final String fileName in deadScreenFiles) {
+      for (final String path in deadFiles) {
         expect(
-          routerContent.contains(fileName),
+          File(path).existsSync(),
           isFalse,
-          reason: '$fileName should not be imported in app_router.dart',
+          reason: '$path should be deleted in Phase 1',
         );
       }
     });
 
-    test('documents redirect stubs to /login exist in app_router.dart', () {
+    test('verifies redirect stubs are removed from app_router.dart', () {
       final String routerContent = routerFile.readAsStringSync();
 
       const List<String> stubRoutes = <String>[
@@ -42,10 +43,17 @@ void main() {
       for (final String route in stubRoutes) {
         expect(
           routerContent.contains("path: '$route'"),
-          isTrue,
-          reason: 'Expected stub route $route in app_router.dart before Phase 1 cleanup',
+          isFalse,
+          reason: 'Stub route $route must not exist in app_router.dart',
         );
       }
+    });
+
+    test('verifies insecure _pendingPassword and requiresTwoFa are removed from auth_provider', () {
+      final String content = authProviderFile.readAsStringSync();
+      expect(content.contains('_pendingPassword'), isFalse);
+      expect(content.contains('_pendingEmail'), isFalse);
+      expect(content.contains('requiresTwoFa'), isFalse);
     });
   });
 }
