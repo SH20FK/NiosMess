@@ -21,6 +21,8 @@ import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/settings/settings_hub_screen.dart';
+import 'package:pulse_flutter/models/api/privacy_model.dart';
+import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/widgets/post_card.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -36,6 +38,17 @@ class _StubAdaptivePerformanceNotifier extends AdaptivePerformanceNotifier {
       targetFrameBudgetMs: 16.67,
       recentJankRatio: 0.0,
       isDegraded: true,
+    );
+  }
+}
+
+class _StubPrivacyNotifier extends PrivacyNotifier {
+  @override
+  PrivacyState build() {
+    return const PrivacyState(
+      isLoading: false,
+      rules: <String, PrivacyRule>{},
+      blockedUsers: <BlockedUser>[],
     );
   }
 }
@@ -177,6 +190,7 @@ Widget _buildE2eApp({
       niosgramProvider.overrideWith(() => niosgramNotifier),
       notificationsProvider.overrideWith(MockE2eNotificationsNotifier.new),
       adaptivePerformanceProvider.overrideWith(_StubAdaptivePerformanceNotifier.new),
+      privacyProvider.overrideWith(_StubPrivacyNotifier.new),
     ],
     child: Consumer(
       builder: (context, ref, _) {

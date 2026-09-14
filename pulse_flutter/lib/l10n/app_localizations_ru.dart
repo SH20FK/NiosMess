@@ -3591,7 +3591,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get aboutTabChangelog => 'Обновления';
 
   @override
-  String get aboutTabLegal => 'Правовое';
+  String get aboutTabLegal => 'Документы';
 
   @override
   String get aboutTabWhatsNew => 'Что нового';
