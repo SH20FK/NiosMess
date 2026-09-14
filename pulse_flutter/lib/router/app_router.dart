@@ -20,7 +20,6 @@ import 'package:pulse_flutter/screens/onboarding_screen.dart';
 import 'package:pulse_flutter/screens/post_comments_screen.dart';
 import 'package:pulse_flutter/screens/public_profile_screen.dart';
 import 'package:pulse_flutter/screens/sticker_set_screen.dart';
-import 'package:pulse_flutter/screens/setup_onboarding_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
@@ -77,10 +76,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       final bool isAuth = authState.isAuthenticated;
       final String path = state.uri.path;
 
-      final bool isPublic = path == '/' || path == '/web' || path == '/login' || path == '/register' || path == '/onboarding' || path.startsWith('/setup') || path.startsWith('/legal');
+      final bool isPublic = path == '/' || path == '/web' || path == '/login' || path == '/register' || path == '/onboarding' || path.startsWith('/legal');
 
       if (!isAuth && !isPublic) return '/login';
-      if (isAuth && (path == '/login' || path == '/web' || path == '/onboarding' || path == '/register' || path.startsWith('/setup'))) return '/main/chats';
+      if (isAuth && (path == '/login' || path == '/web' || path == '/onboarding' || path == '/register')) return '/main/chats';
       return null;
     },
     routes: <RouteBase>[
@@ -127,10 +126,6 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             initialErrorDescription: state.uri.queryParameters['error_description'],
           ),
         ),
-      ),
-      GoRoute(
-        path: '/setup',
-        pageBuilder: (context, state) => _page(state, const SetupOnboardingScreen()),
       ),
       GoRoute(
         path: '/main/:tab',

@@ -19,6 +19,7 @@ void main() {
         'lib/screens/reset_password_request_screen.dart',
         'lib/screens/reset_password_confirm_screen.dart',
         'lib/screens/register_screen.dart',
+        'lib/screens/setup_onboarding_screen.dart',
       ];
 
       for (final String path in deadFiles) {
@@ -38,6 +39,7 @@ void main() {
         '/2fa',
         '/reset-password/request',
         '/reset-password/confirm',
+        '/setup',
       ];
 
       for (final String route in stubRoutes) {
