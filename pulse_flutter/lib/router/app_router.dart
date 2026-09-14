@@ -40,6 +40,7 @@ import 'package:pulse_flutter/screens/splash_screen.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/screens/settings_wallpaper_screen.dart';
 import 'package:pulse_flutter/screens/settings_chats_screen.dart';
+import 'package:pulse_flutter/screens/settings/settings_hub_screen.dart';
 import 'package:pulse_flutter/screens/call_redirect_screen.dart';
 import 'package:pulse_flutter/screens/calls/active_call_screen.dart';
 
@@ -259,7 +260,11 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/settings',
-        redirect: (context, state) => '/main/profile',
+        pageBuilder: (context, state) => _page(
+          state,
+          const SettingsHubScreen(),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/settings/appearance',

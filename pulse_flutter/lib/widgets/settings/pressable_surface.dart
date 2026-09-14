@@ -14,6 +14,7 @@ class PressableSurface extends ConsumerStatefulWidget {
     this.onTap,
     this.onLongPress,
     this.borderRadius,
+    this.border,
     this.color,
     this.padding,
     this.margin,
@@ -26,6 +27,7 @@ class PressableSurface extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final BorderRadius? borderRadius;
+  final BoxBorder? border;
   final Color? color;
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
@@ -76,6 +78,7 @@ class _PressableSurfaceState extends ConsumerState<PressableSurface> {
       decoration: BoxDecoration(
         color: widget.color ?? Colors.transparent,
         borderRadius: effectiveRadius,
+        border: widget.border,
       ),
       child: widget.child,
     );

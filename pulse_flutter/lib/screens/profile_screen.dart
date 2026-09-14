@@ -1,35 +1,19 @@
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/storage/local_storage_service.dart';
-import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/utils/image_compressor.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
-import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
-import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
-import 'package:pulse_flutter/screens/sessions_screen.dart';
-import 'package:pulse_flutter/screens/settings_about_screen.dart';
-import 'package:pulse_flutter/screens/settings_account_screen.dart';
-import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
-import 'package:pulse_flutter/screens/settings_chats_screen.dart';
-import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
-import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
-import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
-import 'package:pulse_flutter/screens/settings_storage_screen.dart';
-import 'package:pulse_flutter/screens/settings_system_device_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/profile/working_hours_widget.dart';
 import 'package:pulse_flutter/widgets/profile/working_hours_planner_dialog.dart';
-import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -155,12 +139,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? auth.profile!.bio.trim()
         : '';
 
-    final LocalStorageSnapshot? snapshot =
-        ref.watch(storageSnapshotProvider).value;
-    final String storageUsed = snapshot != null
-        ? FileTypeDetector.formatFileSize(snapshot.totalBytes)
-        : '';
-
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final double width = constraints.maxWidth.isFinite
@@ -170,14 +148,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             width >= 760 && MediaQuery.sizeOf(context).width >= 760;
 
         if (isWide) {
-          return _buildDesktopMasterDetail(
+          return _buildDesktopProfile(
             context,
             auth,
             scheme,
             displayName,
             username,
             bio,
-            storageUsed,
           );
         }
 
@@ -188,293 +165,161 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           displayName,
           username,
           bio,
-          storageUsed,
         );
       },
     );
   }
 
-  Widget _buildDesktopMasterDetail(
+  Future<void> _editWorkingHours(AuthState auth) async {
+    final WorkingHours? updated = await WorkingHoursPlannerDialog.show(
+      context,
+      initialWorkingHours: auth.profile?.workingHours,
+    );
+    if (updated != null) {
+      final AuthActionResult res = await ref
+          .read(authProvider.notifier)
+          .updateProfile(workingHours: updated);
+      if (mounted) {
+        if (res.success) {
+          AppToast.showSuccess(context, 'График работы обновлен');
+        } else {
+          AppToast.showError(
+            context,
+            res.message ?? 'Ошибка сохранения графика',
+          );
+        }
+      }
+    }
+  }
+
+  Widget _buildDesktopProfile(
     BuildContext context,
     AuthState auth,
     ColorScheme scheme,
     String displayName,
     String username,
     String bio,
-    String storageUsed,
   ) {
-    final SettingsSectionId selectedSection =
-        ref.watch(desktopSelectedSettingsSectionProvider);
-
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final ThemeMode themeMode =
-        ref.watch(uiSettingsProvider.select((UiSettingsState s) => s.themeMode));
-    final bool isRussian =
-        Localizations.localeOf(context).languageCode == 'ru';
-    final String themeLabel = themeMode == ThemeMode.dark
-        ? (isRussian ? 'Тёмная' : 'Dark')
-        : themeMode == ThemeMode.light
-            ? (isRussian ? 'Светлая' : 'Light')
-            : (isRussian ? 'Системная' : 'System');
-    final String languageLabel = isRussian ? 'Русский' : 'English';
-
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // 1. Left Master Pane (Sidebar docked to the left navigation rail)
-          Container(
-            width: 320,
-            decoration: BoxDecoration(
-              color: isDark
-                  ? scheme.surfaceContainerLowest
-                  : scheme.surface.withValues(alpha: 0.65),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        title: Text(
+          context.l10n.tabProfile,
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
+                color: scheme.onSurface,
+              ),
+        ),
+        actions: <Widget>[
+          FilledButton.tonalIcon(
+            onPressed: () => context.push('/settings'),
+            icon: const Icon(Icons.settings_outlined, size: 18),
+            label: const Text('Настройки'),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: context.l10n.profileEdit,
+            icon: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                shape: BoxShape.circle,
+              ),
+              child:
+                  Icon(Icons.edit_outlined, size: 18, color: scheme.onSurface),
             ),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
-              children: <Widget>[
-                _buildMasterProfileHeader(
-                  context,
-                  auth,
-                  scheme,
-                  displayName,
-                  username,
-                  bio,
-                ),
-                if (auth.profile?.aiUsage != null) ...<Widget>[
-                  const SizedBox(height: 10),
-                  AiUsageIndicatorCard(usage: auth.profile!.aiUsage!),
-                ],
+            onPressed: () => _openEditProfile(context, displayName, auth, bio),
+          ),
+          const SizedBox(width: 16),
+        ],
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 780),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 48),
+            children: <Widget>[
+              _buildMobileHeroProfileCard(
+                context,
+                auth,
+                scheme,
+                displayName,
+                username,
+                bio,
+              ),
+              if (auth.profile?.aiUsage != null) ...<Widget>[
                 const SizedBox(height: 14),
-
-                // 1. Account
-                SettingsSection(
-                  isCard: false,
-                  title: context.l10n.settingsAccountTitle,
-                  children: <Widget>[
-                    SettingsTile(
-                      icon: Icons.manage_accounts_rounded,
-                      title: context.l10n.settingsAccountTitle,
-                      value: username.isNotEmpty ? '@$username' : null,
-                      iconColor: scheme.primary,
-                      isSelected: selectedSection == SettingsSectionId.account,
-                      onTap: () => ref
-                          .read(desktopSelectedSettingsSectionProvider.notifier)
-                          .setSelectedSection(SettingsSectionId.account),
-                    ),
-                  ],
+                AiUsageIndicatorCard(usage: auth.profile!.aiUsage!),
+              ],
+              if (auth.profile?.workingHours?.isNotEmpty == true) ...<Widget>[
+                const SizedBox(height: 14),
+                WorkingHoursWidget(
+                  workingHours: auth.profile?.workingHours,
+                  isEditable: true,
+                  onEdit: () => _editWorkingHours(auth),
                 ),
-
-                // 2. Appearance & Chats
-                SettingsSection(
-                  isCard: false,
-                  title: 'Внешний вид и чаты',
-                  children: <Widget>[
-                    SettingsTile(
-                      icon: Icons.palette_rounded,
-                      title: context.l10n.profileAppearance,
-                      value: themeLabel,
-                      iconColor: scheme.primary,
-                      isSelected:
-                          selectedSection == SettingsSectionId.appearance,
-                      onTap: () => ref
-                          .read(desktopSelectedSettingsSectionProvider.notifier)
-                          .setSelectedSection(SettingsSectionId.appearance),
+              ],
+              const SizedBox(height: 16),
+              SettingsSection(
+                title: 'Настройки приложения',
+                children: <Widget>[
+                  SettingsListItem.nav(
+                    icon: Icons.settings_rounded,
+                    title: 'Все настройки',
+                    subtitle: 'Внешний вид, приватность, чаты, память, язык...',
+                    iconColor: scheme.primary,
+                    onTap: () => context.push('/settings'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              SettingsSection(
+                title: 'Nios ID',
+                children: <Widget>[
+                  SettingsListItem.nav(
+                    icon: Icons.badge_outlined,
+                    title: 'Управление аккаунтом Nios ID',
+                    subtitle: 'Безопасность, 2FA и активные сессии',
+                    iconColor: scheme.primary,
+                    onTap: () => launchUrl(
+                      Uri.parse('https://ni-os.ru/id/account'),
+                      mode: LaunchMode.externalApplication,
                     ),
-                    SettingsTile(
-                      icon: Icons.chat_bubble_outline_rounded,
-                      title: 'Чаты и медиа',
-                      iconColor: scheme.primary,
-                      isSelected:
-                          selectedSection == SettingsSectionId.chats,
-                      onTap: () => ref
-                          .read(desktopSelectedSettingsSectionProvider.notifier)
-                          .setSelectedSection(SettingsSectionId.chats),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: scheme.error,
+                    side: BorderSide(
+                      color: scheme.error.withValues(alpha: 0.35),
                     ),
-                  ],
-                ),
-
-                // 3. Notifications & Sounds
-                SettingsSection(
-                  isCard: false,
-                  title: 'Уведомления и звуки',
-                  children: <Widget>[
-                    SettingsTile(
-                      icon: Icons.notifications_active_rounded,
-                      title: context.l10n.settingsPreferencesTitle,
-                      iconColor: scheme.secondary,
-                      isSelected:
-                          selectedSection == SettingsSectionId.preferences,
-                      onTap: () => ref
-                          .read(desktopSelectedSettingsSectionProvider.notifier)
-                          .setSelectedSection(SettingsSectionId.preferences),
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                  ],
-                ),
-
-                // 4. Privacy & Security
-                SettingsSection(
-                  isCard: false,
-                  title: context.l10n.settingsPrivacyTitle,
-                  children: <Widget>[
-                    SettingsTile(
-                      icon: Icons.lock_rounded,
-                      title: context.l10n.settingsPrivacyTitle,
-                      iconColor: scheme.primary,
-                      isSelected: selectedSection == SettingsSectionId.privacy,
-                      onTap: () => ref
-                          .read(desktopSelectedSettingsSectionProvider.notifier)
-                          .setSelectedSection(SettingsSectionId.privacy),
-                    ),
-                  ],
-                ),
-
-                // 5. Storage & Data
-                SettingsSection(
-                  isCard: false,
-                  title: 'Память и данные',
-                  children: <Widget>[
-                    SettingsTile(
-                      icon: Icons.sd_storage_rounded,
-                      title: context.l10n.settingsStorageTitle,
-                      value: storageUsed.isNotEmpty ? storageUsed : '0 Б',
-                      iconColor: scheme.tertiary,
-                      isSelected: selectedSection == SettingsSectionId.storage,
-                      onTap: () => ref
-                          .read(desktopSelectedSettingsSectionProvider.notifier)
-                          .setSelectedSection(SettingsSectionId.storage),
-                    ),
-                  ],
-                ),
-
-                // 6. Language & Region
-                SettingsSection(
-                  isCard: false,
-                  title: context.l10n.profileLanguage,
-                  children: <Widget>[
-                    SettingsTile(
-                      icon: Icons.language_rounded,
-                      title: context.l10n.profileLanguage,
-                      value: languageLabel,
-                      iconColor: scheme.secondary,
-                      isSelected:
-                          selectedSection == SettingsSectionId.languageRegion,
-                      onTap: () => ref
-                          .read(desktopSelectedSettingsSectionProvider.notifier)
-                          .setSelectedSection(
-                            SettingsSectionId.languageRegion,
-                          ),
-                    ),
-                  ],
-                ),
-
-                // 7. About App
-                SettingsSection(
-                  isCard: false,
-                  title: 'О приложении',
-                  children: <Widget>[
-                    SettingsTile(
-                      icon: Icons.info_outline_rounded,
-                      title: context.l10n.settingsAboutTitle,
-                      value: AppConstants.appVersionWithPrefix,
-                      iconColor: scheme.onSurfaceVariant,
-                      isSelected: selectedSection == SettingsSectionId.about,
-                      onTap: () => ref
-                          .read(desktopSelectedSettingsSectionProvider.notifier)
-                          .setSelectedSection(SettingsSectionId.about),
-                    ),
-                    if (!kIsWeb)
-                      SettingsTile(
-                        icon: Icons.memory_rounded,
-                        title: 'Система и устройство',
-                        iconColor: scheme.primary,
-                        isSelected:
-                            selectedSection == SettingsSectionId.systemDevice,
-                        onTap: () => ref
-                            .read(desktopSelectedSettingsSectionProvider.notifier)
-                            .setSelectedSection(SettingsSectionId.systemDevice),
-                      ),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-                Divider(
-                  height: 1,
-                  color: scheme.outlineVariant.withValues(alpha: 0.15),
-                ),
-                const SizedBox(height: 12),
-
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: scheme.error,
-                      side: BorderSide(
-                        color: scheme.error.withValues(alpha: 0.35),
-                      ),
-                      minimumSize: const Size.fromHeight(44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onPressed: _logout,
-                    icon: const Icon(Icons.logout_rounded, size: 18),
-                    label: Text(
-                      context.l10n.profileLogout,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
+                  ),
+                  onPressed: _logout,
+                  icon: const Icon(Icons.logout_rounded, size: 19),
+                  label: Text(
+                    context.l10n.profileLogout,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          // 2. Divider
-          VerticalDivider(
-            thickness: 1,
-            width: 1,
-            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.3),
-          ),
-
-          // 3. Right Detail Pane
-          Expanded(
-            child: RepaintBoundary(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 260),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (Widget child, Animation<double> animation) {
-                  final Animation<double> curved = CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                    reverseCurve: Curves.easeInCubic,
-                  );
-                  return FadeTransition(
-                    opacity: CurvedAnimation(
-                      parent: animation,
-                      curve: const Interval(0.0, 0.85, curve: Curves.easeOut),
-                    ),
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0.02, 0),
-                        end: Offset.zero,
-                      ).animate(curved),
-                      child: child,
-                    ),
-                  );
-                },
-                child: KeyedSubtree(
-                  key: ValueKey<SettingsSectionId>(selectedSection),
-                  child: _buildDetailPane(selectedSection),
-                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -503,199 +348,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
     if (updated == true && context.mounted) {
       AppToast.showSuccess(context, 'Профиль успешно сохранён');
-    }
-  }
-
-  Widget _buildMasterProfileHeader(
-    BuildContext context,
-    AuthState auth,
-    ColorScheme scheme,
-    String displayName,
-    String username,
-    String bio,
-  ) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isDark
-            ? scheme.surfaceContainerLow
-            : scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Stack(
-                children: <Widget>[
-                  PulseAvatar(
-                    name: displayName,
-                    avatarUrl: auth.profile?.avatarUrl,
-                    radius: 26,
-                    fallbackColor: scheme.primaryContainer,
-                    textColor: scheme.onPrimaryContainer,
-                  ),
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Material(
-                      color: scheme.primary,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        onTap: _uploadingAvatar ? null : _uploadAvatar,
-                        customBorder: const CircleBorder(),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: _uploadingAvatar
-                              ? AppLoadingIndicator(
-                                  size: 10,
-                                  color: scheme.onPrimary,
-                                )
-                              : Icon(
-                                  Icons.photo_camera_rounded,
-                                  size: 11,
-                                  color: scheme.onPrimary,
-                                ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      displayName,
-                      style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '@$username',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (bio.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                bio,
-                style: textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontSize: 12,
-                  height: 1.25,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-          if (auth.profile?.phoneNumber?.isNotEmpty == true ||
-              auth.profile?.birthday?.isNotEmpty == true) ...<Widget>[
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 12,
-              runSpacing: 4,
-              children: <Widget>[
-                if (auth.profile?.phoneNumber?.isNotEmpty == true)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Icon(Icons.phone_outlined, size: 12, color: scheme.primary),
-                      const SizedBox(width: 4),
-                      Text(
-                        auth.profile!.phoneNumber!,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          fontSize: 11.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                if (auth.profile?.birthday?.isNotEmpty == true)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Icon(Icons.cake_outlined, size: 12, color: scheme.primary),
-                      const SizedBox(width: 4),
-                      Text(
-                        auth.profile!.birthday!,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          fontSize: 11.5,
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.tonalIcon(
-              onPressed: () => _openEditProfile(context, displayName, auth, bio),
-              icon: const Icon(Icons.edit_rounded, size: 15),
-              label: Text(context.l10n.profileEdit, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailPane(SettingsSectionId section) {
-    switch (section) {
-      case SettingsSectionId.account:
-        return const SettingsAccountScreen(isEmbedded: true);
-      case SettingsSectionId.appearance:
-        return const SettingsAppearanceScreen(isEmbedded: true);
-      case SettingsSectionId.chats:
-        return const SettingsChatsScreen(isEmbedded: true);
-      case SettingsSectionId.privacy:
-        return const SettingsPrivacyScreen(isEmbedded: true);
-      case SettingsSectionId.storage:
-        return const SettingsStorageScreen(isEmbedded: true);
-      case SettingsSectionId.languageRegion:
-        return const SettingsLanguageRegionScreen(isEmbedded: true);
-      case SettingsSectionId.preferences:
-        return const SettingsPreferencesScreen(isEmbedded: true);
-      case SettingsSectionId.systemDevice:
-        if (kIsWeb) return const SettingsAboutScreen(isEmbedded: true);
-        return const SettingsSystemDeviceScreen(isEmbedded: true);
-      case SettingsSectionId.about:
-        return const SettingsAboutScreen(isEmbedded: true);
-      case SettingsSectionId.e2ee:
-        return const E2eeSettingsScreen(isEmbedded: true);
-      case SettingsSectionId.sessions:
-        return const SessionsScreen(isEmbedded: true);
     }
   }
 
@@ -924,18 +576,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     String displayName,
     String username,
     String bio,
-    String storageUsed,
   ) {
-    final ThemeMode themeMode =
-        ref.watch(uiSettingsProvider.select((UiSettingsState s) => s.themeMode));
-    final bool isRussian =
-        Localizations.localeOf(context).languageCode == 'ru';
-    final String themeLabel = themeMode == ThemeMode.dark
-        ? (isRussian ? 'Тёмная' : 'Dark')
-        : themeMode == ThemeMode.light
-            ? (isRussian ? 'Светлая' : 'Light')
-            : (isRussian ? 'Системная' : 'System');
-    final String languageLabel = isRussian ? 'Русский' : 'English';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -944,7 +585,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         scrolledUnderElevation: 0,
         centerTitle: false,
         title: Text(
-          context.l10n.profileSettingsSection,
+          context.l10n.tabProfile,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.6,
@@ -952,6 +593,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
         ),
         actions: <Widget>[
+          IconButton(
+            tooltip: 'Настройки',
+            icon: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.settings_outlined,
+                size: 18,
+                color: scheme.onSurface,
+              ),
+            ),
+            onPressed: () => context.push('/settings'),
+          ),
           IconButton(
             tooltip: context.l10n.profileEdit,
             icon: Container(
@@ -994,135 +651,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             WorkingHoursWidget(
               workingHours: auth.profile?.workingHours,
               isEditable: true,
-              onEdit: () async {
-                final WorkingHours? updated =
-                    await WorkingHoursPlannerDialog.show(
-                  context,
-                  initialWorkingHours: auth.profile?.workingHours,
-                );
-                if (updated != null) {
-                  final AuthActionResult res = await ref
-                      .read(authProvider.notifier)
-                      .updateProfile(workingHours: updated);
-                  if (context.mounted) {
-                    if (res.success) {
-                      AppToast.showSuccess(context, 'График работы обновлен');
-                    } else {
-                      AppToast.showError(context, res.message ?? 'Ошибка сохранения графика');
-                    }
-                  }
-                }
-              },
+              onEdit: () => _editWorkingHours(auth),
             ),
             const SizedBox(height: 12),
           ],
 
-          // 1. Account
+          // Settings Entry Section
           SettingsSection(
-            title: context.l10n.settingsAccountTitle,
+            title: 'Настройки приложения',
             children: <Widget>[
-              SettingsTile(
-                icon: Icons.person_rounded,
-                title: context.l10n.settingsAccountTitle,
-                value: username.isNotEmpty ? '@$username' : null,
+              SettingsListItem.nav(
+                icon: Icons.settings_rounded,
+                title: 'Все настройки',
+                subtitle: 'Внешний вид, приватность, чаты, память, язык...',
                 iconColor: scheme.primary,
-                onTap: () => context.push('/settings/account'),
+                onTap: () => context.push('/settings'),
               ),
             ],
           ),
+          const SizedBox(height: 12),
 
-          // 2. Appearance & Chats
+          // Nios ID Section
           SettingsSection(
-            title: 'Внешний вид и чаты',
+            title: 'Nios ID',
             children: <Widget>[
-              SettingsTile(
-                icon: Icons.palette_rounded,
-                title: context.l10n.profileAppearance,
-                value: themeLabel,
-                iconColor: scheme.tertiary,
-                onTap: () => context.push('/settings/appearance'),
-              ),
-              SettingsTile(
-                icon: Icons.chat_bubble_rounded,
-                title: 'Чаты и медиа',
+              SettingsListItem.nav(
+                icon: Icons.badge_outlined,
+                title: 'Управление аккаунтом Nios ID',
+                subtitle: 'Безопасность, 2FA и активные сессии',
                 iconColor: scheme.primary,
-                onTap: () => context.push('/settings/chats'),
-              ),
-            ],
-          ),
-
-          // 3. Notifications & Sounds
-          SettingsSection(
-            title: 'Уведомления и звуки',
-            children: <Widget>[
-              SettingsTile(
-                icon: Icons.notifications_active_rounded,
-                title: context.l10n.settingsPreferencesTitle,
-                iconColor: scheme.secondary,
-                onTap: () => context.push('/settings/preferences'),
-              ),
-            ],
-          ),
-
-          // 4. Security & Privacy
-          SettingsSection(
-            title: context.l10n.settingsPrivacyTitle,
-            children: <Widget>[
-              SettingsTile(
-                icon: Icons.security_rounded,
-                title: context.l10n.settingsPrivacyTitle,
-                iconColor: scheme.primary,
-                onTap: () => context.push('/settings/privacy'),
-              ),
-            ],
-          ),
-
-          // 5. Storage & Data
-          SettingsSection(
-            title: 'Память и данные',
-            children: <Widget>[
-              SettingsTile(
-                icon: Icons.pie_chart_rounded,
-                title: context.l10n.settingsStorageTitle,
-                value: storageUsed.isNotEmpty ? storageUsed : '0 Б',
-                iconColor: scheme.secondary,
-                onTap: () => context.push('/settings/storage'),
-              ),
-            ],
-          ),
-
-          // 6. Language & Region
-          SettingsSection(
-            title: context.l10n.profileLanguage,
-            children: <Widget>[
-              SettingsTile(
-                icon: Icons.language_rounded,
-                title: context.l10n.profileLanguage,
-                value: languageLabel,
-                iconColor: scheme.primary,
-                onTap: () => context.push('/settings/language-region'),
-              ),
-            ],
-          ),
-
-          // 7. About & System
-          SettingsSection(
-            title: context.l10n.profileSectionAbout,
-            children: <Widget>[
-              SettingsTile(
-                icon: Icons.info_rounded,
-                title: context.l10n.settingsAboutTitle,
-                value: AppConstants.appVersionWithPrefix,
-                iconColor: scheme.tertiary,
-                onTap: () => context.push('/settings/about'),
-              ),
-              if (!kIsWeb)
-                SettingsTile(
-                  icon: Icons.memory_rounded,
-                  title: 'Система и устройство',
-                  iconColor: scheme.onSurfaceVariant,
-                  onTap: () => context.push('/settings/system-device'),
+                onTap: () => launchUrl(
+                  Uri.parse('https://ni-os.ru/id/account'),
+                  mode: LaunchMode.externalApplication,
                 ),
+              ),
             ],
           ),
 
