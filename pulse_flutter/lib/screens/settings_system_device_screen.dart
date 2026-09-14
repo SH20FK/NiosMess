@@ -33,7 +33,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
 
     final AsyncValue<DeviceHardwareInfo> hardwareAsync = ref.watch(deviceHardwareProvider);
 
-    return SettingsScaffold(
+    return SettingsShell(
       title: 'Система и устройство',
       isEmbedded: isEmbedded,
       onRefresh: () async {

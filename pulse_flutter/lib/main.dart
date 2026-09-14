@@ -39,9 +39,6 @@ Future<void> main() async {
           'packages/mesh_gradient/shaders/animated_mesh_gradient.frag',
         ).catchError((Object _) {}),
       );
-      await const CacheService().ensureInitialized();
-      await EncryptedMessageCache.ensureInitialized();
-      await ChatMediaCache.ensureInitialized();
       final AppLogger logger = AppLogger.instance;
       FlutterError.onError = (FlutterErrorDetails details) {
         FlutterError.presentError(details);
@@ -58,7 +55,13 @@ Future<void> main() async {
         return true;
       };
 
-      await SharedPreferences.getInstance();
+      // Parallelize independent storage & cache initializations for fast cold boot
+      await Future.wait(<Future<void>>[
+        const CacheService().ensureInitialized(),
+        EncryptedMessageCache.ensureInitialized(),
+        ChatMediaCache.ensureInitialized(),
+        SharedPreferences.getInstance().then((_) {}),
+      ]);
       AppTimeSettings.initialize();
       if (kIsWeb) {
         try {
@@ -70,19 +73,20 @@ Future<void> main() async {
           AppLogger.instance.error(e, StackTrace.current, source: 'firebase_web');
         }
       } else {
-        // firebase_options.dart only configures android (and web); guard the
-        // rest instead of crashing with UnsupportedError on desktop.
-        if (Platform.isAndroid || Platform.isIOS) {
-          try {
-            await Firebase.initializeApp(
-              options: DefaultFirebaseOptions.currentPlatform,
-            );
-            await PushNotificationService.init();
-          } catch (e) {
-            AppLogger.instance.error(e, StackTrace.current, source: 'firebase');
-          }
-        }
-        await DeepLinkService.init();
+        await Future.wait(<Future<void>>[
+          DeepLinkService.init(),
+          if (Platform.isAndroid || Platform.isIOS)
+            (() async {
+              try {
+                await Firebase.initializeApp(
+                  options: DefaultFirebaseOptions.currentPlatform,
+                );
+                await PushNotificationService.init();
+              } catch (e) {
+                AppLogger.instance.error(e, StackTrace.current, source: 'firebase');
+              }
+            })(),
+        ]);
         BackgroundService.init();
       }
       logger.info('Application started', source: 'bootstrap');
@@ -109,6 +113,8 @@ class PulseApp extends ConsumerWidget {
         ref.watch(uiSettingsProvider.select((s) => s.timeZoneId));
     final AppFontScale fontScale =
         ref.watch(uiSettingsProvider.select((s) => s.fontScale));
+    final bool showPerformanceOverlay =
+        ref.watch(uiSettingsProvider.select((s) => s.showPerformanceOverlay));
     final VisualThemeSettings visualTheme =
         ref.watch(uiSettingsProvider.select((s) => s.visualTheme));
     final GoRouter router = ref.watch(appRouterProvider);
@@ -136,6 +142,7 @@ class PulseApp extends ConsumerWidget {
         return MaterialApp.router(
           title: 'NiosMess',
           debugShowCheckedModeBanner: false,
+          showPerformanceOverlay: showPerformanceOverlay,
           scrollBehavior: const AppScrollBehavior(),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -188,7 +195,21 @@ class AppScrollBehavior extends MaterialScrollBehavior {
         parent: RangeMaintainingScrollPhysics(),
       );
     }
-    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+    final TargetPlatform platform = Theme.of(context).platform;
+    switch (platform) {
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        );
+      case TargetPlatform.android:
+      case TargetPlatform.fuchsia:
+      case TargetPlatform.linux:
+      case TargetPlatform.windows:
+        return const ClampingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        );
+    }
   }
 
   @override

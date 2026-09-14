@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -39,7 +40,8 @@ class MediaGridPicker extends StatefulWidget {
   State<MediaGridPicker> createState() => _MediaGridPickerState();
 }
 
-class _MediaGridPickerState extends State<MediaGridPicker> {
+class _MediaGridPickerState extends State<MediaGridPicker>
+    with WidgetsBindingObserver {
   static const int _pageSize = 90;
 
   List<AssetEntity> _allAssets = <AssetEntity>[];
@@ -54,11 +56,13 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
   bool _loadingMore = false;
   bool _loading = true;
   bool _sendAsDocument = false;
+  bool _isLimited = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
     _loadMedia();
   }
@@ -72,11 +76,42 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      if (_error != null || _allAssets.isEmpty) {
+        _loadMedia();
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _captionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _openAppSettings() async {
+    try {
+      final bool opened = await openAppSettings();
+      if (!opened) {
+        await PhotoManager.openSetting();
+      }
+    } catch (_) {
+      await PhotoManager.openSetting();
+    }
+  }
+
+  Future<void> _manageLimitedSelection() async {
+    HapticService.tap();
+    try {
+      await PhotoManager.presentLimited();
+      if (mounted) {
+        await _loadMedia();
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadMedia() async {
@@ -98,19 +133,71 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
     }
 
     try {
-      final PermissionState perm = await PhotoManager.requestPermissionExtend()
-          .timeout(const Duration(seconds: 45), onTimeout: () => PermissionState.denied);
-      if (!perm.isAuth) {
+      PermissionState perm = PermissionState.denied;
+      try {
+        perm = await PhotoManager.requestPermissionExtend(
+          requestOption: const PermissionRequestOption(
+            androidPermission: AndroidPermission(
+              type: RequestType.common,
+              mediaLocation: false,
+            ),
+          ),
+        ).timeout(const Duration(seconds: 15),
+            onTimeout: () => PermissionState.denied);
+      } catch (_) {}
+
+      // Fallback: If common request failed or was denied, try image-only
+      if (!perm.hasAccess && !perm.isAuth) {
+        try {
+          perm = await PhotoManager.requestPermissionExtend(
+            requestOption: const PermissionRequestOption(
+              androidPermission: AndroidPermission(
+                type: RequestType.image,
+                mediaLocation: false,
+              ),
+            ),
+          ).timeout(const Duration(seconds: 10),
+              onTimeout: () => PermissionState.denied);
+        } catch (_) {}
+      }
+
+      bool hasAccess = perm.hasAccess || perm.isAuth;
+
+      // Fallback: Verify via permission_handler if permissions were granted in system settings
+      if (!hasAccess && (Platform.isAndroid || Platform.isIOS)) {
+        try {
+          final bool photosOk = await Permission.photos.isGranted ||
+              await Permission.photos.isLimited;
+          final bool videosOk = await Permission.videos.isGranted ||
+              await Permission.videos.isLimited;
+          final bool storageOk = await Permission.storage.isGranted;
+          if (photosOk || videosOk || storageOk) {
+            hasAccess = true;
+            await PhotoManager.setIgnorePermissionCheck(true);
+          }
+        } catch (_) {}
+      }
+
+      if (!hasAccess) {
         if (mounted) {
           setState(() {
             _error = 'Разрешение на доступ к галерее не предоставлено';
             _loading = false;
+            _isLimited = false;
           });
         }
         return;
       }
 
+      _isLimited = perm == PermissionState.limited;
+
+      try {
+        await PhotoManager.clearFileCache();
+      } catch (_) {}
+
       List<AssetPathEntity> albums = <AssetPathEntity>[];
+
+      // Stage 1: RequestType.common with creation date sorting filter
       try {
         albums = await PhotoManager.getAssetPathList(
           type: RequestType.common,
@@ -120,9 +207,22 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
               OrderOption(type: OrderOptionType.createDate, asc: false),
             ],
           ),
-        ).timeout(const Duration(seconds: 15), onTimeout: () => <AssetPathEntity>[]);
+        ).timeout(const Duration(seconds: 12),
+            onTimeout: () => <AssetPathEntity>[]);
       } catch (_) {}
 
+      // Stage 2: RequestType.common without filter (in case MediaStore order option failed)
+      if (albums.isEmpty) {
+        try {
+          albums = await PhotoManager.getAssetPathList(
+            type: RequestType.common,
+            hasAll: true,
+          ).timeout(const Duration(seconds: 10),
+              onTimeout: () => <AssetPathEntity>[]);
+        } catch (_) {}
+      }
+
+      // Stage 3: RequestType.image with filter
       if (albums.isEmpty) {
         try {
           albums = await PhotoManager.getAssetPathList(
@@ -133,16 +233,41 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
                 OrderOption(type: OrderOptionType.createDate, asc: false),
               ],
             ),
-          ).timeout(const Duration(seconds: 10), onTimeout: () => <AssetPathEntity>[]);
+          ).timeout(const Duration(seconds: 10),
+              onTimeout: () => <AssetPathEntity>[]);
         } catch (_) {}
       }
 
+      // Stage 4: RequestType.image without filter
       if (albums.isEmpty) {
         try {
           albums = await PhotoManager.getAssetPathList(
-            type: RequestType.all,
+            type: RequestType.image,
             hasAll: true,
-          ).timeout(const Duration(seconds: 10), onTimeout: () => <AssetPathEntity>[]);
+          ).timeout(const Duration(seconds: 10),
+              onTimeout: () => <AssetPathEntity>[]);
+        } catch (_) {}
+      }
+
+      // Stage 5: onlyAll common (fast single-query for main album)
+      if (albums.isEmpty) {
+        try {
+          albums = await PhotoManager.getAssetPathList(
+            type: RequestType.common,
+            onlyAll: true,
+          ).timeout(const Duration(seconds: 8),
+              onTimeout: () => <AssetPathEntity>[]);
+        } catch (_) {}
+      }
+
+      // Stage 6: onlyAll image
+      if (albums.isEmpty) {
+        try {
+          albums = await PhotoManager.getAssetPathList(
+            type: RequestType.image,
+            onlyAll: true,
+          ).timeout(const Duration(seconds: 8),
+              onTimeout: () => <AssetPathEntity>[]);
         } catch (_) {}
       }
 
@@ -158,18 +283,51 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
       }
 
       _albums = albums;
-      final AssetPathEntity recent = albums.first;
+      AssetPathEntity recent = albums.firstWhere(
+        (AssetPathEntity a) => a.isAll,
+        orElse: () => albums.first,
+      );
       _recentAlbum = recent;
       _currentPage = 0;
-      final List<AssetEntity> assets = await recent.getAssetListPaged(
-        page: 0,
-        size: _pageSize,
-      ).timeout(const Duration(seconds: 15), onTimeout: () => <AssetEntity>[]);
 
-      // Sort newest first by createDateTime in Dart
+      List<AssetEntity> assets = await recent
+          .getAssetListPaged(
+            page: 0,
+            size: _pageSize,
+          )
+          .timeout(const Duration(seconds: 15),
+              onTimeout: () => <AssetEntity>[]);
+
+      // Fallback: If primary album returned 0 assets, look for a non-empty alternative album
+      if (assets.isEmpty && albums.length > 1) {
+        for (final AssetPathEntity alt in albums) {
+          if (alt.id == recent.id) continue;
+          try {
+            final List<AssetEntity> altAssets = await alt
+                .getAssetListPaged(
+                  page: 0,
+                  size: _pageSize,
+                )
+                .timeout(const Duration(seconds: 8),
+                    onTimeout: () => <AssetEntity>[]);
+            if (altAssets.isNotEmpty) {
+              recent = alt;
+              _recentAlbum = alt;
+              assets = altAssets;
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+
+      // Sort newest first by createDateTime or modifiedDateTime
       assets.sort((AssetEntity a, AssetEntity b) {
-        final DateTime da = a.createDateTime;
-        final DateTime db = b.createDateTime;
+        final DateTime da = a.createDateTime.millisecondsSinceEpoch > 0
+            ? a.createDateTime
+            : a.modifiedDateTime;
+        final DateTime db = b.createDateTime.millisecondsSinceEpoch > 0
+            ? b.createDateTime
+            : b.modifiedDateTime;
         return db.compareTo(da);
       });
 
@@ -314,7 +472,8 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
           selectedIds: _selectedIds,
           onToggleSelection: _toggleSelection,
           onSendDirect: (AssetEntity asset, String caption, bool asDocument) async {
-            final File? file = await asset.file;
+            File? file = await asset.file;
+            file ??= await asset.originFile;
             if (file == null || !mounted) return;
             final MediaGridPickerResult result = MediaGridPickerResult(
               filePath: file.path,
@@ -353,7 +512,8 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
     final List<MediaGridPickerResult> results = <MediaGridPickerResult>[];
 
     for (final AssetEntity asset in selected) {
-      final File? file = await asset.file;
+      File? file = await asset.file;
+      file ??= await asset.originFile;
       if (file == null) continue;
       results.add(
         MediaGridPickerResult(
@@ -591,7 +751,7 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
                 alignment: WrapAlignment.center,
                 children: <Widget>[
                   OutlinedButton.icon(
-                    onPressed: () => PhotoManager.openSetting(),
+                    onPressed: _openAppSettings,
                     icon: const Icon(Icons.settings_outlined, size: 16),
                     label: const Text('Настройки'),
                   ),
@@ -625,7 +785,9 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
               ),
               const SizedBox(height: 12),
               Text(
-                'В галерее нет медиафайлов или доступ ограничен',
+                _isLimited
+                    ? 'Доступны только выбранные фото'
+                    : 'В галерее нет медиафайлов или доступ ограничен',
                 style: textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurface,
                   fontWeight: FontWeight.w500,
@@ -638,6 +800,13 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
                 runSpacing: 8,
                 alignment: WrapAlignment.center,
                 children: <Widget>[
+                  if (_isLimited)
+                    FilledButton.tonalIcon(
+                      onPressed: _manageLimitedSelection,
+                      icon: const Icon(Icons.add_photo_alternate_rounded,
+                          size: 16),
+                      label: const Text('Выбрать фото'),
+                    ),
                   FilledButton.tonalIcon(
                     onPressed: _openCameraCapture,
                     icon: const Icon(Icons.photo_camera_rounded, size: 16),
@@ -817,6 +986,42 @@ class _MediaGridPickerState extends State<MediaGridPicker> {
             ),
           ),
           const SizedBox(height: 4),
+          if (_isLimited)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(
+                    Icons.lock_outline_rounded,
+                    size: 16,
+                    color: scheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Ограниченный доступ к фото',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    onPressed: _manageLimitedSelection,
+                    child: const Text('Выбрать ещё'),
+                  ),
+                ],
+              ),
+            ),
           Expanded(child: body),
           if (_selectedIds.isNotEmpty)
             Container(

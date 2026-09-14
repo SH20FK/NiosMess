@@ -88,13 +88,12 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
         auth.session?.username ?? auth.profile?.username ?? '';
     final String? niosId = auth.session?.niosId;
 
-    return SettingsScaffold(
+    return SettingsShell(
       title: context.l10n.settingsAccountTitle,
       isEmbedded: widget.isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
           illustrationCategory: SettingsIllustrationCategory.account,
-          title: context.l10n.settingsAccountTitle,
           subtitle: context.l10n.settingsAccountBannerSubtitle,
           iconColor: scheme.primary,
         ),

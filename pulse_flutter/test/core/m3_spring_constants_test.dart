@@ -54,6 +54,22 @@ void main() {
         expect(val, inInclusiveRange(0.0, 1.0));
       }
     });
+
+    test('normalization guarantees continuity near t=1.0 without step jumps', () {
+      final curves = [
+        M3SpringCurves.spatial,
+        M3SpringCurves.emphasized,
+        M3SpringCurves.snappy,
+        M3SpringCurves.bouncy,
+        M3SpringCurves.gentle,
+      ];
+      for (final curve in curves) {
+        final valNearEnd = curve.transform(0.999);
+        final valEnd = curve.transform(1.0);
+        expect((valEnd - valNearEnd).abs(), lessThan(0.01),
+            reason: 'Curve $curve should not have an abrupt step discontinuity at 1.0');
+      }
+    });
   });
 
   group('Bounded M3 easing curves for opacity/alpha safety', () {

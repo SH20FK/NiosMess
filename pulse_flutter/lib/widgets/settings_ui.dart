@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
-import 'package:pulse_flutter/core/sound/app_sound.dart';
-import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/vector_illustrations.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
-import 'package:pulse_flutter/widgets/common/touch_container.dart';
+import 'package:pulse_flutter/widgets/settings/settings_list_item.dart';
 
 export 'package:pulse_flutter/widgets/vector_illustrations.dart';
+export 'package:pulse_flutter/widgets/settings/pressable_surface.dart';
+export 'package:pulse_flutter/widgets/settings/settings_list_item.dart';
+export 'package:pulse_flutter/widgets/settings/settings_shell.dart';
 
 class SettingsScaffold extends ConsumerWidget {
   const SettingsScaffold({
@@ -200,7 +200,7 @@ class SettingsScaffold extends ConsumerWidget {
 
 class SettingsNavBanner extends StatelessWidget {
   const SettingsNavBanner({
-    required this.title,
+    this.title,
     required this.subtitle,
     this.icon,
     this.illustrationCategory,
@@ -208,7 +208,7 @@ class SettingsNavBanner extends StatelessWidget {
     super.key,
   });
 
-  final String title;
+  final String? title;
   final String subtitle;
   final IconData? icon;
   final SettingsIllustrationCategory? illustrationCategory;
@@ -237,8 +237,10 @@ class SettingsNavBanner extends StatelessWidget {
             child: Icon(icon ?? Icons.settings_outlined, color: resolvedColor, size: 24),
           );
 
+    final bool hasTitle = title != null && title!.trim().isNotEmpty;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 6, 4, 20),
+      padding: const EdgeInsets.fromLTRB(4, 6, 4, 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
@@ -249,15 +251,17 @@ class SettingsNavBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text(
-                  title,
-                  style: textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    color: scheme.onSurface,
+                if (hasTitle) ...[
+                  Text(
+                    title!,
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                      color: scheme.onSurface,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
+                  const SizedBox(height: 3),
+                ],
                 Text(
                   subtitle,
                   style: textTheme.bodyMedium?.copyWith(
@@ -357,15 +361,15 @@ class SettingsSection extends StatelessWidget {
                 final bool isDark = Theme.of(ctx).brightness == Brightness.dark;
                 return Container(
                   decoration: BoxDecoration(
-                    color: scheme.surfaceContainer,
-                    borderRadius: AppRadii.mdRadius,
+                    color: scheme.surfaceContainerLow,
+                    borderRadius: AppRadii.lgRadius,
                     border: Border.all(
                       color: scheme.outlineVariant.withValues(alpha: isDark ? 0.15 : 0.20),
                       width: 1,
                     ),
                   ),
                   child: ClipRRect(
-                    borderRadius: AppRadii.mdRadius,
+                    borderRadius: AppRadii.lgRadius,
                     child: Material(
                       color: Colors.transparent,
                       child: Column(
@@ -397,7 +401,7 @@ class SettingsSection extends StatelessWidget {
           result.add(
             Divider(
               height: 1,
-              indent: 58,
+              indent: SettingsListItem.dividerIndent,
               endIndent: 16,
               color: scheme.outlineVariant.withValues(alpha: 0.10),
             ),
@@ -409,7 +413,7 @@ class SettingsSection extends StatelessWidget {
   }
 }
 
-class SettingsTile extends ConsumerStatefulWidget {
+class SettingsTile extends ConsumerWidget {
   const SettingsTile({
     required this.icon,
     required this.title,
@@ -436,137 +440,22 @@ class SettingsTile extends ConsumerStatefulWidget {
   final bool isSelected;
 
   @override
-  ConsumerState<SettingsTile> createState() => _SettingsTileState();
-}
-
-class _SettingsTileState extends ConsumerState<SettingsTile> {
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final Color resolvedIconColor = widget.isSelected
-        ? scheme.onSecondaryContainer
-        : (widget.iconColor ?? widget.foregroundColor ?? scheme.primary);
-    final Color resolvedTextColor = widget.isSelected
-        ? scheme.onSecondaryContainer
-        : (widget.foregroundColor ?? scheme.onSurface);
-    final Color iconBgColor = widget.isSelected
-        ? scheme.primary.withValues(alpha: 0.18)
-        : (widget.iconColor ?? scheme.primary).withValues(alpha: 0.12);
-
-    return RepaintBoundary(
-      child: Semantics(
-        label: '${widget.title}${widget.subtitle != null ? ', ${widget.subtitle}' : ''}',
-        button: true,
-        enabled: widget.enabled,
-        selected: widget.isSelected,
-        child: TouchContainer(
-          borderRadius: BorderRadius.circular(16),
-          onTap: widget.enabled
-              ? () {
-                  ref.read(appSoundProvider).playUiTick();
-                  if (ref.read(uiSettingsProvider).haptics) {
-                    HapticService.tap();
-                  }
-                  widget.onTap();
-                }
-              : null,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            decoration: BoxDecoration(
-              color: widget.isSelected
-                  ? scheme.secondaryContainer.withValues(alpha: 0.8)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  child: Row(
-                    children: <Widget>[
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOutCubic,
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          color: iconBgColor,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: Icon(widget.icon, color: resolvedIconColor, size: 20),
-                      ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(
-                            widget.title,
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: widget.enabled
-                                  ? resolvedTextColor
-                                  : resolvedTextColor.withValues(alpha: 0.38),
-                              fontWeight: widget.isSelected ? FontWeight.w700 : FontWeight.w600,
-                              fontSize: 14,
-                              height: 1.15,
-                            ),
-                          ),
-                          if (widget.subtitle != null) ...<Widget>[
-                            const SizedBox(height: 3),
-                            Text(
-                              widget.subtitle!,
-                              style: textTheme.bodySmall?.copyWith(
-                                color: widget.isSelected
-                                    ? scheme.onSecondaryContainer.withValues(alpha: 0.85)
-                                    : scheme.onSurfaceVariant,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    widget.trailing ??
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            if (widget.value != null && widget.value!.isNotEmpty) ...<Widget>[
-                              Text(
-                                widget.value!,
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: widget.isSelected
-                                      ? scheme.onSecondaryContainer.withValues(alpha: 0.85)
-                                      : scheme.onSurfaceVariant.withValues(alpha: 0.75),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                            ],
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              color: widget.isSelected
-                                  ? scheme.primary
-                                  : scheme.onSurfaceVariant.withValues(alpha: 0.38),
-                              size: 18,
-                            ),
-                          ],
-                        ),
-                  ],
-              ),
-            ),
-          ),
-        ),
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SettingsListItem.nav(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      value: value,
+      onTap: onTap,
+      trailing: trailing,
+      iconColor: iconColor ?? foregroundColor,
+      enabled: enabled,
+      isSelected: isSelected,
     );
   }
 }
 
-class SettingsSwitchTile extends ConsumerStatefulWidget {
+class SettingsSwitchTile extends ConsumerWidget {
   const SettingsSwitchTile({
     required this.icon,
     required this.title,
@@ -574,6 +463,7 @@ class SettingsSwitchTile extends ConsumerStatefulWidget {
     required this.value,
     required this.onChanged,
     this.iconColor,
+    this.enabled = true,
     super.key,
   });
 
@@ -583,207 +473,49 @@ class SettingsSwitchTile extends ConsumerStatefulWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
   final Color? iconColor;
+  final bool enabled;
 
   @override
-  ConsumerState<SettingsSwitchTile> createState() => _SettingsSwitchTileState();
-}
-
-class _SettingsSwitchTileState extends ConsumerState<SettingsSwitchTile> {
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final Color resolvedIconColor = widget.iconColor ?? scheme.onSurfaceVariant;
-
-    return RepaintBoundary(
-      child: Semantics(
-        label:
-            '${widget.title}, ${widget.value ? context.l10n.semanticsOn : context.l10n.semanticsOff}',
-        toggled: true,
-        child: TouchContainer(
-          borderRadius: BorderRadius.circular(16),
-          onTap: widget.onChanged == null
-              ? null
-              : () {
-                  ref.read(appSoundProvider).playUiTick();
-                  if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
-                  widget.onChanged!(!widget.value);
-                },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              children: <Widget>[
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutCubic,
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: resolvedIconColor.withValues(alpha: widget.value ? 0.16 : 0.10),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(widget.icon, color: resolvedIconColor, size: 21),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(
-                        widget.title,
-                        style: textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          height: 1.15,
-                        ),
-                      ),
-                      if (widget.subtitle != null) ...<Widget>[
-                        const SizedBox(height: 3),
-                        Text(
-                          widget.subtitle!,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.3,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Switch.adaptive(
-                  value: widget.value,
-                  thumbIcon: WidgetStateProperty.resolveWith<Icon?>((Set<WidgetState> states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return Icon(Icons.check_rounded, size: 14, color: scheme.primary);
-                    }
-                    return null;
-                  }),
-                  onChanged: widget.onChanged == null
-                      ? null
-                      : (bool next) {
-                          ref.read(appSoundProvider).playUiTick();
-                          if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
-                          widget.onChanged!(next);
-                        },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SettingsListItem.toggle(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      value: value,
+      onChanged: onChanged,
+      iconColor: iconColor,
+      enabled: enabled,
     );
   }
 }
 
-class SettingsInfoTile extends ConsumerStatefulWidget {
+class SettingsInfoTile extends ConsumerWidget {
   const SettingsInfoTile({
     required this.icon,
     required this.title,
-    this.subtitle,
     this.value,
-    this.onLongPress,
+    this.subtitle,
+    this.onTap,
     this.iconColor,
     super.key,
   });
 
   final IconData icon;
   final String title;
-  final String? subtitle;
   final String? value;
-  final VoidCallback? onLongPress;
+  final String? subtitle;
+  final VoidCallback? onTap;
   final Color? iconColor;
 
   @override
-  ConsumerState<SettingsInfoTile> createState() => _SettingsInfoTileState();
-}
-
-class _SettingsInfoTileState extends ConsumerState<SettingsInfoTile> {
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final Color resolvedIconColor = widget.iconColor ?? scheme.onSurfaceVariant;
-
-    return RepaintBoundary(
-      child: Semantics(
-        label:
-            '${widget.title}${widget.value != null ? ', ${widget.value}' : ''}${widget.subtitle != null ? ', ${widget.subtitle}' : ''}',
-        readOnly: true,
-        child: TouchContainer(
-          borderRadius: BorderRadius.circular(16),
-          onLongPress: widget.onLongPress == null
-              ? null
-              : () {
-                  ref.read(appSoundProvider).playUiTick(volume: 0.65);
-                  if (ref.read(uiSettingsProvider).haptics) {
-                    HapticService.confirm();
-                  }
-                  widget.onLongPress!();
-                },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: resolvedIconColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(widget.icon, color: resolvedIconColor, size: 21),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  flex: widget.value != null ? 3 : 1,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(
-                        widget.title,
-                        style: textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          height: 1.15,
-                        ),
-                      ),
-                      if (widget.subtitle != null) ...<Widget>[
-                        const SizedBox(height: 3),
-                        Text(
-                          widget.subtitle!,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.3,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (widget.value != null) ...<Widget>[
-                  const SizedBox(width: 8),
-                  Flexible(
-                    flex: 2,
-                    child: Text(
-                      widget.value!,
-                      textAlign: TextAlign.end,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SettingsListItem.value(
+      icon: icon,
+      title: title,
+      value: value,
+      subtitle: subtitle,
+      onTap: onTap,
+      iconColor: iconColor,
     );
   }
 }

@@ -87,7 +87,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final bool compact = ref.watch(
       uiSettingsProvider.select((s) => s.compactMode),
     );
-    final AuthState auth = ref.watch(authProvider);
+    final bool isAuthenticated = ref.watch(
+      authProvider.select((s) => s.isAuthenticated),
+    );
     final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.watch(
       chatsProvider,
     );
@@ -129,7 +131,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 ),
               ),
               ..._buildChatSlivers(
-                auth,
+                isAuthenticated,
                 chatsAsync,
                 compact,
                 scheme,
@@ -160,7 +162,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   List<Widget> _buildChatSlivers(
-    AuthState auth,
+    bool isAuthenticated,
     AsyncValue<List<ApiChatSummary>> chatsAsync,
     bool compact,
     ColorScheme scheme,
@@ -169,7 +171,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     ChatFilter filter,
     int? desktopChatId,
   ) {
-    if (!auth.isAuthenticated) {
+    if (!isAuthenticated) {
       return <Widget>[
         SliverFillRemaining(
           child: CenteredNote(
@@ -207,6 +209,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             ),
           ];
         }
+
+        final Map<int, int> idToIndex = <int, int>{
+          for (int i = 0; i < searched.length; i++) searched[i].id: i,
+        };
 
         return <Widget>[
           SliverPadding(
@@ -279,11 +285,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 addAutomaticKeepAlives: false,
                 addRepaintBoundaries: false,
                 findChildIndexCallback: (Key key) {
-                  final ValueKey<String> valueKey = key as ValueKey<String>;
-                  final String idStr = valueKey.value.replaceFirst('chat_', '');
-                  final int id = int.parse(idStr);
-                  final int index = searched.indexWhere((c) => c.id == id);
-                  return index >= 0 ? index : null;
+                  if (key is! ValueKey<String>) return null;
+                  final String idStr = key.value.replaceFirst('chat_', '');
+                  final int? id = int.tryParse(idStr);
+                  if (id == null) return null;
+                  return idToIndex[id];
                 },
                 childCount: searched.length,
               ),
@@ -294,7 +300,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       loading: () {
         if (chatsAsync.hasValue && chatsAsync.value!.isNotEmpty) {
           return _buildChatSlivers(
-            auth,
+            isAuthenticated,
             AsyncValue.data(chatsAsync.value!),
             compact,
             scheme,
@@ -316,7 +322,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       error: (Object error, StackTrace stack) {
         if (chatsAsync.hasValue && chatsAsync.value!.isNotEmpty) {
           return _buildChatSlivers(
-            auth,
+            isAuthenticated,
             AsyncValue.data(chatsAsync.value!),
             compact,
             scheme,

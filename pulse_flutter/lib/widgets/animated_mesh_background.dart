@@ -21,26 +21,38 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
   bool _isActive = true;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final bool active = TickerMode.valuesOf(context).enabled;
-    if (active != _isActive) {
-      _isActive = active;
-      if (active) {
-        _controller.repeat();
-      } else {
-        _controller.stop();
-      }
-    }
-  }
-
-  @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 15),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bool active = TickerMode.valuesOf(context).enabled;
+    if (active != _isActive) {
+      _isActive = active;
+    }
+    _syncAnimation();
+  }
+
+  void _syncAnimation() {
+    if (!mounted) return;
+    final bool active = _isActive && TickerMode.valuesOf(context).enabled;
+    final PerformanceTier tier =
+        ref.read(adaptivePerformanceProvider.select((s) => s.tier));
+    final bool optimize =
+        ref.read(uiSettingsProvider.select((s) => s.optimizeForWeakDevices));
+
+    final bool shouldRun = active && !optimize && tier == PerformanceTier.tierA;
+    if (shouldRun) {
+      if (!_controller.isAnimating) _controller.repeat();
+    } else {
+      if (_controller.isAnimating) _controller.stop();
+    }
   }
 
   @override
@@ -51,6 +63,15 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(
+      adaptivePerformanceProvider.select((s) => s.tier),
+      (_, _) => _syncAnimation(),
+    );
+    ref.listen(
+      uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
+      (_, _) => _syncAnimation(),
+    );
+
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final PerformanceTier tier = ref.watch(
       adaptivePerformanceProvider.select((s) => s.tier),
@@ -60,12 +81,9 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
     );
 
     if (optimize || tier == PerformanceTier.tierC) {
-      if (_controller.isAnimating) _controller.stop();
-      return Scaffold(
-        backgroundColor: scheme.surface,
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
+      return ColoredBox(
+        color: scheme.surface,
+        child: DecoratedBox(
           decoration: BoxDecoration(
             gradient: AppTheme.heroGradient(scheme),
           ),
@@ -75,40 +93,49 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
     }
 
     if (tier == PerformanceTier.tierB) {
-      if (_controller.isAnimating) _controller.stop();
       const double t = math.pi;
-      return Scaffold(
-        backgroundColor: scheme.surface,
-        body: Stack(
+      return ColoredBox(
+        color: scheme.surface,
+        child: Stack(
+          fit: StackFit.expand,
           children: <Widget>[
             RepaintBoundary(
-              child: Stack(
-                children: <Widget>[
-                  _Blob(
-                    cx: 0.3,
-                    cy: 0.3,
-                    radius: 0.35,
-                    color: scheme.primary.withValues(alpha: 0.10),
-                    t: t,
-                    speed: 1.0,
-                  ),
-                  _Blob(
-                    cx: 0.7,
-                    cy: 0.55,
-                    radius: 0.30,
-                    color: scheme.tertiaryContainer.withValues(alpha: 0.12),
-                    t: t * 0.7,
-                    speed: 0.7,
-                  ),
-                  _Blob(
-                    cx: 0.45,
-                    cy: 0.8,
-                    radius: 0.32,
-                    color: scheme.secondaryContainer.withValues(alpha: 0.08),
-                    t: t * 0.5,
-                    speed: 0.5,
-                  ),
-                ],
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final Size size = constraints.biggest;
+                  return Stack(
+                    children: <Widget>[
+                      _Blob(
+                        size: size,
+                        cx: 0.3,
+                        cy: 0.3,
+                        radius: 0.35,
+                        color: scheme.primary.withValues(alpha: 0.10),
+                        t: t,
+                        speed: 1.0,
+                      ),
+                      _Blob(
+                        size: size,
+                        cx: 0.7,
+                        cy: 0.55,
+                        radius: 0.30,
+                        color: scheme.tertiaryContainer.withValues(alpha: 0.12),
+                        t: t * 0.7,
+                        speed: 0.7,
+                      ),
+                      _Blob(
+                        size: size,
+                        cx: 0.45,
+                        cy: 0.8,
+                        radius: 0.32,
+                        color:
+                            scheme.secondaryContainer.withValues(alpha: 0.08),
+                        t: t * 0.5,
+                        speed: 0.5,
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             Positioned.fill(
@@ -131,42 +158,53 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
       );
     }
 
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      body: Stack(
+    return ColoredBox(
+      color: scheme.surface,
+      child: Stack(
+        fit: StackFit.expand,
         children: <Widget>[
           RepaintBoundary(
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (BuildContext context, Widget? child) {
-                final double t = _controller.value * 2 * math.pi;
-                return Stack(
-                  children: <Widget>[
-                    _Blob(
-                      cx: 0.3,
-                      cy: 0.3,
-                      radius: 0.35,
-                      color: scheme.primary.withValues(alpha: 0.10),
-                      t: t,
-                      speed: 1.0,
-                    ),
-                    _Blob(
-                      cx: 0.7,
-                      cy: 0.55,
-                      radius: 0.30,
-                      color: scheme.tertiaryContainer.withValues(alpha: 0.12),
-                      t: t * 0.7,
-                      speed: 0.7,
-                    ),
-                    _Blob(
-                      cx: 0.45,
-                      cy: 0.8,
-                      radius: 0.32,
-                      color: scheme.secondaryContainer.withValues(alpha: 0.08),
-                      t: t * 0.5,
-                      speed: 0.5,
-                    ),
-                  ],
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final Size size = constraints.biggest;
+                return AnimatedBuilder(
+                  animation: _controller,
+                  builder: (BuildContext context, Widget? child) {
+                    final double t = _controller.value * 2 * math.pi;
+                    return Stack(
+                      children: <Widget>[
+                        _Blob(
+                          size: size,
+                          cx: 0.3,
+                          cy: 0.3,
+                          radius: 0.35,
+                          color: scheme.primary.withValues(alpha: 0.10),
+                          t: t,
+                          speed: 1.0,
+                        ),
+                        _Blob(
+                          size: size,
+                          cx: 0.7,
+                          cy: 0.55,
+                          radius: 0.30,
+                          color:
+                              scheme.tertiaryContainer.withValues(alpha: 0.12),
+                          t: t * 0.7,
+                          speed: 0.7,
+                        ),
+                        _Blob(
+                          size: size,
+                          cx: 0.45,
+                          cy: 0.8,
+                          radius: 0.32,
+                          color:
+                              scheme.secondaryContainer.withValues(alpha: 0.08),
+                          t: t * 0.5,
+                          speed: 0.5,
+                        ),
+                      ],
+                    );
+                  },
                 );
               },
             ),
@@ -194,6 +232,7 @@ class _AnimatedMeshBackgroundState extends ConsumerState<AnimatedMeshBackground>
 
 class _Blob extends StatelessWidget {
   const _Blob({
+    required this.size,
     required this.cx,
     required this.cy,
     required this.radius,
@@ -202,12 +241,12 @@ class _Blob extends StatelessWidget {
     required this.speed,
   });
 
+  final Size size;
   final double cx, cy, radius, t, speed;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final Size size = MediaQuery.sizeOf(context);
     final double dx = math.sin(t * speed) * 40;
     final double dy = math.cos(t * speed * 0.7) * 30;
 

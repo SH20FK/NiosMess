@@ -131,17 +131,16 @@ class AppBottomNav extends ConsumerWidget {
         padding: EdgeInsets.fromLTRB(10, 0, 10, 12 + bottomInset),
         child: Container(
           decoration: BoxDecoration(
+            color: scheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: scheme.shadow.withValues(alpha: 0.10),
-                blurRadius: 28,
-                offset: const Offset(0, 6),
-              ),
-            ],
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.28),
+              width: 1.0,
+            ),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
+            clipBehavior: Clip.hardEdge,
             child: navBar,
           ),
         ),

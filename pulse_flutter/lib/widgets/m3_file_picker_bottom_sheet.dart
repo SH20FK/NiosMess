@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
@@ -53,7 +54,8 @@ class M3AttachmentBottomSheet extends StatefulWidget {
   State<M3AttachmentBottomSheet> createState() => _M3AttachmentBottomSheetState();
 }
 
-class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
+class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
+    with WidgetsBindingObserver {
   final List<AssetEntity> _recentAssets = <AssetEntity>[];
   final List<AssetEntity> _selectedAssets = <AssetEntity>[];
   final TextEditingController _captionController = TextEditingController();
@@ -62,10 +64,12 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
   bool _hasPermission = true;
   bool _sendAsDocument = false;
   bool _isSending = false;
+  bool _isLimited = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (!kIsWeb) {
       _loadRecentMedia();
     } else {
@@ -74,9 +78,40 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted && !kIsWeb) {
+      if (!_hasPermission || _recentAssets.isEmpty) {
+        _loadRecentMedia();
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _captionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _openAppSettings() async {
+    try {
+      final bool opened = await openAppSettings();
+      if (!opened) {
+        await PhotoManager.openSetting();
+      }
+    } catch (_) {
+      await PhotoManager.openSetting();
+    }
+  }
+
+  Future<void> _manageLimitedSelection() async {
+    HapticService.tap();
+    try {
+      await PhotoManager.presentLimited();
+      if (mounted) {
+        await _loadRecentMedia();
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadRecentMedia() async {
@@ -93,19 +128,71 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
     }
 
     try {
-      final PermissionState perm = await PhotoManager.requestPermissionExtend()
-          .timeout(const Duration(seconds: 45), onTimeout: () => PermissionState.denied);
-      if (!perm.isAuth) {
+      PermissionState perm = PermissionState.denied;
+      try {
+        perm = await PhotoManager.requestPermissionExtend(
+          requestOption: const PermissionRequestOption(
+            androidPermission: AndroidPermission(
+              type: RequestType.common,
+              mediaLocation: false,
+            ),
+          ),
+        ).timeout(const Duration(seconds: 15),
+            onTimeout: () => PermissionState.denied);
+      } catch (_) {}
+
+      // Fallback: If common request failed or was denied, try image-only
+      if (!perm.hasAccess && !perm.isAuth) {
+        try {
+          perm = await PhotoManager.requestPermissionExtend(
+            requestOption: const PermissionRequestOption(
+              androidPermission: AndroidPermission(
+                type: RequestType.image,
+                mediaLocation: false,
+              ),
+            ),
+          ).timeout(const Duration(seconds: 10),
+              onTimeout: () => PermissionState.denied);
+        } catch (_) {}
+      }
+
+      bool hasAccess = perm.hasAccess || perm.isAuth;
+
+      // Fallback: Verify via permission_handler if permissions were granted in system settings
+      if (!hasAccess && (Platform.isAndroid || Platform.isIOS)) {
+        try {
+          final bool photosOk = await Permission.photos.isGranted ||
+              await Permission.photos.isLimited;
+          final bool videosOk = await Permission.videos.isGranted ||
+              await Permission.videos.isLimited;
+          final bool storageOk = await Permission.storage.isGranted;
+          if (photosOk || videosOk || storageOk) {
+            hasAccess = true;
+            await PhotoManager.setIgnorePermissionCheck(true);
+          }
+        } catch (_) {}
+      }
+
+      if (!hasAccess) {
         if (mounted) {
           setState(() {
             _hasPermission = false;
             _isLoading = false;
+            _isLimited = false;
           });
         }
         return;
       }
 
+      _isLimited = perm == PermissionState.limited;
+
+      try {
+        await PhotoManager.clearFileCache();
+      } catch (_) {}
+
       List<AssetPathEntity> albums = <AssetPathEntity>[];
+
+      // Stage 1: RequestType.common with creation date sorting filter
       try {
         albums = await PhotoManager.getAssetPathList(
           type: RequestType.common,
@@ -115,9 +202,22 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
               OrderOption(type: OrderOptionType.createDate, asc: false),
             ],
           ),
-        ).timeout(const Duration(seconds: 15), onTimeout: () => <AssetPathEntity>[]);
+        ).timeout(const Duration(seconds: 12),
+            onTimeout: () => <AssetPathEntity>[]);
       } catch (_) {}
 
+      // Stage 2: RequestType.common without filter (in case MediaStore order option failed)
+      if (albums.isEmpty) {
+        try {
+          albums = await PhotoManager.getAssetPathList(
+            type: RequestType.common,
+            hasAll: true,
+          ).timeout(const Duration(seconds: 10),
+              onTimeout: () => <AssetPathEntity>[]);
+        } catch (_) {}
+      }
+
+      // Stage 3: RequestType.image with filter
       if (albums.isEmpty) {
         try {
           albums = await PhotoManager.getAssetPathList(
@@ -128,29 +228,87 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
                 OrderOption(type: OrderOptionType.createDate, asc: false),
               ],
             ),
-          ).timeout(const Duration(seconds: 10), onTimeout: () => <AssetPathEntity>[]);
+          ).timeout(const Duration(seconds: 10),
+              onTimeout: () => <AssetPathEntity>[]);
         } catch (_) {}
       }
 
+      // Stage 4: RequestType.image without filter
       if (albums.isEmpty) {
         try {
           albums = await PhotoManager.getAssetPathList(
-            type: RequestType.all,
+            type: RequestType.image,
             hasAll: true,
-          ).timeout(const Duration(seconds: 10), onTimeout: () => <AssetPathEntity>[]);
+          ).timeout(const Duration(seconds: 10),
+              onTimeout: () => <AssetPathEntity>[]);
+        } catch (_) {}
+      }
+
+      // Stage 5: onlyAll common (fast single-query for main album)
+      if (albums.isEmpty) {
+        try {
+          albums = await PhotoManager.getAssetPathList(
+            type: RequestType.common,
+            onlyAll: true,
+          ).timeout(const Duration(seconds: 8),
+              onTimeout: () => <AssetPathEntity>[]);
+        } catch (_) {}
+      }
+
+      // Stage 6: onlyAll image
+      if (albums.isEmpty) {
+        try {
+          albums = await PhotoManager.getAssetPathList(
+            type: RequestType.image,
+            onlyAll: true,
+          ).timeout(const Duration(seconds: 8),
+              onTimeout: () => <AssetPathEntity>[]);
         } catch (_) {}
       }
 
       if (albums.isNotEmpty) {
-        final List<AssetEntity> assets = await albums.first.getAssetListRange(
-          start: 0,
-          end: 45,
-        ).timeout(const Duration(seconds: 15), onTimeout: () => <AssetEntity>[]);
+        AssetPathEntity primaryAlbum = albums.firstWhere(
+          (AssetPathEntity a) => a.isAll,
+          orElse: () => albums.first,
+        );
 
-        // Sort newest first by createDateTime in Dart
+        List<AssetEntity> assets = await primaryAlbum
+            .getAssetListRange(
+              start: 0,
+              end: 45,
+            )
+            .timeout(const Duration(seconds: 15),
+                onTimeout: () => <AssetEntity>[]);
+
+        // Fallback: If primary album returned 0 assets, look for a non-empty alternative album
+        if (assets.isEmpty && albums.length > 1) {
+          for (final AssetPathEntity alt in albums) {
+            if (alt.id == primaryAlbum.id) continue;
+            try {
+              final List<AssetEntity> altAssets = await alt
+                  .getAssetListRange(
+                    start: 0,
+                    end: 45,
+                  )
+                  .timeout(const Duration(seconds: 8),
+                      onTimeout: () => <AssetEntity>[]);
+              if (altAssets.isNotEmpty) {
+                primaryAlbum = alt;
+                assets = altAssets;
+                break;
+              }
+            } catch (_) {}
+          }
+        }
+
+        // Sort newest first by creation or modification date
         assets.sort((AssetEntity a, AssetEntity b) {
-          final DateTime da = a.createDateTime;
-          final DateTime db = b.createDateTime;
+          final DateTime da = a.createDateTime.millisecondsSinceEpoch > 0
+              ? a.createDateTime
+              : a.modifiedDateTime;
+          final DateTime db = b.createDateTime.millisecondsSinceEpoch > 0
+              ? b.createDateTime
+              : b.modifiedDateTime;
           return db.compareTo(da);
         });
 
@@ -312,7 +470,8 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
 
     for (int i = 0; i < _selectedAssets.length; i++) {
       final AssetEntity asset = _selectedAssets[i];
-      final File? file = await asset.file;
+      File? file = await asset.file;
+      file ??= await asset.originFile;
       if (file != null) {
         final int fileSize = await file.length();
         final String fileName = asset.title ?? file.uri.pathSegments.last;
@@ -482,7 +641,9 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Нет недавних фото или альбом пуст',
+                                _isLimited
+                                    ? 'Доступны только выбранные фото'
+                                    : 'Нет недавних фото или альбом пуст',
                                 style: TextStyle(
                                   color: scheme.onSurfaceVariant,
                                   fontSize: 13,
@@ -494,9 +655,18 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
                                 runSpacing: 8,
                                 alignment: WrapAlignment.center,
                                 children: <Widget>[
+                                  if (_isLimited)
+                                    FilledButton.tonalIcon(
+                                      onPressed: _manageLimitedSelection,
+                                      icon: const Icon(
+                                          Icons.add_photo_alternate_rounded,
+                                          size: 16),
+                                      label: const Text('Выбрать фото'),
+                                    ),
                                   FilledButton.tonalIcon(
                                     onPressed: _openCamera,
-                                    icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                                    icon: const Icon(Icons.camera_alt_rounded,
+                                        size: 16),
                                     label: const Text('Камера'),
                                   ),
                                   FilledButton.icon(
@@ -504,8 +674,15 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
                                       type: FileType.media,
                                       mediaSubtype: 'media',
                                     ),
-                                    icon: const Icon(Icons.folder_open_rounded, size: 16),
+                                    icon: const Icon(Icons.folder_open_rounded,
+                                        size: 16),
                                     label: const Text('Проводник'),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: _loadRecentMedia,
+                                    icon: const Icon(Icons.refresh_rounded,
+                                        size: 16),
+                                    label: const Text('Повторить'),
                                   ),
                                 ],
                               ),
@@ -588,9 +765,14 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet> {
                         alignment: WrapAlignment.center,
                         children: <Widget>[
                           OutlinedButton.icon(
-                            onPressed: () => PhotoManager.openSetting(),
+                            onPressed: _openAppSettings,
                             icon: const Icon(Icons.settings_outlined, size: 16),
                             label: const Text('Настройки'),
+                          ),
+                          FilledButton.tonalIcon(
+                            onPressed: _loadRecentMedia,
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Повторить'),
                           ),
                           FilledButton.icon(
                             onPressed: () => _pickFile(

@@ -258,6 +258,15 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
     final double budget = state.targetFrameBudgetMs;
     final now = currentTime ?? DateTime.now();
 
+    // Prevent visual stutter during active scroll flings:
+    // Only switch tiers during a "quiet moment" (no active animation tickers),
+    // unless consecutive severe jank frames >= 4 require emergency intervention.
+    final bool isEmergency = _monitor.consecutiveSevereJankFrames >= 4;
+    final bool isQuietMoment = WidgetsBinding.instance.transientCallbackCount == 0;
+    if (!isEmergency && !isQuietMoment) {
+      return;
+    }
+
     PerformanceMode currentMode = state.mode;
     bool isDegraded = state.isDegraded;
 

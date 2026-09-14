@@ -51,13 +51,12 @@ class SettingsPrivacyScreen extends ConsumerWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool isAndroid = !kIsWeb && Platform.isAndroid;
 
-    return SettingsScaffold(
+    return SettingsShell(
       title: context.l10n.settingsPrivacyTitle,
       isEmbedded: isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
           illustrationCategory: SettingsIllustrationCategory.privacy,
-          title: context.l10n.settingsPrivacyTitle,
           subtitle: context.l10n.settingsPrivacyBannerSubtitle,
           iconColor: scheme.primary,
         ),

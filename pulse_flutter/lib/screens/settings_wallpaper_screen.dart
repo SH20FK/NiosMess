@@ -323,7 +323,7 @@ class _SettingsWallpaperScreenState
         final bool isWide = constraints.maxWidth >= 840;
 
         if (isWide) {
-          return SettingsScaffold(
+          return SettingsShell(
             title: screenTitle,
             isEmbedded: widget.isEmbedded,
             maxWidth: 1120,
@@ -368,7 +368,7 @@ class _SettingsWallpaperScreenState
           );
         }
 
-        return SettingsScaffold(
+        return SettingsShell(
           title: screenTitle,
           isEmbedded: widget.isEmbedded,
           maxWidth: 860,

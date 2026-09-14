@@ -73,10 +73,12 @@ class PermissionService {
   Future<bool> requestPhotos() async {
     if (kIsWeb) return true;
     final PermissionStatus status = await Permission.photos.request();
-    if (status.isGranted) return true;
+    if (status.isGranted || status.isLimited) return true;
+    final PermissionStatus videoStatus = await Permission.videos.request();
+    if (videoStatus.isGranted || videoStatus.isLimited) return true;
     if (Platform.isAndroid) {
       final PermissionStatus storageStatus = await Permission.storage.request();
-      return storageStatus.isGranted;
+      return storageStatus.isGranted || storageStatus.isLimited;
     }
     return false;
   }
@@ -98,9 +100,15 @@ class PermissionService {
 
   Future<bool> hasPhotos() async {
     if (kIsWeb) return true;
-    if (await Permission.photos.isGranted) return true;
+    if (await Permission.photos.isGranted || await Permission.photos.isLimited) {
+      return true;
+    }
+    if (await Permission.videos.isGranted || await Permission.videos.isLimited) {
+      return true;
+    }
     if (Platform.isAndroid) {
-      return await Permission.storage.isGranted;
+      final PermissionStatus storageStatus = await Permission.storage.status;
+      return storageStatus.isGranted || storageStatus.isLimited;
     }
     return false;
   }

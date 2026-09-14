@@ -116,13 +116,12 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return SettingsScaffold(
+    return SettingsShell(
       title: context.l10n.e2eeScreenTitle,
       isEmbedded: widget.isEmbedded,
       children: [
         SettingsNavBanner(
           illustrationCategory: SettingsIllustrationCategory.e2ee,
-          title: context.l10n.e2eeBannerTitle,
           subtitle: context.l10n.e2eeBannerSubtitle,
           iconColor: scheme.tertiary,
         ),

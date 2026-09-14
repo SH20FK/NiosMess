@@ -22,7 +22,7 @@ class TouchContainer extends StatefulWidget {
     this.margin,
     this.width,
     this.height,
-    this.clipBehavior = Clip.antiAlias,
+    this.clipBehavior = Clip.none,
     this.enabled = true,
     this.enableHaptics = true,
     this.scaleDown = AppMotion.scalePressed,

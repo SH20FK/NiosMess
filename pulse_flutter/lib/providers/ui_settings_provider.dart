@@ -85,6 +85,8 @@ class UiSettingsState {
     this.messageBubbleRadius = 16.0,
     this.uiCornerRadius = 20.0,
     this.camera2Api = true,
+    this.showPerformanceOverlay = false,
+    this.debugRepaintRainbow = false,
   });
 
   VisualThemeSettings get visualTheme => VisualThemeSettings(
@@ -122,7 +124,9 @@ class UiSettingsState {
       autoDownloadCellular = false,
       messageBubbleRadius = 16.0,
       uiCornerRadius = 20.0,
-      camera2Api = true;
+      camera2Api = true,
+      showPerformanceOverlay = false,
+      debugRepaintRainbow = false;
 
   final ThemeMode themeMode;
   final Color seedColor;
@@ -150,6 +154,8 @@ class UiSettingsState {
   final double messageBubbleRadius;
   final double uiCornerRadius;
   final bool camera2Api;
+  final bool showPerformanceOverlay;
+  final bool debugRepaintRainbow;
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
@@ -180,6 +186,8 @@ class UiSettingsState {
     double? messageBubbleRadius,
     double? uiCornerRadius,
     bool? camera2Api,
+    bool? showPerformanceOverlay,
+    bool? debugRepaintRainbow,
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -213,6 +221,10 @@ class UiSettingsState {
       messageBubbleRadius: messageBubbleRadius ?? this.messageBubbleRadius,
       uiCornerRadius: uiCornerRadius ?? this.uiCornerRadius,
       camera2Api: camera2Api ?? this.camera2Api,
+      showPerformanceOverlay:
+          showPerformanceOverlay ?? this.showPerformanceOverlay,
+      debugRepaintRainbow:
+          debugRepaintRainbow ?? this.debugRepaintRainbow,
     );
   }
 
@@ -470,6 +482,12 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
 
   void setCamera2Api(bool value) =>
       _set(state.copyWith(camera2Api: value));
+
+  void setShowPerformanceOverlay(bool value) =>
+      _set(state.copyWith(showPerformanceOverlay: value));
+
+  void setDebugRepaintRainbow(bool value) =>
+      _set(state.copyWith(debugRepaintRainbow: value));
 }
 
 final NotifierProvider<UiSettingsNotifier, UiSettingsState> uiSettingsProvider =

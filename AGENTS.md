@@ -111,6 +111,17 @@ Always prioritize true Material 3 Expressive (M3E) components over legacy Materi
 - **Haptics**: `HapticService.tap()` / `HapticService.reaction()` / `HapticService.confirm()`
 - **Sounds**: `ref.read(appSoundProvider).playUiTick()` / `playReaction()`
 
+## Motion & Performance Protocol (MANDATORY ANTI-REGRESSION RULES)
+Strict rules to preserve 60-120 FPS fluidity across all platforms and prevent UI jank regressions:
+1. **Zero Per-Frame Blur Rasterization**: Never invoke `MaskFilter.blur(...)` or `BackdropFilter` inside repeating render loops or scrollable list tiles. Static decorative blurs must be pre-rendered into `ui.Image` via `PictureRecorder` + `toImageSync` and rendered via `RawImage` or lightweight transforms.
+2. **Eliminate Save-Layers in Lists**: Reusable tiles and wrappers (`TouchContainer`, list items) MUST default to `clipBehavior: Clip.none`. Avoid `Clip.antiAlias` unless anti-aliased content actually overflows the boundary.
+3. **Strict O(1) List Index Resolution**: Never use `messages.indexWhere(...)` inside `findChildIndexCallback` or layout passes. Always maintain and use an O(1) `idToIndex` cache map.
+4. **Input Area Repaint Boundary**: The text input field and voice recording indicator must be wrapped in `RepaintBoundary` and decoupled from message lists so cursor blinks and typing do not trigger rebuilds or repaints of the message stream.
+5. **Normalized M3 Springs**: Always use `M3SpringCurves` from `core/motion/m3_spring_constants.dart`. All spring curves MUST satisfy $f(0.0) = 0.0$ and $f(1.0) = 1.0$ mathematically without boundary clamps. Never use overshoot curves (`bouncy`, `easeOutBack`) on `Opacity` or `FadeTransition`.
+6. **No Side-Effects in `build()`**: Never create, start, or stop an `AnimationController` inside a `build()` method. All controller lifecycles must reside in `initState`, `didUpdateWidget`, or `dispose`.
+7. **No Unbounded `shrinkWrap: true`**: Never nest a `shrinkWrap: true` scroll view inside another scrollable viewport without an explicit bounded height constraint.
+8. **Parallelized Cold Start**: Independent storage, disk caches, and background services must be initialized in parallel via `Future.wait` or deferred to `WidgetsBinding.instance.addPostFrameCallback`.
+
 ## Common Files to Modify
 - **Theme**: `lib/core/theme/app_theme.dart`
 - **Router**: `lib/router/app_router.dart`

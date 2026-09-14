@@ -20,13 +20,12 @@ class SettingsPreferencesScreen extends ConsumerWidget {
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return SettingsScaffold(
+    return SettingsShell(
       title: context.l10n.settingsPreferencesTitle,
       isEmbedded: isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
           illustrationCategory: SettingsIllustrationCategory.preferences,
-          title: context.l10n.settingsPreferencesTitle,
           subtitle: context.l10n.settingsPreferencesBannerSubtitle,
           iconColor: scheme.primary,
         ),

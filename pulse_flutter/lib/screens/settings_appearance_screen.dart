@@ -279,7 +279,7 @@ class _AppearanceScreen extends ConsumerWidget {
           final bool isWide = constraints.maxWidth >= 840;
 
           if (isWide) {
-            return SettingsScaffold(
+            return SettingsShell(
               title: context.l10n.appearanceTitle,
               isEmbedded: isEmbedded,
               maxWidth: 1120,
@@ -322,7 +322,7 @@ class _AppearanceScreen extends ConsumerWidget {
             );
           }
 
-          return SettingsScaffold(
+          return SettingsShell(
             title: context.l10n.appearanceTitle,
             isEmbedded: isEmbedded,
             maxWidth: 860,

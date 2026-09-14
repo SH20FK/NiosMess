@@ -200,7 +200,7 @@ class AdaptiveOrganicBackground extends ConsumerWidget {
       );
     }
 
-    final double blurSigma = (tier == PerformanceTier.tierA) ? 54.0 : 16.0;
+    final double blurSigma = (tier == PerformanceTier.tierA) ? 36.0 : 0.0;
 
     return RepaintBoundary(
       child: CustomPaint(
@@ -283,7 +283,8 @@ class AdaptiveOrganicBlobsPainter extends CustomPainter {
     final Color deepIndigo =
         scheme.primaryContainer.withValues(alpha: isDark ? 0.18 : 0.06);
 
-    final maskBlur = MaskFilter.blur(BlurStyle.normal, blurSigma);
+    final maskBlur =
+        isTierB || blurSigma <= 0.0 ? null : MaskFilter.blur(BlurStyle.normal, blurSigma);
 
     // Shape 1 — Top-left organic shape
     final path1 = Path()
@@ -312,20 +313,19 @@ class AdaptiveOrganicBlobsPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawPath(path2, paint2);
 
-    // Shape 3 — Bottom-center wave
-    final path5 = Path()
-      ..moveTo(w * 0.22, h)
-      ..cubicTo(w * 0.26, h * 0.88, w * 0.45, h * 0.86, w * 0.65, h * 0.90)
-      ..cubicTo(w * 0.72, h * 0.92, w * 0.75, h, w * 0.78, h)
-      ..close();
-    final paint5 = Paint()
-      ..color = cyanBlob
-      ..maskFilter = maskBlur
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(path5, paint5);
-
-    // If Tier A, paint additional layers
+    // Tier A only: additional organic layers
     if (!isTierB) {
+      // Shape 3 — Bottom-center wave
+      final path5 = Path()
+        ..moveTo(w * 0.22, h)
+        ..cubicTo(w * 0.26, h * 0.88, w * 0.45, h * 0.86, w * 0.65, h * 0.90)
+        ..cubicTo(w * 0.72, h * 0.92, w * 0.75, h, w * 0.78, h)
+        ..close();
+      final paint5 = Paint()
+        ..color = cyanBlob
+        ..maskFilter = maskBlur
+        ..style = PaintingStyle.fill;
+      canvas.drawPath(path5, paint5);
       // Middle-right organic shape (blob)
       final path3 = Path()
         ..moveTo(w, h * 0.45)

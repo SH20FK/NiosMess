@@ -63,7 +63,7 @@ class _ChatTileState extends State<ChatTile>
   AnimationController? _controller;
   Animation<double>? _fadeAnim;
   Animation<Offset>? _slideAnim;
-  bool _isHovered = false;
+  final ValueNotifier<bool> _isHoveredNotifier = ValueNotifier<bool>(false);
   bool _isExpanded = false;
 
   @override
@@ -90,6 +90,7 @@ class _ChatTileState extends State<ChatTile>
   @override
   void dispose() {
     _controller?.dispose();
+    _isHoveredNotifier.dispose();
     super.dispose();
   }
 
@@ -120,17 +121,11 @@ class _ChatTileState extends State<ChatTile>
         '${widget.title}${widget.draftLabel != null ? ', draft: ${widget.draftLabel}' : ''}'
         '${hasUnread ? ', ${widget.unreadCount} unread' : ''}';
 
-    final Color tileBg = widget.isSelected
-        ? scheme.primaryContainer.withValues(alpha: 0.55)
-        : (_isHovered || _isExpanded
-            ? scheme.primaryContainer.withValues(alpha: 0.28)
-            : scheme.surfaceContainerLow.withValues(alpha: 0.82));
-
     final Widget content = RepaintBoundary(
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
+        onEnter: (_) => _isHoveredNotifier.value = true,
+        onExit: (_) => _isHoveredNotifier.value = false,
         child: Semantics(
           button: true,
           label: semanticsLabel,
@@ -141,22 +136,35 @@ class _ChatTileState extends State<ChatTile>
             scaleDown: 0.98,
             releaseCurve: M3SpringCurves.spatial,
             enableHaptics: true,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              curve: Curves.easeOutCubic,
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: vertical),
-              decoration: BoxDecoration(
-                color: tileBg,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: widget.isSelected
-                      ? scheme.primary.withValues(alpha: 0.65)
-                      : (_isHovered || _isExpanded
-                          ? scheme.primary.withValues(alpha: 0.24)
-                          : scheme.outlineVariant.withValues(alpha: 0.18)),
-                  width: widget.isSelected ? 1.5 : 1.0,
-                ),
-              ),
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _isHoveredNotifier,
+              builder: (BuildContext context, bool isHovered, Widget? child) {
+                final Color tileBg = widget.isSelected
+                    ? scheme.primaryContainer.withValues(alpha: 0.55)
+                    : (isHovered || _isExpanded
+                        ? scheme.primaryContainer.withValues(alpha: 0.28)
+                        : scheme.surfaceContainerLow.withValues(alpha: 0.82));
+                final Color borderColor = widget.isSelected
+                    ? scheme.primary.withValues(alpha: 0.65)
+                    : (isHovered || _isExpanded
+                        ? scheme.primary.withValues(alpha: 0.24)
+                        : scheme.outlineVariant.withValues(alpha: 0.18));
+
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  curve: Curves.easeOutCubic,
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: vertical),
+                  decoration: BoxDecoration(
+                    color: tileBg,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: borderColor,
+                      width: widget.isSelected ? 1.5 : 1.0,
+                    ),
+                  ),
+                  child: child,
+                );
+              },
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
@@ -165,18 +173,15 @@ class _ChatTileState extends State<ChatTile>
                       Stack(
                         clipBehavior: Clip.none,
                         children: <Widget>[
-                          Hero(
-                            tag: 'chat_avatar_${widget.chatId ?? widget.avatarText}',
-                            child: PulseAvatar(
-                              key: ValueKey<String>(
-                                '${widget.avatarText}_${widget.avatarUrl ?? ''}',
-                              ),
-                              radius: 25,
-                              name: widget.avatarText,
-                              avatarUrl: widget.avatarUrl,
-                              fallbackColor: widget.avatarColor,
-                              textColor: scheme.onPrimary,
+                          PulseAvatar(
+                            key: ValueKey<String>(
+                              '${widget.avatarText}_${widget.avatarUrl ?? ''}',
                             ),
+                            radius: 25,
+                            name: widget.avatarText,
+                            avatarUrl: widget.avatarUrl,
+                            fallbackColor: widget.avatarColor,
+                            textColor: scheme.onPrimary,
                           ),
                           if (widget.isOnline)
                             Positioned(
@@ -307,29 +312,30 @@ class _ChatTileState extends State<ChatTile>
                       ),
                     ],
                   ),
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutBack,
-                    alignment: Alignment.topCenter,
-                    child: !_isExpanded || widget.actions.isEmpty
-                        ? const SizedBox.shrink()
-                        : Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHigh
-                                    .withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: widget.actions,
+                  if (widget.actions.isNotEmpty)
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutBack,
+                      alignment: Alignment.topCenter,
+                      child: !_isExpanded
+                          ? const SizedBox.shrink()
+                          : Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: scheme.surfaceContainerHigh
+                                      .withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: widget.actions,
+                                ),
                               ),
                             ),
-                          ),
-                  ),
+                    ),
                 ],
               ),
             ),

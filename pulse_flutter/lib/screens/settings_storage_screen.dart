@@ -99,13 +99,12 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return SettingsScaffold(
+    return SettingsShell(
       title: context.l10n.settingsStorageTitle,
       isEmbedded: widget.isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
           illustrationCategory: SettingsIllustrationCategory.storage,
-          title: context.l10n.settingsStorageTitle,
           subtitle: context.l10n.settingsStorageBannerSubtitle,
           iconColor: scheme.primary,
         ),

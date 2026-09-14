@@ -90,7 +90,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return SettingsScaffold(
+    return SettingsShell(
       title: context.l10n.settingsAboutTitle,
       isEmbedded: widget.isEmbedded,
       children: <Widget>[

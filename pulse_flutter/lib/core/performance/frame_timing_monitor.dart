@@ -33,9 +33,15 @@ class FrameMetric {
 
   /// Whether this frame severely exceeded the target budget (> 1.8x).
   bool isSevereJanky(double budgetMs) => effectiveDurationMs > (budgetMs * 1.8);
+
+  /// Whether UI thread build time exceeded target budget.
+  bool isUiJanky(double budgetMs) => buildDurationMs > budgetMs;
+
+  /// Whether GPU raster thread time exceeded target budget.
+  bool isRasterJanky(double budgetMs) => rasterDurationMs > budgetMs;
 }
 
-/// Rolling metrics snapshot for the current sliding window.
+/// Rolling metrics snapshot for the current sliding window with percentile distributions.
 @immutable
 class PerformanceMetricsSnapshot {
   const PerformanceMetricsSnapshot({
@@ -45,6 +51,18 @@ class PerformanceMetricsSnapshot {
     required this.averageRasterMs,
     required this.jankRatio,
     required this.consecutiveSmoothFrames,
+    this.p50BuildMs = 0.0,
+    this.p90BuildMs = 0.0,
+    this.p99BuildMs = 0.0,
+    this.p50RasterMs = 0.0,
+    this.p90RasterMs = 0.0,
+    this.p99RasterMs = 0.0,
+    this.p50TotalMs = 0.0,
+    this.p90TotalMs = 0.0,
+    this.p99TotalMs = 0.0,
+    this.uiJankFrames = 0,
+    this.rasterJankFrames = 0,
+    this.totalFramesSampled = 0,
   });
 
   final double deviceRefreshRate;
@@ -53,6 +71,18 @@ class PerformanceMetricsSnapshot {
   final double averageRasterMs;
   final double jankRatio;
   final int consecutiveSmoothFrames;
+  final double p50BuildMs;
+  final double p90BuildMs;
+  final double p99BuildMs;
+  final double p50RasterMs;
+  final double p90RasterMs;
+  final double p99RasterMs;
+  final double p50TotalMs;
+  final double p90TotalMs;
+  final double p99TotalMs;
+  final int uiJankFrames;
+  final int rasterJankFrames;
+  final int totalFramesSampled;
 
   static const PerformanceMetricsSnapshot initial = PerformanceMetricsSnapshot(
     deviceRefreshRate: 60.0,
@@ -61,10 +91,22 @@ class PerformanceMetricsSnapshot {
     averageRasterMs: 0.0,
     jankRatio: 0.0,
     consecutiveSmoothFrames: 0,
+    p50BuildMs: 0.0,
+    p90BuildMs: 0.0,
+    p99BuildMs: 0.0,
+    p50RasterMs: 0.0,
+    p90RasterMs: 0.0,
+    p99RasterMs: 0.0,
+    p50TotalMs: 0.0,
+    p90TotalMs: 0.0,
+    p99TotalMs: 0.0,
+    uiJankFrames: 0,
+    rasterJankFrames: 0,
+    totalFramesSampled: 0,
   );
 }
 
-/// Frame timing monitor tracking a rolling ring buffer of [capacity] frames.
+/// Frame timing monitor tracking an O(1) rolling circular ring buffer of [capacity] frames.
 ///
 /// Implements anti-flapping hysteresis:
 /// - Fast degradation on 4 consecutive severe drops or > 15% jank ratio.
@@ -74,12 +116,15 @@ class FrameTimingMonitor {
   FrameTimingMonitor({
     this.capacity = 60,
     DateTime Function()? nowProvider,
-  }) : _nowProvider = nowProvider ?? DateTime.now;
+  })  : _nowProvider = nowProvider ?? DateTime.now,
+        _ringBuffer = List<FrameMetric?>.filled(capacity, null);
 
   final int capacity;
   final DateTime Function() _nowProvider;
 
-  final List<FrameMetric> _ringBuffer = <FrameMetric>[];
+  final List<FrameMetric?> _ringBuffer;
+  int _head = 0;
+  int _count = 0;
   int _consecutiveSmoothFrames = 0;
   int _consecutiveSevereJankFrames = 0;
 
@@ -115,16 +160,27 @@ class FrameTimingMonitor {
 
   int get consecutiveSmoothFrames => _consecutiveSmoothFrames;
   int get consecutiveSevereJankFrames => _consecutiveSevereJankFrames;
-  int get sampleCount => _ringBuffer.length;
+  int get sampleCount => _count;
   DateTime? get downgradeCooldownUntil => _downgradeCooldownUntil;
   DateTime? get upgradeCooldownUntil => _upgradeCooldownUntil;
 
-  /// Inserts a frame metric into the rolling ring buffer and updates counters.
+  /// Returns an immutable list of currently recorded frame metrics in chronological order.
+  List<FrameMetric> get currentMetrics {
+    if (_count == 0) return const <FrameMetric>[];
+    final List<FrameMetric> list = List<FrameMetric>.generate(_count, (int i) {
+      final int idx = (_count < capacity) ? i : (_head + i) % capacity;
+      return _ringBuffer[idx]!;
+    }, growable: false);
+    return list;
+  }
+
+  /// Inserts a frame metric into the rolling ring buffer in O(1) time and updates counters.
   void recordMetric(FrameMetric metric, double budgetMs) {
-    if (_ringBuffer.length >= capacity) {
-      _ringBuffer.removeAt(0);
+    _ringBuffer[_head] = metric;
+    _head = (_head + 1) % capacity;
+    if (_count < capacity) {
+      _count++;
     }
-    _ringBuffer.add(metric);
 
     if (metric.isSevereJanky(budgetMs)) {
       _consecutiveSevereJankFrames++;
@@ -145,48 +201,142 @@ class FrameTimingMonitor {
 
   /// Calculates the jank ratio across frames currently in the buffer.
   double getJankRatio(double budgetMs) {
-    if (_ringBuffer.isEmpty) return 0.0;
+    if (_count == 0) return 0.0;
     int jankyCount = 0;
-    for (final metric in _ringBuffer) {
-      if (metric.isJanky(budgetMs)) {
+    for (int i = 0; i < _count; i++) {
+      final int idx = (_count < capacity) ? i : (_head + i) % capacity;
+      if (_ringBuffer[idx]!.isJanky(budgetMs)) {
         jankyCount++;
       }
     }
-    return jankyCount / _ringBuffer.length;
+    return jankyCount / _count;
   }
 
   /// Computes average build time in milliseconds.
   double get averageBuildMs {
-    if (_ringBuffer.isEmpty) return 0.0;
+    if (_count == 0) return 0.0;
     double total = 0.0;
-    for (final metric in _ringBuffer) {
-      total += metric.buildDurationMs;
+    for (int i = 0; i < _count; i++) {
+      final int idx = (_count < capacity) ? i : (_head + i) % capacity;
+      total += _ringBuffer[idx]!.buildDurationMs;
     }
-    return total / _ringBuffer.length;
+    return total / _count;
   }
 
   /// Computes average raster time in milliseconds.
   double get averageRasterMs {
-    if (_ringBuffer.isEmpty) return 0.0;
+    if (_count == 0) return 0.0;
     double total = 0.0;
-    for (final metric in _ringBuffer) {
-      total += metric.rasterDurationMs;
+    for (int i = 0; i < _count; i++) {
+      final int idx = (_count < capacity) ? i : (_head + i) % capacity;
+      total += _ringBuffer[idx]!.rasterDurationMs;
     }
-    return total / _ringBuffer.length;
+    return total / _count;
+  }
+
+  /// Computes percentiles from sample values with linear interpolation.
+  static double computePercentile(List<double> values, double percentile) {
+    if (values.isEmpty) return 0.0;
+    if (values.length == 1) return values.first;
+    final List<double> sorted = List<double>.from(values)..sort();
+    final double rank = percentile * (sorted.length - 1);
+    final int lowerIndex = rank.floor();
+    final int upperIndex = rank.ceil();
+    if (lowerIndex == upperIndex) return sorted[lowerIndex];
+    final double fraction = rank - lowerIndex;
+    return sorted[lowerIndex] + (sorted[upperIndex] - sorted[lowerIndex]) * fraction;
+  }
+
+  double get p50BuildMs => computePercentile(
+        currentMetrics.map((m) => m.buildDurationMs).toList(growable: false),
+        0.50,
+      );
+
+  double get p90BuildMs => computePercentile(
+        currentMetrics.map((m) => m.buildDurationMs).toList(growable: false),
+        0.90,
+      );
+
+  double get p99BuildMs => computePercentile(
+        currentMetrics.map((m) => m.buildDurationMs).toList(growable: false),
+        0.99,
+      );
+
+  double get p50RasterMs => computePercentile(
+        currentMetrics.map((m) => m.rasterDurationMs).toList(growable: false),
+        0.50,
+      );
+
+  double get p90RasterMs => computePercentile(
+        currentMetrics.map((m) => m.rasterDurationMs).toList(growable: false),
+        0.90,
+      );
+
+  double get p99RasterMs => computePercentile(
+        currentMetrics.map((m) => m.rasterDurationMs).toList(growable: false),
+        0.99,
+      );
+
+  double get p50TotalMs => computePercentile(
+        currentMetrics.map((m) => m.totalSpanMs).toList(growable: false),
+        0.50,
+      );
+
+  double get p90TotalMs => computePercentile(
+        currentMetrics.map((m) => m.totalSpanMs).toList(growable: false),
+        0.90,
+      );
+
+  double get p99TotalMs => computePercentile(
+        currentMetrics.map((m) => m.totalSpanMs).toList(growable: false),
+        0.99,
+      );
+
+  /// Number of frames where UI thread build exceeded [budgetMs].
+  int getUiJankFrames(double budgetMs) {
+    int count = 0;
+    for (int i = 0; i < _count; i++) {
+      final int idx = (_count < capacity) ? i : (_head + i) % capacity;
+      if (_ringBuffer[idx]!.isUiJanky(budgetMs)) count++;
+    }
+    return count;
+  }
+
+  /// Number of frames where GPU rasterizer exceeded [budgetMs].
+  int getRasterJankFrames(double budgetMs) {
+    int count = 0;
+    for (int i = 0; i < _count; i++) {
+      final int idx = (_count < capacity) ? i : (_head + i) % capacity;
+      if (_ringBuffer[idx]!.isRasterJanky(budgetMs)) count++;
+    }
+    return count;
   }
 
   /// Evaluates whether the engine should degrade tier based on hysteresis rules.
+  /// Tier A -> Tier B requires at least 8 janky frames out of the last 30 frames,
+  /// or at least 4 consecutive severe jank frames.
   bool shouldDegrade({required double budgetMs}) {
     if (_consecutiveSevereJankFrames >= 4) {
       return true;
     }
-    if (_ringBuffer.length >= 10 && getJankRatio(budgetMs) > 0.15) {
+    if (_count >= 30) {
+      int jankyCount = 0;
+      for (int i = 0; i < 30; i++) {
+        final int idx = (_head - 1 - i + capacity) % capacity;
+        if (_ringBuffer[idx] != null && _ringBuffer[idx]!.isJanky(budgetMs)) {
+          jankyCount++;
+        }
+      }
+      if (jankyCount >= 8) return true;
+    } else if (_count >= 10 && getJankRatio(budgetMs) >= 0.30) {
       return true;
     }
     return false;
   }
 
   /// Evaluates whether the engine should upgrade tier based on hysteresis rules.
+  /// Tier B -> Tier A requires at least 120 consecutive smooth frames (2 seconds stability at 60fps)
+  /// and cooldown of at least 5 seconds.
   bool shouldUpgrade({required double budgetMs, DateTime? currentTime}) {
     final now = currentTime ?? _nowProvider();
     if (_downgradeCooldownUntil != null && now.isBefore(_downgradeCooldownUntil!)) {
@@ -195,16 +345,16 @@ class FrameTimingMonitor {
     if (_upgradeCooldownUntil != null && now.isBefore(_upgradeCooldownUntil!)) {
       return false;
     }
-    if (_consecutiveSmoothFrames >= 180 && getJankRatio(budgetMs) < 0.02) {
+    if (_consecutiveSmoothFrames >= 120 && getJankRatio(budgetMs) < 0.02) {
       return true;
     }
     return false;
   }
 
-  /// Enters downgrade cooldown state (minimum 8 seconds).
+  /// Enters downgrade cooldown state (minimum 5 seconds).
   void markDegraded({DateTime? currentTime}) {
     final now = currentTime ?? _nowProvider();
-    _downgradeCooldownUntil = now.add(const Duration(seconds: 8));
+    _downgradeCooldownUntil = now.add(const Duration(seconds: 5));
     _consecutiveSevereJankFrames = 0;
     _consecutiveSmoothFrames = 0;
   }
@@ -227,12 +377,26 @@ class FrameTimingMonitor {
       averageRasterMs: averageRasterMs,
       jankRatio: getJankRatio(budgetMs),
       consecutiveSmoothFrames: _consecutiveSmoothFrames,
+      p50BuildMs: p50BuildMs,
+      p90BuildMs: p90BuildMs,
+      p99BuildMs: p99BuildMs,
+      p50RasterMs: p50RasterMs,
+      p90RasterMs: p90RasterMs,
+      p99RasterMs: p99RasterMs,
+      p50TotalMs: p50TotalMs,
+      p90TotalMs: p90TotalMs,
+      p99TotalMs: p99TotalMs,
+      uiJankFrames: getUiJankFrames(budgetMs),
+      rasterJankFrames: getRasterJankFrames(budgetMs),
+      totalFramesSampled: _count,
     );
   }
 
-  /// Clears the ring buffer and resets counters and cooldowns.
+  /// Clears the ring buffer in O(1) and resets counters and cooldowns.
   void reset() {
-    _ringBuffer.clear();
+    _ringBuffer.fillRange(0, capacity, null);
+    _head = 0;
+    _count = 0;
     _consecutiveSmoothFrames = 0;
     _consecutiveSevereJankFrames = 0;
     _downgradeCooldownUntil = null;

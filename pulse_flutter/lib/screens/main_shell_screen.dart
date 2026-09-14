@@ -27,7 +27,6 @@ import 'package:pulse_flutter/widgets/offline_banner.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/core/services/biometric_service.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
@@ -54,7 +53,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   late final Set<int> _activatedTabs;
   late final AnimationController _tabAnimController;
   late final Animation<double> _tabFadeAnimation;
-  late final Animation<double> _tabScaleAnimation;
 
   bool _biometricLocked = false;
   double _desktopChatListWidth = 360.0;
@@ -67,23 +65,20 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     _activatedTabs = <int>{_tabIndex(widget.tab)};
     _tabAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 260),
+      duration: const Duration(milliseconds: 180),
     )..value = 1.0;
     _tabFadeAnimation = CurvedAnimation(
       parent: _tabAnimController,
       curve: Curves.easeOutCubic,
     );
-    _tabScaleAnimation = Tween<double>(begin: 0.98, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _tabAnimController,
-        curve: M3SpringCurves.spatial,
-      ),
-    );
-    _checkBiometricLock();
-    _showAlphaDialog();
-    _checkWebPushPrompt();
-    _checkDailyOtaUpdate();
-    PermissionService().requestInitialPermissionsIfNeeded();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _checkBiometricLock();
+      PermissionService().requestInitialPermissionsIfNeeded();
+      _showAlphaDialog();
+      _checkWebPushPrompt();
+      _checkDailyOtaUpdate();
+    });
   }
 
   @override
@@ -399,17 +394,14 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         ];
         final Widget body = FadeTransition(
           opacity: _tabFadeAnimation,
-          child: ScaleTransition(
-            scale: _tabScaleAnimation,
-            child: IndexedStack(
-              index: currentIndex,
-              children: List<Widget>.generate(pages.length, (int index) {
-                if (!_activatedTabs.contains(index)) {
-                  return const SizedBox.shrink();
-                }
-                return RepaintBoundary(child: pages[index]);
-              }),
-            ),
+          child: IndexedStack(
+            index: currentIndex,
+            children: List<Widget>.generate(pages.length, (int index) {
+              if (!_activatedTabs.contains(index)) {
+                return const SizedBox.shrink();
+              }
+              return RepaintBoundary(child: pages[index]);
+            }),
           ),
         );
 

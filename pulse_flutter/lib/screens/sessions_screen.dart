@@ -167,14 +167,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final int? currentSessionId = _currentSessionId;
 
-    return SettingsScaffold(
+    return SettingsShell(
       title: context.l10n.sessionsTitle,
       onRefresh: _loadSessions,
       isEmbedded: widget.isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
           illustrationCategory: SettingsIllustrationCategory.sessions,
-          title: context.l10n.sessionsTitle,
           subtitle: context.l10n.sessionsBannerSubtitle,
           iconColor: scheme.primary,
         ),

@@ -33,7 +33,7 @@ abstract final class AppHeights {
 /// Centralized motion tokens, springs, and press feedback parameters.
 abstract final class AppMotion {
   /// Default spring curve for user-facing transitions and touches.
-  static const Curve spring = Curves.easeOutBack;
+  static const Curve spring = M3SpringCurves.spatial;
 
   /// Expressive spatial curve from M3 specifications.
   static const Curve spatial = M3SpringCurves.spatial;

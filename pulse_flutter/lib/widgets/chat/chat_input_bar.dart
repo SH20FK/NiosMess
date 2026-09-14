@@ -80,7 +80,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
   bool _isVideoMode = false;
   Offset _recordingDragOffset = Offset.zero;
   bool _isRecordingLocked = false;
-  Duration _recordingElapsed = Duration.zero;
+  final ValueNotifier<Duration> _elapsedNotifier =
+      ValueNotifier<Duration>(Duration.zero);
   final ValueNotifier<List<double>> _amplitudeNotifier =
       ValueNotifier<List<double>>(<double>[]);
   bool _isStartingRecording = false;
@@ -101,6 +102,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     widget.inputFocusNode.removeListener(_onFocusChanged);
     _pickerPageController.dispose();
     _amplitudeNotifier.dispose();
+    _elapsedNotifier.dispose();
     super.dispose();
   }
 
@@ -217,7 +219,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     final bool started = await VoiceRecorderService.startRecording(
       onTick: (Duration d) {
         if (mounted) {
-          setState(() => _recordingElapsed = d);
+          _elapsedNotifier.value = d;
         }
       },
       onAmplitude: (double amp) {
@@ -245,9 +247,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
         await _sendVoiceRecording();
         return;
       }
+      _elapsedNotifier.value = Duration.zero;
       setState(() {
         _isRecording = true;
-        _recordingElapsed = Duration.zero;
         _recordingDragOffset = Offset.zero;
         _isRecordingLocked = false;
       });
@@ -425,16 +427,21 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 if (_isRecording)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: ValueListenableBuilder<List<double>>(
-                      valueListenable: _amplitudeNotifier,
-                      builder: (BuildContext context, List<double> amplitudes, _) {
-                        return VoiceRecordingPanel(
-                          elapsed: _recordingElapsed,
-                          dragOffset: _recordingDragOffset,
-                          isLocked: _isRecordingLocked,
-                          amplitudeHistory: amplitudes,
-                          onSend: _sendVoiceRecording,
-                          onCancel: _cancelVoiceRecording,
+                    child: ValueListenableBuilder<Duration>(
+                      valueListenable: _elapsedNotifier,
+                      builder: (BuildContext context, Duration elapsed, _) {
+                        return ValueListenableBuilder<List<double>>(
+                          valueListenable: _amplitudeNotifier,
+                          builder: (BuildContext context, List<double> amplitudes, _) {
+                            return VoiceRecordingPanel(
+                              elapsed: elapsed,
+                              dragOffset: _recordingDragOffset,
+                              isLocked: _isRecordingLocked,
+                              amplitudeHistory: amplitudes,
+                              onSend: _sendVoiceRecording,
+                              onCancel: _cancelVoiceRecording,
+                            );
+                          },
                         );
                       },
                     ),

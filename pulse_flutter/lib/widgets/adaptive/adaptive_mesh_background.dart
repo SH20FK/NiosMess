@@ -69,6 +69,15 @@ class _AdaptiveMeshBackgroundState extends ConsumerState<AdaptiveMeshBackground>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(
+      adaptivePerformanceProvider.select((s) => s.tier),
+      (_, _) => _syncAnimation(),
+    );
+    ref.listen(
+      uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
+      (_, _) => _syncAnimation(),
+    );
+
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final PerformanceTier tier = ref.watch(
       adaptivePerformanceProvider.select((s) => s.tier),
@@ -79,12 +88,9 @@ class _AdaptiveMeshBackgroundState extends ConsumerState<AdaptiveMeshBackground>
 
     // Tier C or manual weak device override: Zero tickers, zero stacks of blobs, single draw call
     if (tier == PerformanceTier.tierC || optimize) {
-      if (_controller.isAnimating) _controller.stop();
-      return Scaffold(
-        backgroundColor: scheme.surface,
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
+      return ColoredBox(
+        color: scheme.surface,
+        child: DecoratedBox(
           decoration: BoxDecoration(
             gradient: AppTheme.heroGradient(scheme),
           ),
@@ -95,39 +101,47 @@ class _AdaptiveMeshBackgroundState extends ConsumerState<AdaptiveMeshBackground>
 
     // Tier B: Static radial gradient composite (zero continuous ticker ticks)
     if (tier == PerformanceTier.tierB) {
-      if (_controller.isAnimating) _controller.stop();
-      return Scaffold(
-        backgroundColor: scheme.surface,
-        body: Stack(
+      return ColoredBox(
+        color: scheme.surface,
+        child: Stack(
+          fit: StackFit.expand,
           children: <Widget>[
             RepaintBoundary(
-              child: Stack(
-                children: <Widget>[
-                  _AdaptiveBlob(
-                    cx: 0.3,
-                    cy: 0.3,
-                    radius: 0.35,
-                    color: scheme.primary.withValues(alpha: 0.10),
-                    dx: 0,
-                    dy: 0,
-                  ),
-                  _AdaptiveBlob(
-                    cx: 0.7,
-                    cy: 0.55,
-                    radius: 0.30,
-                    color: scheme.tertiaryContainer.withValues(alpha: 0.12),
-                    dx: 0,
-                    dy: 0,
-                  ),
-                  _AdaptiveBlob(
-                    cx: 0.45,
-                    cy: 0.8,
-                    radius: 0.32,
-                    color: scheme.secondaryContainer.withValues(alpha: 0.08),
-                    dx: 0,
-                    dy: 0,
-                  ),
-                ],
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final Size size = constraints.biggest;
+                  return Stack(
+                    children: <Widget>[
+                      _AdaptiveBlob(
+                        size: size,
+                        cx: 0.3,
+                        cy: 0.3,
+                        radius: 0.35,
+                        color: scheme.primary.withValues(alpha: 0.10),
+                        dx: 0,
+                        dy: 0,
+                      ),
+                      _AdaptiveBlob(
+                        size: size,
+                        cx: 0.7,
+                        cy: 0.55,
+                        radius: 0.30,
+                        color: scheme.tertiaryContainer.withValues(alpha: 0.12),
+                        dx: 0,
+                        dy: 0,
+                      ),
+                      _AdaptiveBlob(
+                        size: size,
+                        cx: 0.45,
+                        cy: 0.8,
+                        radius: 0.32,
+                        color: scheme.secondaryContainer.withValues(alpha: 0.08),
+                        dx: 0,
+                        dy: 0,
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             Positioned.fill(
@@ -150,47 +164,61 @@ class _AdaptiveMeshBackgroundState extends ConsumerState<AdaptiveMeshBackground>
       );
     }
 
-    // Tier A: Full animated mesh gradient
-    if (!_controller.isAnimating && _isActive) {
-      _controller.repeat();
-    }
-
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      body: Stack(
+    // Tier A: Animated multi-point mesh gradient blobs
+    return ColoredBox(
+      color: scheme.surface,
+      child: Stack(
+        fit: StackFit.expand,
         children: <Widget>[
           RepaintBoundary(
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (BuildContext context, Widget? child) {
-                final double t = _controller.value * 2 * math.pi;
-                return Stack(
-                  children: <Widget>[
-                    _AdaptiveBlob(
-                      cx: 0.3,
-                      cy: 0.3,
-                      radius: 0.35,
-                      color: scheme.primary.withValues(alpha: 0.10),
-                      dx: math.sin(t) * 40,
-                      dy: math.cos(t * 0.7) * 30,
-                    ),
-                    _AdaptiveBlob(
-                      cx: 0.7,
-                      cy: 0.55,
-                      radius: 0.30,
-                      color: scheme.tertiaryContainer.withValues(alpha: 0.12),
-                      dx: math.sin(t * 0.7) * 40,
-                      dy: math.cos(t * 0.7 * 0.7) * 30,
-                    ),
-                    _AdaptiveBlob(
-                      cx: 0.45,
-                      cy: 0.8,
-                      radius: 0.32,
-                      color: scheme.secondaryContainer.withValues(alpha: 0.08),
-                      dx: math.sin(t * 0.5) * 40,
-                      dy: math.cos(t * 0.5 * 0.7) * 30,
-                    ),
-                  ],
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final Size size = constraints.biggest;
+                return AnimatedBuilder(
+                  animation: _controller,
+                  builder: (BuildContext context, Widget? child) {
+                    final double t = _controller.value * 2 * math.pi;
+                    final double dx1 = math.sin(t) * 35;
+                    final double dy1 = math.cos(t * 0.7) * 25;
+                    final double dx2 = math.cos(t * 0.8) * 30;
+                    final double dy2 = math.sin(t * 0.6) * 20;
+                    final double dx3 = math.sin(t * 0.5) * 25;
+                    final double dy3 = math.cos(t * 0.9) * 30;
+
+                    return Stack(
+                      children: <Widget>[
+                        _AdaptiveBlob(
+                          size: size,
+                          cx: 0.3,
+                          cy: 0.3,
+                          radius: 0.35,
+                          color: scheme.primary.withValues(alpha: 0.10),
+                          dx: dx1,
+                          dy: dy1,
+                        ),
+                        _AdaptiveBlob(
+                          size: size,
+                          cx: 0.7,
+                          cy: 0.55,
+                          radius: 0.30,
+                          color:
+                              scheme.tertiaryContainer.withValues(alpha: 0.12),
+                          dx: dx2,
+                          dy: dy2,
+                        ),
+                        _AdaptiveBlob(
+                          size: size,
+                          cx: 0.45,
+                          cy: 0.8,
+                          radius: 0.32,
+                          color:
+                              scheme.secondaryContainer.withValues(alpha: 0.08),
+                          dx: dx3,
+                          dy: dy3,
+                        ),
+                      ],
+                    );
+                  },
                 );
               },
             ),
@@ -218,6 +246,7 @@ class _AdaptiveMeshBackgroundState extends ConsumerState<AdaptiveMeshBackground>
 
 class _AdaptiveBlob extends StatelessWidget {
   const _AdaptiveBlob({
+    required this.size,
     required this.cx,
     required this.cy,
     required this.radius,
@@ -226,13 +255,12 @@ class _AdaptiveBlob extends StatelessWidget {
     required this.dy,
   });
 
+  final Size size;
   final double cx, cy, radius, dx, dy;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final Size size = MediaQuery.sizeOf(context);
-
     return Positioned(
       left: size.width * cx - size.width * radius + dx,
       top: size.height * cy - size.height * radius + dy,

@@ -27,13 +27,12 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
         : _manualZoneLabel(manualZone);
     final String? selectedLocale = settings.localeCode;
 
-    return SettingsScaffold(
+    return SettingsShell(
       title: context.l10n.languageRegionTitle,
       isEmbedded: isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
           illustrationCategory: SettingsIllustrationCategory.languageRegion,
-          title: context.l10n.languageRegionTitle,
           subtitle: context.l10n.languageRegionSubtitle,
           iconColor: scheme.primary,
         ),

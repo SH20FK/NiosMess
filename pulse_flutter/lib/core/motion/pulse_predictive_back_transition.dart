@@ -127,7 +127,6 @@ class _PulsePredictiveBackGestureDetectorState
     _phase = PulsePredictiveBackPhase.update;
     widget.route.handleUpdateBackGestureProgress(progress: 1 - backEvent.progress);
     _currentBackEvent = backEvent;
-    if (mounted) setState(() {});
   }
 
   @override
@@ -219,6 +218,8 @@ class _PulsePredictiveBackSharedElementPageTransitionState
   late Tween<double> _scaleTween;
 
   final ProxyAnimation _commitAnimation = ProxyAnimation();
+  late final Animation<double> _opacityAnimation =
+      _opacityTween.animate(_commitAnimation);
   final ProxyAnimation _bounceAnimation = ProxyAnimation();
   double _lastBounceAnimationValue = 0.0;
 
@@ -358,9 +359,10 @@ class _PulsePredictiveBackSharedElementPageTransitionState
                   _getYShiftPosition(MediaQuery.heightOf(context)),
                 ),
             },
-            child: Opacity(
-              opacity: _opacityTween.evaluate(_commitAnimation),
+            child: FadeTransition(
+              opacity: _opacityAnimation,
               child: ClipRRect(
+                clipBehavior: Clip.hardEdge,
                 borderRadius: MediaQuery.displayCornerRadiiOf(context) ??
                     BorderRadius.circular(
                       _borderRadiusTween.evaluate(_bounceAnimation),

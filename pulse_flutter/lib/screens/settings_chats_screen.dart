@@ -30,13 +30,12 @@ class SettingsChatsScreen extends ConsumerWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return SettingsScaffold(
+    return SettingsShell(
       title: 'Чаты и медиа',
       isEmbedded: isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
           illustrationCategory: SettingsIllustrationCategory.preferences,
-          title: 'Чаты и медиа',
           subtitle: 'Параметры ввода, быстрые реакции и автозагрузка медиа',
           iconColor: scheme.primary,
         ),

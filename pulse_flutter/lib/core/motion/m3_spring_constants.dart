@@ -66,6 +66,23 @@ class SpringCurve extends Curve {
   /// Spring mass ($m$).
   final double mass;
 
+  double _rawResponse(double t) {
+    final double omegaN = math.sqrt(stiffness / mass);
+    final double zeta = dampingRatio;
+
+    if (zeta < 1.0) {
+      final double omegaD = omegaN * math.sqrt(1.0 - zeta * zeta);
+      final double decay = math.exp(-zeta * omegaN * t);
+      return 1.0 -
+          decay *
+              (math.cos(omegaD * t) +
+                  (zeta * omegaN / omegaD) * math.sin(omegaD * t));
+    } else {
+      final double decay = math.exp(-omegaN * t);
+      return 1.0 - decay * (1.0 + omegaN * t);
+    }
+  }
+
   @override
   double transform(double t) {
     if (t <= 0.0) return 0.0;
@@ -78,21 +95,10 @@ class SpringCurve extends Curve {
     if (t <= 0.0) return 0.0;
     if (t >= 1.0) return 1.0;
 
-    final double omegaN = math.sqrt(stiffness / mass);
-    final double zeta = dampingRatio;
-
-    if (zeta < 1.0) {
-      final double omegaD = omegaN * math.sqrt(1.0 - zeta * zeta);
-      final double decay = math.exp(-zeta * omegaN * t);
-      final double response = 1.0 -
-          decay *
-              (math.cos(omegaD * t) +
-                  (zeta * omegaN / omegaD) * math.sin(omegaD * t));
-      return response;
-    } else {
-      final double decay = math.exp(-omegaN * t);
-      return 1.0 - decay * (1.0 + omegaN * t);
-    }
+    final double raw = _rawResponse(t);
+    final double rawEnd = _rawResponse(1.0);
+    if (rawEnd == 0.0) return raw;
+    return raw / rawEnd;
   }
 }
 

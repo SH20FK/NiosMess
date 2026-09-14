@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,21 +7,21 @@ import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dar
 /// A drop-in adaptive glass container that adjusts its backdrop blur
 /// and surface opacity based on the active [PerformanceTier].
 ///
-/// - Tier A (Flagship): Full BackdropFilter with high sigma (18-24).
-/// - Tier B (Balanced): Reduced BackdropFilter with moderate sigma (6-8).
+/// - Tier A (Flagship): Lightweight BackdropFilter with bounded sigma (<= 10).
+/// - Tier B (Balanced): Crisp M3 Expressive tonal surface with 0 GPU blur passes.
 /// - Tier C (PowerSaver): Solid tonal container with 0 blur passes for maximum FPS.
 class AdaptiveGlass extends ConsumerWidget {
   const AdaptiveGlass({
     super.key,
     required this.child,
     this.borderRadius,
-    this.tierASigma = 20.0,
-    this.tierBSigma = 8.0,
+    this.tierASigma = 10.0,
+    this.tierBSigma = 6.0,
     this.blurRadius,
     this.tintColor,
     this.border,
     this.padding,
-    this.clipBehavior = Clip.antiAlias,
+    this.clipBehavior = Clip.hardEdge,
   });
 
   final Widget child;
@@ -41,15 +42,17 @@ class AdaptiveGlass extends ConsumerWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final BorderRadius radius = borderRadius ?? BorderRadius.circular(20);
 
-    // Tier C: Completely omit BackdropFilter — zero GPU blur passes
-    if (tier == PerformanceTier.tierC) {
+    // Tier B and Tier C: Completely omit BackdropFilter — zero GPU blur passes
+    if (tier != PerformanceTier.tierA) {
+      final double alpha = (tier == PerformanceTier.tierB) ? 0.90 : 0.98;
       return ClipRRect(
         borderRadius: radius,
         clipBehavior: clipBehavior,
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: tintColor ?? scheme.surfaceContainerHigh.withValues(alpha: 0.95),
+            color: tintColor ??
+                scheme.surfaceContainerHigh.withValues(alpha: alpha),
             borderRadius: radius,
             border: border ??
                 Border.all(
@@ -62,12 +65,10 @@ class AdaptiveGlass extends ConsumerWidget {
       );
     }
 
-    final double effectiveTierASigma = blurRadius ?? tierASigma;
-    final double effectiveTierBSigma =
-        blurRadius != null ? (blurRadius! * 0.35).clamp(4.0, 10.0) : tierBSigma;
-    final double sigma =
-        (tier == PerformanceTier.tierA) ? effectiveTierASigma : effectiveTierBSigma;
-    final double alpha = (tier == PerformanceTier.tierA) ? 0.65 : 0.85;
+    // Tier A: Bounded sigma (maximum 10.0 to prevent rasterizer stalling)
+    final double rawSigma = blurRadius ?? tierASigma;
+    final double sigma = math.min(10.0, math.max(2.0, rawSigma));
+    const double alpha = 0.65;
 
     return ClipRRect(
       borderRadius: radius,

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -69,6 +70,78 @@ class PulseScaffoldBody extends StatelessWidget {
   }
 }
 
+class _BackdropCacheKey {
+  const _BackdropCacheKey({
+    required this.width,
+    required this.height,
+    required this.primaryColor,
+    required this.brightness,
+  });
+
+  final int width;
+  final int height;
+  final int primaryColor;
+  final Brightness brightness;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _BackdropCacheKey &&
+          width == other.width &&
+          height == other.height &&
+          primaryColor == other.primaryColor &&
+          brightness == other.brightness;
+
+  @override
+  int get hashCode => Object.hash(width, height, primaryColor, brightness);
+}
+
+class _BackdropImageCache {
+  static _BackdropCacheKey? _cachedKey;
+  static ui.Image? _cachedImage;
+
+  static ui.Image? getSync(_BackdropCacheKey key) {
+    if (_cachedKey == key && _cachedImage != null) {
+      return _cachedImage;
+    }
+    return null;
+  }
+
+  static ui.Image renderSync({
+    required int width,
+    required int height,
+    required ColorScheme scheme,
+    required Brightness brightness,
+  }) {
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+    final Size size = Size(width.toDouble(), height.toDouble());
+
+    final _BackdropPainter painter = _BackdropPainter(
+      t: 0.5,
+      scheme: scheme,
+      brightness: brightness,
+    );
+    painter.paint(canvas, size);
+
+    final ui.Picture picture = recorder.endRecording();
+    final ui.Image image = picture.toImageSync(width, height);
+    picture.dispose();
+
+    if (_cachedImage != null && _cachedImage != image) {
+      _cachedImage!.dispose();
+    }
+    _cachedKey = _BackdropCacheKey(
+      width: width,
+      height: height,
+      primaryColor: scheme.primary.toARGB32(),
+      brightness: brightness,
+    );
+    _cachedImage = image;
+    return image;
+  }
+}
+
 class _PulseBackdrop extends ConsumerStatefulWidget {
   const _PulseBackdrop({required this.animated});
 
@@ -86,12 +159,46 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
   void initState() {
     super.initState();
     if (widget.animated && !kIsWeb) {
-      final ctrl = AnimationController(
+      _controller = AnimationController(
         vsync: this,
-        duration: const Duration(seconds: 80),
+        duration: const Duration(seconds: 60),
       );
-      _controller = ctrl;
-      ctrl.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncAnimation();
+  }
+
+  @override
+  void didUpdateWidget(_PulseBackdrop oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animated != oldWidget.animated) {
+      _syncAnimation();
+    }
+  }
+
+  void _syncAnimation() {
+    if (!mounted || kIsWeb) return;
+    final bool optimize = ref.read(
+      uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
+    );
+    final bool shouldAnimate = widget.animated && !optimize;
+
+    if (shouldAnimate) {
+      _controller ??= AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 60),
+      );
+      if (!_controller!.isAnimating) {
+        _controller!.repeat(reverse: true);
+      }
+    } else {
+      if (_controller != null && _controller!.isAnimating) {
+        _controller!.stop();
+      }
     }
   }
 
@@ -110,47 +217,57 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
       uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
     );
 
-    final bool shouldAnimate = widget.animated && !optimize && !kIsWeb;
-
-    if (shouldAnimate) {
-      if (_controller == null) {
-        _controller = AnimationController(
-          vsync: this,
-          duration: const Duration(seconds: 80),
-        )..repeat(reverse: true);
-      } else if (!_controller!.isAnimating) {
-        _controller!.repeat(reverse: true);
-      }
-    } else {
-      if (_controller != null && _controller!.isAnimating) {
-        _controller!.stop();
-      }
-    }
-
-    if (!shouldAnimate || _controller == null) {
-      return RepaintBoundary(
-        child: CustomPaint(
-          painter: _BackdropPainter(
-            t: 0.5,
-            scheme: scheme,
-            brightness: brightness,
-          ),
-          size: Size.infinite,
-        ),
-      );
-    }
+    final bool shouldAnimate =
+        widget.animated && !optimize && !kIsWeb && _controller != null;
 
     return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: _controller!,
-        builder: (BuildContext context, Widget? child) {
-          return CustomPaint(
-            painter: _BackdropPainter(
-              t: _controller!.value,
-              scheme: scheme,
-              brightness: brightness,
-            ),
-            size: Size.infinite,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+            return const SizedBox.shrink();
+          }
+
+          final int width = constraints.maxWidth.ceil();
+          final int height = constraints.maxHeight.ceil();
+          final _BackdropCacheKey key = _BackdropCacheKey(
+            width: width,
+            height: height,
+            primaryColor: scheme.primary.toARGB32(),
+            brightness: brightness,
+          );
+
+          ui.Image? image = _BackdropImageCache.getSync(key);
+          image ??= _BackdropImageCache.renderSync(
+            width: width,
+            height: height,
+            scheme: scheme,
+            brightness: brightness,
+          );
+
+          final Widget staticImage = RawImage(
+            image: image,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+          );
+
+          if (!shouldAnimate) {
+            return staticImage;
+          }
+
+          return AnimatedBuilder(
+            animation: _controller!,
+            builder: (BuildContext context, Widget? child) {
+              final double t = _controller!.value * 2 * math.pi;
+              return Transform.translate(
+                offset: Offset(
+                  math.sin(t) * 10.0,
+                  math.cos(t * 0.7) * 6.0,
+                ),
+                child: child,
+              );
+            },
+            child: staticImage,
           );
         },
       ),
@@ -316,8 +433,7 @@ class _BackdropPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _BackdropPainter oldDelegate) {
-    return t != oldDelegate.t ||
-        scheme.primary != oldDelegate.scheme.primary ||
+    return scheme.primary != oldDelegate.scheme.primary ||
         brightness != oldDelegate.brightness;
   }
 }
