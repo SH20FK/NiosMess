@@ -665,13 +665,6 @@ class _ColorOrbItemState extends State<_ColorOrbItem> {
                     color: ringColor,
                     width: widget.isSelected ? 2.5 : 0,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: widget.color.withValues(alpha: widget.isSelected ? 0.45 : 0.20),
-                      blurRadius: widget.isSelected ? 8 : 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
                 ),
                 child: widget.isSelected
                     ? Icon(
@@ -762,14 +755,6 @@ class _RainbowCustomOrbItemState extends State<_RainbowCustomOrbItem> {
                     color: ringColor,
                     width: widget.isSelected ? 2.5 : 0,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (widget.isSelected ? widget.currentColor : const Color(0xFF7C3AED))
-                          .withValues(alpha: widget.isSelected ? 0.45 : 0.25),
-                      blurRadius: widget.isSelected ? 8 : 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
                 ),
                 child: Icon(
                   widget.isSelected ? Icons.palette_rounded : Icons.add_rounded,
@@ -1374,13 +1359,6 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
                     color: scheme.outlineVariant.withValues(alpha: 0.5),
                     width: 2,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _selectedColor.withValues(alpha: 0.35),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
                 ),
               ),
               const SizedBox(width: 12),
@@ -1462,13 +1440,6 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
                           color: ringColor,
                           width: isSelected ? 2.5 : 0,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: c.withValues(alpha: isSelected ? 0.5 : 0.2),
-                            blurRadius: isSelected ? 8 : 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
                       child: isSelected
                           ? Icon(

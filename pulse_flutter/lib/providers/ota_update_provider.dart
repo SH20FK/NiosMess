@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -68,6 +68,8 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
   static const int _notificationId = 9999;
   DateTime _lastNotificationUpdate = DateTime.fromMillisecondsSinceEpoch(0);
   double _lastNotificationProgress = 0.0;
+  DateTime _lastUiUpdate = DateTime.fromMillisecondsSinceEpoch(0);
+  double _lastUiProgress = 0.0;
   http.Client? _downloadClient;
 
   @override
@@ -234,13 +236,18 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
 
         final double currentProgress = total > 0 ? (received / total).clamp(0.0, 1.0) : 0.0;
 
-        state = state.copyWith(
-          progress: currentProgress,
-          receivedBytes: received,
-          totalBytes: total,
-        );
-
         final DateTime now = DateTime.now();
+        if (now.difference(_lastUiUpdate).inMilliseconds >= 33 ||
+            (currentProgress - _lastUiProgress).abs() >= 0.005) {
+          _lastUiUpdate = now;
+          _lastUiProgress = currentProgress;
+          state = state.copyWith(
+            progress: currentProgress,
+            receivedBytes: received,
+            totalBytes: total,
+          );
+        }
+
         if (now.difference(_lastNotificationUpdate).inMilliseconds > 650 &&
             (currentProgress - _lastNotificationProgress).abs() >= 0.03) {
           _lastNotificationUpdate = now;
@@ -256,6 +263,8 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
         status: OtaStatus.readyToInstall,
         downloadedApkPath: apkFile.path,
         progress: 1.0,
+        receivedBytes: total > 0 ? total : received,
+        totalBytes: total > 0 ? total : received,
       );
 
       _notifyDownloadComplete(targetInfo, apkFile.path);
@@ -293,6 +302,10 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
 
     final File apkFile = File(path);
     if (!await apkFile.exists()) {
+      state = state.copyWith(
+        status: OtaStatus.available,
+        errorMessage: 'Файл обновления не найден. Загрузка перезапущена.',
+      );
       startDownload();
       return;
     }
@@ -407,7 +420,7 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
             importance: Importance.low,
             priority: Priority.low,
             icon: '@mipmap/ic_launcher',
-            color: const Color(0xFF6750A4),
+            color: const Color(0xFF0D6EFD),
             showProgress: true,
             maxProgress: 100,
             progress: percent,
@@ -438,7 +451,7 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
             importance: Importance.high,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
-            color: Color(0xFF6750A4),
+            color: Color(0xFF0D6EFD),
             autoCancel: true,
             ongoing: false,
             playSound: true,

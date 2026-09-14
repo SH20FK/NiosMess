@@ -22,6 +22,8 @@ import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
+import 'package:pulse_flutter/l10n/app_localizations_ru.dart';
+import 'package:pulse_flutter/services/settings/settings_registry.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Stub adaptive performance notifier: always reports Tier C (powerSaver).
@@ -434,5 +436,53 @@ void main() {
         expect(find.byType(SettingsPreferencesScreen), findsOneWidget);
       });
     }
+
+    group('Tier 3: Anti-Regression Tests (Settings Registry & Integrity)', () {
+      final AppLocalizations l10n = AppLocalizationsRu();
+
+      test('3.1 All top-level sections have unique IDs and valid routes', () {
+        final sections = SettingsRegistry.getTopLevelSections();
+        expect(sections.length, greaterThanOrEqualTo(8));
+
+        final ids = <String>{};
+        final routes = <String>{};
+
+        for (final section in sections) {
+          expect(ids.add(section.id), isTrue, reason: 'Duplicate section id: ${section.id}');
+          expect(routes.add(section.route), isTrue, reason: 'Duplicate section route: ${section.route}');
+          expect(section.route.startsWith('/settings'), isTrue);
+          expect(section.title(l10n).isNotEmpty, isTrue);
+          expect(section.icon, isNotNull);
+        }
+      });
+
+      test('3.2 Settings search index supports Russian and English keywords', () {
+        // Search for theme
+        final themeRu = SettingsRegistry.search('тема', l10n);
+        expect(themeRu.any((r) => r.targetRoute == '/settings/appearance'), isTrue);
+
+        final themeEn = SettingsRegistry.search('theme', l10n);
+        expect(themeEn.any((r) => r.targetRoute == '/settings/appearance'), isTrue);
+
+        // Search for storage
+        final storageRu = SettingsRegistry.search('кэш', l10n);
+        expect(storageRu.any((r) => r.targetRoute == '/settings/storage'), isTrue);
+
+        // Search for wallpaper
+        final wpRu = SettingsRegistry.search('обои', l10n);
+        expect(wpRu.any((r) => r.targetRoute == '/settings/wallpaper'), isTrue);
+      });
+
+      test('3.3 SettingsRegistry has zero null titles or routes', () {
+        final all = SettingsRegistry.getAllNodes();
+        expect(all.length, greaterThanOrEqualTo(20));
+
+        for (final node in all) {
+          expect(node.id.isNotEmpty, isTrue);
+          expect(node.title(l10n).isNotEmpty, isTrue);
+          expect(node.icon, isNotNull);
+        }
+      });
+    });
   });
 }

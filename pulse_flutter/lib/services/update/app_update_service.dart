@@ -2,10 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:open_file/open_file.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:universal_io/io.dart';
 
 /// Information about an available application update.
 class AppUpdateInfo {
@@ -43,6 +40,28 @@ class AppUpdateInfo {
 
   /// Date and time when the release was published.
   final DateTime? publishedAt;
+}
+
+/// A parsed release entry from CHANGELOG.md.
+class ChangelogRelease {
+  const ChangelogRelease({
+    required this.version,
+    required this.rawHeader,
+    required this.changes,
+    this.date,
+  });
+
+  /// The parsed version string (e.g. "3.60.0").
+  final String version;
+
+  /// The original markdown header line.
+  final String rawHeader;
+
+  /// List of bullet points or change descriptions.
+  final List<String> changes;
+
+  /// Optional date string if present in the header.
+  final String? date;
 }
 
 /// Service for checking and downloading OTA updates for NiosMess.
@@ -159,6 +178,68 @@ class AppUpdateService {
     }
 
     return buffer.toString().trim();
+  }
+
+  /// Parses the entire markdown changelog into structured release items.
+  static List<ChangelogRelease> parseAllReleases(String markdown) {
+    final String trimmedInput = markdown.trim();
+    if (trimmedInput.isEmpty) return const <ChangelogRelease>[];
+
+    final List<String> lines = trimmedInput.split('\n');
+    final List<ChangelogRelease> releases = <ChangelogRelease>[];
+
+    String currentVersion = '';
+    String currentHeader = '';
+    String? currentDate;
+    final List<String> currentChanges = <String>[];
+
+    void saveCurrent() {
+      if (currentVersion.isNotEmpty && currentChanges.isNotEmpty) {
+        releases.add(ChangelogRelease(
+          version: currentVersion,
+          rawHeader: currentHeader,
+          changes: List<String>.unmodifiable(currentChanges),
+          date: currentDate,
+        ));
+      }
+      currentChanges.clear();
+    }
+
+    final RegExp headerRegex =
+        RegExp(r'^##\s*\\?\[?([0-9]+\.[0-9]+\.[0-9]+[^\]\n]*)\]?(.*)$');
+
+    for (final String line in lines) {
+      final String trimmed = line.trim();
+      if (trimmed.startsWith('## ')) {
+        saveCurrent();
+        final Match? match = headerRegex.firstMatch(trimmed);
+        if (match != null) {
+          currentVersion = match.group(1)?.trim() ?? '';
+          currentHeader = trimmed;
+          final String trailing = match.group(2)?.trim() ?? '';
+          if (trailing.startsWith('-') || trailing.startsWith('—')) {
+            currentDate = trailing.replaceAll(RegExp(r'^[-—\s]+'), '').trim();
+          } else {
+            currentDate = null;
+          }
+        } else {
+          currentVersion = trimmed.replaceAll(RegExp(r'[^0-9.]'), '').trim();
+          currentHeader = trimmed;
+          currentDate = null;
+        }
+      } else if (trimmed.isNotEmpty && currentVersion.isNotEmpty) {
+        String item = trimmed;
+        if (item.startsWith('• ') || item.startsWith('- ') || item.startsWith('* ')) {
+          item = item.substring(2).trim();
+        }
+        if (item.isNotEmpty) {
+          currentChanges.add(item);
+        }
+      }
+    }
+    saveCurrent();
+
+    return releases;
   }
 
   /// Checks for a newer version of the application using multi-source verification.
@@ -304,99 +385,6 @@ class AppUpdateService {
       apkSize: apkSize,
       publishedAt: publishedAt,
     );
-  }
-
-  /// Downloads the APK file from [downloadUrl] into the device temporary folder,
-  /// following redirects explicitly and streaming download progress via [onProgress] (0.0 to 1.0).
-  ///
-  /// Upon successful download, triggers [OpenFile.open] with APK MIME type to launch
-  /// the system package installer.
-  Future<OpenResult> downloadAndInstall({
-    required String downloadUrl,
-    required void Function(
-      double progress,
-      int receivedBytes,
-      int totalBytes,
-    ) onProgress,
-  }) async {
-    if (kIsWeb) {
-      throw UnsupportedError('Установка APK не поддерживается в веб-версии.');
-    }
-
-    final Directory tempDir = await getTemporaryDirectory();
-    final File apkFile = File('${tempDir.path}/niosmess_update.apk');
-
-    if (await apkFile.exists()) {
-      try {
-        await apkFile.delete();
-      } catch (_) {}
-    }
-
-    final http.Client client = http.Client();
-    try {
-      Uri currentUri = Uri.parse(downloadUrl);
-      http.StreamedResponse? streamedResponse;
-      int redirectCount = 0;
-
-      while (redirectCount < 5) {
-        final http.Request request = http.Request('GET', currentUri);
-        request.headers['User-Agent'] = 'NiosMess-App-Updater';
-        request.followRedirects = true;
-        request.maxRedirects = 5;
-
-        final http.StreamedResponse resp = await client.send(request);
-        if (resp.statusCode == 301 ||
-            resp.statusCode == 302 ||
-            resp.statusCode == 307 ||
-            resp.statusCode == 308) {
-          final String? loc = resp.headers['location'];
-          if (loc != null && loc.isNotEmpty) {
-            currentUri = Uri.parse(loc);
-            redirectCount++;
-            continue;
-          }
-        }
-        streamedResponse = resp;
-        break;
-      }
-
-      if (streamedResponse == null || streamedResponse.statusCode != 200) {
-        throw HttpException(
-          'Не удалось скачать файл обновления: HTTP ${streamedResponse?.statusCode}',
-          uri: currentUri,
-        );
-      }
-
-      final int totalBytes = streamedResponse.contentLength ?? 0;
-      int receivedBytes = 0;
-
-      final IOSink sink = apkFile.openWrite();
-
-      await for (final List<int> chunk in streamedResponse.stream) {
-        receivedBytes += chunk.length;
-        sink.add(chunk);
-
-        if (totalBytes > 0) {
-          final double progress =
-              (receivedBytes / totalBytes).clamp(0.0, 1.0);
-          onProgress(progress, receivedBytes, totalBytes);
-        } else {
-          onProgress(-1.0, receivedBytes, totalBytes);
-        }
-      }
-
-      await sink.flush();
-      await sink.close();
-
-      // Launch the Android package installer with explicit APK MIME type
-      final OpenResult openResult = await OpenFile.open(
-        apkFile.path,
-        type: 'application/vnd.android.package-archive',
-      );
-      return openResult;
-    } finally {
-      client.close();
-    }
   }
 }
 

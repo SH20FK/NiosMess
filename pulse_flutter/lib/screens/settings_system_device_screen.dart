@@ -743,13 +743,19 @@ class _AnimatedResourceMeterState extends State<_AnimatedResourceMeter>
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: SizedBox(
+              child: Container(
                 height: 8,
-                child: LinearProgressIndicator(
-                  value: currentProgress,
-                  borderRadius: BorderRadius.circular(8),
-                  backgroundColor: widget.scheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation<Color>(widget.barColor),
+                width: double.infinity,
+                color: widget.scheme.surfaceContainerHighest,
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: currentProgress.clamp(0.0, 1.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: widget.barColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                 ),
               ),
             ),

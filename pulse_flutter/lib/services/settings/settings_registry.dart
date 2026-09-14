@@ -609,6 +609,11 @@ class SettingsRegistry {
     return _topLevelSections.where((SettingsNavNode node) => node.isAvailable()).toList();
   }
 
+  /// Returns all registered nodes (sections and child items).
+  static List<SettingsNode> getAllNodes() {
+    return <SettingsNode>[..._topLevelSections, ..._searchableChildren];
+  }
+
   /// Resolves the parent top-level section for any node id.
   static SettingsNavNode? getParentSection(String parentNavId) {
     for (final SettingsNavNode s in _topLevelSections) {
