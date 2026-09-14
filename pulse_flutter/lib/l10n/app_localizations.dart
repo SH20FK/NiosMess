@@ -7368,6 +7368,33 @@ abstract class AppLocalizations {
   String get modSuccessUnmuted;
   String get modSuccessBanned;
   String get modSuccessUnbanned;
+  String get settingsChatsTitle;
+  String get settingsChatsSubtitle;
+  String get settingsChatsSendSection;
+  String get settingsChatsSendSectionDesc;
+  String get settingsChatsSendOnEnter;
+  String get settingsChatsSendOnEnterDesc;
+  String get settingsChatsQuickReaction;
+  String get settingsChatsQuickReactionDesc;
+  String get settingsChatsSelectedEmoji;
+  String get settingsChatsDoubleTapHint;
+  String get settingsChatsAutoDownload;
+  String get settingsChatsAutoDownloadDesc;
+  String get settingsChatsAutoDownloadWifi;
+  String get settingsChatsAutoDownloadWifiDesc;
+  String get settingsChatsAutoDownloadCellular;
+  String get settingsChatsAutoDownloadCellularDesc;
+  String get settingsChatsCameraSection;
+  String get settingsChatsCameraSectionDesc;
+  String get settingsChatsCamera2Api;
+  String get settingsChatsCamera2ApiDesc;
+  String get settingsChatsWallpaperSection;
+  String get settingsChatsWallpaperSectionDesc;
+  String get settingsChatsWallpaperGenerator;
+  String get settingsChatsWallpaperGeneratorDesc;
+  String get settingsAccountNiosIdSecurity;
+  String get settingsAccountNiosIdSecurityDesc;
+  String get settingsAccountNiosIdError;
 }
 
 class _AppLocalizationsDelegate

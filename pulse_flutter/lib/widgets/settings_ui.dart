@@ -357,17 +357,18 @@ class SettingsSection extends StatelessWidget {
             Builder(
               builder: (BuildContext ctx) {
                 final bool isDark = Theme.of(ctx).brightness == Brightness.dark;
+                final BorderRadius dynamicRadius = AppRadii.of(ctx).lgRadius;
                 return Container(
                   decoration: BoxDecoration(
                     color: scheme.surfaceContainerLow,
-                    borderRadius: AppRadii.lgRadius,
+                    borderRadius: dynamicRadius,
                     border: Border.all(
                       color: scheme.outlineVariant.withValues(alpha: isDark ? 0.15 : 0.20),
                       width: 1,
                     ),
                   ),
                   child: ClipRRect(
-                    borderRadius: AppRadii.lgRadius,
+                    borderRadius: dynamicRadius,
                     child: Material(
                       color: Colors.transparent,
                       child: Column(

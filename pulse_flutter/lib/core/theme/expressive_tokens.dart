@@ -1,4 +1,5 @@
-import 'package:flutter/widgets.dart';
+import 'dart:ui' show lerpDouble;
+import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// Centralized Material 3 Expressive corner radii tokens.
@@ -20,6 +21,64 @@ abstract final class AppRadii {
   static const BorderRadius mdRadius = BorderRadius.all(Radius.circular(md));
   static const BorderRadius lgRadius = BorderRadius.all(Radius.circular(lg));
   static const BorderRadius fullRadius = BorderRadius.all(Radius.circular(full));
+
+  /// Dynamically resolved radii based on theme extension / user setting.
+  static AppRadiiTheme of(BuildContext context) {
+    return Theme.of(context).extension<AppRadiiTheme>() ??
+        const AppRadiiTheme(sm: sm, md: md, lg: lg, full: full);
+  }
+}
+
+/// Theme extension to propagate dynamic [uiCornerRadius] throughout widget tree.
+@immutable
+class AppRadiiTheme extends ThemeExtension<AppRadiiTheme> {
+  const AppRadiiTheme({
+    required this.sm,
+    required this.md,
+    required this.lg,
+    required this.full,
+  });
+
+  factory AppRadiiTheme.fromCornerRadius(double cornerRadius) {
+    final double factor = (cornerRadius / 20.0).clamp(0.4, 1.4);
+    return AppRadiiTheme(
+      sm: (12.0 * factor).clamp(6.0, 18.0),
+      md: cornerRadius,
+      lg: (28.0 * factor).clamp(16.0, 36.0),
+      full: 999.0,
+    );
+  }
+
+  final double sm;
+  final double md;
+  final double lg;
+  final double full;
+
+  BorderRadius get smRadius => BorderRadius.all(Radius.circular(sm));
+  BorderRadius get mdRadius => BorderRadius.all(Radius.circular(md));
+  BorderRadius get lgRadius => BorderRadius.all(Radius.circular(lg));
+  BorderRadius get fullRadius => const BorderRadius.all(Radius.circular(999.0));
+
+  @override
+  AppRadiiTheme copyWith({double? sm, double? md, double? lg, double? full}) {
+    return AppRadiiTheme(
+      sm: sm ?? this.sm,
+      md: md ?? this.md,
+      lg: lg ?? this.lg,
+      full: full ?? this.full,
+    );
+  }
+
+  @override
+  AppRadiiTheme lerp(ThemeExtension<AppRadiiTheme>? other, double t) {
+    if (other is! AppRadiiTheme) return this;
+    return AppRadiiTheme(
+      sm: lerpDouble(sm, other.sm, t) ?? sm,
+      md: lerpDouble(md, other.md, t) ?? md,
+      lg: lerpDouble(lg, other.lg, t) ?? lg,
+      full: 999.0,
+    );
+  }
 }
 
 /// Standardized component heights across the app.

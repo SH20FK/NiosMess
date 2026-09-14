@@ -4547,4 +4547,59 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modSuccessUnbanned => 'Member unbanned';
+
+  @override
+  String get settingsChatsTitle => 'Chats & Media';
+  @override
+  String get settingsChatsSubtitle => 'Input settings, quick reactions, and media auto-download';
+  @override
+  String get settingsChatsSendSection => 'Sending Messages';
+  @override
+  String get settingsChatsSendSectionDesc => 'Keyboard and enter key behavior';
+  @override
+  String get settingsChatsSendOnEnter => 'Send with Enter Key';
+  @override
+  String get settingsChatsSendOnEnterDesc => 'On physical keyboards, Enter sends message, Shift + Enter creates a new line';
+  @override
+  String get settingsChatsQuickReaction => 'Quick Reaction';
+  @override
+  String get settingsChatsQuickReactionDesc => 'Emoji sent when double-tapping a message';
+  @override
+  String get settingsChatsSelectedEmoji => 'Selected emoji';
+  @override
+  String get settingsChatsDoubleTapHint => 'Double-tapping a message will send this reaction';
+  @override
+  String get settingsChatsAutoDownload => 'Media Auto-Download';
+  @override
+  String get settingsChatsAutoDownloadDesc => 'Data usage and automatic media saving settings';
+  @override
+  String get settingsChatsAutoDownloadWifi => 'When connected to Wi-Fi';
+  @override
+  String get settingsChatsAutoDownloadWifiDesc => 'Automatically download photos, videos, and voice messages';
+  @override
+  String get settingsChatsAutoDownloadCellular => 'When using Cellular data';
+  @override
+  String get settingsChatsAutoDownloadCellularDesc => 'Save data: preview media and download only when tapped';
+  @override
+  String get settingsChatsCameraSection => 'Camera & Video Circles';
+  @override
+  String get settingsChatsCameraSectionDesc => 'Hardware optimization and seamless camera switching';
+  @override
+  String get settingsChatsCamera2Api => 'Camera2 API';
+  @override
+  String get settingsChatsCamera2ApiDesc => 'Smooth camera switching without latency during video and circle recording';
+  @override
+  String get settingsChatsWallpaperSection => 'Wallpaper & Background';
+  @override
+  String get settingsChatsWallpaperSectionDesc => 'Custom chat wallpapers and vector pattern generator';
+  @override
+  String get settingsChatsWallpaperGenerator => 'Chat Wallpaper Generator';
+  @override
+  String get settingsChatsWallpaperGeneratorDesc => 'Customize patterns, animations, and color palettes';
+  @override
+  String get settingsAccountNiosIdSecurity => 'Security & 2FA in Nios ID';
+  @override
+  String get settingsAccountNiosIdSecurityDesc => 'Two-factor authentication and password management on ni-os.ru';
+  @override
+  String get settingsAccountNiosIdError => 'Failed to open Nios ID page';
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
@@ -31,25 +32,24 @@ class SettingsChatsScreen extends ConsumerWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return SettingsShell(
-      title: 'Чаты и медиа',
+      title: context.l10n.settingsChatsTitle,
       isEmbedded: isEmbedded,
       children: <Widget>[
         SettingsNavBanner(
           illustrationCategory: SettingsIllustrationCategory.preferences,
-          subtitle: 'Параметры ввода, быстрые реакции и автозагрузка медиа',
+          subtitle: context.l10n.settingsChatsSubtitle,
           iconColor: scheme.primary,
         ),
 
         // 1. Text input & Keyboard
         SettingsSection(
-          title: 'Отправка сообщений',
-          subtitle: 'Поведение клавиатуры и клавиши ввода',
+          title: context.l10n.settingsChatsSendSection,
+          subtitle: context.l10n.settingsChatsSendSectionDesc,
           children: <Widget>[
             SettingsSwitchTile(
               icon: Icons.keyboard_return_rounded,
-              title: 'Отправка по клавише Enter',
-              subtitle:
-                  'На клавиатурах Enter отправляет сообщение, Shift + Enter выполняет перенос строки',
+              title: context.l10n.settingsChatsSendOnEnter,
+              subtitle: context.l10n.settingsChatsSendOnEnterDesc,
               iconColor: scheme.primary,
               value: settings.sendOnEnter,
               onChanged: (bool value) {
@@ -61,8 +61,8 @@ class SettingsChatsScreen extends ConsumerWidget {
 
         // 2. Quick double-tap reaction
         SettingsSection(
-          title: 'Быстрая реакция',
-          subtitle: 'Эмодзи для мгновенной реакции при двойном нажатии на сообщение',
+          title: context.l10n.settingsChatsQuickReaction,
+          subtitle: context.l10n.settingsChatsQuickReactionDesc,
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -88,13 +88,13 @@ class SettingsChatsScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(
-                              'Выбранный эмодзи',
+                              context.l10n.settingsChatsSelectedEmoji,
                               style: textTheme.labelMedium?.copyWith(
                                 color: scheme.onSurfaceVariant,
                               ),
                             ),
                             Text(
-                              'Двойной тап по сообщению отправит эту реакцию',
+                              context.l10n.settingsChatsDoubleTapHint,
                               style: textTheme.bodySmall?.copyWith(
                                 color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
                               ),
@@ -159,13 +159,13 @@ class SettingsChatsScreen extends ConsumerWidget {
 
         // 3. Media auto-download
         SettingsSection(
-          title: 'Автозагрузка медиафайлов',
-          subtitle: 'Настройка автоматического сохранения трафика',
+          title: context.l10n.settingsChatsAutoDownload,
+          subtitle: context.l10n.settingsChatsAutoDownloadDesc,
           children: <Widget>[
             SettingsSwitchTile(
               icon: Icons.wifi_rounded,
-              title: 'Через сеть Wi-Fi',
-              subtitle: 'Автоматически загружать фото, видео и голосовые сообщения',
+              title: context.l10n.settingsChatsAutoDownloadWifi,
+              subtitle: context.l10n.settingsChatsAutoDownloadWifiDesc,
               iconColor: scheme.secondary,
               value: settings.autoDownloadWifi,
               onChanged: (bool value) {
@@ -176,8 +176,8 @@ class SettingsChatsScreen extends ConsumerWidget {
             ),
             SettingsSwitchTile(
               icon: Icons.signal_cellular_alt_rounded,
-              title: 'Через мобильную сеть',
-              subtitle: 'Экономия трафика: предпросмотр медиа только по нажатию',
+              title: context.l10n.settingsChatsAutoDownloadCellular,
+              subtitle: context.l10n.settingsChatsAutoDownloadCellularDesc,
               iconColor: scheme.secondary,
               value: settings.autoDownloadCellular,
               onChanged: (bool value) {
@@ -191,14 +191,13 @@ class SettingsChatsScreen extends ConsumerWidget {
 
         // 4. Camera & Video circles
         SettingsSection(
-          title: 'Камера и видеосообщения',
-          subtitle: 'Аппаратная оптимизация и бесшовное переключение сенсоров',
+          title: context.l10n.settingsChatsCameraSection,
+          subtitle: context.l10n.settingsChatsCameraSectionDesc,
           children: <Widget>[
             SettingsSwitchTile(
               icon: Icons.camera_enhance_rounded,
-              title: 'Camera2 API',
-              subtitle:
-                  'Бесшовное переключение камер без задержки и рывков при записи видео и кружков',
+              title: context.l10n.settingsChatsCamera2Api,
+              subtitle: context.l10n.settingsChatsCamera2ApiDesc,
               iconColor: scheme.primary,
               value: settings.camera2Api,
               onChanged: (bool value) {
@@ -210,13 +209,13 @@ class SettingsChatsScreen extends ConsumerWidget {
 
         // 5. Chat wallpaper & visual
         SettingsSection(
-          title: 'Оформление и фон',
-          subtitle: 'Индивидуальные обои и генератор векторных узоров',
+          title: context.l10n.settingsChatsWallpaperSection,
+          subtitle: context.l10n.settingsChatsWallpaperSectionDesc,
           children: <Widget>[
             SettingsTile(
               icon: Icons.wallpaper_rounded,
-              title: 'Генератор обоев чатов',
-              subtitle: 'Настройка паттернов, анимации и цветовой гаммы',
+              title: context.l10n.settingsChatsWallpaperGenerator,
+              subtitle: context.l10n.settingsChatsWallpaperGeneratorDesc,
               iconColor: scheme.primary,
               trailing: Icon(
                 Icons.chevron_right_rounded,

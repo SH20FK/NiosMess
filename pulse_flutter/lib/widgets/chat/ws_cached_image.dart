@@ -1,9 +1,10 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:universal_io/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/widgets/vector_illustrations.dart';
 
@@ -50,13 +51,21 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
   Uint8List? _bytes;
   Object? _error;
   bool _isLoading = true;
+  bool _manualDownloadRequired = false;
 
   @override
   void initState() {
     super.initState();
     _checkSyncCache();
     if (_bytes == null) {
-      _load();
+      final bool autoAllowed = ref.read(autoDownloadAllowedProvider);
+      final bool isLocal = widget.mediaUrl.startsWith('local://') || _tryLocalFile(widget.mediaUrl) != null;
+      if (autoAllowed || isLocal) {
+        _load();
+      } else {
+        _isLoading = false;
+        _manualDownloadRequired = true;
+      }
     }
   }
 
@@ -86,11 +95,21 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
       _bytes = null;
       _checkSyncCache();
       if (_bytes == null) {
-        _load();
+        final bool autoAllowed = ref.read(autoDownloadAllowedProvider);
+        final bool isLocal = widget.mediaUrl.startsWith('local://') || _tryLocalFile(widget.mediaUrl) != null;
+        if (autoAllowed || isLocal) {
+          _load();
+        } else {
+          setState(() {
+            _isLoading = false;
+            _manualDownloadRequired = true;
+          });
+        }
       } else {
         setState(() {
           _isLoading = false;
           _error = null;
+          _manualDownloadRequired = false;
         });
       }
     }
@@ -186,6 +205,63 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_manualDownloadRequired) {
+      final ColorScheme scheme = Theme.of(context).colorScheme;
+      final TextTheme textTheme = Theme.of(context).textTheme;
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            setState(() {
+              _manualDownloadRequired = false;
+            });
+            _load();
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: widget.width ?? double.infinity,
+            height: widget.height ?? 180,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.20),
+              ),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      Icons.download_rounded,
+                      color: scheme.onPrimaryContainer,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Нажмите для загрузки',
+                    style: textTheme.labelMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     if (_isLoading) {
       return widget.placeholder?.call(context) ??
           MediaPlaceholderIllustration(

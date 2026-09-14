@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
 class TypingState {
@@ -84,6 +85,9 @@ class TypingNotifier extends Notifier<TypingState> {
   Future<void> sendTyping() async {
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     if (myUserId <= 0) return;
+
+    final bool hideOnline = ref.read(uiSettingsProvider).hideOnline;
+    if (hideOnline) return;
 
     final DateTime now = DateTime.now();
     if (_lastSentTyping != null &&

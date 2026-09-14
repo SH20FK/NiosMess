@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/privacy_repository.dart';
 
@@ -99,6 +100,11 @@ class PrivacyNotifier extends Notifier<PrivacyState> {
         blockedUsers: blocked,
         isLoading: false,
       );
+      final PrivacyRule? lastSeenRule = rules['last_seen'];
+      if (lastSeenRule != null) {
+        final bool isHidden = lastSeenRule.policy == PrivacyPolicy.nobody;
+        ref.read(uiSettingsProvider.notifier).setHideOnline(isHidden);
+      }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: '$e');
     }
@@ -130,6 +136,11 @@ class PrivacyNotifier extends Notifier<PrivacyState> {
           Map<String, PrivacyRule>.from(state.rules);
       newRules[key] = updated;
       state = state.copyWith(rules: newRules);
+
+      if (key == 'last_seen') {
+        final bool isHidden = policy == PrivacyPolicy.nobody;
+        ref.read(uiSettingsProvider.notifier).setHideOnline(isHidden);
+      }
     } catch (e) {
       state = state.copyWith(error: '$e');
       rethrow;

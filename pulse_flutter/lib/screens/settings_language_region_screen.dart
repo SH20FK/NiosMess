@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -140,11 +141,21 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
           title: context.l10n.languageRegionCurrentTime,
           subtitle: context.l10n.settingsLanguageTimePreview,
           children: <Widget>[
-            SettingsInfoTile(
-              icon: Icons.access_time_rounded,
-              title: context.l10n.settingsLanguageLocalTime,
-              subtitle: formatFullDateTime(AppTimeSettings.now()),
-              iconColor: scheme.secondary,
+            StreamBuilder<DateTime>(
+              stream: Stream<DateTime>.periodic(
+                const Duration(seconds: 1),
+                (_) => AppTimeSettings.now(),
+              ),
+              initialData: AppTimeSettings.now(),
+              builder: (BuildContext context, AsyncSnapshot<DateTime> snapshot) {
+                final DateTime now = snapshot.data ?? AppTimeSettings.now();
+                return SettingsInfoTile(
+                  icon: Icons.access_time_rounded,
+                  title: context.l10n.settingsLanguageLocalTime,
+                  subtitle: formatFullDateTime(now),
+                  iconColor: scheme.secondary,
+                );
+              },
             ),
           ],
         ),

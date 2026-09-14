@@ -4571,4 +4571,59 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get modSuccessUnbanned => 'Участник разблокирован';
+
+  @override
+  String get settingsChatsTitle => 'Чаты и медиа';
+  @override
+  String get settingsChatsSubtitle => 'Параметры ввода, быстрые реакции и автозагрузка медиа';
+  @override
+  String get settingsChatsSendSection => 'Отправка сообщений';
+  @override
+  String get settingsChatsSendSectionDesc => 'Поведение клавиатуры и клавиши ввода';
+  @override
+  String get settingsChatsSendOnEnter => 'Отправка по клавише Enter';
+  @override
+  String get settingsChatsSendOnEnterDesc => 'На клавиатурах Enter отправляет сообщение, Shift + Enter выполняет перенос строки';
+  @override
+  String get settingsChatsQuickReaction => 'Быстрая реакция';
+  @override
+  String get settingsChatsQuickReactionDesc => 'Эмодзи для мгновенной реакции при двойном нажатии на сообщение';
+  @override
+  String get settingsChatsSelectedEmoji => 'Выбранный эмодзи';
+  @override
+  String get settingsChatsDoubleTapHint => 'Двойной тап по сообщению отправит эту реакцию';
+  @override
+  String get settingsChatsAutoDownload => 'Автозагрузка медиафайлов';
+  @override
+  String get settingsChatsAutoDownloadDesc => 'Настройка автоматического сохранения трафика';
+  @override
+  String get settingsChatsAutoDownloadWifi => 'Через сеть Wi-Fi';
+  @override
+  String get settingsChatsAutoDownloadWifiDesc => 'Автоматически загружать фото, видео и голосовые сообщения';
+  @override
+  String get settingsChatsAutoDownloadCellular => 'Через мобильную сеть';
+  @override
+  String get settingsChatsAutoDownloadCellularDesc => 'Экономия трафика: предпросмотр медиа только по нажатию';
+  @override
+  String get settingsChatsCameraSection => 'Камера и видеосообщения';
+  @override
+  String get settingsChatsCameraSectionDesc => 'Аппаратная оптимизация и бесшовное переключение сенсоров';
+  @override
+  String get settingsChatsCamera2Api => 'Camera2 API';
+  @override
+  String get settingsChatsCamera2ApiDesc => 'Бесшовное переключение камер без задержки и рывков при записи видео и кружков';
+  @override
+  String get settingsChatsWallpaperSection => 'Оформление и фон';
+  @override
+  String get settingsChatsWallpaperSectionDesc => 'Индивидуальные обои и генератор векторных узоров';
+  @override
+  String get settingsChatsWallpaperGenerator => 'Генератор обоев чатов';
+  @override
+  String get settingsChatsWallpaperGeneratorDesc => 'Настройка паттернов, анимации и цветовой гаммы';
+  @override
+  String get settingsAccountNiosIdSecurity => 'Безопасность и 2FA в Nios ID';
+  @override
+  String get settingsAccountNiosIdSecurityDesc => 'Двухфакторная аутентификация и управление паролем на портале ni-os.ru';
+  @override
+  String get settingsAccountNiosIdError => 'Не удалось открыть страницу Nios ID';
 }

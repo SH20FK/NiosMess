@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
@@ -110,8 +111,6 @@ class _AppearanceScreen extends ConsumerWidget {
     ColorScheme scheme,
     PerformanceTier tier,
   ) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
     final Widget heroBanner = _ConnectedMeshAndPaletteBanner(
       scheme: scheme,
       settings: settings,
@@ -124,11 +123,11 @@ class _AppearanceScreen extends ConsumerWidget {
       },
     );
 
-    final Widget themeCard = _AuthStyleThemeToggleCard(
-      isDark: isDark,
+    final Widget themeCard = _ThemeModeSelectorCard(
+      currentMode: settings.themeMode,
       scheme: scheme,
-      onToggle: (Offset tapOffset) {
-        final newMode = isDark ? ThemeMode.light : ThemeMode.dark;
+      onSelectMode: (ThemeMode newMode, Offset tapOffset) {
+        if (newMode == settings.themeMode) return;
         final switcher = CircularThemeSwitcher.maybeOf(context);
         if (switcher != null) {
           switcher.toggleTheme(
@@ -770,152 +769,124 @@ class _RainbowCustomOrbItemState extends State<_RainbowCustomOrbItem> {
   }
 }
 
-/// Compact Theme Switcher Card matching the style of the Nios ID Auth Screen
-/// with circular expansion animation originating from the button coordinates.
-class _AuthStyleThemeToggleCard extends StatefulWidget {
-  const _AuthStyleThemeToggleCard({
-    required this.isDark,
+/// Material 3 Expressive Theme Selector Card supporting System, Light, and Dark modes
+class _ThemeModeSelectorCard extends StatelessWidget {
+  const _ThemeModeSelectorCard({
+    required this.currentMode,
     required this.scheme,
-    required this.onToggle,
+    required this.onSelectMode,
   });
 
-  final bool isDark;
+  final ThemeMode currentMode;
   final ColorScheme scheme;
-  final void Function(Offset tapOffset) onToggle;
-
-  @override
-  State<_AuthStyleThemeToggleCard> createState() =>
-      _AuthStyleThemeToggleCardState();
-}
-
-class _AuthStyleThemeToggleCardState extends State<_AuthStyleThemeToggleCard> {
-  bool _isPressed = false;
+  final void Function(ThemeMode mode, Offset tapOffset) onSelectMode;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final scheme = widget.scheme;
-    final isDark = widget.isDark;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final IconData modeIcon;
+    final String modeDesc;
+
+    switch (currentMode) {
+      case ThemeMode.system:
+        modeIcon = Icons.brightness_auto_rounded;
+        modeDesc = context.l10n.appearanceThemeModeSubtitle;
+        break;
+      case ThemeMode.light:
+        modeIcon = Icons.light_mode_rounded;
+        modeDesc = context.l10n.appearanceThemeLightActive;
+        break;
+      case ThemeMode.dark:
+        modeIcon = Icons.dark_mode_rounded;
+        modeDesc = context.l10n.appearanceThemeDarkActive;
+        break;
+    }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: AppRadii.of(context).lgRadius,
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.25),
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.15 : 0.20),
           width: 1,
         ),
       ),
-      child: Row(
-        children: [
-          // Theme icon inside a soft squircle container
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: M3SpringCurves.spatial,
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: scheme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-              color: scheme.primary,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-
-          // Title and Subtitle
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  context.l10n.appearanceThemeDark,
-                  style: textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: M3SpringCurves.spatial,
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  isDark
-                      ? context.l10n.appearanceThemeDarkActive
-                      : context.l10n.appearanceThemeLightActive,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+                child: Icon(
+                  modeIcon,
+                  color: scheme.primary,
+                  size: 22,
                 ),
-              ],
-            ),
-          ),
-
-          // Action Button triggering Circular Reveal Animation with spring bouncy feedback
-          Builder(
-            builder: (BuildContext btnContext) {
-              return Listener(
-                onPointerDown: (_) => setState(() => _isPressed = true),
-                onPointerUp: (_) => setState(() => _isPressed = false),
-                onPointerCancel: (_) => setState(() => _isPressed = false),
-                child: GestureDetector(
-                  onTap: () {
-                    final RenderBox? box =
-                        btnContext.findRenderObject() as RenderBox?;
-                    final Offset offset = box != null && box.hasSize
-                        ? box.localToGlobal(box.size.center(Offset.zero))
-                        : Offset.zero;
-                    widget.onToggle(offset);
-                  },
-                  child: AnimatedScale(
-                    scale: _isPressed ? 0.90 : 1.0,
-                    duration: const Duration(milliseconds: 200),
-                    curve: _isPressed
-                        ? M3SpringCurves.snappy
-                        : M3SpringCurves.bouncy,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      curve: M3SpringCurves.bouncy,
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: scheme.surfaceContainerHighest,
-                        border: Border.all(
-                          color: scheme.outlineVariant.withValues(alpha: 0.35),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: scheme.shadow.withValues(alpha: 0.06),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          transitionBuilder: (child, anim) => ScaleTransition(
-                            scale: CurvedAnimation(
-                              parent: anim,
-                              curve: M3SpringCurves.bouncy,
-                            ),
-                            child: child,
-                          ),
-                          child: Icon(
-                            isDark
-                                ? Icons.light_mode_rounded
-                                : Icons.dark_mode_rounded,
-                            key: ValueKey<bool>(isDark),
-                            color: scheme.primary,
-                            size: 22,
-                          ),
-                        ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      context.l10n.profileAppearance,
+                      style: textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 2),
+                    Text(
+                      modeDesc,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Builder(
+            builder: (BuildContext segContext) {
+              return SegmentedButton<ThemeMode>(
+                segments: <ButtonSegment<ThemeMode>>[
+                  ButtonSegment<ThemeMode>(
+                    value: ThemeMode.system,
+                    icon: const Icon(Icons.brightness_auto_rounded, size: 18),
+                    label: Text(context.l10n.commonSystem),
+                  ),
+                  ButtonSegment<ThemeMode>(
+                    value: ThemeMode.light,
+                    icon: const Icon(Icons.light_mode_rounded, size: 18),
+                    label: Text(context.l10n.appearanceLabelLight),
+                  ),
+                  ButtonSegment<ThemeMode>(
+                    value: ThemeMode.dark,
+                    icon: const Icon(Icons.dark_mode_rounded, size: 18),
+                    label: Text(context.l10n.appearanceLabelDark),
+                  ),
+                ],
+                selected: <ThemeMode>{currentMode},
+                onSelectionChanged: (Set<ThemeMode> selection) {
+                  final RenderBox? box =
+                      segContext.findRenderObject() as RenderBox?;
+                  final Offset offset = box != null && box.hasSize
+                      ? box.localToGlobal(box.size.center(Offset.zero))
+                      : Offset.zero;
+                  onSelectMode(selection.first, offset);
+                },
               );
             },
           ),

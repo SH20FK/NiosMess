@@ -43,7 +43,8 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
         hardwareAsync.when(
           data: (DeviceHardwareInfo info) => _buildContent(context, scheme, textTheme, info),
           loading: () => _buildLoadingState(scheme),
-          error: (Object error, StackTrace? stack) => _buildFallbackContent(context, scheme, textTheme),
+          error: (Object error, StackTrace? stack) =>
+              _buildErrorContent(context, ref, scheme, textTheme, error),
         ),
       ],
     );
@@ -60,34 +61,73 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildFallbackContent(BuildContext context, ColorScheme scheme, TextTheme textTheme) {
-    final fallback = DeviceHardwareInfo(
-      brand: 'Android',
-      manufacturer: 'Device',
-      model: 'Smartphone',
-      device: 'device',
-      marketingName: 'Android Smartphone',
-      socName: 'Qualcomm Snapdragon / MediaTek SoC',
-      cpuCores: 8,
-      architecture: 'arm64-v8a',
-      physicalWidth: 1080,
-      physicalHeight: 2400,
-      densityDpi: 400,
-      devicePixelRatio: 3.0,
-      refreshRate: 120.0,
-      totalRamGb: 8.0,
-      availableRamGb: 4.0,
-      totalStorageGb: 128.0,
-      freeStorageGb: 64.0,
-      mainCameraMp: 50.0,
-      frontCameraMp: 16.0,
-      cameraCount: 3,
-      osName: 'Android 15',
-      osVersion: '15',
-      securityPatch: 'Recent',
-      buildId: 'Release',
+  Widget _buildErrorContent(
+    BuildContext context,
+    WidgetRef ref,
+    ColorScheme scheme,
+    TextTheme textTheme,
+    Object error,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 8),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.20),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: scheme.errorContainer.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Icon(
+                Icons.phonelink_erase_rounded,
+                color: scheme.onErrorContainer,
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Не удалось получить параметры устройства',
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Системная информация недоступна или произошла ошибка чтения датчиков оборудования.',
+              style: textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            FilledButton.tonalIcon(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                ref.invalidate(deviceHardwareProvider);
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Повторить опрос'),
+              style: FilledButton.styleFrom(
+                elevation: 0,
+                shape: const StadiumBorder(),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
-    return _buildContent(context, scheme, textTheme, fallback);
   }
 
   Widget _buildContent(

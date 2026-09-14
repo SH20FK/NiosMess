@@ -140,22 +140,10 @@ class SettingsPreferencesScreen extends ConsumerWidget {
                   destructive: true,
                 );
                 if (confirmed != true) return;
-                final notifier = ref.read(uiSettingsProvider.notifier);
-                notifier.setThemeMode(ThemeMode.system);
-                notifier.setSeedColor(const Color(0xFF6750A4));
-                notifier.setNotifications(true);
-                notifier.setCompactMode(false);
-                notifier.setHaptics(true);
-                notifier.setHideOnline(false);
-                notifier.setSoundEffects(true);
-                notifier.setSoundVolume(0.85);
-                notifier.setUseSystemDynamic(false);
-                notifier.setFontScale(AppFontScale.normal);
-                notifier.setNavBarFloating(true);
-                notifier.setOptimizeForWeakDevices(false);
-                notifier.setPredictiveBackEnabled(true);
-                notifier.setBackgroundMode(BackgroundMode.off);
-                if (context.mounted) AppToast.showSuccess(context, context.l10n.preferencesResetConfirm);
+                await ref.read(uiSettingsProvider.notifier).resetAll();
+                if (context.mounted) {
+                  AppToast.showSuccess(context, context.l10n.preferencesResetConfirm);
+                }
               },
             ),
           ],

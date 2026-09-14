@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
+import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:pulse_flutter/core/storage/local_storage_service.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -50,6 +51,17 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     if (!confirmed) return;
     await _runStorageAction(() async {
       await ref.read(localStorageServiceProvider).clearDrafts();
+    });
+  }
+
+  Future<void> _clearE2eeCache() async {
+    final bool confirmed = await _confirm(
+      title: 'Очистить кэш секретных чатов?',
+      body: 'Все расшифрованные сообщения секретных чатов на этом устройстве будут удалены. Это действие необратимо.',
+    );
+    if (!confirmed) return;
+    await _runStorageAction(() async {
+      await EncryptedMessageCache.clearAll();
     });
   }
 
@@ -229,6 +241,22 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
               color: scheme.secondary,
               onDelete: draftBytes > 0 && !_busy ? _clearDrafts : null,
               deleteTooltip: context.l10n.settingsStorageClearDrafts,
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        SettingsSection(
+          title: 'Секретные чаты и шифрование (E2EE)',
+          subtitle: 'Управление локальным хранилищем расшифрованных сообщений сквозного шифрования',
+          children: <Widget>[
+            SettingsTile(
+              icon: Icons.lock_reset_rounded,
+              title: 'Очистить кэш секретных чатов',
+              subtitle: 'Удалит локальные копии расшифрованных сообщений секретных чатов',
+              iconColor: scheme.error,
+              onTap: () {
+                if (!_busy) _clearE2eeCache();
+              },
             ),
           ],
         ),

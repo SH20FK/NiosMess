@@ -26,6 +26,7 @@ class VisualThemeSettings {
     required this.predictiveBackEnabled,
     this.predictiveBackStrength = 1.0,
     this.pureBlackOled = false,
+    this.uiCornerRadius = 20.0,
   });
 
   final Color seedColor;
@@ -34,6 +35,7 @@ class VisualThemeSettings {
   final bool predictiveBackEnabled;
   final double predictiveBackStrength;
   final bool pureBlackOled;
+  final double uiCornerRadius;
 
   @override
   bool operator ==(Object other) =>
@@ -45,7 +47,8 @@ class VisualThemeSettings {
           useSystemDynamic == other.useSystemDynamic &&
           predictiveBackEnabled == other.predictiveBackEnabled &&
           predictiveBackStrength == other.predictiveBackStrength &&
-          pureBlackOled == other.pureBlackOled;
+          pureBlackOled == other.pureBlackOled &&
+          uiCornerRadius == other.uiCornerRadius;
 
   @override
   int get hashCode =>
@@ -54,7 +57,8 @@ class VisualThemeSettings {
       useSystemDynamic.hashCode ^
       predictiveBackEnabled.hashCode ^
       predictiveBackStrength.hashCode ^
-      pureBlackOled.hashCode;
+      pureBlackOled.hashCode ^
+      uiCornerRadius.hashCode;
 }
 
 class UiSettingsState {
@@ -96,6 +100,7 @@ class UiSettingsState {
         predictiveBackEnabled: predictiveBackEnabled,
         predictiveBackStrength: predictiveBackStrength,
         pureBlackOled: pureBlackOled,
+        uiCornerRadius: uiCornerRadius,
       );
 
   const UiSettingsState.defaults()
@@ -488,6 +493,43 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
 
   void setDebugRepaintRainbow(bool value) =>
       _set(state.copyWith(debugRepaintRainbow: value));
+
+  /// Resets all 26 settings fields safely to [UiSettingsState.defaults()],
+  /// keeping background message delivery in [BackgroundMode.reliable]
+  /// and cleaning up persisted SharedPreferences keys in a single batch.
+  Future<void> resetAll() async {
+    const UiSettingsState defaultState = UiSettingsState.defaults();
+    _set(defaultState);
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await Future.wait(<Future<bool>>[
+      prefs.remove(_themeModeKey),
+      prefs.remove(_seedColorKey),
+      prefs.remove(_notificationsKey),
+      prefs.remove(_compactKey),
+      prefs.remove(_hapticsKey),
+      prefs.remove(_hideOnlineKey),
+      prefs.remove(_soundEffectsKey),
+      prefs.remove(_soundVolumeKey),
+      prefs.remove(_localeCodeKey),
+      prefs.remove(_timeZoneModeKey),
+      prefs.remove(_timeZoneIdKey),
+      prefs.remove(_optimizeWeakKey),
+      prefs.remove(_predictiveBackKey),
+      prefs.remove(_predictiveBackStrengthKey),
+      prefs.remove(_backgroundModeKey),
+      prefs.remove(_useSystemDynamicKey),
+      prefs.remove(_fontScaleKey),
+      prefs.remove(_navBarFloatingKey),
+      prefs.remove(_pureBlackOledKey),
+      prefs.remove(_sendOnEnterKey),
+      prefs.remove(_doubleTapReactionEmojiKey),
+      prefs.remove(_autoDownloadWifiKey),
+      prefs.remove(_autoDownloadCellularKey),
+      prefs.remove(_messageBubbleRadiusKey),
+      prefs.remove(_uiCornerRadiusKey),
+      prefs.remove(_camera2ApiKey),
+    ]);
+  }
 }
 
 final NotifierProvider<UiSettingsNotifier, UiSettingsState> uiSettingsProvider =

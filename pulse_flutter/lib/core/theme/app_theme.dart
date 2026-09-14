@@ -47,6 +47,7 @@ class AppTheme {
                          (settings.useSystemDynamic ? 1 : 0) ^
                          (settings.predictiveBackEnabled ? ((settings.predictiveBackStrength * 100).round() << 4) : 0) ^
                          (settings.pureBlackOled ? 4 : 0) ^
+                         (settings.uiCornerRadius.round() << 12) ^
                          (dynamicScheme?.primary.toARGB32() ?? 0);
     final ThemeData? cached = _themeCache[cacheKey];
     if (cached != null) return cached;
@@ -72,6 +73,9 @@ class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: isOled ? const Color(0xFF000000) : scheme.surface,
       textTheme: textTheme,
+      extensions: <ThemeExtension<dynamic>>[
+        AppRadiiTheme.fromCornerRadius(settings.uiCornerRadius),
+      ],
       appBarTheme: AppBarTheme(
         elevation: 0,
         centerTitle: false,
@@ -93,7 +97,9 @@ class AppTheme {
         color: scheme.surfaceContainer,
         elevation: 0,
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(settings.uiCornerRadius),
+        ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: 72,
@@ -160,7 +166,9 @@ class AppTheme {
         elevation: 0,
         backgroundColor: scheme.surfaceContainerHigh,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(settings.uiCornerRadius),
+        ),
         iconColor: scheme.primary,
         titleTextStyle: textTheme.headlineSmall?.copyWith(
           color: scheme.onSurface,
@@ -176,8 +184,10 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         
         dragHandleColor: scheme.onSurfaceVariant.withValues(alpha: 0.38),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(settings.uiCornerRadius),
+          ),
         ),
       ),
       listTileTheme: ListTileThemeData(

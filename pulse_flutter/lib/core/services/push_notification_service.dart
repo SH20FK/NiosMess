@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_file/open_file.dart';
 import 'package:pulse_flutter/router/app_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 @pragma('vm:entry-point')
 Future<void> _onBackgroundMessage(RemoteMessage message) async {
@@ -131,6 +132,12 @@ class PushNotificationService {
     final String body = data['body']?.toString() ?? '';
     final bool isCall = data['type'] == 'incoming_call';
     if (_shouldIgnorePush(title, body, isCall: isCall)) return;
+
+    if (!isCall) {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final bool enabled = prefs.getBool('ui.notifications') ?? true;
+      if (!enabled) return;
+    }
 
     final Object? chatIdRaw = data['chat_id'];
     final int? chatId = chatIdRaw is int

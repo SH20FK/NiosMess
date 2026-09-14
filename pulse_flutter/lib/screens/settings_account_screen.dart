@@ -70,7 +70,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        if (mounted) AppToast.showError(context, 'Не удалось открыть страницу Nios ID');
+        if (mounted) AppToast.showError(context, context.l10n.settingsAccountNiosIdError);
       }
     } catch (e) {
       if (mounted) AppToast.showError(context, e);
@@ -160,9 +160,8 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
               ),
             SettingsTile(
               icon: Icons.shield_outlined,
-              title: 'Безопасность и 2FA в Nios ID',
-              subtitle:
-                  'Двухфакторная аутентификация и управление паролем на портале ni-os.ru',
+              title: context.l10n.settingsAccountNiosIdSecurity,
+              subtitle: context.l10n.settingsAccountNiosIdSecurityDesc,
               iconColor: scheme.primary,
               trailing: Icon(
                 Icons.open_in_new_rounded,
