@@ -3594,6 +3594,120 @@ class AppLocalizationsRu extends AppLocalizations {
   String get aboutTabLegal => 'Правовое';
 
   @override
+  String get aboutTabWhatsNew => 'Что нового';
+
+  @override
+  String get aboutTabTeam => 'Команда';
+
+  @override
+  String get aboutDeviceAction => 'Устройство';
+
+  @override
+  String get aboutAlphaTestAction => 'Альфа-тест';
+
+  @override
+  String get aboutShareAction => 'Поделиться';
+
+  @override
+  String get aboutSystemUpdateTitle => 'Обновление системы';
+
+  @override
+  String get aboutOtaSubtitle => 'OTA-обновления NiosMess';
+
+  @override
+  String aboutReadyToInstall(String version) => 'Готово к установке (v$version)';
+
+  @override
+  String get aboutInstallAction => 'Установить';
+
+  @override
+  String get aboutCheckAction => 'Проверить';
+
+  @override
+  String get aboutCheckingStatus => 'Проверка обновлений...';
+
+  @override
+  String aboutDownloadingProgress(int percent) => 'Загрузка: $percent% • в фоне';
+
+  @override
+  String aboutUpdateAvailable(String version) => 'Доступна новая версия v$version';
+
+  @override
+  String get aboutDownloadAction => 'Скачать';
+
+  @override
+  String get aboutCancelAction => 'Отмена';
+
+  @override
+  String get aboutUpToDate => 'У вас установлена актуальная версия';
+
+  @override
+  String get aboutThirdPartyLicensesTitle => 'Сторонние лицензии и библиотеки';
+
+  @override
+  String get aboutThirdPartyLicensesSubtitle => 'Информация об открытых компонентах клиента';
+
+  @override
+  String get aboutFounderRole => 'Основатель & Главный Архитектор';
+
+  @override
+  String get aboutLeadDevRole => 'Руководитель разработки клиента & UX';
+
+  @override
+  String aboutContactDevTooltip(String handle) => 'Написать @$handle в Telegram';
+
+  @override
+  String get aboutSecurityFooter => 'Безопасность и сквозное шифрование по умолчанию';
+
+  @override
+  String aboutCopyrightFooter(int year) => 'NiosMess © $year';
+
+  @override
+  String get aboutCurrentVersionBadge => 'Текущая';
+
+  @override
+  String aboutVersionCopied(String version) => 'Версия $version скопирована';
+
+  @override
+  String get aboutOfflineError => 'Нет подключения к интернету';
+
+  @override
+  String get aboutReportBugAction => 'Сообщить о баге';
+
+  @override
+  String get aboutFaqAction => 'Справка и FAQ';
+
+  @override
+  String get aboutSearchFaqHint => 'Поиск по вопросам...';
+
+  @override
+  String get aboutNoFaqResults => 'Ничего не найдено';
+
+  @override
+  String get aboutContactSupportAction => 'Написать в поддержку';
+
+  @override
+  String get aboutInstallMissingFile => 'Файл обновления не найден. Загрузка перезапущена.';
+
+  @override
+  String get aboutEasterEggTitle => 'Секретный режим активирован!';
+
+  @override
+  String get aboutEasterEggMessage => 'Спасибо за участие в тестировании NiosMess!';
+
+  @override
+  String get aboutReportSubject => 'Тема обращения';
+
+  @override
+  String get aboutReportDescription => 'Опишите ошибку или проблему';
+
+  @override
+  String get aboutReportSuccess => 'Отчёт отправлен разработчикам. Спасибо!';
+
+  @override
+  String get aboutReportError => 'Не удалось отправить отчёт. Попробуйте позже.';
+
+  @override
   String get legalPrivacyTitle => 'Политика конфиденциальности';
 
   @override

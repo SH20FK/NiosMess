@@ -3571,6 +3571,120 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutTabLegal => 'Legal';
 
   @override
+  String get aboutTabWhatsNew => "What's New";
+
+  @override
+  String get aboutTabTeam => 'Team';
+
+  @override
+  String get aboutDeviceAction => 'Device';
+
+  @override
+  String get aboutAlphaTestAction => 'Alpha Test';
+
+  @override
+  String get aboutShareAction => 'Share';
+
+  @override
+  String get aboutSystemUpdateTitle => 'System Update';
+
+  @override
+  String get aboutOtaSubtitle => 'NiosMess OTA Updates';
+
+  @override
+  String aboutReadyToInstall(String version) => 'Ready to install (v$version)';
+
+  @override
+  String get aboutInstallAction => 'Install';
+
+  @override
+  String get aboutCheckAction => 'Check';
+
+  @override
+  String get aboutCheckingStatus => 'Checking for updates...';
+
+  @override
+  String aboutDownloadingProgress(int percent) => 'Downloading: $percent% • in background';
+
+  @override
+  String aboutUpdateAvailable(String version) => 'New version v$version is available';
+
+  @override
+  String get aboutDownloadAction => 'Download';
+
+  @override
+  String get aboutCancelAction => 'Cancel';
+
+  @override
+  String get aboutUpToDate => 'You have the latest version installed';
+
+  @override
+  String get aboutThirdPartyLicensesTitle => 'Third-Party Licenses & Libraries';
+
+  @override
+  String get aboutThirdPartyLicensesSubtitle => 'Information about open-source client components';
+
+  @override
+  String get aboutFounderRole => 'Founder & Chief Architect';
+
+  @override
+  String get aboutLeadDevRole => 'Lead Client & UX Developer';
+
+  @override
+  String aboutContactDevTooltip(String handle) => 'Message @$handle on Telegram';
+
+  @override
+  String get aboutSecurityFooter => 'Security and end-to-end encryption by default';
+
+  @override
+  String aboutCopyrightFooter(int year) => 'NiosMess © $year';
+
+  @override
+  String get aboutCurrentVersionBadge => 'Current';
+
+  @override
+  String aboutVersionCopied(String version) => 'Version $version copied';
+
+  @override
+  String get aboutOfflineError => 'No internet connection';
+
+  @override
+  String get aboutReportBugAction => 'Report a Bug';
+
+  @override
+  String get aboutFaqAction => 'Help & FAQ';
+
+  @override
+  String get aboutSearchFaqHint => 'Search FAQ...';
+
+  @override
+  String get aboutNoFaqResults => 'No results found';
+
+  @override
+  String get aboutContactSupportAction => 'Contact Support';
+
+  @override
+  String get aboutInstallMissingFile => 'Update file not found. Download restarted.';
+
+  @override
+  String get aboutEasterEggTitle => 'Secret Mode Activated!';
+
+  @override
+  String get aboutEasterEggMessage => 'Thank you for testing NiosMess!';
+
+  @override
+  String get aboutReportSubject => 'Issue subject';
+
+  @override
+  String get aboutReportDescription => 'Describe the bug or issue';
+
+  @override
+  String get aboutReportSuccess => 'Bug report sent to developers. Thank you!';
+
+  @override
+  String get aboutReportError => 'Failed to send bug report. Please try again later.';
+
+  @override
   String get legalPrivacyTitle => 'Privacy Policy';
 
   @override

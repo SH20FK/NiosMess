@@ -24,6 +24,7 @@ import 'package:pulse_flutter/screens/setup_onboarding_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
+import 'package:pulse_flutter/screens/help_faq_screen.dart';
 import 'package:pulse_flutter/screens/settings_system_device_screen.dart';
 import 'package:pulse_flutter/screens/legal_viewer_screen.dart';
 import 'package:pulse_flutter/screens/native_file_viewer_screen.dart';
@@ -320,6 +321,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/settings/about',
         pageBuilder: (context, state) => _page(state, const SettingsAboutScreen(), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/help/faq',
+        pageBuilder: (context, state) => _page(state, const HelpFaqScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/system-device',
