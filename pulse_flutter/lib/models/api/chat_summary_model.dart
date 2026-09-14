@@ -138,12 +138,28 @@ class ApiChatSummary {
     final bool isBlocked = _parseBool(partnerMap?['is_blocked'] ?? json['is_blocked']) || isBlockedByMe || isBlockedByUser;
     final bool isOnline = _parseBool(json['is_online']) || _parseBool(partnerMap?['is_online']);
 
+    final String? partnerUsername = partnerMap?['username'] as String?;
+    final String? partnerDisplayName = partnerMap?['display_name'] as String?;
+    final String? rawUsername = json['username'] as String?;
+    final String? resolvedUsername = (rawUsername != null && rawUsername.isNotEmpty)
+        ? rawUsername
+        : partnerUsername;
+
+    final String rawName = json['name'] as String? ?? '';
+    final String resolvedName = rawName.isNotEmpty
+        ? rawName
+        : (partnerDisplayName?.isNotEmpty == true
+            ? partnerDisplayName!
+            : (resolvedUsername ?? ''));
+
+    final String? resolvedAvatar = json['avatar_url'] as String? ?? partnerMap?['avatar_url'] as String?;
+
     return ApiChatSummary(
       id: json['id'] as int? ?? 0,
       chatType: json['chat_type'] as String? ?? 'direct',
-      name: json['name'] as String? ?? json['username'] as String? ?? '',
-      username: json['username'] as String?,
-      avatarUrl: json['avatar_url'] as String?,
+      name: resolvedName,
+      username: resolvedUsername,
+      avatarUrl: resolvedAvatar,
       unreadCount: json['unread_count'] as int? ?? 0,
       membersCount: json['members_count'] as int? ?? 0,
       partnerBadges: partnerBadges,

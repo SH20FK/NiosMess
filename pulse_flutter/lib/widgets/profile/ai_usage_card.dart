@@ -57,20 +57,44 @@ class AiUsageIndicatorCard extends StatelessWidget {
     }
   }
 
+  static String _formatTokens(int count) {
+    final String s = count.toString();
+    final StringBuffer sb = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) {
+        sb.write(' ');
+      }
+      sb.write(s[i]);
+    }
+    return sb.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    final double percent = usage.usedPercent.clamp(0.0, 100.0);
-    final String percentLabel = percent.toStringAsFixed(
-      percent.truncateToDouble() == percent ? 0 : 1,
+    final double usedPercent = usage.usedPercent.clamp(0.0, 100.0);
+    final double remainingPercent = (100.0 - usedPercent).clamp(0.0, 100.0);
+    final String remainingPercentLabel = remainingPercent.toStringAsFixed(
+      remainingPercent.truncateToDouble() == remainingPercent ? 0 : 1,
     );
-    final String resetFormatted = _formatResetDate(context, usage.resetsAt);
 
+    final int effectiveRemaining = usage.remainingTokens > 0
+        ? usage.remainingTokens
+        : (usage.limitTokens * (remainingPercent / 100.0)).round();
+    final String remainingTokensStr = _formatTokens(effectiveRemaining);
+    final String limitTokensStr = _formatTokens(usage.limitTokens);
+
+    final String resetFormatted = _formatResetDate(context, usage.resetsAt);
     final String resetPart =
         resetFormatted.isNotEmpty ? ' · обновится $resetFormatted' : '';
-    final String subtitleText = 'Использовано $percentLabel%$resetPart';
+    final String subtitleText =
+        'Осталось $remainingPercentLabel% ($remainingTokensStr из $limitTokensStr)$resetPart';
+
+    final Color statusColor = remainingPercent < 15
+        ? scheme.error
+        : (remainingPercent < 40 ? scheme.tertiary : scheme.primary);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -107,7 +131,7 @@ class AiUsageIndicatorCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'AI-лимит',
+                      'AI-токены',
                       style: textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -123,21 +147,39 @@ class AiUsageIndicatorCard extends StatelessWidget {
                   ],
                 ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (remainingPercent < 15
+                          ? scheme.errorContainer
+                          : (remainingPercent < 40
+                              ? scheme.tertiaryContainer
+                              : scheme.primaryContainer))
+                      .withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$remainingPercentLabel%',
+                  style: textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: remainingPercent < 15
+                        ? scheme.onErrorContainer
+                        : (remainingPercent < 40
+                            ? scheme.onTertiaryContainer
+                            : scheme.onPrimaryContainer),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
-              value: percent / 100.0,
+              value: remainingPercent / 100.0,
               minHeight: 8,
-              borderRadius: BorderRadius.circular(8),
               backgroundColor: scheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                percent > 90
-                    ? scheme.error
-                    : (percent > 70 ? scheme.tertiary : scheme.primary),
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(statusColor),
             ),
           ),
         ],

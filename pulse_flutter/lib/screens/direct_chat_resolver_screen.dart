@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
@@ -66,6 +67,23 @@ class _DirectChatResolverScreenState
       if (result == null || result.chatId <= 0) {
         throw ApiException(statusCode: 0, message: 'Could not resolve dialog.');
       }
+      final withUser = result.withUser;
+      final existingChat = ref.read(chatByIdProvider(result.chatId));
+      final syntheticChat = (existingChat ?? ApiChatSummary(
+        id: result.chatId,
+        chatType: 'direct',
+        name: (withUser?.displayName.isNotEmpty == true ? withUser!.displayName : (withUser?.username ?? widget.username)),
+        username: (withUser?.username.isNotEmpty == true ? withUser!.username : widget.username),
+        unreadCount: 0,
+        membersCount: 2,
+        partnerUserId: withUser?.id ?? widget.userId,
+        isSecret: result.isSecret,
+      )).copyWith(
+        name: (withUser?.displayName.isNotEmpty == true ? withUser!.displayName : existingChat?.name) ?? widget.username,
+        username: (withUser?.username.isNotEmpty == true ? withUser!.username : existingChat?.username) ?? widget.username,
+        partnerUserId: withUser?.id ?? existingChat?.partnerUserId ?? widget.userId,
+      );
+      ref.read(chatsProvider.notifier).upsertChat(syntheticChat);
       await ref.read(chatsProvider.notifier).refresh();
       if (!mounted) return;
       context.go('/chat/${result.chatId}');

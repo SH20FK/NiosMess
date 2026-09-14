@@ -204,7 +204,13 @@ class ApiProfile {
                 (dynamic k, dynamic v) => MapEntry(k.toString(), v),
               ),
             )
-          : null,
+          : const ApiAiUsage(
+              limitTokens: 200000,
+              usedTokens: 0,
+              remainingTokens: 200000,
+              usedPercent: 0.0,
+              windowHours: 72,
+            ),
       isBlockedByMe: json['is_blocked_by_me'] as bool? ?? false,
       isBlockedByUser: json['is_blocked_by_user'] as bool? ?? false,
       isBlocked: json['is_blocked'] as bool? ??

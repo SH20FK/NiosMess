@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
@@ -58,6 +60,29 @@ class _PrivacyRuleDetailScreenState
         );
       }
     }
+
+    Future<void>.microtask(() async {
+      final List<int> missingIds = <int>{..._alwaysAllow, ..._neverAllow}
+          .where((int id) => !_userCache.containsKey(id))
+          .toList();
+      if (missingIds.isEmpty) return;
+      for (final int id in missingIds) {
+        try {
+          final dynamic res = await ref.read(webSocketClientProvider).request(
+            'get_profile',
+            payload: <String, dynamic>{'user_id': id},
+          );
+          if (res is Map && mounted) {
+            final Map<String, dynamic> map = asStringMap(res);
+            map['id'] = id;
+            final ApiSearchUser user = ApiSearchUser.fromJson(map);
+            setState(() {
+              _userCache[id] = user;
+            });
+          }
+        } catch (_) {}
+      }
+    });
 
     ref.listenManual<PrivacyState>(privacyProvider, (previous, next) {
       if (!mounted || _saving) return;
@@ -113,17 +138,23 @@ class _PrivacyRuleDetailScreenState
       _userCache[picked.id] = picked;
       if (isAlwaysAllow) {
         if (!_alwaysAllow.contains(picked.id)) _alwaysAllow.add(picked.id);
+        _neverAllow.remove(picked.id);
       } else {
         if (!_neverAllow.contains(picked.id)) _neverAllow.add(picked.id);
+        _alwaysAllow.remove(picked.id);
       }
     });
 
-    await ref.read(privacyProvider.notifier).updateRule(
-          key: widget.ruleKey,
-          policy: _selectedPolicy,
-          alwaysAllow: _alwaysAllow,
-          neverAllow: _neverAllow,
-        );
+    try {
+      await ref.read(privacyProvider.notifier).updateRule(
+            key: widget.ruleKey,
+            policy: _selectedPolicy,
+            alwaysAllow: _alwaysAllow,
+            neverAllow: _neverAllow,
+          );
+    } catch (e) {
+      if (mounted) AppToast.showError(context, e);
+    }
   }
 
   Future<void> _removeException(int id, {required bool isAlwaysAllow}) async {
@@ -135,12 +166,16 @@ class _PrivacyRuleDetailScreenState
       }
     });
 
-    await ref.read(privacyProvider.notifier).updateRule(
-          key: widget.ruleKey,
-          policy: _selectedPolicy,
-          alwaysAllow: _alwaysAllow,
-          neverAllow: _neverAllow,
-        );
+    try {
+      await ref.read(privacyProvider.notifier).updateRule(
+            key: widget.ruleKey,
+            policy: _selectedPolicy,
+            alwaysAllow: _alwaysAllow,
+            neverAllow: _neverAllow,
+          );
+    } catch (e) {
+      if (mounted) AppToast.showError(context, e);
+    }
   }
 
   @override

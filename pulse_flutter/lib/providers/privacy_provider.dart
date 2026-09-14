@@ -67,19 +67,24 @@ class PrivacyNotifier extends Notifier<PrivacyState> {
         : const <String, dynamic>{};
 
     if (action == 'user_blocked') {
-      final int uid = int.tryParse(payload['user_id']?.toString() ?? '') ?? 0;
-      if (uid > 0 && !state.isUserBlocked(uid)) {
+      final int uid = int.tryParse(payload['user_id']?.toString() ?? '') ??
+          int.tryParse(payload['by_user_id']?.toString() ?? '') ?? 0;
+      if (uid > 0) {
         refresh();
       }
+      ref.read(chatsProvider.notifier).refresh();
     } else if (action == 'user_unblocked') {
-      final int uid = int.tryParse(payload['user_id']?.toString() ?? '') ?? 0;
+      final int uid = int.tryParse(payload['user_id']?.toString() ?? '') ??
+          int.tryParse(payload['by_user_id']?.toString() ?? '') ?? 0;
       if (uid > 0) {
         final updated = state.blockedUsers
             .where((BlockedUser u) => u.id != uid)
             .toList(growable: false);
         state = state.copyWith(blockedUsers: updated);
       }
+      ref.read(chatsProvider.notifier).refresh();
     } else if (action == 'block_status_updated') {
+      refresh();
       ref.read(chatsProvider.notifier).refresh();
     }
   }

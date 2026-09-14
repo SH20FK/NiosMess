@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 
 
+import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -171,9 +172,13 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               title: context.l10n.settingsPrivacyHideOnline,
               subtitle: context.l10n.settingsPrivacyHideOnlineDesc,
               iconColor: scheme.tertiary,
-              value: settings.hideOnline,
-              onChanged: (bool value) {
+              value: privacy.policyFor('last_seen') == PrivacyPolicy.nobody || settings.hideOnline,
+              onChanged: (bool value) async {
                 ref.read(uiSettingsProvider.notifier).setHideOnline(value);
+                await ref.read(privacyProvider.notifier).updateRule(
+                  key: 'last_seen',
+                  policy: value ? PrivacyPolicy.nobody : PrivacyPolicy.everyone,
+                );
               },
             ),
           ],

@@ -1,4 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/utils/shared_utilities.dart';
+import 'package:pulse_flutter/models/api/profile_model.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
 class AiRepository {
@@ -23,11 +26,14 @@ class AiRepository {
         .read(webSocketClientProvider)
         .request('ai_process_text', payload: payload);
 
-    if (response is Map<String, dynamic>) {
-      return response['result_text'] as String? ?? text;
-    }
     if (response is Map) {
-      return response['result_text']?.toString() ?? text;
+      final Map<String, dynamic> map = asStringMap(response);
+      final dynamic rawUsage = map['ai_usage'];
+      if (rawUsage is Map) {
+        final ApiAiUsage usage = ApiAiUsage.fromJson(asStringMap(rawUsage));
+        _ref.read(authProvider.notifier).updateAiUsage(usage);
+      }
+      return map['result_text']?.toString() ?? text;
     }
     return text;
   }

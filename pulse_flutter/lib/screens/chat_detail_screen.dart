@@ -25,6 +25,7 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
+import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/models/api/inline_query_model.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/providers/inline_query_provider.dart';
@@ -536,6 +537,42 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     Text(
                       context.l10n.chatAiAssistant,
                       style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const Spacer(),
+                    Consumer(
+                      builder: (BuildContext context, WidgetRef ref, _) {
+                        final usage = ref.watch(authProvider).profile?.aiUsage;
+                        if (usage == null) return const SizedBox.shrink();
+                        final double remainingPercent =
+                            (100.0 - usage.usedPercent).clamp(0.0, 100.0);
+                        final String pctStr = remainingPercent.toStringAsFixed(
+                          remainingPercent.truncateToDouble() == remainingPercent ? 0 : 1,
+                        );
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: scheme.outlineVariant.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.bolt_rounded, size: 14, color: scheme.primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$pctStr% токенов',
+                                style: tt.labelSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: scheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -1084,8 +1121,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     if (target == null || !mounted) return;
 
-    final String forwardText =
-        '_fwd from ${message.senderDisplayName}: ${message.content}';
+    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+    final bool hideMyAuthor = message.senderId == myUserId &&
+        ref.read(privacyProvider).policyFor('forwards') == PrivacyPolicy.nobody;
+    final String forwardText = hideMyAuthor || message.senderDisplayName.isEmpty
+        ? '_fwd: ${message.content}'
+        : '_fwd from ${message.senderDisplayName}: ${message.content}';
     try {
       await ref
           .read(chatMessagesProvider(target.id).notifier)
