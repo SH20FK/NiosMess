@@ -22,6 +22,7 @@ class SettingsListItem extends ConsumerWidget {
     this.value,
     this.type = SettingsListItemType.nav,
     this.onTap,
+    this.onLongPress,
     this.boolValue,
     this.onChanged,
     this.trailing,
@@ -86,6 +87,7 @@ class SettingsListItem extends ConsumerWidget {
     String? value,
     String? subtitle,
     VoidCallback? onTap,
+    VoidCallback? onLongPress,
     Color? iconColor,
     Key? key,
   }) : this(
@@ -95,6 +97,7 @@ class SettingsListItem extends ConsumerWidget {
           subtitle: subtitle,
           type: SettingsListItemType.value,
           onTap: onTap,
+          onLongPress: onLongPress,
           iconColor: iconColor,
           key: key,
         );
@@ -121,6 +124,7 @@ class SettingsListItem extends ConsumerWidget {
   final String? value;
   final SettingsListItemType type;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final bool? boolValue;
   final ValueChanged<bool>? onChanged;
   final Widget? trailing;
@@ -282,7 +286,8 @@ class SettingsListItem extends ConsumerWidget {
       selected: isSelected,
       child: PressableSurface(
         onTap: effectiveTap,
-        enabled: enabled && effectiveTap != null,
+        onLongPress: enabled ? onLongPress : null,
+        enabled: enabled && (effectiveTap != null || onLongPress != null),
         borderRadius: AppRadii.mdRadius,
         color: isSelected
             ? scheme.secondaryContainer.withValues(alpha: 0.80)

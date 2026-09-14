@@ -1,4 +1,5 @@
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
@@ -268,37 +269,31 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _uiCornerRadiusKey = 'ui.cornerRadius';
   static const String _camera2ApiKey = 'ui.camera2Api';
 
+  static SharedPreferences? cachedPrefs;
   bool _loaded = false;
+  Timer? _debounceTimer;
+  final Map<String, Object?> _pendingKeyWrites = <String, Object?>{};
 
-  @override
-  UiSettingsState build() {
-    _load();
-    return const UiSettingsState.defaults();
-  }
-
-  Future<void> _load() async {
-    try {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (_loaded) return;
-    _loaded = true;
+  static UiSettingsState readFromPrefs(SharedPreferences prefs) {
     final String? modeRaw = prefs.getString(_themeModeKey);
     final int? seedRaw = prefs.getInt(_seedColorKey);
     final String? localeCodeRaw = prefs.getString(_localeCodeKey);
     final String? timeZoneModeRaw = prefs.getString(_timeZoneModeKey);
     final String? timeZoneIdRaw = prefs.getString(_timeZoneIdKey);
+    const UiSettingsState defaults = UiSettingsState.defaults();
 
-    state = state.copyWith(
+    return defaults.copyWith(
       themeMode: ThemeMode.values.firstWhere(
         (ThemeMode mode) => mode.name == modeRaw,
         orElse: () => ThemeMode.system,
       ),
-      seedColor: seedRaw == null ? state.seedColor : Color(seedRaw),
-      notifications: prefs.getBool(_notificationsKey) ?? state.notifications,
-      compactMode: prefs.getBool(_compactKey) ?? state.compactMode,
-      haptics: prefs.getBool(_hapticsKey) ?? state.haptics,
-      hideOnline: prefs.getBool(_hideOnlineKey) ?? state.hideOnline,
-      soundEffects: prefs.getBool(_soundEffectsKey) ?? state.soundEffects,
-      soundVolume: (prefs.getDouble(_soundVolumeKey) ?? state.soundVolume)
+      seedColor: seedRaw == null ? defaults.seedColor : Color(seedRaw),
+      notifications: prefs.getBool(_notificationsKey) ?? defaults.notifications,
+      compactMode: prefs.getBool(_compactKey) ?? defaults.compactMode,
+      haptics: prefs.getBool(_hapticsKey) ?? defaults.haptics,
+      hideOnline: prefs.getBool(_hideOnlineKey) ?? defaults.hideOnline,
+      soundEffects: prefs.getBool(_soundEffectsKey) ?? defaults.soundEffects,
+      soundVolume: (prefs.getDouble(_soundVolumeKey) ?? defaults.soundVolume)
           .clamp(0.0, 1.0),
       localeCode: (localeCodeRaw ?? '').trim().isEmpty ? null : localeCodeRaw,
       timeZoneMode: AppTimeZoneMode.values.firstWhere(
@@ -307,11 +302,11 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       ),
       timeZoneId: (timeZoneIdRaw ?? '').trim().isEmpty ? null : timeZoneIdRaw,
       optimizeForWeakDevices:
-          prefs.getBool(_optimizeWeakKey) ?? state.optimizeForWeakDevices,
+          prefs.getBool(_optimizeWeakKey) ?? defaults.optimizeForWeakDevices,
       predictiveBackEnabled:
-          prefs.getBool(_predictiveBackKey) ?? state.predictiveBackEnabled,
+          prefs.getBool(_predictiveBackKey) ?? defaults.predictiveBackEnabled,
       predictiveBackStrength: (prefs.getDouble(_predictiveBackStrengthKey) ??
-              state.predictiveBackStrength)
+              defaults.predictiveBackStrength)
           .clamp(0.5, 1.5),
       backgroundMode: BackgroundMode.values.firstWhere(
         (BackgroundMode mode) =>
@@ -319,141 +314,210 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
         orElse: () => BackgroundMode.reliable,
       ),
       useSystemDynamic:
-          prefs.getBool(_useSystemDynamicKey) ?? state.useSystemDynamic,
+          prefs.getBool(_useSystemDynamicKey) ?? defaults.useSystemDynamic,
       fontScale: AppFontScale.values.firstWhere(
         (AppFontScale fs) => fs.name == prefs.getString(_fontScaleKey),
         orElse: () => AppFontScale.normal,
       ),
-      navBarFloating: prefs.getBool(_navBarFloatingKey) ?? false,
-      pureBlackOled: prefs.getBool(_pureBlackOledKey) ?? state.pureBlackOled,
-      sendOnEnter: prefs.getBool(_sendOnEnterKey) ?? state.sendOnEnter,
+      navBarFloating: prefs.getBool(_navBarFloatingKey) ?? defaults.navBarFloating,
+      pureBlackOled: prefs.getBool(_pureBlackOledKey) ?? defaults.pureBlackOled,
+      sendOnEnter: prefs.getBool(_sendOnEnterKey) ?? defaults.sendOnEnter,
       doubleTapReactionEmoji:
-          prefs.getString(_doubleTapReactionEmojiKey) ?? state.doubleTapReactionEmoji,
+          prefs.getString(_doubleTapReactionEmojiKey) ?? defaults.doubleTapReactionEmoji,
       autoDownloadWifi:
-          prefs.getBool(_autoDownloadWifiKey) ?? state.autoDownloadWifi,
+          prefs.getBool(_autoDownloadWifiKey) ?? defaults.autoDownloadWifi,
       autoDownloadCellular:
-          prefs.getBool(_autoDownloadCellularKey) ?? state.autoDownloadCellular,
+          prefs.getBool(_autoDownloadCellularKey) ?? defaults.autoDownloadCellular,
       messageBubbleRadius:
-          prefs.getDouble(_messageBubbleRadiusKey) ?? state.messageBubbleRadius,
+          prefs.getDouble(_messageBubbleRadiusKey) ?? defaults.messageBubbleRadius,
       uiCornerRadius:
-          prefs.getDouble(_uiCornerRadiusKey) ?? state.uiCornerRadius,
-      camera2Api: prefs.getBool(_camera2ApiKey) ?? state.camera2Api,
+          prefs.getDouble(_uiCornerRadiusKey) ?? defaults.uiCornerRadius,
+      camera2Api: prefs.getBool(_camera2ApiKey) ?? defaults.camera2Api,
     );
+  }
+
+  @override
+  UiSettingsState build() {
+    if (cachedPrefs != null) {
+      _loaded = true;
+      return readFromPrefs(cachedPrefs!);
+    }
+    _load();
+    return const UiSettingsState.defaults();
+  }
+
+  Future<void> _load() async {
+    if (_loaded) return;
+    try {
+      final SharedPreferences prefs = cachedPrefs ?? await SharedPreferences.getInstance();
+      cachedPrefs = prefs;
+      if (_loaded) return;
+      _loaded = true;
+      state = readFromPrefs(prefs);
     } catch (e) {
       debugPrint('[UiSettingsNotifier] Failed to load settings: $e');
     }
   }
 
-  Future<void> _persist(UiSettingsState nextState) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await Future.wait(<Future<bool>>[
-      prefs.setString(_themeModeKey, nextState.themeMode.name),
-      prefs.setInt(_seedColorKey, nextState.seedColor.toARGB32()),
-      prefs.setBool(_notificationsKey, nextState.notifications),
-      prefs.setBool(_compactKey, nextState.compactMode),
-      prefs.setBool(_hapticsKey, nextState.haptics),
-      prefs.setBool(_hideOnlineKey, nextState.hideOnline),
-      prefs.setBool(_soundEffectsKey, nextState.soundEffects),
-      prefs.setDouble(_soundVolumeKey, nextState.soundVolume),
-      if ((nextState.localeCode ?? '').trim().isEmpty)
-        prefs.remove(_localeCodeKey)
-      else
-        prefs.setString(_localeCodeKey, nextState.localeCode!),
-      prefs.setString(_timeZoneModeKey, nextState.timeZoneMode.name),
-      if ((nextState.timeZoneId ?? '').trim().isEmpty)
-        prefs.remove(_timeZoneIdKey)
-      else
-        prefs.setString(_timeZoneIdKey, nextState.timeZoneId!),
-      prefs.setBool(_optimizeWeakKey, nextState.optimizeForWeakDevices),
-      prefs.setBool(_predictiveBackKey, nextState.predictiveBackEnabled),
-      prefs.setDouble(_predictiveBackStrengthKey, nextState.predictiveBackStrength),
-      prefs.setString(_backgroundModeKey, nextState.backgroundMode.name),
-      prefs.setBool(_useSystemDynamicKey, nextState.useSystemDynamic),
-      prefs.setString(_fontScaleKey, nextState.fontScale.name),
-      prefs.setBool(_navBarFloatingKey, nextState.navBarFloating),
-      prefs.setBool(_pureBlackOledKey, nextState.pureBlackOled),
-      prefs.setBool(_sendOnEnterKey, nextState.sendOnEnter),
-      prefs.setString(_doubleTapReactionEmojiKey, nextState.doubleTapReactionEmoji),
-      prefs.setBool(_autoDownloadWifiKey, nextState.autoDownloadWifi),
-      prefs.setBool(_autoDownloadCellularKey, nextState.autoDownloadCellular),
-      prefs.setDouble(_messageBubbleRadiusKey, nextState.messageBubbleRadius),
-      prefs.setDouble(_uiCornerRadiusKey, nextState.uiCornerRadius),
-      prefs.setBool(_camera2ApiKey, nextState.camera2Api),
-    ]);
+  Future<SharedPreferences> _getPrefs() async {
+    return cachedPrefs ??= await SharedPreferences.getInstance();
   }
 
-  void _set(UiSettingsState nextState) {
-    state = nextState;
-    _persist(nextState);
+  Future<void> _persistKey(String key, Object? value) async {
+    try {
+      final SharedPreferences prefs = await _getPrefs();
+      if (value == null) {
+        await prefs.remove(key);
+      } else if (value is bool) {
+        await prefs.setBool(key, value);
+      } else if (value is double) {
+        await prefs.setDouble(key, value);
+      } else if (value is int) {
+        await prefs.setInt(key, value);
+      } else if (value is String) {
+        await prefs.setString(key, value);
+      }
+    } catch (e) {
+      debugPrint('[UiSettingsNotifier] Failed to persist key $key: $e');
+    }
   }
 
-  void setMessageBubbleRadius(double value) =>
-      _set(state.copyWith(messageBubbleRadius: value));
+  void _persistKeyDebounced(
+    String key,
+    Object? value, {
+    Duration duration = const Duration(milliseconds: 250),
+  }) {
+    _pendingKeyWrites[key] = value;
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(duration, () {
+      _flushPendingWrites();
+    });
+  }
 
-  void setUiCornerRadius(double value) =>
-      _set(state.copyWith(uiCornerRadius: value));
+  Future<void> _flushPendingWrites() async {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    if (_pendingKeyWrites.isEmpty) return;
+    final Map<String, Object?> toWrite = Map<String, Object?>.from(_pendingKeyWrites);
+    _pendingKeyWrites.clear();
+    for (final MapEntry<String, Object?> entry in toWrite.entries) {
+      await _persistKey(entry.key, entry.value);
+    }
+  }
+
+  Future<void> flushPersist() => _flushPendingWrites();
+
+  void setMessageBubbleRadius(double value) {
+    state = state.copyWith(messageBubbleRadius: value);
+    _persistKeyDebounced(_messageBubbleRadiusKey, value);
+  }
+
+  void setUiCornerRadius(double value) {
+    state = state.copyWith(uiCornerRadius: value);
+    _persistKeyDebounced(_uiCornerRadiusKey, value);
+  }
 
   void setThemeMode(ThemeMode value) {
     debugPrint('[UiSettingsNotifier] setThemeMode -> $value');
-    _set(state.copyWith(themeMode: value));
+    state = state.copyWith(themeMode: value);
+    _persistKey(_themeModeKey, value.name);
   }
 
-  void setSeedColor(Color value) => _set(state.copyWith(seedColor: value));
+  void setSeedColor(Color value) {
+    state = state.copyWith(seedColor: value);
+    _persistKey(_seedColorKey, value.toARGB32());
+  }
 
-  void setNotifications(bool value) =>
-      _set(state.copyWith(notifications: value));
+  void setNotifications(bool value) {
+    state = state.copyWith(notifications: value);
+    _persistKey(_notificationsKey, value);
+  }
 
-  void setCompactMode(bool value) => _set(state.copyWith(compactMode: value));
+  void setCompactMode(bool value) {
+    state = state.copyWith(compactMode: value);
+    _persistKey(_compactKey, value);
+  }
 
-  void setHaptics(bool value) => _set(state.copyWith(haptics: value));
+  void setHaptics(bool value) {
+    state = state.copyWith(haptics: value);
+    _persistKey(_hapticsKey, value);
+  }
 
-  void setHideOnline(bool value) => _set(state.copyWith(hideOnline: value));
+  void setHideOnline(bool value) {
+    state = state.copyWith(hideOnline: value);
+    _persistKey(_hideOnlineKey, value);
+  }
 
-  void setSoundEffects(bool value) => _set(state.copyWith(soundEffects: value));
+  void setSoundEffects(bool value) {
+    state = state.copyWith(soundEffects: value);
+    _persistKey(_soundEffectsKey, value);
+  }
 
-  void setSoundVolume(double value) =>
-      _set(state.copyWith(soundVolume: value.clamp(0.0, 1.0)));
+  void setSoundVolume(double value) {
+    final double clamped = value.clamp(0.0, 1.0);
+    state = state.copyWith(soundVolume: clamped);
+    _persistKeyDebounced(_soundVolumeKey, clamped);
+  }
 
-  void setLocaleCode(String? value) => _set(
-    value == null || value.trim().isEmpty
+  void setLocaleCode(String? value) {
+    final String? normalized =
+        (value ?? '').trim().isEmpty ? null : value!.trim().toLowerCase();
+    state = normalized == null
         ? state.copyWith(clearLocaleCode: true)
-        : state.copyWith(localeCode: value.trim().toLowerCase()),
-  );
+        : state.copyWith(localeCode: normalized);
+    _persistKey(_localeCodeKey, normalized);
+  }
 
-  void setTimeZoneMode(AppTimeZoneMode value) =>
-      _set(state.copyWith(timeZoneMode: value));
+  void setTimeZoneMode(AppTimeZoneMode value) {
+    state = state.copyWith(timeZoneMode: value);
+    _persistKey(_timeZoneModeKey, value.name);
+  }
 
-  void setTimeZoneId(String? value) => _set(
-    value == null || value.trim().isEmpty
+  void setTimeZoneId(String? value) {
+    final String? normalized =
+        (value ?? '').trim().isEmpty ? null : value!.trim();
+    state = normalized == null
         ? state.copyWith(clearTimeZoneId: true)
-        : state.copyWith(timeZoneId: value.trim()),
-  );
+        : state.copyWith(timeZoneId: normalized);
+    _persistKey(_timeZoneIdKey, normalized);
+  }
 
-  void useAutomaticTimeZone() =>
-      _set(state.copyWith(timeZoneMode: AppTimeZoneMode.auto));
+  void useAutomaticTimeZone() {
+    state = state.copyWith(timeZoneMode: AppTimeZoneMode.auto);
+    _persistKey(_timeZoneModeKey, AppTimeZoneMode.auto.name);
+  }
 
-  void useManualTimeZone(String timeZoneId) => _set(
-    state.copyWith(
+  void useManualTimeZone(String timeZoneId) {
+    final String trimmed = timeZoneId.trim();
+    state = state.copyWith(
       timeZoneMode: AppTimeZoneMode.manual,
-      timeZoneId: timeZoneId,
-    ),
-  );
+      timeZoneId: trimmed,
+    );
+    _persistKey(_timeZoneModeKey, AppTimeZoneMode.manual.name);
+    _persistKey(_timeZoneIdKey, trimmed);
+  }
 
-  void setOptimizeForWeakDevices(bool value) =>
-      _set(state.copyWith(optimizeForWeakDevices: value));
+  void setOptimizeForWeakDevices(bool value) {
+    state = state.copyWith(optimizeForWeakDevices: value);
+    _persistKey(_optimizeWeakKey, value);
+  }
 
   void setPredictiveBackEnabled(bool value) {
     debugPrint('[UiSettingsNotifier] setPredictiveBackEnabled -> $value');
-    _set(state.copyWith(predictiveBackEnabled: value));
+    state = state.copyWith(predictiveBackEnabled: value);
+    _persistKey(_predictiveBackKey, value);
   }
 
   void setPredictiveBackStrength(double value) {
     debugPrint('[UiSettingsNotifier] setPredictiveBackStrength -> $value');
-    _set(state.copyWith(predictiveBackStrength: value.clamp(0.5, 1.5)));
+    final double clamped = value.clamp(0.5, 1.5);
+    state = state.copyWith(predictiveBackStrength: clamped);
+    _persistKeyDebounced(_predictiveBackStrengthKey, clamped);
   }
 
   void setBackgroundMode(BackgroundMode value) {
-    _set(state.copyWith(backgroundMode: value));
+    state = state.copyWith(backgroundMode: value);
+    _persistKey(_backgroundModeKey, value.name);
     if (value == BackgroundMode.reliable) {
       BackgroundService.startReliable();
     } else {
@@ -461,46 +525,68 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     }
   }
 
-  void setUseSystemDynamic(bool value) =>
-      _set(state.copyWith(useSystemDynamic: value));
+  void setUseSystemDynamic(bool value) {
+    state = state.copyWith(useSystemDynamic: value);
+    _persistKey(_useSystemDynamicKey, value);
+  }
 
-  void setFontScale(AppFontScale value) =>
-      _set(state.copyWith(fontScale: value));
+  void setFontScale(AppFontScale value) {
+    state = state.copyWith(fontScale: value);
+    _persistKey(_fontScaleKey, value.name);
+  }
 
-  void setNavBarFloating(bool value) =>
-      _set(state.copyWith(navBarFloating: value));
+  void setNavBarFloating(bool value) {
+    state = state.copyWith(navBarFloating: value);
+    _persistKey(_navBarFloatingKey, value);
+  }
 
-  void setPureBlackOled(bool value) =>
-      _set(state.copyWith(pureBlackOled: value));
+  void setPureBlackOled(bool value) {
+    state = state.copyWith(pureBlackOled: value);
+    _persistKey(_pureBlackOledKey, value);
+  }
 
-  void setSendOnEnter(bool value) =>
-      _set(state.copyWith(sendOnEnter: value));
+  void setSendOnEnter(bool value) {
+    state = state.copyWith(sendOnEnter: value);
+    _persistKey(_sendOnEnterKey, value);
+  }
 
-  void setDoubleTapReactionEmoji(String value) =>
-      _set(state.copyWith(doubleTapReactionEmoji: value));
+  void setDoubleTapReactionEmoji(String value) {
+    state = state.copyWith(doubleTapReactionEmoji: value);
+    _persistKey(_doubleTapReactionEmojiKey, value);
+  }
 
-  void setAutoDownloadWifi(bool value) =>
-      _set(state.copyWith(autoDownloadWifi: value));
+  void setAutoDownloadWifi(bool value) {
+    state = state.copyWith(autoDownloadWifi: value);
+    _persistKey(_autoDownloadWifiKey, value);
+  }
 
-  void setAutoDownloadCellular(bool value) =>
-      _set(state.copyWith(autoDownloadCellular: value));
+  void setAutoDownloadCellular(bool value) {
+    state = state.copyWith(autoDownloadCellular: value);
+    _persistKey(_autoDownloadCellularKey, value);
+  }
 
-  void setCamera2Api(bool value) =>
-      _set(state.copyWith(camera2Api: value));
+  void setCamera2Api(bool value) {
+    state = state.copyWith(camera2Api: value);
+    _persistKey(_camera2ApiKey, value);
+  }
 
-  void setShowPerformanceOverlay(bool value) =>
-      _set(state.copyWith(showPerformanceOverlay: value));
+  void setShowPerformanceOverlay(bool value) {
+    state = state.copyWith(showPerformanceOverlay: value);
+  }
 
-  void setDebugRepaintRainbow(bool value) =>
-      _set(state.copyWith(debugRepaintRainbow: value));
+  void setDebugRepaintRainbow(bool value) {
+    state = state.copyWith(debugRepaintRainbow: value);
+  }
 
   /// Resets all 26 settings fields safely to [UiSettingsState.defaults()],
   /// keeping background message delivery in [BackgroundMode.reliable]
-  /// and cleaning up persisted SharedPreferences keys in a single batch.
+  /// and cleaning up persisted SharedPreferences keys in a single atomic batch.
   Future<void> resetAll() async {
+    _debounceTimer?.cancel();
+    _pendingKeyWrites.clear();
     const UiSettingsState defaultState = UiSettingsState.defaults();
-    _set(defaultState);
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    state = defaultState;
+    final SharedPreferences prefs = await _getPrefs();
     await Future.wait(<Future<bool>>[
       prefs.remove(_themeModeKey),
       prefs.remove(_seedColorKey),

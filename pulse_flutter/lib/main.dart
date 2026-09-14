@@ -56,12 +56,16 @@ Future<void> main() async {
       };
 
       // Parallelize independent storage & cache initializations for fast cold boot
+      late final SharedPreferences sharedPrefs;
       await Future.wait(<Future<void>>[
         const CacheService().ensureInitialized(),
         EncryptedMessageCache.ensureInitialized(),
         ChatMediaCache.ensureInitialized(),
-        SharedPreferences.getInstance().then((_) {}),
+        SharedPreferences.getInstance().then((SharedPreferences p) {
+          sharedPrefs = p;
+        }),
       ]);
+      UiSettingsNotifier.cachedPrefs = sharedPrefs;
       AppTimeSettings.initialize();
       if (kIsWeb) {
         try {

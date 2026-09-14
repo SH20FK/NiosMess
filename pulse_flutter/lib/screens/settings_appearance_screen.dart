@@ -65,6 +65,14 @@ const _customColorPresets = <Color>[
   Color(0xFF78350F), // Bronze
 ];
 
+final _appearanceThemeProvider =
+    Provider.autoDispose.family<ThemeData, Brightness>((ref, brightness) {
+  final VisualThemeSettings visual = ref.watch(
+    uiSettingsProvider.select((UiSettingsState s) => s.visualTheme),
+  );
+  return AppTheme.themed(visual, brightness);
+});
+
 class _AppearanceScreen extends ConsumerWidget {
   const _AppearanceScreen({this.isEmbedded = false});
 
@@ -82,11 +90,13 @@ class _AppearanceScreen extends ConsumerWidget {
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
         final ColorScheme? dynamicScheme =
             brightness == Brightness.light ? lightDynamic : darkDynamic;
-        final ThemeData targetTheme = AppTheme.themed(
-          settings.visualTheme,
-          brightness,
-          dynamicScheme: settings.useSystemDynamic ? dynamicScheme : null,
-        );
+        final ThemeData targetTheme = settings.useSystemDynamic
+            ? AppTheme.themed(
+                settings.visualTheme,
+                brightness,
+                dynamicScheme: dynamicScheme,
+              )
+            : ref.watch(_appearanceThemeProvider(brightness));
 
         return AnimatedTheme(
           data: targetTheme,
@@ -368,8 +378,7 @@ class _ConnectedMeshAndPaletteBanner extends StatefulWidget {
 
 class _ConnectedMeshAndPaletteBannerState
     extends State<_ConnectedMeshAndPaletteBanner> {
-  Offset _touchPos = Offset.zero;
-  bool _isTouching = false;
+  final ValueNotifier<Offset?> _touchNotifier = ValueNotifier<Offset?>(null);
   bool _isShaderReady = false;
 
   @override
@@ -386,12 +395,18 @@ class _ConnectedMeshAndPaletteBannerState
   }
 
   @override
+  void dispose() {
+    _touchNotifier.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = widget.scheme;
     final UiSettingsState settings = widget.settings;
     final PerformanceTier tier = widget.tier;
     final bool optimize =
-        settings.optimizeForWeakDevices || tier == PerformanceTier.tierC || kIsWeb;
+        settings.optimizeForWeakDevices || tier != PerformanceTier.tierA || kIsWeb;
 
     final bool isPresetSelected = _palettes.any(
       (_PaletteEntry p) => p.color.toARGB32() == settings.seedColor.toARGB32(),
@@ -412,19 +427,13 @@ class _ConnectedMeshAndPaletteBannerState
                   height: 195,
                   child: GestureDetector(
                     onPanStart: (DragStartDetails details) {
-                      setState(() {
-                        _touchPos = details.localPosition;
-                        _isTouching = true;
-                      });
+                      _touchNotifier.value = details.localPosition;
                     },
                     onPanUpdate: (DragUpdateDetails details) {
-                      setState(() {
-                        _touchPos = details.localPosition;
-                        _isTouching = true;
-                      });
+                      _touchNotifier.value = details.localPosition;
                     },
-                    onPanEnd: (_) => setState(() => _isTouching = false),
-                    onPanCancel: () => setState(() => _isTouching = false),
+                    onPanEnd: (_) => _touchNotifier.value = null,
+                    onPanCancel: () => _touchNotifier.value = null,
                     child: Stack(
                       children: [
                         // Smooth static linear fallback matching exact mesh tone palette
@@ -445,7 +454,7 @@ class _ConnectedMeshAndPaletteBannerState
                           ),
                         ),
 
-                        // Single, optimized GPU AnimatedMeshGradient (Tier A & B)
+                        // Single, optimized GPU AnimatedMeshGradient (Tier A only)
                         if (!optimize)
                           Positioned.fill(
                             child: AnimatedOpacity(
@@ -492,30 +501,37 @@ class _ConnectedMeshAndPaletteBannerState
                           ),
                         ),
 
-                        // Interactive Touch Reactive Glow with dynamic bannerWidth
-                        if (_isTouching)
-                          Positioned.fill(
-                            child: IgnorePointer(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: RadialGradient(
-                                    center: Alignment(
-                                      bannerWidth > 0
-                                          ? (_touchPos.dx / bannerWidth - 0.5) * 2
-                                          : 0.0,
-                                      (_touchPos.dy / 195.0 - 0.5) * 2,
+                        // Interactive Touch Reactive Glow with dynamic bannerWidth via ValueNotifier + RepaintBoundary
+                        Positioned.fill(
+                          child: RepaintBoundary(
+                            child: ValueListenableBuilder<Offset?>(
+                              valueListenable: _touchNotifier,
+                              builder: (BuildContext context, Offset? touchPos, _) {
+                                if (touchPos == null) return const SizedBox.shrink();
+                                return IgnorePointer(
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: RadialGradient(
+                                        center: Alignment(
+                                          bannerWidth > 0
+                                              ? (touchPos.dx / bannerWidth - 0.5) * 2
+                                              : 0.0,
+                                          (touchPos.dy / 195.0 - 0.5) * 2,
+                                        ),
+                                        radius: 0.5,
+                                        colors: [
+                                          scheme.primary.withValues(alpha: 0.25),
+                                          Colors.transparent,
+                                        ],
+                                        stops: const [0.0, 1.0],
+                                      ),
                                     ),
-                                    radius: 0.5,
-                                    colors: [
-                                      scheme.primary.withValues(alpha: 0.25),
-                                      Colors.transparent,
-                                    ],
-                                    stops: const [0.0, 1.0],
                                   ),
-                                ),
-                              ),
+                                );
+                              },
                             ),
                           ),
+                        ),
                       ],
                     ),
                   ),
@@ -975,15 +991,12 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
                         ? scheme.primary.withValues(alpha: 0.22)
                         : scheme.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: _isDragging
-                        ? [
-                            BoxShadow(
-                              color: scheme.primary.withValues(alpha: 0.28),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
+                    border: Border.all(
+                      color: _isDragging
+                          ? scheme.primary.withValues(alpha: 0.35)
+                          : scheme.primary.withValues(alpha: 0.15),
+                      width: 1,
+                    ),
                   ),
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 220),

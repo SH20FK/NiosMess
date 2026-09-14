@@ -128,7 +128,10 @@ class SettingsScaffold extends ConsumerWidget {
                 32,
               ),
               sliver: SliverList(
-                delegate: SliverChildListDelegate.fixed(listItems),
+                delegate: SliverChildBuilderDelegate(
+                  (BuildContext context, int index) => listItems[index],
+                  childCount: listItems.length,
+                ),
               ),
             ),
           ],
@@ -495,6 +498,7 @@ class SettingsInfoTile extends ConsumerWidget {
     this.value,
     this.subtitle,
     this.onTap,
+    this.onLongPress,
     this.iconColor,
     super.key,
   });
@@ -504,6 +508,7 @@ class SettingsInfoTile extends ConsumerWidget {
   final String? value;
   final String? subtitle;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final Color? iconColor;
 
   @override
@@ -514,6 +519,7 @@ class SettingsInfoTile extends ConsumerWidget {
       value: value,
       subtitle: subtitle,
       onTap: onTap,
+      onLongPress: onLongPress,
       iconColor: iconColor,
     );
   }

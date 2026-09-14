@@ -33,6 +33,8 @@ import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
+import 'package:pulse_flutter/screens/privacy_rule_detail_screen.dart';
+import 'package:pulse_flutter/screens/blocked_users_screen.dart';
 import 'package:pulse_flutter/screens/settings_storage_screen.dart';
 import 'package:pulse_flutter/screens/splash_screen.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -289,6 +291,22 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/settings/privacy',
         pageBuilder: (context, state) => _page(state, const SettingsPrivacyScreen(), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/settings/privacy/rule/:key',
+        pageBuilder: (context, state) => _page(
+          state,
+          PrivacyRuleDetailScreen(ruleKey: state.pathParameters['key']!),
+          pageKey: state.pageKey,
+        ),
+      ),
+      GoRoute(
+        path: '/settings/privacy/blocked-users',
+        pageBuilder: (context, state) => _page(
+          state,
+          const BlockedUsersScreen(),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/settings/storage',

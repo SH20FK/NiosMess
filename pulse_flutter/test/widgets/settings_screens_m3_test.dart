@@ -20,6 +20,8 @@ import 'package:pulse_flutter/screens/settings_storage_screen.dart';
 import 'package:pulse_flutter/models/api/session_model.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/providers/privacy_provider.dart';
+import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Stub adaptive performance notifier: always reports Tier C (powerSaver).
@@ -70,6 +72,17 @@ class _MockAuthRepository extends AuthRepository {
   Future<List<ApiSession>> getSessions() async => const <ApiSession>[];
 }
 
+class _StubPrivacyNotifier extends PrivacyNotifier {
+  @override
+  PrivacyState build() {
+    return const PrivacyState(
+      isLoading: false,
+      rules: <String, PrivacyRule>{},
+      blockedUsers: <BlockedUser>[],
+    );
+  }
+}
+
 Widget _wrapWithApp(Widget child, {Size surfaceSize = const Size(800, 1000)}) {
   final ThemeData theme = AppTheme.themed(
     const VisualThemeSettings(
@@ -86,6 +99,7 @@ Widget _wrapWithApp(Widget child, {Size surfaceSize = const Size(800, 1000)}) {
       authProvider.overrideWith(() => _FakeAuthNotifier()),
       authRepositoryProvider.overrideWith((ref) => _MockAuthRepository(ref)),
       adaptivePerformanceProvider.overrideWith(_StubAdaptivePerformanceNotifier.new),
+      privacyProvider.overrideWith(_StubPrivacyNotifier.new),
     ],
     child: MediaQuery(
       data: MediaQueryData(

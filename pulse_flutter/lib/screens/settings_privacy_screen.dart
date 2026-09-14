@@ -12,8 +12,6 @@ import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/screens/blocked_users_screen.dart';
-import 'package:pulse_flutter/screens/privacy_rule_detail_screen.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:universal_io/io.dart';
 
@@ -26,20 +24,11 @@ class SettingsPrivacyScreen extends ConsumerWidget {
   final bool isEmbedded;
 
   void _openRule(BuildContext context, String key) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (BuildContext context) =>
-            PrivacyRuleDetailScreen(ruleKey: key),
-      ),
-    );
+    context.push('/settings/privacy/rule/$key');
   }
 
   void _openBlockedUsers(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (BuildContext context) => const BlockedUsersScreen(),
-      ),
-    );
+    context.push('/settings/privacy/blocked-users');
   }
 
   @override

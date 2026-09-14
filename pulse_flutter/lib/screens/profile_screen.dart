@@ -973,7 +973,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
             sliver: SliverList(
-              delegate: SliverChildListDelegate(<Widget>[
+              delegate: SliverChildListDelegate.fixed(<Widget>[
           // Hero Profile Card
           _buildMobileHeroProfileCard(
             context,

@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -274,7 +273,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           ),
         ],
       ),
-    ).animate().fade(duration: 250.ms, curve: M3SpringCurves.spatial).slideY(begin: 0.03, end: 0);
+    );
   }
 
   // ── Nothing OS / Pixel Animated Memory & Storage Meters ──────────────
@@ -354,7 +353,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           ),
         ],
       ),
-    ).animate().fade(duration: 300.ms, curve: M3SpringCurves.spatial).slideY(begin: 0.03, end: 0);
+    );
   }
 
   // ── Unified Material 3 Expressive Core Specs Card ─────────────────────
@@ -467,7 +466,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           ),
         ],
       ),
-    ).animate().fade(duration: 350.ms, curve: M3SpringCurves.spatial).slideY(begin: 0.03, end: 0);
+    );
   }
 
   Widget _buildTonalBadge({
@@ -702,6 +701,10 @@ class _AnimatedResourceMeterState extends State<_AnimatedResourceMeter>
 
   @override
   Widget build(BuildContext context) {
+    final String totalText = widget.isInteger
+        ? '${widget.totalAmount.round()} ${widget.unit}'
+        : '${widget.totalAmount.toStringAsFixed(1)} ${widget.unit}';
+
     return AnimatedBuilder(
       animation: _progressAnim,
       builder: (BuildContext context, Widget? child) {
@@ -710,9 +713,6 @@ class _AnimatedResourceMeterState extends State<_AnimatedResourceMeter>
         final String usedText = widget.isInteger
             ? '${currentUsed.round()} ${widget.unit}'
             : '${currentUsed.toStringAsFixed(1)} ${widget.unit}';
-        final String totalText = widget.isInteger
-            ? '${widget.totalAmount.round()} ${widget.unit}'
-            : '${widget.totalAmount.toStringAsFixed(1)} ${widget.unit}';
         final int percentText = (currentProgress * 100).round();
 
         return Column(
