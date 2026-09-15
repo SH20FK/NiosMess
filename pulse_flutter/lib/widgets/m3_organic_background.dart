@@ -158,17 +158,17 @@ class M3OrganicBackground extends ConsumerWidget {
                           ThemeMode.system => (
                               Icons.brightness_auto_rounded,
                               ThemeMode.light,
-                              'Авто (системная)',
+                              context.l10n.themeModeSystem,
                             ),
                           ThemeMode.light => (
                               Icons.light_mode_rounded,
                               ThemeMode.dark,
-                              'Светлая тема',
+                              context.l10n.themeModeLight,
                             ),
                           ThemeMode.dark => (
                               Icons.dark_mode_rounded,
                               ThemeMode.system,
-                              'Тёмная тема',
+                              context.l10n.themeModeDark,
                             ),
                         };
 

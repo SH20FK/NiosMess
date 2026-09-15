@@ -7459,6 +7459,11 @@ abstract class AppLocalizations {
   String get loginNiosIdError;
   String get commonBack;
   String get commonThemeMode;
+  String get splashInitError;
+  String get splashInitErrorSubtitle;
+  String get themeModeSystem;
+  String get themeModeLight;
+  String get themeModeDark;
 }
 
 class _AppLocalizationsDelegate

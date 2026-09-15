@@ -4781,4 +4781,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get commonBack => 'Назад';
   @override
   String get commonThemeMode => 'Тема оформления';
+  @override
+  String get splashInitError => 'Не удалось запустить приложение';
+  @override
+  String get splashInitErrorSubtitle => 'Проверьте подключение к сети и попробуйте снова';
+  @override
+  String get themeModeSystem => 'Системная тема';
+  @override
+  String get themeModeLight => 'Светлая тема';
+  @override
+  String get themeModeDark => 'Тёмная тема';
 }

@@ -4757,4 +4757,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonBack => 'Back';
   @override
   String get commonThemeMode => 'Theme Mode';
+  @override
+  String get splashInitError => 'Failed to initialize application';
+  @override
+  String get splashInitErrorSubtitle => 'Please check your network connection and try again';
+  @override
+  String get themeModeSystem => 'System theme';
+  @override
+  String get themeModeLight => 'Light theme';
+  @override
+  String get themeModeDark => 'Dark theme';
 }

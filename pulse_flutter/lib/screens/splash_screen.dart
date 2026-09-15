@@ -21,7 +21,6 @@ class SplashScreen extends ConsumerStatefulWidget {
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
   bool _hasError = false;
-  String? _errorMessage;
   bool _isRetrying = false;
 
   @override
@@ -34,7 +33,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (!mounted) return;
     setState(() {
       _hasError = false;
-      _errorMessage = null;
       _isRetrying = true;
     });
 
@@ -65,11 +63,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
       // 3. Returning unauthenticated users proceed to login
       context.go('/login');
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _hasError = true;
-        _errorMessage = e.toString();
         _isRetrying = false;
       });
     }
@@ -145,9 +142,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                       Icon(Icons.error_outline_rounded, color: scheme.error, size: 28),
                       const SizedBox(height: 8),
                       Text(
-                        _errorMessage ?? context.l10n.commonError,
-                        style: textTheme.bodySmall?.copyWith(
+                        context.l10n.splashInitError,
+                        style: textTheme.titleSmall?.copyWith(
                           color: scheme.onErrorContainer,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        context.l10n.splashInitErrorSubtitle,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onErrorContainer.withValues(alpha: 0.85),
                         ),
                         textAlign: TextAlign.center,
                       ),

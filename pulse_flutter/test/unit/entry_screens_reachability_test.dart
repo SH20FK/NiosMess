@@ -160,5 +160,25 @@ void main() {
       expect(bgContent.contains('Tooltip('), isTrue);
       expect(bgContent.contains('Semantics('), isTrue);
     });
+
+    test('verifies localization hygiene and zero hardcoded Cyrillic in entry funnel (Phase 8)', () {
+      final splashContent = File('lib/screens/splash_screen.dart').readAsStringSync();
+      final loginContent = File('lib/screens/login_screen.dart').readAsStringSync();
+      final bgContent = File('lib/widgets/m3_organic_background.dart').readAsStringSync();
+      final authScaffoldContent = File('lib/widgets/auth/auth_scaffold.dart').readAsStringSync();
+
+      final cyrillicRegex = RegExp(r'[\u0410-\u044F\u0401\u0451]');
+      expect(cyrillicRegex.hasMatch(splashContent), isFalse);
+      expect(cyrillicRegex.hasMatch(loginContent), isFalse);
+      expect(cyrillicRegex.hasMatch(bgContent), isFalse);
+      expect(cyrillicRegex.hasMatch(authScaffoldContent), isFalse);
+
+      expect(splashContent.contains('localeName.startsWith'), isFalse);
+      expect(loginContent.contains('localeName.startsWith'), isFalse);
+
+      final l10nContent = File('lib/l10n/app_localizations.dart').readAsStringSync();
+      expect(l10nContent.contains('splashInitError'), isTrue);
+      expect(l10nContent.contains('loginExplainerPillar1Title'), isTrue);
+    });
   });
 }
