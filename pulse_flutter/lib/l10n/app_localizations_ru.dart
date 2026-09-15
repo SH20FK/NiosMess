@@ -4743,4 +4743,38 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsAccountNiosIdSecurityDesc => 'Двухфакторная аутентификация и управление паролем на портале ni-os.ru';
   @override
   String get settingsAccountNiosIdError => 'Не удалось открыть страницу Nios ID';
+  @override
+  String get loginWaitingBrowserConfirmation => 'Ожидание подтверждения в браузере...';
+  @override
+  String get loginCodeExpiresIn => 'Код действителен: ';
+  @override
+  String get loginCodeExpired => 'Срок действия кода истёк';
+  @override
+  String get loginGetNewCode => 'Получить новый код';
+  @override
+  String get loginScanQrToSignIn => 'Или отсканируйте QR-код камерой';
+  @override
+  String get loginOfflineTitle => 'Нет подключения к сети';
+  @override
+  String get loginOfflineError => 'Проверьте подключение к интернету для входа';
+  @override
+  String get loginWhatIsNiosId => 'Что такое Nios ID?';
+  @override
+  String get loginExplainerPillar1Title => 'Единый аккаунт';
+  @override
+  String get loginExplainerPillar1Desc => 'Один профиль для всех сервисов экосистемы Nios';
+  @override
+  String get loginExplainerPillar2Title => 'Сквозное шифрование';
+  @override
+  String get loginExplainerPillar2Desc => 'Ключи E2EE генерируются локально на вашем устройстве';
+  @override
+  String get loginExplainerPillar3Title => 'Безопасный вход';
+  @override
+  String get loginExplainerPillar3Desc => 'Пароли никогда не передаются приложению напрямую';
+  @override
+  String get loginStartAuthFailed => 'Не удалось начать авторизацию. Попробуйте позже';
+  @override
+  String get loginAuthorizingOverlay => 'Авторизация в Nios ID...';
+  @override
+  String get loginNiosIdError => 'Ошибка входа через Nios ID';
 }

@@ -1,22 +1,27 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/network/oauth_navigation_helper.dart';
 import 'package:pulse_flutter/core/storage/ephemeral_storage.dart';
 import 'package:pulse_flutter/core/theme/app_typography.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/services/oauth_service.dart';
-import 'package:pulse_flutter/widgets/adaptive/adaptive_glass.dart';
-import 'package:pulse_flutter/widgets/m3_organic_background.dart';
+import 'package:pulse_flutter/widgets/app_logo_mark.dart';
+import 'package:pulse_flutter/widgets/auth/auth_scaffold.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 /// Material 3 Expressive Unified Authentication Hub for NiosMess with Nios ID OAuth 2.0 PKCE.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -43,6 +48,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _statusText;
   NiosDeviceCodeResponse? _deviceCodeResponse;
   bool _isDevicePollingCancelled = false;
+  int _remainingSeconds = 0;
+  Timer? _countdownTimer;
+  bool _isExplainerExpanded = false;
   DateTime? _lastBackPressTime;
 
   @override
@@ -57,16 +65,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
     _isDevicePollingCancelled = true;
     super.dispose();
   }
 
   void _cancelDeviceAuth() {
-    HapticFeedback.lightImpact();
+    HapticService.tap();
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
     setState(() {
       _isDevicePollingCancelled = true;
       _deviceCodeResponse = null;
       _isStartingAuth = false;
+      _remainingSeconds = 0;
     });
   }
 
@@ -190,10 +203,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   /// Initiates RFC 8628 OAuth Device Flow for seamless universal login.
   Future<void> _startNiosIdAuth() async {
-    HapticFeedback.lightImpact();
+    // Offline pre-check
+    final bool isOnline = ref.read(connectivityProvider).value ?? true;
+    if (!isOnline) {
+      HapticService.destructive();
+      AppToast.showError(context, context.l10n.loginOfflineError);
+      return;
+    }
+
+    HapticService.tap();
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
     setState(() {
       _isStartingAuth = true;
       _isDevicePollingCancelled = false;
+      _remainingSeconds = 0;
     });
 
     try {
@@ -206,9 +230,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() {
         _isStartingAuth = false;
         _deviceCodeResponse = deviceResp;
+        _remainingSeconds = deviceResp.expiresIn;
       });
 
-      // Automatically open the authorization page with pre-filled code in browser
+      // Start countdown timer
+      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        if (_remainingSeconds > 0) {
+          setState(() {
+            _remainingSeconds--;
+          });
+        } else {
+          timer.cancel();
+          _isDevicePollingCancelled = true;
+          setState(() {});
+        }
+      });
+
+      // Open authorization page with pre-filled code in browser
       await OAuthNavigationHelper()
           .openInBrowser(deviceResp.verificationUriComplete);
 
@@ -216,11 +258,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _runDeviceTokenPolling(deviceResp);
     } catch (e) {
       if (mounted) {
+        _countdownTimer?.cancel();
+        _countdownTimer = null;
         setState(() {
           _isStartingAuth = false;
           _deviceCodeResponse = null;
+          _remainingSeconds = 0;
         });
-        AppToast.showError(context, 'Не удалось начать авторизацию: $e');
+        HapticService.destructive();
+        AppToast.showError(context, context.l10n.loginStartAuthFailed);
       }
     }
   }
@@ -242,9 +288,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
 
       if (!tokenResp.isSuccess || tokenResp.accessToken == null) {
-        throw Exception(tokenResp.errorDescription ?? 'Не получен токен доступа');
+        throw Exception(
+          tokenResp.errorDescription ?? context.l10n.loginNiosIdTokenFailed,
+        );
       }
 
+      _countdownTimer?.cancel();
+      _countdownTimer = null;
       setState(() {
         _deviceCodeResponse = null;
         _isExchanging = true;
@@ -254,11 +304,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       if (_isDevicePollingCancelled || !mounted) return;
       HapticService.destructive();
+      _countdownTimer?.cancel();
+      _countdownTimer = null;
       setState(() {
         _deviceCodeResponse = null;
         _isExchanging = false;
       });
-      AppToast.showError(context, 'Ошибка входа Nios ID: $e');
+      AppToast.showError(context, context.l10n.loginNiosIdError);
     }
   }
 
@@ -267,6 +319,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final bool isOnline = ref.watch(connectivityProvider).value ?? true;
 
     return PopScope(
       canPop: false,
@@ -285,89 +338,60 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
         SystemUtils.minimizeApp();
       },
-      child: M3OrganicBackground(
+      child: AuthScaffold(
         showBackButton: false,
         showThemeToggle: true,
-        child: Stack(
-          children: [
-            SafeArea(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 440),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // ── Hero Header ──────────────────────────────
-                        _buildHeroHeader(scheme, textTheme),
-                        SizedBox(height: _deviceCodeResponse != null ? 32 : 44),
-
-                        // ── Main Action or Device Code Verification ───
-                        if (_deviceCodeResponse != null) ...[
-                          _buildDeviceCodeCard(scheme, textTheme),
-                        ] else ...[
-                          _buildPrimaryAction(scheme, textTheme),
-                          const SizedBox(height: 12),
-                          _buildSecondaryAction(scheme, textTheme),
-                        ],
-                        const SizedBox(height: 36),
-
-                        // ── Legal Footer ──────────────────────────────
-                        _buildLegalFooter(scheme, textTheme),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // ── Loading Overlay during OAuth Exchange ────────────────
-            if (_isExchanging) _buildLoadingOverlay(scheme, textTheme),
+        isLoadingOverlay: _isExchanging,
+        loadingOverlayText:
+            _statusText ?? context.l10n.loginAuthorizingOverlay,
+        header: _buildHeroHeader(scheme, textTheme),
+        footer: _buildLegalFooter(scheme, textTheme),
+        children: [
+          // ── Offline Warning Banner ──────────────────────────────────
+          if (!isOnline) ...[
+            _buildOfflineBanner(scheme),
+            const SizedBox(height: 16),
           ],
-        ),
+
+          // ── Main Action or Device Code Verification ─────────────────
+          if (_deviceCodeResponse != null) ...[
+            _buildDeviceCodeCard(scheme, textTheme),
+          ] else ...[
+            _buildPrimaryAction(scheme),
+            const SizedBox(height: 12),
+            _buildSecondaryAction(),
+            const SizedBox(height: 20),
+            _buildExplainerSection(scheme),
+          ],
+        ],
       ),
     );
   }
 
   Widget _buildHeroHeader(ColorScheme scheme, TextTheme textTheme) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Clean Brand Squircle Emblem with subtle glow
+        // Unified Brand Hero Logo without drop shadows or MD2 elevation
         Center(
-          child: Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              color: scheme.primary,
-              borderRadius: BorderRadius.circular(26),
-              boxShadow: [
-                BoxShadow(
-                  color: scheme.primary.withValues(alpha: isDark ? 0.38 : 0.22),
-                  blurRadius: 36,
-                  offset: const Offset(0, 10),
-                  spreadRadius: -2,
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(20),
-            child: SvgPicture.asset(
-              'assets/svg/niosmess_n_mark.svg',
-              colorFilter: ColorFilter.mode(
-                scheme.onPrimary,
-                BlendMode.srcIn,
-              ),
-            ),
-          ),
-        ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
-        const SizedBox(height: 22),
+          child: Hero(
+            tag: 'app_brand_logo',
+            child: const AppLogoMark(size: 80),
+          )
+              .animate()
+              .scale(
+                begin: const Offset(0.85, 0.85),
+                end: const Offset(1, 1),
+                duration: const Duration(milliseconds: 380),
+                curve: M3SpringCurves.spatial,
+              )
+              .fade(duration: const Duration(milliseconds: 300)),
+        ),
+        const SizedBox(height: 20),
 
-        // Brand Title in Bricolage Grotesque
+        // Brand Title using localized appName
         Text(
-          'NiosMess',
+          context.l10n.appName,
           style: TextStyle(
             fontFamily: AppFonts.headline,
             fontSize: 34,
@@ -376,10 +400,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             color: scheme.onSurface,
           ),
           textAlign: TextAlign.center,
-        ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.15, end: 0),
-        const SizedBox(height: 10),
+        ).animate().fade(duration: const Duration(milliseconds: 300)),
+        const SizedBox(height: 8),
 
-        // Subtitle without awkward line wraps
+        // Slogan
         Text(
           context.l10n.loginSlogan,
           style: TextStyle(
@@ -390,208 +414,480 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             height: 1.4,
           ),
           textAlign: TextAlign.center,
-        ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
+        ).animate().fade(
+              delay: const Duration(milliseconds: 80),
+              duration: const Duration(milliseconds: 300),
+            ),
       ],
     );
   }
 
-  Widget _buildPrimaryAction(ColorScheme scheme, TextTheme textTheme) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: FilledButton.icon(
-        onPressed: (_isStartingAuth || _isExchanging) ? null : _startNiosIdAuth,
-        style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(56),
-          shape: const StadiumBorder(),
-          elevation: 0,
-          backgroundColor: scheme.primary,
-          foregroundColor: scheme.onPrimary,
-        ),
-        icon: _isStartingAuth
-            ? AppLoadingIndicator(
-                size: 20,
-                color: scheme.onPrimary,
-              )
-            : const Icon(Icons.all_inclusive_rounded, size: 22),
-        label: Text(
-          context.l10n.loginSignInWithNiosId,
-          style: TextStyle(
-            fontFamily: AppFonts.ui,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.2,
-          ),
-        ),
-      ),
-    ).animate().fadeIn(duration: 450.ms, delay: 150.ms);
-  }
-
-  Widget _buildSecondaryAction(ColorScheme scheme, TextTheme textTheme) {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: FilledButton.tonal(
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          OAuthNavigationHelper().openRegistration();
-        },
-        style: FilledButton.styleFrom(
-          backgroundColor: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
-          foregroundColor: scheme.onSurface,
-          minimumSize: const Size.fromHeight(52),
-          shape: const StadiumBorder(),
-          elevation: 0,
-        ),
-        child: Text(
-          context.l10n.loginCreateNiosId,
-          style: TextStyle(
-            fontFamily: AppFonts.ui,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: scheme.onSurface,
-            letterSpacing: 0.1,
-          ),
-        ),
-      ),
-    ).animate().fadeIn(duration: 450.ms, delay: 200.ms);
-  }
-
-  Widget _buildDeviceCodeCard(ColorScheme scheme, TextTheme textTheme) {
-    final NiosDeviceCodeResponse resp = _deviceCodeResponse!;
-
+  Widget _buildOfflineBanner(ColorScheme scheme) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer.withValues(alpha: 0.7),
+        borderRadius: AppRadii.mdRadius,
+        border: Border.all(
+          color: scheme.error.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.wifi_off_rounded,
+            size: 20,
+            color: scheme.onErrorContainer,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              context.l10n.loginOfflineError,
+              style: TextStyle(
+                fontFamily: AppFonts.ui,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: scheme.onErrorContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ).animate().fade(duration: const Duration(milliseconds: 250));
+  }
+
+  Widget _buildPrimaryAction(ColorScheme scheme) {
+    return AuthPrimaryButton(
+      label: context.l10n.loginSignInWithNiosId,
+      icon: Icons.all_inclusive_rounded,
+      isLoading: _isStartingAuth,
+      onPressed: (_isStartingAuth || _isExchanging) ? null : _startNiosIdAuth,
+    ).animate().fade(
+          delay: const Duration(milliseconds: 120),
+          duration: const Duration(milliseconds: 300),
+        );
+  }
+
+  Widget _buildSecondaryAction() {
+    return AuthPrimaryButton(
+      label: context.l10n.loginCreateNiosId,
+      isTonal: true,
+      onPressed: (_isStartingAuth || _isExchanging)
+          ? null
+          : () {
+              HapticService.tap();
+              OAuthNavigationHelper().openRegistration();
+            },
+    ).animate().fade(
+          delay: const Duration(milliseconds: 160),
+          duration: const Duration(milliseconds: 300),
+        );
+  }
+
+  Widget _buildExplainerSection(ColorScheme scheme) {
+    return Container(
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: AppRadii.lgRadius,
         border: Border.all(
           color: scheme.outlineVariant.withValues(alpha: 0.35),
           width: 1,
         ),
-
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticService.tap();
+            setState(() {
+              _isExplainerExpanded = !_isExplainerExpanded;
+            });
+          },
+          borderRadius: AppRadii.lgRadius,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 20,
+                      color: scheme.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        context.l10n.loginWhatIsNiosId,
+                        style: TextStyle(
+                          fontFamily: AppFonts.ui,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _isExplainerExpanded ? 0.5 : 0.0,
+                      duration: const Duration(milliseconds: 280),
+                      curve: M3SpringCurves.spatial,
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                AnimatedCrossFade(
+                  firstChild: const SizedBox.shrink(),
+                  secondChild: Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: Column(
+                      children: [
+                        _buildExplainerPillar(
+                          icon: Icons.badge_outlined,
+                          title: context.l10n.loginExplainerPillar1Title,
+                          desc: context.l10n.loginExplainerPillar1Desc,
+                          scheme: scheme,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildExplainerPillar(
+                          icon: Icons.lock_outline_rounded,
+                          title: context.l10n.loginExplainerPillar2Title,
+                          desc: context.l10n.loginExplainerPillar2Desc,
+                          scheme: scheme,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildExplainerPillar(
+                          icon: Icons.shield_outlined,
+                          title: context.l10n.loginExplainerPillar3Title,
+                          desc: context.l10n.loginExplainerPillar3Desc,
+                          scheme: scheme,
+                        ),
+                      ],
+                    ),
+                  ),
+                  crossFadeState: _isExplainerExpanded
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
+                  duration: const Duration(milliseconds: 280),
+                  sizeCurve: M3SpringCurves.spatial,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).animate().fade(
+          delay: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 300),
+        );
+  }
+
+  Widget _buildExplainerPillar({
+    required IconData icon,
+    required String title,
+    required String desc,
+    required ColorScheme scheme,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer.withValues(alpha: 0.6),
+            borderRadius: AppRadii.smRadius,
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: scheme.onPrimaryContainer,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AppLoadingIndicator(
-                size: 18,
-                color: scheme.primary,
-              ),
-              const SizedBox(width: 12),
               Text(
-                context.l10n.loginConfirmTitle,
+                title,
                 style: TextStyle(
                   fontFamily: AppFonts.ui,
-                  fontSize: 16,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: scheme.onSurface,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            context.l10n.loginConfirmDesc,
-            style: TextStyle(
-              fontFamily: AppFonts.body,
-              fontSize: 13.5,
-              color: scheme.onSurfaceVariant,
-              height: 1.4,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 18),
-
-          // High-contrast clean Code Box
-          InkWell(
-            onTap: () {
-              Clipboard.setData(ClipboardData(text: resp.userCode));
-              HapticFeedback.lightImpact();
-              AppToast.showSuccess(context, context.l10n.loginCodeCopied);
-            },
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: scheme.primary.withValues(alpha: 0.25),
-                  width: 1.2,
+              const SizedBox(height: 2),
+              Text(
+                desc,
+                style: TextStyle(
+                  fontFamily: AppFonts.body,
+                  fontSize: 12,
+                  color: scheme.onSurfaceVariant,
+                  height: 1.3,
                 ),
               ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeviceCodeCard(ColorScheme scheme, TextTheme textTheme) {
+    final NiosDeviceCodeResponse resp = _deviceCodeResponse!;
+    final bool isExpired = _remainingSeconds <= 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: AppRadii.lgRadius,
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Status Bar & Countdown Timer ────────────────────────────
+          Row(
+            children: [
+              if (!isExpired) ...[
+                AppLoadingIndicator(size: 16, color: scheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    context.l10n.loginWaitingBrowserConfirmation,
+                    style: TextStyle(
+                      fontFamily: AppFonts.ui,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                ),
+              ] else ...[
+                Icon(
+                  Icons.timer_off_outlined,
+                  size: 18,
+                  color: scheme.error,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    context.l10n.loginCodeExpired,
+                    style: TextStyle(
+                      fontFamily: AppFonts.ui,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.error,
+                    ),
+                  ),
+                ),
+              ],
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isExpired
+                      ? scheme.errorContainer
+                      : scheme.surfaceContainerHigh,
+                  borderRadius: AppRadii.fullRadius,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.timer_outlined,
+                      size: 13,
+                      color: isExpired
+                          ? scheme.onErrorContainer
+                          : scheme.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${(_remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(_remainingSeconds % 60).toString().padLeft(2, '0')}',
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isExpired
+                            ? scheme.onErrorContainer
+                            : scheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          if (isExpired) ...[
+            // ── Expired State ─────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        resp.userCode,
-                        style: TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 26,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 4,
-                          color: scheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Icon(
-                        Icons.copy_rounded,
-                        size: 20,
-                        color: scheme.primary.withValues(alpha: 0.85),
-                      ),
-                    ],
+                  Icon(
+                    Icons.schedule_rounded,
+                    size: 48,
+                    color: scheme.error.withValues(alpha: 0.8),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 12),
                   Text(
-                    context.l10n.loginTapToCopy,
+                    context.l10n.loginCodeExpired,
                     style: TextStyle(
-                      fontFamily: AppFonts.body,
-                      fontSize: 11,
-                      color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                      fontFamily: AppFonts.ui,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 20),
+            AuthPrimaryButton(
+              label: context.l10n.loginGetNewCode,
+              icon: Icons.refresh_rounded,
+              onPressed: _startNiosIdAuth,
+            ),
+          ] else ...[
+            // ── Active Code Flow: QR + Code Box ───────────────────────
+            Text(
+              context.l10n.loginConfirmDesc,
+              style: TextStyle(
+                fontFamily: AppFonts.body,
+                fontSize: 13,
+                color: scheme.onSurfaceVariant,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
 
-          // Primary confirmation button
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: FilledButton.icon(
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                OAuthNavigationHelper().openInBrowser(resp.verificationUriComplete);
-              },
-              icon: const Icon(Icons.open_in_browser_rounded, size: 20),
-              label: Text(
-                context.l10n.loginConfirmInBrowser,
-                style: TextStyle(
-                  fontFamily: AppFonts.ui,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+            // High-contrast clean QR Code container
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: AppRadii.mdRadius,
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: QrImageView(
+                  data: resp.verificationUriComplete,
+                  version: QrVersions.auto,
+                  size: 160,
+                  padding: EdgeInsets.zero,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Color(0xFF151515),
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Color(0xFF151515),
+                  ),
                 ),
               ),
-              style: FilledButton.styleFrom(
-                backgroundColor: scheme.primary,
-                foregroundColor: scheme.onPrimary,
-                shape: const StadiumBorder(),
-                elevation: 0,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              context.l10n.loginScanQrToSignIn,
+              style: TextStyle(
+                fontFamily: AppFonts.body,
+                fontSize: 12,
+                color: scheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+
+            // High-contrast copyable Code Box
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: resp.userCode));
+                  HapticService.tap();
+                  AppToast.showSuccess(context, context.l10n.loginCodeCopied);
+                },
+                borderRadius: AppRadii.mdRadius,
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                    borderRadius: AppRadii.mdRadius,
+                    border: Border.all(
+                      color: scheme.primary.withValues(alpha: 0.25),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            resp.userCode,
+                            style: TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 4,
+                              color: scheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Icon(
+                            Icons.copy_rounded,
+                            size: 20,
+                            color: scheme.primary.withValues(alpha: 0.85),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        context.l10n.loginTapToCopy,
+                        style: TextStyle(
+                          fontFamily: AppFonts.body,
+                          fontSize: 11,
+                          color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 18),
+
+            // Primary confirmation in browser button
+            AuthPrimaryButton(
+              label: context.l10n.loginConfirmInBrowser,
+              icon: Icons.open_in_browser_rounded,
+              onPressed: () {
+                HapticService.tap();
+                OAuthNavigationHelper()
+                    .openInBrowser(resp.verificationUriComplete);
+              },
+            ),
+          ],
           const SizedBox(height: 8),
 
-          // Clean cancel action
+          // Cancel Action
           TextButton(
             onPressed: _cancelDeviceAuth,
             style: TextButton.styleFrom(
@@ -608,11 +904,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 300.ms).scale(begin: const Offset(0.96, 0.96), end: const Offset(1, 1));
+    ).animate().scale(
+          begin: const Offset(0.96, 0.96),
+          end: const Offset(1, 1),
+          duration: const Duration(milliseconds: 300),
+          curve: M3SpringCurves.spatial,
+        ).fade(duration: const Duration(milliseconds: 250));
   }
 
   Widget _buildLegalFooter(ColorScheme scheme, TextTheme textTheme) {
+    // Strictly legal links only — NO build version or channel in footer per user specification.
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           context.l10n.loginAgreeTermsPrefix,
@@ -629,8 +932,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           spacing: 12,
           children: [
             InkWell(
-              onTap: () => context.push('/legal/terms'),
-              borderRadius: BorderRadius.circular(6),
+              onTap: () {
+                HapticService.tap();
+                context.push('/legal/terms');
+              },
+              borderRadius: AppRadii.smRadius,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Text(
@@ -653,8 +959,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
             InkWell(
-              onTap: () => context.push('/legal/privacy'),
-              borderRadius: BorderRadius.circular(6),
+              onTap: () {
+                HapticService.tap();
+                context.push('/legal/privacy');
+              },
+              borderRadius: AppRadii.smRadius,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Text(
@@ -672,54 +981,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ],
         ),
       ],
-    ).animate().fadeIn(duration: 450.ms, delay: 350.ms);
-  }
-
-  Widget _buildLoadingOverlay(ColorScheme scheme, TextTheme textTheme) {
-    return Positioned.fill(
-      child: AdaptiveGlass(
-        tierASigma: 8.0,
-        tierBSigma: 4.0,
-        tintColor: scheme.surface.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.zero,
-        border: const Border.fromBorderSide(BorderSide.none),
-        child: Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.3),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: scheme.shadow.withValues(alpha: 0.1),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const PulseLoadingIndicator(size: 48),
-                const SizedBox(height: 20),
-                Text(
-                  _statusText ?? 'Авторизация...',
-                  style: TextStyle(
-                    fontFamily: AppFonts.ui,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: scheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+    ).animate().fade(
+          delay: const Duration(milliseconds: 240),
+          duration: const Duration(milliseconds: 300),
+        );
   }
 }

@@ -86,5 +86,42 @@ void main() {
       expect(content.contains('Duration(seconds: 24)'), isFalse);
       expect(content.contains('ImageFilter.blur'), isFalse);
     });
+
+    test('verifies login screen M3 Expressive modernization (Phase 5)', () {
+      final loginFile = File('lib/screens/login_screen.dart');
+      expect(loginFile.existsSync(), isTrue);
+      final content = loginFile.readAsStringSync();
+
+      // Wrapped in AuthScaffold
+      expect(content.contains('AuthScaffold'), isTrue);
+
+      // Unified Hero brand logo
+      expect(content.contains("'app_brand_logo'"), isTrue);
+
+      // QrImageView for cross-device authorization
+      expect(content.contains('QrImageView'), isTrue);
+
+      // Countdown timer for device code expiration
+      expect(content.contains('_countdownTimer'), isTrue);
+      expect(content.contains('_remainingSeconds'), isTrue);
+
+      // Offline detection via connectivityProvider
+      expect(content.contains('connectivityProvider'), isTrue);
+
+      // Nios ID explainer section
+      expect(content.contains('_buildExplainerSection'), isTrue);
+
+      // Strictly NO build version in footer (user requirement)
+      expect(content.contains('BuildInfo'), isFalse);
+
+      // Zero legacy boxShadow or MD2 elevation
+      expect(content.contains('boxShadow'), isFalse);
+      expect(content.contains('BoxShadow'), isFalse);
+
+      // Motion curves: strictly M3SpringCurves, zero legacy Curves
+      expect(content.contains('Curves.easeOutBack'), isFalse);
+      expect(content.contains('Curves.easeInOut'), isFalse);
+      expect(content.contains('M3SpringCurves'), isTrue);
+    });
   });
 }

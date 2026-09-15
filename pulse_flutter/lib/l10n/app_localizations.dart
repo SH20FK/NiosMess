@@ -7440,6 +7440,23 @@ abstract class AppLocalizations {
   String get settingsAccountNiosIdSecurity;
   String get settingsAccountNiosIdSecurityDesc;
   String get settingsAccountNiosIdError;
+  String get loginWaitingBrowserConfirmation;
+  String get loginCodeExpiresIn;
+  String get loginCodeExpired;
+  String get loginGetNewCode;
+  String get loginScanQrToSignIn;
+  String get loginOfflineTitle;
+  String get loginOfflineError;
+  String get loginWhatIsNiosId;
+  String get loginExplainerPillar1Title;
+  String get loginExplainerPillar1Desc;
+  String get loginExplainerPillar2Title;
+  String get loginExplainerPillar2Desc;
+  String get loginExplainerPillar3Title;
+  String get loginExplainerPillar3Desc;
+  String get loginStartAuthFailed;
+  String get loginAuthorizingOverlay;
+  String get loginNiosIdError;
 }
 
 class _AppLocalizationsDelegate

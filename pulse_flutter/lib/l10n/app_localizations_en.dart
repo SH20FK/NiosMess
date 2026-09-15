@@ -4719,4 +4719,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAccountNiosIdSecurityDesc => 'Two-factor authentication and password management on ni-os.ru';
   @override
   String get settingsAccountNiosIdError => 'Failed to open Nios ID page';
+  @override
+  String get loginWaitingBrowserConfirmation => 'Waiting for confirmation in browser...';
+  @override
+  String get loginCodeExpiresIn => 'Code expires in: ';
+  @override
+  String get loginCodeExpired => 'The code has expired';
+  @override
+  String get loginGetNewCode => 'Get new code';
+  @override
+  String get loginScanQrToSignIn => 'Or scan QR code with camera';
+  @override
+  String get loginOfflineTitle => 'No network connection';
+  @override
+  String get loginOfflineError => 'Check your internet connection to sign in';
+  @override
+  String get loginWhatIsNiosId => 'What is Nios ID?';
+  @override
+  String get loginExplainerPillar1Title => 'Unified Account';
+  @override
+  String get loginExplainerPillar1Desc => 'One profile for the entire Nios ecosystem';
+  @override
+  String get loginExplainerPillar2Title => 'End-to-End Encryption';
+  @override
+  String get loginExplainerPillar2Desc => 'E2EE keys are generated locally on your device';
+  @override
+  String get loginExplainerPillar3Title => 'Zero Password Exposure';
+  @override
+  String get loginExplainerPillar3Desc => 'Passwords are never transmitted directly to the client app';
+  @override
+  String get loginStartAuthFailed => 'Failed to start authorization. Please try again later';
+  @override
+  String get loginAuthorizingOverlay => 'Authorizing with Nios ID...';
+  @override
+  String get loginNiosIdError => 'Failed to sign in with Nios ID';
 }
