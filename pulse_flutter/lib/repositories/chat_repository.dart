@@ -447,7 +447,7 @@ class ChatRepository {
     required int fileSize,
     required void Function(int sent, int total) onProgress,
   }) async {
-    if (fileSize <= 0) {
+    if (fileSize <= 0 && (bytes == null || bytes.isEmpty)) {
       throw Exception('File is empty');
     }
 
@@ -456,12 +456,17 @@ class ChatRepository {
       throw Exception('Unauthorized: No session token');
     }
 
+    // Server accepts only "media", "voice", or "circle". Map "photo", "video", "document" to "media".
+    final String serverSubtype = (mediaSubtype == 'voice' || mediaSubtype == 'circle')
+        ? mediaSubtype
+        : 'media';
+
     try {
       return await _httpMultipartUpload(
         bytes: bytes,
         filePath: filePath,
         filename: filename,
-        mediaSubtype: mediaSubtype,
+        mediaSubtype: serverSubtype,
         fileSize: fileSize,
         token: token,
         onProgress: onProgress,
@@ -472,7 +477,7 @@ class ChatRepository {
         bytes: bytes,
         filePath: filePath,
         filename: filename,
-        mediaSubtype: mediaSubtype,
+        mediaSubtype: serverSubtype,
         fileSize: fileSize,
         onProgress: onProgress,
       );
@@ -498,33 +503,57 @@ class ChatRepository {
 
     if (filePath != null && filePath.isNotEmpty) {
       final File file = File(filePath);
-      final Stream<List<int>> source = file.openRead();
-      int sent = 0;
-      final Stream<List<int>> counted = source.transform(
-        StreamTransformer<List<int>, List<int>>.fromHandlers(
-          handleData: (List<int> chunk, EventSink<List<int>> sink) {
-            sent += chunk.length;
-            onProgress(sent, fileSize);
-            sink.add(chunk);
-          },
-        ),
-      );
-      request.files.add(
-        http.MultipartFile(
-          'file',
-          counted,
-          fileSize,
-          filename: filename,
-        ),
-      );
-    } else if (bytes != null) {
+      final int actualSize = (await file.exists()) ? await file.length() : fileSize;
+      if (actualSize == 0 && bytes != null && bytes.isNotEmpty) {
+        // Fall back to bytes if file is empty/inaccessible
+        final Stream<List<int>> source = Stream.fromIterable([bytes]);
+        int sent = 0;
+        final Stream<List<int>> counted = source.transform(
+          StreamTransformer<List<int>, List<int>>.fromHandlers(
+            handleData: (List<int> chunk, EventSink<List<int>> sink) {
+              sent += chunk.length;
+              onProgress(sent, bytes.length);
+              sink.add(chunk);
+            },
+          ),
+        );
+        request.files.add(
+          http.MultipartFile(
+            'file',
+            counted,
+            bytes.length,
+            filename: filename,
+          ),
+        );
+      } else {
+        final Stream<List<int>> source = file.openRead();
+        int sent = 0;
+        final Stream<List<int>> counted = source.transform(
+          StreamTransformer<List<int>, List<int>>.fromHandlers(
+            handleData: (List<int> chunk, EventSink<List<int>> sink) {
+              sent += chunk.length;
+              onProgress(sent, actualSize);
+              sink.add(chunk);
+            },
+          ),
+        );
+        request.files.add(
+          http.MultipartFile(
+            'file',
+            counted,
+            actualSize,
+            filename: filename,
+          ),
+        );
+      }
+    } else if (bytes != null && bytes.isNotEmpty) {
       final Stream<List<int>> source = Stream.fromIterable([bytes]);
       int sent = 0;
       final Stream<List<int>> counted = source.transform(
         StreamTransformer<List<int>, List<int>>.fromHandlers(
           handleData: (List<int> chunk, EventSink<List<int>> sink) {
             sent += chunk.length;
-            onProgress(sent, fileSize);
+            onProgress(sent, bytes.length);
             sink.add(chunk);
           },
         ),
@@ -541,7 +570,7 @@ class ChatRepository {
       throw Exception('No file path or bytes provided for upload');
     }
 
-    onProgress(0, fileSize);
+    onProgress(0, fileSize > 0 ? fileSize : 1);
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
@@ -567,27 +596,37 @@ class ChatRepository {
     required void Function(int sent, int total) onProgress,
   }) async {
     final Uint8List fileBytes;
-    if (bytes != null) {
+    if (bytes != null && bytes.isNotEmpty) {
       fileBytes = bytes;
     } else if (filePath != null && filePath.isNotEmpty) {
-      fileBytes = await File(filePath).readAsBytes();
+      final File file = File(filePath);
+      if (await file.exists()) {
+        fileBytes = await file.readAsBytes();
+      } else {
+        throw Exception('File does not exist: $filePath');
+      }
     } else {
       throw Exception('No file path or bytes provided for upload');
     }
 
+    final int actualFileSize = fileBytes.length;
+    if (actualFileSize <= 0) {
+      throw Exception('File data is empty');
+    }
+
     const int chunkSize = 256 * 1024; // 256 KiB
-    final int totalChunks = (fileSize / chunkSize).ceil();
+    final int totalChunks = (actualFileSize / chunkSize).ceil();
 
     final UploadInitResult init = await initUpload(
       filename: filename,
       totalChunks: totalChunks,
-      fileSize: fileSize,
+      fileSize: actualFileSize,
       mediaSubtype: mediaSubtype,
     );
 
     for (int i = 0; i < totalChunks; i++) {
       final int start = i * chunkSize;
-      final int end = (start + chunkSize > fileSize) ? fileSize : start + chunkSize;
+      final int end = (start + chunkSize > actualFileSize) ? actualFileSize : start + chunkSize;
       final List<int> chunk = fileBytes.sublist(start, end);
       await uploadChunk(
         uploadId: init.uploadId,
@@ -595,10 +634,10 @@ class ChatRepository {
         chunk: chunk,
         filename: filename,
       );
-      onProgress(end, fileSize);
+      onProgress(end, actualFileSize);
     }
 
-    onProgress(fileSize, fileSize);
+    onProgress(actualFileSize, actualFileSize);
     return init.uploadId;
   }
 

@@ -142,7 +142,7 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
     try {
       final uploadId = await ref.read(chatRepositoryProvider).uploadStreamInChunks(
         filePath: task.filePath.isNotEmpty ? task.filePath : null,
-        bytes: task.bytes,
+        bytes: (task.bytes != null && task.bytes!.isNotEmpty) ? task.bytes : null,
         filename: task.filename,
         mediaSubtype: task.mediaSubtype,
         fileSize: task.fileSize,

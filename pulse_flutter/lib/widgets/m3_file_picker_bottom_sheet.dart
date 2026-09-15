@@ -472,16 +472,24 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
       final AssetEntity asset = _selectedAssets[i];
       File? file = await asset.file;
       file ??= await asset.originFile;
-      if (file != null) {
-        final int fileSize = await file.length();
-        final String fileName = asset.title ?? file.uri.pathSegments.last;
+      Uint8List? bytes;
+      if (file == null) {
+        try {
+          bytes = await asset.originBytes;
+        } catch (_) {}
+      }
+      if (file != null || (bytes != null && bytes.isNotEmpty)) {
+        final int fileSize = file != null ? await file.length() : bytes!.length;
+        final String fileName = asset.title ??
+            (file != null ? file.uri.pathSegments.last : 'photo_${asset.id}.jpg');
         final String mediaSubtype = _sendAsDocument
             ? 'document'
             : (asset.type == AssetType.video ? 'video' : 'photo');
 
         results.add(
           M3FilePickerResult(
-            filePath: file.path,
+            filePath: file?.path,
+            fileBytes: bytes,
             fileName: fileName,
             fileSize: fileSize,
             mediaSubtype: mediaSubtype,
@@ -501,10 +509,11 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
     }
   }
 
-  void _previewAsset(int index) {
+  Future<void> _previewAsset(int index) async {
     HapticService.tap();
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
+    final M3FilePickerResult? single =
+        await Navigator.of(context).push<M3FilePickerResult>(
+      MaterialPageRoute<M3FilePickerResult>(
         builder: (_) => _RecentPreviewScreen(
           assets: _recentAssets,
           initialIndex: index,
@@ -512,29 +521,16 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
           onToggle: (AssetEntity asset) {
             _toggleAssetSelection(asset);
           },
-          onSendSingle: (AssetEntity asset, String caption, bool asDoc) async {
-            final File? file = await asset.file;
-            if (file == null || !mounted) return;
-            final int fileSize = await file.length();
-            final String fileName = asset.title ?? file.uri.pathSegments.last;
-            final M3FilePickerResult single = M3FilePickerResult(
-              filePath: file.path,
-              fileName: fileName,
-              fileSize: fileSize,
-              mediaSubtype: asDoc
-                  ? 'document'
-                  : (asset.type == AssetType.video ? 'video' : 'photo'),
-              caption: caption.isNotEmpty ? caption : null,
-              sendAsDocument: asDoc,
-            );
-            if (!mounted) return;
-            Navigator.of(context).pop(<M3FilePickerResult>[single]);
-          },
         ),
       ),
-    ).then((_) {
-      if (mounted) setState(() {});
-    });
+    );
+
+    if (!mounted) return;
+    if (single != null) {
+      Navigator.of(context).pop(<M3FilePickerResult>[single]);
+    } else {
+      setState(() {});
+    }
   }
 
   @override
@@ -1112,14 +1108,12 @@ class _RecentPreviewScreen extends StatefulWidget {
     required this.initialIndex,
     required this.selectedAssets,
     required this.onToggle,
-    required this.onSendSingle,
   });
 
   final List<AssetEntity> assets;
   final int initialIndex;
   final List<AssetEntity> selectedAssets;
   final ValueChanged<AssetEntity> onToggle;
-  final void Function(AssetEntity asset, String caption, bool asDoc) onSendSingle;
 
   @override
   State<_RecentPreviewScreen> createState() => _RecentPreviewScreenState();
@@ -1325,14 +1319,39 @@ class _RecentPreviewScreenState extends State<_RecentPreviewScreen> {
                         shape: const CircleBorder(),
                         padding: const EdgeInsets.all(14),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         HapticService.confirm();
-                        Navigator.of(context).pop();
-                        widget.onSendSingle(
-                          currentAsset,
-                          _captionController.text.trim(),
-                          _sendAsDocument,
+                        File? file = await currentAsset.file;
+                        file ??= await currentAsset.originFile;
+                        Uint8List? bytes;
+                        if (file == null) {
+                          try {
+                            bytes = await currentAsset.originBytes;
+                          } catch (_) {}
+                        }
+                        if (file == null && (bytes == null || bytes.isEmpty)) {
+                          if (context.mounted) Navigator.of(context).pop();
+                          return;
+                        }
+                        final int fileSize = file != null ? await file.length() : bytes!.length;
+                        final String fileName = currentAsset.title ??
+                            (file != null ? file.uri.pathSegments.last : 'photo_${currentAsset.id}.jpg');
+                        final M3FilePickerResult single = M3FilePickerResult(
+                          filePath: file?.path,
+                          fileBytes: bytes,
+                          fileName: fileName,
+                          fileSize: fileSize,
+                          mediaSubtype: _sendAsDocument
+                              ? 'document'
+                              : (currentAsset.type == AssetType.video ? 'video' : 'photo'),
+                          caption: _captionController.text.trim().isNotEmpty
+                              ? _captionController.text.trim()
+                              : null,
+                          sendAsDocument: _sendAsDocument,
                         );
+                        if (context.mounted) {
+                          Navigator.of(context).pop(single);
+                        }
                       },
                       child: const Icon(Icons.send_rounded, size: 20),
                     ),

@@ -790,14 +790,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     // Secret chats: encrypt the payload locally; the per-file key travels in
     // the Double-Ratchet message envelope and never reaches the server.
-    Uint8List effectiveBytes = bytes ?? Uint8List(0);
+    Uint8List? effectiveBytes = (bytes != null && bytes.isNotEmpty) ? bytes : null;
     String effectiveFilePath = filePath ?? '';
     Uint8List? e2eeFileKey;
     if (ref.read(chatByIdProvider(chatId))?.isSecret == true) {
       try {
-        final Uint8List plain = bytes != null && bytes.isNotEmpty
-            ? bytes
-            : (filePath != null ? await File(filePath).readAsBytes() : Uint8List(0));
+        final Uint8List plain = effectiveBytes ??
+            (filePath != null && filePath.isNotEmpty ? await File(filePath).readAsBytes() : Uint8List(0));
         if (plain.isNotEmpty) {
           e2eeFileKey = E2eeFileCrypto.generateFileKey();
           effectiveBytes = await E2eeFileCrypto.encrypt(plain, e2eeFileKey);
