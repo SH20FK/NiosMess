@@ -4767,4 +4767,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeModeLight => 'Light theme';
   @override
   String get themeModeDark => 'Dark theme';
+  @override
+  String get profileBioHeader => 'Bio';
+  @override
+  String get profileRegistrationDate => 'Registered';
+  @override
+  String get profilePhoneNumber => 'Phone';
+  @override
+  String get profileBirthday => 'Birthday';
+  @override
+  String get profileUsernameCopied => 'Username copied to clipboard';
+  @override
+  String get profilePhoneCopied => 'Phone number copied to clipboard';
+  @override
+  String get profileLoadFailed => 'Failed to load profile. Please try again later.';
+  @override
+  String get profileNetworkError => 'Server temporarily unavailable. Check your internet connection.';
+  @override
+  String get profileBlockedByMeTitle => 'User blocked by you';
+  @override
+  String get profileBlockedByMeDesc => 'You cannot exchange messages or make calls with this user';
+  @override
+  String get profileBlockedByUserTitle => 'Access restricted';
+  @override
+  String get profileBlockedByUserDesc => 'You have been added to this user\'s blocklist';
+  @override
+  String get profileSecretChat => 'Secret chat';
+  @override
+  String get callsBotForbidden => 'Calls to bots are not available';
+  @override
+  String get callsConnecting => 'Connecting...';
+  @override
+  String get callListenerModeNotice => 'Microphone unavailable — connected in listener mode';
+  @override
+  String get profileMuteNotifications => 'Mute notifications';
+  @override
+  String get profileUnmuteNotifications => 'Unmute notifications';
+  @override
+  String get profileShareQr => 'Share / QR code';
+  @override
+  String get profileAddToFavorites => 'Add to favorites';
+  @override
+  String get profileRemoveFromFavorites => 'Remove from favorites';
+  @override
+  String get profileCommonGroups => 'Common groups';
+  @override
+  String get profileNoCommonGroups => 'No common groups';
+  @override
+  String get profileOnline => 'online';
+  @override
+  String get profileOffline => 'offline';
+  @override
+  String get profileLastSeen => 'last seen';
+  @override
+  String get profileConnectingDirect => 'Connecting to chat...';
 }

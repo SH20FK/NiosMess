@@ -627,7 +627,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: PulseLoadingIndicator(size: 32),
+                      child: AppLoadingIndicator(size: 32),
                     )
                   : _recentAssets.isEmpty
                       ? Center(
@@ -1185,7 +1185,7 @@ class _RecentPreviewScreenState extends State<_RecentPreviewScreen> {
                           );
                         }
                         return const Center(
-                          child: PulseLoadingIndicator(size: 36),
+                          child: AppLoadingIndicator(size: 36),
                         );
                       },
                     ),

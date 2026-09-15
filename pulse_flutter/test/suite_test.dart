@@ -46,8 +46,9 @@ import 'unit/pkce_test.dart' as unit_pkce;
 import 'unit/shared_media_classification_test.dart' as unit_shared_media_classification;
 import 'unit/sound_service_test.dart' as unit_sound_service;
 import 'unit/sticker_formatter_test.dart' as unit_sticker_formatter;
+import 'unit/morphing_brand_mark_test.dart' as unit_morphing_brand_mark;
 import 'widgets/adaptive_glass_test.dart' as widgets_adaptive_glass;
-import 'widgets/adaptive_mesh_background_test.dart' as widgets_adaptive_mesh_background;
+import 'm3e_design_audit_test.dart' as m3e_design_audit;
 import 'widgets/chat_list_header_and_performance_test.dart' as widgets_chat_list_header;
 import 'widgets/chat_wallpaper_painter_test.dart' as widgets_chat_wallpaper_painter;
 import 'widgets/create_post_screen_test.dart' as widgets_create_post_screen;
@@ -88,6 +89,7 @@ void main() {
     unit_shared_media_classification.main();
     unit_sound_service.main();
     unit_sticker_formatter.main();
+    unit_morphing_brand_mark.main();
 
     // Stress Tests
     stress_oauth_service.main();
@@ -120,7 +122,7 @@ void main() {
 
     // Widgets
     widgets_adaptive_glass.main();
-    widgets_adaptive_mesh_background.main();
+    m3e_design_audit.main();
     widgets_chat_list_header.main();
     widgets_chat_wallpaper_painter.main();
     widgets_create_post_screen.main();

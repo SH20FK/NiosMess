@@ -11,6 +11,7 @@ import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
@@ -194,7 +195,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final double screenWidth = MediaQuery.sizeOf(context).width;
-    final bool isWide = screenWidth >= 760;
+    final bool isWide = screenWidth >= Breakpoints.medium;
 
     final AuthState auth = ref.watch(authProvider);
     final String displayName = auth.profile?.displayName ??

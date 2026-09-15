@@ -4,17 +4,17 @@
 class BuildInfo {
   const BuildInfo._();
 
-  /// Semantic version (e.g. "3.61.0").
-  static const String version = '3.61.0';
+  /// Semantic version (e.g. "3.63.0").
+  static const String version = '3.63.0';
 
-  /// Build number (e.g. "144").
-  static const String buildNumber = '144';
+  /// Build number (e.g. "146").
+  static const String buildNumber = '146';
 
-  /// Version with 'v' prefix (e.g. "v3.61.0").
-  static const String versionWithPrefix = 'v3.61.0';
+  /// Version with 'v' prefix (e.g. "v3.63.0").
+  static const String versionWithPrefix = 'v3.63.0';
 
-  /// Full version with build number (e.g. "v3.61.0+144").
-  static const String fullVersion = 'v3.61.0+144';
+  /// Full version with build number (e.g. "v3.63.0+146").
+  static const String fullVersion = 'v3.63.0+146';
 
   /// Git commit hash of this release.
   static const String commitHash = 'eca736a';

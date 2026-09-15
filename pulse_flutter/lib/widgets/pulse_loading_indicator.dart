@@ -31,6 +31,3 @@ class AppLoadingIndicator extends StatelessWidget {
     return Center(child: indicator);
   }
 }
-
-typedef PulseLoadingIndicator = AppLoadingIndicator;
-

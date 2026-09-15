@@ -276,8 +276,8 @@ Future<String?> showCreateChatMenu(BuildContext context) {
         final ColorScheme scheme = Theme.of(ctx).colorScheme;
         return Dialog(
           backgroundColor: scheme.surfaceContainerHigh,
-          elevation: 8,
-          shape: RoundedRectangleBorder(
+          elevation: 0,
+          shape: RoundedSuperellipseBorder(
             borderRadius: BorderRadius.circular(28),
             side: BorderSide(
               color: scheme.outlineVariant.withValues(alpha: 0.18),

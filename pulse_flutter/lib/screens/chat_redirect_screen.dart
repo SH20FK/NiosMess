@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
-import 'package:pulse_flutter/repositories/chat_repository.dart';
 
 class ChatRedirectScreen extends ConsumerStatefulWidget {
   const ChatRedirectScreen({required this.slug, super.key});
@@ -42,23 +41,14 @@ class _ChatRedirectScreenState extends ConsumerState<ChatRedirectScreen> {
         return;
       }
 
-      final result = await ref
-          .read(chatRepositoryProvider)
-          .resolveShortLink(cleanSlug);
-
-      if (!mounted) return;
-
-      if (result != null && result.isNotEmpty) {
-        context.go(result);
-      } else {
-        context.go('/chat/dm/$cleanSlug');
-      }
+      // User profile links (/u/:username): navigate directly to profile
+      context.go('/profile/$cleanSlug');
     } catch (e) {
       if (!mounted) return;
-      final String clean = widget.slug.startsWith('@')
-          ? widget.slug.substring(1)
-          : widget.slug;
-      context.go('/chat/dm/$clean');
+      setState(() {
+        _loading = false;
+        _error = context.l10n.deepLinkNotFound;
+      });
     }
   }
 

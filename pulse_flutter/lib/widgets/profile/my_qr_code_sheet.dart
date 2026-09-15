@@ -12,12 +12,30 @@ import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
 /// Material 3 Expressive bottom sheet displaying the current user's profile QR code
 class MyQrCodeSheet extends ConsumerWidget {
-  const MyQrCodeSheet({super.key});
+  const MyQrCodeSheet({
+    this.username,
+    this.displayName,
+    this.avatarUrl,
+    super.key,
+  });
 
-  static Future<void> show(BuildContext context) {
+  final String? username;
+  final String? displayName;
+  final String? avatarUrl;
+
+  static Future<void> show(
+    BuildContext context, {
+    String? username,
+    String? displayName,
+    String? avatarUrl,
+  }) {
     return AppBottomSheets.show<void>(
       context: context,
-      builder: (BuildContext ctx) => const MyQrCodeSheet(),
+      builder: (BuildContext ctx) => MyQrCodeSheet(
+        username: username,
+        displayName: displayName,
+        avatarUrl: avatarUrl,
+      ),
     );
   }
 
@@ -27,14 +45,17 @@ class MyQrCodeSheet extends ConsumerWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final AuthState auth = ref.watch(authProvider);
 
-    final String username = auth.session?.username ?? auth.profile?.username ?? '';
-    final String displayName = auth.session?.displayName ??
+    final String resolvedUsername =
+        username ?? auth.session?.username ?? auth.profile?.username ?? '';
+    final String resolvedDisplayName = displayName ??
+        auth.session?.displayName ??
         auth.profile?.displayName ??
-        (username.isNotEmpty ? username : 'User');
-    final String? avatarUrl = auth.profile?.avatarUrl;
+        (resolvedUsername.isNotEmpty ? resolvedUsername : 'User');
+    final String? resolvedAvatar = avatarUrl ?? auth.profile?.avatarUrl;
 
-    final String profileUrl = 'https://ni-os.ru/u/@$username';
-    final String qrData = username.isNotEmpty ? profileUrl : 'https://ni-os.ru';
+    final String profileUrl = 'https://ni-os.ru/u/@$resolvedUsername';
+    final String qrData =
+        resolvedUsername.isNotEmpty ? profileUrl : 'https://ni-os.ru';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
@@ -105,8 +126,8 @@ class MyQrCodeSheet extends ConsumerWidget {
                   children: <Widget>[
                     PulseAvatar(
                       radius: 20,
-                      name: displayName,
-                      avatarUrl: avatarUrl,
+                      name: resolvedDisplayName,
+                      avatarUrl: resolvedAvatar,
                     ),
                     const SizedBox(width: 12),
                     Flexible(
@@ -114,7 +135,7 @@ class MyQrCodeSheet extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            displayName,
+                            resolvedDisplayName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: textTheme.titleMedium?.copyWith(
@@ -122,9 +143,9 @@ class MyQrCodeSheet extends ConsumerWidget {
                               color: scheme.onSurface,
                             ),
                           ),
-                          if (username.isNotEmpty)
+                          if (resolvedUsername.isNotEmpty)
                             Text(
-                              '@$username',
+                              '@$resolvedUsername',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: textTheme.bodySmall?.copyWith(

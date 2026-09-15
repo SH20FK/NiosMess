@@ -1,6 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
+/// Expressive Material 3 segmented selector featuring fluid spatial spring motion,
+/// synchronized capsule morphing, 48dp touch targets, and tactile haptics.
 class GooeySegment extends StatefulWidget {
   const GooeySegment({
     required this.options,
@@ -20,7 +26,7 @@ class GooeySegment extends StatefulWidget {
 class _GooeySegmentState extends State<GooeySegment>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _stretchAnim;
+  late final Animation<double> _curveAnim;
   int _previousValue = 0;
 
   @override
@@ -29,15 +35,12 @@ class _GooeySegmentState extends State<GooeySegment>
     _previousValue = widget.value;
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 280),
     );
-    _stretchAnim = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.25), weight: 25),
-      TweenSequenceItem(tween: Tween(begin: 1.25, end: 0.85), weight: 15),
-      TweenSequenceItem(tween: Tween(begin: 0.85, end: 1.1), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: 1.1, end: 0.95), weight: 15),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 25),
-    ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _curveAnim = CurvedAnimation(
+      parent: _controller,
+      curve: M3SpringCurves.spatial,
+    );
   }
 
   @override
@@ -66,28 +69,34 @@ class _GooeySegmentState extends State<GooeySegment>
         builder: (context, constraints) {
           final double totalWidth = constraints.maxWidth;
           final double segmentWidth = totalWidth / widget.options.length;
+          const double totalHeight = 48.0;
+          const double capsuleH = 40.0;
+          const double capsuleTop = 4.0;
 
           return SizedBox(
-            height: 44,
+            height: totalHeight,
             child: Stack(
               children: [
                 RepaintBoundary(
                   child: AnimatedBuilder(
-                    animation: _stretchAnim,
+                    animation: _curveAnim,
                     builder: (context, child) {
-                      final double stretch = _stretchAnim.value;
+                      final double progress = _curveAnim.value;
                       final double targetLeft = widget.value * segmentWidth;
                       final double prevLeft = _previousValue * segmentWidth;
                       final double left = _controller.isAnimating
-                          ? prevLeft + (targetLeft - prevLeft) * _controller.value
+                          ? prevLeft + (targetLeft - prevLeft) * progress
                           : targetLeft;
 
-                      final double capsuleWidth = segmentWidth - 8;
+                      // Subtle organic stretch during flight (peaks at mid-transition)
+                      final double stretch = _controller.isAnimating
+                          ? 1.0 + 0.10 * math.sin(progress.clamp(0.0, 1.0) * math.pi)
+                          : 1.0;
+
+                      final double capsuleWidth = segmentWidth - 8.0;
                       final double stretchedW = capsuleWidth * stretch;
                       final double extraW = (stretchedW - capsuleWidth) / 2;
-                      final double capsuleLeft = left + 4 - extraW;
-                      final double capsuleTop = 4;
-                      final double capsuleH = 36;
+                      final double capsuleLeft = left + 4.0 - extraW;
 
                       return Positioned(
                         left: capsuleLeft,
@@ -96,7 +105,7 @@ class _GooeySegmentState extends State<GooeySegment>
                         height: capsuleH,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: scheme.secondaryContainer.withValues(alpha: 0.8),
+                            color: scheme.secondaryContainer,
                             borderRadius: BorderRadius.circular(capsuleH / 2),
                           ),
                         ),
@@ -112,19 +121,36 @@ class _GooeySegmentState extends State<GooeySegment>
                         button: true,
                         selected: selected,
                         label: widget.options[index],
-                        child: GestureDetector(
-                          onTap: selected ? null : () => widget.onChanged(index),
-                          behavior: HitTestBehavior.opaque,
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            alignment: Alignment.center,
-                            child: Text(
-                              widget.options[index],
-                              style: textTheme.labelMedium?.copyWith(
-                                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                color: selected
-                                    ? scheme.onSecondaryContainer
-                                    : scheme.onSurfaceVariant,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkResponse(
+                            onTap: selected
+                                ? null
+                                : () {
+                                    HapticService.selection();
+                                    widget.onChanged(index);
+                                  },
+                            borderRadius: BorderRadius.circular(capsuleH / 2),
+                            splashColor: scheme.primary.withValues(alpha: 0.12),
+                            highlightColor: Colors.transparent,
+                            child: Container(
+                              height: totalHeight,
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 200),
+                                curve: M3SpringCurves.spatial,
+                                style: (textTheme.labelMedium ?? const TextStyle()).copyWith(
+                                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                  color: selected
+                                      ? scheme.onSecondaryContainer
+                                      : scheme.onSurfaceVariant,
+                                ),
+                                child: Text(
+                                  widget.options[index],
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
                               ),
                             ),
                           ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
 
+/// Expressive Material 3 high-contrast tonal skeleton placeholder.
 class PulseSkeleton extends StatelessWidget {
   const PulseSkeleton({
     this.width,
@@ -17,16 +17,12 @@ class PulseSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return Shimmer.fromColors(
-      baseColor: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
-      highlightColor: scheme.primaryContainer.withValues(alpha: 0.6),
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(borderRadius),
-        ),
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(borderRadius),
       ),
     );
   }
@@ -41,60 +37,56 @@ class ChatListSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return Shimmer.fromColors(
-      baseColor: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
-      highlightColor: scheme.primaryContainer.withValues(alpha: 0.6),
-      child: ListView.separated(
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: count,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (BuildContext context, int index) {
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: scheme.surface,
-                    shape: BoxShape.circle,
-                  ),
+    return ListView.separated(
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: count,
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (BuildContext context, int index) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Container(
-                        width: 140 + (index % 3) * 40.0,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: scheme.surface,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Container(
+                      width: 140 + (index % 3) * 40.0,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: 200 + (index % 4) * 30.0,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: scheme.surface,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 200 + (index % 4) * 30.0,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -108,56 +100,56 @@ class MessageListSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return Shimmer.fromColors(
-      baseColor: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
-      highlightColor: scheme.primaryContainer.withValues(alpha: 0.6),
-      child: ListView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: count,
-        itemBuilder: (BuildContext context, int index) {
-          final bool isMine = index % 3 == 0;
-          final double bubbleWidth = 120 + (index % 5) * 40.0;
+    return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: count,
+      itemBuilder: (BuildContext context, int index) {
+        final bool isMine = index % 3 == 0;
+        final double bubbleWidth = 120 + (index % 5) * 40.0;
 
-          return Align(
-            alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-              decoration: BoxDecoration(
-                color: scheme.surface,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(isMine ? 18 : 6),
-                  bottomRight: Radius.circular(isMine ? 6 : 18),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Container(
-                    width: bubbleWidth,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: scheme.surface,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: bubbleWidth * 0.5,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: scheme.surface,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                ],
+        return Align(
+          alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+            decoration: BoxDecoration(
+              color: isMine ? scheme.primaryContainer : scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(18),
+                topRight: const Radius.circular(18),
+                bottomLeft: Radius.circular(isMine ? 18 : 6),
+                bottomRight: Radius.circular(isMine ? 6 : 18),
               ),
             ),
-          );
-        },
-      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  width: bubbleWidth,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: isMine
+                        ? scheme.onPrimaryContainer.withValues(alpha: 0.20)
+                        : scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: bubbleWidth * 0.5,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: isMine
+                        ? scheme.onPrimaryContainer.withValues(alpha: 0.15)
+                        : scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -361,33 +353,27 @@ class PostFeedSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(top: 4, bottom: 80),
+      itemCount: count,
+      itemBuilder: (BuildContext context, int index) {
+        final bool hasMedia = index % 2 == 0;
+        final double aspectRatio = index % 4 == 0 ? (16 / 9) : (4 / 3);
+        final int lines = (index % 3) + 1;
 
-    return Shimmer.fromColors(
-      baseColor: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
-      highlightColor: scheme.surfaceContainerLow.withValues(alpha: 0.85),
-      child: ListView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(top: 4, bottom: 80),
-        itemCount: count,
-        itemBuilder: (BuildContext context, int index) {
-          final bool hasMedia = index % 2 == 0;
-          final double aspectRatio = index % 4 == 0 ? (16 / 9) : (4 / 3);
-          final int lines = (index % 3) + 1;
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
-            child: PostCardSkeleton(
-              hasMedia: hasMedia,
-              aspectRatio: aspectRatio,
-              linesCount: lines,
-            ),
-          );
-        },
-      ),
+        return Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 6,
+          ),
+          child: PostCardSkeleton(
+            hasMedia: hasMedia,
+            aspectRatio: aspectRatio,
+            linesCount: lines,
+          ),
+        );
+      },
     );
   }
 }

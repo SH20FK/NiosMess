@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 
 class AppToast {
@@ -43,6 +44,7 @@ class AppToast {
                   Text(
                     formatted.title,
                     style: TextStyle(
+                      fontFamily: AppFonts.ui,
                       color: scheme.onErrorContainer,
                       fontWeight: FontWeight.w600,
                       fontSize: 13.5,
@@ -55,6 +57,7 @@ class AppToast {
                     Text(
                       formatted.description!,
                       style: TextStyle(
+                        fontFamily: AppFonts.ui,
                         color: scheme.onErrorContainer.withValues(alpha: 0.85),
                         fontSize: 12,
                       ),
@@ -198,7 +201,10 @@ class AppToast {
             children: [
               Text(
                 formatted.title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontFamily: AppFonts.ui,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Container(

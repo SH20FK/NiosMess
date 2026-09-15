@@ -7,9 +7,7 @@ import 'package:pulse_flutter/screens/chat_detail_screen.dart';
 import 'package:pulse_flutter/screens/chat_manage_screen.dart';
 import 'package:pulse_flutter/screens/chat_members_screen.dart';
 import 'package:pulse_flutter/screens/chat_redirect_screen.dart';
-import 'package:pulse_flutter/screens/contact_detail_screen.dart';
 import 'package:pulse_flutter/screens/create_chat_screen.dart';
-import 'package:pulse_flutter/screens/direct_chat_resolver_screen.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/join_chat_screen.dart';
 import 'package:pulse_flutter/screens/login_screen.dart';
@@ -24,6 +22,7 @@ import 'package:pulse_flutter/screens/sticker_set_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
+import 'package:pulse_flutter/screens/about_changelog_screen.dart';
 import 'package:pulse_flutter/screens/help_faq_screen.dart';
 import 'package:pulse_flutter/screens/settings_system_device_screen.dart';
 import 'package:pulse_flutter/screens/legal_viewer_screen.dart';
@@ -42,8 +41,8 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/screens/settings_wallpaper_screen.dart';
 import 'package:pulse_flutter/screens/settings_chats_screen.dart';
 import 'package:pulse_flutter/screens/settings/settings_hub_screen.dart';
-import 'package:pulse_flutter/screens/call_redirect_screen.dart';
 import 'package:pulse_flutter/screens/calls/active_call_screen.dart';
+import 'package:pulse_flutter/screens/calls/outgoing_call_screen.dart';
 
 class AppRouter {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -167,11 +166,8 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/chat/dm/:username',
-        pageBuilder: (context, state) => _page(state, DirectChatResolverScreen(
-          username: state.pathParameters['username']!,
-          userId: int.tryParse(state.uri.queryParameters['userId'] ?? (state.uri.queryParameters['isId'] == '1' ? state.pathParameters['username']! : '')),
-          isSecret: state.uri.queryParameters['isSecret'] == '1',
-        )),
+        redirect: (context, state) =>
+            '/profile/${state.pathParameters['username']}',
       ),
       GoRoute(
         path: '/media-viewer',
@@ -250,7 +246,8 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/contact/:username',
-        pageBuilder: (context, state) => _page(state, ContactDetailScreen(username: state.pathParameters['username']!)),
+        redirect: (context, state) =>
+            '/profile/${state.pathParameters['username']}',
       ),
       GoRoute(
         path: '/settings',
@@ -314,6 +311,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/settings/about',
         pageBuilder: (context, state) => _page(state, const SettingsAboutScreen(), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/settings/about/changelog',
+        pageBuilder: (context, state) => _page(state, const AboutChangelogScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/help/faq',
@@ -413,12 +414,33 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: '/call/dm/:username',
         pageBuilder: (context, state) => _page(
           state,
-          CallRedirectScreen(
-            username: state.pathParameters['username']!,
-            isVideo: state.uri.queryParameters['isVideo'] == '1',
+          OutgoingCallScreen(
+            args: OutgoingCallArgs(
+              username: state.pathParameters['username']!,
+              isVideo: state.uri.queryParameters['isVideo'] == '1',
+            ),
           ),
           pageKey: state.pageKey,
         ),
+      ),
+      GoRoute(
+        path: '/call/outgoing',
+        pageBuilder: (context, state) {
+          final Object? extra = state.extra;
+          final OutgoingCallArgs args = extra is OutgoingCallArgs
+              ? extra
+              : OutgoingCallArgs(
+                  username: state.uri.queryParameters['username'] ?? '',
+                  displayName: state.uri.queryParameters['displayName'] ?? '',
+                  avatarUrl: state.uri.queryParameters['avatarUrl'],
+                  isVideo: state.uri.queryParameters['isVideo'] == '1',
+                );
+          return _page(
+            state,
+            OutgoingCallScreen(args: args),
+            pageKey: state.pageKey,
+          );
+        },
       ),
       GoRoute(
         path: '/:pathMatch(.*)',

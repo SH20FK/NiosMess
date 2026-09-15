@@ -31,6 +31,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/providers/ota_update_provider.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/widgets/nav/tab_shared_axis_switcher.dart';
 import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
@@ -336,7 +337,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
       },
       child: LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isWide = constraints.maxWidth >= 760;
+        final bool isWide = constraints.maxWidth >= Breakpoints.medium;
 
         final double minChatListWidth = 260.0;
         final double maxChatListWidth =
@@ -515,19 +516,12 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               width: 84,
               height: 84,
               decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
+                color: scheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
                   color: scheme.outlineVariant.withValues(alpha: 0.25),
                   width: 1.2,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.08),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
               ),
               child: Icon(
                 Icons.chat_bubble_outline_rounded,

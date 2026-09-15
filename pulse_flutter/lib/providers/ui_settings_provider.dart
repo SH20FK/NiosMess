@@ -19,6 +19,17 @@ enum AppFontScale {
   final double scale;
 }
 
+enum PaletteStyle {
+  expressive(DynamicSchemeVariant.expressive),
+  vibrant(DynamicSchemeVariant.vibrant),
+  content(DynamicSchemeVariant.content),
+  calm(DynamicSchemeVariant.tonalSpot),
+  mono(DynamicSchemeVariant.monochrome);
+
+  const PaletteStyle(this.variant);
+  final DynamicSchemeVariant variant;
+}
+
 class VisualThemeSettings {
   const VisualThemeSettings({
     required this.seedColor,
@@ -28,6 +39,7 @@ class VisualThemeSettings {
     this.predictiveBackStrength = 1.0,
     this.pureBlackOled = false,
     this.uiCornerRadius = 20.0,
+    this.paletteStyle = PaletteStyle.expressive,
   });
 
   final Color seedColor;
@@ -37,6 +49,7 @@ class VisualThemeSettings {
   final double predictiveBackStrength;
   final bool pureBlackOled;
   final double uiCornerRadius;
+  final PaletteStyle paletteStyle;
 
   @override
   bool operator ==(Object other) =>
@@ -49,7 +62,8 @@ class VisualThemeSettings {
           predictiveBackEnabled == other.predictiveBackEnabled &&
           predictiveBackStrength == other.predictiveBackStrength &&
           pureBlackOled == other.pureBlackOled &&
-          uiCornerRadius == other.uiCornerRadius;
+          uiCornerRadius == other.uiCornerRadius &&
+          paletteStyle == other.paletteStyle;
 
   @override
   int get hashCode =>
@@ -59,7 +73,8 @@ class VisualThemeSettings {
       predictiveBackEnabled.hashCode ^
       predictiveBackStrength.hashCode ^
       pureBlackOled.hashCode ^
-      uiCornerRadius.hashCode;
+      uiCornerRadius.hashCode ^
+      paletteStyle.hashCode;
 }
 
 class UiSettingsState {
@@ -92,6 +107,7 @@ class UiSettingsState {
     this.camera2Api = true,
     this.showPerformanceOverlay = false,
     this.debugRepaintRainbow = false,
+    this.paletteStyle = PaletteStyle.expressive,
   });
 
   VisualThemeSettings get visualTheme => VisualThemeSettings(
@@ -102,6 +118,7 @@ class UiSettingsState {
         predictiveBackStrength: predictiveBackStrength,
         pureBlackOled: pureBlackOled,
         uiCornerRadius: uiCornerRadius,
+        paletteStyle: paletteStyle,
       );
 
   const UiSettingsState.defaults()
@@ -132,7 +149,8 @@ class UiSettingsState {
       uiCornerRadius = 20.0,
       camera2Api = true,
       showPerformanceOverlay = false,
-      debugRepaintRainbow = false;
+      debugRepaintRainbow = false,
+      paletteStyle = PaletteStyle.expressive;
 
   final ThemeMode themeMode;
   final Color seedColor;
@@ -162,6 +180,7 @@ class UiSettingsState {
   final bool camera2Api;
   final bool showPerformanceOverlay;
   final bool debugRepaintRainbow;
+  final PaletteStyle paletteStyle;
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
@@ -194,6 +213,7 @@ class UiSettingsState {
     bool? camera2Api,
     bool? showPerformanceOverlay,
     bool? debugRepaintRainbow,
+    PaletteStyle? paletteStyle,
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -231,6 +251,7 @@ class UiSettingsState {
           showPerformanceOverlay ?? this.showPerformanceOverlay,
       debugRepaintRainbow:
           debugRepaintRainbow ?? this.debugRepaintRainbow,
+      paletteStyle: paletteStyle ?? this.paletteStyle,
     );
   }
 
@@ -244,6 +265,7 @@ class UiSettingsState {
 class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _themeModeKey = 'ui.themeMode';
   static const String _seedColorKey = 'ui.seedColor';
+  static const String _paletteStyleKey = 'ui.paletteStyle';
   static const String _notificationsKey = 'ui.notifications';
   static const String _compactKey = 'ui.compact';
   static const String _hapticsKey = 'ui.haptics';
@@ -277,6 +299,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static UiSettingsState readFromPrefs(SharedPreferences prefs) {
     final String? modeRaw = prefs.getString(_themeModeKey);
     final int? seedRaw = prefs.getInt(_seedColorKey);
+    final String? paletteStyleRaw = prefs.getString(_paletteStyleKey);
     final String? localeCodeRaw = prefs.getString(_localeCodeKey);
     final String? timeZoneModeRaw = prefs.getString(_timeZoneModeKey);
     final String? timeZoneIdRaw = prefs.getString(_timeZoneIdKey);
@@ -288,6 +311,10 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
         orElse: () => ThemeMode.system,
       ),
       seedColor: seedRaw == null ? defaults.seedColor : Color(seedRaw),
+      paletteStyle: PaletteStyle.values.firstWhere(
+        (PaletteStyle ps) => ps.name == paletteStyleRaw,
+        orElse: () => PaletteStyle.expressive,
+      ),
       notifications: prefs.getBool(_notificationsKey) ?? defaults.notifications,
       compactMode: prefs.getBool(_compactKey) ?? defaults.compactMode,
       haptics: prefs.getBool(_hapticsKey) ?? defaults.haptics,
@@ -570,6 +597,11 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     _persistKey(_camera2ApiKey, value);
   }
 
+  void setPaletteStyle(PaletteStyle value) {
+    state = state.copyWith(paletteStyle: value);
+    _persistKey(_paletteStyleKey, value.name);
+  }
+
   void setShowPerformanceOverlay(bool value) {
     state = state.copyWith(showPerformanceOverlay: value);
   }
@@ -578,7 +610,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     state = state.copyWith(debugRepaintRainbow: value);
   }
 
-  /// Resets all 26 settings fields safely to [UiSettingsState.defaults()],
+  /// Resets all settings fields safely to [UiSettingsState.defaults()],
   /// keeping background message delivery in [BackgroundMode.reliable]
   /// and cleaning up persisted SharedPreferences keys in a single atomic batch.
   Future<void> resetAll() async {
@@ -590,6 +622,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     await Future.wait(<Future<bool>>[
       prefs.remove(_themeModeKey),
       prefs.remove(_seedColorKey),
+      prefs.remove(_paletteStyleKey),
       prefs.remove(_notificationsKey),
       prefs.remove(_compactKey),
       prefs.remove(_hapticsKey),

@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
+import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -160,12 +161,12 @@ class AppBottomNav extends ConsumerWidget {
       ),
       _NavItem(
         context.l10n.tabContacts,
-        Icons.group_outlined,
-        Icons.group_rounded,
+        Icons.people_outline_rounded,
+        Icons.people_rounded,
       ),
       _NavItem(
         context.l10n.tabNiosgram,
-        Icons.grid_view_outlined,
+        Icons.grid_view_rounded,
         Icons.grid_view_rounded,
       ),
       _NavItem(
@@ -232,12 +233,20 @@ class AppBottomNav extends ConsumerWidget {
                               child: Text(
                                 '${item.badge}',
                                 key: ValueKey<int>(item.badge),
-                                style: const TextStyle(fontSize: 10),
+                                style: const TextStyle(
+                                  fontFamily: AppFonts.ui,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             )
                           : const Text(
                               '99+',
-                              style: TextStyle(fontSize: 10),
+                              style: TextStyle(
+                                fontFamily: AppFonts.ui,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                       child: iconWidget,
                     )

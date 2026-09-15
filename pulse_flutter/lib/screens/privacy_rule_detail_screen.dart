@@ -236,7 +236,7 @@ class _PrivacyRuleDetailScreenState
             children: <Widget>[
               ListTile(
                 leading: Icon(Icons.check_circle_outline_rounded,
-                    color: Colors.green.shade600),
+                    color: scheme.primary),
                 title: Text(context.l10n.privacyAlwaysAllow),
                 subtitle: Text(_alwaysAllow.isEmpty
                     ? context.l10n.privacyNoAddedUsers

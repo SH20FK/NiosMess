@@ -7464,6 +7464,33 @@ abstract class AppLocalizations {
   String get themeModeSystem;
   String get themeModeLight;
   String get themeModeDark;
+  String get profileBioHeader;
+  String get profileRegistrationDate;
+  String get profilePhoneNumber;
+  String get profileBirthday;
+  String get profileUsernameCopied;
+  String get profilePhoneCopied;
+  String get profileLoadFailed;
+  String get profileNetworkError;
+  String get profileBlockedByMeTitle;
+  String get profileBlockedByMeDesc;
+  String get profileBlockedByUserTitle;
+  String get profileBlockedByUserDesc;
+  String get profileSecretChat;
+  String get callsBotForbidden;
+  String get callsConnecting;
+  String get callListenerModeNotice;
+  String get profileMuteNotifications;
+  String get profileUnmuteNotifications;
+  String get profileShareQr;
+  String get profileAddToFavorites;
+  String get profileRemoveFromFavorites;
+  String get profileCommonGroups;
+  String get profileNoCommonGroups;
+  String get profileOnline;
+  String get profileOffline;
+  String get profileLastSeen;
+  String get profileConnectingDirect;
 }
 
 class _AppLocalizationsDelegate

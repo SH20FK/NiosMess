@@ -20,7 +20,7 @@ import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
-import 'package:pulse_flutter/widgets/centered_note.dart';
+import 'package:pulse_flutter/widgets/empty_state_widget.dart';
 import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
 import 'package:pulse_flutter/widgets/contacts/call_log_view.dart';
 import 'package:pulse_flutter/widgets/contacts/online_presence_radar.dart';
@@ -405,7 +405,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     required ColorScheme scheme,
   }) {
     if (!isAuthenticated) {
-      return CenteredNote(context.l10n.contactsNotAuth);
+      return EmptyStateWidget(
+        icon: Icons.lock_outline_rounded,
+        title: context.l10n.contactsNotAuth,
+      );
     }
 
     final List<ApiChatSummary>? freshChats = chatsAsync.value;
@@ -692,7 +695,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       }
       return <Widget>[
         SliverFillRemaining(
-          child: CenteredNote(context.l10n.contactsNoRecentFull),
+          child: EmptyStateWidget(
+            icon: Icons.people_outline_rounded,
+            title: context.l10n.contactsNoRecentFull,
+          ),
         ),
       ];
     }
@@ -966,7 +972,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         if (results.isEmpty) {
           return <Widget>[
             SliverFillRemaining(
-              child: CenteredNote(context.l10n.contactsNoMatches),
+              child: EmptyStateWidget(
+                icon: Icons.search_off_rounded,
+                title: context.l10n.contactsNoMatches,
+              ),
             ),
           ];
         }
@@ -1030,7 +1039,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       ],
       error: (Object error, StackTrace _) => <Widget>[
         SliverFillRemaining(
-          child: CenteredNote(AppErrorFormatter.format(error).toString()),
+          child: EmptyStateWidget(
+            icon: Icons.error_outline_rounded,
+            title: AppErrorFormatter.format(error).toString(),
+          ),
         ),
       ],
     );

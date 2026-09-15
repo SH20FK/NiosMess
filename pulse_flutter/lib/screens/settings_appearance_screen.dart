@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
+import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -202,6 +203,13 @@ class _AppearanceScreen extends ConsumerWidget {
       title: context.l10n.appearanceContrastColors,
       subtitle: context.l10n.appearanceContrastColorsDesc,
       children: [
+        _PaletteStyleSelectorTile(
+          currentStyle: settings.paletteStyle,
+          scheme: scheme,
+          onChanged: (PaletteStyle style) {
+            ref.read(uiSettingsProvider.notifier).setPaletteStyle(style);
+          },
+        ),
         SettingsSwitchTile(
           icon: Icons.contrast_rounded,
           title: context.l10n.appearanceDeepBlackOled,
@@ -1516,3 +1524,93 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
     );
   }
 }
+
+class _PaletteStyleSelectorTile extends StatelessWidget {
+  const _PaletteStyleSelectorTile({
+    required this.currentStyle,
+    required this.scheme,
+    required this.onChanged,
+  });
+
+  final PaletteStyle currentStyle;
+  final ColorScheme scheme;
+  final ValueChanged<PaletteStyle> onChanged;
+
+  String _labelFor(BuildContext context, PaletteStyle style) {
+    final bool isRu = Localizations.localeOf(context).languageCode == 'ru';
+    return switch (style) {
+      PaletteStyle.expressive => isRu ? 'Выразительный' : 'Expressive',
+      PaletteStyle.vibrant => isRu ? 'Насыщенный' : 'Vibrant',
+      PaletteStyle.content => isRu ? 'Контент' : 'Content',
+      PaletteStyle.calm => isRu ? 'Спокойный' : 'Calm',
+      PaletteStyle.mono => isRu ? 'Моно' : 'Mono',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isRu = Localizations.localeOf(context).languageCode == 'ru';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.palette_outlined, size: 20, color: scheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                isRu ? 'Характер палитры' : 'Palette Style',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: PaletteStyle.values.map((PaletteStyle style) {
+                final bool isSelected = style == currentStyle;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    selected: isSelected,
+                    label: Text(_labelFor(context, style)),
+                    showCheckmark: false,
+                    selectedColor: scheme.primaryContainer,
+                    labelStyle: TextStyle(
+                      fontFamily: AppFonts.ui,
+                      fontSize: 13,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected
+                          ? scheme.onPrimaryContainer
+                          : scheme.onSurfaceVariant,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: isSelected
+                            ? scheme.primary
+                            : scheme.outlineVariant.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    onSelected: (_) {
+                      HapticFeedback.selectionClick();
+                      onChanged(style);
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

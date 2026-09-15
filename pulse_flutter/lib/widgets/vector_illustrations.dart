@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:shimmer/shimmer.dart';
 
 /// Comprehensive vector illustration library for NiosMess.
 ///
@@ -169,13 +168,7 @@ class MediaPlaceholderIllustration extends StatelessWidget {
       ),
     );
 
-    if (!animate) return content;
-
-    return Shimmer.fromColors(
-      baseColor: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
-      highlightColor: scheme.surfaceContainerHigh.withValues(alpha: 0.8),
-      child: content,
-    );
+    return content;
   }
 }
 

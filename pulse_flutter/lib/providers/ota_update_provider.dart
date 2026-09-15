@@ -390,7 +390,10 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
               'Отмена',
-              style: TextStyle(color: scheme.outline),
+              style: Theme.of(ctx)
+                  .textTheme
+                  .labelLarge
+                  ?.copyWith(color: scheme.outline),
             ),
           ),
           FilledButton.tonal(

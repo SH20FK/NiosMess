@@ -62,7 +62,7 @@ class AiUsageIndicatorCard extends StatelessWidget {
     final StringBuffer sb = StringBuffer();
     for (int i = 0; i < s.length; i++) {
       if (i > 0 && (s.length - i) % 3 == 0) {
-        sb.write(' ');
+        sb.write('\u00A0');
       }
       sb.write(s[i]);
     }
@@ -90,7 +90,7 @@ class AiUsageIndicatorCard extends StatelessWidget {
     final String resetPart =
         resetFormatted.isNotEmpty ? ' · обновится $resetFormatted' : '';
     final String subtitleText =
-        'Осталось $remainingPercentLabel% ($remainingTokensStr из $limitTokensStr)$resetPart';
+        '$remainingTokensStr из $limitTokensStr токенов$resetPart';
 
     final Color statusColor = remainingPercent < 15
         ? scheme.error

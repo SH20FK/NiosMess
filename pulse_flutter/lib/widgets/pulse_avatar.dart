@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
+import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 
 class PulseAvatar extends StatelessWidget {
@@ -21,17 +22,12 @@ class PulseAvatar extends StatelessWidget {
   static final LinkedHashMap<String, Color> _colorCache =
       LinkedHashMap<String, Color>();
 
-  static Color _colorFromName(String name) {
-    if (_colorCache.containsKey(name)) return _colorCache[name]!;
+  static Color _colorFromName(String name, ColorScheme scheme) {
+    final String key = '${name}_${scheme.brightness.index}_${scheme.primary.toARGB32()}';
+    if (_colorCache.containsKey(key)) return _colorCache[key]!;
     if (_colorCache.length >= 200) _colorCache.remove(_colorCache.keys.first);
-    final int hash = name.hashCode;
-    final Color color = HSLColor.fromAHSL(
-      1.0,
-      (hash.abs() % 360).toDouble(),
-      0.35,
-      0.82,
-    ).toColor();
-    _colorCache[name] = color;
+    final Color color = avatarColorFor(name, scheme);
+    _colorCache[key] = color;
     return color;
   }
 
@@ -47,8 +43,11 @@ class PulseAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final Color background = fallbackColor ?? _colorFromName(name);
-    final Color foreground = textColor ?? scheme.onPrimaryContainer;
+    final Color background = fallbackColor ?? _colorFromName(name, scheme);
+    final Color foreground = textColor ??
+        (scheme.brightness == Brightness.dark
+            ? scheme.onPrimary
+            : scheme.onPrimaryContainer);
     final String initials = _initials(name);
     final String url = ApiConstants.resolve(avatarUrl);
 

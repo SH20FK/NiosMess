@@ -1,39 +1,40 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/constants/build_info.dart';
+import 'package:pulse_flutter/core/constants/team.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/repositories/support_repository.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
+import 'package:pulse_flutter/widgets/about/morphing_brand_mark.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
-import 'package:pulse_flutter/widgets/chat/md3_squiggle_progress.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
 
-/// Screen "About Application" in Material 3 Expressive style.
+/// Screen "About Application" redesigned in full Material 3 Expressive style.
 ///
-/// Features:
-/// - Single source of truth for versioning ([BuildInfo] & [PackageInfo]).
-/// - Real parsed changelog from bundled `assets/CHANGELOG.md` with zero fake entries.
-/// - Isolated OTA update card with 7 reactive states and squiggle progress bar.
-/// - Interactive shape-morphing logo Easter Egg.
-/// - 3 structured tabs (What's New, Legal, Team) with [AnimatedSize] height adaptivity.
-/// - 100% localization coverage and complete Semantics accessibility.
+/// Highlights:
+/// - True radial morphing brand mark via [MorphingBrandMark] (zero saveLayer).
+/// - 3-tier action hierarchy: primary tonal button, connected group, and brand links.
+/// - Focused single-release view in "What's New" tab with lazy history in dedicated screen.
+/// - Responsive team members grid with brand shape avatars and clean typography.
+/// - Pure M3 motion: horizontal [SharedAxisTransition] + one-shot entrance stagger.
 class SettingsAboutScreen extends ConsumerStatefulWidget {
   const SettingsAboutScreen({
     this.isEmbedded = false,
@@ -47,10 +48,13 @@ class SettingsAboutScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
+  static const int _copyrightYear = 2026;
+
   late final Future<PackageInfo> _packageInfo;
   int _selectedTabIndex = 0;
   List<ChangelogRelease>? _cachedReleases;
   bool _isLoadingChangelog = false;
+  double _tabScale = 1.0;
 
   @override
   void initState() {
@@ -101,112 +105,19 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     );
   }
 
+  void _showEasterEgg() {
+    HapticService.confirm();
+    AppToast.showSuccess(
+      context,
+      '🎉 ${context.l10n.aboutEasterEggTitle} ${context.l10n.aboutEasterEggMessage}',
+    );
+  }
+
   void _showBugReportDialog(BuildContext context) {
     HapticService.tap();
-    final TextEditingController subjectController = TextEditingController();
-    final TextEditingController bodyController = TextEditingController();
-    bool isSubmitting = false;
-
     showDialog<void>(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setDialogState) {
-            final ColorScheme scheme = Theme.of(context).colorScheme;
-            final TextTheme textTheme = Theme.of(context).textTheme;
-
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-              icon: Icon(
-                Icons.bug_report_rounded,
-                size: 32,
-                color: scheme.primary,
-              ),
-              title: Text(
-                context.l10n.aboutReportBugAction,
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    TextField(
-                      controller: subjectController,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.aboutReportSubject,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: bodyController,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.aboutReportDescription,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        isDense: true,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actionsAlignment: MainAxisAlignment.spaceBetween,
-              actions: <Widget>[
-                TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.of(dialogContext).pop(),
-                  child: Text(context.l10n.commonCancel),
-                ),
-                FilledButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () async {
-                          final String subj = subjectController.text.trim();
-                          final String desc = bodyController.text.trim();
-                          if (subj.isEmpty || desc.isEmpty) return;
-
-                          setDialogState(() => isSubmitting = true);
-                          try {
-                            await ref.read(supportRepositoryProvider).createTicket(
-                                  ticketType: 'bug',
-                                  subject: subj,
-                                  body: desc,
-                                );
-                            if (dialogContext.mounted) {
-                              Navigator.of(dialogContext).pop();
-                              AppToast.showSuccess(
-                                context,
-                                context.l10n.aboutReportSuccess,
-                              );
-                            }
-                          } catch (_) {
-                            if (dialogContext.mounted) {
-                              setDialogState(() => isSubmitting = false);
-                              AppToast.showError(
-                                context,
-                                context.l10n.aboutReportError,
-                              );
-                            }
-                          }
-                        },
-                  child: isSubmitting
-                      ? AppLoadingIndicator(size: 16, color: scheme.onPrimary)
-                      : Text(context.l10n.commonSave),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (BuildContext dialogContext) => const _BugReportDialog(),
     );
   }
 
@@ -219,30 +130,63 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
       title: context.l10n.settingsAboutTitle,
       isEmbedded: widget.isEmbedded,
       children: <Widget>[
-        // 1. Material 3 Expressive Hero Card with Morphing Logo
-        _buildHeroCard(context, scheme, textTheme),
+        // Block 0: Hero Card with Morphing Logo
+        _buildHeroCard(context, scheme, textTheme)
+            .animate()
+            .fadeIn(
+              duration: M3Durations.medium2,
+              curve: M3SpringCurves.expressiveDecel,
+            )
+            .slideY(
+              begin: 0.04,
+              end: 0.0,
+              duration: M3Durations.medium2,
+              curve: M3SpringCurves.expressiveDecel,
+            ),
         const SizedBox(height: 14),
 
-        // 2. Completely Isolated OTA Update Card (zero rebuild leakage)
-        const _OtaUpdateCardWidget(),
+        // Block 1: Isolated OTA Update Card
+        const _OtaUpdateCardWidget()
+            .animate(delay: const Duration(milliseconds: 50))
+            .fadeIn(
+              duration: M3Durations.medium2,
+              curve: M3SpringCurves.expressiveDecel,
+            )
+            .slideY(
+              begin: 0.04,
+              end: 0.0,
+              duration: M3Durations.medium2,
+              curve: M3SpringCurves.expressiveDecel,
+            ),
         const SizedBox(height: 16),
 
-        // 3. Native 3-Segment Tab Selector
-        _buildSegmentedTabSelector(context, scheme, textTheme),
-        const SizedBox(height: 16),
-
-        // 4. Tab Content with AnimatedSize and M3 Spring transitions
-        _buildCurrentTabContent(context, scheme, textTheme),
-        const SizedBox(height: 14),
-
-        // 5. Authentic M3 Minimalist Footer
-        _buildFooter(context, scheme, textTheme),
+        // Block 2: Segmented Tabs, Content, and Footer
+        Column(
+          children: <Widget>[
+            _buildSegmentedTabSelector(context, scheme, textTheme),
+            const SizedBox(height: 16),
+            _buildCurrentTabContent(context, scheme, textTheme),
+            const SizedBox(height: 14),
+            _buildFooter(context, scheme, textTheme),
+          ],
+        )
+            .animate(delay: const Duration(milliseconds: 100))
+            .fadeIn(
+              duration: M3Durations.medium2,
+              curve: M3SpringCurves.expressiveDecel,
+            )
+            .slideY(
+              begin: 0.04,
+              end: 0.0,
+              duration: M3Durations.medium2,
+              curve: M3SpringCurves.expressiveDecel,
+            ),
       ],
     );
   }
 
   // ---------------------------------------------------------------------------
-  // 1. Material 3 Expressive Hero Card
+  // 1. Material 3 Expressive Hero Card (Tiered Hierarchy)
   // ---------------------------------------------------------------------------
   Widget _buildHeroCard(
     BuildContext context,
@@ -250,22 +194,21 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     TextTheme textTheme,
   ) {
     return Material(
-      color: scheme.surfaceContainerLow,
+      color: scheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-        side: BorderSide(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        borderRadius: AppRadii.of(context).lgRadius,
       ),
       clipBehavior: Clip.hardEdge,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
         child: Column(
           children: <Widget>[
-            // Interactive shape-morphing hero logo
-            _InteractiveHeroLogo(scheme: scheme),
-            const SizedBox(height: 14),
+            // Interactive shape-morphing brand mark
+            MorphingBrandMark(
+              size: 84,
+              onEasterEgg: _showEasterEgg,
+            ),
+            const SizedBox(height: 16),
 
             // App Name
             Text(
@@ -274,7 +217,6 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
               style: textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
-                fontSize: 22,
                 color: scheme.onSurface,
               ),
             ),
@@ -287,111 +229,69 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
               style: textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
-                fontSize: 13,
               ),
-            ),
-            const SizedBox(height: 12),
-
-            // Copyable Version Badge
-            FutureBuilder<PackageInfo>(
-              future: _packageInfo,
-              builder: (BuildContext context, AsyncSnapshot<PackageInfo> snapshot) {
-                final String ver = snapshot.data != null
-                    ? 'v${snapshot.data!.version}+${snapshot.data!.buildNumber}'
-                    : BuildInfo.fullVersion;
-                return Semantics(
-                  button: true,
-                  label: context.l10n.aboutVersionCopied(ver),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => _copyVersion(ver),
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: scheme.outlineVariant.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Icon(
-                              Icons.info_outline_rounded,
-                              size: 14,
-                              color: scheme.primary,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              ver,
-                              style: textTheme.labelMedium?.copyWith(
-                                color: scheme.onSurface,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Icon(
-                              Icons.copy_rounded,
-                              size: 12,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
             ),
             const SizedBox(height: 16),
 
-            // Quick Action M3 Tonal Chips
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: <Widget>[
-                _M3ActionChip(
-                  icon: Icons.bug_report_rounded,
-                  label: context.l10n.aboutReportBugAction,
-                  onTap: () => _showBugReportDialog(context),
-                ),
-                _M3ActionChip(
-                  icon: Icons.help_outline_rounded,
-                  label: context.l10n.aboutFaqAction,
-                  onTap: () => context.push('/help/faq'),
-                ),
-                _M3ActionChip(
-                  icon: Icons.share_rounded,
-                  label: context.l10n.aboutShareAction,
-                  onTap: _shareApp,
-                ),
-                _M3ActionChip(
-                  icon: Icons.science_rounded,
-                  label: context.l10n.aboutAlphaTestAction,
-                  onTap: () => AlphaTestDialog.show(context),
-                ),
-                if (!kIsWeb)
-                  _M3ActionChip(
-                    icon: Icons.smartphone_rounded,
-                    label: context.l10n.aboutDeviceAction,
-                    onTap: () => context.push('/settings/system-device'),
+            // Copyable Version Chip
+            _VersionChip(
+              packageInfoFuture: _packageInfo,
+              onCopy: _copyVersion,
+            ),
+            const SizedBox(height: 20),
+
+            // Tier 1: Primary Action (Bug Report)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: () => _showBugReportDialog(context),
+                icon: const Icon(Icons.bug_report_rounded, size: 20),
+                label: Text(context.l10n.aboutReportBugAction),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppRadii.of(context).mdRadius,
                   ),
-                _M3ActionChip(
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Tier 2: Connected Button Group
+            _ConnectedGroup(
+              items: <_GroupItem>[
+                _GroupItem(
+                  Icons.help_outline_rounded,
+                  context.l10n.aboutFaqAction,
+                  () => context.push('/help/faq'),
+                ),
+                _GroupItem(
+                  Icons.share_rounded,
+                  context.l10n.aboutShareAction,
+                  _shareApp,
+                ),
+                _GroupItem(
+                  Icons.science_rounded,
+                  context.l10n.aboutAlphaTestAction,
+                  () => AlphaTestDialog.show(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Tier 3: Brand Links Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                _BrandLink(
                   svgAsset: 'assets/svg/telegram_logo.svg',
-                  label: 'Telegram',
+                  tooltip: 'Telegram',
                   onTap: () => _openUrl('https://t.me/niosmess'),
                 ),
-                _M3ActionChip(
+                const SizedBox(width: 8),
+                _BrandLink(
                   svgAsset: 'assets/svg/globe.svg',
-                  label: 'ni-os.ru',
+                  tooltip: 'ni-os.ru',
                   onTap: () => _openUrl('https://ni-os.ru'),
                 ),
               ],
@@ -403,76 +303,81 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // 3. Material 3 SegmentedButton Tab Selector
+  // 2. Material 3 SegmentedButton Tab Selector
   // ---------------------------------------------------------------------------
   Widget _buildSegmentedTabSelector(
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
-    return SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<int>(
-        segments: <ButtonSegment<int>>[
-          ButtonSegment<int>(
-            value: 0,
-            icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-            label: Text(
-              context.l10n.aboutTabWhatsNew,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+    return AnimatedScale(
+      scale: _tabScale,
+      duration: M3Durations.short3,
+      curve: M3SpringCurves.spatial,
+      child: SizedBox(
+        width: double.infinity,
+        child: SegmentedButton<int>(
+          segments: <ButtonSegment<int>>[
+            ButtonSegment<int>(
+              value: 0,
+              label: Text(
+                context.l10n.aboutTabWhatsNew,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            ButtonSegment<int>(
+              value: 1,
+              label: Text(
+                context.l10n.aboutTabLegal,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            ButtonSegment<int>(
+              value: 2,
+              label: Text(
+                context.l10n.aboutTabTeam,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+          selected: <int>{_selectedTabIndex},
+          onSelectionChanged: (Set<int> newSelection) {
+            HapticService.selection();
+            setState(() {
+              _tabScale = 0.97;
+              _selectedTabIndex = newSelection.first;
+            });
+            Future<void>.delayed(M3Durations.short3, () {
+              if (mounted) {
+                setState(() => _tabScale = 1.0);
+              }
+            });
+          },
+          showSelectedIcon: false,
+          style: SegmentedButton.styleFrom(
+            backgroundColor: scheme.surfaceContainerLow,
+            selectedBackgroundColor: scheme.secondaryContainer,
+            selectedForegroundColor: scheme.onSecondaryContainer,
+            foregroundColor: scheme.onSurfaceVariant,
+            side: BorderSide.none,
+            shape: RoundedRectangleBorder(
+              borderRadius: AppRadii.of(context).mdRadius,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            textStyle: textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
           ),
-          ButtonSegment<int>(
-            value: 1,
-            icon: const Icon(Icons.gavel_rounded, size: 18),
-            label: Text(
-              context.l10n.aboutTabLegal,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-            ),
-          ),
-          ButtonSegment<int>(
-            value: 2,
-            icon: const Icon(Icons.people_alt_rounded, size: 18),
-            label: Text(
-              context.l10n.aboutTabTeam,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-        selected: <int>{_selectedTabIndex},
-        onSelectionChanged: (Set<int> newSelection) {
-          HapticService.selection();
-          setState(() {
-            _selectedTabIndex = newSelection.first;
-          });
-        },
-        showSelectedIcon: false,
-        style: SegmentedButton.styleFrom(
-          backgroundColor: scheme.surfaceContainerLow,
-          selectedBackgroundColor: scheme.secondaryContainer,
-          selectedForegroundColor: scheme.onSecondaryContainer,
-          foregroundColor: scheme.onSurfaceVariant,
-          side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.3),
-            width: 1,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         ),
       ),
     );
   }
 
   // ---------------------------------------------------------------------------
-  // 4. Current Tab Content with AnimatedSize and M3 Transitions
+  // 3. Tab Content Switcher with SharedAxisTransition & AnimatedSize
   // ---------------------------------------------------------------------------
   Widget _buildCurrentTabContent(
     BuildContext context,
@@ -480,26 +385,21 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     TextTheme textTheme,
   ) {
     return AnimatedSize(
-      duration: const Duration(milliseconds: 250),
-      curve: M3SpringCurves.spatial,
+      duration: M3Durations.medium2,
+      curve: M3SpringCurves.expressiveDecel,
       alignment: Alignment.topCenter,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
-        switchInCurve: M3SpringCurves.spatial,
-        switchOutCurve: M3SpringCurves.snappy,
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.015, 0),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: M3SpringCurves.spatial,
-              )),
-              child: child,
-            ),
+      child: PageTransitionSwitcher(
+        duration: M3Durations.medium2,
+        transitionBuilder: (
+          Widget child,
+          Animation<double> primaryAnimation,
+          Animation<double> secondaryAnimation,
+        ) {
+          return SharedAxisTransition(
+            animation: primaryAnimation,
+            secondaryAnimation: secondaryAnimation,
+            transitionType: SharedAxisTransitionType.horizontal,
+            child: child,
           );
         },
         child: KeyedSubtree(
@@ -528,7 +428,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Tab 0: Real Changelog (What's New)
+  // Tab 0: What's New (Single Current Release Focus)
   // ---------------------------------------------------------------------------
   Widget _buildChangelogTab(
     BuildContext context,
@@ -546,111 +446,116 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     }
 
     final ChangelogRelease? currentRelease = releases.isNotEmpty ? releases.first : null;
-    final List<ChangelogRelease> pastReleases = releases.length > 1
-        ? releases.sublist(1)
-        : const <ChangelogRelease>[];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
-        ),
+    return Material(
+      color: scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadii.of(context).mdRadius,
       ),
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          // Current Release Highlight
-          Row(
-            children: <Widget>[
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.hardEdge,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            // Current Release Header
+            Row(
+              children: <Widget>[
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer.withValues(alpha: 0.6),
+                    borderRadius: AppRadii.of(context).smRadius,
+                  ),
+                  child: Icon(
+                    Icons.auto_awesome_rounded,
+                    color: scheme.primary,
+                    size: 20,
+                  ),
                 ),
-                child: Icon(
-                  Icons.auto_awesome_rounded,
-                  color: scheme.primary,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: <Widget>[
-                        Text(
-                          currentRelease != null
-                              ? 'v${currentRelease.version}'
-                              : BuildInfo.versionWithPrefix,
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: scheme.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            context.l10n.aboutCurrentVersionBadge,
-                            style: textTheme.labelSmall?.copyWith(
-                              color: scheme.primary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 10,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: <Widget>[
+                          Text(
+                            currentRelease != null
+                                ? 'v${currentRelease.version}'
+                                : BuildInfo.versionWithPrefix,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
                             ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: scheme.primary.withValues(alpha: 0.15),
+                              borderRadius: AppRadii.of(context).fullRadius,
+                            ),
+                            child: Text(
+                              context.l10n.aboutCurrentVersionBadge,
+                              style: textTheme.labelSmall?.copyWith(
+                                color: scheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (currentRelease?.date != null) ...<Widget>[
+                        const SizedBox(height: 2),
+                        Text(
+                          currentRelease!.date!,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
                           ),
                         ),
                       ],
-                    ),
-                    if (currentRelease?.date != null) ...<Widget>[
-                      const SizedBox(height: 2),
-                      Text(
-                        currentRelease!.date!,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                      ),
                     ],
-                  ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Changes List for Current Release
+            if (currentRelease != null && currentRelease.changes.isNotEmpty)
+              ...currentRelease.changes.map(
+                (String change) => _buildChangeItem(scheme, textTheme, change),
+              )
+            else
+              _buildChangeItem(
+                scheme,
+                textTheme,
+                context.l10n.aboutUpToDate,
+              ),
+
+            const SizedBox(height: 16),
+
+            // Action to view complete version history
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: () => context.push('/settings/about/changelog'),
+                icon: const Icon(Icons.history_rounded, size: 20),
+                label: Text(context.l10n.aboutTabWhatsNew),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppRadii.of(context).mdRadius,
+                  ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          if (currentRelease != null)
-            ...currentRelease.changes.map(
-              (String change) => _buildChangeItem(scheme, textTheme, change),
-            )
-          else
-            _buildChangeItem(
-              scheme,
-              textTheme,
-              context.l10n.aboutUpToDate,
-            ),
-
-          if (pastReleases.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 14),
-            Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
-            const SizedBox(height: 10),
-            ...pastReleases.map(
-              (ChangelogRelease rel) => _ParsedReleaseTile(release: rel),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -661,15 +566,15 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     String text,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.only(top: 6, right: 10),
             child: Container(
-              width: 5,
-              height: 5,
+              width: 6,
+              height: 6,
               decoration: BoxDecoration(
                 color: scheme.primary,
                 shape: BoxShape.circle,
@@ -681,7 +586,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
               text,
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
-                height: 1.35,
+                height: 1.4,
               ),
             ),
           ),
@@ -698,13 +603,10 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
-        ),
+    return Material(
+      color: scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadii.of(context).mdRadius,
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(
@@ -716,7 +618,11 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             trailing: const Icon(Icons.chevron_right_rounded, size: 20),
             onTap: () => context.push('/legal/privacy'),
           ),
-          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          Divider(
+            height: 1,
+            indent: 58,
+            color: scheme.outlineVariant.withValues(alpha: 0.3),
+          ),
           _ActionRow(
             icon: Icons.gavel_rounded,
             title: context.l10n.legalToSTitle,
@@ -724,7 +630,11 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             trailing: const Icon(Icons.chevron_right_rounded, size: 20),
             onTap: () => context.push('/legal/terms'),
           ),
-          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          Divider(
+            height: 1,
+            indent: 58,
+            color: scheme.outlineVariant.withValues(alpha: 0.3),
+          ),
           _ActionRow(
             icon: Icons.assignment_turned_in_outlined,
             title: context.l10n.legalConsentTitle,
@@ -732,7 +642,11 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             trailing: const Icon(Icons.chevron_right_rounded, size: 20),
             onTap: () => context.push('/legal/consent'),
           ),
-          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          Divider(
+            height: 1,
+            indent: 58,
+            color: scheme.outlineVariant.withValues(alpha: 0.3),
+          ),
           _ActionRow(
             icon: Icons.receipt_long_rounded,
             title: context.l10n.aboutThirdPartyLicensesTitle,
@@ -745,9 +659,8 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                 applicationVersion: BuildInfo.fullVersion,
                 applicationIcon: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: SizedBox(
-                    width: 52,
-                    height: 52,
+                  child: SizedBox.square(
+                    dimension: 52,
                     child: SvgPicture.asset('assets/svg/niosmess_logo_tintable.svg'),
                   ),
                 ),
@@ -760,65 +673,58 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Tab 2: Team (Responsive at 760 breakpoint)
+  // Tab 2: Team (Responsive Grid at 840 Breakpoint)
   // ---------------------------------------------------------------------------
   Widget _buildDevelopersTab(
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
-    final Widget sanlsanTile = _GoogleContactsDeveloperTile(
-      name: 'sanlsan',
-      role: context.l10n.aboutFounderRole,
-      telegramHandle: 'hello_sanlsan',
-      assetPath: 'assets/developers/Sanlsan_clean.png',
-      fallbackIcon: Icons.dns_rounded,
-      onOpenTelegram: () => _openUrl('https://t.me/hello_sanlsan'),
-    );
-
-    final Widget sh20fkTile = _GoogleContactsDeveloperTile(
-      name: 'SH20FK',
-      role: context.l10n.aboutLeadDevRole,
-      telegramHandle: 'Door0S',
-      assetPath: 'assets/developers/SH20FK_clean.png',
-      fallbackIcon: Icons.phone_iphone_rounded,
-      onOpenTelegram: () => _openUrl('https://t.me/Door0S'),
-    );
-
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        if (constraints.maxWidth >= 760) {
+        final bool isExpanded = constraints.maxWidth >= Breakpoints.expanded;
+
+        if (isExpanded) {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(child: sanlsanTile),
-              const SizedBox(width: 12),
-              Expanded(child: sh20fkTile),
-            ],
+            children: kTeamMembers.map((TeamMember member) {
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: _TeamMemberTile(
+                    member: member,
+                    onOpenTelegram: () => _openUrl('https://t.me/${member.handle}'),
+                  ),
+                ),
+              );
+            }).toList(),
           );
         }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            sanlsanTile,
-            const SizedBox(height: 12),
-            sh20fkTile,
-          ],
+          children: kTeamMembers.map((TeamMember member) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _TeamMemberTile(
+                member: member,
+                onOpenTelegram: () => _openUrl('https://t.me/${member.handle}'),
+              ),
+            );
+          }).toList(),
         );
       },
     );
   }
 
   // ---------------------------------------------------------------------------
-  // 5. Minimalist M3 Footer
+  // 4. Minimalist M3 Footer
   // ---------------------------------------------------------------------------
   Widget _buildFooter(
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
-    final int year = DateTime.now().year;
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Center(
@@ -830,7 +736,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
               children: <Widget>[
                 Icon(
                   Icons.shield_rounded,
-                  size: 13,
+                  size: 14,
                   color: scheme.primary.withValues(alpha: 0.8),
                 ),
                 const SizedBox(width: 6),
@@ -848,10 +754,9 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              '${context.l10n.aboutCopyrightFooter(year)} • ${BuildInfo.versionWithPrefix} (${BuildInfo.buildChannel})',
+              '${context.l10n.aboutCopyrightFooter(_copyrightYear)} • ${BuildInfo.versionWithPrefix} (${BuildInfo.buildChannel})',
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
-                fontSize: 11,
               ),
             ),
           ],
@@ -862,7 +767,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
 }
 
 // =============================================================================
-// Isolated OTA Update Card Widget (Zero Rebuild Leakage)
+// Isolated OTA Update Card Widget (Zero Rebuild Leakage + RepaintBoundary)
 // =============================================================================
 
 class _OtaUpdateCardWidget extends ConsumerWidget {
@@ -915,7 +820,6 @@ class _OtaUpdateCardWidget extends ConsumerWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    // Listen only to OtaUpdateState inside this isolated subtree
     final OtaUpdateState otaState = ref.watch(otaUpdateProvider);
     final OtaStatus status = otaState.status;
 
@@ -969,239 +873,137 @@ class _OtaUpdateCardWidget extends ConsumerWidget {
       containerBg = scheme.errorContainer.withValues(alpha: 0.5);
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
+    return RepaintBoundary(
+      child: Material(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadii.of(context).mdRadius,
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
+        clipBehavior: Clip.hardEdge,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: containerBg,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  leadingIcon,
-                  size: 22,
-                  color: leadingColor,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      titleText,
-                      style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                        color: scheme.onSurface,
-                      ),
+              Row(
+                children: <Widget>[
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: containerBg,
+                      borderRadius: AppRadii.of(context).smRadius,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitleText,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: isReady
-                            ? scheme.primary
-                            : (isError ? scheme.error : scheme.onSurfaceVariant),
-                        fontWeight: isReady ? FontWeight.w600 : FontWeight.w400,
-                        fontSize: 12,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    child: Icon(
+                      leadingIcon,
+                      size: 20,
+                      color: leadingColor,
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // Action button
-              if (isDownloading) ...<Widget>[
-                IconButton.filledTonal(
-                  onPressed: () {
-                    HapticService.tap();
-                    ref.read(otaUpdateProvider.notifier).cancelDownload();
-                  },
-                  tooltip: context.l10n.aboutCancelAction,
-                  icon: const Icon(Icons.close_rounded, size: 18),
-                ),
-              ] else
-                FilledButton.tonal(
-                  onPressed: (isChecking || isInstalling)
-                      ? null
-                      : () => _handleOtaAction(context, ref),
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    minimumSize: const Size(0, 38),
                   ),
-                  child: (isChecking || isInstalling)
-                      ? AppLoadingIndicator(size: 16, color: scheme.primary)
-                      : Text(
-                          isReady
-                              ? context.l10n.aboutInstallAction
-                              : (isAvailable
-                                  ? context.l10n.aboutDownloadAction
-                                  : (isError
-                                      ? context.l10n.commonRetry
-                                      : context.l10n.aboutCheckAction)),
-                          style: textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          titleText,
+                          style: textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                            color: scheme.onSurface,
                           ),
                         ),
-                ),
-            ],
-          ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitleText,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: isReady
+                                ? scheme.primary
+                                : (isError ? scheme.error : scheme.onSurfaceVariant),
+                            fontWeight: isReady ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
 
-          // Deterministic M3 Squiggle Progress Bar during download
-          if (isDownloading) ...<Widget>[
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 10,
-              width: double.infinity,
-              child: Md3SquiggleProgress(
-                progress: otaState.progress,
-                color: scheme.primary,
-                strokeWidth: 3.0,
-              ),
-            ),
-            if (otaState.totalBytes > 0) ...<Widget>[
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Text(
-                    '${(otaState.receivedBytes / (1024 * 1024)).toStringAsFixed(1)} MB / ${(otaState.totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB',
-                    style: textTheme.labelSmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 11,
+                  // Action button (touch target >= 48)
+                  if (isDownloading) ...<Widget>[
+                    IconButton.filledTonal(
+                      onPressed: () {
+                        HapticService.tap();
+                        ref.read(otaUpdateProvider.notifier).cancelDownload();
+                      },
+                      tooltip: context.l10n.aboutCancelAction,
+                      icon: const Icon(Icons.close_rounded, size: 20),
                     ),
-                  ),
-                  Text(
-                    '${(otaState.progress * 100).toInt()}%',
-                    style: textTheme.labelSmall?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
+                  ] else
+                    FilledButton.tonal(
+                      onPressed: (isChecking || isInstalling)
+                          ? null
+                          : () => _handleOtaAction(context, ref),
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppRadii.of(context).mdRadius,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        minimumSize: const Size(48, 48),
+                      ),
+                      child: (isChecking || isInstalling)
+                          ? AppLoadingIndicator(size: 16, color: scheme.primary)
+                          : Text(
+                              isReady
+                                  ? context.l10n.aboutInstallAction
+                                  : (isAvailable
+                                      ? context.l10n.aboutDownloadAction
+                                      : (isError
+                                          ? context.l10n.commonRetry
+                                          : context.l10n.aboutCheckAction)),
+                              style: textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                     ),
-                  ),
                 ],
               ),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-}
 
-// =============================================================================
-// Helper Widgets & Parsed Data Structures
-// =============================================================================
-
-class _InteractiveHeroLogo extends StatefulWidget {
-  const _InteractiveHeroLogo({
-    required this.scheme,
-  });
-
-  final ColorScheme scheme;
-
-  @override
-  State<_InteractiveHeroLogo> createState() => _InteractiveHeroLogoState();
-}
-
-class _InteractiveHeroLogoState extends State<_InteractiveHeroLogo> {
-  static const List<Shapes> _shapesPool = <Shapes>[
-    Shapes.c9_sided_cookie,
-    Shapes.gem,
-    Shapes.flower,
-    Shapes.sunny,
-    Shapes.burst,
-  ];
-
-  int _shapeIndex = 0;
-  int _consecutiveTaps = 0;
-  Timer? _tapResetTimer;
-
-  void _onLogoTap() {
-    HapticService.selection();
-    setState(() {
-      _shapeIndex = (_shapeIndex + 1) % _shapesPool.length;
-    });
-
-    _consecutiveTaps++;
-    _tapResetTimer?.cancel();
-    _tapResetTimer = Timer(const Duration(milliseconds: 1500), () {
-      _consecutiveTaps = 0;
-    });
-
-    if (_consecutiveTaps >= 5) {
-      _consecutiveTaps = 0;
-      HapticService.confirm();
-      AppToast.showSuccess(
-        context,
-        '🎉 ${context.l10n.aboutEasterEggTitle} ${context.l10n.aboutEasterEggMessage}',
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    _tapResetTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final Shapes currentShape = _shapesPool[_shapeIndex];
-
-    return Semantics(
-      button: true,
-      label: context.l10n.appName,
-      child: GestureDetector(
-        onTap: _onLogoTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          switchInCurve: M3SpringCurves.spatial,
-          switchOutCurve: M3SpringCurves.snappy,
-          transitionBuilder: (Widget child, Animation<double> animation) {
-            return ScaleTransition(
-              scale: animation,
-              child: child,
-            );
-          },
-          child: M3Container(
-            currentShape,
-            key: ValueKey<int>(_shapeIndex),
-            width: 78,
-            height: 78,
-            color: widget.scheme.primary,
-            child: Center(
-              child: SvgPicture.asset(
-                'assets/svg/niosmess_logo_tintable.svg',
-                width: 44,
-                height: 44,
-                colorFilter: ColorFilter.mode(
-                  widget.scheme.onPrimary,
-                  BlendMode.srcIn,
+              // Progress bar during download
+              if (isDownloading) ...<Widget>[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: AppRadii.of(context).smRadius,
+                  child: LinearProgressIndicator(
+                    value: otaState.progress > 0 ? otaState.progress : null,
+                    color: scheme.primary,
+                    backgroundColor: scheme.surfaceContainerHighest,
+                  ),
                 ),
-              ),
-            ),
+                if (otaState.totalBytes > 0) ...<Widget>[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Text(
+                        '${(otaState.receivedBytes / (1024 * 1024)).toStringAsFixed(1)} MB / ${(otaState.totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        '${(otaState.progress * 100).toInt()}%',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ],
           ),
         ),
       ),
@@ -1209,57 +1011,207 @@ class _InteractiveHeroLogoState extends State<_InteractiveHeroLogo> {
   }
 }
 
-class _M3ActionChip extends StatelessWidget {
-  const _M3ActionChip({
-    required this.label,
-    required this.onTap,
-    this.icon,
-    this.svgAsset,
+// =============================================================================
+// Helper Widgets
+// =============================================================================
+
+class _VersionChip extends StatelessWidget {
+  const _VersionChip({
+    required this.packageInfoFuture,
+    required this.onCopy,
   });
 
-  final String label;
-  final VoidCallback onTap;
-  final IconData? icon;
-  final String? svgAsset;
+  final Future<PackageInfo> packageInfoFuture;
+  final ValueChanged<String> onCopy;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return Semantics(
-      button: true,
-      label: label,
-      child: ActionChip(
-        avatar: svgAsset != null
-            ? SvgPicture.asset(
-                svgAsset!,
-                width: 15,
-                height: 15,
-                colorFilter: ColorFilter.mode(scheme.primary, BlendMode.srcIn),
-              )
-            : (icon != null ? Icon(icon, size: 15, color: scheme.primary) : null),
-        label: Text(
-          label,
-          style: textTheme.labelMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: scheme.onSurface,
-            fontSize: 12,
+    return FutureBuilder<PackageInfo>(
+      future: packageInfoFuture,
+      builder: (BuildContext context, AsyncSnapshot<PackageInfo> snapshot) {
+        final String ver = snapshot.data != null
+            ? 'v${snapshot.data!.version}+${snapshot.data!.buildNumber}'
+            : BuildInfo.fullVersion;
+
+        return Semantics(
+          button: true,
+          label: '${context.l10n.aboutCurrentVersionBadge}: $ver',
+          child: SizedBox(
+            height: 48,
+            child: Center(
+              child: Material(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+                shape: RoundedRectangleBorder(
+                  borderRadius: AppRadii.of(context).fullRadius,
+                ),
+                clipBehavior: Clip.hardEdge,
+                child: InkWell(
+                  onTap: () => onCopy(ver),
+                  borderRadius: AppRadii.of(context).fullRadius,
+                  child: Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 18,
+                          color: scheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          ver,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: scheme.onSurface,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.copy_rounded,
+                          size: 14,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _GroupItem {
+  const _GroupItem(this.icon, this.label, this.onTap);
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+}
+
+class _ConnectedGroup extends StatelessWidget {
+  const _ConnectedGroup({required this.items});
+  final List<_GroupItem> items;
+
+  BorderRadius _groupRadius(int i, int len, Radius full, Radius tight) {
+    final bool first = i == 0;
+    final bool last = i == len - 1;
+    return BorderRadius.horizontal(
+      left: first ? full : tight,
+      right: last ? full : tight,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final Radius full = Radius.circular(AppRadii.full);
+    const Radius tight = Radius.circular(8);
+
+    return Row(
+      children: List<Widget>.generate(items.length, (int index) {
+        final _GroupItem item = items[index];
+        final BorderRadius radius = _groupRadius(index, items.length, full, tight);
+
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: index == 0 ? 0 : 2,
+              right: index == items.length - 1 ? 0 : 2,
+            ),
+            child: Material(
+              color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              shape: RoundedRectangleBorder(borderRadius: radius),
+              clipBehavior: Clip.hardEdge,
+              child: InkWell(
+                onTap: () {
+                  HapticService.tap();
+                  item.onTap();
+                },
+                borderRadius: radius,
+                child: Container(
+                  height: 48,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Icon(item.icon, size: 18, color: scheme.primary),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          item.label,
+                          style: textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: scheme.onSurface,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _BrandLink extends StatelessWidget {
+  const _BrandLink({
+    required this.svgAsset,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final String svgAsset;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+
+    return Tooltip(
+      message: tooltip,
+      child: SizedBox.square(
+        dimension: 48,
+        child: Material(
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          shape: const CircleBorder(),
+          clipBehavior: Clip.hardEdge,
+          child: InkWell(
+            onTap: () {
+              HapticService.tap();
+              onTap();
+            },
+            customBorder: const CircleBorder(),
+            child: Center(
+              child: SvgPicture.asset(
+                svgAsset,
+                width: 20,
+                height: 20,
+                colorFilter: ColorFilter.mode(
+                  scheme.primary,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
           ),
         ),
-        onPressed: () {
-          HapticService.tap();
-          onTap();
-        },
-        backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        side: BorderSide(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
-          width: 1,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       ),
     );
   }
@@ -1295,11 +1247,11 @@ class _ActionRow extends StatelessWidget {
         child: Row(
           children: <Widget>[
             Container(
-              width: 38,
-              height: 38,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: AppRadii.of(context).smRadius,
               ),
               child: Icon(
                 icon,
@@ -1317,7 +1269,6 @@ class _ActionRow extends StatelessWidget {
                     style: textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: scheme.onSurface,
-                      fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1325,7 +1276,6 @@ class _ActionRow extends StatelessWidget {
                     subtitle,
                     style: textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
-                      fontSize: 12,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1345,21 +1295,13 @@ class _ActionRow extends StatelessWidget {
   }
 }
 
-class _GoogleContactsDeveloperTile extends StatelessWidget {
-  const _GoogleContactsDeveloperTile({
-    required this.name,
-    required this.role,
-    required this.telegramHandle,
-    required this.assetPath,
-    required this.fallbackIcon,
+class _TeamMemberTile extends StatelessWidget {
+  const _TeamMemberTile({
+    required this.member,
     required this.onOpenTelegram,
   });
 
-  final String name;
-  final String role;
-  final String telegramHandle;
-  final String assetPath;
-  final IconData fallbackIcon;
+  final TeamMember member;
   final VoidCallback onOpenTelegram;
 
   @override
@@ -1367,218 +1309,247 @@ class _GoogleContactsDeveloperTile extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    final Widget avatar = Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
-        ),
+    return Material(
+      color: scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadii.of(context).mdRadius,
       ),
-      padding: const EdgeInsets.all(6),
-      child: Image.asset(
-        assetPath,
-        fit: BoxFit.contain,
-        errorBuilder: (_, _, _) => Center(
-          child: Icon(fallbackIcon, size: 26, color: scheme.primary),
-        ),
-      ),
-    );
-
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: <Widget>[
-          avatar,
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  name,
-                  style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    letterSpacing: -0.2,
-                    color: scheme.onSurface,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '@$telegramHandle',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: scheme.secondaryContainer.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    role,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: scheme.onSecondaryContainer,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
+      clipBehavior: Clip.hardEdge,
+      child: InkWell(
+        onTap: () {
+          HapticService.tap();
+          onOpenTelegram();
+        },
+        onLongPress: () {
+          Clipboard.setData(ClipboardData(text: '@${member.handle}'));
+          HapticService.confirm();
+          AppToast.showSuccess(context, '@${member.handle}');
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: <Widget>[
+              // Avatar placed in BrandShape with high contrast
+              StaticBrandShapeContainer(
+                shape: kBrandShapes[member.shapeIndex % kBrandShapes.length],
+                color: scheme.primary,
+                size: 52,
+                child: SizedBox.square(
+                  dimension: 34,
+                  child: Image.asset(
+                    member.assetPath,
+                    fit: BoxFit.contain,
+                    color: scheme.onPrimary,
+                    colorBlendMode: BlendMode.srcIn,
+                    errorBuilder: (_, _, _) => Center(
+                      child: Icon(
+                        member.fallbackIcon,
+                        size: 24,
+                        color: scheme.onPrimary,
+                      ),
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Tooltip(
-            message: context.l10n.aboutContactDevTooltip(telegramHandle),
-            child: IconButton.filledTonal(
-              onPressed: () {
-                HapticService.tap();
-                onOpenTelegram();
-              },
-              icon: SvgPicture.asset(
-                'assets/svg/telegram_logo.svg',
-                width: 20,
-                height: 20,
-                colorFilter: ColorFilter.mode(
-                  scheme.onSecondaryContainer,
-                  BlendMode.srcIn,
                 ),
               ),
-            ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      member.name,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        color: scheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '@${member.handle}',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      member.roleResolver(context),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Tooltip(
+                message: context.l10n.aboutContactDevTooltip(member.handle),
+                child: SizedBox.square(
+                  dimension: 48,
+                  child: Center(
+                    child: IconButton.filledTonal(
+                      onPressed: () {
+                        HapticService.tap();
+                        onOpenTelegram();
+                      },
+                      icon: SvgPicture.asset(
+                        'assets/svg/telegram_logo.svg',
+                        width: 20,
+                        height: 20,
+                        colorFilter: ColorFilter.mode(
+                          scheme.onSecondaryContainer,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _ParsedReleaseTile extends StatefulWidget {
-  const _ParsedReleaseTile({
-    required this.release,
-  });
+// =============================================================================
+// Bug Report Dialog (Dedicated StatefulWidget with Disposed Controllers)
+// =============================================================================
 
-  final ChangelogRelease release;
+class _BugReportDialog extends ConsumerStatefulWidget {
+  const _BugReportDialog();
 
   @override
-  State<_ParsedReleaseTile> createState() => _ParsedReleaseTileState();
+  ConsumerState<_BugReportDialog> createState() => _BugReportDialogState();
 }
 
-class _ParsedReleaseTileState extends State<_ParsedReleaseTile> {
-  bool _expanded = false;
+class _BugReportDialogState extends ConsumerState<_BugReportDialog> {
+  late final TextEditingController _subjectController;
+  late final TextEditingController _bodyController;
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _subjectController = TextEditingController();
+    _bodyController = TextEditingController();
+    _subjectController.addListener(_onTextChanged);
+    _bodyController.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _subjectController.removeListener(_onTextChanged);
+    _bodyController.removeListener(_onTextChanged);
+    _subjectController.dispose();
+    _bodyController.dispose();
+    super.dispose();
+  }
+
+  bool get _canSubmit =>
+      _subjectController.text.trim().isNotEmpty &&
+      _bodyController.text.trim().isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return Column(
-      children: <Widget>[
-        InkWell(
-          onTap: () {
-            HapticService.selection();
-            setState(() {
-              _expanded = !_expanded;
-            });
-          },
-          borderRadius: BorderRadius.circular(10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: scheme.outlineVariant,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'v${widget.release.version}',
-                  style: textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: scheme.onSurface,
-                  ),
-                ),
-                if (widget.release.date != null) ...<Widget>[
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.release.date!,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                AnimatedRotation(
-                  turns: _expanded ? 0.5 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: M3SpringCurves.spatial,
-                  child: Icon(
-                    Icons.expand_more_rounded,
-                    size: 18,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadii.of(context).lgRadius,
+      ),
+      icon: Icon(
+        Icons.bug_report_rounded,
+        size: 32,
+        color: scheme.primary,
+      ),
+      title: Text(
+        context.l10n.aboutReportBugAction,
+        style: textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w700,
         ),
-        AnimatedCrossFade(
-          firstChild: const SizedBox(width: double.infinity, height: 0),
-          secondChild: Padding(
-            padding: const EdgeInsets.only(left: 22, top: 4, bottom: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: widget.release.changes.map((String change) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text('• ', style: TextStyle(color: scheme.outlineVariant)),
-                      Expanded(
-                        child: Text(
-                          change,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
+        textAlign: TextAlign.center,
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            TextField(
+              controller: _subjectController,
+              decoration: InputDecoration(
+                labelText: context.l10n.aboutReportSubject,
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: AppRadii.of(context).smRadius,
+                ),
+              ),
             ),
-          ),
-          crossFadeState: _expanded
-              ? CrossFadeState.showSecond
-              : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 200),
-          firstCurve: M3SpringCurves.spatial,
-          secondCurve: M3SpringCurves.spatial,
+            const SizedBox(height: 12),
+            TextField(
+              controller: _bodyController,
+              maxLines: 4,
+              decoration: InputDecoration(
+                labelText: context.l10n.aboutReportDescription,
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: AppRadii.of(context).smRadius,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actionsAlignment: MainAxisAlignment.spaceBetween,
+      actions: <Widget>[
+        TextButton(
+          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+          child: Text(context.l10n.commonCancel),
+        ),
+        FilledButton(
+          onPressed: (_isSubmitting || !_canSubmit)
+              ? null
+              : () async {
+                  final String subj = _subjectController.text.trim();
+                  final String desc = _bodyController.text.trim();
+
+                  setState(() => _isSubmitting = true);
+                  try {
+                    await ref.read(supportRepositoryProvider).createTicket(
+                          ticketType: 'bug',
+                          subject: subj,
+                          body: desc,
+                        );
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                      AppToast.showSuccess(
+                        context,
+                        context.l10n.aboutReportSuccess,
+                      );
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      setState(() => _isSubmitting = false);
+                      AppToast.showError(
+                        context,
+                        context.l10n.aboutReportError,
+                      );
+                    }
+                  }
+                },
+          child: _isSubmitting
+              ? AppLoadingIndicator(size: 16, color: scheme.onPrimary)
+              : Text(context.l10n.settingsSubmit),
         ),
       ],
     );

@@ -49,7 +49,12 @@ class PulsePageHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(title, style: textTheme.titleLarge),
+                    Text(
+                      title,
+                      style: textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     if (subtitle != null) ...<Widget>[
                       const SizedBox(height: 2),
                       Text(

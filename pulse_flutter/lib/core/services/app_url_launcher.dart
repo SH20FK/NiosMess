@@ -13,7 +13,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 ///    are routed directly inside the Flutter app using [GoRouter] without leaving to a browser.
 /// 2. Telegram links (`https://t.me/...`, `tg://...`) are launched directly into the native
 ///    Telegram app via `tg://` scheme with seamless fallback to external browser.
-/// 3. Other external URLs are opened in the system browser via [LaunchMode.externalApplication].
+/// 3. Other external URLs are opened in-app via [LaunchMode.inAppBrowserView].
 class AppUrlLauncher {
   AppUrlLauncher._();
 
@@ -342,7 +342,7 @@ class AppUrlLauncher {
   static Future<bool> _launchExternal(Uri uri) async {
     try {
       if (await canLaunchUrl(uri)) {
-        return await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
       }
     } catch (e) {
       debugPrint('[AppUrlLauncher] Error launching external URL: $uri ($e)');

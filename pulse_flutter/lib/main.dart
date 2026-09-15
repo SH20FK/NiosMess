@@ -143,6 +143,9 @@ class PulseApp extends ConsumerWidget {
 
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        final bool isHighContrast =
+            WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.highContrast;
+        final double contrastLevel = isHighContrast ? 1.0 : 0.0;
         return MaterialApp.router(
           title: 'NiosMess',
           debugShowCheckedModeBanner: false,
@@ -151,8 +154,18 @@ class PulseApp extends ConsumerWidget {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           locale: appLocale,
-          theme: AppTheme.themed(visualTheme, Brightness.light, dynamicScheme: lightDynamic),
-          darkTheme: AppTheme.themed(visualTheme, Brightness.dark, dynamicScheme: darkDynamic),
+          theme: AppTheme.themed(
+            visualTheme,
+            Brightness.light,
+            dynamicScheme: lightDynamic,
+            contrastLevel: contrastLevel,
+          ),
+          darkTheme: AppTheme.themed(
+            visualTheme,
+            Brightness.dark,
+            dynamicScheme: darkDynamic,
+            contrastLevel: contrastLevel,
+          ),
           themeMode: themeMode,
           routerConfig: router,
           builder: (BuildContext context, Widget? child) {

@@ -24,7 +24,8 @@ class M3Badge extends StatelessWidget {
       ),
       child: Text(
         count > 99 ? '99+' : '$count',
-        style: TextStyle(
+        style: (Theme.of(context).textTheme.labelSmall ?? const TextStyle())
+            .copyWith(
           color: textColor ?? scheme.onPrimary,
           fontSize: 12,
           fontWeight: FontWeight.w600,

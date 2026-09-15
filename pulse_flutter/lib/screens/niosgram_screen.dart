@@ -10,8 +10,9 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/image_compressor.dart';
 import 'package:pulse_flutter/core/utils/smooth_scroll.dart';
-import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/notifications_provider.dart';
@@ -60,7 +61,7 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
     final AsyncValue<NiosgramState> feedAsync = ref.watch(niosgramProvider);
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final double screenWidth = MediaQuery.sizeOf(context).width;
-    final bool isWide = screenWidth >= 760;
+    final bool isWide = screenWidth >= Breakpoints.medium;
     final double horizontalGutter = isWide ? 24.0 : 16.0;
 
     return Scaffold(
@@ -365,7 +366,8 @@ class _NotificationsBell extends ConsumerWidget {
       builder: (BuildContext ctx) {
         final notificationsState = ref.watch(notificationsProvider);
         final scheme = Theme.of(ctx).colorScheme;
-        final isRu = context.l10n.localeName.startsWith('ru');
+        final bool isRu =
+            Localizations.localeOf(ctx).languageCode == 'ru';
 
         return DraggableScrollableSheet(
           initialChildSize: 0.65,

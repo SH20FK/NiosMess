@@ -238,9 +238,9 @@ class AuthNotifier extends Notifier<AuthState> {
 
   void updateAiUsage(ApiAiUsage aiUsage) {
     if (state.profile != null) {
-      state = state.copyWith(
-        profile: state.profile!.copyWith(aiUsage: aiUsage),
-      );
+      final ApiProfile updated = state.profile!.copyWith(aiUsage: aiUsage);
+      state = state.copyWith(profile: updated);
+      ref.read(cacheServiceProvider).saveProfile(updated);
     }
   }
 
@@ -277,9 +277,12 @@ class AuthNotifier extends Notifier<AuthState> {
             clearBirthday: clearBirthday,
             clearWorkingHours: clearWorkingHours,
           );
+      final ApiProfile effectiveProfile = profile.aiUsage != null
+          ? profile
+          : profile.copyWith(aiUsage: state.profile?.aiUsage);
       state = state.copyWith(
         busy: false,
-        profile: profile,
+        profile: effectiveProfile,
         session: state.session == null
             ? null
             : AuthSession(

@@ -1,27 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/navigation/direct_chat_navigator.dart';
+import 'package:pulse_flutter/core/services/favorite_contacts_service.dart';
+import 'package:pulse_flutter/core/storage/cache_service.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/models/api/badge_model.dart';
+import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
-import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
-import 'package:pulse_flutter/core/storage/cache_service.dart';
+import 'package:pulse_flutter/screens/calls/outgoing_call_screen.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
+import 'package:pulse_flutter/widgets/profile/my_qr_code_sheet.dart';
 import 'package:pulse_flutter/widgets/profile/profile_shared_media_tab_view.dart';
 import 'package:pulse_flutter/widgets/profile/working_hours_widget.dart';
-import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/profile_header_delegate.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class PublicProfileScreen extends ConsumerStatefulWidget {
@@ -39,6 +44,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   bool _loading = false;
   String? _error;
   int? _resolvedChatId;
+  ActionPhase _messagePhase = ActionPhase.idle;
+  bool _isMutedLocally = false;
 
   @override
   void initState() {
@@ -54,49 +61,50 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         _profile = null;
         _resolvedChatId = null;
         _error = null;
+        _messagePhase = ActionPhase.idle;
       });
       _checkCacheAndLoad();
     }
   }
 
   void _checkCacheAndLoad() {
-    setState(() {
-      _resolvedChatId = null;
-    });
-
     final String targetUser = widget.username.trim().toLowerCase();
 
-    // 1. Try local cache box strictly for this username
-    final cached = ref.read(cacheServiceProvider).getCachedProfile(widget.username);
+    // 1. If self profile, redirect to main profile tab
+    final myProfile = ref.read(authProvider).profile;
+    if (myProfile != null &&
+        myProfile.username.trim().toLowerCase() == targetUser) {
+      _profile = myProfile;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/main/profile');
+      });
+      return;
+    }
+
+    // 2. Try local cache box strictly for this username
+    final cached =
+        ref.read(cacheServiceProvider).getCachedProfile(widget.username);
     if (cached != null && cached.username.trim().toLowerCase() == targetUser) {
       _profile = cached;
-      _resolveChatId(cached);
-    } else {
-      // 2. Try auth self profile
-      final myProfile = ref.read(authProvider).profile;
-      if (myProfile != null &&
-          myProfile.username.trim().toLowerCase() == targetUser) {
-        _profile = myProfile;
-        _resolveChatId(myProfile);
-      } else {
-        // 3. Try finding in active chats strictly by partner username
-        _profile = null;
-        final chats = ref.read(chatsProvider).value ?? [];
-        for (final c in chats) {
-          if (c.chatType == 'direct' &&
-              c.username != null &&
-              c.username!.trim().toLowerCase() == targetUser) {
-            _profile = ApiProfile(
-              id: c.id,
-              username: c.username!,
-              displayName: c.name,
-              bio: '',
-              avatarUrl: c.avatarUrl,
-            );
-            _resolvedChatId = c.id;
-            break;
-          }
-        }
+    }
+
+    // 3. Find existing direct chat in local state (zero network requests)
+    final List<ApiChatSummary> chats =
+        ref.read(chatsProvider).value ?? const <ApiChatSummary>[];
+    for (final ApiChatSummary c in chats) {
+      if (c.chatType == 'direct' &&
+          c.username != null &&
+          c.username!.trim().toLowerCase() == targetUser) {
+        _resolvedChatId = c.id;
+        _profile ??= ApiProfile(
+          id: c.id,
+          username: c.username!,
+          displayName: c.name,
+          bio: '',
+          avatarUrl: c.avatarUrl,
+          isOnline: c.isOnline,
+        );
+        break;
       }
     }
 
@@ -117,69 +125,124 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           .getPublicProfile(widget.username);
 
       if (!mounted) return;
-      if (profile.username.trim().toLowerCase() == widget.username.trim().toLowerCase()) {
+      if (profile.username.trim().toLowerCase() ==
+          widget.username.trim().toLowerCase()) {
+        // If profile is mine, redirect to self profile tab
+        final myProfile = ref.read(authProvider).profile;
+        if (myProfile != null && myProfile.id == profile.id) {
+          context.go('/main/profile');
+          return;
+        }
+
+        // Check matching chat in local provider
+        int? matchedChatId = _resolvedChatId;
+        final List<ApiChatSummary> chats =
+            ref.read(chatsProvider).value ?? const <ApiChatSummary>[];
+        for (final ApiChatSummary c in chats) {
+          if (c.chatType == 'direct' &&
+              c.username != null &&
+              c.username!.trim().toLowerCase() ==
+                  profile.username.trim().toLowerCase()) {
+            matchedChatId = c.id;
+            break;
+          }
+        }
+
         setState(() {
           _profile = profile;
+          _resolvedChatId = matchedChatId;
           _loading = false;
           _error = null;
         });
-        _resolveChatId(profile);
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
         if (_profile == null) {
-          final errStr = e.toString();
-          final bool isRu = context.l10n.localeName.startsWith('ru');
-          if (errStr.contains('timed out') || errStr.contains('SocketException')) {
-            _error = isRu
-                ? 'Сервер временно недоступен. Проверьте соединение с интернетом.'
-                : 'Server temporarily unavailable. Check your internet connection.';
+          final String errStr = e.toString().toLowerCase();
+          if (errStr.contains('timed out') ||
+              errStr.contains('socketexception')) {
+            _error = context.l10n.profileNetworkError;
           } else {
-            _error = isRu
-                ? 'Не удалось загрузить профиль. Попробуйте позже.'
-                : 'Failed to load profile. Please try again later.';
+            _error = context.l10n.profileLoadFailed;
           }
         }
       });
     }
   }
 
-  Future<void> _resolveChatId(ApiProfile profile) async {
-    final String targetUsername = profile.username.trim().toLowerCase();
-    if (targetUsername.isEmpty) return;
+  Future<void> _handleMessageTap(ApiProfile profile) async {
+    HapticService.tap();
+    if (_messagePhase == ActionPhase.pending) return;
 
-    // 1. Check existing chats strictly by partner username (never by displayName)
-    final chats = ref.read(chatsProvider).value ?? [];
-    for (final c in chats) {
-      if (c.chatType == 'direct' &&
-          c.username != null &&
-          c.username!.trim().toLowerCase() == targetUsername) {
-        if (mounted && widget.username.trim().toLowerCase() == targetUsername) {
-          setState(() => _resolvedChatId = c.id);
-        }
-        return;
-      }
-    }
+    setState(() {
+      _messagePhase = ActionPhase.pending;
+    });
 
-    // 2. Open / resolve direct chat via repository
-    try {
-      final result = await ref
-          .read(chatRepositoryProvider)
-          .openDirectChatByUsername(profile.username);
-      if (result != null && result.chatId > 0 && mounted) {
-        if (widget.username.trim().toLowerCase() == targetUsername) {
-          setState(() => _resolvedChatId = result.chatId);
-        }
-      } else if (mounted && widget.username.trim().toLowerCase() == targetUsername) {
-        setState(() => _resolvedChatId = -1);
+    final int? chatId = await navigateToDirectChat(
+      context,
+      ref,
+      username: profile.username,
+      userId: profile.id,
+      knownChatId: _resolvedChatId,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      if (chatId != null && chatId > 0) {
+        _resolvedChatId = chatId;
+        _messagePhase = ActionPhase.idle;
+      } else {
+        _messagePhase = ActionPhase.error;
       }
-    } catch (_) {
-      if (mounted && widget.username.trim().toLowerCase() == targetUsername) {
-        setState(() => _resolvedChatId = -1);
-      }
+    });
+  }
+
+  Future<void> _handleSecretChatTap(ApiProfile profile) async {
+    HapticService.tap();
+    AppToast.showInfo(context, context.l10n.profileConnectingDirect);
+
+    final int? chatId = await navigateToDirectChat(
+      context,
+      ref,
+      username: profile.username,
+      userId: profile.id,
+      isSecret: true,
+    );
+
+    if (!mounted) return;
+    if (chatId != null && chatId > 0) {
+      setState(() {
+        _resolvedChatId = chatId;
+      });
     }
+  }
+
+  void _handleCallTap(ApiProfile profile, {required bool isVideo}) {
+    HapticService.tap();
+    context.push(
+      '/call/outgoing',
+      extra: OutgoingCallArgs(
+        username: profile.username,
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
+        chatId: _resolvedChatId,
+        isVideo: isVideo,
+      ),
+    );
+  }
+
+  void _handleShareQrTap(ApiProfile profile) {
+    HapticService.tap();
+    AppBottomSheets.show<void>(
+      context: context,
+      builder: (BuildContext ctx) => MyQrCodeSheet(
+        username: profile.username,
+        displayName: profile.displayName,
+      ),
+    );
   }
 
   @override
@@ -196,14 +259,22 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           centerTitle: true,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () => context.pop(),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/main/chats');
+              }
+            },
           ),
         ),
-        body: const Center(child: AppLoadingIndicator()),
+        body: Center(
+          child: AppLoadingIndicator(color: scheme.primary),
+        ),
       );
     }
 
-    if (_profile == null) {
+    if (_error != null && _profile == null) {
       return Scaffold(
         backgroundColor: scheme.surface,
         appBar: AppBar(
@@ -211,7 +282,13 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           centerTitle: true,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () => context.pop(),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/main/chats');
+              }
+            },
           ),
         ),
         body: Center(
@@ -219,33 +296,22 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: scheme.errorContainer.withValues(alpha: 0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.cloud_off_rounded, size: 48, color: scheme.error),
+              children: <Widget>[
+                Icon(
+                  Icons.person_off_rounded,
+                  size: 56,
+                  color: scheme.error,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 Text(
-                  _error ?? context.l10n.contactDetailNotFound,
-                  style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Не удалось получить данные с сервера',
-                  style: textTheme.bodySmall?.copyWith(
+                  _error!,
+                  style: textTheme.bodyLarge?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 20),
-                FilledButton.icon(
+                const SizedBox(height: 24),
+                FilledButton.tonalIcon(
                   onPressed: _loadProfile,
                   icon: const Icon(Icons.refresh_rounded),
                   label: Text(context.l10n.commonRetry),
@@ -260,300 +326,258 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     final ApiProfile profile = _profile!;
     final bool isMe = auth.profile?.id == profile.id;
 
+    final List<ApiChatSummary> chats =
+        ref.watch(chatsProvider).value ?? const <ApiChatSummary>[];
+    ApiChatSummary? matchingChat;
+    for (final ApiChatSummary c in chats) {
+      if (c.chatType == 'direct' &&
+          c.username != null &&
+          c.username!.trim().toLowerCase() ==
+              profile.username.trim().toLowerCase()) {
+        matchingChat = c;
+        break;
+      }
+    }
+
+    final bool isOnline = profile.isOnline || (matchingChat?.isOnline ?? false);
+    final String statusText = _computeStatusText(profile, isOnline);
+
     return Scaffold(
       backgroundColor: scheme.surface,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        scrolledUnderElevation: 0,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton.filledTonal(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/main/chats');
-            }
-          },
-          style: IconButton.styleFrom(
-            backgroundColor: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
+      body: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: <Widget>[
+          // ── Collapsing Hero Header ─────────────────────────────────
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: ProfileHeaderDelegate(
+              name: profile.displayName,
+              username: profile.username,
+              avatarUrl: profile.avatarUrl,
+              badges: profile.badges,
+              statusText: statusText,
+              isOnline: isOnline,
+              isMe: isMe,
+              topInset: MediaQuery.paddingOf(context).top,
+              onBack: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/main/chats');
+                }
+              },
+              onMore: isMe ? null : () => _showMoreActionsMenu(profile),
+            ),
           ),
-        ),
-        actions: [
-          if (!isMe)
-            IconButton.filledTonal(
-              icon: const Icon(Icons.more_vert_rounded),
-              onPressed: () => _showMoreActionsMenu(profile),
-              style: IconButton.styleFrom(
-                backgroundColor:
-                    scheme.surfaceContainerHigh.withValues(alpha: 0.7),
+
+          // ── Body Content ───────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 840),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 12,
+                    bottom: 32 + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      // ── Blocked Banner ───────────────────────────────
+                      if (!isMe) ...[
+                        Builder(
+                          builder: (BuildContext ctx) {
+                            final bool isBlockedByMe = ref
+                                    .watch(privacyProvider)
+                                    .isUserBlocked(profile.id) ||
+                                profile.isBlockedByMe;
+                            final bool isBlockedByUser =
+                                profile.isBlockedByUser;
+                            if (isBlockedByMe || isBlockedByUser) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: _buildBlockedBanner(
+                                  ctx,
+                                  profile,
+                                  scheme,
+                                  textTheme,
+                                  isBlockedByMe: isBlockedByMe,
+                                  isBlockedByUser: isBlockedByUser,
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                      ],
+
+                      // ── Primary & Secondary Actions Hierarchy ─────────
+                      if (!isMe) ...[
+                        _buildActionHierarchy(
+                            context, profile, scheme, textTheme),
+                        const SizedBox(height: 20),
+                      ],
+
+                      // ── About & Bio Section ──────────────────────────
+                      _buildAboutCard(context, profile, scheme, textTheme,
+                          isMe: isMe),
+                      const SizedBox(height: 20),
+
+                      // ── Shared Media Gallery Tabs ────────────────────
+                      ProfileSharedMediaTabView(
+                        chatId: _resolvedChatId,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.only(
-          bottom: 32 + MediaQuery.paddingOf(context).bottom,
-        ),
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 680),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ── Hero Avatar & Header ───────────────────────────────
-                _buildHeroHeader(context, profile, scheme, textTheme, isMe),
-                const SizedBox(height: 16),
-
-                // ── Blocked Banner ─────────────────────────────────────
-                if (!isMe) ...[
-                  Builder(
-                    builder: (BuildContext ctx) {
-                      final bool isBlockedByMe = ref.watch(privacyProvider).isUserBlocked(profile.id) || profile.isBlockedByMe;
-                      final bool isBlockedByUser = profile.isBlockedByUser;
-                      if (isBlockedByMe || isBlockedByUser) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: _buildBlockedBanner(
-                            ctx,
-                            profile,
-                            scheme,
-                            textTheme,
-                            isBlockedByMe: isBlockedByMe,
-                            isBlockedByUser: isBlockedByUser,
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                ],
-
-                // ── Quick Action Dock ──────────────────────────────────
-                if (!isMe) ...[
-                  _buildQuickActionDock(context, profile, scheme, textTheme),
-                  const SizedBox(height: 20),
-                ],
-
-                // ── About & Bio Section ────────────────────────────────
-                _buildAboutCard(context, profile, scheme, textTheme, isMe: isMe),
-                const SizedBox(height: 20),
-
-                // ── Shared Media Gallery Tabs ──────────────────────────
-                ProfileSharedMediaTabView(
-                  chatId: _resolvedChatId,
-                ),
-              ],
-            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  // ── Hero Header ───────────────────────────────────────────────────
-  Widget _buildHeroHeader(
+  String _computeStatusText(ApiProfile profile, bool isOnline) {
+    if (isOnline) {
+      return context.l10n.profileOnline;
+    }
+    if (profile.lastSeen != null) {
+      final Duration diff = DateTime.now().difference(profile.lastSeen!);
+      if (diff.inMinutes < 60) {
+        return '${context.l10n.profileLastSeen} ${diff.inMinutes}m';
+      }
+      if (diff.inHours < 24) {
+        return '${context.l10n.profileLastSeen} ${diff.inHours}h';
+      }
+      return '${context.l10n.profileLastSeen} ${DateFormat.yMMMMd(Localizations.localeOf(context).languageCode).format(profile.lastSeen!)}';
+    }
+    return context.l10n.profileOffline;
+  }
+
+  // ── M3 Expressive Action Hierarchy ──────────────────────────────────
+  Widget _buildActionHierarchy(
     BuildContext context,
     ApiProfile profile,
     ColorScheme scheme,
     TextTheme textTheme,
-    bool isMe,
   ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.bottomCenter,
-          children: [
-            // Header top spacing
-            const SizedBox(
-              height: 100,
-              width: double.infinity,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // Primary Action: Full-width "Написать" (56dp, pill)
+        SizedBox(
+          height: 56,
+          child: FilledButton.icon(
+            onPressed: () => _handleMessageTap(profile),
+            style: FilledButton.styleFrom(
+              backgroundColor: scheme.primary,
+              foregroundColor: scheme.onPrimary,
+              elevation: 0,
+              shape: const RoundedRectangleBorder(
+                borderRadius: AppRadii.fullRadius,
+              ),
             ),
+            icon: _messagePhase == ActionPhase.pending
+                ? AppLoadingIndicator(
+                    size: 18,
+                    color: scheme.onPrimary,
+                  )
+                : const Icon(Icons.chat_bubble_rounded, size: 20),
+            label: Text(
+              context.l10n.profileMessage,
+              style: textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: scheme.onPrimary,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
 
-            // Avatar overlapping the banner bottom
-            Positioned(
-              bottom: -54,
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: scheme.shadow.withValues(alpha: 0.12),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: PulseAvatar(
-                      name: profile.displayName,
-                      avatarUrl: profile.avatarUrl,
-                      radius: 54,
-                      fallbackColor: scheme.primaryContainer,
-                      textColor: scheme.onPrimaryContainer,
-                      borderColor: scheme.surface,
-                      borderWidth: 4,
-                    ),
-                  ),
-                  if (profile.badges.isNotEmpty)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: BadgeChip(
-                        id: profile.badges.first.id,
-                        name: profile.badges.first.name,
-                        icon: profile.badges.first.icon,
-                        color: profile.badges.first.color,
-                        mode: BadgeDisplayMode.avatarBadge,
-                      ),
-                    ),
-                ],
+        // Secondary Actions: Audio call, Video call, Share / QR
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: _buildSecondaryActionButton(
+                icon: Icons.call_rounded,
+                label: context.l10n.profileCall,
+                backgroundColor: scheme.surfaceContainerHigh,
+                foregroundColor: scheme.onSurface,
+                onTap: () => _handleCallTap(profile, isVideo: false),
+                scheme: scheme,
+                textTheme: textTheme,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildSecondaryActionButton(
+                icon: Icons.videocam_rounded,
+                label: context.l10n.profileVideo,
+                backgroundColor: scheme.surfaceContainerHigh,
+                foregroundColor: scheme.onSurface,
+                onTap: () => _handleCallTap(profile, isVideo: true),
+                scheme: scheme,
+                textTheme: textTheme,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildSecondaryActionButton(
+                icon: Icons.qr_code_rounded,
+                label: context.l10n.groupProfileShare,
+                backgroundColor: scheme.surfaceContainerHigh,
+                foregroundColor: scheme.onSurface,
+                onTap: () => _handleShareQrTap(profile),
+                scheme: scheme,
+                textTheme: textTheme,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 62),
-
-        // Display Name + Badges
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Flexible(
-                child: Text(
-                  profile.displayName,
-                  style: textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (profile.badges.where(BadgeResolver.isStatusBadge).isNotEmpty) ...[
-                const SizedBox(width: 6),
-                ...profile.badges
-                    .where(BadgeResolver.isStatusBadge)
-                    .map(
-                      (b) => Padding(
-                        padding: const EdgeInsets.only(left: 2),
-                        child: BadgeChip(
-                          id: b.id,
-                          name: b.name,
-                          icon: b.icon,
-                          color: b.color,
-                          mode: BadgeDisplayMode.statusIcon,
-                        ),
-                      ),
-                    ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 4),
-
-        // Username tag
-        if (profile.username.isNotEmpty)
-          Text(
-            '@${profile.username}',
-            style: textTheme.titleSmall?.copyWith(
-              color: scheme.primary,
-              fontWeight: FontWeight.w700,
-            ),
-            textAlign: TextAlign.center,
-          ),
       ],
     );
   }
 
-  // ── Quick Action Dock ─────────────────────────────────────────────
-  Widget _buildQuickActionDock(
-    BuildContext context,
-    ApiProfile profile,
-    ColorScheme scheme,
-    TextTheme textTheme,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.18),
+  Widget _buildSecondaryActionButton({
+    required IconData icon,
+    required String label,
+    required Color backgroundColor,
+    required Color foregroundColor,
+    required VoidCallback onTap,
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+  }) {
+    return Material(
+      color: backgroundColor,
+      borderRadius: AppRadii.mdRadius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadii.mdRadius,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(icon, size: 20, color: foregroundColor),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: foregroundColor,
+                ),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: scheme.shadow.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: _QuickActionButton(
-                icon: Icons.chat_bubble_rounded,
-                label: context.l10n.profileMessage,
-                color: scheme.primary,
-                onTap: () {
-                  HapticService.tap();
-                  context.push('/chat/dm/${profile.username}');
-                },
-              ),
-            ),
-            Expanded(
-              child: _QuickActionButton(
-                icon: Icons.call_rounded,
-                label: context.l10n.profileCall,
-                color: scheme.tertiary,
-                onTap: () {
-                  HapticService.tap();
-                  context.push('/call/dm/${profile.username}?isVideo=0');
-                },
-              ),
-            ),
-            Expanded(
-              child: _QuickActionButton(
-                icon: Icons.videocam_rounded,
-                label: context.l10n.profileVideo,
-                color: scheme.secondary,
-                onTap: () {
-                  HapticService.tap();
-                  context.push('/call/dm/${profile.username}?isVideo=1');
-                },
-              ),
-            ),
-            Expanded(
-              child: _QuickActionButton(
-                icon: Icons.lock_rounded,
-                label: context.l10n.settingsSecretChatsButton,
-                color: scheme.primary,
-                onTap: () {
-                  HapticService.tap();
-                  context.push('/chat/dm/${profile.username}?isSecret=1');
-                },
-              ),
-            ),
-          ],
         ),
       ),
-    ).animate().fade(duration: 300.ms).slideY(begin: 0.05, end: 0);
+    );
   }
 
   // ── About & Bio Section ─────────────────────────────────────────────
@@ -564,131 +588,139 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     TextTheme textTheme, {
     bool isMe = false,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerLow.withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.16),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Bio
-            if (profile.bio.trim().isNotEmpty) ...[
-              Text(
-                'О себе',
-                style: textTheme.labelMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                profile.bio.trim(),
-                style: textTheme.bodyLarge?.copyWith(
-                  color: scheme.onSurface,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Divider(
-                color: scheme.outlineVariant.withValues(alpha: 0.15),
-                height: 1,
-              ),
-              const SizedBox(height: 16),
-            ],
+    final String currentLocale =
+        Localizations.localeOf(context).languageCode;
 
-            // Username row with copy
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: AppRadii.xlRadius,
+        border: Border.all(
+          color: scheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // Bio
+          if (profile.bio.trim().isNotEmpty) ...[
+            Text(
+              context.l10n.profileBioHeader,
+              style: textTheme.labelMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              profile.bio.trim(),
+              style: textTheme.bodyLarge?.copyWith(
+                color: scheme.onSurface,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Divider(
+              color: scheme.outlineVariant,
+              height: 1,
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Username row with copy
+          _buildInfoRow(
+            icon: Icons.alternate_email_rounded,
+            label: context.l10n.profileUsernameLabel,
+            value: '@${profile.username}',
+            scheme: scheme,
+            textTheme: textTheme,
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: '@${profile.username}'));
+              HapticService.confirm();
+              AppToast.showInfo(
+                  context, context.l10n.profileUsernameCopied);
+            },
+          ),
+          const SizedBox(height: 14),
+
+          // Registration Date
+          if (profile.createdAt != null) ...[
             _buildInfoRow(
-              icon: Icons.alternate_email_rounded,
-              label: 'Имя пользователя',
-              value: '@${profile.username}',
+              icon: Icons.calendar_today_rounded,
+              label: context.l10n.profileRegistrationDate,
+              value: DateFormat.yMMMMd(currentLocale)
+                  .format(profile.createdAt!),
+              scheme: scheme,
+              textTheme: textTheme,
+            ),
+          ],
+
+          // Phone Number
+          if (profile.phoneNumber != null &&
+              profile.phoneNumber!.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _buildInfoRow(
+              icon: Icons.phone_rounded,
+              label: context.l10n.profilePhoneNumber,
+              value: profile.phoneNumber!,
               scheme: scheme,
               textTheme: textTheme,
               onTap: () {
-                Clipboard.setData(ClipboardData(text: '@${profile.username}'));
+                Clipboard.setData(
+                    ClipboardData(text: profile.phoneNumber!));
                 HapticService.confirm();
-                AppToast.showInfo(context, 'Имя пользователя скопировано');
+                AppToast.showInfo(context, context.l10n.profilePhoneCopied);
               },
             ),
-            const SizedBox(height: 14),
-
-            // Registration Date
-            if (profile.createdAt != null)
-              _buildInfoRow(
-                icon: Icons.calendar_today_rounded,
-                label: 'Регистрация',
-                value: DateFormat('d MMMM yyyy', 'ru').format(profile.createdAt!),
-                scheme: scheme,
-                textTheme: textTheme,
-              ),
-
-            // Phone Number
-            if (profile.phoneNumber != null && profile.phoneNumber!.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              _buildInfoRow(
-                icon: Icons.phone_rounded,
-                label: 'Телефон',
-                value: profile.phoneNumber!,
-                scheme: scheme,
-                textTheme: textTheme,
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: profile.phoneNumber!));
-                  HapticService.confirm();
-                  AppToast.showInfo(context, 'Номер телефона скопирован');
-                },
-              ),
-            ],
-
-            // Birthday
-            if (profile.birthday != null && profile.birthday!.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              _buildInfoRow(
-                icon: Icons.cake_rounded,
-                label: 'День рождения',
-                value: profile.birthday!,
-                scheme: scheme,
-                textTheme: textTheme,
-              ),
-            ],
-
-            // Working Hours
-            if (profile.workingHours != null && profile.workingHours!.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              WorkingHoursWidget(
-                workingHours: profile.workingHours,
-                isEditable: isMe,
-              ),
-            ],
-
-            // Non-status badges
-            if (profile.badges.where((b) => !BadgeResolver.isStatusBadge(b)).isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: profile.badges
-                    .where((b) => !BadgeResolver.isStatusBadge(b))
-                    .map(
-                      (badge) => BadgeChip(
-                        id: badge.id,
-                        name: badge.name,
-                        icon: badge.icon,
-                        color: badge.color,
-                        showName: true,
-                        mode: BadgeDisplayMode.infoLabel,
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-            ],
           ],
-        ),
+
+          // Birthday
+          if (profile.birthday != null && profile.birthday!.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _buildInfoRow(
+              icon: Icons.cake_rounded,
+              label: context.l10n.profileBirthday,
+              value: profile.birthday!,
+              scheme: scheme,
+              textTheme: textTheme,
+            ),
+          ],
+
+          // Working Hours
+          if (profile.workingHours != null &&
+              profile.workingHours!.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            WorkingHoursWidget(
+              workingHours: profile.workingHours,
+              isEditable: isMe,
+            ),
+          ],
+
+          // Non-status badges
+          if (profile.badges
+              .where((b) => !BadgeResolver.isStatusBadge(b))
+              .isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: profile.badges
+                  .where((b) => !BadgeResolver.isStatusBadge(b))
+                  .map(
+                    (ApiBadge badge) => BadgeChip(
+                      id: badge.id,
+                      name: badge.name,
+                      icon: badge.icon,
+                      color: badge.color,
+                      showName: true,
+                      mode: BadgeDisplayMode.infoLabel,
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -701,8 +733,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     required TextTheme textTheme,
     VoidCallback? onTap,
   }) {
-    final row = Row(
-      children: [
+    final Widget content = Row(
+      children: <Widget>[
         M3Container(
           Shapes.c9_sided_cookie,
           width: 36,
@@ -716,7 +748,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            children: <Widget>[
               Text(
                 label,
                 style: textTheme.labelSmall?.copyWith(
@@ -737,19 +769,29 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           Icon(
             Icons.copy_rounded,
             size: 16,
-            color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+            color: scheme.onSurfaceVariant,
           ),
       ],
     );
 
     if (onTap != null) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: row,
+      return Material(
+        color: Colors.transparent,
+        borderRadius: AppRadii.smRadius,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: AppRadii.smRadius,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+            child: content,
+          ),
+        ),
       );
     }
-    return row;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+      child: content,
+    );
   }
 
   Widget _buildBlockedBanner(
@@ -760,122 +802,275 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     required bool isBlockedByMe,
     required bool isBlockedByUser,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: scheme.errorContainer.withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: scheme.error.withValues(alpha: 0.3),
-            width: 1.2,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: AppRadii.mdRadius,
+        border: Border.all(
+          color: scheme.error,
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: scheme.error,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.block_rounded,
+              color: scheme.onError,
+              size: 18,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: scheme.error,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.block_rounded,
-                color: scheme.onError,
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isBlockedByMe
-                        ? 'Пользователь заблокирован вами'
-                        : 'Пользователь ограничил доступ',
-                    style: textTheme.titleSmall?.copyWith(
-                      color: scheme.onErrorContainer,
-                      fontWeight: FontWeight.w700,
-                    ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  isBlockedByMe
+                      ? context.l10n.profileBlockedByMeTitle
+                      : context.l10n.profileBlockedByUserTitle,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: scheme.onErrorContainer,
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isBlockedByMe
-                        ? 'Вы не можете обмениваться сообщениями и совершать звонки'
-                        : 'Вы добавлены в чёрный список этого пользователя',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onErrorContainer.withValues(alpha: 0.85),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isBlockedByMe) ...[
-              const SizedBox(width: 8),
-              FilledButton.tonal(
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  visualDensity: VisualDensity.compact,
                 ),
-                onPressed: () => _showUnblockDialog(profile),
-                child: Text(context.l10n.unblockAction),
+                const SizedBox(height: 2),
+                Text(
+                  isBlockedByMe
+                      ? context.l10n.profileBlockedByMeDesc
+                      : context.l10n.profileBlockedByUserDesc,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onErrorContainer,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isBlockedByMe) ...[
+            const SizedBox(width: 8),
+            FilledButton.tonal(
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
+                visualDensity: VisualDensity.compact,
               ),
-            ],
+              onPressed: () => _showUnblockDialog(profile),
+              child: Text(context.l10n.unblockAction),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
 
+  // ── "⋮" Actions Menu ───────────────────────────────────────────────
   void _showMoreActionsMenu(ApiProfile profile) {
-    final bool isBlocked = ref.read(privacyProvider).isUserBlocked(profile.id) || profile.isBlockedByMe;
+    final bool isBlocked =
+        ref.read(privacyProvider).isUserBlocked(profile.id) ||
+            profile.isBlockedByMe;
+    final bool isSupport =
+        profile.username.toLowerCase() == 'support' || profile.id == 1;
+    final bool isFavorite =
+        ref.read(favoriteContactsProvider).contains(profile.id);
+
     AppBottomSheets.show<void>(
       context: context,
-      builder: (ctx) {
-        final scheme = Theme.of(ctx).colorScheme;
+      builder: (BuildContext ctx) {
+        final ColorScheme sheetScheme = Theme.of(ctx).colorScheme;
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isBlocked)
-                ListTile(
-                  leading: Icon(Icons.lock_open_rounded, color: scheme.primary),
-                  title: Text(
-                    context.l10n.unblockUserPrompt(profile.username),
-                    style: TextStyle(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    _showUnblockDialog(profile);
-                  },
-                )
-              else
-                ListTile(
-                  leading: Icon(Icons.block_rounded, color: scheme.error),
-                  title: Text(
-                    context.l10n.blockUserPrompt(profile.username),
-                    style: TextStyle(color: scheme.error),
-                  ),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    _showBlockDialog(profile);
-                  },
-                ),
+            children: <Widget>[
+              // 1. Secret chat
               ListTile(
-                leading: Icon(Icons.flag_rounded, color: scheme.onSurface),
-                title: Text(context.l10n.reportUser),
+                leading: Icon(Icons.lock_rounded, color: sheetScheme.primary),
+                title: Text(context.l10n.profileSecretChat),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  _showReportUserDialog(profile);
+                  _handleSecretChatTap(profile);
                 },
               ),
+
+              // 2. Mute / Unmute notifications
+              ListTile(
+                leading: Icon(
+                  _isMutedLocally
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_off_rounded,
+                  color: sheetScheme.onSurface,
+                ),
+                title: Text(
+                  _isMutedLocally
+                      ? context.l10n.profileUnmuteNotifications
+                      : context.l10n.profileMuteNotifications,
+                ),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  setState(() {
+                    _isMutedLocally = !_isMutedLocally;
+                  });
+                  HapticService.tap();
+                  AppToast.showSuccess(
+                    context,
+                    _isMutedLocally
+                        ? context.l10n.profileMuteNotifications
+                        : context.l10n.profileUnmuteNotifications,
+                  );
+                },
+              ),
+
+              // 3. Add to / Remove from favorites
+              ListTile(
+                leading: Icon(
+                  isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                  color: sheetScheme.primary,
+                ),
+                title: Text(
+                  isFavorite
+                      ? context.l10n.profileRemoveFromFavorites
+                      : context.l10n.profileAddToFavorites,
+                ),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  ref
+                      .read(favoriteContactsProvider.notifier)
+                      .toggleFavorite(profile.id);
+                  HapticService.confirm();
+                  AppToast.showSuccess(
+                    context,
+                    isFavorite
+                        ? context.l10n.profileRemoveFromFavorites
+                        : context.l10n.profileAddToFavorites,
+                  );
+                },
+              ),
+
+              // 4. Common groups
+              ListTile(
+                leading: Icon(Icons.group_rounded, color: sheetScheme.onSurface),
+                title: Text(context.l10n.profileCommonGroups),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _showCommonGroupsDialog(profile);
+                },
+              ),
+
+              // 5. Share QR
+              ListTile(
+                leading:
+                    Icon(Icons.qr_code_rounded, color: sheetScheme.onSurface),
+                title: Text(context.l10n.profileShareQr),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _handleShareQrTap(profile);
+                },
+              ),
+
+              // 6. Block / Unblock (hidden for support)
+              if (!isSupport) ...[
+                if (isBlocked)
+                  ListTile(
+                    leading:
+                        Icon(Icons.lock_open_rounded, color: sheetScheme.primary),
+                    title: Text(
+                      context.l10n.unblockUserPrompt(profile.username),
+                      style: TextStyle(
+                        color: sheetScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _showUnblockDialog(profile);
+                    },
+                  )
+                else
+                  ListTile(
+                    leading: Icon(Icons.block_rounded, color: sheetScheme.error),
+                    title: Text(
+                      context.l10n.blockUserPrompt(profile.username),
+                      style: TextStyle(color: sheetScheme.error),
+                    ),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _showBlockDialog(profile);
+                    },
+                  ),
+
+                // 7. Report (hidden for support)
+                ListTile(
+                  leading: Icon(Icons.flag_rounded, color: sheetScheme.onSurface),
+                  title: Text(context.l10n.reportUser),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _showReportUserDialog(profile);
+                  },
+                ),
+              ],
               const SizedBox(height: 12),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCommonGroupsDialog(ApiProfile profile) {
+    final List<ApiChatSummary> allChats =
+        ref.read(chatsProvider).value ?? const <ApiChatSummary>[];
+    final List<ApiChatSummary> commonGroups = allChats
+        .where((ApiChatSummary c) => c.chatType != 'direct')
+        .toList(growable: false);
+
+    AppBottomSheets.show<void>(
+      context: context,
+      builder: (BuildContext ctx) {
+        final TextTheme dialogTheme = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Text(
+                  context.l10n.profileCommonGroups,
+                  style: dialogTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (commonGroups.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Text(
+                        context.l10n.profileNoCommonGroups,
+                        style: dialogTheme.bodyMedium,
+                      ),
+                    ),
+                  )
+                else
+                  ...commonGroups.take(6).map(
+                        (ApiChatSummary g) => ListTile(
+                          leading: const Icon(Icons.group_rounded),
+                          title: Text(g.name),
+                          subtitle: Text(
+                              context.l10n.chatMemberCount(g.membersCount)),
+                          onTap: () {
+                            Navigator.of(ctx).pop();
+                            context.push('/chat/${g.id}');
+                          },
+                        ),
+                      ),
+              ],
+            ),
           ),
         );
       },
@@ -886,7 +1081,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     AppBottomSheets.show<void>(
       context: context,
       builder: (BuildContext ctx) {
-        final TextTheme textTheme = Theme.of(ctx).textTheme;
+        final TextTheme dialogTheme = Theme.of(ctx).textTheme;
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -896,18 +1091,27 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               children: <Widget>[
                 Text(
                   context.l10n.unblockAction,
-                  style: textTheme.titleLarge?.copyWith(
+                  style: dialogTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   context.l10n.unblockUserConfirmDesc(profile.username),
-                  style: textTheme.bodyMedium,
+                  style: dialogTheme.bodyMedium,
                 ),
                 const SizedBox(height: 20),
                 Row(
                   children: <Widget>[
+                    // Cancel on left per platform convention
+                    Expanded(
+                      child: FilledButton.tonal(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: Text(context.l10n.commonCancel),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Action on right
                     Expanded(
                       child: FilledButton(
                         onPressed: () async {
@@ -922,7 +1126,12 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                               context,
                               context.l10n.userUnblockedToast(profile.username),
                             );
-                            setState(() {});
+                            setState(() {
+                              _profile = _profile?.copyWith(
+                                isBlockedByMe: false,
+                                isBlocked: profile.isBlockedByUser,
+                              );
+                            });
                           } else {
                             AppToast.showError(
                               context,
@@ -931,13 +1140,6 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                           }
                         },
                         child: Text(context.l10n.unblockAction),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.tonal(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        child: Text(context.l10n.commonCancel),
                       ),
                     ),
                   ],
@@ -954,7 +1156,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     AppBottomSheets.show<void>(
       context: context,
       builder: (BuildContext ctx) {
-        final TextTheme textTheme = Theme.of(ctx).textTheme;
+        final TextTheme dialogTheme = Theme.of(ctx).textTheme;
+        final ColorScheme dialogScheme = Theme.of(ctx).colorScheme;
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -964,33 +1167,35 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               children: <Widget>[
                 Text(
                   context.l10n.profileBlock,
-                  style: textTheme.titleLarge?.copyWith(
+                  style: dialogTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   context.l10n.blockUserConfirmDesc(profile.username),
-                  style: textTheme.bodyMedium,
+                  style: dialogTheme.bodyMedium,
                 ),
                 const SizedBox(height: 20),
                 Row(
                   children: <Widget>[
+                    // Cancel on left per platform convention
+                    Expanded(
+                      child: FilledButton.tonal(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: Text(context.l10n.commonCancel),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Action on right with high-contrast onError foreground
                     Expanded(
                       child: FilledButton(
                         style: FilledButton.styleFrom(
-                          backgroundColor: Theme.of(ctx).colorScheme.error,
+                          backgroundColor: dialogScheme.error,
+                          foregroundColor: dialogScheme.onError,
                         ),
                         onPressed: () async {
                           Navigator.of(ctx).pop();
-                          if (profile.username.toLowerCase() == 'support' ||
-                              profile.id == 1) {
-                            AppToast.showError(
-                              context,
-                              context.l10n.supportCannotBeBlocked,
-                            );
-                            return;
-                          }
                           HapticService.confirm();
                           final bool success = await ref
                               .read(privacyProvider.notifier)
@@ -1009,7 +1214,12 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                               context,
                               context.l10n.userBlockedToast(profile.username),
                             );
-                            setState(() {});
+                            setState(() {
+                              _profile = _profile?.copyWith(
+                                isBlockedByMe: true,
+                                isBlocked: true,
+                              );
+                            });
                           } else {
                             AppToast.showError(
                               context,
@@ -1018,13 +1228,6 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                           }
                         },
                         child: Text(context.l10n.profileBlock),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.tonal(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        child: Text(context.l10n.commonCancel),
                       ),
                     ),
                   ],
@@ -1041,8 +1244,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     AppBottomSheets.show<void>(
       context: context,
       builder: (BuildContext ctx) {
-        final ColorScheme scheme = Theme.of(ctx).colorScheme;
-        final TextTheme textTheme = Theme.of(ctx).textTheme;
+        final ColorScheme sheetScheme = Theme.of(ctx).colorScheme;
+        final TextTheme sheetTheme = Theme.of(ctx).textTheme;
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1052,13 +1255,14 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   context.l10n.reportSelectReason,
-                  style: textTheme.titleMedium?.copyWith(
+                  style: sheetTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
               ListTile(
-                leading: Icon(Icons.report_gmailerrorred_rounded, color: scheme.error),
+                leading: Icon(Icons.report_gmailerrorred_rounded,
+                    color: sheetScheme.error),
                 title: Text(context.l10n.reportReasonSpam),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -1066,7 +1270,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 },
               ),
               ListTile(
-                leading: Icon(Icons.report_problem_rounded, color: scheme.error),
+                leading: Icon(Icons.report_problem_rounded,
+                    color: sheetScheme.error),
                 title: Text(context.l10n.reportReasonScam),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -1074,7 +1279,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 },
               ),
               ListTile(
-                leading: Icon(Icons.gavel_rounded, color: scheme.error),
+                leading:
+                    Icon(Icons.gavel_rounded, color: sheetScheme.error),
                 title: Text(context.l10n.reportReasonInappropriate),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -1082,7 +1288,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 },
               ),
               ListTile(
-                leading: Icon(Icons.copyright_rounded, color: scheme.error),
+                leading: Icon(Icons.copyright_rounded,
+                    color: sheetScheme.error),
                 title: Text(context.l10n.reportReasonCopyright),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -1090,7 +1297,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 },
               ),
               ListTile(
-                leading: Icon(Icons.privacy_tip_rounded, color: scheme.error),
+                leading: Icon(Icons.privacy_tip_rounded,
+                    color: sheetScheme.error),
                 title: Text(context.l10n.reportReasonDoxxing),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -1098,7 +1306,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 },
               ),
               ListTile(
-                leading: Icon(Icons.warning_amber_rounded, color: scheme.error),
+                leading: Icon(Icons.warning_amber_rounded,
+                    color: sheetScheme.error),
                 title: Text(context.l10n.reportReasonThreats),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -1114,16 +1323,12 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   }
 
   Future<void> _submitUserReport(ApiProfile profile, String reason) async {
-    if (profile.id == 1 || profile.username.toLowerCase() == 'support') {
-      AppToast.showError(context, context.l10n.supportCannotBeReported);
-      return;
-    }
     try {
       await ref.read(reportRepositoryProvider).report(
-        chatId: 0,
-        reportedUserId: profile.id,
-        reason: reason,
-      );
+            chatId: _resolvedChatId ?? 0,
+            reportedUserId: profile.id,
+            reason: reason,
+          );
       if (!mounted) return;
       HapticService.confirm();
       AppToast.showSuccess(context, context.l10n.reportSentSuccess);
@@ -1132,71 +1337,5 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       HapticService.destructive();
       AppToast.showError(context, e);
     }
-  }
-}
-
-class _QuickActionButton extends StatelessWidget {
-  const _QuickActionButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              M3Container(
-                Shapes.c9_sided_cookie,
-                width: 48,
-                height: 48,
-                color: color.withValues(alpha: 0.15),
-                child: Center(
-                  child: Icon(icon, size: 22, color: color),
-                ),
-              ),
-              const SizedBox(height: 6),
-              SizedBox(
-                height: 28,
-                child: Center(
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    softWrap: true,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
-                      height: 1.15,
-                      letterSpacing: -0.2,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

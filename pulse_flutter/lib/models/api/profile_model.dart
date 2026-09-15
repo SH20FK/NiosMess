@@ -21,12 +21,19 @@ class ApiAiUsage {
   final DateTime? resetsAt;
 
   factory ApiAiUsage.fromJson(Map<String, dynamic> json) {
+    final int limit = (json['limit_tokens'] as num?)?.toInt() ?? 200000;
+    final int used = (json['used_tokens'] as num?)?.toInt() ?? 0;
+    final int remaining =
+        (json['remaining_tokens'] as num?)?.toInt() ?? (limit - used);
+    final double rawPercent = (json['used_percent'] as num?)?.toDouble() ??
+        (limit > 0 ? (used / limit) * 100.0 : 0.0);
+    final int windowHours = (json['window_hours'] as num?)?.toInt() ?? 72;
     return ApiAiUsage(
-      limitTokens: (json['limit_tokens'] as num?)?.toInt() ?? 200000,
-      usedTokens: (json['used_tokens'] as num?)?.toInt() ?? 0,
-      remainingTokens: (json['remaining_tokens'] as num?)?.toInt() ?? 0,
-      usedPercent: (json['used_percent'] as num?)?.toDouble() ?? 0.0,
-      windowHours: (json['window_hours'] as num?)?.toInt() ?? 72,
+      limitTokens: limit,
+      usedTokens: used,
+      remainingTokens: remaining,
+      usedPercent: rawPercent.clamp(0.0, 100.0),
+      windowHours: windowHours,
       resetsAt: json['resets_at'] != null
           ? DateTime.tryParse(json['resets_at'].toString())
           : null,
@@ -82,6 +89,8 @@ class ApiProfile {
     this.isBlockedByMe = false,
     this.isBlockedByUser = false,
     this.isBlocked = false,
+    this.isOnline = false,
+    this.lastSeen,
   });
 
   final int id;
@@ -103,6 +112,8 @@ class ApiProfile {
   final bool isBlockedByMe;
   final bool isBlockedByUser;
   final bool isBlocked;
+  final bool isOnline;
+  final DateTime? lastSeen;
 
   bool get isRestrictedBySpamBlock {
     if (spamBlock == true) return true;
@@ -215,6 +226,12 @@ class ApiProfile {
       isBlockedByUser: json['is_blocked_by_user'] as bool? ?? false,
       isBlocked: json['is_blocked'] as bool? ??
           (json['is_blocked_by_me'] == true || json['is_blocked_by_user'] == true),
+      isOnline: json['is_online'] == true ||
+          json['is_online'] == 1 ||
+          json['is_online']?.toString().toLowerCase() == 'true',
+      lastSeen: json['last_seen'] != null
+          ? DateTime.tryParse(json['last_seen'].toString())
+          : null,
     );
   }
 
@@ -240,6 +257,8 @@ class ApiProfile {
       'is_blocked_by_me': isBlockedByMe,
       'is_blocked_by_user': isBlockedByUser,
       'is_blocked': isBlocked,
+      'is_online': isOnline,
+      if (lastSeen != null) 'last_seen': lastSeen!.toIso8601String(),
     };
   }
 
@@ -263,6 +282,8 @@ class ApiProfile {
     bool? isBlockedByMe,
     bool? isBlockedByUser,
     bool? isBlocked,
+    bool? isOnline,
+    DateTime? lastSeen,
   }) {
     return ApiProfile(
       id: id ?? this.id,
@@ -284,6 +305,8 @@ class ApiProfile {
       isBlockedByMe: isBlockedByMe ?? this.isBlockedByMe,
       isBlockedByUser: isBlockedByUser ?? this.isBlockedByUser,
       isBlocked: isBlocked ?? this.isBlocked,
+      isOnline: isOnline ?? this.isOnline,
+      lastSeen: lastSeen ?? this.lastSeen,
     );
   }
 }

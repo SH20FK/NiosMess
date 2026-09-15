@@ -17,9 +17,10 @@ import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/providers/typing_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/chat_tile.dart';
-import 'package:pulse_flutter/widgets/centered_note.dart';
+import 'package:pulse_flutter/widgets/empty_state_widget.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/providers/chat_filter_provider.dart';
@@ -174,8 +175,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     if (!isAuthenticated) {
       return <Widget>[
         SliverFillRemaining(
-          child: CenteredNote(
-            context.l10n.chatListNotAuthenticated,
+          child: EmptyStateWidget(
+            title: context.l10n.chatListNotAuthenticated,
             icon: Icons.lock_outline_rounded,
           ),
         ),
@@ -202,8 +203,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         if (searched.isEmpty) {
           return <Widget>[
             SliverFillRemaining(
-              child: CenteredNote(
-                context.l10n.chatListNoChats,
+              child: EmptyStateWidget(
+                title: context.l10n.chatListNoChats,
                 icon: Icons.chat_bubble_outline_rounded,
               ),
             ),
@@ -264,7 +265,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                               chatId: chat.id,
                               isSelected: desktopChatId == chat.id,
                               onTap: () {
-                                if (MediaQuery.sizeOf(context).width >= 760) {
+                                if (MediaQuery.sizeOf(context).width >= Breakpoints.medium) {
                                   ref
                                       .read(desktopSelectedChatProvider.notifier)
                                       .setSelectedChat(chat.id);
@@ -334,8 +335,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         }
         return <Widget>[
           SliverFillRemaining(
-            child: CenteredNote(
-              context.l10n.chatListFailedLoad('$error'),
+            child: EmptyStateWidget(
+              title: context.l10n.chatListFailedLoad('$error'),
               icon: Icons.error_outline_rounded,
             ),
           ),
@@ -513,7 +514,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     BuildContext context,
     List<_ChatSwipeAction> actions,
   ) {
-    final bool isWide = MediaQuery.sizeOf(context).width >= 760;
+    final bool isWide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
 
     Widget buildMenuContent(BuildContext ctx) {
       final ColorScheme scheme = Theme.of(ctx).colorScheme;
@@ -651,7 +652,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     BuildContext context,
     ApiChatSummary chat,
   ) async {
-    final bool isWide = MediaQuery.sizeOf(context).width >= 760;
+    final bool isWide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
 
     Widget buildMenuContent(BuildContext ctx) {
       final ColorScheme scheme = Theme.of(ctx).colorScheme;

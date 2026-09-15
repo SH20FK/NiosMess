@@ -1103,7 +1103,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
       loading: () => Container(
         padding: const EdgeInsets.all(20),
         alignment: Alignment.center,
-        child: const PulseLoadingIndicator(size: 24),
+        child: const AppLoadingIndicator(size: 24),
       ),
       error: (Object error, StackTrace stackTrace) => Container(
         padding: const EdgeInsets.all(16),

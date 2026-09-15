@@ -4791,4 +4791,58 @@ class AppLocalizationsRu extends AppLocalizations {
   String get themeModeLight => 'Светлая тема';
   @override
   String get themeModeDark => 'Тёмная тема';
+  @override
+  String get profileBioHeader => 'О себе';
+  @override
+  String get profileRegistrationDate => 'Регистрация';
+  @override
+  String get profilePhoneNumber => 'Телефон';
+  @override
+  String get profileBirthday => 'День рождения';
+  @override
+  String get profileUsernameCopied => 'Имя пользователя скопировано';
+  @override
+  String get profilePhoneCopied => 'Номер телефона скопирован';
+  @override
+  String get profileLoadFailed => 'Не удалось загрузить профиль. Попробуйте позже.';
+  @override
+  String get profileNetworkError => 'Сервер временно недоступен. Проверьте соединение с интернетом.';
+  @override
+  String get profileBlockedByMeTitle => 'Пользователь заблокирован вами';
+  @override
+  String get profileBlockedByMeDesc => 'Вы не можете обмениваться сообщениями и совершать звонки';
+  @override
+  String get profileBlockedByUserTitle => 'Пользователь ограничил доступ';
+  @override
+  String get profileBlockedByUserDesc => 'Вы добавлены в чёрный список этого пользователя';
+  @override
+  String get profileSecretChat => 'Секретный чат';
+  @override
+  String get callsBotForbidden => 'Звонки ботам недоступны';
+  @override
+  String get callsConnecting => 'Соединение...';
+  @override
+  String get callListenerModeNotice => 'Микрофон недоступен — подключение в режиме слушателя';
+  @override
+  String get profileMuteNotifications => 'Отключить уведомления';
+  @override
+  String get profileUnmuteNotifications => 'Включить уведомления';
+  @override
+  String get profileShareQr => 'Поделиться / QR-код';
+  @override
+  String get profileAddToFavorites => 'В избранные контакты';
+  @override
+  String get profileRemoveFromFavorites => 'Удалить из избранных';
+  @override
+  String get profileCommonGroups => 'Общие группы';
+  @override
+  String get profileNoCommonGroups => 'Нет общих групп';
+  @override
+  String get profileOnline => 'в сети';
+  @override
+  String get profileOffline => 'не в сети';
+  @override
+  String get profileLastSeen => 'был(а)';
+  @override
+  String get profileConnectingDirect => 'Подключение к диалогу...';
 }
