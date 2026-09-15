@@ -23,7 +23,7 @@ enum PaletteStyle {
   expressive(DynamicSchemeVariant.expressive),
   vibrant(DynamicSchemeVariant.vibrant),
   content(DynamicSchemeVariant.content),
-  calm(DynamicSchemeVariant.tonalSpot),
+  calm(DynamicSchemeVariant.fidelity),
   mono(DynamicSchemeVariant.monochrome);
 
   const PaletteStyle(this.variant);

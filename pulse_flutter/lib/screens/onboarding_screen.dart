@@ -701,23 +701,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   color: scheme.surfaceContainerLow.withValues(alpha: 0.5),
                   borderRadius: AppRadii.mdRadius,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${context.l10n.languageRegionCurrentTime}: ',
-                      style: textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${context.l10n.languageRegionCurrentTime}: ',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                    Text(
-                      formatFullDateTime(_now),
-                      style: textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
+                      Text(
+                        formatFullDateTime(_now),
+                        style: textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurface,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],

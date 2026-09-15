@@ -40,6 +40,9 @@ class MockAuthNotifier extends AuthNotifier {
           : null,
     );
   }
+
+  @override
+  Future<void> refreshProfile() async {}
 }
 
 Widget _buildTestApp({
@@ -127,17 +130,17 @@ void main() {
 
       // Drag to slide 2 (Chats)
       await tester.drag(find.byType(PageView), const Offset(-450, 0));
-      await _pumpFrames(tester, 6);
+      await tester.pumpAndSettle();
       expect(find.text('Organized conversations'), findsOneWidget);
 
       // Drag to slide 3 (Speed)
       await tester.drag(find.byType(PageView), const Offset(-450, 0));
-      await _pumpFrames(tester, 6);
+      await tester.pumpAndSettle();
       expect(find.text('Designed for daily rhythm'), findsOneWidget);
 
       // Drag to slide 4 (Language & Timezone setup)
       await tester.drag(find.byType(PageView), const Offset(-450, 0));
-      await _pumpFrames(tester, 6);
+      await tester.pumpAndSettle();
       expect(find.text('Choose your language'), findsOneWidget);
       expect(find.text('Start messaging'), findsOneWidget);
     });

@@ -33,7 +33,7 @@ class AuthPrimaryButton extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     final ButtonStyle style = FilledButton.styleFrom(
-      minimumSize: const Size.fromHeight(56),
+      minimumSize: const Size(0, 56),
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: AppRadii.fullRadius),
       backgroundColor: isTonal
@@ -53,16 +53,21 @@ class AuthPrimaryButton extends StatelessWidget {
     } else if (icon != null) {
       child = Row(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 22),
           const SizedBox(width: 10),
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: AppFonts.ui,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.2,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: AppFonts.ui,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
         ],
@@ -70,6 +75,8 @@ class AuthPrimaryButton extends StatelessWidget {
     } else {
       child = Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontFamily: AppFonts.ui,
           fontSize: 16,

@@ -82,6 +82,9 @@ class MockE2eAuthNotifier extends AuthNotifier {
       ),
     );
   }
+
+  @override
+  Future<void> refreshProfile() async {}
 }
 
 class MockE2eNiosgramNotifier extends NiosgramNotifier {

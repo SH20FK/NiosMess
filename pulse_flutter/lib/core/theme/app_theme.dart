@@ -104,7 +104,6 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(56),
           elevation: 0,
           shape: const StadiumBorder(),
           backgroundColor: scheme.primary,
@@ -114,7 +113,6 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(48),
           elevation: 0,
           shape: RoundedSuperellipseBorder(
             borderRadius: BorderRadius.circular(settings.uiCornerRadius),

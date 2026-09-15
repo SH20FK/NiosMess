@@ -86,9 +86,9 @@ void main() {
     });
 
     test('Superellipse borders are properly instantiated', () {
-      expect(AppRadii.mdSuperellipse, isA<RoundedSuperellipseBorder>());
-      expect(AppRadii.lgSuperellipse, isA<RoundedSuperellipseBorder>());
-      expect(AppRadii.xlSuperellipse, isA<RoundedSuperellipseBorder>());
+      expect(AppRadii.mdSuperellipse(), isA<RoundedSuperellipseBorder>());
+      expect(AppRadii.lgSuperellipse(), isA<RoundedSuperellipseBorder>());
+      expect(AppRadii.xlSuperellipse(), isA<RoundedSuperellipseBorder>());
     });
   });
 

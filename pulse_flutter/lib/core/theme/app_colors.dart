@@ -12,7 +12,10 @@ Color avatarColorFor(String id, ColorScheme scheme) {
 class AppColors {
   const AppColors._();
 
-  static Color avatarColorFor(String id, ColorScheme scheme) =>
-      avatarColorFor(id, scheme);
+  static Color avatarColorFor(String id, ColorScheme scheme) {
+    final double hue = (id.hashCode.abs() % 360).toDouble();
+    final bool isDark = scheme.brightness == Brightness.dark;
+    return Color(Hct.from(hue, 48.0, isDark ? 70.0 : 48.0).toInt());
+  }
 }
 

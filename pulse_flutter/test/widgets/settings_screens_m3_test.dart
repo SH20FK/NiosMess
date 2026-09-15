@@ -65,6 +65,9 @@ class _FakeAuthNotifier extends AuthNotifier {
       ),
     );
   }
+
+  @override
+  Future<void> refreshProfile() async {}
 }
 
 class _MockAuthRepository extends AuthRepository {

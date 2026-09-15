@@ -230,8 +230,10 @@ class AuthNotifier extends Notifier<AuthState> {
     }
     try {
       final ApiProfile profile = await ref.read(authRepositoryProvider).getMe();
+      if (!ref.mounted) return;
       state = state.copyWith(profile: profile, clearError: true);
     } catch (error) {
+      if (!ref.mounted) return;
       state = state.copyWith(error: '$error');
     }
   }
