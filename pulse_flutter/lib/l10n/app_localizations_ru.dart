@@ -102,6 +102,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get commonDiscardChangesConfirm => 'Отменить';
 
   @override
+  String get commonError => 'Произошла ошибка';
+
+  @override
   String get splashTagline => 'НАШ мессенджер';
 
   @override

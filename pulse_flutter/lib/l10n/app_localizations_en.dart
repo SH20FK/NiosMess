@@ -102,6 +102,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonDiscardChangesConfirm => 'Discard';
 
   @override
+  String get commonError => 'An error occurred';
+
+  @override
   String get splashTagline => 'Fluid connection, clear communication';
 
   @override

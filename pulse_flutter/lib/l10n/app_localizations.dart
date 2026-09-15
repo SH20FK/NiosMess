@@ -278,6 +278,12 @@ abstract class AppLocalizations {
   /// **'Discard'**
   String get commonDiscardChangesConfirm;
 
+  /// No description provided for @commonError.
+  ///
+  /// In en, this message translates to:
+  /// **'An error occurred'**
+  String get commonError;
+
   /// No description provided for @splashTagline.
   ///
   /// In en, this message translates to:

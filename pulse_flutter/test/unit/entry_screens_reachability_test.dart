@@ -66,5 +66,25 @@ void main() {
       expect(content.contains('class AuthPrimaryButton'), isTrue);
       expect(content.contains('class AuthScaffold'), isTrue);
     });
+
+    test('verifies splash screen optimizations and hygiene (Phase 4)', () {
+      final File splashFile = File('lib/screens/splash_screen.dart');
+      expect(splashFile.existsSync(), isTrue);
+      final String content = splashFile.readAsStringSync();
+
+      // Uses M3OrganicBackground instead of AnimatedMeshBackground
+      expect(content.contains('M3OrganicBackground'), isTrue);
+      expect(content.contains('AnimatedMeshBackground'), isFalse);
+
+      // Deferred permissions: no PermissionService in splash
+      expect(content.contains('PermissionService'), isFalse);
+
+      // Unified Hero logo tag
+      expect(content.contains("'app_brand_logo'"), isTrue);
+
+      // No 24-second infinite animation controller or hidden BackdropFilter hack
+      expect(content.contains('Duration(seconds: 24)'), isFalse);
+      expect(content.contains('ImageFilter.blur'), isFalse);
+    });
   });
 }
