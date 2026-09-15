@@ -123,5 +123,22 @@ void main() {
       expect(content.contains('Curves.easeInOut'), isFalse);
       expect(content.contains('M3SpringCurves'), isTrue);
     });
+
+    test('verifies unified Hero logo and M3 Expressive entry transitions (Phase 6)', () {
+      final splashContent = File('lib/screens/splash_screen.dart').readAsStringSync();
+      final onboardingContent = File('lib/screens/onboarding_screen.dart').readAsStringSync();
+      final loginContent = File('lib/screens/login_screen.dart').readAsStringSync();
+      final routerContent = File('lib/router/app_router.dart').readAsStringSync();
+
+      // Unified Hero tag across Splash -> Onboarding -> Login
+      expect(splashContent.contains("'app_brand_logo'"), isTrue);
+      expect(onboardingContent.contains("'app_brand_logo'"), isTrue);
+      expect(loginContent.contains("'app_brand_logo'"), isTrue);
+
+      // AppRouter uses M3Expressive transitions for entry pages
+      expect(routerContent.contains('_m3eEntryPage'), isTrue);
+      expect(routerContent.contains('M3SpringCurves.spatial'), isTrue);
+      expect(routerContent.contains("path: '/register'"), isFalse);
+    });
   });
 }

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/screens/chat_detail_screen.dart';
 import 'package:pulse_flutter/screens/chat_manage_screen.dart';
 import 'package:pulse_flutter/screens/chat_members_screen.dart';
@@ -49,10 +50,35 @@ class AppRouter {
       GlobalKey<NavigatorState>();
 }
 
-MaterialPage<void> _page(GoRouterState state, Widget child, {LocalKey? pageKey}) {
+Page<void> _page(GoRouterState state, Widget child, {LocalKey? pageKey}) {
   return MaterialPage<void>(
     key: pageKey ?? state.pageKey,
     child: child,
+  );
+}
+
+Page<void> _m3eEntryPage(GoRouterState state, Widget child, {LocalKey? pageKey}) {
+  return CustomTransitionPage<void>(
+    key: pageKey ?? state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 320),
+    reverseTransitionDuration: const Duration(milliseconds: 260),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curvedAnimation = CurvedAnimation(
+        parent: animation,
+        curve: M3SpringCurves.spatial,
+      );
+      return FadeTransition(
+        opacity: CurvedAnimation(
+          parent: animation,
+          curve: const Interval(0.0, 0.7, curve: Curves.linear),
+        ),
+        child: ScaleTransition(
+          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnimation),
+          child: child,
+        ),
+      );
+    },
   );
 }
 
@@ -76,20 +102,20 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       final bool isAuth = authState.isAuthenticated;
       final String path = state.uri.path;
 
-      final bool isPublic = path == '/' || path == '/web' || path == '/login' || path == '/register' || path == '/onboarding' || path.startsWith('/legal');
+      final bool isPublic = path == '/' || path == '/web' || path == '/login' || path == '/onboarding' || path.startsWith('/legal');
 
       if (!isAuth && !isPublic) return '/login';
-      if (isAuth && (path == '/login' || path == '/web' || path == '/onboarding' || path == '/register')) return '/main/chats';
+      if (isAuth && (path == '/login' || path == '/web' || path == '/onboarding')) return '/main/chats';
       return null;
     },
     routes: <RouteBase>[
       GoRoute(
         path: '/',
-        pageBuilder: (context, state) => _page(state, const SplashScreen()),
+        pageBuilder: (context, state) => _m3eEntryPage(state, const SplashScreen()),
       ),
       GoRoute(
         path: '/web',
-        pageBuilder: (context, state) => _page(
+        pageBuilder: (context, state) => _m3eEntryPage(
           state,
           LoginScreen(
             initialCode: state.uri.queryParameters['code'],
@@ -101,23 +127,11 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/onboarding',
-        pageBuilder: (context, state) => _page(state, const OnboardingScreen()),
+        pageBuilder: (context, state) => _m3eEntryPage(state, const OnboardingScreen()),
       ),
       GoRoute(
         path: '/login',
-        pageBuilder: (context, state) => _page(
-          state,
-          LoginScreen(
-            initialCode: state.uri.queryParameters['code'],
-            initialState: state.uri.queryParameters['state'],
-            initialError: state.uri.queryParameters['error'],
-            initialErrorDescription: state.uri.queryParameters['error_description'],
-          ),
-        ),
-      ),
-      GoRoute(
-        path: '/register',
-        pageBuilder: (context, state) => _page(
+        pageBuilder: (context, state) => _m3eEntryPage(
           state,
           LoginScreen(
             initialCode: state.uri.queryParameters['code'],
