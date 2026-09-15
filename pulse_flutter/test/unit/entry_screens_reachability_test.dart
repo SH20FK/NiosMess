@@ -1,6 +1,5 @@
 import 'dart:io';
-// ignore: depend_on_referenced_packages
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('Entry Screens Reachability (Phase 1)', () {
