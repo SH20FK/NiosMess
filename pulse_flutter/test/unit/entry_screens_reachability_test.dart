@@ -57,5 +57,14 @@ void main() {
       expect(content.contains('_pendingEmail'), isFalse);
       expect(content.contains('requiresTwoFa'), isFalse);
     });
+
+    test('verifies unified AuthScaffold and AuthPrimaryButton exist with 440dp width token (Phase 3)', () {
+      final File scaffoldFile = File('lib/widgets/auth/auth_scaffold.dart');
+      expect(scaffoldFile.existsSync(), isTrue);
+      final String content = scaffoldFile.readAsStringSync();
+      expect(content.contains('kAuthFormMaxWidth = 440.0'), isTrue);
+      expect(content.contains('class AuthPrimaryButton'), isTrue);
+      expect(content.contains('class AuthScaffold'), isTrue);
+    });
   });
 }
