@@ -130,17 +130,17 @@ void main() {
 
       // Drag to slide 2 (Chats)
       await tester.drag(find.byType(PageView), const Offset(-450, 0));
-      await tester.pumpAndSettle();
+      await _pumpFrames(tester, 12);
       expect(find.text('Organized conversations'), findsOneWidget);
 
       // Drag to slide 3 (Speed)
       await tester.drag(find.byType(PageView), const Offset(-450, 0));
-      await tester.pumpAndSettle();
+      await _pumpFrames(tester, 12);
       expect(find.text('Designed for daily rhythm'), findsOneWidget);
 
       // Drag to slide 4 (Language & Timezone setup)
       await tester.drag(find.byType(PageView), const Offset(-450, 0));
-      await tester.pumpAndSettle();
+      await _pumpFrames(tester, 12);
       expect(find.text('Choose your language'), findsOneWidget);
       expect(find.text('Start messaging'), findsOneWidget);
     });

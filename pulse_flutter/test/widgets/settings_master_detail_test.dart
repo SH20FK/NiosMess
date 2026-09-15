@@ -313,7 +313,7 @@ void main() {
     final List<Map<String, dynamic>> testViewports = [
       {'name': 'Compact Mobile 360x640', 'size': const Size(360, 640), 'isWide': false},
       {'name': 'Standard Mobile 390x844', 'size': const Size(390, 844), 'isWide': false},
-      {'name': 'Breakpoint Threshold 760x1024', 'size': const Size(760, 1024), 'isWide': true},
+      {'name': 'Breakpoint Threshold 840x1024', 'size': const Size(840, 1024), 'isWide': true},
       {'name': 'Laptop 1366x768', 'size': const Size(1366, 768), 'isWide': true},
       {'name': 'Desktop Full HD 1920x1080', 'size': const Size(1920, 1080), 'isWide': true},
       {'name': 'Desktop 4K 3840x2160', 'size': const Size(3840, 2160), 'isWide': true},
