@@ -220,6 +220,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
+                  tooltip: context.l10n.commonBack,
                   icon: const Icon(Icons.chevron_left_rounded, size: 20),
                   onPressed: _index > 0
                       ? () {
@@ -235,32 +236,38 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: List<Widget>.generate(_totalSlides, (int dotIndex) {
                     final bool active = dotIndex == _index;
-                    return GestureDetector(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        _pageController.animateToPage(
-                          dotIndex,
-                          duration: const Duration(milliseconds: 320),
+                    return Semantics(
+                      button: true,
+                      selected: active,
+                      label: '${dotIndex + 1} / $_totalSlides',
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          _pageController.animateToPage(
+                            dotIndex,
+                            duration: const Duration(milliseconds: 320),
+                            curve: M3SpringCurves.spatial,
+                          );
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 260),
                           curve: M3SpringCurves.spatial,
-                        );
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 260),
-                        curve: M3SpringCurves.spatial,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: active ? 26 : 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: active
-                              ? scheme.primary
-                              : scheme.outlineVariant.withValues(alpha: 0.5),
-                          borderRadius: AppRadii.fullRadius,
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: active ? 26 : 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: active
+                                ? scheme.primary
+                                : scheme.outlineVariant.withValues(alpha: 0.5),
+                            borderRadius: AppRadii.fullRadius,
+                          ),
                         ),
                       ),
                     );
                   }),
                 ),
                 IconButton(
+                  tooltip: context.l10n.commonContinue,
                   icon: const Icon(Icons.chevron_right_rounded, size: 20),
                   onPressed: _index < _totalSlides - 1
                       ? () {

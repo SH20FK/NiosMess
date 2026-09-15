@@ -197,5 +197,43 @@ void main() {
       expect(onboardingContent.contains('frameRate: FrameRate.max'), isTrue);
       expect(onboardingContent.contains('errorBuilder:'), isTrue);
     });
+
+    test('verifies all 5 audit grep-gates and a11y attributes (Phase 10)', () {
+      final splashContent = File('lib/screens/splash_screen.dart').readAsStringSync();
+      final onboardingContent = File('lib/screens/onboarding_screen.dart').readAsStringSync();
+      final loginContent = File('lib/screens/login_screen.dart').readAsStringSync();
+      final bgContent = File('lib/widgets/m3_organic_background.dart').readAsStringSync();
+      final routerContent = File('lib/router/app_router.dart').readAsStringSync();
+
+      // Gate 1: Curves in funnel are strictly M3SpringCurves
+      final legacyCurvesRegex = RegExp(r'Curves\.(easeOutBack|easeInOutCubic|easeInOut|easeOut|easeOutCubic)');
+      expect(legacyCurvesRegex.hasMatch(splashContent), isFalse);
+      expect(legacyCurvesRegex.hasMatch(onboardingContent), isFalse);
+      expect(legacyCurvesRegex.hasMatch(loginContent), isFalse);
+      expect(legacyCurvesRegex.hasMatch(bgContent), isFalse);
+
+      // Gate 2: No harsh shadows or M2 elevation
+      final elevationShadowRegex = RegExp(r'boxShadow|elevation:\s*[1-9]');
+      expect(elevationShadowRegex.hasMatch(loginContent), isFalse);
+      expect(elevationShadowRegex.hasMatch(bgContent), isFalse);
+
+      // Gate 3: Zero manual localeName.startsWith
+      expect(splashContent.contains('localeName.startsWith'), isFalse);
+      expect(loginContent.contains('localeName.startsWith'), isFalse);
+      expect(onboardingContent.contains('localeName.startsWith'), isFalse);
+
+      // Gate 4: Zero raw Russian strings in login
+      final cyrillicStringRegex = RegExp(r"'[А-Яа-яЁё]");
+      expect(cyrillicStringRegex.hasMatch(loginContent), isFalse);
+
+      // Gate 5: Zero redirect stubs in router
+      expect(routerContent.contains("redirect: (context, state) => '/login'"), isFalse);
+
+      // a11y Semantics & Tooltips in login and onboarding
+      expect(loginContent.contains('Semantics('), isTrue);
+      expect(loginContent.contains('Tooltip('), isTrue);
+      expect(onboardingContent.contains('Semantics('), isTrue);
+      expect(onboardingContent.contains('tooltip:'), isTrue);
+    });
   });
 }
