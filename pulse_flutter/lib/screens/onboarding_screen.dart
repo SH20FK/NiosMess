@@ -412,6 +412,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               height: 140,
               fit: BoxFit.contain,
               repeat: true,
+              frameRate: FrameRate.max,
               errorBuilder: (context, error, stackTrace) => Container(
                 width: 120,
                 height: 120,

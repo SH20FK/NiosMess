@@ -180,5 +180,22 @@ void main() {
       expect(l10nContent.contains('splashInitError'), isTrue);
       expect(l10nContent.contains('loginExplainerPillar1Title'), isTrue);
     });
+
+    test('verifies background caching, hoisted platform checks, and Lottie frameRate (Phase 9)', () {
+      final bgContent = File('lib/widgets/m3_organic_background.dart').readAsStringSync();
+      final onboardingContent = File('lib/screens/onboarding_screen.dart').readAsStringSync();
+
+      // Organic blobs painter caches ui.Picture
+      expect(bgContent.contains('_cachedPicture'), isTrue);
+      expect(bgContent.contains('ui.PictureRecorder()'), isTrue);
+      expect(bgContent.contains('drawPicture'), isTrue);
+
+      // Hoisted desktop platform check outside LayoutBuilder
+      expect(bgContent.contains('_isDesktopPlatform'), isTrue);
+
+      // Lottie asset specifies FrameRate.max and errorBuilder
+      expect(onboardingContent.contains('frameRate: FrameRate.max'), isTrue);
+      expect(onboardingContent.contains('errorBuilder:'), isTrue);
+    });
   });
 }

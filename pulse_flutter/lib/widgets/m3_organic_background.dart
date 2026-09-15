@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,12 @@ import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 
 final bool _isTestEnvironment =
     !kReleaseMode && WidgetsBinding.instance.runtimeType.toString().contains('Test');
+
+final bool _isDesktopPlatform = !_isTestEnvironment &&
+    (kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux);
 
 class M3OrganicBackground extends ConsumerWidget {
   const M3OrganicBackground({
@@ -80,13 +87,8 @@ class M3OrganicBackground extends ConsumerWidget {
           Positioned.fill(
             child: LayoutBuilder(
               builder: (BuildContext context, BoxConstraints constraints) {
-                final bool isDesktopPlatform = !_isTestEnvironment &&
-                    (kIsWeb ||
-                        defaultTargetPlatform == TargetPlatform.macOS ||
-                        defaultTargetPlatform == TargetPlatform.windows ||
-                        defaultTargetPlatform == TargetPlatform.linux);
                 final bool isDesktop =
-                    isDesktopPlatform && constraints.maxWidth >= 840;
+                    _isDesktopPlatform && constraints.maxWidth >= 840;
                 if (!isDesktop) {
                   return child;
                 }
@@ -286,8 +288,44 @@ class _OrganicBlobsPainter extends CustomPainter {
   final double blurSigma;
   final bool isTierB;
 
+  static ui.Picture? _cachedPicture;
+  static Size? _cachedSize;
+  static ColorScheme? _cachedScheme;
+  static bool? _cachedIsDark;
+  static double? _cachedBlurSigma;
+  static bool? _cachedIsTierB;
+
   @override
   void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+
+    if (_cachedPicture != null &&
+        _cachedSize == size &&
+        _cachedScheme == scheme &&
+        _cachedIsDark == isDark &&
+        _cachedBlurSigma == blurSigma &&
+        _cachedIsTierB == isTierB) {
+      canvas.drawPicture(_cachedPicture!);
+      return;
+    }
+
+    _cachedPicture?.dispose();
+
+    final recorder = ui.PictureRecorder();
+    final recordingCanvas =
+        Canvas(recorder, Rect.fromLTWH(0, 0, size.width, size.height));
+    _paintBlobs(recordingCanvas, size);
+    _cachedPicture = recorder.endRecording();
+    _cachedSize = size;
+    _cachedScheme = scheme;
+    _cachedIsDark = isDark;
+    _cachedBlurSigma = blurSigma;
+    _cachedIsTierB = isTierB;
+
+    canvas.drawPicture(_cachedPicture!);
+  }
+
+  void _paintBlobs(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
 
