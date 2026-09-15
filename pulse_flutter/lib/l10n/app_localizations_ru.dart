@@ -4777,4 +4777,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get loginAuthorizingOverlay => 'Авторизация в Nios ID...';
   @override
   String get loginNiosIdError => 'Ошибка входа через Nios ID';
+  @override
+  String get commonBack => 'Назад';
+  @override
+  String get commonThemeMode => 'Тема оформления';
 }

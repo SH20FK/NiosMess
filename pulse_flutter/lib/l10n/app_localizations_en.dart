@@ -4753,4 +4753,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginAuthorizingOverlay => 'Authorizing with Nios ID...';
   @override
   String get loginNiosIdError => 'Failed to sign in with Nios ID';
+  @override
+  String get commonBack => 'Back';
+  @override
+  String get commonThemeMode => 'Theme Mode';
 }

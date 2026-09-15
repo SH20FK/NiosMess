@@ -140,5 +140,25 @@ void main() {
       expect(routerContent.contains('M3SpringCurves.spatial'), isTrue);
       expect(routerContent.contains("path: '/register'"), isFalse);
     });
+
+    test('verifies M3OrganicBackground tokens, zero elevation, and system theme (Phase 7)', () {
+      final bgContent = File('lib/widgets/m3_organic_background.dart').readAsStringSync();
+
+      // Zero legacy elevation or shadowColor
+      expect(bgContent.contains('elevation: 8'), isFalse);
+      expect(bgContent.contains('shadowColor'), isFalse);
+
+      // Uses AppRadii
+      expect(bgContent.contains('AppRadii.lgRadius'), isTrue);
+      expect(bgContent.contains('AppRadii.fullRadius'), isTrue);
+
+      // Supports ThemeMode.system
+      expect(bgContent.contains('ThemeMode.system'), isTrue);
+      expect(bgContent.contains('brightness_auto_rounded'), isTrue);
+
+      // Semantics and Tooltip present
+      expect(bgContent.contains('Tooltip('), isTrue);
+      expect(bgContent.contains('Semantics('), isTrue);
+    });
   });
 }

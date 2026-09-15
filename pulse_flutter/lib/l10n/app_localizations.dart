@@ -7457,6 +7457,8 @@ abstract class AppLocalizations {
   String get loginStartAuthFailed;
   String get loginAuthorizingOverlay;
   String get loginNiosIdError;
+  String get commonBack;
+  String get commonThemeMode;
 }
 
 class _AppLocalizationsDelegate
