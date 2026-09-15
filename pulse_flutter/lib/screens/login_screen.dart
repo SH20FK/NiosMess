@@ -497,15 +497,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            HapticService.tap();
-            setState(() {
-              _isExplainerExpanded = !_isExplainerExpanded;
-            });
-          },
-          borderRadius: AppRadii.lgRadius,
-          child: Padding(
+        child: Semantics(
+          button: true,
+          label: context.l10n.loginWhatIsNiosId,
+          expanded: _isExplainerExpanded,
+          child: InkWell(
+            onTap: () {
+              HapticService.tap();
+              setState(() {
+                _isExplainerExpanded = !_isExplainerExpanded;
+              });
+            },
+            borderRadius: AppRadii.lgRadius,
+            child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -581,7 +585,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
-    ).animate().fade(
+    ),
+  ).animate().fade(
           delay: const Duration(milliseconds: 200),
           duration: const Duration(milliseconds: 300),
         );
@@ -775,28 +780,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
             // High-contrast clean QR Code container
             Center(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: AppRadii.mdRadius,
-                  border: Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.3),
-                    width: 1,
+              child: Semantics(
+                image: true,
+                label: context.l10n.loginScanQrToSignIn,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: AppRadii.mdRadius,
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
                   ),
-                ),
-                child: QrImageView(
-                  data: resp.verificationUriComplete,
-                  version: QrVersions.auto,
-                  size: 160,
-                  padding: EdgeInsets.zero,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: Color(0xFF151515),
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: Color(0xFF151515),
+                  child: QrImageView(
+                    data: resp.verificationUriComplete,
+                    version: QrVersions.auto,
+                    size: 160,
+                    padding: EdgeInsets.zero,
+                    eyeStyle: const QrEyeStyle(
+                      eyeShape: QrEyeShape.square,
+                      color: Color(0xFF151515),
+                    ),
+                    dataModuleStyle: const QrDataModuleStyle(
+                      dataModuleShape: QrDataModuleShape.square,
+                      color: Color(0xFF151515),
+                    ),
                   ),
                 ),
               ),
@@ -814,16 +823,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(height: 16),
 
             // High-contrast copyable Code Box
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: resp.userCode));
-                  HapticService.tap();
-                  AppToast.showSuccess(context, context.l10n.loginCodeCopied);
-                },
-                borderRadius: AppRadii.mdRadius,
-                child: Container(
+            Semantics(
+              button: true,
+              label: '${context.l10n.loginCodeCopied}: ${resp.userCode}',
+              child: Tooltip(
+                message: context.l10n.loginCodeCopied,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: resp.userCode));
+                      HapticService.tap();
+                      AppToast.showSuccess(context, context.l10n.loginCodeCopied);
+                    },
+                    borderRadius: AppRadii.mdRadius,
+                    child: Container(
                   width: double.infinity,
                   padding:
                       const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
@@ -872,7 +886,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
+          ),
+        ),
+        const SizedBox(height: 18),
 
             // Primary confirmation in browser button
             AuthPrimaryButton(

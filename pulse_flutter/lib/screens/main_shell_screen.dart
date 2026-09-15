@@ -28,8 +28,11 @@ import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/core/services/biometric_service.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
+import 'package:pulse_flutter/widgets/nav/tab_shared_axis_switcher.dart';
 import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
 
 class MainShellScreen extends ConsumerStatefulWidget {
@@ -42,7 +45,7 @@ class MainShellScreen extends ConsumerStatefulWidget {
 }
 
 class _MainShellScreenState extends ConsumerState<MainShellScreen>
-    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+    with WidgetsBindingObserver {
   static const List<String> _tabs = <String>[
     'chats',
     'contacts',
@@ -51,8 +54,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   ];
 
   late final Set<int> _activatedTabs;
-  late final AnimationController _tabAnimController;
-  late final Animation<double> _tabFadeAnimation;
+  final TabTransitionController _tabTransition = TabTransitionController();
 
   bool _biometricLocked = false;
   double _desktopChatListWidth = 360.0;
@@ -63,14 +65,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _activatedTabs = <int>{_tabIndex(widget.tab)};
-    _tabAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 180),
-    )..value = 1.0;
-    _tabFadeAnimation = CurvedAnimation(
-      parent: _tabAnimController,
-      curve: Curves.easeOutCubic,
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _checkBiometricLock();
@@ -251,14 +245,12 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
           _activatedTabs.add(nextIndex);
         });
       }
-      _tabAnimController.forward(from: 0.0);
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _tabAnimController.dispose();
     super.dispose();
   }
 
@@ -269,15 +261,18 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
       return;
     }
 
+    final String targetTab = _tabs[nextIndex];
+    if (targetTab == widget.tab) {
+      return;
+    }
+
+    // Rasterize BEFORE the route change, while the current layer is fresh.
+    _tabTransition.captureOutgoing();
+
     if (!_activatedTabs.contains(nextIndex)) {
       setState(() {
         _activatedTabs.add(nextIndex);
       });
-    }
-
-    final String targetTab = _tabs[nextIndex];
-    if (targetTab == widget.tab) {
-      return;
     }
 
     context.go('/main/$targetTab');
@@ -392,17 +387,23 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               : const NiosgramScreen(),
           const ProfileScreen(),
         ];
-        final Widget body = FadeTransition(
-          opacity: _tabFadeAnimation,
-          child: IndexedStack(
-            index: currentIndex,
-            children: List<Widget>.generate(pages.length, (int index) {
-              if (!_activatedTabs.contains(index)) {
-                return const SizedBox.shrink();
-              }
-              return RepaintBoundary(child: pages[index]);
-            }),
-          ),
+        final PerformanceTier tier =
+            ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
+        final bool tabMotion =
+            !tier.isTierC && !MediaQuery.disableAnimationsOf(context);
+
+        final Widget body = TabSharedAxisSwitcher(
+          index: currentIndex,
+          controller: _tabTransition,
+          animate: tabMotion,
+          shift: tier.isTierA ? 0.14 : 0.10,
+          duration: tier.isTierA ? M3Durations.medium2 : M3Durations.medium1,
+          children: List<Widget>.generate(pages.length, (int index) {
+            if (!_activatedTabs.contains(index)) {
+              return const SizedBox.shrink();
+            }
+            return RepaintBoundary(child: pages[index]);
+          }),
         );
 
         if (isWide) {

@@ -59,6 +59,7 @@ import 'widgets/settings_master_detail_test.dart' as widgets_settings_master_det
 import 'widgets/settings_screens_m3_test.dart' as widgets_settings_screens_m3;
 import 'widgets/settings_scroll_smoothness_test.dart' as widgets_settings_scroll_smoothness;
 import 'widgets/settings_system_device_test.dart' as widgets_settings_system_device;
+import 'widgets/tab_shared_axis_switcher_test.dart' as widgets_tab_shared_axis_switcher;
 import 'widgets/vector_illustrations_test.dart' as widgets_vector_illustrations;
 
 void main() {
@@ -131,6 +132,7 @@ void main() {
     widgets_settings_screens_m3.main();
     widgets_settings_scroll_smoothness.main();
     widgets_settings_system_device.main();
+    widgets_tab_shared_axis_switcher.main();
     widgets_vector_illustrations.main();
 
     // End-to-End & Integration Suites
