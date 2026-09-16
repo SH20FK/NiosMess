@@ -22,6 +22,7 @@ class E2eeSettingsScreen extends ConsumerStatefulWidget {
 class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
   bool _loading = false;
   bool _hasKey = false;
+  String? _fingerprint;
   String? _error;
 
   @override
@@ -33,8 +34,17 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
   Future<void> _checkKey() async {
     final e2ee = ref.read(e2eeServiceProvider);
     final hasKey = await e2ee.hasKeyPair();
+    String? fp;
+    if (hasKey) {
+      try {
+        fp = await e2ee.getDeviceFingerprint();
+      } catch (_) {}
+    }
     if (!mounted) return;
-    setState(() => _hasKey = hasKey);
+    setState(() {
+      _hasKey = hasKey;
+      _fingerprint = fp;
+    });
   }
 
   Future<void> _generateKey() async {
@@ -45,8 +55,13 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
       final e2ee = ref.read(e2eeServiceProvider);
       final publicKeyB64 = await e2ee.getPublicKeyBase64();
       await ref.read(authRepositoryProvider).setPublicKey(publicKeyB64);
+      final fp = await e2ee.getDeviceFingerprint();
       if (!mounted) return;
-      setState(() { _hasKey = true; _loading = false; });
+      setState(() {
+        _hasKey = true;
+        _fingerprint = fp;
+        _loading = false;
+      });
       AppToast.showSuccess(context, context.l10n.e2eeKeyGenerated);
     } catch (e) {
       if (!mounted) return;
@@ -73,8 +88,12 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
       await e2ee.deleteKeyPair();
       final publicKeyB64 = await e2ee.getPublicKeyBase64();
       await ref.read(authRepositoryProvider).setPublicKey(publicKeyB64);
+      final fp = await e2ee.getDeviceFingerprint();
       if (!mounted) return;
-      setState(() { _loading = false; });
+      setState(() {
+        _fingerprint = fp;
+        _loading = false;
+      });
       AppToast.showSuccess(context, context.l10n.e2eeKeyRotated);
     } catch (e) {
       if (!mounted) return;
@@ -103,7 +122,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
       final result = await ref.read(authRepositoryProvider).eraseSecret(publicKeyB64);
       await e2ee.deleteKeyPair();
       if (!mounted) return;
-      setState(() { _hasKey = false; _loading = false; });
+      setState(() { _hasKey = false; _fingerprint = null; _loading = false; });
       AppToast.showSuccess(context, context.l10n.e2eeEraseDone(result.deletedChatsCount, result.deletedFilesCount));
     } catch (e) {
       if (!mounted) return;
@@ -128,15 +147,26 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
         SettingsSection(
           title: context.l10n.e2eeDeviceKey,
           children: [
-            SettingsTile(
-              icon: _hasKey ? Icons.vpn_key_rounded : Icons.vpn_key_outlined,
-              title: _hasKey ? context.l10n.e2eeKeyPairReady : context.l10n.e2eeNoKeyPair,
-              subtitle: _hasKey ? context.l10n.e2eeTapToRegenerate : context.l10n.e2eeGenerateKeyPair,
-              iconColor: _hasKey ? scheme.tertiary : scheme.onSurfaceVariant,
-              enabled: !_loading,
-              onTap: _hasKey ? _rotateKey : _generateKey,
-            ),
-            if (_hasKey)
+            if (!_hasKey)
+              SettingsTile(
+                icon: Icons.vpn_key_outlined,
+                title: context.l10n.e2eeNoKeyPair,
+                subtitle: context.l10n.e2eeGenerateKeyPair,
+                iconColor: scheme.onSurfaceVariant,
+                enabled: !_loading,
+                onTap: _generateKey,
+              )
+            else ...[
+              SettingsTile(
+                icon: Icons.vpn_key_rounded,
+                title: context.l10n.e2eeKeyPairReady,
+                subtitle: _fingerprint != null
+                    ? _fingerprint!
+                    : context.l10n.e2eeKeyPairReady,
+                iconColor: scheme.tertiary,
+                enabled: false,
+                onTap: () {},
+              ),
               SettingsTile(
                 icon: Icons.refresh_rounded,
                 title: context.l10n.e2eeRotateKey,
@@ -145,7 +175,18 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
                 enabled: !_loading,
                 onTap: _rotateKey,
               ),
-            if (_hasKey)
+            ],
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Text(_error!, style: TextStyle(color: scheme.error, fontSize: 13)),
+              ),
+          ],
+        ),
+        if (_hasKey)
+          SettingsSection(
+            title: 'Опасная зона',
+            children: [
               SettingsTile(
                 icon: Icons.delete_sweep_rounded,
                 title: context.l10n.e2eeEraseTitle,
@@ -154,13 +195,8 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
                 enabled: !_loading,
                 onTap: _eraseSecretChats,
               ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Text(_error!, style: TextStyle(color: scheme.error, fontSize: 13)),
-              ),
-          ],
-        ),
+            ],
+          ),
         SettingsSection(
           title: context.l10n.e2eeHowItWorks,
           children: [

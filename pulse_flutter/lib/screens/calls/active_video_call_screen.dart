@@ -61,12 +61,17 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     });
   }
 
+  int _retryStateCount = 0;
+  int _retryVideoCount = 0;
+
   void _listenToState() {
     final session = ref.read(callSessionProvider)?.session;
     if (session == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _listenToState();
-      });
+      if (_retryStateCount++ < 5) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _listenToState();
+        });
+      }
       return;
     }
 
@@ -89,17 +94,21 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
   void _listenToVideo() {
     final session = ref.read(callSessionProvider)?.session;
     if (session == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _listenToVideo();
-      });
+      if (_retryVideoCount++ < 5) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _listenToVideo();
+        });
+      }
       return;
     }
 
     final videoOutput = session.videoOutput;
     if (videoOutput == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _listenToVideo();
-      });
+      if (_retryVideoCount++ < 5) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _listenToVideo();
+        });
+      }
       return;
     }
 
@@ -291,6 +300,20 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                                   letterSpacing: 0.6,
                                 ),
                               ),
+                              if (session.currentData.isListener) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    context.l10n.callListenerModeNotice,
+                                    style: const TextStyle(color: Colors.amberAccent, fontSize: 9, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ],

@@ -7,7 +7,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
 class SettingsAccountScreen extends ConsumerStatefulWidget {
   const SettingsAccountScreen({
@@ -65,16 +65,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
   }
 
   Future<void> _openNiosIdSecurity() async {
-    final Uri uri = Uri.parse('https://ni-os.ru/id/account');
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) AppToast.showError(context, context.l10n.settingsAccountNiosIdError);
-      }
-    } catch (e) {
-      if (mounted) AppToast.showError(context, e);
-    }
+    await AppUrlLauncher.openUrl(context, 'https://ni-os.ru/id/account');
   }
 
   @override

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/utils/bot_detector.dart';
 import 'package:pulse_flutter/models/api/call_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
@@ -59,11 +60,13 @@ Future<int> startOutgoingCall({
   required int chatId,
   required bool isVideo,
   String? peerName,
+  void Function(bool isListener)? onPermissionResult,
 }) async {
   final chat = ref.read(chatByIdProvider(chatId));
-  final bool isBot = (chat != null && chat.isBotChat) ||
-      (peerName != null && peerName.toLowerCase().endsWith('_bot')) ||
-      (chat?.username != null && chat!.username!.toLowerCase().endsWith('_bot'));
+  final bool isBot = BotDetector.isBot(
+    peerName ?? chat?.username,
+    isBotChat: chat?.isBotChat ?? false,
+  );
   if (isBot) {
     throw const CallStartException(CallStartFailure.botForbidden);
   }
@@ -75,6 +78,7 @@ Future<int> startOutgoingCall({
     // Spec: "Если микрофон и камера недоступны, клиент всё равно подключается слушателем."
     isListener = true;
   }
+  onPermissionResult?.call(isListener);
 
   final Random random = Random.secure();
   final String roomId =
@@ -98,9 +102,20 @@ Future<int> startOutgoingCall({
   final ApiCallGatewayInfo gatewayInfo = initResult.gatewayInfo ??
       ApiCallGatewayInfo.defaultFor(isCallsTester: isCallsTester);
 
-  final int callId = ((result['payload']?['message_id'] ??
-          result['message_id'] ??
-          initResult.callId) as num).toInt();
+  int? parseId(dynamic val) {
+    if (val is num) return val.toInt();
+    if (val is String) return int.tryParse(val);
+    return null;
+  }
+  final dynamic payload = result['payload'];
+  final int callId = parseId(payload is Map ? payload['message_id'] : null) ??
+      parseId(payload is Map ? payload['call_id'] : null) ??
+      parseId(result['message_id']) ??
+      parseId(result['call_id']) ??
+      (initResult.callId > 0 ? initResult.callId : 0);
+  if (callId <= 0) {
+    throw Exception('Failed to obtain a valid call session ID from server');
+  }
 
   final Uint8List aesKeyBytes = await deriveCallMediaKey(
     ref,
@@ -134,6 +149,7 @@ Future<void> startIncomingCall({
   required String roomId,
   required bool isVideo,
   String? peerName,
+  void Function(bool isListener)? onPermissionResult,
 }) async {
   bool isListener = false;
   final bool perm =
@@ -141,6 +157,7 @@ Future<void> startIncomingCall({
   if (!perm) {
     isListener = true;
   }
+  onPermissionResult?.call(isListener);
 
   // Signal server that we accepted the call (mirrors web.html acceptCall join_call)
   Map<String, dynamic> joinResult = <String, dynamic>{};

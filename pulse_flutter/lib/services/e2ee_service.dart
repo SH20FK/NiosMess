@@ -57,6 +57,11 @@ class E2eeService {
     return base64Encode(pub.bytes);
   }
 
+  Future<String> getDeviceFingerprint() async {
+    final pub = await _ed.getPublicKey();
+    return _ed.formatFingerprint(pub.bytes);
+  }
+
   Future<String> getPublicKeyBase64() async {
     String? existing = await _storage.read(key: _publicKeyStorageKey);
     if (existing != null && existing.isNotEmpty) {
@@ -282,7 +287,7 @@ class E2eeService {
   Future<void> initiateHandshake({
     required int chatId,
     required String theirPublicKeyBase64,
-    required String theirEdPublicKeyBase64,
+    String theirEdPublicKeyBase64 = '',
   }) async {
     final ourKeyPair = await loadKeyPair();
     if (ourKeyPair == null) throw StateError('No E2EE key pair');
@@ -320,6 +325,7 @@ class E2eeService {
     final pending = _sessions[chatId];
     if (pending == null) throw StateError('No pending session for chat $chatId');
 
+    await loadVerifiedPeers();
     if (_verifiedPeers.containsKey(chatId) &&
         _verifiedPeers[chatId] != theirEdPublicKeyBase64) {
       debugPrint('[E2eeService] MITM DETECTED: peer Ed25519 key changed for chat $chatId');
@@ -385,6 +391,7 @@ class E2eeService {
       return;
     }
 
+    await loadVerifiedPeers();
     if (_verifiedPeers.containsKey(chatId)) {
       if (_verifiedPeers[chatId] != theirEdPublicKeyBase64) {
         debugPrint('[E2eeService] MITM DETECTED: peer Ed25519 key changed for chat $chatId');
@@ -464,9 +471,11 @@ class E2eeService {
     if (status == E2eeSessionStatus.secured) {
       words = await getVisualWords(chatId);
       final session = _sessions[chatId];
-      if (session != null) {
-        final peerBytes = base64Decode(session.peerStaticEd);
-        peerFp = _ed.formatFingerprint(peerBytes);
+      if (session != null && session.peerStaticEd.isNotEmpty) {
+        try {
+          final peerBytes = base64Decode(session.peerStaticEd);
+          peerFp = _ed.formatFingerprint(peerBytes);
+        } catch (_) {}
       }
       final ourPub = await _ed.getPublicKey();
       ourFp = _ed.formatFingerprint(ourPub.bytes);
@@ -483,6 +492,24 @@ class E2eeService {
 
   E2eeSessionStatus getSessionStatus(int chatId) {
     return _sessionStatus[chatId] ?? E2eeSessionStatus.none;
+  }
+
+  Future<void> resetSession(int chatId, {bool clearVerifiedPeer = false}) async {
+    _sessions.remove(chatId);
+    _sharedSecrets.remove(chatId);
+    _sessionStatus[chatId] = E2eeSessionStatus.none;
+    if (clearVerifiedPeer) {
+      _verifiedPeers.remove(chatId);
+      await _saveVerifiedPeers();
+    }
+    await _storage.delete(key: '$_sessionPrefix$chatId');
+  }
+
+  void clearMemorySessions() {
+    _sessions.clear();
+    _sharedSecrets.clear();
+    _sessionStatus.clear();
+    _verifiedPeers.clear();
   }
 
   // ─── Persistence ──────────────────────────────────────────────

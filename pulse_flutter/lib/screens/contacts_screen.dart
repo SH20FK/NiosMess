@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/bot_detector.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
@@ -19,12 +20,14 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/screens/calls/outgoing_call_screen.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/empty_state_widget.dart';
 import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
 import 'package:pulse_flutter/widgets/contacts/call_log_view.dart';
 import 'package:pulse_flutter/widgets/contacts/online_presence_radar.dart';
 import 'package:pulse_flutter/widgets/profile/my_qr_code_sheet.dart';
+import 'package:pulse_flutter/widgets/profile/responsive_profile_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
@@ -125,8 +128,6 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
   void _showContactQuickActions(ApiChatSummary chat) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final bool isFav =
-        ref.read(favoriteContactsProvider).contains(chat.id);
 
     AppBottomSheets.show<void>(
       context: context,
@@ -152,20 +153,30 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                 subtitle: chat.username != null && chat.username!.isNotEmpty
                     ? Text('@${chat.username}')
                     : null,
-                trailing: IconButton(
-                  onPressed: () {
-                    ref
-                        .read(favoriteContactsProvider.notifier)
-                        .toggleFavorite(chat.id);
-                    Navigator.of(ctx).pop();
+                trailing: Consumer(
+                  builder: (BuildContext context, WidgetRef ref, _) {
+                    final bool isFav = ref.watch(
+                      favoriteContactsProvider
+                          .select((Set<int> favs) => favs.contains(chat.id)),
+                    );
+                    return IconButton(
+                      onPressed: () {
+                        if (ref.read(uiSettingsProvider).haptics) {
+                          HapticService.tap();
+                        }
+                        ref
+                            .read(favoriteContactsProvider.notifier)
+                            .toggleFavorite(chat.id);
+                      },
+                      icon: Icon(
+                        isFav ? Icons.star_rounded : Icons.star_border_rounded,
+                        color: isFav ? scheme.primary : scheme.onSurfaceVariant,
+                      ),
+                      tooltip: isFav
+                          ? context.l10n.profileRemoveFromFavorites
+                          : context.l10n.profileAddToFavorites,
+                    );
                   },
-                  icon: Icon(
-                    isFav ? Icons.star_rounded : Icons.star_border_rounded,
-                    color: isFav ? scheme.primary : scheme.onSurfaceVariant,
-                  ),
-                  tooltip: isFav
-                      ? 'Удалить из избранных'
-                      : 'Добавить в избранное',
                 ),
               ),
               const Divider(height: 16),
@@ -179,7 +190,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                   child: Icon(Icons.chat_bubble_outline_rounded,
                       color: scheme.primary, size: 20),
                 ),
-                title: const Text('Открыть чат'),
+                title: Text(context.l10n.contactsChat),
                 onTap: () {
                   Navigator.of(ctx).pop();
                   context.push('/chat/${chat.id}');
@@ -196,10 +207,24 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                     child: Icon(Icons.phone_rounded,
                         color: scheme.primary, size: 20),
                   ),
-                  title: const Text('Голосовой вызов'),
+                  title: Text(context.l10n.callsQuickPeople),
                   onTap: () {
                     Navigator.of(ctx).pop();
-                    context.push('/call/dm/${chat.username}?isVideo=0');
+                    if (BotDetector.isBot(chat.username)) {
+                      AppToast.showError(
+                          context, context.l10n.callsBotForbidden);
+                      return;
+                    }
+                    context.push(
+                      '/call/dm/${chat.username}?isVideo=0',
+                      extra: OutgoingCallArgs(
+                        username: chat.username!,
+                        displayName: chat.name,
+                        avatarUrl: chat.avatarUrl,
+                        chatId: chat.id,
+                        isVideo: false,
+                      ),
+                    );
                   },
                 ),
                 ListTile(
@@ -212,10 +237,24 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                     child: Icon(Icons.videocam_rounded,
                         color: scheme.secondary, size: 20),
                   ),
-                  title: const Text('Видеозвонок'),
+                  title: Text(context.l10n.callsFilterVideo),
                   onTap: () {
                     Navigator.of(ctx).pop();
-                    context.push('/call/dm/${chat.username}?isVideo=1');
+                    if (BotDetector.isBot(chat.username)) {
+                      AppToast.showError(
+                          context, context.l10n.callsBotForbidden);
+                      return;
+                    }
+                    context.push(
+                      '/call/dm/${chat.username}?isVideo=1',
+                      extra: OutgoingCallArgs(
+                        username: chat.username!,
+                        displayName: chat.name,
+                        avatarUrl: chat.avatarUrl,
+                        chatId: chat.id,
+                        isVideo: true,
+                      ),
+                    );
                   },
                 ),
                 ListTile(
@@ -228,10 +267,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                     child: Icon(Icons.person_outline_rounded,
                         color: scheme.onSurfaceVariant, size: 20),
                   ),
-                  title: const Text('Информация о контакте'),
+                  title: Text(context.l10n.profileTitle),
                   onTap: () {
                     Navigator.of(ctx).pop();
-                    context.push('/contact/${chat.username}');
+                    openResponsiveProfile(context, username: chat.username!);
                   },
                 ),
               ],
@@ -246,12 +285,23 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
   Widget build(BuildContext context) {
     final bool isAuthenticated =
         ref.watch(authProvider.select((a) => a.isAuthenticated));
-    final UiSettingsState settings = ref.watch(uiSettingsProvider);
-    final bool compact = settings.compactMode;
+    final bool compact =
+        ref.watch(uiSettingsProvider.select((s) => s.compactMode));
+    final bool haptics =
+        ref.watch(uiSettingsProvider.select((s) => s.haptics));
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.watch(chatsProvider);
     final int missedCalls = ref.watch(missedCallsCountProvider);
+
+    ref.listen<AsyncValue<List<ApiChatSummary>>>(chatsProvider, (prev, next) {
+      final List<ApiChatSummary>? freshChats = next.asData?.value;
+      if (freshChats != null) {
+        final List<ApiChatSummary> direct = _recentDirectChats(freshChats);
+        _cachedDirectContacts = direct;
+        ref.read(cacheServiceProvider).saveContacts(direct);
+      }
+    });
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -260,7 +310,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         title: Text(
           _selectedTab == _ContactsMainTab.contacts
               ? context.l10n.tabContacts
-              : 'Звонки',
+              : context.l10n.tabCalls,
           style: textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.w800,
             letterSpacing: -0.6,
@@ -273,29 +323,29 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         actions: <Widget>[
           IconButton(
             onPressed: () {
-              if (ref.read(uiSettingsProvider).haptics) {
+              if (haptics) {
                 HapticService.tap();
               }
               MyQrCodeSheet.show(context);
             },
             icon: const Icon(Icons.qr_code_2_rounded),
-            tooltip: 'Мой QR-код',
+            tooltip: 'QR-код',
           ),
           IconButton(
             onPressed: () {
-              if (ref.read(uiSettingsProvider).haptics) {
+              if (haptics) {
                 HapticService.tap();
               }
               UserSearchPickerSheet.show(
                 context,
-                title: 'Новый контакт',
+                title: context.l10n.addToContacts,
                 onUserSelected: (ApiSearchUser user) {
                   _openDirectChat(user.username);
                 },
               );
             },
             icon: const Icon(Icons.person_add_alt_1_rounded),
-            tooltip: 'Добавить контакт',
+            tooltip: context.l10n.addToContacts,
           ),
           const SizedBox(width: 4),
         ],
@@ -314,17 +364,17 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                 width: double.infinity,
                 child: SegmentedButton<_ContactsMainTab>(
                   segments: <ButtonSegment<_ContactsMainTab>>[
-                    const ButtonSegment<_ContactsMainTab>(
+                    ButtonSegment<_ContactsMainTab>(
                       value: _ContactsMainTab.contacts,
-                      label: Text('Контакты'),
-                      icon: Icon(Icons.people_alt_rounded, size: 18),
+                      label: Text(context.l10n.tabContacts),
+                      icon: const Icon(Icons.people_alt_rounded, size: 18),
                     ),
                     ButtonSegment<_ContactsMainTab>(
                       value: _ContactsMainTab.calls,
                       label: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          const Text('Звонки'),
+                          Text(context.l10n.tabCalls),
                           if (missedCalls > 0) ...<Widget>[
                             const SizedBox(width: 6),
                             Container(
@@ -353,7 +403,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                   ],
                   selected: <_ContactsMainTab>{_selectedTab},
                   onSelectionChanged: (Set<_ContactsMainTab> newSelection) {
-                    if (ref.read(uiSettingsProvider).haptics) {
+                    if (haptics) {
                       HapticService.tap();
                     }
                     setState(() => _selectedTab = newSelection.first);
@@ -379,17 +429,24 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               ),
             ),
 
-            // Content: Calls or Contacts
+            // Content: Calls or Contacts (IndexedStack preserves scroll position of both tabs)
             Expanded(
-              child: _selectedTab == _ContactsMainTab.calls
-                  ? const CallLogView()
-                  : _buildContactsTab(
-                      isAuthenticated: isAuthenticated,
-                      chatsAsync: chatsAsync,
-                      compact: compact,
-                      textTheme: textTheme,
-                      scheme: scheme,
-                    ),
+              child: IndexedStack(
+                index: _selectedTab.index,
+                children: <Widget>[
+                  _buildContactsTab(
+                    isAuthenticated: isAuthenticated,
+                    chatsAsync: chatsAsync,
+                    compact: compact,
+                    textTheme: textTheme,
+                    scheme: scheme,
+                    haptics: haptics,
+                  ),
+                  const CallLogView(
+                    key: PageStorageKey<String>('calls_tab_view'),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -403,6 +460,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     required bool compact,
     required TextTheme textTheme,
     required ColorScheme scheme,
+    required bool haptics,
   }) {
     if (!isAuthenticated) {
       return EmptyStateWidget(
@@ -411,15 +469,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       );
     }
 
-    final List<ApiChatSummary>? freshChats = chatsAsync.value;
-    if (freshChats != null) {
-      final List<ApiChatSummary> direct = _recentDirectChats(freshChats);
-      _cachedDirectContacts = direct;
-      ref.read(cacheServiceProvider).saveContacts(direct);
-    }
-
-    final List<ApiChatSummary> direct =
-        _cachedDirectContacts ?? const <ApiChatSummary>[];
+    final List<ApiChatSummary> direct = _cachedDirectContacts ??
+        (chatsAsync.asData?.value != null
+            ? _recentDirectChats(chatsAsync.asData!.value)
+            : const <ApiChatSummary>[]);
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -432,6 +485,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         }
       },
       child: CustomScrollView(
+        key: const PageStorageKey<String>('contacts_scroll_view'),
         physics: const AlwaysScrollableScrollPhysics(
           parent: ClampingScrollPhysics(),
         ),
@@ -750,43 +804,14 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
 
     for (final MapEntry<String, List<ApiChatSummary>> entry
         in grouped.entries) {
-      // Section header letter
+      // Sticky section header letter
       slivers.add(
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppConstants.screenHorizontalPadding,
-              12,
-              AppConstants.screenHorizontalPadding,
-              6,
-            ),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 28,
-                  height: 28,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    entry.key,
-                    style: textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: scheme.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Divider(
-                    color: scheme.outlineVariant.withValues(alpha: 0.2),
-                    height: 1,
-                  ),
-                ),
-              ],
-            ),
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _StickyAlphabetHeaderDelegate(
+            letter: entry.key,
+            scheme: scheme,
+            textTheme: textTheme,
           ),
         ),
       );
@@ -829,16 +854,22 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     final List<ApiBadge> badges =
         chat.partnerBadges.take(2).toList(growable: false);
     final int hiddenBadgeCount = chat.partnerBadges.length - badges.length;
+    final bool haptics =
+        ref.watch(uiSettingsProvider.select((s) => s.haptics));
 
     return Material(
       color: scheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        onTap: chat.username == null || chat.username!.isEmpty
-            ? () => context.push('/chat/${chat.id}')
-            : () => context.push('/contact/${chat.username}'),
+        onTap: () {
+          if (chat.username != null && chat.username!.isNotEmpty) {
+            openResponsiveProfile(context, username: chat.username!);
+          } else {
+            context.push('/chat/${chat.id}');
+          }
+        },
         onLongPress: () {
-          if (ref.read(uiSettingsProvider).haptics) {
+          if (haptics) {
             HapticService.confirm();
           }
           _showContactQuickActions(chat);
@@ -904,7 +935,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                     Text(
                       chat.username != null && chat.username!.isNotEmpty
                           ? '@${chat.username}'
-                          : (chat.lastMessage?.content ?? 'Чат'),
+                          : (chat.lastMessage?.content ?? context.l10n.contactsChat),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.bodySmall?.copyWith(
@@ -919,36 +950,64 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               if (chat.username != null && chat.username!.isNotEmpty) ...<Widget>[
                 IconButton(
                   onPressed: () {
-                    if (ref.read(uiSettingsProvider).haptics) {
+                    if (haptics) {
                       HapticService.reaction();
                     }
-                    context.push('/call/dm/${chat.username}?isVideo=0');
+                    if (BotDetector.isBot(chat.username)) {
+                      AppToast.showError(
+                          context, context.l10n.callsBotForbidden);
+                      return;
+                    }
+                    context.push(
+                      '/call/dm/${chat.username}?isVideo=0',
+                      extra: OutgoingCallArgs(
+                        username: chat.username!,
+                        displayName: chat.name,
+                        avatarUrl: chat.avatarUrl,
+                        chatId: chat.id,
+                        isVideo: false,
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.phone_outlined, size: 20),
-                  tooltip: 'Позвонить',
+                  tooltip: context.l10n.callsOutgoingShort,
                   color: scheme.primary,
                 ),
                 IconButton(
                   onPressed: () {
-                    if (ref.read(uiSettingsProvider).haptics) {
+                    if (haptics) {
                       HapticService.reaction();
                     }
-                    context.push('/call/dm/${chat.username}?isVideo=1');
+                    if (BotDetector.isBot(chat.username)) {
+                      AppToast.showError(
+                          context, context.l10n.callsBotForbidden);
+                      return;
+                    }
+                    context.push(
+                      '/call/dm/${chat.username}?isVideo=1',
+                      extra: OutgoingCallArgs(
+                        username: chat.username!,
+                        displayName: chat.name,
+                        avatarUrl: chat.avatarUrl,
+                        chatId: chat.id,
+                        isVideo: true,
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.videocam_outlined, size: 20),
-                  tooltip: 'Видеозвонок',
+                  tooltip: context.l10n.callsFilterVideo,
                   color: scheme.secondary,
                 ),
               ] else ...<Widget>[
                 IconButton(
                   onPressed: () {
-                    if (ref.read(uiSettingsProvider).haptics) {
+                    if (haptics) {
                       HapticService.reaction();
                     }
                     context.push('/chat/${chat.id}');
                   },
                   icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
-                  tooltip: 'Открыть чат',
+                  tooltip: context.l10n.contactsChat,
                   color: scheme.primary,
                 ),
               ],
@@ -966,6 +1025,8 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
   ) {
     final AsyncValue<ApiSearchResult> resultsAsync =
         ref.watch(debouncedSearchProvider);
+    final bool haptics =
+        ref.watch(uiSettingsProvider.select((s) => s.haptics));
 
     return resultsAsync.when(
       data: (ApiSearchResult results) {
@@ -980,54 +1041,116 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
           ];
         }
 
-        final List<Widget> children = <Widget>[];
+        final List<Widget> slivers = <Widget>[];
 
         if (results.users.isNotEmpty) {
-          children.add(
-            _resultHeader(context, context.l10n.contactsUsers, results.users.length),
+          slivers.add(
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.screenHorizontalPadding,
+                  vertical: 4,
+                ),
+                child: _resultHeader(
+                  context,
+                  context.l10n.contactsUsers,
+                  results.users.length,
+                ),
+              ),
+            ),
           );
-          children.add(const SizedBox(height: 8));
-          for (final ApiSearchUser user in results.users) {
-            final bool opening = _openingUsername == user.username;
-            children.add(_userTile(user, opening, compact, textTheme, scheme));
-            children.add(SizedBox(height: compact ? 6 : 8));
-          }
+          slivers.add(
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.screenHorizontalPadding,
+              ),
+              sliver: SliverList.separated(
+                itemCount: results.users.length,
+                separatorBuilder: (_, _) => SizedBox(height: compact ? 6 : 8),
+                itemBuilder: (BuildContext context, int index) {
+                  final ApiSearchUser user = results.users[index];
+                  final bool opening = _openingUsername == user.username;
+                  return _userTile(
+                    user,
+                    opening,
+                    compact,
+                    textTheme,
+                    scheme,
+                    haptics,
+                  );
+                },
+              ),
+            ),
+          );
         }
 
         if (results.chats.isNotEmpty) {
-          children.add(
-            _resultHeader(context, context.l10n.contactsChats, results.chats.length),
+          slivers.add(
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.screenHorizontalPadding,
+                  vertical: 4,
+                ),
+                child: _resultHeader(
+                  context,
+                  context.l10n.contactsChats,
+                  results.chats.length,
+                ),
+              ),
+            ),
           );
-          children.add(const SizedBox(height: 8));
-          for (final ApiSearchChat chat in results.chats) {
-            children.add(_chatTile(chat, textTheme, scheme));
-            children.add(const SizedBox(height: 8));
-          }
+          slivers.add(
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.screenHorizontalPadding,
+              ),
+              sliver: SliverList.separated(
+                itemCount: results.chats.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (BuildContext context, int index) {
+                  final ApiSearchChat chat = results.chats[index];
+                  return _chatTile(chat, textTheme, scheme, haptics);
+                },
+              ),
+            ),
+          );
         }
 
         if (results.messages.isNotEmpty) {
-          children.add(
-            _resultHeader(
-              context,
-              context.l10n.contactsMessages,
-              results.messages.length,
+          slivers.add(
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.screenHorizontalPadding,
+                  vertical: 4,
+                ),
+                child: _resultHeader(
+                  context,
+                  context.l10n.contactsMessages,
+                  results.messages.length,
+                ),
+              ),
             ),
           );
-          children.add(const SizedBox(height: 8));
-          for (final ApiSearchMessage message in results.messages) {
-            children.add(_messageTile(message, textTheme, scheme));
-            children.add(const SizedBox(height: 8));
-          }
+          slivers.add(
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.screenHorizontalPadding,
+              ),
+              sliver: SliverList.separated(
+                itemCount: results.messages.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (BuildContext context, int index) {
+                  final ApiSearchMessage message = results.messages[index];
+                  return _messageTile(message, textTheme, scheme);
+                },
+              ),
+            ),
+          );
         }
 
-        return <Widget>[
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppConstants.screenHorizontalPadding,
-            ),
-            sliver: SliverList(delegate: SliverChildListDelegate(children)),
-          ),
-        ];
+        return slivers;
       },
       loading: () => const <Widget>[
         SliverPadding(
@@ -1054,6 +1177,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     bool compact,
     TextTheme textTheme,
     ColorScheme scheme,
+    bool haptics,
   ) {
     final List<ApiBadge> visibleBadges =
         user.badges.take(3).toList(growable: false);
@@ -1063,7 +1187,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       color: scheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        onTap: () => context.push('/contact/${user.username}'),
+        onTap: () => openResponsiveProfile(context, username: user.username),
         borderRadius: BorderRadius.circular(20),
         child: Padding(
           padding: EdgeInsets.symmetric(
@@ -1138,18 +1262,33 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                   children: <Widget>[
                     IconButton(
                       onPressed: () {
-                        if (ref.read(uiSettingsProvider).haptics) {
+                        if (haptics) {
                           HapticService.reaction();
                         }
-                        context.push('/call/dm/${user.username}?isVideo=0');
+                        if (BotDetector.isBot(user.username)) {
+                          AppToast.showError(
+                              context, context.l10n.callsBotForbidden);
+                          return;
+                        }
+                        context.push(
+                          '/call/dm/${user.username}?isVideo=0',
+                          extra: OutgoingCallArgs(
+                            username: user.username,
+                            displayName: user.displayName.isEmpty
+                                ? user.username
+                                : user.displayName,
+                            avatarUrl: user.avatarUrl,
+                            isVideo: false,
+                          ),
+                        );
                       },
                       icon: const Icon(Icons.phone_outlined, size: 20),
-                      tooltip: 'Позвонить',
+                      tooltip: context.l10n.callsOutgoingShort,
                       color: scheme.primary,
                     ),
                     IconButton(
                       onPressed: () {
-                        if (ref.read(uiSettingsProvider).haptics) {
+                        if (haptics) {
                           HapticService.reaction();
                         }
                         _openDirectChat(user.username);
@@ -1172,13 +1311,14 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     ApiSearchChat chat,
     TextTheme textTheme,
     ColorScheme scheme,
+    bool haptics,
   ) {
     return Material(
       color: scheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: () {
-          if (ref.read(uiSettingsProvider).haptics) {
+          if (haptics) {
             HapticService.reaction();
           }
           context.push('/chat/${chat.id}');
@@ -1285,5 +1425,71 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         ],
       ),
     );
+  }
+}
+
+class _StickyAlphabetHeaderDelegate extends SliverPersistentHeaderDelegate {
+  _StickyAlphabetHeaderDelegate({
+    required this.letter,
+    required this.scheme,
+    required this.textTheme,
+  });
+
+  final String letter;
+  final ColorScheme scheme;
+  final TextTheme textTheme;
+
+  @override
+  double get minExtent => 40;
+
+  @override
+  double get maxExtent => 40;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      color: scheme.surface,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppConstants.screenHorizontalPadding,
+        vertical: 6,
+      ),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              letter,
+              style: textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: scheme.primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Divider(
+              color: scheme.outlineVariant.withValues(alpha: 0.2),
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickyAlphabetHeaderDelegate oldDelegate) {
+    return oldDelegate.letter != letter || oldDelegate.scheme != scheme;
   }
 }

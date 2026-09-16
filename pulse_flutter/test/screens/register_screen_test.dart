@@ -37,9 +37,10 @@ void main() {
       await tester.pumpWidget(_createRegisterHarness());
       await tester.pumpAndSettle();
 
-      expect(find.text('NiosMess'), findsOneWidget);
-      expect(find.text('Войти через Nios ID'), findsOneWidget);
-      expect(find.text('Создать аккаунт Nios ID'), findsOneWidget);
+      final l10n = await AppLocalizations.delegate.load(const Locale('ru'));
+      expect(find.text(l10n.appName), findsOneWidget);
+      expect(find.text(l10n.loginSignInWithNiosId), findsOneWidget);
+      expect(find.text(l10n.loginCreateNiosId), findsOneWidget);
       expect(find.byType(TextField), findsNothing);
     });
   });

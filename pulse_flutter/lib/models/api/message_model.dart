@@ -62,6 +62,7 @@ class ApiMessage {
     this.isSending = false,
     this.isFailed = false,
     this.isE2ee = false,
+    this.isDecrypted = false,
     this.e2eeContent,
     this.e2eeFileKey,
     this.isRead = false,
@@ -93,6 +94,7 @@ class ApiMessage {
   final bool isSending;
   final bool isFailed;
   final bool isE2ee;
+  final bool isDecrypted;
   final String? e2eeContent;
 
   /// Base64 per-file AES key for E2EE media (local + cache only, comes from
@@ -117,6 +119,32 @@ class ApiMessage {
   int? get resolvedStickerSetId => stickerSetId ?? sticker?.setId;
 
   bool get isCallEvent => systemEventType == 'call' || msgType == 'call';
+
+  bool get isCallVideo {
+    if (systemEvent != null) {
+      if (systemEvent!['is_video'] == true || systemEvent!['video'] == true) {
+        return true;
+      }
+    }
+    return content.contains('Видеозвонок') || content.startsWith('📹');
+  }
+
+  bool get isCallMissed {
+    if (systemEvent != null) {
+      final String? status = systemEvent!['status']?.toString().toLowerCase();
+      if (status == 'missed' ||
+          status == 'declined' ||
+          status == 'rejected' ||
+          status == 'cancelled') {
+        return true;
+      }
+    }
+    final String lower = content.toLowerCase();
+    return lower.contains('пропущен') ||
+        lower.contains('отклон') ||
+        lower.contains('missed') ||
+        lower.contains('declined');
+  }
 
   bool get isSystemEvent => systemEventType != null;
 
@@ -150,6 +178,8 @@ class ApiMessage {
     bool? isSending,
     bool? isFailed,
     bool? isE2ee,
+    bool? isDecrypted,
+    bool clearE2eeContent = false,
     String? e2eeContent,
     String? e2eeFileKey,
     bool? isRead,
@@ -184,7 +214,8 @@ class ApiMessage {
       isSending: isSending ?? this.isSending,
       isFailed: isFailed ?? this.isFailed,
       isE2ee: isE2ee ?? this.isE2ee,
-      e2eeContent: e2eeContent ?? this.e2eeContent,
+      isDecrypted: isDecrypted ?? this.isDecrypted,
+      e2eeContent: clearE2eeContent ? null : (e2eeContent ?? this.e2eeContent),
       e2eeFileKey: e2eeFileKey ?? this.e2eeFileKey,
       isRead: isRead ?? this.isRead,
       systemEventType: systemEventType ?? this.systemEventType,
@@ -226,7 +257,11 @@ class ApiMessage {
     }
 
     final bool isE2ee = _parseBool(json['is_e2ee']);
+    final bool isDecrypted = _parseBool(json['is_decrypted']);
     final String? e2eeContentRaw = json['e2ee_content'] as String?;
+    final String rawContent = json['content'] as String? ?? '';
+    final String resolvedContent =
+        (isE2ee && !isDecrypted && rawContent.isEmpty) ? '' : rawContent;
 
     return ApiMessage(
       id: json['id'] as int? ?? 0,
@@ -236,7 +271,7 @@ class ApiMessage {
       senderDisplayName: json['sender_display_name'] as String? ?? json['sender_username'] as String? ?? 'Unknown',
       senderAvatarUrl: json['sender_avatar_url'] as String?,
       senderBadges: badges,
-      content: isE2ee ? '' : (json['content'] as String? ?? ''),
+      content: resolvedContent,
       msgType: json['msg_type'] as String? ?? 'text',
       replyToId: json['reply_to_id'] as int?,
       mediaUrl: json['media_url'] as String?,
@@ -257,6 +292,7 @@ class ApiMessage {
             )
           : null,
       isE2ee: isE2ee,
+      isDecrypted: isDecrypted,
       e2eeContent: e2eeContentRaw,
       e2eeFileKey: json['e2ee_file_key'] as String?,
       isRead: _parseBool(json['is_read']),
@@ -305,6 +341,7 @@ class ApiMessage {
       'edited_at': editedAt?.toIso8601String(),
       'is_deleted': isDeleted,
       'is_e2ee': isE2ee,
+      'is_decrypted': isDecrypted,
       'is_read': isRead,
       if (sticker != null) 'sticker': sticker!.toJson(),
       if (stickerSetId != null) 'sticker_set_id': stickerSetId,

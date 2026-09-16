@@ -6,8 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/storage/local_storage_service.dart';
+import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/storage/local_storage_service.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -43,7 +44,8 @@ import 'package:pulse_flutter/widgets/profile/working_hours_widget.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:pulse_flutter/providers/connectivity_provider.dart';
+import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({this.initialSection, super.key});
@@ -67,6 +69,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ref
             .read(desktopSelectedSettingsSectionProvider.notifier)
             .setSelectedSection(widget.initialSection!);
+        if (MediaQuery.sizeOf(context).width < Breakpoints.medium) {
+          final List<SettingsNavNode> sections =
+              SettingsRegistry.getTopLevelSections();
+          final SettingsNavNode? target = sections
+              .where((s) => s.sectionId == widget.initialSection)
+              .firstOrNull;
+          if (target != null && mounted) {
+            context.push(target.route);
+          }
+        }
       });
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -121,6 +133,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     try {
       final PlatformFile file = result.first;
+      final String ext =
+          (file.extension ?? file.name.split('.').last).toLowerCase();
+      final FileTypeInfo detected =
+          FileTypeDetector.detectFromFileName(file.name);
+
+      if (isVideo) {
+        const Set<String> allowedVideoExts = <String>{'mp4', 'mov', 'webm'};
+        if (!allowedVideoExts.contains(ext) || !detected.isVideo) {
+          if (!mounted) return;
+          AppToast.showError(
+            context,
+            'Поддерживаются только видеоформаты MP4, MOV, WebM',
+          );
+          return;
+        }
+      } else {
+        const Set<String> allowedImageExts = <String>{
+          'jpg',
+          'jpeg',
+          'png',
+          'webp',
+        };
+        if (!allowedImageExts.contains(ext) || !detected.isImage) {
+          if (!mounted) return;
+          AppToast.showError(
+            context,
+            'Поддерживаются только изображения PNG, JPG, WebP',
+          );
+          return;
+        }
+      }
+
       Uint8List bytes = await file.readAsBytes();
       if (bytes.isEmpty) return;
 
@@ -224,7 +268,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  String _getSectionBadgeValue(SettingsNavNode node, UiSettingsState settings) {
+  String _getSectionBadgeValue(
+    SettingsNavNode node,
+    UiSettingsState settings,
+    LocalStorageSnapshot? snapshot,
+  ) {
     if (node.id == 'appearance') {
       final bool isRussian =
           Localizations.localeOf(context).languageCode == 'ru';
@@ -234,8 +282,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ? (isRussian ? 'Светлая' : 'Light')
               : (isRussian ? 'Системная' : 'System');
     } else if (node.id == 'storage') {
-      final LocalStorageSnapshot? snapshot =
-          ref.watch(storageSnapshotProvider).value;
       return snapshot != null
           ? FileTypeDetector.formatFileSize(snapshot.totalBytes)
           : '0 Б';
@@ -579,21 +625,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                             const SizedBox(width: 8),
                           ],
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF34C759),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'В сети',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              fontSize: 12,
-                            ),
+                          Consumer(
+                            builder: (BuildContext context, WidgetRef ref, _) {
+                              final bool isOnline =
+                                  ref.watch(connectivityProvider).value ?? true;
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      color: isOnline
+                                          ? AppColors.statusOnline
+                                          : scheme.outline,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isOnline
+                                        ? context.l10n.profileOnline
+                                        : context.l10n.profileOffline,
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -747,12 +808,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ],
 
-            // Quick Action Buttons Row
+            // Quick Action Buttons Row: Edit Profile & Share Profile
             const SizedBox(height: 14),
             Row(
               children: <Widget>[
                 Expanded(
-                  flex: 3,
                   child: SizedBox(
                     height: 38,
                     child: FilledButton.tonalIcon(
@@ -778,33 +838,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(width: 8),
                 SizedBox(
                   height: 38,
-                  child: FilledButton.tonalIcon(
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                    ),
-                    onPressed: () => MyQrCodeSheet.show(context),
-                    icon: const Icon(Icons.qr_code_rounded, size: 16),
-                    label: const Text(
-                      'QR',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12.5,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: 38,
                   child: FilledButton.tonal(
                     style: FilledButton.styleFrom(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                     ),
                     onPressed: () => _shareProfile(username),
                     child: const Icon(Icons.share_outlined, size: 16),
@@ -823,12 +862,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     AuthState auth,
     ColorScheme scheme,
     UiSettingsState settings,
+    LocalStorageSnapshot? storageSnapshot,
     String displayName,
     String username,
     String bio,
   ) {
     final List<SettingsNavNode> sections =
         SettingsRegistry.getTopLevelSections();
+
+    final List<SettingsNavNode> generalSections = <SettingsNavNode>[];
+    final List<SettingsNavNode> securitySections = <SettingsNavNode>[];
+    final List<SettingsNavNode> systemSections = <SettingsNavNode>[];
+
+    for (final SettingsNavNode s in sections) {
+      if (s.group == SettingsGroup.account ||
+          s.group == SettingsGroup.appearance ||
+          s.group == SettingsGroup.chats) {
+        generalSections.add(s);
+      } else if (s.group == SettingsGroup.notifications ||
+          s.group == SettingsGroup.privacy ||
+          s.group == SettingsGroup.storage ||
+          s.group == SettingsGroup.motion) {
+        securitySections.add(s);
+      } else {
+        systemSections.add(s);
+      }
+    }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -860,22 +919,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             onPressed: () => MyQrCodeSheet.show(context),
-          ),
-          IconButton(
-            tooltip: context.l10n.profileEdit,
-            icon: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.edit_outlined,
-                size: 18,
-                color: scheme.onSurface,
-              ),
-            ),
-            onPressed: () => _openEditProfile(context, displayName, auth, bio),
           ),
           const SizedBox(width: 8),
         ],
@@ -921,14 +964,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   // 4. Sections grouped into M3 Expressive Cards (exact from SettingsHub)
                   SettingsSection(
                     title: 'Основное',
-                    children: sections
-                        .where((s) =>
-                            s.group == SettingsGroup.account ||
-                            s.group == SettingsGroup.appearance ||
-                            s.group == SettingsGroup.chats)
-                        .map((SettingsNavNode node) {
+                    children: generalSections.map((SettingsNavNode node) {
                       final String badgeVal =
-                          _getSectionBadgeValue(node, settings);
+                          _getSectionBadgeValue(node, settings, storageSnapshot);
                       return SettingsListItem.nav(
                         icon: node.icon,
                         title: node.title(context.l10n),
@@ -943,14 +981,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                   SettingsSection(
                     title: 'Безопасность и данные',
-                    children: sections
-                        .where((s) =>
-                            s.group == SettingsGroup.notifications ||
-                            s.group == SettingsGroup.privacy ||
-                            s.group == SettingsGroup.storage)
-                        .map((SettingsNavNode node) {
+                    children: securitySections.map((SettingsNavNode node) {
                       final String badgeVal =
-                          _getSectionBadgeValue(node, settings);
+                          _getSectionBadgeValue(node, settings, storageSnapshot);
                       return SettingsListItem.nav(
                         icon: node.icon,
                         title: node.title(context.l10n),
@@ -965,13 +998,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                   SettingsSection(
                     title: 'Система и приложение',
-                    children: sections
-                        .where((s) =>
-                            s.group == SettingsGroup.language ||
-                            s.group == SettingsGroup.about)
-                        .map((SettingsNavNode node) {
+                    children: systemSections.map((SettingsNavNode node) {
                       final String badgeVal =
-                          _getSectionBadgeValue(node, settings);
+                          _getSectionBadgeValue(node, settings, storageSnapshot);
                       return SettingsListItem.nav(
                         icon: node.icon,
                         title: node.title(context.l10n),
@@ -993,9 +1022,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         title: 'Управление аккаунтом Nios ID',
                         subtitle: 'Безопасность, 2FA и активные сессии',
                         iconColor: scheme.primary,
-                        onTap: () => launchUrl(
-                          Uri.parse('https://ni-os.ru/id/account'),
-                          mode: LaunchMode.externalApplication,
+                        onTap: () => AppUrlLauncher.openUrl(
+                          context,
+                          'https://ni-os.ru/id/account',
                         ),
                       ),
                     ],
@@ -1042,6 +1071,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     AuthState auth,
     ColorScheme scheme,
     UiSettingsState settings,
+    LocalStorageSnapshot? storageSnapshot,
     String displayName,
     String username,
   ) {
@@ -1051,118 +1081,115 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final List<SettingsNavNode> sections =
         SettingsRegistry.getTopLevelSections();
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // Left Master Pane
-          Container(
-            width: 360,
-            decoration: BoxDecoration(
-              color: isDark
-                  ? scheme.surfaceContainerLowest
-                  : scheme.surface.withValues(alpha: 0.65),
-              border: Border(
-                right: BorderSide(
-                  color: scheme.outlineVariant.withValues(alpha: 0.2),
-                  width: 1,
-                ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // Left Master Pane
+        Container(
+          width: 360,
+          decoration: BoxDecoration(
+            color: isDark
+                ? scheme.surfaceContainerLowest
+                : scheme.surface.withValues(alpha: 0.65),
+            border: Border(
+              right: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.2),
+                width: 1,
               ),
             ),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
-              children: <Widget>[
-                // Search Anchor
-                _buildSearchAnchor(isWide: true),
-                const SizedBox(height: 12),
+          ),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
+            children: <Widget>[
+              // Search Anchor
+              _buildSearchAnchor(isWide: true),
+              const SizedBox(height: 12),
 
-                // Compact Profile Header
-                _buildQuickProfileHeader(
-                  context,
-                  auth,
-                  scheme,
-                  displayName,
-                  username,
-                  isCompact: true,
-                ),
-                const SizedBox(height: 14),
+              // Compact Profile Header
+              _buildQuickProfileHeader(
+                context,
+                auth,
+                scheme,
+                displayName,
+                username,
+                isCompact: true,
+              ),
+              const SizedBox(height: 14),
 
-                // Top level sections from registry
-                SettingsSection(
-                  isCard: false,
-                  title: 'Настройки',
-                  children: sections.map((SettingsNavNode node) {
-                    final bool isSelected =
-                        node.sectionId == selectedSection;
-                    final String badgeVal =
-                        _getSectionBadgeValue(node, settings);
+              // Top level sections from registry
+              SettingsSection(
+                isCard: false,
+                title: 'Настройки',
+                children: sections.map((SettingsNavNode node) {
+                  final bool isSelected =
+                      node.sectionId == selectedSection;
+                  final String badgeVal =
+                      _getSectionBadgeValue(node, settings, storageSnapshot);
 
-                    return SettingsTile(
-                      icon: node.icon,
-                      title: node.title(context.l10n),
-                      value: badgeVal.isNotEmpty ? badgeVal : null,
-                      iconColor: _getSectionColor(node.group, scheme),
-                      isSelected: isSelected,
-                      onTap: () {
-                        if (node.sectionId != null) {
-                          ref
-                              .read(
-                                desktopSelectedSettingsSectionProvider.notifier,
-                              )
-                              .setSelectedSection(node.sectionId!);
-                        }
-                      },
-                    );
-                  }).toList(),
-                ),
+                  return SettingsTile(
+                    icon: node.icon,
+                    title: node.title(context.l10n),
+                    value: badgeVal.isNotEmpty ? badgeVal : null,
+                    iconColor: _getSectionColor(node.group, scheme),
+                    isSelected: isSelected,
+                    onTap: () {
+                      if (node.sectionId != null) {
+                        ref
+                            .read(
+                              desktopSelectedSettingsSectionProvider.notifier,
+                            )
+                            .setSelectedSection(node.sectionId!);
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
 
-                const SizedBox(height: 12),
-                Divider(
-                  height: 1,
-                  color: scheme.outlineVariant.withValues(alpha: 0.15),
-                ),
-                const SizedBox(height: 12),
+              const SizedBox(height: 12),
+              Divider(
+                height: 1,
+                color: scheme.outlineVariant.withValues(alpha: 0.15),
+              ),
+              const SizedBox(height: 12),
 
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: scheme.error,
-                      side: BorderSide(
-                        color: scheme.error.withValues(alpha: 0.35),
-                      ),
-                      minimumSize: const Size.fromHeight(44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: scheme.error,
+                    side: BorderSide(
+                      color: scheme.error.withValues(alpha: 0.35),
                     ),
-                    onPressed: _logout,
-                    icon: const Icon(Icons.logout_rounded, size: 18),
-                    label: Text(
-                      context.l10n.profileLogout,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
+                    minimumSize: const Size.fromHeight(44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: _logout,
+                  icon: const Icon(Icons.logout_rounded, size: 18),
+                  label: Text(
+                    context.l10n.profileLogout,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
 
-          const VerticalDivider(thickness: 1, width: 1),
+        const VerticalDivider(thickness: 1, width: 1),
 
-          // Right Detail Pane
-          Expanded(
-            child: Container(
-              color: scheme.surface,
-              child: _buildDetailPane(selectedSection),
-            ),
+        // Right Detail Pane
+        Expanded(
+          child: Container(
+            color: scheme.surface,
+            child: _buildDetailPane(selectedSection),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1236,6 +1263,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? auth.profile!.bio.trim()
         : '';
 
+    final LocalStorageSnapshot? storageSnapshot =
+        ref.watch(storageSnapshotProvider).value;
+
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final double width = constraints.maxWidth.isFinite
@@ -1250,6 +1280,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             auth,
             scheme,
             settings,
+            storageSnapshot,
             displayName,
             username,
           );
@@ -1260,6 +1291,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           auth,
           scheme,
           settings,
+          storageSnapshot,
           displayName,
           username,
           bio,

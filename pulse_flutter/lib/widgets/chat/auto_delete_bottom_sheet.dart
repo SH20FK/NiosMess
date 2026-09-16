@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
@@ -45,10 +46,34 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
 
   static const List<int> _presetSeconds = <int>[
     0, // Off
+    60, // 1 minute
+    300, // 5 minutes
+    3600, // 1 hour
     86400, // 24 hours
     604800, // 7 days
     2592000, // 30 days
   ];
+
+  String _getPresetLabel(BuildContext context, int seconds) {
+    switch (seconds) {
+      case 0:
+        return context.l10n.autoDeleteOff;
+      case 60:
+        return context.l10n.autoDelete1Minute;
+      case 300:
+        return context.l10n.autoDelete5Minutes;
+      case 3600:
+        return context.l10n.autoDelete1Hour;
+      case 86400:
+        return context.l10n.autoDelete24Hours;
+      case 604800:
+        return context.l10n.autoDelete7Days;
+      case 2592000:
+        return context.l10n.autoDelete30Days;
+      default:
+        return '$seconds s';
+    }
+  }
 
   @override
   void initState() {
@@ -83,7 +108,7 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
 
       if (!mounted) return;
       HapticService.confirm();
-      AppToast.showSuccess(context, 'Автоудаление сообщений обновлено');
+      AppToast.showSuccess(context, context.l10n.autoDeleteUpdated);
       Navigator.of(context).pop(secondsToSave > 0 ? secondsToSave : null);
     } catch (e) {
       if (!mounted) return;
@@ -137,14 +162,14 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        'Автоудаление сообщений',
+                        context.l10n.autoDeleteTitle,
                         style: textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Новые сообщения будут автоматически удаляться через выбранный период',
+                        context.l10n.autoDeleteSubtitle,
                         style: textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
@@ -159,13 +184,7 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
             // Presets
             ..._presetSeconds.map((int seconds) {
               final bool isSelected = !_isCustom && _selectedSeconds == seconds;
-              final String title = seconds == 0
-                  ? 'Отключено'
-                  : seconds == 86400
-                      ? '24 часа (1 день)'
-                      : seconds == 604800
-                          ? '7 дней (1 неделя)'
-                          : '1 месяц (30 дней)';
+              final String title = _getPresetLabel(context, seconds);
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -230,7 +249,7 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
                     type: MaterialType.transparency,
                     child: ListTile(
                       title: Text(
-                        'Свой срок: ${_customDays.round()} дн.',
+                        '${context.l10n.autoDeleteCustom}: ${_customDays.round()} дн.',
                         style: textTheme.bodyMedium?.copyWith(
                           fontWeight: _isCustom ? FontWeight.w700 : FontWeight.w500,
                           color: _isCustom ? scheme.primary : scheme.onSurface,

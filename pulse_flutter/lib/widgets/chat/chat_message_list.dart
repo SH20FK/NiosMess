@@ -11,6 +11,7 @@ import 'package:pulse_flutter/providers/sticker_provider.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_modal.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -149,7 +150,6 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
   List<ApiMessage>? _cachedMessages;
   Map<int, ApiMessage>? _byIdCache;
   Map<int, int>? _idToIndexCache;
-  Set<int>? _replyTargetsCache;
   final Map<int, GlobalKey> _messageKeys = <int, GlobalKey>{};
   final Set<int> _animatedMessageIds = <int>{};
   Timer? _highlightTimer;
@@ -161,19 +161,14 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
     _layoutCache = _precomputeLayout(messages);
     final Map<int, ApiMessage> byId = <int, ApiMessage>{};
     final Map<int, int> idToIndex = <int, int>{};
-    final Set<int> replyTargets = <int>{};
     final int len = messages.length;
     for (int i = 0; i < len; i++) {
       final ApiMessage m = messages[i];
       byId[m.id] = m;
       idToIndex[m.id] = len - 1 - i;
-      if (m.replyToId != null) {
-        replyTargets.add(m.replyToId!);
-      }
     }
     _byIdCache = byId;
     _idToIndexCache = idToIndex;
-    _replyTargetsCache = replyTargets;
     _messageKeys.removeWhere((int id, _) => !byId.containsKey(id));
   }
 
@@ -181,6 +176,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
   void initState() {
     super.initState();
     _syncCaches(widget.messages);
+    _animatedMessageIds.addAll(widget.messages.map((ApiMessage m) => m.id));
   }
 
   @override
@@ -210,10 +206,13 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
         );
       } else {
         final int? builderIndex = _idToIndexCache?[messageId];
-        if (builderIndex != null && widget.scrollController.hasClients) {
-          final double targetOffset = (builderIndex * 76.0).clamp(
+        final List<ApiMessage> messages = widget.messages;
+        if (builderIndex != null && widget.scrollController.hasClients && messages.isNotEmpty) {
+          final double maxScroll = widget.scrollController.position.maxScrollExtent;
+          final double estimatedItemHeight = (maxScroll / messages.length).clamp(50.0, 300.0);
+          final double targetOffset = (builderIndex * estimatedItemHeight).clamp(
             0.0,
-            widget.scrollController.position.maxScrollExtent,
+            maxScroll,
           );
           widget.scrollController
               .animateTo(
@@ -249,16 +248,11 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
 
   @override
   Widget build(BuildContext context) {
-    _syncCaches(widget.messages);
     final List<ApiMessage> messages = widget.messages;
     final List<_MessageLayoutData> layout = _layoutCache!;
     final Map<int, ApiMessage> byId = _byIdCache!;
 
     final DateTime now = AppTimeSettings.now();
-    final Set<int> replyTargets = <int>{
-      ...?_replyTargetsCache,
-      ?_highlightedMessageId,
-    };
 
     return RepaintBoundary(
       child: ListView.builder(
@@ -301,7 +295,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
 
         if (isCallMessage) {
           final Widget callPill = _CallEventPill(
-            text: rawText,
+            message: message,
             formattedTime: formatMessageTime(message.sentAt),
             isMine: isMine,
           );
@@ -341,7 +335,9 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             !_animatedMessageIds.contains(message.id) &&
             now.difference(message.resolvedSentAt).inSeconds < 4;
         if (shouldAnimate) {
-          _animatedMessageIds.add(message.id);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _animatedMessageIds.add(message.id);
+          });
         }
 
         Widget buildBubble({
@@ -446,24 +442,15 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
               )
             : buildBubble(progress: null);
 
-        final bool isNewest = index == 0;
+        final Key itemKey = _messageKeys.putIfAbsent(message.id, GlobalKey.new);
 
-        final bool isReplyTarget = replyTargets.contains(message.id);
-        final Key itemKey = isReplyTarget
-            ? _messageKeys.putIfAbsent(message.id, GlobalKey.new)
-            : ValueKey<int>(message.id);
-
-        final Widget animatedBubble = InkWell(
-          onLongPress: () => widget.onLongPress(
-              message, isMine, widget.isChannel, widget.amAdminOrOwner),
-          child: Container(
-            key: itemKey,
-            child: widget.animatedMessageBuilder(
-              messageId: message.id,
-              animate: isNewest,
-              isMine: isMine,
-              child: bubble,
-            ),
+        final Widget animatedBubble = KeyedSubtree(
+          key: itemKey,
+          child: widget.animatedMessageBuilder(
+            messageId: message.id,
+            animate: shouldAnimate,
+            isMine: isMine,
+            child: bubble,
           ),
         );
 
@@ -520,7 +507,14 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
                   if (widget.isGroup) ...<Widget>[
                     if (!data.isNextSame) ...[
                       GestureDetector(
-                        onTap: () {},
+                        onTap: () {
+                          final String username = message.senderUsername.trim();
+                          if (username.isNotEmpty) {
+                            context.push('/profile/$username');
+                          } else if (message.senderId > 0) {
+                            context.push('/profile/${message.senderId}');
+                          }
+                        },
                         child: message.senderAvatarUrl != null
                             ? ClipOval(
                                 child: CachedNetworkImage(
@@ -584,12 +578,12 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
 
 class _CallEventPill extends StatelessWidget {
   const _CallEventPill({
-    required this.text,
+    required this.message,
     required this.formattedTime,
     required this.isMine,
   });
 
-  final String text;
+  final ApiMessage message;
   final String formattedTime;
   final bool isMine;
 
@@ -599,18 +593,24 @@ class _CallEventPill extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final bool isVideo = text.contains('Видеозвонок') || text.startsWith('📹');
-    final bool isMissed =
-        text.toLowerCase().contains('пропущен') || text.toLowerCase().contains('отклон');
+    final bool isVideo = message.isCallVideo;
+    final bool isMissed = message.isCallMissed;
 
     final IconData icon = isVideo
         ? Icons.videocam_rounded
         : (isMissed ? Icons.phone_missed_rounded : Icons.phone_rounded);
     final Color iconColor = isMissed ? scheme.error : scheme.primary;
 
-    String cleanText = text;
+    String cleanText = message.content.trim();
     if (cleanText.startsWith('📹') || cleanText.startsWith('📞')) {
       cleanText = cleanText.substring(2).trim();
+    }
+    if (cleanText.isEmpty) {
+      if (isVideo) {
+        cleanText = isMissed ? 'Пропущенный видеозвонок' : 'Видеозвонок';
+      } else {
+        cleanText = isMissed ? 'Пропущенный звонок' : 'Голосовой звонок';
+      }
     }
 
     return Center(
@@ -630,13 +630,6 @@ class _CallEventPill extends StatelessWidget {
                 : scheme.outlineVariant.withValues(alpha: 0.25),
             width: 0.8,
           ),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: scheme.shadow.withValues(alpha: 0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

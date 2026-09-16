@@ -21,6 +21,8 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
+import 'package:pulse_flutter/core/utils/bot_detector.dart';
+import 'package:pulse_flutter/providers/chat_muted_provider.dart';
 import 'package:pulse_flutter/screens/calls/outgoing_call_screen.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/profile/my_qr_code_sheet.dart';
@@ -71,10 +73,12 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     final String targetUser = widget.username.trim().toLowerCase();
 
     // 1. If self profile, redirect to main profile tab
-    final myProfile = ref.read(authProvider).profile;
-    if (myProfile != null &&
-        myProfile.username.trim().toLowerCase() == targetUser) {
-      _profile = myProfile;
+    final auth = ref.read(authProvider);
+    final String? myUsername =
+        auth.profile?.username ?? auth.session?.username;
+    if (myUsername != null &&
+        myUsername.trim().toLowerCase() == targetUser) {
+      _profile = auth.profile;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go('/main/profile');
       });
@@ -128,9 +132,10 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       if (profile.username.trim().toLowerCase() ==
           widget.username.trim().toLowerCase()) {
         // If profile is mine, redirect to self profile tab
-        final myProfile = ref.read(authProvider).profile;
-        if (myProfile != null && myProfile.id == profile.id) {
-          context.go('/main/profile');
+        final auth = ref.read(authProvider);
+        final int? myId = auth.profile?.id ?? auth.session?.userId;
+        if (myId != null && myId == profile.id) {
+          if (mounted) context.go('/main/profile');
           return;
         }
 
@@ -195,7 +200,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         _resolvedChatId = chatId;
         _messagePhase = ActionPhase.idle;
       } else {
-        _messagePhase = ActionPhase.error;
+        _messagePhase = ActionPhase.idle;
+        AppToast.showError(context, context.l10n.profileLoadFailed);
       }
     });
   }
@@ -250,6 +256,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final AuthState auth = ref.watch(authProvider);
+    final AppRadiiTheme radii = AppRadii.of(context);
 
     if (_loading && _profile == null) {
       return Scaffold(
@@ -359,6 +366,9 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               isOnline: isOnline,
               isMe: isMe,
               topInset: MediaQuery.paddingOf(context).top,
+              heroTag: _resolvedChatId != null
+                  ? 'chat_avatar_$_resolvedChatId'
+                  : (profile.username.isNotEmpty ? 'profile_avatar_${profile.username}' : null),
               onBack: () {
                 if (context.canPop()) {
                   context.pop();
@@ -375,7 +385,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             child: Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 840),
+                constraints:
+                    const BoxConstraints(maxWidth: Breakpoints.medium),
                 child: Padding(
                   padding: EdgeInsets.only(
                     left: 16,
@@ -404,6 +415,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                                   profile,
                                   scheme,
                                   textTheme,
+                                  radii,
                                   isBlockedByMe: isBlockedByMe,
                                   isBlockedByUser: isBlockedByUser,
                                 ),
@@ -417,12 +429,12 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                       // ── Primary & Secondary Actions Hierarchy ─────────
                       if (!isMe) ...[
                         _buildActionHierarchy(
-                            context, profile, scheme, textTheme),
+                            context, profile, scheme, textTheme, radii),
                         const SizedBox(height: 20),
                       ],
 
                       // ── About & Bio Section ──────────────────────────
-                      _buildAboutCard(context, profile, scheme, textTheme,
+                      _buildAboutCard(context, profile, scheme, textTheme, radii,
                           isMe: isMe),
                       const SizedBox(height: 20),
 
@@ -447,11 +459,16 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     }
     if (profile.lastSeen != null) {
       final Duration diff = DateTime.now().difference(profile.lastSeen!);
+      final bool isRu =
+          Localizations.localeOf(context).languageCode == 'ru';
+      final String minUnit = isRu ? ' мин' : 'm';
+      final String hourUnit = isRu ? ' ч' : 'h';
       if (diff.inMinutes < 60) {
-        return '${context.l10n.profileLastSeen} ${diff.inMinutes}m';
+        final int m = diff.inMinutes.clamp(1, 59);
+        return '${context.l10n.profileLastSeen} $m$minUnit';
       }
       if (diff.inHours < 24) {
-        return '${context.l10n.profileLastSeen} ${diff.inHours}h';
+        return '${context.l10n.profileLastSeen} ${diff.inHours}$hourUnit';
       }
       return '${context.l10n.profileLastSeen} ${DateFormat.yMMMMd(Localizations.localeOf(context).languageCode).format(profile.lastSeen!)}';
     }
@@ -464,6 +481,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     ApiProfile profile,
     ColorScheme scheme,
     TextTheme textTheme,
+    AppRadiiTheme radii,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -477,8 +495,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               backgroundColor: scheme.primary,
               foregroundColor: scheme.onPrimary,
               elevation: 0,
-              shape: const RoundedRectangleBorder(
-                borderRadius: AppRadii.fullRadius,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(radii.full),
               ),
             ),
             icon: _messagePhase == ActionPhase.pending
@@ -510,6 +528,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 onTap: () => _handleCallTap(profile, isVideo: false),
                 scheme: scheme,
                 textTheme: textTheme,
+                radii: radii,
               ),
             ),
             const SizedBox(width: 10),
@@ -522,6 +541,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 onTap: () => _handleCallTap(profile, isVideo: true),
                 scheme: scheme,
                 textTheme: textTheme,
+                radii: radii,
               ),
             ),
             const SizedBox(width: 10),
@@ -534,6 +554,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 onTap: () => _handleShareQrTap(profile),
                 scheme: scheme,
                 textTheme: textTheme,
+                radii: radii,
               ),
             ),
           ],
@@ -550,13 +571,15 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     required VoidCallback onTap,
     required ColorScheme scheme,
     required TextTheme textTheme,
+    required AppRadiiTheme radii,
   }) {
+    final BorderRadius borderRad = BorderRadius.circular(radii.md);
     return Material(
       color: backgroundColor,
-      borderRadius: AppRadii.mdRadius,
+      borderRadius: borderRad,
       child: InkWell(
         onTap: onTap,
-        borderRadius: AppRadii.mdRadius,
+        borderRadius: borderRad,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Column(
@@ -585,7 +608,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     BuildContext context,
     ApiProfile profile,
     ColorScheme scheme,
-    TextTheme textTheme, {
+    TextTheme textTheme,
+    AppRadiiTheme radii, {
     bool isMe = false,
   }) {
     final String currentLocale =
@@ -595,7 +619,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: AppRadii.xlRadius,
+        borderRadius: BorderRadius.circular(radii.xl),
         border: Border.all(
           color: scheme.outlineVariant,
         ),
@@ -635,6 +659,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             value: '@${profile.username}',
             scheme: scheme,
             textTheme: textTheme,
+            radii: radii,
             onTap: () {
               Clipboard.setData(ClipboardData(text: '@${profile.username}'));
               HapticService.confirm();
@@ -653,6 +678,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                   .format(profile.createdAt!),
               scheme: scheme,
               textTheme: textTheme,
+              radii: radii,
             ),
           ],
 
@@ -666,6 +692,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               value: profile.phoneNumber!,
               scheme: scheme,
               textTheme: textTheme,
+              radii: radii,
               onTap: () {
                 Clipboard.setData(
                     ClipboardData(text: profile.phoneNumber!));
@@ -684,6 +711,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               value: profile.birthday!,
               scheme: scheme,
               textTheme: textTheme,
+              radii: radii,
             ),
           ],
 
@@ -731,6 +759,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     required String value,
     required ColorScheme scheme,
     required TextTheme textTheme,
+    required AppRadiiTheme radii,
     VoidCallback? onTap,
   }) {
     final Widget content = Row(
@@ -775,12 +804,13 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     );
 
     if (onTap != null) {
+      final BorderRadius itemRad = BorderRadius.circular(radii.sm);
       return Material(
         color: Colors.transparent,
-        borderRadius: AppRadii.smRadius,
+        borderRadius: itemRad,
         child: InkWell(
           onTap: onTap,
-          borderRadius: AppRadii.smRadius,
+          borderRadius: itemRad,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
             child: content,
@@ -798,7 +828,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     BuildContext context,
     ApiProfile profile,
     ColorScheme scheme,
-    TextTheme textTheme, {
+    TextTheme textTheme,
+    AppRadiiTheme radii, {
     required bool isBlockedByMe,
     required bool isBlockedByUser,
   }) {
@@ -806,7 +837,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: scheme.errorContainer,
-        borderRadius: AppRadii.mdRadius,
+        borderRadius: BorderRadius.circular(radii.md),
         border: Border.all(
           color: scheme.error,
           width: 1.2,
@@ -875,9 +906,18 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         ref.read(privacyProvider).isUserBlocked(profile.id) ||
             profile.isBlockedByMe;
     final bool isSupport =
-        profile.username.toLowerCase() == 'support' || profile.id == 1;
+        BotDetector.isSupport(profile.username, userId: profile.id);
     final bool isFavorite =
         ref.read(favoriteContactsProvider).contains(profile.id);
+
+    final int? effectiveChatId = _resolvedChatId ??
+        ref.read(chatsProvider).value?.where((c) =>
+            c.chatType == 'direct' &&
+            c.username?.trim().toLowerCase() ==
+                profile.username.trim().toLowerCase()).firstOrNull?.id;
+    final bool isMuted = effectiveChatId != null
+        ? (ref.read(chatMutedProvider(effectiveChatId)).value ?? false)
+        : _isMutedLocally;
 
     AppBottomSheets.show<void>(
       context: context,
@@ -900,28 +940,63 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               // 2. Mute / Unmute notifications
               ListTile(
                 leading: Icon(
-                  _isMutedLocally
+                  isMuted
                       ? Icons.notifications_active_rounded
                       : Icons.notifications_off_rounded,
                   color: sheetScheme.onSurface,
                 ),
                 title: Text(
-                  _isMutedLocally
+                  isMuted
                       ? context.l10n.profileUnmuteNotifications
                       : context.l10n.profileMuteNotifications,
                 ),
-                onTap: () {
+                onTap: () async {
                   Navigator.of(ctx).pop();
-                  setState(() {
-                    _isMutedLocally = !_isMutedLocally;
-                  });
-                  HapticService.tap();
-                  AppToast.showSuccess(
-                    context,
-                    _isMutedLocally
-                        ? context.l10n.profileMuteNotifications
-                        : context.l10n.profileUnmuteNotifications,
-                  );
+                  int? targetChatId = _resolvedChatId;
+                  if (targetChatId == null || targetChatId <= 0) {
+                    final List<ApiChatSummary> chats =
+                        ref.read(chatsProvider).value ?? const <ApiChatSummary>[];
+                    targetChatId = chats
+                        .where((c) =>
+                            c.chatType == 'direct' &&
+                            c.username?.trim().toLowerCase() ==
+                                profile.username.trim().toLowerCase())
+                        .firstOrNull
+                        ?.id;
+                  }
+                  if (targetChatId != null && targetChatId > 0) {
+                    await ref
+                        .read(chatMutedProvider(targetChatId).notifier)
+                        .toggle();
+                    final bool nowMuted = ref
+                            .read(chatMutedProvider(targetChatId))
+                            .value ??
+                        false;
+                    if (mounted) {
+                      setState(() {
+                        _resolvedChatId = targetChatId;
+                        _isMutedLocally = nowMuted;
+                      });
+                      HapticService.tap();
+                      AppToast.showSuccess(
+                        context,
+                        nowMuted
+                            ? context.l10n.profileMuteNotifications
+                            : context.l10n.profileUnmuteNotifications,
+                      );
+                    }
+                  } else {
+                    setState(() {
+                      _isMutedLocally = !_isMutedLocally;
+                    });
+                    HapticService.tap();
+                    AppToast.showSuccess(
+                      context,
+                      _isMutedLocally
+                          ? context.l10n.profileMuteNotifications
+                          : context.l10n.profileUnmuteNotifications,
+                    );
+                  }
                 },
               ),
 
@@ -1022,11 +1097,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   }
 
   void _showCommonGroupsDialog(ApiProfile profile) {
-    final List<ApiChatSummary> allChats =
-        ref.read(chatsProvider).value ?? const <ApiChatSummary>[];
-    final List<ApiChatSummary> commonGroups = allChats
-        .where((ApiChatSummary c) => c.chatType != 'direct')
-        .toList(growable: false);
+    // Truthfully display empty state when no verified mutual groups exist (ППРФ-2)
+    const List<ApiChatSummary> commonGroups = <ApiChatSummary>[];
 
     AppBottomSheets.show<void>(
       context: context,
@@ -1325,7 +1397,9 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   Future<void> _submitUserReport(ApiProfile profile, String reason) async {
     try {
       await ref.read(reportRepositoryProvider).report(
-            chatId: _resolvedChatId ?? 0,
+            chatId: (_resolvedChatId != null && _resolvedChatId! > 0)
+                ? _resolvedChatId
+                : null,
             reportedUserId: profile.id,
             reason: reason,
           );

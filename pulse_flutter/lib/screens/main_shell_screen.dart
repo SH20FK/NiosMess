@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -60,6 +60,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   bool _biometricLocked = false;
   double _desktopChatListWidth = 360.0;
   DateTime? _lastBackPressTime;
+  Timer? _startupTimer;
 
   @override
   void initState() {
@@ -68,11 +69,23 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     _activatedTabs = <int>{_tabIndex(widget.tab)};
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _checkBiometricLock();
-      PermissionService().requestInitialPermissionsIfNeeded();
-      _showAlphaDialog();
-      _checkWebPushPrompt();
+      _runStartupSequence();
+    });
+  }
+
+  Future<void> _runStartupSequence() async {
+    PermissionService().requestInitialPermissionsIfNeeded();
+    final bool unlocked = await _checkBiometricLock();
+    if (!unlocked || !mounted) return;
+
+    // Sequence dialogs and background checks with lifecycle cancellation (АРХ-10)
+    _startupTimer?.cancel();
+    _startupTimer = Timer(const Duration(milliseconds: 600), () async {
+      if (!mounted) return;
+      await _showAlphaDialog();
+      if (!mounted) return;
       _checkDailyOtaUpdate();
+      _checkWebPushPrompt();
     });
   }
 
@@ -97,14 +110,13 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   }
 
   Future<void> _showAlphaDialog() async {
-    await Future<void>.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     await AlphaTestDialog.showIfFirstLaunch(context);
   }
 
   Future<void> _checkWebPushPrompt() async {
     if (!kIsWeb) return;
-    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    await Future<void>.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
 
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -120,14 +132,15 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     if (!mounted) return;
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
+    final radii = AppRadii.of(context);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
         backgroundColor: scheme.surfaceContainerHighest,
-        elevation: 6,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(radii.card),
           side: BorderSide(
             color: scheme.outlineVariant.withValues(alpha: 0.2),
           ),
@@ -148,7 +161,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'Push-уведомления',
+                    context.l10n.shellPushNotificationsTitle,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13.5,
@@ -156,7 +169,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                     ),
                   ),
                   Text(
-                    'Включите уведомления о новых сообщениях и звонках',
+                    context.l10n.shellPushNotificationsDesc,
                     style: TextStyle(
                       fontSize: 12,
                       color: scheme.onSurfaceVariant,
@@ -168,7 +181,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
           ],
         ),
         action: SnackBarAction(
-          label: 'Включить',
+          label: context.l10n.shellPushNotificationsEnable,
           textColor: scheme.primary,
           onPressed: () async {
             await prefs.setBool('web_push_prompt_dismissed', true);
@@ -180,7 +193,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                   .read(authProvider.notifier)
                   .refreshFcmTokenRegistration();
               if (mounted) {
-                AppToast.showSuccess(context, 'Уведомления успешно включены!');
+                AppToast.showSuccess(context, context.l10n.shellPushNotificationsSuccess);
               }
             }
           },
@@ -191,7 +204,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
   Future<void> _checkDailyOtaUpdate() async {
     if (kIsWeb) return;
-    await Future<void>.delayed(const Duration(seconds: 3));
+    await Future<void>.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
     try {
@@ -223,23 +236,22 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     }
   }
 
-  Future<void> _checkBiometricLock() async {
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
+  Future<bool> _checkBiometricLock() async {
     final BiometricService biometric = ref.read(biometricServiceProvider);
     final bool authenticated = await biometric.authenticateIfEnabled();
     if (!authenticated && mounted) {
+      // Consolidate app exit into single clean call without double navigator pop (АРХ-11)
       await SystemUtils.minimizeApp();
-      if (mounted) {
-        await SystemNavigator.pop();
-      }
+      return false;
     }
+    return true;
   }
 
   @override
   void didUpdateWidget(covariant MainShellScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tab != widget.tab) {
+      _lastBackPressTime = null;
       final int nextIndex = _tabIndex(widget.tab);
       if (!_activatedTabs.contains(nextIndex)) {
         setState(() {
@@ -251,6 +263,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
   @override
   void dispose() {
+    _startupTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -269,6 +282,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
     // Rasterize BEFORE the route change, while the current layer is fresh.
     _tabTransition.captureOutgoing();
+    _lastBackPressTime = null;
 
     if (!_activatedTabs.contains(nextIndex)) {
       setState(() {
@@ -319,6 +333,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         final int currentIndex = _tabIndex(widget.tab);
         if (currentIndex != 0) {
           // Secondary tab (Contacts, NiosGram, Profile) -> return to primary Chats tab
+          _lastBackPressTime = null;
           context.go('/main/chats');
           return;
         }
@@ -328,7 +343,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         if (_lastBackPressTime == null ||
             now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
           _lastBackPressTime = now;
-          AppToast.showInfo(context, 'Нажмите ещё раз для выхода');
+          AppToast.showInfo(context, context.l10n.shellPressAgainToExit);
           return;
         }
 
@@ -506,6 +521,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
   Widget _buildDesktopEmptyChatPlaceholder(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final radii = AppRadii.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -517,7 +533,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               height: 84,
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(radii.card),
                 border: Border.all(
                   color: scheme.outlineVariant.withValues(alpha: 0.25),
                   width: 1.2,
@@ -534,13 +550,13 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerLow.withValues(alpha: 0.8),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(radii.button),
                 border: Border.all(
                   color: scheme.outlineVariant.withValues(alpha: 0.2),
                 ),
               ),
               child: Text(
-                'Выберите чат для начала общения',
+                context.l10n.shellSelectChatToStart,
                 style: TextStyle(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w700,
@@ -550,7 +566,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Сообщения и звонки защищены сквозным шифрованием E2EE',
+              context.l10n.shellE2eeNotice,
               style: TextStyle(
                 fontSize: 12.5,
                 color: scheme.onSurfaceVariant.withValues(alpha: 0.7),

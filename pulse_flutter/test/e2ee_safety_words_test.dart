@@ -44,9 +44,10 @@ void main() {
         'green',
         'yellow',
         'blue',
-        'magenta',
+        'purple',
         'cyan',
-        'white',
+        'orange',
+        'teal',
       };
 
       for (final item in words) {
@@ -111,9 +112,9 @@ void main() {
       // Check E2EE v1 badge
       expect(find.text('E2EE v1'), findsOneWidget);
 
-      // Check 12 word numbered prefixes (1. through 12.)
+      // Check 12 word numbered prefixes (#1 through #12)
       for (int i = 1; i <= 12; i++) {
-        expect(find.text('$i. '), findsOneWidget);
+        expect(find.text('#$i'), findsOneWidget);
       }
     });
   });

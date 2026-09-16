@@ -661,12 +661,18 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     return decrypted;
   }
 
-  Future<String?> _getPartnerPublicKey() {
-    final chat = ref.read(chatByIdProvider(_chatId));
-    if (chat?.partnerPublicKey != null && chat!.partnerPublicKey!.isNotEmpty) {
-      return Future.value(chat.partnerPublicKey);
+  Future<String?> _getPartnerPublicKey() async {
+    ApiChatSummary? chat = ref.read(chatByIdProvider(_chatId));
+    if (chat == null) {
+      try {
+        await ref.read(chatsProvider.future);
+        chat = ref.read(chatByIdProvider(_chatId));
+      } catch (_) {}
     }
-    return Future.value(null);
+    if (chat?.isSecret == true && chat?.partnerPublicKey != null && chat!.partnerPublicKey!.isNotEmpty) {
+      return chat.partnerPublicKey;
+    }
+    return null;
   }
 
   Future<List<ApiMessage>> _decryptE2eeMessages(List<ApiMessage> messages) async {
@@ -677,6 +683,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
 
     final e2eeService = ref.read(e2eeServiceProvider);
+    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     final List<ApiMessage> result = <ApiMessage>[];
 
     for (int i = 0; i < messages.length; i++) {
@@ -691,6 +698,42 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           await _handleIncomingHelo(helo, partnerPublicKey);
         }
         // Handshake messages are protocol traffic — never rendered.
+        continue;
+      }
+
+      // 1. SENDER PLAIN-TEXT PRESERVATION (КРИП-1 / ПЛАВ-1):
+      // Double Ratchet sending chain cannot decrypt its own outgoing messages.
+      if (msg.senderId == myUserId) {
+        if (msg.content.isNotEmpty) {
+          if (msg.id > 0) {
+            unawaited(EncryptedMessageCache.saveSenderPlaintext(
+              chatId: _chatId,
+              messageId: msg.id,
+              plaintext: msg.content,
+              userId: myUserId > 0 ? myUserId : null,
+            ));
+          }
+          result.add(msg.copyWith(isDecrypted: true));
+          continue;
+        }
+
+        // Content is empty (e.g. freshly fetched from server). Restore from cache.
+        final String? stored = EncryptedMessageCache.getSenderPlaintext(
+          chatId: _chatId,
+          messageId: msg.id,
+          userId: myUserId > 0 ? myUserId : null,
+        );
+        if (stored != null && stored.isNotEmpty) {
+          result.add(msg.copyWith(content: stored, isDecrypted: true));
+        } else {
+          result.add(msg);
+        }
+        continue;
+      }
+
+      // 2. Already decrypted:
+      if (msg.isDecrypted && msg.content.isNotEmpty) {
+        result.add(msg);
         continue;
       }
 
@@ -718,6 +761,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
             if (fk != null && fk.isNotEmpty) {
               result.add(msg.copyWith(
                 content: '',
+                isDecrypted: true,
                 e2eeFileKey: fk,
                 mediaName: (envelope['name'] as String?) ?? msg.mediaName,
                 mediaSize: msg.mediaSize ?? (envelope['size'] as int?),
@@ -727,7 +771,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           } catch (_) {}
         }
 
-        result.add(msg.copyWith(content: decrypted));
+        result.add(msg.copyWith(content: decrypted, isDecrypted: true));
       } catch (e) {
         debugPrint('[backend_chat_provider.dart] E2EE decrypt failed for msg ${msg.id}: $e');
         result.add(msg);
@@ -802,11 +846,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final String ourPub = await e2ee.getPublicKeyBase64();
     if (ourPub.compareTo(partnerPublicKey) <= 0) return; // peer initiates
 
-    final String edPubB64 = await e2ee.getEdPublicKeyBase64();
     await e2ee.initiateHandshake(
       chatId: _chatId,
       theirPublicKeyBase64: partnerPublicKey,
-      theirEdPublicKeyBase64: edPubB64,
     );
     final ({String dhPubB64, String edPubB64, List<int> signature}) msg =
         await e2ee.createHandshakeMessage(_chatId);
@@ -820,7 +862,14 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   Future<void> _saveToCache(List<ApiMessage> messages) async {
     try {
-      await EncryptedMessageCache.saveMessages(_chatId, messages);
+      final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+      final ApiChatSummary? chat = ref.read(chatByIdProvider(_chatId));
+      await EncryptedMessageCache.saveMessages(
+        _chatId,
+        messages,
+        userId: myUserId > 0 ? myUserId : null,
+        isSecretChat: chat?.isSecret == true,
+      );
       await ChatMediaCache.saveMediaMessages(_chatId, messages);
     } catch (e) {
       debugPrint('[backend_chat_provider.dart] Save messages cache error: $e');
@@ -873,11 +922,14 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       return 0;
     }
 
+    // Decrypt ONLY newly fetched older slice, not the entire history
+    final List<ApiMessage> decryptedOlder = await _decryptE2eeMessages(older);
+
     final Set<int> seen = current.map((ApiMessage m) => m.id).toSet();
     final List<ApiMessage> merged = List<ApiMessage>.from(current);
     int added = 0;
 
-    for (final ApiMessage message in older) {
+    for (final ApiMessage message in decryptedOlder) {
       if (seen.add(message.id)) {
         merged.add(message);
         added++;
@@ -885,9 +937,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
 
     merged.sort(_compareMessages);
-    final List<ApiMessage> decrypted = await _decryptE2eeMessages(merged);
-    state = AsyncData<List<ApiMessage>>(decrypted);
-    await _saveToCache(decrypted);
+    state = AsyncData<List<ApiMessage>>(merged);
+    unawaited(_saveToCache(merged));
     return added;
   }
 
@@ -1003,7 +1054,19 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           );
 
       if (isE2ee) {
-        sent = sent.copyWith(content: trimmed, e2eeFileKey: e2eeFileKey);
+        sent = sent.copyWith(
+          content: trimmed,
+          e2eeFileKey: e2eeFileKey,
+          isDecrypted: true,
+        );
+        if (sent.id > 0) {
+          unawaited(EncryptedMessageCache.saveSenderPlaintext(
+            chatId: _chatId,
+            messageId: sent.id,
+            plaintext: trimmed,
+            userId: myUserId > 0 ? myUserId : null,
+          ));
+        }
       }
 
       current = state.value ?? const <ApiMessage>[];
@@ -1017,7 +1080,6 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       await _saveToCache(next);
       ref.read(chatsProvider.notifier)._handleNewMessagePush(sent);
       ref.read(chatsProvider.notifier).setChatBlockedByUser(_chatId, false);
-      await _playNotificationSound(volume: 0.65);
     } catch (e) {
       current = state.value ?? const <ApiMessage>[];
       List<ApiMessage> next = List<ApiMessage>.from(current);

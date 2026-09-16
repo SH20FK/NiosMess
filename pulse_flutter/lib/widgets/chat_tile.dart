@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/utils/app_curves.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
@@ -107,11 +108,11 @@ class _ChatTileState extends State<ChatTile>
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final List<ApiBadge> visibleBadges = widget.partnerBadges.length > 3
+    final int totalBadges = widget.partnerBadges.length;
+    final List<ApiBadge> visibleBadges = totalBadges > 3
         ? widget.partnerBadges.take(2).toList(growable: false)
         : widget.partnerBadges.take(3).toList(growable: false);
-    final int hiddenBadgeCount =
-        widget.partnerBadges.length - visibleBadges.length;
+    final int hiddenBadgeCount = totalBadges > 3 ? totalBadges - 2 : 0;
 
     final double vertical = widget.compact ? 8 : 11;
     final double titleGap = widget.compact ? 3 : 5;
@@ -181,7 +182,10 @@ class _ChatTileState extends State<ChatTile>
                             name: widget.avatarText,
                             avatarUrl: widget.avatarUrl,
                             fallbackColor: widget.avatarColor,
-                            textColor: scheme.onPrimary,
+                            textColor: AppColors.avatarTextColorFor(
+                              widget.avatarColor,
+                              scheme,
+                            ),
                           ),
                           if (widget.isOnline)
                             Positioned(
@@ -191,7 +195,7 @@ class _ChatTileState extends State<ChatTile>
                                 width: 13,
                                 height: 13,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF4CAF50),
+                                  color: AppColors.statusOnline,
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: scheme.surfaceContainerLow,
@@ -314,8 +318,8 @@ class _ChatTileState extends State<ChatTile>
                   ),
                   if (widget.actions.isNotEmpty)
                     AnimatedSize(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOutBack,
+                      duration: const Duration(milliseconds: 250),
+                      curve: M3SpringCurves.spatial,
                       alignment: Alignment.topCenter,
                       child: !_isExpanded
                           ? const SizedBox.shrink()
@@ -367,7 +371,7 @@ class _AnimatedBadge extends StatelessWidget {
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 180),
-      switchInCurve: Curves.easeOutBack,
+      switchInCurve: M3SpringCurves.snappy,
       switchOutCurve: Curves.easeInCubic,
       transitionBuilder: (Widget child, Animation<double> animation) {
         return FadeTransition(

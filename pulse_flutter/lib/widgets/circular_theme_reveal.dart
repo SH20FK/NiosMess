@@ -91,8 +91,8 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
       final RenderRepaintBoundary? boundary =
           _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary != null && boundary.attached && boundary.hasSize) {
-        // PixelRatio fixed to 1.0 to prevent memory spikes & GPU pipeline stalls
-        snapshotImage = await boundary.toImage(pixelRatio: 1.0);
+        // Synchronous GPU texture capture to prevent pipeline stalls and per-frame CPU rasterization (ЛАГ-12)
+        snapshotImage = boundary.toImageSync(pixelRatio: 1.0);
       }
     } catch (_) {
       snapshotImage = null;

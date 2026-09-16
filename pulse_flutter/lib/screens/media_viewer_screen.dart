@@ -16,6 +16,11 @@ import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:path_provider/path_provider.dart';
+import 'dart:math' as math;
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:universal_io/io.dart';
 
@@ -94,6 +99,58 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   late final PageController _pageController =
       PageController(initialPage: _currentIndex);
 
+  double _dragOffsetY = 0.0;
+  bool _showChrome = true;
+
+  void _toggleChrome() {
+    setState(() {
+      _showChrome = !_showChrome;
+    });
+  }
+
+  void _dismiss() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/main/chats');
+    }
+  }
+
+  String _sanitizeFileName(String name) {
+    return name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+  }
+
+  Future<void> _shareCurrentMedia(BuildContext context, WidgetRef ref) async {
+    final MediaViewerItem current = _playlistItems[_currentIndex];
+    if (kIsWeb) {
+      if (!context.mounted) return;
+      AppToast.showInfo(context, context.l10n.mediaViewerDownloadWeb);
+      return;
+    }
+    try {
+      final String fileName = _sanitizeFileName(current.mediaName ?? current.title ?? 'shared_media');
+      final List<int> bytes;
+      if (current.filePath != null && current.filePath!.isNotEmpty) {
+        bytes = await ref.read(chatRepositoryProvider).downloadMedia(current.filePath!);
+      } else {
+        bytes = await ref.read(chatRepositoryProvider).downloadMedia(current.url);
+      }
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/$fileName');
+      await tempFile.writeAsBytes(bytes);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: <XFile>[XFile(tempFile.path)],
+          text: current.title,
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.showError(context, e);
+      }
+    }
+  }
+
   Uint8List? _fileKey([String? rawKey]) {
     final String? b64 = rawKey ?? widget.e2eeFileKey;
     if (b64 == null || b64.isEmpty) return null;
@@ -157,64 +214,154 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
             ? context.l10n.mediaViewerTitle
             : currentItem.title!.trim());
 
+    final double dragFraction = (_dragOffsetY / 300.0).clamp(0.0, 1.0);
+    final double scrimAlpha = (1.0 - dragFraction).clamp(0.0, 1.0);
+    final double scale = (1.0 - (_dragOffsetY / 1200.0)).clamp(0.8, 1.0);
+    final bool isInteractingWithDrag = _dragOffsetY > 0;
+
     final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
     return PopScope(
       canPop: canRoutePop,
       onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) return;
-        if (canRoutePop) {
-          if (Navigator.canPop(context)) {
-            Navigator.pop(context);
-          }
-        } else {
-          try {
-            context.go('/main/chats');
-          } catch (_) {
-            Navigator.maybePop(context);
-          }
-        }
+        _dismiss();
       },
       child: Scaffold(
-        backgroundColor: scheme.scrim,
-        appBar: AppBar(
-          backgroundColor: scheme.surface.withValues(alpha: 0.85),
-          foregroundColor: scheme.onSurface,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go('/main/chats');
-              }
-            },
-          ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(displayTitle,
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              if (_hasPlaylist && (currentItem.mediaName ?? '').isNotEmpty)
-                Text(
-                  currentItem.mediaName!,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+        backgroundColor: scheme.scrim.withValues(alpha: 0.95 * scrimAlpha),
+        extendBodyBehindAppBar: true,
+        body: Stack(
+          children: <Widget>[
+            // ── Interactive Swipe-Down Body ──────────────────────────
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _toggleChrome,
+                onVerticalDragUpdate: (DragUpdateDetails details) {
+                  if (details.delta.dy > 0 || _dragOffsetY > 0) {
+                    setState(() {
+                      _dragOffsetY = math.max(0.0, _dragOffsetY + details.delta.dy);
+                    });
+                  }
+                },
+                onVerticalDragEnd: (DragEndDetails details) {
+                  if (_dragOffsetY > 120 ||
+                      (details.primaryVelocity != null && details.primaryVelocity! > 600)) {
+                    _dismiss();
+                  } else {
+                    setState(() {
+                      _dragOffsetY = 0.0;
+                    });
+                  }
+                },
+                child: Transform.translate(
+                  offset: Offset(0, _dragOffsetY),
+                  child: Transform.scale(
+                    scale: scale,
+                    child: _buildBody(scheme),
+                  ),
                 ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.download_rounded),
-              tooltip: context.l10n.mediaViewerDownload,
-              onPressed: () => _downloadCurrentMedia(context, ref),
+              ),
+            ),
+
+            // ── Top Animated App Bar ─────────────────────────────────
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              curve: M3SpringCurves.spatial,
+              top: (_showChrome && !isInteractingWithDrag) ? 0 : -110,
+              left: 0,
+              right: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[
+                      scheme.surface.withValues(alpha: 0.85),
+                      scheme.surface.withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+                child: SafeArea(
+                  bottom: false,
+                  child: AppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    foregroundColor: scheme.onSurface,
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      onPressed: _dismiss,
+                    ),
+                    title: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(displayTitle,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        if (_hasPlaylist && (currentItem.mediaName ?? '').isNotEmpty)
+                          Text(
+                            currentItem.mediaName!,
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                    actions: <Widget>[
+                      IconButton(
+                        icon: const Icon(Icons.download_rounded),
+                        tooltip: context.l10n.mediaViewerDownload,
+                        onPressed: () => _downloadCurrentMedia(context, ref),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Bottom Animated Action Pill ──────────────────────────
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              curve: M3SpringCurves.spatial,
+              bottom: (_showChrome && !isInteractingWithDrag)
+                  ? (MediaQuery.paddingOf(context).bottom + 20)
+                  : -90,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh.withValues(alpha: 0.90),
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      TouchContainer(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => _shareCurrentMedia(context, ref),
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(Icons.share_rounded, size: 22, color: scheme.onSurface),
+                      ),
+                      const SizedBox(width: 16),
+                      TouchContainer(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => _downloadCurrentMedia(context, ref),
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(Icons.file_download_outlined, size: 22, color: scheme.onSurface),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         ),
-        body: _buildBody(scheme),
       ),
     );
   }
@@ -240,6 +387,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
               url: item.url,
               e2eeFileKey: key,
               scheme: scheme,
+              onTap: _toggleChrome,
             );
           } else if (item.mediaType == MediaType.video) {
             return _InlineVideoPlayer(
@@ -271,6 +419,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
       url: widget.url,
       e2eeFileKey: _fileKey(),
       scheme: scheme,
+      onTap: _toggleChrome,
     );
   }
 
@@ -323,30 +472,33 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
       return;
     }
     try {
-      final fileName = current.mediaName ?? current.title ?? 'download';
-      final dir = await getApplicationDocumentsDirectory();
-      final savePath = '${dir.path}/$fileName';
-
+      final String fileName = _sanitizeFileName(current.mediaName ?? current.title ?? 'download');
+      final List<int> bytes;
       if (current.filePath != null && current.filePath!.isNotEmpty) {
-        final bytes = await ref
+        bytes = await ref
             .read(chatRepositoryProvider)
             .downloadMedia(current.filePath!);
-        final file = File(savePath);
-        await file.writeAsBytes(bytes);
-        if (!context.mounted) return;
-        AppToast.showSuccess(context, context.l10n.mediaSavedTo(savePath));
       } else {
-        try {
-          final bytes = await ref
-              .read(chatRepositoryProvider)
-              .downloadMedia(current.url);
-          final file = File(savePath);
-          await file.writeAsBytes(bytes);
-          if (!context.mounted) return;
-          AppToast.showSuccess(context, context.l10n.mediaSavedTo(savePath));
-        } catch (_) {
-          if (!context.mounted) return;
-          AppToast.showError(context, context.l10n.mediaViewerDownloadFailedExt);
+        bytes = await ref
+            .read(chatRepositoryProvider)
+            .downloadMedia(current.url);
+      }
+
+      if (Platform.isAndroid || Platform.isIOS) {
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File('${tempDir.path}/$fileName');
+        await tempFile.writeAsBytes(bytes);
+        final params = SaveFileDialogParams(sourceFilePath: tempFile.path);
+        final filePath = await FlutterFileDialog.saveFile(params: params);
+        if (filePath != null && context.mounted) {
+          AppToast.showSuccess(context, context.l10n.mediaSavedTo(fileName));
+        }
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(bytes);
+        if (context.mounted) {
+          AppToast.showSuccess(context, context.l10n.mediaSavedTo(file.path));
         }
       }
     } catch (e) {
@@ -439,12 +591,14 @@ class _FullScreenImage extends ConsumerStatefulWidget {
     required this.url,
     required this.scheme,
     this.e2eeFileKey,
+    this.onTap,
     super.key,
   });
 
   final String url;
   final ColorScheme scheme;
   final Uint8List? e2eeFileKey;
+  final VoidCallback? onTap;
 
   @override
   ConsumerState<_FullScreenImage> createState() => _FullScreenImageState();
@@ -551,18 +705,22 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
       );
     }
 
-    return PhotoView(
-      imageProvider: MemoryImage(_bytes!),
-      minScale: PhotoViewComputedScale.contained,
-      maxScale: PhotoViewComputedScale.covered * 2.5,
-      backgroundDecoration: BoxDecoration(color: widget.scheme.scrim),
-      loadingBuilder: (context, event) => const Center(
-        child: AppLoadingIndicator(size: 32),
-      ),
-      errorBuilder: (context, error, stackTrace) => Center(
-        child: Icon(
-          Icons.broken_image_rounded,
-          color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.7),
+    return Hero(
+      tag: 'media_${widget.url}',
+      child: PhotoView(
+        imageProvider: MemoryImage(_bytes!),
+        minScale: PhotoViewComputedScale.contained,
+        maxScale: PhotoViewComputedScale.covered * 2.5,
+        backgroundDecoration: const BoxDecoration(color: Colors.transparent),
+        onTapUp: (context, details, controllerValue) => widget.onTap?.call(),
+        loadingBuilder: (context, event) => const Center(
+          child: AppLoadingIndicator(size: 32),
+        ),
+        errorBuilder: (context, error, stackTrace) => Center(
+          child: Icon(
+            Icons.broken_image_rounded,
+            color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.7),
+          ),
         ),
       ),
     );

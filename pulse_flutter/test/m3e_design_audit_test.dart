@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
+import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -152,6 +153,45 @@ void main() {
           reason: 'File ${file.path} contains hardcoded 760 breakpoint',
         );
       }
+    });
+  });
+
+  group('M3 Expressive Flat Surfaces & Zero Elevation Audits (ТЕСТ-4)', () {
+    test('AppTheme.themed guarantees flat M3 surfaces with 0 elevation', () {
+      final theme = AppTheme.themed(
+        const VisualThemeSettings(
+          seedColor: Color(0xFF6750A4),
+          themeMode: ThemeMode.light,
+          useSystemDynamic: false,
+          predictiveBackEnabled: false,
+        ),
+        Brightness.light,
+      );
+
+      expect(theme.appBarTheme.scrolledUnderElevation, 0.0);
+      expect(theme.floatingActionButtonTheme.elevation, 0.0);
+      expect(theme.floatingActionButtonTheme.focusElevation, 0.0);
+      expect(theme.floatingActionButtonTheme.hoverElevation, 0.0);
+      expect(theme.floatingActionButtonTheme.highlightElevation, 0.0);
+      expect(theme.snackBarTheme.elevation, 0.0);
+      expect(theme.cardTheme.elevation, 0.0);
+      expect(theme.dialogTheme.elevation, 0.0);
+      expect(theme.bottomSheetTheme.elevation, 0.0);
+    });
+
+    test('Checkbox theme does not use raw Colors.white', () {
+      final theme = AppTheme.themed(
+        const VisualThemeSettings(
+          seedColor: Color(0xFF6750A4),
+          themeMode: ThemeMode.dark,
+          useSystemDynamic: false,
+          predictiveBackEnabled: false,
+        ),
+        Brightness.dark,
+      );
+      final checkColor = theme.checkboxTheme.checkColor?.resolve(<WidgetState>{WidgetState.selected});
+      expect(checkColor, theme.colorScheme.onPrimary);
+      expect(checkColor, isNot(equals(Colors.white)));
     });
   });
 }

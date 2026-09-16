@@ -2,7 +2,7 @@
 class MessageFormatter {
   MessageFormatter._();
 
-  static final RegExp fwdRegExp = RegExp(r'^_fwd from\s+(.+?):\s*(.*)$');
+  static final RegExp fwdRegExp = RegExp(r'^_fwd(?: from\s+(.+?))?:\s*(.*)$');
   static final RegExp mentionRegExp = RegExp(r'@(\w+)');
 
   static String displayText(String raw) {

@@ -93,12 +93,17 @@ class AppRadiiTheme extends ThemeExtension<AppRadiiTheme> {
   final double xl;
   final double full;
 
+  double get card => lg;
+  double get button => full;
+
   BorderRadius get xsRadius => BorderRadius.all(Radius.circular(xs));
   BorderRadius get smRadius => BorderRadius.all(Radius.circular(sm));
   BorderRadius get mdRadius => BorderRadius.all(Radius.circular(md));
   BorderRadius get lgRadius => BorderRadius.all(Radius.circular(lg));
   BorderRadius get xlRadius => BorderRadius.all(Radius.circular(xl));
   BorderRadius get fullRadius => const BorderRadius.all(Radius.circular(999.0));
+  BorderRadius get cardRadius => lgRadius;
+  BorderRadius get buttonRadius => fullRadius;
 
   RoundedSuperellipseBorder get mdSuperellipse =>
       RoundedSuperellipseBorder(borderRadius: mdRadius);

@@ -7,19 +7,20 @@ class ReportRepository {
   final Ref _ref;
 
   Future<void> report({
-    required int chatId,
+    int? chatId,
     required int reportedUserId,
     required String reason,
     List<int>? messageIds,
   }) async {
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'reported_user_id': reportedUserId,
+      'reason': reason,
+      if (chatId != null && chatId > 0) 'chat_id': chatId,
+      if (messageIds != null && messageIds.isNotEmpty) 'message_ids': messageIds,
+    };
     await _ref.read(webSocketClientProvider).request(
       'report',
-      payload: <String, dynamic>{
-        'chat_id': chatId,
-        'reported_user_id': reportedUserId,
-        'reason': reason,
-        if (messageIds != null && messageIds.isNotEmpty) 'message_ids': messageIds,
-      },
+      payload: payload,
     );
   }
 }

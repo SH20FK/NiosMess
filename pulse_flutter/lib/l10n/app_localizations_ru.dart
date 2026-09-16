@@ -4845,4 +4845,127 @@ class AppLocalizationsRu extends AppLocalizations {
   String get profileLastSeen => 'был(а)';
   @override
   String get profileConnectingDirect => 'Подключение к диалогу...';
+  @override
+  String get sharedMediaTabMedia => 'Медиа';
+  @override
+  String get sharedMediaTabVoice => 'Голосовые';
+  @override
+  String get sharedMediaTabFiles => 'Файлы';
+  @override
+  String get sharedMediaTabLinks => 'Ссылки';
+  @override
+  String get sharedMediaLoadFailed => 'Не удалось загрузить медиафайлы';
+  @override
+  String get sharedMediaNoMedia => 'Медиафайлы отсутствуют';
+  @override
+  String get sharedMediaStartDialogHint =>
+      'Начните диалог, чтобы обмениваться фотографиями, голосовыми сообщениями и файлами.';
+  @override
+  String get sharedMediaNoPhotosVideos => 'Нет фото и видео';
+  @override
+  String get sharedMediaNoPhotosVideosSub =>
+      'Отправленные в чат изображения и видео появятся здесь';
+  @override
+  String get sharedMediaNoVoice => 'Нет голосовых сообщений';
+  @override
+  String get sharedMediaNoVoiceSub => 'Голосовые и видео-кружки появятся здесь';
+  @override
+  String get sharedMediaVideoMessage => 'Видеосообщение';
+  @override
+  String get sharedMediaNoFiles => 'Нет файлов';
+  @override
+  String get sharedMediaNoFilesSub => 'Документы, архивы и файлы появятся здесь';
+  @override
+  String get sharedMediaNoLinks => 'Нет ссылок';
+  @override
+  String get sharedMediaNoLinksSub =>
+      'Ссылки из переписки будут отображаться здесь';
+  @override
+  String get sharedMediaFileDownloadError => 'Не удалось скачать файл';
+  @override
+  String get sharedMediaTapToDownload => 'Нажмите для загрузки';
+  @override
+  String get sharedMediaDownloadError => 'Ошибка загрузки';
+  @override
+  String get sharedMediaUnavailable => 'Изображение недоступно';
+  @override
+  String get sharedMediaFile => 'Документ';
+  @override
+  String get sharedMediaOpenFile => 'Открыть файл';
+  @override
+  String get sharedMediaDownloadFile => 'Скачать файл';
+  @override
+  String get appearancePaletteStyle => 'Характер палитры';
+  @override
+  String get appearancePaletteExpressive => 'Выразительный';
+  @override
+  String get appearancePaletteVibrant => 'Насыщенный';
+  @override
+  String get appearancePaletteContent => 'Контент';
+  @override
+  String get appearancePaletteCalm => 'Спокойный';
+  @override
+  String get appearancePaletteMono => 'Моно';
+  @override
+  String get callSessionNotFound => 'Сессия звонка не найдена или завершена';
+  @override
+  String get callTimeout => 'Превышено время ожидания подключения';
+  @override
+  String get callRetry => 'Повторить';
+  @override
+  String get callBackToChats => 'Вернуться в чаты';
+  @override
+  String get shellPushNotificationsTitle => 'Push-уведомления';
+  @override
+  String get shellPushNotificationsDesc =>
+      'Включите уведомления о новых сообщениях и звонках';
+  @override
+  String get shellPushNotificationsEnable => 'Включить';
+  @override
+  String get shellPushNotificationsSuccess => 'Уведомления успешно включены!';
+  @override
+  String get shellPressAgainToExit => 'Нажмите ещё раз для выхода';
+  @override
+  String get shellSelectChatToStart => 'Выберите чат для начала общения';
+  @override
+  String get shellE2eeNotice =>
+      'Сообщения и звонки защищены сквозным шифрованием E2EE';
+  @override
+  String get shellCloseMenu => 'Закрыть меню';
+  @override
+  String get autoDeleteTitle => 'Автоудаление сообщений';
+  @override
+  String get autoDeleteSubtitle =>
+      'Новые сообщения будут автоматически удаляться через выбранный период';
+  @override
+  String get autoDeleteOff => 'Отключено';
+  @override
+  String get autoDelete1Minute => '1 минута';
+  @override
+  String get autoDelete5Minutes => '5 минут';
+  @override
+  String get autoDelete1Hour => '1 час';
+  @override
+  String get autoDelete24Hours => '24 часа (1 день)';
+  @override
+  String get autoDelete7Days => '7 дней (1 неделя)';
+  @override
+  String get autoDelete30Days => '1 месяц (30 дней)';
+  @override
+  String get autoDeleteCustom => 'Свой срок';
+  @override
+  String get autoDeleteUpdated => 'Автоудаление сообщений обновлено';
+  @override
+  String get wallpaperScreenTitle => 'Фон чатов';
+  @override
+  String get wallpaperResetTitle => 'Сбросить обои?';
+  @override
+  String get wallpaperResetSubtitle =>
+      'Все параметры раскладки, плотности и символов вернутся к значениям по умолчанию.';
+  @override
+  String get wallpaperResetAction => 'Сбросить';
+  @override
+  String get wallpaperRandomUndo => 'Случайный узор применён';
+  @override
+  String get wallpaperSaved => 'Обои сохранены';
 }

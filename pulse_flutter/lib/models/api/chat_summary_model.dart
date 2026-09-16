@@ -103,6 +103,16 @@ class ApiChatSummary {
       ) ||
       username?.endsWith('_bot') == true;
 
+  bool get isVerified =>
+      partnerBadges.any(
+        (ApiBadge b) =>
+            b.name.toLowerCase().contains('verify') ||
+            b.name.toLowerCase().contains('верифи') ||
+            b.icon.toLowerCase().contains('check') ||
+            b.icon.toLowerCase().contains('verified'),
+      ) ||
+      username?.toLowerCase() == 'support';
+
   factory ApiChatSummary.fromJson(Map<String, dynamic> json) {
     final dynamic last = json['last_message'];
     final dynamic badgesRaw = json['partner_badges'];

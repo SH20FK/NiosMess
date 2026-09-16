@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class E2eeVerificationSheet extends ConsumerStatefulWidget {
@@ -22,56 +28,137 @@ class E2eeVerificationSheet extends ConsumerStatefulWidget {
 
 class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
   late Future<E2eeSessionInfo> _sessionInfo;
-  String? _checkResult;
 
   @override
   void initState() {
     super.initState();
+    _refreshSession();
+  }
+
+  void _refreshSession() {
     _sessionInfo = ref.read(e2eeServiceProvider).getSessionInfo(widget.chatId);
   }
 
-  Color _colorFromName(String name) {
-    switch (name) {
+  Color _semanticColorFor(String name, ColorScheme scheme) {
+    switch (name.toLowerCase()) {
       case 'red':
-        return Colors.red;
+        return scheme.error;
       case 'green':
-        return Colors.green;
+        return scheme.tertiary;
       case 'yellow':
-        return Colors.amber;
+        return scheme.primary;
       case 'blue':
-        return Colors.blue;
+        return scheme.secondary;
       case 'magenta':
-        return Colors.pink;
+        return scheme.secondaryContainer;
       case 'cyan':
-        return Colors.cyan;
+        return scheme.primaryContainer;
       case 'white':
-        return Colors.grey.shade100;
+        return scheme.onSurface;
       default:
-        return Colors.grey;
+        return scheme.outline;
     }
   }
 
-  Future<void> _runCheckEnc() async {
-    setState(() => _checkResult = null);
-    final e2ee = ref.read(e2eeServiceProvider);
-    final hash = await e2ee.computeCheckHash(widget.chatId);
-    setState(() =>
-        _checkResult = 'CHK sent. Wait for peer response.\nHash: $hash');
-  }
-
   Future<void> _verifyPeer() async {
+    HapticService.confirm();
     try {
       final e2ee = ref.read(e2eeServiceProvider);
       await e2ee.verifyPeer(widget.chatId);
       if (!mounted) return;
       AppToast.showSuccess(context, context.l10n.e2eePeerVerified);
-      setState(() =>
-          _sessionInfo =
-              ref.read(e2eeServiceProvider).getSessionInfo(widget.chatId));
+      setState(() => _refreshSession());
     } catch (e) {
       if (!mounted) return;
       AppToast.showError(context, '$e');
     }
+  }
+
+  void _copyWords(List<({String color, String word})> words) {
+    HapticService.confirm();
+    final text = words
+        .asMap()
+        .entries
+        .map((e) => '${e.key + 1}. ${e.value.word.toUpperCase()}')
+        .join('\n');
+    Clipboard.setData(ClipboardData(text: text));
+    AppToast.showSuccess(context, '12 слов скопированы в буфер');
+  }
+
+  void _showQrCodeSheet(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+    String qrData,
+  ) {
+    HapticService.tap();
+    AppBottomSheets.show<void>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'QR-код верификации',
+                  style: textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Отсканируйте код на устройстве собеседника для мгновенной сверки ключей.',
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFFFF),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: QrImageView(
+                    data: qrData,
+                    version: QrVersions.auto,
+                    size: 200,
+                    eyeStyle: const QrEyeStyle(
+                      eyeShape: QrEyeShape.square,
+                      color: Color(0xFF1E1E1E),
+                    ),
+                    dataModuleStyle: const QrDataModuleStyle(
+                      dataModuleShape: QrDataModuleShape.square,
+                      color: Color(0xFF1E1E1E),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonal(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Готово'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -91,15 +178,13 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const SizedBox(
-                height: 100,
-                child: AppLoadingIndicator(),
+                height: 140,
+                child: Center(child: AppLoadingIndicator(size: 32)),
               );
             }
 
             final info = snapshot.data!;
             final isSecured = info.status == E2eeSessionStatus.secured;
-            final isConnecting =
-                info.status == E2eeSessionStatus.connecting;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,10 +206,8 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                     Icon(
                       Icons.security_rounded,
                       color: info.isVerified
-                          ? Colors.green
-                          : isSecured
-                              ? scheme.primary
-                              : scheme.onSurfaceVariant,
+                          ? scheme.tertiary
+                          : (isSecured ? scheme.primary : scheme.onSurfaceVariant),
                     ),
                     const SizedBox(width: 10),
                     Text(
@@ -160,7 +243,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                         ),
                         decoration: BoxDecoration(
                           color: info.isVerified
-                              ? Colors.green.withValues(alpha: 0.15)
+                              ? scheme.tertiary.withValues(alpha: 0.15)
                               : scheme.primaryContainer.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(999),
                         ),
@@ -170,7 +253,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                               : l10n.e2eeUnverified,
                           style: textTheme.labelSmall?.copyWith(
                             color: info.isVerified
-                                ? Colors.green
+                                ? scheme.tertiary
                                 : scheme.primary,
                             fontWeight: FontWeight.w700,
                           ),
@@ -178,242 +261,334 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
 
-                if (info.status == E2eeSessionStatus.none) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.info_outline_rounded,
-                          size: 32,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'No E2EE session established yet.',
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Tap "Initialize" to start the secure handshake with your peer.',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: widget.onInitiateHandshake,
-                            icon: const Icon(Icons.lock_rounded, size: 18),
-                            label: const Text('Initialize E2EE'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                if (isConnecting) ...[
-                  const SizedBox(height: 12),
-                  Center(
-                    child: Column(
-                      children: [
-                        const AppLoadingIndicator(),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Waiting for peer handshake response...',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                if (isSecured && info.visualWords != null) ...[
-                  Text(
-                    l10n.e2eeVisualWordsDesc,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: scheme.outlineVariant.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.center,
-                      children: <Widget>[
-                        for (int i = 0; i < info.visualWords!.length; i++) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _colorFromName(info.visualWords![i].color)
-                                  .withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: _colorFromName(info.visualWords![i].color)
-                                    .withValues(alpha: 0.35),
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Text(
-                                  '${i + 1}. ',
-                                  style: textTheme.labelSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: _colorFromName(
-                                            info.visualWords![i].color)
-                                        .withValues(alpha: 0.7),
-                                  ),
-                                ),
-                                Text(
-                                  info.visualWords![i].word,
-                                  style: textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: _colorFromName(
-                                        info.visualWords![i].color),
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    l10n.e2eeCompareWordsHint,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                if (info.status == E2eeSessionStatus.compromised)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: scheme.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: scheme.error.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning_rounded,
-                            color: scheme.error, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            l10n.e2eeMitmWarning,
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.error,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                const SizedBox(height: 12),
-
-                if (info.peerFingerprint != null) ...[
-                  _fingerprintRow(
-                    scheme,
-                    textTheme,
-                    label: l10n.e2eeYourFingerprint,
-                    fingerprint: info.ourFingerprint ?? '',
-                  ),
-                  const SizedBox(height: 8),
-                  _fingerprintRow(
-                    scheme,
-                    textTheme,
-                    label: l10n.e2eePeerFingerprint,
-                    fingerprint: info.peerFingerprint!,
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                if (isSecured)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: info.isVerified ? null : _verifyPeer,
-                          icon:
-                              const Icon(Icons.verified_rounded, size: 18),
-                          label: Text(l10n.e2eeVerifyAction),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _runCheckEnc,
-                          icon: const Icon(Icons.sync_rounded, size: 18),
-                          label: Text(l10n.e2eeCheckEnc),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                if (_checkResult != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _checkResult!,
-                        style: textTheme.bodySmall?.copyWith(
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ),
+                // ── Animated Switcher for the 4 Session States ───────
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  switchInCurve: M3SpringCurves.spatial,
+                  switchOutCurve: Curves.easeOut,
+                  child: _buildStateContent(info, scheme, textTheme, l10n),
+                ),
               ],
             );
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildStateContent(
+    E2eeSessionInfo info,
+    ColorScheme scheme,
+    TextTheme textTheme,
+    dynamic l10n,
+  ) {
+    switch (info.status) {
+      case E2eeSessionStatus.none:
+        return _buildNoneState(scheme, textTheme);
+      case E2eeSessionStatus.connecting:
+        return _buildConnectingState(scheme, textTheme);
+      case E2eeSessionStatus.compromised:
+        return _buildCompromisedState(scheme, textTheme, l10n);
+      case E2eeSessionStatus.secured:
+        return _buildSecuredState(info, scheme, textTheme, l10n);
+    }
+  }
+
+  Widget _buildNoneState(ColorScheme scheme, TextTheme textTheme) {
+    return Container(
+      key: const ValueKey('e2ee_none'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.lock_clock_rounded,
+            size: 40,
+            color: scheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Сеанс сквозного шифрования не установлен',
+            style: textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurface,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Нажмите «Инициализировать E2EE», чтобы выполнить безопасное рукопожатие с собеседником.',
+            style: textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: widget.onInitiateHandshake,
+              icon: const Icon(Icons.lock_rounded, size: 18),
+              label: const Text('Инициализировать E2EE'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConnectingState(ColorScheme scheme, TextTheme textTheme) {
+    return Container(
+      key: const ValueKey('e2ee_connecting'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          const AppLoadingIndicator(size: 36),
+          const SizedBox(height: 16),
+          Text(
+            'Установка зашифрованного соединения...',
+            style: textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurface,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Ожидание ответа рукопожатия от собеседника.',
+            style: textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompromisedState(
+    ColorScheme scheme,
+    TextTheme textTheme,
+    dynamic l10n,
+  ) {
+    return Container(
+      key: const ValueKey('e2ee_compromised'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: scheme.error.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: scheme.error, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Внимание: угроза безопасности!',
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.error,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.e2eeMitmWarning,
+            style: textTheme.bodySmall?.copyWith(
+              color: scheme.onErrorContainer,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecuredState(
+    E2eeSessionInfo info,
+    ColorScheme scheme,
+    TextTheme textTheme,
+    dynamic l10n,
+  ) {
+    final words = info.visualWords ?? const [];
+    final qrData = 'niosmess://e2ee/verify?chat=${widget.chatId}&fp=${info.peerFingerprint ?? ""}';
+
+    return Column(
+      key: const ValueKey('e2ee_secured'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (words.isNotEmpty) ...[
+          Text(
+            l10n.e2eeVisualWordsDesc,
+            style: textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // ── 3×4 Structured Safety Words Grid ─────────────────────
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.3),
+              ),
+            ),
+            child: GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              itemCount: words.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 2.1,
+              ),
+              itemBuilder: (context, i) {
+                final item = words[i];
+                final Color accent = _semanticColorFor(item.color, scheme);
+                return Container(
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: accent.withValues(alpha: 0.35),
+                      width: 1,
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '#${i + 1}',
+                        style: textTheme.labelSmall?.copyWith(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: accent.withValues(alpha: 0.75),
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.word.toUpperCase(),
+                        style: textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: accent,
+                          letterSpacing: 0.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Quick actions for words: Copy & QR Code
+          Row(
+            children: [
+              TouchContainer(
+                borderRadius: BorderRadius.circular(12),
+                color: scheme.surfaceContainerHigh,
+                onTap: () => _copyWords(words),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.copy_rounded, size: 16, color: scheme.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Скопировать слова',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              TouchContainer(
+                borderRadius: BorderRadius.circular(12),
+                color: scheme.surfaceContainerHigh,
+                onTap: () => _showQrCodeSheet(context, scheme, textTheme, qrData),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.qr_code_2_rounded, size: 16, color: scheme.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      'QR-код',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        if (info.peerFingerprint != null) ...[
+          _fingerprintRow(
+            scheme,
+            textTheme,
+            label: l10n.e2eeYourFingerprint,
+            fingerprint: info.ourFingerprint ?? '',
+          ),
+          const SizedBox(height: 8),
+          _fingerprintRow(
+            scheme,
+            textTheme,
+            label: l10n.e2eePeerFingerprint,
+            fingerprint: info.peerFingerprint!,
+          ),
+          const SizedBox(height: 20),
+        ],
+
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: info.isVerified ? null : _verifyPeer,
+            icon: Icon(
+              info.isVerified ? Icons.verified_rounded : Icons.check_circle_outline_rounded,
+              size: 18,
+            ),
+            label: Text(
+              info.isVerified ? 'Ключи верифицированы' : l10n.e2eeVerifyAction,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -448,6 +623,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
               fontSize: 11,
               letterSpacing: 1.5,
               color: scheme.onSurfaceVariant,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
         ),

@@ -6,18 +6,23 @@ import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/core/storage/chat_media_cache.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class ProfileSharedMediaTabView extends ConsumerStatefulWidget {
   const ProfileSharedMediaTabView({
@@ -58,10 +63,25 @@ class ProfileSharedMediaTabView extends ConsumerStatefulWidget {
       _ProfileSharedMediaTabViewState();
 }
 
+class _CachedMediaExtraction {
+  _CachedMediaExtraction({
+    required this.sourceMessages,
+    required this.photosAndVideos,
+    required this.voiceAndVideoNotes,
+    required this.files,
+    required this.links,
+  });
+
+  final List<ApiMessage> sourceMessages;
+  final List<_SharedMediaItem> photosAndVideos;
+  final List<ApiMessage> voiceAndVideoNotes;
+  final List<ApiMessage> files;
+  final List<ApiMessage> links;
+}
+
 class _ProfileSharedMediaTabViewState
-    extends ConsumerState<ProfileSharedMediaTabView>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+    extends ConsumerState<ProfileSharedMediaTabView> {
+  int _selectedTabIndex = 0;
 
   static final RegExp _urlRegExp = RegExp(
     r'(https?:\/\/[^\s]+)',
@@ -73,6 +93,7 @@ class _ProfileSharedMediaTabViewState
   final Set<int> _loadedGroups = <int>{};
   bool _isBatchProcessing = false;
   List<ApiMessage> _cachedMediaMessages = const <ApiMessage>[];
+  _CachedMediaExtraction? _cachedExtraction;
 
   @override
   void initState() {
@@ -81,10 +102,6 @@ class _ProfileSharedMediaTabViewState
     if (cid != null && cid > 0) {
       _cachedMediaMessages = ChatMediaCache.getCachedMediaSync(cid);
     }
-    _tabController = TabController(length: 4, vsync: this);
-    _tabController.addListener(() {
-      if (mounted) setState(() {});
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAllChatMedia();
     });
@@ -100,6 +117,7 @@ class _ProfileSharedMediaTabViewState
       } else {
         _cachedMediaMessages = const <ApiMessage>[];
       }
+      _cachedExtraction = null;
       _loadedGroups.clear();
       _isBatchProcessing = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -178,6 +196,9 @@ class _ProfileSharedMediaTabViewState
 
   void _startGroupedBatchPipeline(List<_SharedMediaItem> media) {
     if (media.isEmpty || _isBatchProcessing) return;
+    final bool autoAllowed = ref.read(autoDownloadAllowedProvider);
+    if (!autoAllowed) return; // МЕД-4: respect auto download setting
+
     _isBatchProcessing = true;
 
     Future<void>.microtask(() async {
@@ -221,19 +242,13 @@ class _ProfileSharedMediaTabViewState
             setState(() {});
           }
 
-          // Small 16ms yield between groups to ensure 120 FPS frame budget
+          // Yield between groups to ensure smooth 60/120 FPS
           await Future<void>.delayed(const Duration(milliseconds: 16));
         }
       } finally {
         _isBatchProcessing = false;
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   static bool _isPureImage(
@@ -346,16 +361,49 @@ class _ProfileSharedMediaTabViewState
     return _urlRegExp.hasMatch(m.content);
   }
 
+  _CachedMediaExtraction _getOrExtractMedia(List<ApiMessage> messages) {
+    final cached = _cachedExtraction;
+    if (cached != null && identical(cached.sourceMessages, messages)) {
+      return cached;
+    }
+    if (cached != null &&
+        cached.sourceMessages.length == messages.length &&
+        (messages.isEmpty ||
+            (cached.sourceMessages.first.id == messages.first.id &&
+                cached.sourceMessages.last.id == messages.last.id))) {
+      return cached;
+    }
+
+    final List<_SharedMediaItem> photosAndVideos =
+        _extractPhotosAndVideos(messages);
+    final List<ApiMessage> voiceAndVideoNotes =
+        messages.where(_isVoiceOrVideoNote).toList(growable: false);
+    final List<ApiMessage> files =
+        messages.where(_isFile).toList(growable: false);
+    final List<ApiMessage> links =
+        messages.where(_hasLink).toList(growable: false);
+
+    final extraction = _CachedMediaExtraction(
+      sourceMessages: messages,
+      photosAndVideos: photosAndVideos,
+      voiceAndVideoNotes: voiceAndVideoNotes,
+      files: files,
+      links: links,
+    );
+    _cachedExtraction = extraction;
+    return extraction;
+  }
+
   Widget _buildContent(
     List<ApiMessage> messages,
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
-    final List<_SharedMediaItem> photosAndVideos = _extractPhotosAndVideos(messages);
-    final List<ApiMessage> voiceAndVideoNotes =
-        messages.where(_isVoiceOrVideoNote).toList(growable: false);
-    final List<ApiMessage> files = messages.where(_isFile).toList(growable: false);
-    final List<ApiMessage> links = messages.where(_hasLink).toList(growable: false);
+    final extraction = _getOrExtractMedia(messages);
+    final photosAndVideos = extraction.photosAndVideos;
+    final voiceAndVideoNotes = extraction.voiceAndVideoNotes;
+    final files = extraction.files;
+    final links = extraction.links;
 
     if (photosAndVideos.isNotEmpty && !_isBatchProcessing) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -364,7 +412,7 @@ class _ProfileSharedMediaTabViewState
     }
 
     final Widget currentTabView;
-    switch (_tabController.index) {
+    switch (_selectedTabIndex) {
       case 0:
         currentTabView = _buildMediaGrid(photosAndVideos, scheme, textTheme);
         break;
@@ -402,7 +450,7 @@ class _ProfileSharedMediaTabViewState
           switchInCurve: M3SpringCurves.snappy,
           switchOutCurve: Curves.easeInQuad,
           child: KeyedSubtree(
-            key: ValueKey<int>(_tabController.index),
+            key: ValueKey<int>(_selectedTabIndex),
             child: currentTabView,
           ),
         ),
@@ -415,11 +463,8 @@ class _ProfileSharedMediaTabViewState
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    if (widget.chatId == null) {
-      // While resolving the chatId, show an elegant shimmer grid rather than empty placeholder
-      return _buildShimmerGrid(scheme);
-    }
-    if (widget.chatId! <= 0) {
+    // МЕД-1: If chatId is null or <= 0, immediately show no chat placeholder (no eternal shimmer!)
+    if (widget.chatId == null || widget.chatId! <= 0) {
       return _buildNoChatPlaceholder(scheme, textTheme);
     }
 
@@ -436,7 +481,7 @@ class _ProfileSharedMediaTabViewState
               padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
               child: Center(
                 child: Text(
-                  'Не удалось загрузить медиафайлы',
+                  context.l10n.sharedMediaLoadFailed,
                   style: textTheme.bodyMedium?.copyWith(color: scheme.error),
                 ),
               ),
@@ -462,26 +507,31 @@ class _ProfileSharedMediaTabViewState
   Widget _buildShimmerGrid(ColorScheme scheme) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 6,
-          mainAxisSpacing: 6,
-          childAspectRatio: 1.0,
-        ),
-        itemCount: 9,
-        itemBuilder: (context, index) {
-          return Container(
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(14),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(3, (rowIndex) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: rowIndex < 2 ? 6.0 : 0.0),
+            child: Row(
+              children: List.generate(3, (colIndex) {
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: colIndex < 2 ? 6.0 : 0.0),
+                    child: AspectRatio(
+                      aspectRatio: 1.0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
             ),
-          )
-              .animate(onPlay: (controller) => controller.repeat(reverse: true))
-              .fade(begin: 0.4, end: 0.85, duration: 800.ms);
-        },
+          );
+        }),
       ),
     );
   }
@@ -495,10 +545,10 @@ class _ProfileSharedMediaTabViewState
     required int linksCount,
   }) {
     final tabs = [
-      (icon: Icons.photo_library_rounded, label: 'Медиа', count: mediaCount),
-      (icon: Icons.mic_rounded, label: 'Голосовые', count: voiceCount),
-      (icon: Icons.insert_drive_file_rounded, label: 'Файлы', count: filesCount),
-      (icon: Icons.link_rounded, label: 'Ссылки', count: linksCount),
+      (icon: Icons.photo_library_rounded, label: context.l10n.sharedMediaTabMedia, count: mediaCount),
+      (icon: Icons.mic_rounded, label: context.l10n.sharedMediaTabVoice, count: voiceCount),
+      (icon: Icons.insert_drive_file_rounded, label: context.l10n.sharedMediaTabFiles, count: filesCount),
+      (icon: Icons.link_rounded, label: context.l10n.sharedMediaTabLinks, count: linksCount),
     ];
 
     return SingleChildScrollView(
@@ -508,7 +558,7 @@ class _ProfileSharedMediaTabViewState
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: List.generate(tabs.length, (index) {
-          final isSelected = _tabController.index == index;
+          final isSelected = _selectedTabIndex == index;
           final tab = tabs[index];
 
           return Padding(
@@ -518,7 +568,7 @@ class _ProfileSharedMediaTabViewState
               child: InkWell(
                 onTap: () {
                   HapticFeedback.lightImpact();
-                  _tabController.animateTo(index);
+                  setState(() => _selectedTabIndex = index);
                 },
                 borderRadius: BorderRadius.circular(20),
                 child: AnimatedContainer(
@@ -612,14 +662,14 @@ class _ProfileSharedMediaTabViewState
           ),
           const SizedBox(height: 12),
           Text(
-            'Медиафайлы отсутствуют',
+            context.l10n.sharedMediaNoMedia,
             style: textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Начните диалог, чтобы обмениваться фотографиями, голосовыми сообщениями и файлами.',
+            context.l10n.sharedMediaStartDialogHint,
             textAlign: TextAlign.center,
             style: textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
@@ -660,7 +710,7 @@ class _ProfileSharedMediaTabViewState
     );
   }
 
-  // ── Tab 1: Photos & Videos Grid with Decryption & Caching ──────────
+  // ── Tab 1: Photos & Videos Grid without shrinkWrap ────────────────
   Widget _buildMediaGrid(
     List<_SharedMediaItem> items,
     ColorScheme scheme,
@@ -669,8 +719,8 @@ class _ProfileSharedMediaTabViewState
     if (items.isEmpty) {
       return _buildEmptyState(
         icon: Icons.photo_library_outlined,
-        title: 'Нет фото и видео',
-        subtitle: 'Отправленные в чат изображения и видео появятся здесь',
+        title: context.l10n.sharedMediaNoPhotosVideos,
+        subtitle: context.l10n.sharedMediaNoPhotosVideosSub,
         scheme: scheme,
         textTheme: textTheme,
       );
@@ -687,73 +737,90 @@ class _ProfileSharedMediaTabViewState
                     ? 4
                     : 3;
 
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 6,
-            mainAxisSpacing: 6,
-            childAspectRatio: 1.0,
-          ),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            final url = item.mediaUrl;
-            final isVideo = item.isVideo;
+        final int totalItems = items.length;
+        final int rowCount = (totalItems / crossAxisCount).ceil();
 
-            return RepaintBoundary(
-              child: _MediaGridTileWrapper(
-                onTap: () => _openGallery(index, items),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: isVideo
-                      ? _SharedMediaVideoTile(
-                          item: item,
-                          scheme: scheme,
-                          textTheme: textTheme,
-                        )
-                      : WsCachedImage(
-                          key: ValueKey('img_$url'),
-                          mediaUrl: url,
-                          chatId: widget.chatId ?? 0,
-                          isE2ee: item.message.isE2ee,
-                          e2eeFileKey: item.e2eeFileKey,
-                          memCacheWidth: 280,
-                          memCacheHeight: 280,
-                          fit: BoxFit.cover,
-                          placeholder: (ctx) => Container(
-                            color: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
-                            child: Center(
-                              child: Icon(
-                                Icons.photo_outlined,
-                                color: scheme.onSurfaceVariant.withValues(alpha: 0.35),
-                                size: 24,
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(rowCount, (rowIndex) {
+              final int startIdx = rowIndex * crossAxisCount;
+              return Padding(
+                padding: EdgeInsets.only(bottom: rowIndex < rowCount - 1 ? 6.0 : 0.0),
+                child: Row(
+                  children: List.generate(crossAxisCount, (colIndex) {
+                    final int itemIndex = startIdx + colIndex;
+                    if (itemIndex >= totalItems) {
+                      return const Expanded(child: SizedBox());
+                    }
+                    final item = items[itemIndex];
+                    final url = item.mediaUrl;
+                    final isVideo = item.isVideo;
+
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: colIndex < crossAxisCount - 1 ? 6.0 : 0.0,
+                        ),
+                        child: AspectRatio(
+                          aspectRatio: 1.0,
+                          child: RepaintBoundary(
+                            child: _MediaGridTileWrapper(
+                              onTap: () => _openGallery(itemIndex, items),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: isVideo
+                                    ? _SharedMediaVideoTile(
+                                        item: item,
+                                        scheme: scheme,
+                                        textTheme: textTheme,
+                                      )
+                                    : WsCachedImage(
+                                        key: ValueKey('img_$url'),
+                                        mediaUrl: url,
+                                        chatId: widget.chatId ?? 0,
+                                        isE2ee: item.message.isE2ee,
+                                        e2eeFileKey: item.e2eeFileKey,
+                                        memCacheWidth: 280,
+                                        memCacheHeight: 280,
+                                        fit: BoxFit.cover,
+                                        placeholder: (ctx) => Container(
+                                          color: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
+                                          child: Center(
+                                            child: Icon(
+                                              Icons.photo_outlined,
+                                              color: scheme.onSurfaceVariant.withValues(alpha: 0.35),
+                                              size: 24,
+                                            ),
+                                          ),
+                                        ),
+                                        errorWidget: (ctx, err) => Container(
+                                          color: scheme.surfaceContainerHigh,
+                                          child: Icon(
+                                            Icons.broken_image_rounded,
+                                            color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                            size: 28,
+                                          ),
+                                        ),
+                                      ),
                               ),
-                            ),
-                          )
-                              .animate(onPlay: (c) => c.repeat(reverse: true))
-                              .fade(begin: 0.45, end: 0.85, duration: 750.ms),
-                          errorWidget: (ctx, err) => Container(
-                            color: scheme.surfaceContainerHigh,
-                            child: Icon(
-                              Icons.broken_image_rounded,
-                              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
-                              size: 28,
                             ),
                           ),
                         ),
+                      ),
+                    );
+                  }),
                 ),
-              ),
-            );
-          },
+              );
+            }),
+          ),
         );
       },
     );
   }
 
-  // ── Tab 2: Voice & Video Notes with Working Player ─────────────────
+  // ── Tab 2: Voice & Video Notes without shrinkWrap ─────────────────
   Widget _buildVoiceList(
     List<ApiMessage> items,
     ColorScheme scheme,
@@ -762,140 +829,158 @@ class _ProfileSharedMediaTabViewState
     if (items.isEmpty) {
       return _buildEmptyState(
         icon: Icons.mic_none_rounded,
-        title: 'Нет голосовых сообщений',
-        subtitle: 'Голосовые и видео-кружки появятся здесь',
+        title: context.l10n.sharedMediaNoVoice,
+        subtitle: context.l10n.sharedMediaNoVoiceSub,
         scheme: scheme,
         textTheme: textTheme,
       );
     }
 
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+    final String locale = Localizations.localeOf(context).toString();
+
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: items.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final m = items[index];
-        final isRoundVideo = m.msgType == 'circle_video' ||
-            m.msgType == 'video_note' ||
-            m.msgType == 'round_video';
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(items.length, (index) {
+          final m = items[index];
+          final isRoundVideo = m.msgType == 'circle_video' ||
+              m.msgType == 'video_note' ||
+              m.msgType == 'round_video';
 
-        if (isRoundVideo) {
-          final dateText = DateFormat('d MMM, HH:mm').format(m.sentAt);
-          final durationText = m.mediaDuration != null
-              ? _formatDuration(m.mediaDuration!)
-              : '0:30';
+          final Widget itemWidget;
+          if (isRoundVideo) {
+            final dateText = DateFormat('d MMM, HH:mm', locale).format(m.sentAt);
+            final durationText = (m.mediaDuration != null && m.mediaDuration! > 0)
+                ? ' (${_formatDuration(m.mediaDuration!)})'
+                : '';
 
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.2),
+            itemWidget = Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.2),
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                M3Container(
-                  Shapes.circle,
-                  width: 46,
-                  height: 46,
-                  color: scheme.primaryContainer,
-                  child: Center(
-                    child: Icon(
-                      Icons.videocam_rounded,
-                      color: scheme.onPrimaryContainer,
-                      size: 24,
+              child: Row(
+                children: [
+                  M3Container(
+                    Shapes.circle,
+                    width: 46,
+                    height: 46,
+                    color: scheme.primaryContainer,
+                    child: Center(
+                      child: Icon(
+                        Icons.videocam_rounded,
+                        color: scheme.onPrimaryContainer,
+                        size: 24,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Видеосообщение ($durationText)',
-                        style: textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: scheme.onSurface,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${context.l10n.sharedMediaVideoMessage}$durationText',
+                          style: textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: scheme.onSurface,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
+                        const SizedBox(height: 2),
+                        Text(
+                          dateText,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton.filledTonal(
+                    icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      if ((m.mediaUrl ?? '').isNotEmpty) {
+                        context.push(
+                          '/media-viewer?url=${Uri.encodeComponent(m.mediaUrl!)}&type=video&title=${Uri.encodeComponent(context.l10n.sharedMediaVideoMessage)}',
+                          extra: <String, dynamic>{
+                            'playlist': <MediaViewerItem>[
+                              MediaViewerItem(
+                                url: m.mediaUrl!,
+                                mediaType: MediaType.video,
+                                title: context.l10n.sharedMediaVideoMessage,
+                                e2eeFileKey: m.e2eeFileKey,
+                              ),
+                            ],
+                            'initialIndex': 0,
+                            'e2eeKey': m.e2eeFileKey,
+                          },
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            );
+          } else {
+            // Voice Message
+            itemWidget = Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.mic_rounded, size: 16, color: scheme.primary),
+                      const SizedBox(width: 6),
                       Text(
-                        dateText,
-                        style: textTheme.bodySmall?.copyWith(
+                        DateFormat('d MMMM, HH:mm', locale).format(m.sentAt),
+                        style: textTheme.labelSmall?.copyWith(
                           color: scheme.onSurfaceVariant,
-                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
-                ),
-                IconButton.filledTonal(
-                  icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    if ((m.mediaUrl ?? '').isNotEmpty) {
-                      context.push(
-                        '/media-viewer?url=${Uri.encodeComponent(m.mediaUrl!)}&type=video&title=${Uri.encodeComponent("Видеосообщение")}',
-                        extra: m.e2eeFileKey,
-                      );
-                    }
-                  },
-                ),
-              ],
-            ),
-          );
-        }
-
-        // Voice Message with Audio Player
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.2),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.mic_rounded, size: 16, color: scheme.primary),
-                  const SizedBox(width: 6),
-                  Text(
-                    DateFormat('d MMMM, HH:mm').format(m.sentAt),
-                    style: textTheme.labelSmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  const SizedBox(height: 6),
+                  VoiceMessagePlayer(
+                    audioUrl: m.mediaUrl ?? '',
+                    durationSeconds: m.mediaDuration ?? 0,
+                    isMine: false,
+                    scheme: scheme,
+                    chatId: widget.chatId ?? 0,
+                    wsClient: ref.read(webSocketClientProvider),
+                    e2eeFileKey: m.e2eeFileKey,
+                    isE2ee: m.isE2ee,
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              VoiceMessagePlayer(
-                audioUrl: m.mediaUrl ?? '',
-                durationSeconds: m.mediaDuration ?? 30,
-                isMine: false,
-                scheme: scheme,
-                chatId: widget.chatId ?? 0,
-                wsClient: ref.read(webSocketClientProvider),
-                e2eeFileKey: m.e2eeFileKey,
-                isE2ee: m.isE2ee,
-              ),
-            ],
-          ),
-        );
-      },
+            );
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: index < items.length - 1 ? 10.0 : 0.0),
+            child: itemWidget,
+          );
+        }),
+      ),
     );
   }
 
-  // ── Tab 3: Files & Documents with Telegram-style Download ──────────
+  // ── Tab 3: Files & Documents without shrinkWrap ───────────────────
   Widget _buildFilesList(
     List<ApiMessage> items,
     ColorScheme scheme,
@@ -904,29 +989,31 @@ class _ProfileSharedMediaTabViewState
     if (items.isEmpty) {
       return _buildEmptyState(
         icon: Icons.insert_drive_file_outlined,
-        title: 'Нет файлов',
-        subtitle: 'Документы, архивы и файлы появятся здесь',
+        title: context.l10n.sharedMediaNoFiles,
+        subtitle: context.l10n.sharedMediaNoFilesSub,
         scheme: scheme,
         textTheme: textTheme,
       );
     }
 
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: items.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        return _SharedFileTile(
-          message: items[index],
-          chatId: widget.chatId ?? 0,
-        );
-      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(items.length, (index) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: index < items.length - 1 ? 10.0 : 0.0),
+            child: _SharedFileTile(
+              message: items[index],
+              chatId: widget.chatId ?? 0,
+            ),
+          );
+        }),
+      ),
     );
   }
 
-  // ── Tab 4: Links List ─────────────────────────────────────────────
+  // ── Tab 4: Links List without shrinkWrap ──────────────────────────
   Widget _buildLinksList(
     List<ApiMessage> items,
     ColorScheme scheme,
@@ -935,104 +1022,107 @@ class _ProfileSharedMediaTabViewState
     if (items.isEmpty) {
       return _buildEmptyState(
         icon: Icons.link_rounded,
-        title: 'Нет ссылок',
-        subtitle: 'Ссылки из переписки будут отображаться здесь',
+        title: context.l10n.sharedMediaNoLinks,
+        subtitle: context.l10n.sharedMediaNoLinksSub,
         scheme: scheme,
         textTheme: textTheme,
       );
     }
 
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: items.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final m = items[index];
-        final match = _urlRegExp.firstMatch(m.content);
-        final url = match?.group(0) ?? '';
-        final domain = Uri.tryParse(url)?.host ?? url;
-        final dateText = DateFormat('d MMM, HH:mm').format(m.sentAt);
+    final String locale = Localizations.localeOf(context).toString();
 
-        return InkWell(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            final uri = Uri.tryParse(url);
-            if (uri != null) {
-              launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(items.length, (index) {
+          final m = items[index];
+          final match = _urlRegExp.firstMatch(m.content);
+          final url = match?.group(0) ?? '';
+          final domain = Uri.tryParse(url)?.host ?? url;
+          final dateText = DateFormat('d MMM, HH:mm', locale).format(m.sentAt);
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: index < items.length - 1 ? 10.0 : 0.0),
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                if (url.isNotEmpty) {
+                  AppUrlLauncher.openUrl(context, url);
+                }
+              },
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.2),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    M3Container(
+                      Shapes.c9_sided_cookie,
+                      width: 44,
+                      height: 44,
+                      color: scheme.tertiaryContainer,
+                      child: Center(
+                        child: Icon(
+                          Icons.link_rounded,
+                          color: scheme.onTertiaryContainer,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            domain.isEmpty ? url : domain,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: scheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            m.content,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            dateText,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.open_in_new_rounded,
+                      size: 18,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
               ),
             ),
-            child: Row(
-              children: [
-                M3Container(
-                  Shapes.c9_sided_cookie,
-                  width: 44,
-                  height: 44,
-                  color: scheme.tertiaryContainer,
-                  child: Center(
-                    child: Icon(
-                      Icons.link_rounded,
-                      color: scheme.onTertiaryContainer,
-                      size: 22,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        domain.isEmpty ? url : domain,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: scheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        m.content,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        dateText,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.open_in_new_rounded,
-                  size: 18,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+          );
+        }),
+      ),
     );
   }
 
@@ -1097,12 +1187,11 @@ class _SharedFileTile extends ConsumerStatefulWidget {
 
 class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
   bool _isDownloading = false;
-  double _progress = 0.0;
   String? _localPath;
 
   Future<void> _startDownload() async {
     if (_isDownloading) return;
-    final fileName = widget.message.mediaName ?? 'Документ';
+    final fileName = widget.message.mediaName ?? context.l10n.sharedMediaFile;
     if (_localPath != null) {
       FileOpener.openFile(
         context: context,
@@ -1117,7 +1206,6 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
 
     setState(() {
       _isDownloading = true;
-      _progress = 0.05;
     });
 
     try {
@@ -1128,13 +1216,6 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
         fileKey = base64Decode(widget.message.e2eeFileKey!);
       }
 
-      // Smooth simulated progress while download stream progresses
-      for (double p = 0.15; p <= 0.85; p += 0.15) {
-        if (!mounted || !_isDownloading) break;
-        await Future.delayed(const Duration(milliseconds: 120));
-        if (mounted) setState(() => _progress = p);
-      }
-
       final localPath = await WsMediaFetcher.fetchToLocalFile(
         filePath: url,
         wsClient: wsClient,
@@ -1143,7 +1224,6 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
 
       if (mounted) {
         setState(() {
-          _progress = 1.0;
           _isDownloading = false;
           _localPath = localPath;
         });
@@ -1155,15 +1235,12 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
           fileName: fileName,
         );
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() {
           _isDownloading = false;
-          _progress = 0.0;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка скачивания файла: $e')),
-        );
+        AppToast.showError(context, context.l10n.sharedMediaFileDownloadError);
       }
     }
   }
@@ -1174,12 +1251,13 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
     final textTheme = Theme.of(context).textTheme;
 
     final m = widget.message;
-    final name = m.mediaName ?? 'Документ';
+    final name = m.mediaName ?? context.l10n.sharedMediaFile;
     final ext = name.contains('.') ? name.split('.').last.toUpperCase() : 'FILE';
     final sizeText = m.mediaSize != null
         ? FileTypeDetector.formatFileSize(m.mediaSize!)
         : '';
-    final dateText = DateFormat('d MMM, HH:mm').format(m.sentAt);
+    final String locale = Localizations.localeOf(context).toString();
+    final dateText = DateFormat('d MMM, HH:mm', locale).format(m.sentAt);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -1235,34 +1313,17 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
           ),
           const SizedBox(width: 8),
           if (_isDownloading)
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    value: _progress > 0 ? _progress : null,
-                    strokeWidth: 3,
-                    strokeCap: StrokeCap.round,
-                    color: scheme.primary,
-                    backgroundColor: scheme.surfaceContainerHighest,
-                  ),
-                  Text(
-                    '${(_progress * 100).toInt()}%',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: scheme.primary,
-                    ),
-                  ),
-                ],
+            const SizedBox(
+              width: 32,
+              height: 32,
+              child: Center(
+                child: AppLoadingIndicator(size: 22),
               ),
             )
           else if (_localPath != null)
             IconButton.filledTonal(
               icon: const Icon(Icons.folder_open_rounded, size: 20),
-              tooltip: 'Открыть файл',
+              tooltip: context.l10n.sharedMediaOpenFile,
               onPressed: () => FileOpener.openFile(
                 context: context,
                 filePath: _localPath!,
@@ -1272,7 +1333,7 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
           else
             IconButton.filledTonal(
               icon: const Icon(Icons.download_rounded, size: 20),
-              tooltip: 'Скачать файл',
+              tooltip: context.l10n.sharedMediaDownloadFile,
               onPressed: _startDownload,
             ),
         ],
@@ -1314,6 +1375,18 @@ class _SharedMediaVideoTile extends StatelessWidget {
     final m = seconds ~/ 60;
     final s = seconds % 60;
     return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  String _formatBadge(_SharedMediaItem item) {
+    final String target = item.mediaName ?? item.mediaUrl;
+    final int dot = target.lastIndexOf('.');
+    if (dot != -1 && dot < target.length - 1) {
+      final String raw = target.substring(dot + 1).split('?').first.toUpperCase();
+      if (raw.isNotEmpty && raw.length <= 4) {
+        return raw;
+      }
+    }
+    return 'VIDEO';
   }
 
   @override
@@ -1371,7 +1444,7 @@ class _SharedMediaVideoTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 3),
                   Text(
-                    'MP4',
+                    _formatBadge(item),
                     style: TextStyle(
                       color: scheme.onSurface,
                       fontSize: 9,
@@ -1432,7 +1505,7 @@ class _SharedMediaVideoTile extends StatelessWidget {
   }
 }
 
-class _MediaGridTileWrapper extends StatefulWidget {
+class _MediaGridTileWrapper extends StatelessWidget {
   const _MediaGridTileWrapper({
     required this.onTap,
     required this.child,
@@ -1442,27 +1515,10 @@ class _MediaGridTileWrapper extends StatefulWidget {
   final Widget child;
 
   @override
-  State<_MediaGridTileWrapper> createState() => _MediaGridTileWrapperState();
-}
-
-class _MediaGridTileWrapperState extends State<_MediaGridTileWrapper> {
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return Listener(
-      onPointerDown: (_) => setState(() => _isPressed = true),
-      onPointerUp: (_) => setState(() => _isPressed = false),
-      onPointerCancel: (_) => setState(() => _isPressed = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: _isPressed ? 0.95 : 1.0,
-          duration: const Duration(milliseconds: 160),
-          curve: _isPressed ? M3SpringCurves.snappy : M3SpringCurves.bouncy,
-          child: widget.child,
-        ),
-      ),
+    return TouchContainer(
+      onTap: onTap,
+      child: child,
     );
   }
 }

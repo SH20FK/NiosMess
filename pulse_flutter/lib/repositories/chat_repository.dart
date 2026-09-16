@@ -332,28 +332,9 @@ class ChatRepository {
         .request('send_message', payload: payload);
 
     if (response is! Map) {
-      return ApiMessage(
-        id: DateTime.now().millisecondsSinceEpoch,
-        chatId: chatId,
-        senderId: 0,
-        senderUsername: 'me',
-        senderDisplayName: 'Me',
-        senderBadges: const [],
-        content: normalizedContent,
-        msgType: 'text',
-        replyToId: replyToId,
-        mediaUrl: null,
-        mediaType: null,
-        mediaName: null,
-        mediaSize: null,
-        mediaDuration: null,
-        commentsCount: 0,
-        reactions: const <String, int>{},
-        sentAt: DateTime.now(),
-        editedAt: null,
-        isDeleted: false,
-        isE2ee: e2eeContent != null && e2eeContent.isNotEmpty,
-        e2eeContent: e2eeContent,
+      throw const ApiException(
+        statusCode: 500,
+        message: 'Не удалось отправить сообщение: неверный ответ сервера',
       );
     }
 
@@ -498,7 +479,6 @@ class ChatRepository {
 
     final request = http.MultipartRequest('POST', uri);
     request.headers['Authorization'] = 'Bearer $token';
-    request.fields['token'] = token;
     request.fields['media_subtype'] = mediaSubtype;
 
     if (filePath != null && filePath.isNotEmpty) {

@@ -36,8 +36,35 @@ class ChatWallpaperPainter extends CustomPainter {
   final Map<String, ui.Picture>? paletteSvgPictures;
   final List<ui.Picture>? poolSvgPictures;
 
+  PainterGlyphCache? _cachedGlyphCache;
+
   @override
   void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+
+    final double cellSize = config.cellSize.clamp(20.0, 240.0);
+    final double iconBaseSize = cellSize * 0.44;
+    final List<String> activeRoles = resolveActiveRoles(config);
+    final Map<String, Color> resolvedColors = <String, Color>{
+      for (final String role in activeRoles)
+        role: WallpaperColorResolver.resolveIconColor(
+          scheme,
+          role,
+          config.iconAlpha,
+        ),
+    };
+
+    _cachedGlyphCache ??= _buildGlyphCache(
+      config: config,
+      scheme: scheme,
+      iconBaseSize: iconBaseSize,
+      activeRoles: activeRoles,
+      resolvedColors: resolvedColors,
+      svgPicture: svgPicture,
+      paletteSvgPictures: paletteSvgPictures,
+      poolSvgPictures: poolSvgPictures,
+    );
+
     paintToCanvas(
       canvas: canvas,
       size: size,
@@ -46,6 +73,7 @@ class ChatWallpaperPainter extends CustomPainter {
       svgPicture: svgPicture,
       paletteSvgPictures: paletteSvgPictures,
       poolSvgPictures: poolSvgPictures,
+      precomputedCache: _cachedGlyphCache,
     );
   }
 
@@ -57,6 +85,7 @@ class ChatWallpaperPainter extends CustomPainter {
     ui.Picture? svgPicture,
     Map<String, ui.Picture>? paletteSvgPictures,
     List<ui.Picture>? poolSvgPictures,
+    PainterGlyphCache? precomputedCache,
   }) {
     if (size.width <= 0 || size.height <= 0) return;
 
@@ -103,7 +132,7 @@ class ChatWallpaperPainter extends CustomPainter {
     final double iconBaseSize = cellSize * 0.44;
 
     // 3. Resolve active color roles and colors
-    final List<String> activeRoles = _resolveActiveRoles(config);
+    final List<String> activeRoles = resolveActiveRoles(config);
     final Map<String, Color> resolvedColors = <String, Color>{};
     for (final String role in activeRoles) {
       resolvedColors[role] = WallpaperColorResolver.resolveIconColor(
@@ -114,19 +143,30 @@ class ChatWallpaperPainter extends CustomPainter {
     }
 
     // 4. PRE-COMPUTED GLYPH CACHE (0 UI Layout Overhead in tight loop)
-    final _PainterGlyphCache cache = _buildGlyphCache(
-      config: config,
-      scheme: scheme,
-      iconBaseSize: iconBaseSize,
-      activeRoles: activeRoles,
-      resolvedColors: resolvedColors,
-      svgPicture: svgPicture,
-      paletteSvgPictures: paletteSvgPictures,
-      poolSvgPictures: poolSvgPictures,
-    );
+    final PainterGlyphCache cache = precomputedCache ??
+        _buildGlyphCache(
+          config: config,
+          scheme: scheme,
+          iconBaseSize: iconBaseSize,
+          activeRoles: activeRoles,
+          resolvedColors: resolvedColors,
+          svgPicture: svgPicture,
+          paletteSvgPictures: paletteSvgPictures,
+          poolSvgPictures: poolSvgPictures,
+        );
+
+    final double cx = size.width / 2.0;
+    final double cy = size.height / 2.0;
 
     // 5. Render selected layout mode
     if (config.layoutMode == WallpaperLayoutMode.spiral) {
+      canvas.save();
+      if (config.gridAngle.abs() > 0.01) {
+        final double rad = config.gridAngle * pi / 180.0;
+        canvas.translate(cx, cy);
+        canvas.rotate(rad);
+        canvas.translate(-cx, -cy);
+      }
       _paintPhyllotaxisSpiral(
         canvas: canvas,
         size: size,
@@ -136,13 +176,24 @@ class ChatWallpaperPainter extends CustomPainter {
         iconBaseSize: iconBaseSize,
         cache: cache,
       );
+      canvas.restore();
       return;
     }
 
-    // 2D Lattices (Grid, Stagger, Hex, Scatter) with center-stable rotation
-    final double cx = size.width / 2.0;
-    final double cy = size.height / 2.0;
-    final double diagonal = sqrt(size.width * size.width + size.height * size.height) + cellSize * 2.0;
+    // 2D Lattices (Grid, Stagger, Hex, Scatter) with center-stable rotation & tight bounds
+    final double boundWidth;
+    final double boundHeight;
+    if (config.gridAngle.abs() < 0.01) {
+      boundWidth = size.width + cellSize * 2.0;
+      boundHeight = size.height + cellSize * 2.0;
+    } else {
+      final double rad = config.gridAngle.abs() * pi / 180.0;
+      final double cosA = cos(rad).abs();
+      final double sinA = sin(rad).abs();
+      boundWidth = (size.width * cosA + size.height * sinA) + cellSize * 2.0;
+      boundHeight = (size.width * sinA + size.height * cosA) + cellSize * 2.0;
+    }
+    final double diagonal = max(boundWidth, boundHeight);
 
     canvas.save();
     if (config.gridAngle.abs() > 0.01) {
@@ -215,7 +266,7 @@ class ChatWallpaperPainter extends CustomPainter {
     required ChatWallpaperConfig config,
     required Random rng,
     required double iconBaseSize,
-    required _PainterGlyphCache cache,
+    required PainterGlyphCache cache,
   }) {
     final double D = cellSize;
     final double H = D * 0.8660254037844386; // sqrt(3)/2 = ~0.866
@@ -254,7 +305,7 @@ class ChatWallpaperPainter extends CustomPainter {
     required Random rng,
     required double cellSize,
     required double iconBaseSize,
-    required _PainterGlyphCache cache,
+    required PainterGlyphCache cache,
   }) {
     final double cx = size.width / 2.0;
     final double cy = size.height / 2.0;
@@ -266,7 +317,7 @@ class ChatWallpaperPainter extends CustomPainter {
     final double r0 = cellSize * 0.80; // Clear open center
 
     int n = 0;
-    while (true) {
+    while (n < 2500) {
       final double r = c * sqrt(n) + r0;
       if (r > maxRadius) break;
 
@@ -299,7 +350,7 @@ class ChatWallpaperPainter extends CustomPainter {
     required ChatWallpaperConfig config,
     required Random rng,
     required double iconBaseSize,
-    required _PainterGlyphCache cache,
+    required PainterGlyphCache cache,
   }) {
     final double D = cellSize;
     final int countX = (diagonal / D).ceil() + 2;
@@ -341,7 +392,7 @@ class ChatWallpaperPainter extends CustomPainter {
     required ChatWallpaperConfig config,
     required Random rng,
     required double iconBaseSize,
-    required _PainterGlyphCache cache,
+    required PainterGlyphCache cache,
   }) {
     final double D = cellSize;
     final int countX = (diagonal / D).ceil() + 2;
@@ -380,7 +431,7 @@ class ChatWallpaperPainter extends CustomPainter {
     required ChatWallpaperConfig config,
     required Random rng,
     required double iconBaseSize,
-    required _PainterGlyphCache cache,
+    required PainterGlyphCache cache,
   }) {
     final double D = cellSize;
     final int countX = (diagonal / D).ceil() + 2;
@@ -415,7 +466,7 @@ class ChatWallpaperPainter extends CustomPainter {
     required ChatWallpaperConfig config,
     required Random rng,
     required double iconBaseSize,
-    required _PainterGlyphCache cache,
+    required PainterGlyphCache cache,
   }) {
     final double scaleJitter = 1.0 + (rng.nextDouble() * 2.0 - 1.0) * config.randomScaleJitter;
     final double scale = scaleJitter.clamp(0.25, 2.4);
@@ -475,7 +526,7 @@ class ChatWallpaperPainter extends CustomPainter {
   }
 
   // ── Pre-building Glyph Cache ──────────────────────────────────────────────
-  static _PainterGlyphCache _buildGlyphCache({
+  static PainterGlyphCache _buildGlyphCache({
     required ChatWallpaperConfig config,
     required ColorScheme scheme,
     required double iconBaseSize,
@@ -643,7 +694,7 @@ class ChatWallpaperPainter extends CustomPainter {
       }
     }
 
-    return _PainterGlyphCache(
+    return PainterGlyphCache(
       activeRoles: activeRoles,
       resolvedColors: resolvedColors,
       shapesPool: shapesPool,
@@ -657,7 +708,7 @@ class ChatWallpaperPainter extends CustomPainter {
     );
   }
 
-  static List<String> _resolveActiveRoles(ChatWallpaperConfig config) {
+  static List<String> resolveActiveRoles(ChatWallpaperConfig config) {
     if (config.colorMode == WallpaperColorMode.singleTone) {
       return <String>[config.iconColorRole];
     } else if (config.colorMode == WallpaperColorMode.tonalAccent) {
@@ -687,9 +738,11 @@ class ChatWallpaperPainter extends CustomPainter {
         return Shapes.gem;
       case 'm3_cookie':
       case 'cookie':
+      case 'c9_sided_cookie':
         return Shapes.c9_sided_cookie;
       case 'm3_clover':
       case 'clover':
+      case 'l4_leaf_clover':
         return Shapes.l4_leaf_clover;
       case 'm3_burst':
       case 'burst':
@@ -703,9 +756,15 @@ class ChatWallpaperPainter extends CustomPainter {
       case 'm3_sunny':
       case 'sunny':
         return Shapes.sunny;
+      case 'm3_very_sunny':
+      case 'very_sunny':
+        return Shapes.very_sunny;
       case 'm3_flower':
       case 'flower':
         return Shapes.flower;
+      case 'm3_puffy':
+      case 'puffy':
+        return Shapes.puffy;
       default:
         return Shapes.gem;
     }
@@ -716,12 +775,13 @@ class ChatWallpaperPainter extends CustomPainter {
     return oldDelegate.config != config ||
         oldDelegate.scheme != scheme ||
         oldDelegate.svgPicture != svgPicture ||
+        oldDelegate.paletteSvgPictures != paletteSvgPictures ||
         oldDelegate.poolSvgPictures != poolSvgPictures;
   }
 }
 
-class _PainterGlyphCache {
-  _PainterGlyphCache({
+class PainterGlyphCache {
+  PainterGlyphCache({
     required this.activeRoles,
     required this.resolvedColors,
     required this.shapesPool,

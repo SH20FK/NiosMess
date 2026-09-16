@@ -3,10 +3,12 @@ import 'package:pulse_flutter/widgets/chat/chat_detail_fab.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
 import 'package:pulse_flutter/widgets/chat/e2ee_verification_sheet.dart';
 import 'dart:async';
-import 'package:universal_io/io.dart';
 import 'dart:math';
+import 'package:universal_io/io.dart';
+import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/bot_detector.dart';
 import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_background.dart';
 
 import 'package:flutter/material.dart';
@@ -21,6 +23,7 @@ import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
+import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
@@ -243,13 +246,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               color: scheme.outlineVariant.withValues(alpha: 0.25),
               width: 0.8,
             ),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: scheme.shadow.withValues(alpha: 0.04),
-                blurRadius: 6,
-                offset: const Offset(0, 1),
-              ),
-            ],
           ),
           child: Text(
             _dateSeparatorLabel(resolvedDate, now),
@@ -541,7 +537,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     const Spacer(),
                     Consumer(
                       builder: (BuildContext context, WidgetRef ref, _) {
-                        final usage = ref.watch(authProvider).profile?.aiUsage;
+                        final usage = ref.watch(
+                          authProvider.select((a) => a.profile?.aiUsage),
+                        );
                         if (usage == null) return const SizedBox.shrink();
                         final double remainingPercent =
                             (100.0 - usage.usedPercent).clamp(0.0, 100.0);
@@ -783,6 +781,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     String text = '',
     bool showSentSnackBar = false,
   }) async {
+    final String defaultSenderYou = context.l10n.chatSenderYou;
     final String localId = (-(DateTime.now().millisecondsSinceEpoch + Random().nextInt(1000))).toString();
     final int tempIntId = int.parse(localId);
 
@@ -807,14 +806,19 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       }
     }
 
-    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-    final String myUsername = ref.read(authProvider).session?.username ?? '';
+    final authState = ref.read(authProvider);
+    final int myUserId = authState.session?.userId ?? -1;
+    final String myUsername = authState.session?.username ?? '';
+    final String myDisplayName = authState.profile?.displayName.trim() ?? '';
+    final String effectiveDisplayName = myDisplayName.isNotEmpty
+        ? myDisplayName
+        : (myUsername.isNotEmpty ? myUsername : defaultSenderYou);
     final optimisticMessage = ApiMessage(
       id: tempIntId,
       chatId: chatId,
       senderId: myUserId,
       senderUsername: myUsername,
-      senderDisplayName: myUsername.isEmpty ? 'Я' : myUsername,
+      senderDisplayName: effectiveDisplayName,
       senderBadges: const [],
       content: text,
       msgType: mediaSubtype == 'voice' 
@@ -1354,20 +1358,48 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         ? message.mediaName!.trim()
         : _mediaLabel(message, mediaUrl);
 
-    if (_isImageMedia(message, mediaUrl)) {
-      context.push(
-        '/media-viewer?url=${Uri.encodeComponent(mediaUrl)}'
-        '&type=image&title=${Uri.encodeComponent(fileName)}',
-        extra: message.e2eeFileKey,
-      );
-      return;
-    }
+    final bool isImg = _isImageMedia(message, mediaUrl);
+    final bool isVid = _isVideoMedia(message, mediaUrl);
 
-    if (_isVideoMedia(message, mediaUrl)) {
+    if (isImg || isVid) {
+      final int? chatId = _chatId;
+      final List<ApiMessage> allMessages = chatId != null
+          ? (ref.read(chatMessagesProvider(chatId)).value ?? const <ApiMessage>[])
+          : const <ApiMessage>[];
+
+      final List<MediaViewerItem> playlist = <MediaViewerItem>[];
+      int initialIndex = 0;
+
+      for (final ApiMessage msg in allMessages) {
+        final String? u = msg.mediaUrl;
+        if (u == null || u.trim().isEmpty) continue;
+        final bool mIsImg = _isImageMedia(msg, u);
+        final bool mIsVid = _isVideoMedia(msg, u);
+        if (mIsImg || mIsVid) {
+          if (msg.id == message.id) {
+            initialIndex = playlist.length;
+          }
+          playlist.add(MediaViewerItem(
+            url: u,
+            mediaType: mIsImg ? MediaType.image : MediaType.video,
+            title: (msg.mediaName ?? '').trim().isNotEmpty
+                ? msg.mediaName!.trim()
+                : _mediaLabel(msg, u),
+            e2eeFileKey: msg.e2eeFileKey,
+            filePath: msg.mediaUrl,
+            mediaName: msg.mediaName,
+          ));
+        }
+      }
+
       context.push(
         '/media-viewer?url=${Uri.encodeComponent(mediaUrl)}'
-        '&type=video&title=${Uri.encodeComponent(fileName)}',
-        extra: message.e2eeFileKey,
+        '&type=${isImg ? 'image' : 'video'}&title=${Uri.encodeComponent(fileName)}',
+        extra: <String, dynamic>{
+          'e2eeKey': message.e2eeFileKey,
+          'playlist': playlist.isNotEmpty ? playlist : null,
+          'initialIndex': initialIndex,
+        },
       );
       return;
     }
@@ -1749,6 +1781,24 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       authProvider.select((a) => a.session?.userId ?? -1),
     );
     final chat = ref.watch(chatByIdProvider(chatId));
+    ref.listen<ApiChatSummary?>(chatByIdProvider(chatId), (prev, next) {
+      final bool wasSecret = prev?.isSecret == true;
+      final bool isSecret = next?.isSecret == true;
+      if (isSecret != wasSecret) {
+        _isSecret = isSecret;
+        ScreenSecurityService.setSecureFlag(enabled: isSecret);
+        if (isSecret) {
+          _startSecretPollTimer();
+        } else {
+          _secretPollTimer?.cancel();
+        }
+      }
+    });
+    if (chat?.isSecret == true && !_isSecret) {
+      _isSecret = true;
+      ScreenSecurityService.setSecureFlag(enabled: true);
+      _startSecretPollTimer();
+    }
     final bool isChannel = chat?.chatType == 'channel';
     final bool isGroup = chat?.chatType == 'group';
 
@@ -1812,11 +1862,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           isSecret: chat?.isSecret == true,
           directUsername: directUsername,
           autoDeleteDuration: chat?.formattedAutoDeleteDuration,
-          isVerified: chat?.username?.toLowerCase() == 'support' ||
+          isVerified: chat?.isVerified == true ||
+              chat?.username?.toLowerCase() == 'support' ||
               directUsername?.toLowerCase() == 'support',
           isBot: chat?.chatType == 'bot' ||
-              (directUsername != null &&
-                  directUsername.toLowerCase().endsWith('bot')),
+              BotDetector.isBot(chat?.username) ||
+              BotDetector.isBot(directUsername),
           isOnline: chat?.chatType == 'direct' && chat?.isOnline == true,
           onBack: () {
             if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
@@ -2045,69 +2096,67 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 (ref.watch(privacyProvider).isUserBlocked(partnerId) || (chat?.isBlockedByMe ?? false));
             final bool isBlockedByUser = isDirectChat && (chat?.isBlockedByUser ?? false);
 
-            return SafeArea(
-              top: false,
-              child: Padding(
-                padding: EdgeInsets.zero,
-                child: ChatDetailInputArea(
-                  chatId: chatId,
-                  isBlockedByMe: isBlockedByMe,
-                  isBlockedByUser: isBlockedByUser,
-                  onUnblockUser: partnerId != null
-                      ? () async {
-                          HapticService.confirm();
-                          final bool success = await ref
-                              .read(privacyProvider.notifier)
-                              .unblockUser(partnerId);
-                          if (!context.mounted) return;
-                          if (success) {
-                            AppToast.showSuccess(context, context.l10n.userUnblockedSuccess);
-                          }
-                        }
-                      : null,
-                  onSendSticker: _sendSticker,
-                  onSendInlineResult: (InlineQueryResult result) {
-                    _inputController.text = result.messageText;
-                    _sendMessage();
-                  },
-                  canPostInChannel: canPostInChannel,
-                  showDraftRestoredBanner: _showDraftRestoredBanner,
-                  onClearDraft: () {
-                    final int? cid = _chatId;
-                    if (cid != null) {
-                      _draftStorage.remove(cid);
+            return ChatDetailInputArea(
+              chatId: chatId,
+              isBlockedByMe: isBlockedByMe,
+              isBlockedByUser: isBlockedByUser,
+              onUnblockUser: partnerId != null
+                  ? () async {
+                      HapticService.confirm();
+                      final bool success = await ref
+                          .read(privacyProvider.notifier)
+                          .unblockUser(partnerId);
+                      if (!context.mounted) return;
+                      if (success) {
+                        AppToast.showSuccess(context, context.l10n.userUnblockedSuccess);
+                      }
                     }
-                    _inputController.clear();
-                    setState(() {
-                      _showDraftRestoredBanner = false;
-                    });
-                  },
-                  uploadingMedia:
-                      ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
-                  inputController: _inputController,
-                  inputFocusNode: _inputFocusNode,
-                  isAiProcessing: _isAiProcessing,
-                  editingMessageId: _editingMessageId,
-                  editingOriginalText: _editingOriginalText,
-                  replyToMessageId: _replyToMessageId,
-                  replyPreviewText: _replyPreviewText,
-                  onSend: _sendMessage,
-                  onCommitEdit: _commitEdit,
-                  onCancelEdit: _cancelEdit,
-                  onClearReply: _clearReply,
-                  onAttachMedia: _pickAndUploadMedia,
-                  onAiPressed: () => _showAiBottomSheet(context, scheme),
-                  onVoiceSend: _sendVoiceMessage,
-                  onCircleSend: _sendCircleVideo,
-                  hapticsEnabled: ref.watch(uiSettingsProvider).haptics,
-                  sendOnEnter: ref.watch(uiSettingsProvider).sendOnEnter,
-                  isSpamBlocked:
-                      ref.watch(authProvider).profile?.isRestrictedBySpamBlock ?? false,
-                  spamBlockUntil: ref.watch(authProvider).profile?.spamBlockUntil,
-                  spamBlockReason: ref.watch(authProvider).profile?.spamBlockReason,
-                  onContactSupport: () => context.push('/chat/direct/support'),
-                ),
-              ),
+                  : null,
+              onSendSticker: _sendSticker,
+              onSendInlineResult: (InlineQueryResult result) {
+                _inputController.text = result.messageText;
+                _sendMessage();
+              },
+              canPostInChannel: canPostInChannel,
+              showDraftRestoredBanner: _showDraftRestoredBanner,
+              onClearDraft: () {
+                final int? cid = _chatId;
+                if (cid != null) {
+                  _draftStorage.remove(cid);
+                }
+                _inputController.clear();
+                setState(() {
+                  _showDraftRestoredBanner = false;
+                });
+              },
+              uploadingMedia:
+                  ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
+              inputController: _inputController,
+              inputFocusNode: _inputFocusNode,
+              isAiProcessing: _isAiProcessing,
+              editingMessageId: _editingMessageId,
+              editingOriginalText: _editingOriginalText,
+              replyToMessageId: _replyToMessageId,
+              replyPreviewText: _replyPreviewText,
+              onSend: _sendMessage,
+              onCommitEdit: _commitEdit,
+              onCancelEdit: _cancelEdit,
+              onClearReply: _clearReply,
+              onAttachMedia: _pickAndUploadMedia,
+              onAiPressed: () => _showAiBottomSheet(context, scheme),
+              onVoiceSend: _sendVoiceMessage,
+              onCircleSend: _sendCircleVideo,
+              hapticsEnabled:
+                  ref.watch(uiSettingsProvider.select((s) => s.haptics)),
+              sendOnEnter:
+                  ref.watch(uiSettingsProvider.select((s) => s.sendOnEnter)),
+              isSpamBlocked: ref.watch(authProvider
+                  .select((a) => a.profile?.isRestrictedBySpamBlock ?? false)),
+              spamBlockUntil: ref.watch(
+                  authProvider.select((a) => a.profile?.spamBlockUntil)),
+              spamBlockReason: ref.watch(
+                  authProvider.select((a) => a.profile?.spamBlockReason)),
+              onContactSupport: () => context.push('/chat/support'),
             );
           },
         ),
@@ -2236,7 +2285,7 @@ class _TypingSubtitle extends ConsumerWidget {
             height: 6.5,
             margin: const EdgeInsets.only(right: 5),
             decoration: const BoxDecoration(
-              color: Color(0xFF4CAF50),
+              color: AppColors.statusOnline,
               shape: BoxShape.circle,
             ),
           ),
@@ -2246,7 +2295,7 @@ class _TypingSubtitle extends ConsumerWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: const Color(0xFF4CAF50),
+                color: AppColors.statusOnline,
                 fontWeight: FontWeight.w600,
                 height: 1.05,
               ),

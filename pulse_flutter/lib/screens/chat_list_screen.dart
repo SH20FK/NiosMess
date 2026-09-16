@@ -35,8 +35,6 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 
 enum _LastMessageKind { photo, video, audio, file }
 
-enum _ChatSwipeAction { delete }
-
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
 
@@ -109,6 +107,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           await ref.read(chatsProvider.notifier).refresh();
         },
         displacement: 40,
+        color: scheme.primary,
+        backgroundColor: scheme.surfaceContainerHigh,
+        elevation: 0,
         child: NotificationListener<UserScrollNotification>(
           onNotification: _handleUserScroll,
           child: CustomScrollView(
@@ -183,166 +184,176 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       ];
     }
 
+    final List<ApiChatSummary>? cachedChats = chatsAsync.asData?.value;
+    if (cachedChats != null && cachedChats.isNotEmpty) {
+      return _buildChatItemsSlivers(
+        chats: cachedChats,
+        compact: compact,
+        scheme: scheme,
+        searchResult: searchResult,
+        filter: filter,
+        desktopChatId: desktopChatId,
+      );
+    }
+
     return chatsAsync.when(
-      data: (List<ApiChatSummary> chats) {
-        final List<ApiChatSummary> filtered = _applyFilter(chats, filter);
-        final Set<int> resultChatIds = <int>{
-          ...?searchResult?.chats.map((ApiSearchChat chat) => chat.id),
-          ...?searchResult?.messages.map(
-            (ApiSearchMessage message) => message.chatId,
+      data: (List<ApiChatSummary> chats) => _buildChatItemsSlivers(
+        chats: chats,
+        compact: compact,
+        scheme: scheme,
+        searchResult: searchResult,
+        filter: filter,
+        desktopChatId: desktopChatId,
+      ),
+      loading: () => const <Widget>[
+        SliverFillRemaining(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: ChatListSkeleton(),
           ),
-        };
-        final bool isSearchActive = searchResult != null && searchResult.messages.isNotEmpty;
-        final List<ApiChatSummary> searched = filtered
-            .where((ApiChatSummary chat) {
-              if (!isSearchActive) return true;
-              return resultChatIds.contains(chat.id);
-            })
-            .toList(growable: false);
-
-        if (searched.isEmpty) {
-          return <Widget>[
-            SliverFillRemaining(
-              child: EmptyStateWidget(
-                title: context.l10n.chatListNoChats,
-                icon: Icons.chat_bubble_outline_rounded,
-              ),
-            ),
-          ];
-        }
-
-        final Map<int, int> idToIndex = <int, int>{
-          for (int i = 0; i < searched.length; i++) searched[i].id: i,
-        };
-
-        return <Widget>[
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (BuildContext context, int index) {
-                  final ApiChatSummary chat = searched[index];
-                  final Widget item = Padding(
-                    padding: EdgeInsets.only(bottom: compact ? 8 : 10),
-                    child: Dismissible(
-                      key: ValueKey<String>('chat_${chat.id}'),
-                      direction: DismissDirection.endToStart,
-                      background: _swipeBackground(
-                        scheme: scheme,
-                        alignment: Alignment.centerRight,
-                        icon: Icons.delete_outline_rounded,
-                        label: context.l10n.commonDelete,
-                        destructive: true,
-                      ),
-                      confirmDismiss: (DismissDirection direction) async {
-                        await _handleChatSwipe(context, chat, direction);
-                        return false;
-                      },
-                      child: GestureDetector(
-                        onSecondaryTapDown: (TapDownDetails details) {
-                          _showChatContextMenu(context, chat);
-                        },
-                        child: Consumer(
-                          builder: (BuildContext context, WidgetRef ref, _) {
-                            final bool isTyping = ref.watch(
-                              typingProvider(chat.id)
-                                  .select((TypingState s) => s.typingUserIds.isNotEmpty),
-                            );
-                            return ChatTile(
-                              key: ValueKey<int>(chat.id),
-                              title: chat.name,
-                              subtitle: isTyping ? context.l10n.chatTyping : _chatPreview(chat),
-                              formattedTime: formatRelativeTime(chat.lastActivity),
-                              unreadCount: chat.unreadCount,
-                              avatarText: chat.name,
-                              avatarUrl: chat.avatarUrl,
-                              avatarColor: _avatarColor(chat.id, scheme),
-                              subtitleIcon: isTyping ? Icons.edit_note_rounded : _chatPreviewIcon(chat),
-                              compact: compact,
-                              isOnline: chat.chatType == 'direct' && chat.isOnline,
-                              isSecret: chat.isSecret,
-                              partnerBadges: chat.partnerBadges,
-                              chatId: chat.id,
-                              isSelected: desktopChatId == chat.id,
-                              onTap: () {
-                                if (MediaQuery.sizeOf(context).width >= Breakpoints.medium) {
-                                  ref
-                                      .read(desktopSelectedChatProvider.notifier)
-                                      .setSelectedChat(chat.id);
-                                } else {
-                                  context.push('/chat/${chat.id}');
-                                }
-                              },
-                              onLongPress: () => _showChatContextMenu(context, chat),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  );
-
-                  return RepaintBoundary(child: item);
-                },
-                addAutomaticKeepAlives: false,
-                addRepaintBoundaries: false,
-                findChildIndexCallback: (Key key) {
-                  if (key is! ValueKey<String>) return null;
-                  final String idStr = key.value.replaceFirst('chat_', '');
-                  final int? id = int.tryParse(idStr);
-                  if (id == null) return null;
-                  return idToIndex[id];
-                },
-                childCount: searched.length,
-              ),
-            ),
+        ),
+      ],
+      error: (Object error, StackTrace stack) => <Widget>[
+        SliverFillRemaining(
+          child: EmptyStateWidget(
+            title: context.l10n.chatListFailedLoad('$error'),
+            icon: Icons.error_outline_rounded,
           ),
-        ];
-      },
-      loading: () {
-        if (chatsAsync.hasValue && chatsAsync.value!.isNotEmpty) {
-          return _buildChatSlivers(
-            isAuthenticated,
-            AsyncValue.data(chatsAsync.value!),
-            compact,
-            scheme,
-            textTheme,
-            searchResult,
-            filter,
-            desktopChatId,
-          );
-        }
-        return <Widget>[
-          const SliverFillRemaining(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: ChatListSkeleton(),
-            ),
-          ),
-        ];
-      },
-      error: (Object error, StackTrace stack) {
-        if (chatsAsync.hasValue && chatsAsync.value!.isNotEmpty) {
-          return _buildChatSlivers(
-            isAuthenticated,
-            AsyncValue.data(chatsAsync.value!),
-            compact,
-            scheme,
-            textTheme,
-            searchResult,
-            filter,
-            desktopChatId,
-          );
-        }
-        return <Widget>[
-          SliverFillRemaining(
-            child: EmptyStateWidget(
-              title: context.l10n.chatListFailedLoad('$error'),
-              icon: Icons.error_outline_rounded,
-            ),
-          ),
-        ];
-      },
+        ),
+      ],
     );
+  }
+
+  List<Widget> _buildChatItemsSlivers({
+    required List<ApiChatSummary> chats,
+    required bool compact,
+    required ColorScheme scheme,
+    required ApiSearchResult? searchResult,
+    required ChatFilter filter,
+    required int? desktopChatId,
+  }) {
+    final List<ApiChatSummary> filtered = _applyFilter(chats, filter);
+    final Set<int> resultChatIds = <int>{
+      ...?searchResult?.chats.map((ApiSearchChat chat) => chat.id),
+      ...?searchResult?.messages.map(
+        (ApiSearchMessage message) => message.chatId,
+      ),
+    };
+    final bool isSearchActive =
+        searchResult != null && searchResult.messages.isNotEmpty;
+    final List<ApiChatSummary> searched = filtered
+        .where((ApiChatSummary chat) {
+          if (!isSearchActive) return true;
+          return resultChatIds.contains(chat.id);
+        })
+        .toList(growable: false);
+
+    if (searched.isEmpty) {
+      return <Widget>[
+        SliverFillRemaining(
+          child: EmptyStateWidget(
+            title: context.l10n.chatListNoChats,
+            icon: Icons.chat_bubble_outline_rounded,
+          ),
+        ),
+      ];
+    }
+
+    final Map<int, int> idToIndex = <int, int>{
+      for (int i = 0; i < searched.length; i++) searched[i].id: i,
+    };
+
+    return <Widget>[
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (BuildContext context, int index) {
+              final ApiChatSummary chat = searched[index];
+              final Widget item = Padding(
+                padding: EdgeInsets.only(bottom: compact ? 8 : 10),
+                child: Dismissible(
+                  key: ValueKey<String>('chat_${chat.id}'),
+                  direction: DismissDirection.endToStart,
+                  background: _swipeBackground(
+                    scheme: scheme,
+                    alignment: Alignment.centerRight,
+                    icon: Icons.delete_outline_rounded,
+                    label: context.l10n.commonDelete,
+                    destructive: true,
+                  ),
+                  confirmDismiss: (DismissDirection direction) async {
+                    if (ref.read(uiSettingsProvider).haptics) {
+                      HapticService.tap();
+                    }
+                    await _leaveChat(context, chat);
+                    return false;
+                  },
+                  child: GestureDetector(
+                    onSecondaryTapDown: (TapDownDetails details) {
+                      _showChatContextMenu(context, chat);
+                    },
+                    child: Consumer(
+                      builder: (BuildContext context, WidgetRef ref, _) {
+                        final bool isTyping = ref.watch(
+                          typingProvider(chat.id).select(
+                            (TypingState s) => s.typingUserIds.isNotEmpty,
+                          ),
+                        );
+                        return ChatTile(
+                          title: chat.name,
+                          subtitle: isTyping
+                              ? context.l10n.chatTyping
+                              : _chatPreview(chat),
+                          formattedTime: formatRelativeTime(chat.lastActivity),
+                          unreadCount: chat.unreadCount,
+                          avatarText: chat.name,
+                          avatarUrl: chat.avatarUrl,
+                          avatarColor: _avatarColor(chat.id, scheme),
+                          subtitleIcon: isTyping
+                              ? Icons.edit_note_rounded
+                              : _chatPreviewIcon(chat),
+                          compact: compact,
+                          isOnline: chat.chatType == 'direct' && chat.isOnline,
+                          isSecret: chat.isSecret,
+                          partnerBadges: chat.partnerBadges,
+                          chatId: chat.id,
+                          isSelected: desktopChatId == chat.id,
+                          onTap: () {
+                            if (MediaQuery.sizeOf(context).width >=
+                                Breakpoints.medium) {
+                              ref
+                                  .read(desktopSelectedChatProvider.notifier)
+                                  .setSelectedChat(chat.id);
+                            } else {
+                              context.push('/chat/${chat.id}');
+                            }
+                          },
+                          onLongPress: () =>
+                              _showChatContextMenu(context, chat),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
+
+              return RepaintBoundary(
+                key: ValueKey<int>(chat.id),
+                child: item,
+              );
+            },
+            addAutomaticKeepAlives: false,
+            addRepaintBoundaries: false,
+            findChildIndexCallback: (Key key) {
+              if (key is! ValueKey<int>) return null;
+              return idToIndex[key.value];
+            },
+            childCount: searched.length,
+          ),
+        ),
+      ),
+    ];
   }
 
   String _previewText(String? raw) {
@@ -491,144 +502,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     );
   }
 
-  Future<void> _handleChatSwipe(
-    BuildContext context,
-    ApiChatSummary chat,
-    DismissDirection direction,
-  ) async {
-    if (ref.read(uiSettingsProvider).haptics) {
-      HapticService.tap();
-    }
-
-    final _ChatSwipeAction? action = await _showSwipeActionSheet(
-      context,
-      <_ChatSwipeAction>[_ChatSwipeAction.delete],
-    );
-    if (action == null || !context.mounted) {
-      return;
-    }
-    await _performSwipeAction(context, chat, action);
-  }
-
-  Future<_ChatSwipeAction?> _showSwipeActionSheet(
-    BuildContext context,
-    List<_ChatSwipeAction> actions,
-  ) {
-    final bool isWide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
-
-    Widget buildMenuContent(BuildContext ctx) {
-      final ColorScheme scheme = Theme.of(ctx).colorScheme;
-      final TextTheme textTheme = Theme.of(ctx).textTheme;
-
-      Widget actionTile(_ChatSwipeAction action) {
-        final bool destructive = action == _ChatSwipeAction.delete;
-        final Color fg = destructive ? scheme.error : scheme.onSurface;
-        return InkWell(
-          onTap: () => Navigator.of(ctx).pop(action),
-          borderRadius: BorderRadius.circular(18),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: (destructive ? scheme.error : scheme.primary)
-                        .withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(_swipeActionIcon(action), color: fg, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  _swipeActionLabel(action),
-                  style: textTheme.titleMedium?.copyWith(color: fg),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: Container(
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.18),
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: actions.map(actionTile).toList(growable: false),
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (isWide) {
-      return showDialog<_ChatSwipeAction>(
-        context: context,
-        builder: (BuildContext ctx) => Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: SizedBox(
-            width: 320,
-            child: buildMenuContent(ctx),
-          ),
-        ),
-      );
-    }
-
-    return AppBottomSheets.show<_ChatSwipeAction>(
-      context: context,
-      showDragHandle: false,
-      builder: buildMenuContent,
-    );
-  }
-
-  IconData _swipeActionIcon(_ChatSwipeAction action) {
-    return switch (action) {
-      _ChatSwipeAction.delete => Icons.delete_outline_rounded,
-    };
-  }
-
-  String _swipeActionLabel(_ChatSwipeAction action) {
-    return switch (action) {
-      _ChatSwipeAction.delete => context.l10n.commonDelete,
-    };
-  }
-
-  Future<void> _performSwipeAction(
-    BuildContext context,
-    ApiChatSummary chat,
-    _ChatSwipeAction action,
-  ) async {
-    switch (action) {
-      case _ChatSwipeAction.delete:
-        await _leaveChat(context, chat);
-        return;
-    }
-  }
-
   Future<void> _leaveChat(BuildContext context, ApiChatSummary chat) async {
     final bool isDirect = chat.chatType == 'direct';
     final bool? confirmed = await showAppConfirmDialog(
       context: context,
       title: isDirect
-          ? 'Удалить диалог?'
-          : (chat.chatType == 'channel' ? 'Покинуть канал?' : 'Покинуть группу?'),
+          ? context.l10n.chatDelete
+          : context.l10n.groupManageLeaveTitle,
       subtitle: isDirect
-          ? 'Диалог с «${chat.name}» исчезнет из вашего списка. Вы или собеседник сможете написать снова в любой момент.'
-          : 'Вы перестанете получать новые сообщения из «${chat.name}».',
-      confirmLabel: isDirect ? 'Удалить' : 'Покинуть',
-      cancelLabel: 'Отмена',
+          ? context.l10n.chatDeleteMessageBody
+          : context.l10n.groupManageLeaveBody,
+      confirmLabel:
+          isDirect ? context.l10n.commonDelete : context.l10n.groupManageLeave,
+      cancelLabel: context.l10n.commonCancel,
       icon: Icons.delete_outline_rounded,
       destructive: true,
     );
@@ -640,7 +526,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       if (!context.mounted) return;
       AppToast.showSuccess(
         context,
-        isDirect ? 'Диалог удален' : context.l10n.chatListLeft,
+        context.l10n.chatListLeft,
       );
     } catch (e) {
       if (!context.mounted) return;

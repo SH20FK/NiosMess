@@ -3,6 +3,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
 class MessageContextMenuSheet extends StatelessWidget {
   const MessageContextMenuSheet({
@@ -278,19 +279,14 @@ class _ReactionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TouchContainer(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: scheme.surfaceContainerHighest,
-        ),
-        child: Center(
-          child: Text(emoji, style: const TextStyle(fontSize: 22)),
-        ),
+      borderRadius: BorderRadius.circular(22),
+      color: scheme.surfaceContainerHighest,
+      width: 44,
+      height: 44,
+      child: Center(
+        child: Text(emoji, style: const TextStyle(fontSize: 22)),
       ),
     );
   }
@@ -304,16 +300,13 @@ class _ReactionAddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TouchContainer(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: scheme.primaryContainer,
-        ),
+      borderRadius: BorderRadius.circular(22),
+      color: scheme.primaryContainer,
+      width: 44,
+      height: 44,
+      child: Center(
         child: Icon(Icons.add_rounded, size: 22, color: scheme.primary),
       ),
     );
@@ -353,25 +346,54 @@ class _ActionsCompact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<_CompactAction> actions = _buildActions(context);
+    final List<_CompactAction> standardActions = _buildStandardActions(context);
+    final List<_CompactAction> destructiveActions = _buildDestructiveActions(context);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: Wrap(
-          spacing: 4,
-          runSpacing: 4,
-          children: actions.map((a) => _CompactActionTile(action: a, scheme: scheme)).toList(),
-        ),
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (standardActions.isNotEmpty)
+          Container(
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.all(6),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: standardActions
+                  .map((a) => _CompactActionTile(action: a, scheme: scheme))
+                  .toList(),
+            ),
+          ),
+        if (destructiveActions.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.all(6),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: destructiveActions
+                  .map((a) => _CompactActionTile(
+                        action: a,
+                        scheme: scheme,
+                        isDestructive: true,
+                      ))
+                  .toList(),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
-  List<_CompactAction> _buildActions(BuildContext context) {
+  List<_CompactAction> _buildStandardActions(BuildContext context) {
     final List<_CompactAction> list = <_CompactAction>[];
 
     list.add(_CompactAction(
@@ -419,7 +441,9 @@ class _ActionsCompact extends StatelessWidget {
       ));
     }
 
-    if (isMine && !message.isDeleted && (message.msgType == 'text' || message.content.trim().isNotEmpty)) {
+    if (isMine &&
+        !message.isDeleted &&
+        (message.msgType == 'text' || message.content.trim().isNotEmpty)) {
       list.add(_CompactAction(
         icon: Icons.edit_rounded,
         label: context.l10n.chatEdit,
@@ -429,6 +453,12 @@ class _ActionsCompact extends StatelessWidget {
         },
       ));
     }
+
+    return list;
+  }
+
+  List<_CompactAction> _buildDestructiveActions(BuildContext context) {
+    final List<_CompactAction> list = <_CompactAction>[];
 
     if (isMine || (amAdminOrOwner && !message.isDeleted)) {
       list.add(_CompactAction(
@@ -475,55 +505,59 @@ class _CompactAction {
 }
 
 class _CompactActionTile extends StatelessWidget {
-  const _CompactActionTile({required this.action, required this.scheme});
+  const _CompactActionTile({
+    required this.action,
+    required this.scheme,
+    this.isDestructive = false,
+  });
 
   final _CompactAction action;
   final ColorScheme scheme;
+  final bool isDestructive;
 
   @override
   Widget build(BuildContext context) {
-    final Color effectiveColor = action.color ?? scheme.onSurface;
+    final Color effectiveColor =
+        action.color ?? (isDestructive ? scheme.error : scheme.onSurface);
+    final Color containerColor = isDestructive
+        ? scheme.errorContainer.withValues(alpha: 0.35)
+        : scheme.surfaceContainerHigh;
     final bool hasLabel = action.label != null;
 
-    return InkWell(
+    return TouchContainer(
       onTap: action.onTap,
       borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: hasLabel ? 12 : 10,
-          vertical: 8,
-        ),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(action.icon, size: 20, color: effectiveColor),
-            if (hasLabel) ...[
-              const SizedBox(width: 6),
-              Text(
-                action.label!,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: effectiveColor,
-                ),
+      color: containerColor,
+      padding: EdgeInsets.symmetric(
+        horizontal: hasLabel ? 12 : 10,
+        vertical: 8,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(action.icon, size: 20, color: effectiveColor),
+          if (hasLabel) ...[
+            const SizedBox(width: 6),
+            Text(
+              action.label!,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: effectiveColor,
               ),
-            ],
-            if (action.subtitle != null && hasLabel) ...[
-              const SizedBox(width: 4),
-              Text(
-                action.subtitle!,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+            ),
           ],
-        ),
+          if (action.subtitle != null && hasLabel) ...[
+            const SizedBox(width: 4),
+            Text(
+              action.subtitle!,
+              style: TextStyle(
+                fontSize: 11,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

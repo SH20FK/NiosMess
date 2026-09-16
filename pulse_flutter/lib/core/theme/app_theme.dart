@@ -51,21 +51,32 @@ class AppTheme {
     double contrastLevel = 0.0,
   }) {
     final bool isOled = settings.pureBlackOled && brightness == Brightness.dark;
-    final int cacheKey = settings.seedColor.toARGB32() ^ 
-                         brightness.index ^ 
-                         (settings.themeMode.index << 8) ^ 
-                         (settings.useSystemDynamic ? 1 : 0) ^
-                         (settings.predictiveBackEnabled ? ((settings.predictiveBackStrength * 100).round() << 4) : 0) ^
-                         (settings.pureBlackOled ? 4 : 0) ^
-                         (settings.uiCornerRadius.round() << 12) ^
-                         (settings.paletteStyle.index << 18) ^
-                         ((contrastLevel * 100).round() << 21) ^
-                         (dynamicScheme?.primary.toARGB32() ?? 0);
-    final ThemeData? cached = _themeCache[cacheKey];
-    if (cached != null) return cached;
+    final int cacheKey = Object.hash(
+      settings.seedColor.toARGB32(),
+      brightness.index,
+      settings.themeMode.index,
+      settings.useSystemDynamic,
+      settings.predictiveBackEnabled,
+      (settings.predictiveBackStrength * 100).round(),
+      settings.pureBlackOled,
+      settings.uiCornerRadius.round(),
+      settings.paletteStyle.index,
+      (contrastLevel * 100).round(),
+      dynamicScheme?.primary.toARGB32(),
+    );
+    final ThemeData? cached = _themeCache.remove(cacheKey);
+    if (cached != null) {
+      _themeCache[cacheKey] = cached;
+      return cached;
+    }
 
     final ColorScheme baseScheme = (settings.useSystemDynamic && dynamicScheme != null)
-        ? dynamicScheme
+        ? ColorScheme.fromSeed(
+            seedColor: dynamicScheme.primary,
+            brightness: brightness,
+            dynamicSchemeVariant: settings.paletteStyle.variant,
+            contrastLevel: contrastLevel,
+          )
         : _scheme(settings, brightness, contrastLevel);
     final ColorScheme scheme = isOled
         ? baseScheme.copyWith(
@@ -95,8 +106,8 @@ class AppTheme {
       ],
       appBarTheme: AppBarTheme(
         elevation: 0,
-        scrolledUnderElevation: 1.5,
-        surfaceTintColor: scheme.surfaceContainer,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         centerTitle: false,
         backgroundColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
@@ -130,10 +141,10 @@ class AppTheme {
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        elevation: 2,
-        focusElevation: 2,
-        hoverElevation: 3,
-        highlightElevation: 2,
+        elevation: 0,
+        focusElevation: 0,
+        hoverElevation: 0,
+        highlightElevation: 0,
         backgroundColor: scheme.primaryContainer,
         foregroundColor: scheme.onPrimaryContainer,
         shape: RoundedSuperellipseBorder(
@@ -334,7 +345,7 @@ class AppTheme {
           }
           return Colors.transparent;
         }),
-        checkColor: const WidgetStatePropertyAll<Color>(Colors.white),
+        checkColor: WidgetStatePropertyAll<Color>(scheme.onPrimary),
         side: BorderSide(color: scheme.onSurfaceVariant, width: 2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
@@ -517,7 +528,7 @@ class AppTheme {
       ),
     );
     _themeCache[cacheKey] = theme;
-    while (_themeCache.length > 20) {
+    while (_themeCache.length > 64) {
       _themeCache.remove(_themeCache.keys.first);
     }
     return theme;

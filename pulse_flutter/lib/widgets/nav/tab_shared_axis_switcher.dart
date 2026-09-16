@@ -130,11 +130,15 @@ class _TabSharedAxisSwitcherState extends State<TabSharedAxisSwitcher>
   void _captureOutgoing() {
     if (!widget.animate || !mounted) return;
     final RenderObject? object = _boundaryKey.currentContext?.findRenderObject();
-    // debugNeedsPaint is a real getter in release builds: if the boundary is
-    // dirty, its layer is stale and the texture would be blank.
-    if (object is! RenderRepaintBoundary || object.debugNeedsPaint) return;
+    if (object is! RenderRepaintBoundary) return;
     _disposeSnapshot();
     try {
+      bool isDirty = false;
+      assert(() {
+        isDirty = object.debugNeedsPaint;
+        return true;
+      }());
+      if (isDirty) return;
       // Cap at 2.0: a 3x full-screen texture costs bandwidth for nothing.
       final double scale =
           MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0);

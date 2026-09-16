@@ -102,11 +102,59 @@ Future<void> main() async {
   );
 }
 
-class PulseApp extends ConsumerWidget {
+class PulseApp extends ConsumerStatefulWidget {
   const PulseApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PulseApp> createState() => _PulseAppState();
+}
+
+class _PulseAppState extends ConsumerState<PulseApp> {
+  late final AppLifecycleListener _lifecycleListener;
+  String? _lastConfiguredLocale;
+  AppTimeZoneMode? _lastTimeZoneMode;
+  String? _lastTimeZoneId;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleListener = AppLifecycleListener(
+      onPause: () {
+        ref.read(uiSettingsProvider.notifier).flushPersist();
+      },
+      onDetach: () {
+        ref.read(uiSettingsProvider.notifier).flushPersist();
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
+
+  void _syncTimeSettings(
+    String effectiveLocaleCode,
+    AppTimeZoneMode timeZoneMode,
+    String? timeZoneId,
+  ) {
+    if (_lastConfiguredLocale != effectiveLocaleCode ||
+        _lastTimeZoneMode != timeZoneMode ||
+        _lastTimeZoneId != timeZoneId) {
+      _lastConfiguredLocale = effectiveLocaleCode;
+      _lastTimeZoneMode = timeZoneMode;
+      _lastTimeZoneId = timeZoneId;
+      AppTimeSettings.configure(
+        localeCode: effectiveLocaleCode,
+        timeZoneMode: timeZoneMode,
+        timeZoneId: timeZoneId,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final ThemeMode themeMode =
         ref.watch(uiSettingsProvider.select((s) => s.themeMode));
     final String? localeCode =
@@ -135,11 +183,7 @@ class PulseApp extends ConsumerWidget {
     final Locale? appLocale =
         localeCode == null ? null : Locale(effectiveLocaleCode);
 
-    AppTimeSettings.configure(
-      localeCode: effectiveLocaleCode,
-      timeZoneMode: timeZoneMode,
-      timeZoneId: timeZoneId,
-    );
+    _syncTimeSettings(effectiveLocaleCode, timeZoneMode, timeZoneId);
 
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
@@ -169,23 +213,27 @@ class PulseApp extends ConsumerWidget {
           themeMode: themeMode,
           routerConfig: router,
           builder: (BuildContext context, Widget? child) {
-            final mediaQuery = MediaQuery.of(context).copyWith(
-              textScaler: TextScaler.linear(fontScale.scale),
-            );
             return CircularThemeSwitcher(
-              child: MediaQuery(
-                data: mediaQuery,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    SizedBox.expand(
-                      child: child ?? const SizedBox.shrink(),
+              child: Builder(
+                builder: (BuildContext innerContext) {
+                  final mediaQuery = MediaQuery.of(innerContext).copyWith(
+                    textScaler: TextScaler.linear(fontScale.scale),
+                  );
+                  return MediaQuery(
+                    data: mediaQuery,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        SizedBox.expand(
+                          child: child ?? const SizedBox.shrink(),
+                        ),
+                        const IncomingCallOverlay(),
+                        const CallOverlay(),
+                        const InAppNotificationBannerOverlay(),
+                      ],
                     ),
-                    const IncomingCallOverlay(),
-                    const CallOverlay(),
-                    const InAppNotificationBannerOverlay(),
-                  ],
-                ),
+                  );
+                },
               ),
             );
           },

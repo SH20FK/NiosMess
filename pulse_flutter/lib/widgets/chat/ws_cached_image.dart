@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:universal_io/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
@@ -126,6 +128,14 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
       // local:// placeholder while bytes are in flight) — never fetch those
       // over the network.
       if (widget.mediaUrl.startsWith('local://')) {
+        if (kIsWeb) {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+          return;
+        }
         final String localSubPath =
             widget.mediaUrl.substring('local://'.length);
         final File local = File(localSubPath);
@@ -190,6 +200,7 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
 
   /// Returns a [File] when [path] points at the local filesystem.
   static File? _tryLocalFile(String path) {
+    if (kIsWeb) return null;
     if (path.startsWith('http://') ||
         path.startsWith('https://') ||
         path.startsWith('local://')) {
@@ -248,7 +259,7 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Нажмите для загрузки',
+                    context.l10n.sharedMediaTapToDownload,
                     style: textTheme.labelMedium?.copyWith(
                       color: scheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
@@ -276,7 +287,7 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
             width: widget.width ?? double.infinity,
             height: widget.height ?? 160,
             message:
-                _error != null ? 'Ошибка загрузки' : 'Изображение недоступно',
+                _error != null ? context.l10n.sharedMediaDownloadError : context.l10n.sharedMediaUnavailable,
           );
     }
 

@@ -287,10 +287,18 @@ class WsMediaFetcher {
   ) async {
     if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
       try {
+        final Uri uri = Uri.parse(cleanPath);
+        final String originHost = Uri.parse(ApiConstants.origin).host;
+        final String devProxyHost = Uri.parse(ApiConstants.devProxyOrigin).host;
+        final bool isOwnHost = uri.host == originHost ||
+            uri.host == devProxyHost ||
+            uri.host == 'ni-os.ru' ||
+            uri.host.endsWith('.ni-os.ru');
+
         final http.Response directResp = await _httpClient.get(
-          Uri.parse(cleanPath),
+          uri,
           headers: <String, String>{
-            if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+            if (isOwnHost && token.isNotEmpty) 'Authorization': 'Bearer $token',
           },
         );
         if (directResp.statusCode == 200 && directResp.bodyBytes.isNotEmpty) {
@@ -308,7 +316,10 @@ class WsMediaFetcher {
 
     final http.Response response = await _httpClient.post(
       Uri.parse(downloadUrl),
-      headers: <String, String>{'Content-Type': 'application/json'},
+      headers: <String, String>{
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
       body: jsonEncode(<String, dynamic>{
         'token': token,
         'file_path': cleanPath,

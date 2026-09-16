@@ -66,7 +66,8 @@ class ChatInputBar extends StatefulWidget {
   State<ChatInputBar> createState() => _ChatInputBarState();
 }
 
-class _ChatInputBarState extends State<ChatInputBar> {
+class _ChatInputBarState extends State<ChatInputBar>
+    with WidgetsBindingObserver {
   bool _showEmojiPicker = false;
   int _pickerTabIndex = 0;
   late final PageController _pickerPageController =
@@ -78,29 +79,57 @@ class _ChatInputBarState extends State<ChatInputBar> {
   bool _isInputEmpty = true;
   bool _isRecording = false;
   bool _isVideoMode = false;
-  Offset _recordingDragOffset = Offset.zero;
+  final ValueNotifier<Offset> _dragOffsetNotifier =
+      ValueNotifier<Offset>(Offset.zero);
   bool _isRecordingLocked = false;
   final ValueNotifier<Duration> _elapsedNotifier =
       ValueNotifier<Duration>(Duration.zero);
   final ValueNotifier<List<double>> _amplitudeNotifier =
       ValueNotifier<List<double>>(<double>[]);
+  static const int _kWaveformSampleCount = 48;
+  final List<double> _waveformBuffer = <double>[];
   bool _isStartingRecording = false;
   bool _sendOnStart = false;
   bool _cancelOnStart = false;
 
+  Config? _cachedEmojiConfig;
+  ColorScheme? _cachedEmojiConfigScheme;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     widget.inputController.addListener(_onTextChanged);
     _isInputEmpty = widget.inputController.text.trim().isEmpty;
     widget.inputFocusNode.addListener(_onFocusChanged);
   }
 
   @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    final double bottom = WidgetsBinding
+            .instance.platformDispatcher.views.firstOrNull?.viewInsets.bottom ??
+        0.0;
+    final double pixelRatio = WidgetsBinding.instance.platformDispatcher
+            .views.firstOrNull?.devicePixelRatio ??
+        1.0;
+    final double logicalBottom =
+        bottom / (pixelRatio > 0 ? pixelRatio : 1.0);
+    if (logicalBottom > 0) {
+      final double clamped = logicalBottom.clamp(260.0, 440.0);
+      if ((_cachedKeyboardHeight - clamped).abs() > 1.0) {
+        _cachedKeyboardHeight = clamped;
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     widget.inputController.removeListener(_onTextChanged);
     widget.inputFocusNode.removeListener(_onFocusChanged);
     _pickerPageController.dispose();
+    _dragOffsetNotifier.dispose();
     _amplitudeNotifier.dispose();
     _elapsedNotifier.dispose();
     super.dispose();
@@ -211,7 +240,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   Future<void> _startVoiceRecording() async {
     HapticService.tap();
-    _amplitudeNotifier.value = <double>[];
+    _waveformBuffer.clear();
+    _amplitudeNotifier.value = const <double>[];
+    _dragOffsetNotifier.value = Offset.zero;
     _isStartingRecording = true;
     _sendOnStart = false;
     _cancelOnStart = false;
@@ -224,13 +255,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
       },
       onAmplitude: (double amp) {
         if (!mounted) return;
-        final List<double> history = List<double>.from(_amplitudeNotifier.value);
-        history.add(amp);
-        if (history.length > 48) {
-          _amplitudeNotifier.value = history.sublist(history.length - 48);
-        } else {
-          _amplitudeNotifier.value = history;
+        _waveformBuffer.add(amp);
+        if (_waveformBuffer.length > _kWaveformSampleCount) {
+          _waveformBuffer.removeAt(0);
         }
+        _amplitudeNotifier.value = List<double>.unmodifiable(_waveformBuffer);
       },
     );
 
@@ -248,9 +277,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
         return;
       }
       _elapsedNotifier.value = Duration.zero;
+      _dragOffsetNotifier.value = Offset.zero;
       setState(() {
         _isRecording = true;
-        _recordingDragOffset = Offset.zero;
         _isRecordingLocked = false;
       });
     } else if (mounted) {
@@ -265,7 +294,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
     HapticService.confirm();
     final String? path = await VoiceRecorderService.stopRecording();
     if (mounted) {
-      _amplitudeNotifier.value = <double>[];
+      _waveformBuffer.clear();
+      _amplitudeNotifier.value = const <double>[];
+      _dragOffsetNotifier.value = Offset.zero;
       setState(() {
         _isRecording = false;
       });
@@ -279,10 +310,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
     HapticService.destructive();
     await VoiceRecorderService.cancelRecording();
     if (mounted) {
-      _amplitudeNotifier.value = <double>[];
+      _waveformBuffer.clear();
+      _amplitudeNotifier.value = const <double>[];
+      _dragOffsetNotifier.value = Offset.zero;
       setState(() {
         _isRecording = false;
-        _recordingDragOffset = Offset.zero;
       });
     }
   }
@@ -293,19 +325,16 @@ class _ChatInputBarState extends State<ChatInputBar> {
     final ColorScheme scheme = theme.colorScheme;
     final TextTheme textTheme = theme.textTheme;
 
-    // Cache physical keyboard height dynamically for 1:1 zero-jolt panel parity
+    // Read physical keyboard height dynamically for 1:1 zero-jolt panel parity
     final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    if (bottomInset > 0) {
-      final double clamped = bottomInset.clamp(260.0, 440.0);
-      if ((_cachedKeyboardHeight - clamped).abs() > 1.0) {
-        _cachedKeyboardHeight = clamped;
-      }
-    }
+    final double effectiveKeyboardHeight = bottomInset > 0
+        ? bottomInset.clamp(260.0, 440.0)
+        : _cachedKeyboardHeight;
 
     // Mathematical zero-jolt height: when switching, the sum of keyboardInset + panelHeight
     // remains constant so the message list doesn't move a single pixel!
     final double effectivePanelHeight = _showEmojiPicker
-        ? math.max(0.0, _cachedKeyboardHeight - bottomInset)
+        ? math.max(0.0, effectiveKeyboardHeight - bottomInset)
         : 0.0;
 
     return PopScope(
@@ -433,13 +462,18 @@ class _ChatInputBarState extends State<ChatInputBar> {
                         return ValueListenableBuilder<List<double>>(
                           valueListenable: _amplitudeNotifier,
                           builder: (BuildContext context, List<double> amplitudes, _) {
-                            return VoiceRecordingPanel(
-                              elapsed: elapsed,
-                              dragOffset: _recordingDragOffset,
-                              isLocked: _isRecordingLocked,
-                              amplitudeHistory: amplitudes,
-                              onSend: _sendVoiceRecording,
-                              onCancel: _cancelVoiceRecording,
+                            return ValueListenableBuilder<Offset>(
+                              valueListenable: _dragOffsetNotifier,
+                              builder: (BuildContext context, Offset dragOffset, _) {
+                                return VoiceRecordingPanel(
+                                  elapsed: elapsed,
+                                  dragOffset: dragOffset,
+                                  isLocked: _isRecordingLocked,
+                                  amplitudeHistory: amplitudes,
+                                  onSend: _sendVoiceRecording,
+                                  onCancel: _cancelVoiceRecording,
+                                );
+                              },
                             );
                           },
                         );
@@ -466,7 +500,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
                                   ? scheme.surfaceContainerHighest
                                   : scheme.surfaceContainerHighest
                                       .withValues(alpha: 0.8),
-                              borderRadius: BorderRadius.circular(28),
+                              borderRadius: (theme.inputDecorationTheme.border
+                                          as OutlineInputBorder?)
+                                      ?.borderRadius ??
+                                  BorderRadius.circular(28),
                               border: Border.all(
                                 color: _isFocused
                                     ? scheme.primary.withValues(alpha: 0.45)
@@ -474,16 +511,6 @@ class _ChatInputBarState extends State<ChatInputBar> {
                                         .withValues(alpha: 0.18),
                                 width: 1.4,
                               ),
-                              boxShadow: _isFocused
-                                  ? <BoxShadow>[
-                                      BoxShadow(
-                                        color: scheme.primary
-                                            .withValues(alpha: 0.08),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ]
-                                  : null,
                             ),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
@@ -699,14 +726,13 @@ class _ChatInputBarState extends State<ChatInputBar> {
               color: scheme.surfaceContainerLow,
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(24)),
-              boxShadow: effectivePanelHeight > 0
-                  ? <BoxShadow>[
-                      BoxShadow(
-                        color: scheme.shadow.withValues(alpha: 0.09),
-                        blurRadius: 18,
-                        offset: const Offset(0, -4),
+              border: effectivePanelHeight > 0
+                  ? Border(
+                      top: BorderSide(
+                        color: scheme.outlineVariant.withValues(alpha: 0.2),
+                        width: 1,
                       ),
-                    ]
+                    )
                   : null,
             ),
             child: effectivePanelHeight > 0
@@ -810,7 +836,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       Expanded(
                         child: PageView(
                           controller: _pickerPageController,
-                          physics: const BouncingScrollPhysics(),
+                          physics: ScrollConfiguration.of(context)
+                              .getScrollPhysics(context),
                           onPageChanged: (int page) {
                             if (widget.hapticsEnabled) {
                               HapticService.tap();
@@ -822,45 +849,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                             EmojiPicker(
                               textEditingController:
                                   widget.inputController,
-                              config: Config(
-                                checkPlatformCompatibility: true,
-                                emojiViewConfig: const EmojiViewConfig(
-                                  backgroundColor: Colors.transparent,
-                                  columns: 8,
-                                  emojiSizeMax: 28,
-                                  verticalSpacing: 3,
-                                  horizontalSpacing: 3,
-                                  gridPadding: EdgeInsets.symmetric(
-                                      horizontal: 8),
-                                  buttonMode: ButtonMode.NONE,
-                                ),
-                                skinToneConfig: const SkinToneConfig(),
-                                categoryViewConfig: CategoryViewConfig(
-                                  backgroundColor: Colors.transparent,
-                                  tabBarHeight: 38,
-                                  indicatorColor: scheme.primary,
-                                  iconColor: scheme.onSurfaceVariant
-                                      .withValues(alpha: 0.5),
-                                  iconColorSelected: scheme.primary,
-                                  backspaceColor: scheme.onSurfaceVariant,
-                                  dividerColor: Colors.transparent,
-                                ),
-                                bottomActionBarConfig:
-                                    BottomActionBarConfig(
-                                  backgroundColor: Colors.transparent,
-                                  buttonColor: scheme.surfaceContainerHigh,
-                                  buttonIconColor: scheme.onSurfaceVariant,
-                                ),
-                                searchViewConfig: SearchViewConfig(
-                                  backgroundColor: Colors.transparent,
-                                  buttonIconColor: scheme.onSurfaceVariant,
-                                  customSearchView:
-                                      (config, state, showEmojiView) {
-                                    return M3EmojiSearchView(
-                                        config, state, showEmojiView);
-                                  },
-                                ),
-                              ),
+                              config: _getEmojiConfig(scheme),
                             ),
 
                             // Page 1: Sticker Picker
@@ -913,15 +902,6 @@ class _ChatInputBarState extends State<ChatInputBar> {
               ? scheme.secondaryContainer
               : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: isSelected
-              ? <BoxShadow>[
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.06),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ]
-              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -951,98 +931,133 @@ class _ChatInputBarState extends State<ChatInputBar> {
     );
   }
 
+  Config _getEmojiConfig(ColorScheme scheme) {
+    if (_cachedEmojiConfig != null && _cachedEmojiConfigScheme == scheme) {
+      return _cachedEmojiConfig!;
+    }
+    _cachedEmojiConfigScheme = scheme;
+    return _cachedEmojiConfig = Config(
+      checkPlatformCompatibility: true,
+      emojiViewConfig: const EmojiViewConfig(
+        backgroundColor: Colors.transparent,
+        columns: 8,
+        emojiSizeMax: 28,
+        verticalSpacing: 3,
+        horizontalSpacing: 3,
+        gridPadding: EdgeInsets.symmetric(horizontal: 8),
+        buttonMode: ButtonMode.NONE,
+      ),
+      skinToneConfig: const SkinToneConfig(),
+      categoryViewConfig: CategoryViewConfig(
+        backgroundColor: Colors.transparent,
+        tabBarHeight: 38,
+        indicatorColor: scheme.primary,
+        iconColor: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+        iconColorSelected: scheme.primary,
+        backspaceColor: scheme.onSurfaceVariant,
+        dividerColor: Colors.transparent,
+      ),
+      bottomActionBarConfig: BottomActionBarConfig(
+        backgroundColor: Colors.transparent,
+        buttonColor: scheme.surfaceContainerHigh,
+        buttonIconColor: scheme.onSurfaceVariant,
+      ),
+      searchViewConfig: SearchViewConfig(
+        backgroundColor: Colors.transparent,
+        buttonIconColor: scheme.onSurfaceVariant,
+        customSearchView: (config, state, showEmojiView) {
+          return M3EmojiSearchView(config, state, showEmojiView);
+        },
+      ),
+    );
+  }
+
   // ── Record button (mic/video toggle + long press to record) ──
   Widget _buildRecordButton(ColorScheme scheme) {
-    return GestureDetector(
-      onTap: () {
-        // Tap toggles mic ↔ video mode
-        setState(() => _isVideoMode = !_isVideoMode);
-        HapticService.confirm();
-      },
-      onLongPressStart: (LongPressStartDetails details) async {
-        if (_isVideoMode) {
-          // Video mode: open circle recorder with auto-start
-          HapticService.tap();
-          _openCircleVideo(autoStart: true);
-          return;
-        }
-        // Voice mode: start recording
-        await _startVoiceRecording();
-      },
-      onLongPressMoveUpdate: (LongPressMoveUpdateDetails details) {
-        if (!_isRecording || _isRecordingLocked) return;
-        setState(() {
-          _recordingDragOffset = details.localOffsetFromOrigin;
-        });
-
-        // Real-time lock detection: lock as soon as threshold is crossed
-        if (details.localOffsetFromOrigin.dy < -60 && !_isRecordingLocked) {
+    return Tooltip(
+      message: _isVideoMode
+          ? context.l10n.chatCircleVideo
+          : context.l10n.chatVoiceMessage,
+      child: GestureDetector(
+        onTap: () {
+          // Tap toggles mic ↔ video mode
+          setState(() => _isVideoMode = !_isVideoMode);
           HapticService.confirm();
-          setState(() => _isRecordingLocked = true);
-        }
-      },
-      onLongPressCancel: () async {
-        if (_isStartingRecording) {
-          _cancelOnStart = true;
-          return;
-        }
-        if (_isRecording && !_isRecordingLocked) {
-          await _sendVoiceRecording();
-        }
-      },
-      onLongPressEnd: (LongPressEndDetails details) async {
-        if (_isStartingRecording) {
-          if (_recordingDragOffset.dx < -120) {
-            _cancelOnStart = true;
-          } else {
-            _sendOnStart = true;
+        },
+        onLongPressStart: (LongPressStartDetails details) async {
+          if (_isVideoMode) {
+            // Video mode: open circle recorder with auto-start
+            HapticService.tap();
+            _openCircleVideo(autoStart: true);
+            return;
           }
-          return;
-        }
-        if (!_isRecording || _isRecordingLocked) return;
+          // Voice mode: start recording
+          await _startVoiceRecording();
+        },
+        onLongPressMoveUpdate: (LongPressMoveUpdateDetails details) {
+          if (!_isRecording || _isRecordingLocked) return;
+          _dragOffsetNotifier.value = details.localOffsetFromOrigin;
 
-        final double dx = _recordingDragOffset.dx;
+          // Real-time lock detection: lock as soon as threshold is crossed
+          if (details.localOffsetFromOrigin.dy < -60 && !_isRecordingLocked) {
+            HapticService.confirm();
+            setState(() => _isRecordingLocked = true);
+          }
+        },
+        onLongPressCancel: () async {
+          if (_isStartingRecording) {
+            _cancelOnStart = true;
+            return;
+          }
+          if (_isRecording && !_isRecordingLocked) {
+            await _cancelVoiceRecording();
+          }
+        },
+        onLongPressEnd: (LongPressEndDetails details) async {
+          if (_isStartingRecording) {
+            if (_dragOffsetNotifier.value.dx < -120) {
+              _cancelOnStart = true;
+            } else {
+              _sendOnStart = true;
+            }
+            return;
+          }
+          if (!_isRecording || _isRecordingLocked) return;
 
-        if (dx < -120) {
-          // Slide left → cancel
-          await _cancelVoiceRecording();
-          return;
-        }
+          final double dx = _dragOffsetNotifier.value.dx;
 
-        // Release → send
-        await _sendVoiceRecording();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: _isVideoMode ? scheme.tertiary : scheme.primary,
-          shape: BoxShape.circle,
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: (_isVideoMode ? scheme.tertiary : scheme.primary)
-                  .withValues(alpha: 0.24),
-              blurRadius: 8,
-              spreadRadius: 0.5,
-              offset: const Offset(0, 2),
+          if (dx < -120) {
+            // Slide left → cancel
+            await _cancelVoiceRecording();
+            return;
+          }
+
+          // Release → send
+          await _sendVoiceRecording();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: M3SpringCurves.spatial,
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: _isVideoMode ? scheme.tertiary : scheme.primary,
+            shape: BoxShape.circle,
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            transitionBuilder: (Widget child, Animation<double> anim) {
+              return ScaleTransition(
+                scale: anim,
+                child: child,
+              );
+            },
+            child: Icon(
+              _isVideoMode ? Icons.videocam_rounded : Icons.mic_rounded,
+              key: ValueKey<bool>(_isVideoMode),
+              color: _isVideoMode ? scheme.onTertiary : scheme.onPrimary,
+              size: 22,
             ),
-          ],
-        ),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          transitionBuilder: (Widget child, Animation<double> anim) {
-            return ScaleTransition(
-              scale: anim,
-              child: child,
-            );
-          },
-          child: Icon(
-            _isVideoMode ? Icons.videocam_rounded : Icons.mic_rounded,
-            key: ValueKey<bool>(_isVideoMode),
-            color: _isVideoMode ? scheme.onTertiary : scheme.onPrimary,
-            size: 22,
           ),
         ),
       ),
@@ -1052,7 +1067,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
   // ── Send / Commit edit button ──
   Widget _buildSendButton(ColorScheme scheme) {
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 180),
+      duration: const Duration(milliseconds: 200),
       transitionBuilder: (Widget child, Animation<double> anim) =>
           ScaleTransition(scale: anim, child: child),
       child: TouchContainer(
@@ -1067,17 +1082,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
           decoration: BoxDecoration(
             color: scheme.primary,
             shape: BoxShape.circle,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: scheme.primary.withValues(alpha: 0.24),
-                blurRadius: 8,
-                spreadRadius: 0.5,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
+            duration: const Duration(milliseconds: 200),
             transitionBuilder: (Widget child, Animation<double> anim) =>
                 ScaleTransition(scale: anim, child: child),
             child: Icon(

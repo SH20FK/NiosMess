@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
@@ -43,7 +44,7 @@ class _SettingsWallpaperScreenState
   List<ui.Picture>? _previewPoolSvgPictures;
   bool _dependenciesInitialized = false;
   Color? _lastLoadedIconColor;
-  bool _showChatMockup = false;
+  bool _userModified = false;
 
   late AnimationController _diceAnimController;
   late Animation<double> _diceRotationAnimation;
@@ -167,6 +168,7 @@ class _SettingsWallpaperScreenState
 
   void _updateConfig(ChatWallpaperConfig newConfig,
       {bool immediateSave = false}) {
+    _userModified = true;
     final bool needsSvgReload =
         newConfig.iconSource != _config.iconSource ||
         newConfig.themePack != _config.themePack ||
@@ -218,10 +220,9 @@ class _SettingsWallpaperScreenState
     HapticService.tap();
     final bool? confirmed = await showAppConfirmDialog(
       context: context,
-      title: 'Сбросить обои?',
-      subtitle:
-          'Все параметры раскладки, плотности и символов вернутся к значениям по умолчанию.',
-      confirmLabel: 'Сбросить',
+      title: context.l10n.wallpaperResetTitle,
+      subtitle: context.l10n.wallpaperResetSubtitle,
+      confirmLabel: context.l10n.wallpaperResetAction,
       cancelLabel: 'Отмена',
       icon: Icons.restart_alt_rounded,
       destructive: true,
@@ -237,7 +238,7 @@ class _SettingsWallpaperScreenState
           _config = globalConfig;
         });
       } else {
-        notifier.resetAllToDefault();
+        notifier.resetGlobalToDefault();
         setState(() {
           _config = ChatWallpaperConfig.defaultPattern;
         });
@@ -288,6 +289,7 @@ class _SettingsWallpaperScreenState
     final String bgRole1 = bgRoles[rng.nextInt(bgRoles.length)];
     final String bgRole2 = bgRoles[rng.nextInt(bgRoles.length)];
 
+    final ChatWallpaperConfig previous = _config;
     final ChatWallpaperConfig randomized = _config.copyWith(
       seed: rng.nextInt(100000),
       iconSource: randomSource,
@@ -307,12 +309,42 @@ class _SettingsWallpaperScreenState
     );
 
     _updateConfig(randomized, immediateSave: true);
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.wallpaperRandomUndo),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          action: SnackBarAction(
+            label: 'Отменить',
+            onPressed: () {
+              HapticService.tap();
+              _updateConfig(previous, immediateSave: true);
+            },
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+
+    ref.listen<ChatWallpaperState>(chatWallpaperProvider, (previous, next) {
+      if (!_userModified && next.isLoaded) {
+        final newConfig = next.forChat(widget.chatId);
+        if (newConfig != _config) {
+          setState(() {
+            _config = newConfig;
+          });
+          _loadSvgPreviewIfNeeded();
+        }
+      }
+    });
 
     final String screenTitle = widget.chatId != null
         ? 'Обои чата: ${widget.chatTitle ?? widget.chatId}'
@@ -451,15 +483,7 @@ class _SettingsWallpaperScreenState
                           : scheme.outlineVariant.withValues(alpha: 0.25),
                       width: isSelected ? 2.0 : 1.0,
                     ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: scheme.primary.withValues(alpha: 0.22),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ]
-                        : null,
+                    
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,181 +552,6 @@ class _SettingsWallpaperScreenState
     );
   }
 
-  Widget _buildChatMockupOverlay(ColorScheme scheme) {
-    return Positioned.fill(
-      child: IgnorePointer(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 240),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHigh.withValues(alpha: 0.94),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(18),
-                      topRight: Radius.circular(18),
-                      bottomRight: Radius.circular(18),
-                      bottomLeft: Radius.circular(4),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: scheme.shadow.withValues(alpha: 0.12),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Привет! Как тебе новый фон? 👀',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Align(
-                        alignment: Alignment.bottomRight,
-                        child: Text(
-                          '10:42',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color:
-                                scheme.onSurfaceVariant.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 250),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: scheme.primary,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(18),
-                      topRight: Radius.circular(18),
-                      bottomLeft: Radius.circular(18),
-                      bottomRight: Radius.circular(4),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: scheme.primary.withValues(alpha: 0.28),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Выглядит просто космически! 🔥',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: scheme.onPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '10:43',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: scheme.onPrimary.withValues(alpha: 0.85),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.done_all_rounded,
-                            size: 14,
-                            color: scheme.onPrimary,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 220),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHigh.withValues(alpha: 0.94),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(18),
-                      topRight: Radius.circular(18),
-                      bottomRight: Radius.circular(18),
-                      bottomLeft: Radius.circular(4),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: scheme.shadow.withValues(alpha: 0.12),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'И текст читается идеально ✨',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Align(
-                        alignment: Alignment.bottomRight,
-                        child: Text(
-                          '10:43',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color:
-                                scheme.onSurfaceVariant.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildActionButtons(ColorScheme scheme) {
     return _WallpaperActionButtons(
       diceRotationAnimation: _diceRotationAnimation,
@@ -715,7 +564,7 @@ class _SettingsWallpaperScreenState
   Widget _buildPreviewCard(ColorScheme scheme, TextTheme textTheme, {double height = 220}) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onDoubleTap: _randomizeConfigWithSpin,
+      
       child: Container(
         height: height,
         decoration: BoxDecoration(
@@ -724,13 +573,7 @@ class _SettingsWallpaperScreenState
               color: scheme.outlineVariant.withValues(alpha: 0.35),
               width: 1.0,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: scheme.shadow.withValues(alpha: 0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(23),
@@ -749,7 +592,7 @@ class _SettingsWallpaperScreenState
                 ),
 
                 // Live Chat Mockup Overlay
-                if (_showChatMockup) _buildChatMockupOverlay(scheme),
+                
 
                 // Subtle edge fade gradient overlay
                 Positioned.fill(
@@ -785,13 +628,7 @@ class _SettingsWallpaperScreenState
                       border: Border.all(
                         color: scheme.outlineVariant.withValues(alpha: 0.35),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: scheme.shadow.withValues(alpha: 0.08),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -822,38 +659,7 @@ class _SettingsWallpaperScreenState
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Tooltip(
-                        message: _showChatMockup ? 'Скрыть чат' : 'Примерка чата',
-                        child: Material(
-                          color: _showChatMockup
-                              ? scheme.primary
-                              : scheme.surface.withValues(alpha: 0.88),
-                          shape: const CircleBorder(),
-                          elevation: 1,
-                          child: InkWell(
-                            onTap: () {
-                              HapticService.tap();
-                              setState(() {
-                                _showChatMockup = !_showChatMockup;
-                              });
-                            },
-                            customBorder: const CircleBorder(),
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Icon(
-                                _showChatMockup
-                                    ? Icons.chat_rounded
-                                    : Icons.chat_bubble_outline_rounded,
-                                size: 17,
-                                color: _showChatMockup
-                                    ? scheme.onPrimary
-                                    : scheme.primary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
+
                       FilledButton.tonalIcon(
                         onPressed: () => _openFullScreenPreview(context, scheme),
                         icon: const Icon(Icons.fullscreen_rounded, size: 16),
@@ -957,22 +763,7 @@ class _SettingsWallpaperScreenState
                     onPressed: () => Navigator.of(innerCtx).pop(),
                   ),
                   actions: <Widget>[
-                    IconButton(
-                      icon: Icon(
-                        _showChatMockup
-                            ? Icons.chat_rounded
-                            : Icons.chat_bubble_outline_rounded,
-                        color: _showChatMockup ? scheme.primary : null,
-                      ),
-                      tooltip: _showChatMockup ? 'Скрыть чат' : 'Примерка чата',
-                      onPressed: () {
-                        HapticService.tap();
-                        setModalState(() {
-                          _showChatMockup = !_showChatMockup;
-                        });
-                        setState(() {});
-                      },
-                    ),
+
                     TextButton(
                       onPressed: () {
                         Navigator.of(innerCtx).pop();
@@ -998,7 +789,7 @@ class _SettingsWallpaperScreenState
                     ),
 
                     // Live Chat Mockup Overlay
-                    if (_showChatMockup) _buildChatMockupOverlay(scheme),
+                    
 
                     // Bottom Floating Information Capsule with Quick Randomize
                     Positioned(
@@ -1016,13 +807,7 @@ class _SettingsWallpaperScreenState
                             color:
                                 scheme.outlineVariant.withValues(alpha: 0.35),
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: scheme.shadow.withValues(alpha: 0.15),
-                              blurRadius: 18,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
+                          
                         ),
                         child: Row(
                           children: [
@@ -1308,8 +1093,6 @@ class _SettingsWallpaperScreenState
                   onSelected: (bool sel) {
                     HapticService.tap();
                     if (p.key == 'custom') {
-                      _updateConfig(_config.copyWith(themePack: 'custom'),
-                          immediateSave: true);
                       _openCustomGlyphPicker(context, scheme);
                     } else {
                       _updateConfig(
@@ -1325,7 +1108,38 @@ class _SettingsWallpaperScreenState
               }).toList(),
             ),
           ),
-          if (_config.themePack == 'custom')
+                  if (_config.iconSource == IconSource.materialSymbols)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: <({MaterialSymbolsStyle style, String label})>[
+                (style: MaterialSymbolsStyle.rounded, label: 'Rounded'),
+                (style: MaterialSymbolsStyle.outlined, label: 'Outlined'),
+                (style: MaterialSymbolsStyle.sharp, label: 'Sharp'),
+              ].map((entry) {
+                final bool isSelected = _config.symbolsStyle == entry.style;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    selected: isSelected,
+                    label: Text(entry.label, style: const TextStyle(fontSize: 11)),
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (bool sel) {
+                      if (sel) {
+                        HapticService.tap();
+                        _updateConfig(
+                          _config.copyWith(symbolsStyle: entry.style),
+                          immediateSave: true,
+                        );
+                      }
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+        if (_config.themePack == 'custom')
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
               child: OutlinedButton.icon(
@@ -1586,6 +1400,16 @@ class _SettingsWallpaperScreenState
       title: 'Геометрия и динамика',
       subtitle: 'Размер элементов, плотность покрытия и угол поворота',
       children: <Widget>[
+                if (_config.iconSource == IconSource.materialSymbols)
+          _buildSliderRow(
+            title: 'Толщина линий',
+            value: _config.weight,
+            min: 100.0,
+            max: 700.0,
+            divisions: 6,
+            unit: '',
+            onChanged: (val) => _updateConfig(_config.copyWith(weight: val)),
+          ),
         _buildSliderRow(
           title: 'Размер ячейки',
           value: _config.cellSize,
@@ -1663,7 +1487,67 @@ class _SettingsWallpaperScreenState
       title: 'Цвета и стиль фона',
       subtitle: 'Подложка, градиенты и режим окрашивания символов',
       children: <Widget>[
-        // Background Style: Solid, Linear Gradient, Radial Glow
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Text(
+            'Основной цвет фона:',
+            style: textTheme.labelMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: <({String role, String label})>[
+                (role: 'surfaceContainerLowest', label: 'Глубокий темный'),
+                (role: 'surfaceContainerLow', label: 'Мягкий фон'),
+                (role: 'surfaceContainer', label: 'Базовый контейнер'),
+                (role: 'surfaceContainerHigh', label: 'Контрастный'),
+                (role: 'surfaceContainerHighest', label: 'Яркий контейнер'),
+                (role: 'primaryContainer', label: 'Основной акцент'),
+                (role: 'secondaryContainer', label: 'Вторичный'),
+                (role: 'tertiaryContainer', label: 'Теплый тон'),
+              ].map((item) {
+                final bool isSelected = _config.backgroundRole == item.role;
+                final Color c = WallpaperColorResolver.resolveBackground(
+                    scheme, item.role);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: ChoiceChip(
+                    selected: isSelected,
+                    avatar: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: c,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: scheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ),
+                    label: Text(item.label, style: const TextStyle(fontSize: 11)),
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (bool sel) {
+                      if (sel) {
+                        HapticService.tap();
+                        _updateConfig(
+                          _config.copyWith(backgroundRole: item.role),
+                          immediateSave: true,
+                        );
+                      }
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+                // Background Style: Solid, Linear Gradient, Radial Glow
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           child: SegmentedButton<WallpaperBackgroundStyle>(
@@ -1875,13 +1759,7 @@ class _SettingsWallpaperScreenState
                     decoration: BoxDecoration(
                       color: c,
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: c.withValues(alpha: 0.35),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
+                      
                     ),
                   ),
                 )
@@ -2101,15 +1979,7 @@ class _M3WallpaperSliderRowState extends State<_M3WallpaperSliderRow> {
                     ? scheme.primary.withValues(alpha: 0.22)
                     : scheme.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
-                boxShadow: _isDragging
-                    ? [
-                        BoxShadow(
-                          color: scheme.primary.withValues(alpha: 0.28),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
+                
               ),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
@@ -2225,15 +2095,7 @@ class _LayoutModeCardState extends State<_LayoutModeCard> {
                     : scheme.outlineVariant.withValues(alpha: 0.28),
                 width: isSelected ? 2.0 : 1.0,
               ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: scheme.primary.withValues(alpha: 0.16),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : null,
+              
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,

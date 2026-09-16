@@ -29,6 +29,7 @@ import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/utils/message_formatter.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
@@ -201,7 +202,7 @@ class MessageBubble extends ConsumerWidget {
           )
         : null;
     final bool hasMedia = (mediaUrl ?? '').trim().isNotEmpty;
-    final String displayText = MessageFormatter.displayText(text);
+    final String displayText = forwarded != null ? forwarded.body : text;
     final bool hasText = displayText.trim().isNotEmpty;
 
     final Map<String, String> headers = cachedAuthHeaders();
@@ -209,6 +210,9 @@ class MessageBubble extends ConsumerWidget {
     final double messageRadius = ref.watch(
       uiSettingsProvider.select((UiSettingsState s) => s.messageBubbleRadius),
     );
+    final double innerRadius = (messageRadius * 0.5).clamp(4.0, 16.0);
+    final double mediaRadius = (messageRadius * 0.75).clamp(6.0, 20.0);
+
     final BorderRadius bubbleRadius = _getBubbleRadius(
       isMine,
       isPrevSame,
@@ -237,7 +241,7 @@ class MessageBubble extends ConsumerWidget {
                     ),
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(innerRadius),
                       border: Border(
                         left: BorderSide(
                           color: isMine ? scheme.primary : scheme.secondary,
@@ -256,14 +260,14 @@ class MessageBubble extends ConsumerWidget {
                     ),
                   ),
                 ),
-              _buildStickerContent(context, scheme, textTheme),
+              _buildStickerContent(context, scheme, textTheme, radius: mediaRadius),
             ]
             else if (isCircleVideo && hasMedia)
               _buildCircleVideoContent(context, scheme, textTheme,
                 ref: ref,
                 chatId: chatId,
-                wsClient: ref.read(webSocketClientProvider),
-                e2eeService: ref.read(e2eeServiceProvider),
+                wsClient: ref.watch(webSocketClientProvider),
+                e2eeService: ref.watch(e2eeServiceProvider),
               )
             else
             InkWell(
@@ -302,13 +306,6 @@ class MessageBubble extends ConsumerWidget {
                   color: bubbleColor,
                   borderRadius: bubbleRadius,
                   border: bubbleBorder,
-                  boxShadow: [
-                    BoxShadow(
-                      color: scheme.shadow.withValues(alpha: isDark ? 0.20 : 0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1.5),
-                    ),
-                  ],
                 ),
                 child: Semantics(
                   label: isMine
@@ -341,9 +338,9 @@ class MessageBubble extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: (isMine ? scheme.primary : scheme.secondary)
                                     .withValues(alpha: 0.12),
-                                borderRadius: const BorderRadius.only(
-                                  topRight: Radius.circular(8),
-                                  bottomRight: Radius.circular(8),
+                                borderRadius: BorderRadius.only(
+                                  topRight: Radius.circular(innerRadius),
+                                  bottomRight: Radius.circular(innerRadius),
                                 ),
                                 border: Border(
                                   left: BorderSide(
@@ -375,7 +372,7 @@ class MessageBubble extends ConsumerWidget {
                           decoration: BoxDecoration(
                             color: scheme.surfaceContainerHighest
                                 .withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(innerRadius),
                             border: Border(
                               left: BorderSide(
                                 color: scheme.outlineVariant,
@@ -403,15 +400,17 @@ class MessageBubble extends ConsumerWidget {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                context.l10n.chatForwardedFrom(
-                                  forwarded.sender,
+                              if (forwarded.sender.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  context.l10n.chatForwardedFrom(
+                                    forwarded.sender,
+                                  ),
+                                  style: textTheme.labelSmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
                                 ),
-                                style: textTheme.labelSmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
+                              ],
                             ],
                           ),
                         ),
@@ -425,8 +424,9 @@ class MessageBubble extends ConsumerWidget {
                           textColor: textColor,
                           headers: headers,
                           chatId: chatId,
-                          wsClient: ref.read(webSocketClientProvider),
-                          e2eeService: ref.read(e2eeServiceProvider),
+                          wsClient: ref.watch(webSocketClientProvider),
+                          e2eeService: ref.watch(e2eeServiceProvider),
+                          radius: mediaRadius,
                         ),
                       if (hasMedia && hasText) const SizedBox(height: 6),
                       if (hasText)
@@ -477,6 +477,7 @@ class MessageBubble extends ConsumerWidget {
                           scheme: scheme,
                           textTheme: textTheme,
                           onTap: onOpenComments!,
+                          borderRadius: innerRadius,
                         ),
                       ],
                     ],
@@ -562,8 +563,9 @@ class MessageBubble extends ConsumerWidget {
   Widget _buildStickerContent(
     BuildContext context,
     ColorScheme scheme,
-    TextTheme textTheme,
-  ) {
+    TextTheme textTheme, {
+    double radius = 16.0,
+  }) {
     final String stickerUrl = sticker?.resolvedUrl.trim() ?? '';
     final String mediaResolved = (mediaUrl ?? '').trim().isNotEmpty
         ? ApiConstants.resolve(mediaUrl!.trim())
@@ -598,7 +600,7 @@ class MessageBubble extends ConsumerWidget {
                 onLongPress!();
               }
             : null,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(radius),
         child: Container(
           // Borderless with transparent background (no container box, no border, no outline)
           color: Colors.transparent,
@@ -613,7 +615,7 @@ class MessageBubble extends ConsumerWidget {
             children: <Widget>[
               // Sticker media content
               ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(radius),
                 child: url.isEmpty
                     ? Center(
                         child: Text(
@@ -782,12 +784,13 @@ class MessageBubble extends ConsumerWidget {
     required int chatId,
     required WebSocketClient wsClient,
     required E2eeService e2eeService,
+    double radius = 12.0,
   }) {
     if (isVoice && mediaUrl != null && mediaUrl!.trim().isNotEmpty) {
       return InkWell(
         onTap: onOpenMedia,
         onLongPress: onLongPressMedia,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(radius),
         child: VoiceMessagePlayer(
           e2eeFileKey: e2eeFileKey,
           audioUrl: mediaUrl!,
@@ -813,6 +816,7 @@ class MessageBubble extends ConsumerWidget {
           e2eeFileKey: e2eeFileKey,
           onOpenMedia: onOpenMedia,
           onLongPressMedia: onLongPressMedia,
+          radius: radius,
         );
       }
       return Stack(
@@ -820,43 +824,46 @@ class MessageBubble extends ConsumerWidget {
           InkWell(
             onTap: onOpenMedia,
             onLongPress: onLongPressMedia,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(radius),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: WsCachedImage(
-                e2eeFileKey: e2eeFileKey,
-                mediaUrl: urls.first,
-                chatId: chatId,
-                isE2ee: isE2ee,
-                width: 220,
-                height: 180,
-                fit: BoxFit.cover,
-                placeholder: (BuildContext context) => SizedBox(
+              borderRadius: BorderRadius.circular(radius),
+              child: Hero(
+                tag: 'media_${urls.first}',
+                child: WsCachedImage(
+                  e2eeFileKey: e2eeFileKey,
+                  mediaUrl: urls.first,
+                  chatId: chatId,
+                  isE2ee: isE2ee,
                   width: 220,
                   height: 180,
-                  child: Center(
-                    child: AppLoadingIndicator(
-                      color: isMine ? scheme.onPrimary : scheme.primary,
-                    ),
-                  ),
-                ),
-                errorWidget: (BuildContext context, Object error) {
-                  return Container(
+                  fit: BoxFit.cover,
+                  placeholder: (BuildContext context) => SizedBox(
                     width: 220,
                     height: 180,
-                    alignment: Alignment.center,
-                    color: isMine
-                        ? scheme.onPrimary.withValues(alpha: 0.12)
-                        : scheme.surfaceContainerHigh,
-                    child: Semantics(
-                      label: context.l10n.chatImageUnavailable,
-                      child: Text(
-                        context.l10n.chatImageUnavailable,
-                        style: textTheme.bodySmall?.copyWith(color: textColor),
+                    child: Center(
+                      child: AppLoadingIndicator(
+                        color: isMine ? scheme.onPrimary : scheme.primary,
                       ),
                     ),
-                  );
-                },
+                  ),
+                  errorWidget: (BuildContext context, Object error) {
+                    return Container(
+                      width: 220,
+                      height: 180,
+                      alignment: Alignment.center,
+                      color: isMine
+                          ? scheme.onPrimary.withValues(alpha: 0.12)
+                          : scheme.surfaceContainerHigh,
+                      child: Semantics(
+                        label: context.l10n.chatImageUnavailable,
+                        child: Text(
+                          context.l10n.chatImageUnavailable,
+                          style: textTheme.bodySmall?.copyWith(color: textColor),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -913,7 +920,7 @@ class MessageBubble extends ConsumerWidget {
         color: isMine
             ? scheme.onPrimary.withValues(alpha: 0.15)
             : scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(radius),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -963,7 +970,7 @@ class MessageBubble extends ConsumerWidget {
                 InkWell(
                   onTap: onOpenMedia,
                   onLongPress: onLongPressMedia,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular((radius * 0.8).clamp(4.0, 14.0)),
                   child: Container(
                     width: 40,
                     height: 40,
@@ -971,7 +978,7 @@ class MessageBubble extends ConsumerWidget {
                       color: (isMine ? scheme.onPrimary : scheme.primary).withValues(
                         alpha: 0.12,
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular((radius * 0.8).clamp(4.0, 14.0)),
                     ),
                     alignment: Alignment.center,
                     child: Icon(
@@ -1128,6 +1135,24 @@ class MessageBubble extends ConsumerWidget {
   }
 }
 
+class _ParsedTextToken {
+  const _ParsedTextToken({
+    required this.prefix,
+    required this.token,
+    required this.trailing,
+    required this.isMention,
+    required this.isLink,
+    required this.target,
+  });
+
+  final String prefix;
+  final String token;
+  final String trailing;
+  final bool isMention;
+  final bool isLink;
+  final String target;
+}
+
 class _InteractiveMessageText extends StatefulWidget {
   const _InteractiveMessageText({
     required this.text,
@@ -1147,23 +1172,28 @@ class _InteractiveMessageText extends StatefulWidget {
 
 class _InteractiveMessageTextState extends State<_InteractiveMessageText> {
   final List<TapGestureRecognizer> _recognizers = <TapGestureRecognizer>[];
+  final List<_ParsedTextToken> _tokens = <_ParsedTextToken>[];
+  String _trailingText = '';
   late TextSpan _cachedSpan;
 
   @override
   void initState() {
     super.initState();
-    _rebuildSpans();
+    _parseTokens();
+    _updateSpans();
   }
 
   @override
   void didUpdateWidget(covariant _InteractiveMessageText oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.text != widget.text ||
-        oldWidget.baseStyle != widget.baseStyle ||
+    if (oldWidget.text != widget.text) {
+      _disposeRecognizers();
+      _parseTokens();
+      _updateSpans();
+    } else if (oldWidget.baseStyle != widget.baseStyle ||
         oldWidget.isMine != widget.isMine ||
         oldWidget.scheme != widget.scheme) {
-      _disposeRecognizers();
-      _rebuildSpans();
+      _updateSpans();
     }
   }
 
@@ -1180,22 +1210,14 @@ class _InteractiveMessageTextState extends State<_InteractiveMessageText> {
     _recognizers.clear();
   }
 
-  void _rebuildSpans() {
-    final Color linkColor = widget.isMine
-        ? widget.scheme.onPrimaryContainer
-        : widget.scheme.primary;
-
+  void _parseTokens() {
+    _tokens.clear();
     final String text = widget.text;
     final int lastMatch = text.length;
-    final List<TextSpan> spans = <TextSpan>[];
     int lastEnd = 0;
 
-    for (final RegExpMatch match
-        in _interactiveTokenRegExp.allMatches(text)) {
-      if (match.start > lastEnd) {
-        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
-      }
-
+    for (final RegExpMatch match in _interactiveTokenRegExp.allMatches(text)) {
+      final String prefix = match.start > lastEnd ? text.substring(lastEnd, match.start) : '';
       final String rawToken = match.group(0)!;
       String token = rawToken;
       String trailingPunctuation = '';
@@ -1213,17 +1235,48 @@ class _InteractiveMessageTextState extends State<_InteractiveMessageText> {
         token = token.substring(0, token.length - 1);
       }
 
-      if (token.startsWith('@')) {
-        final String username = token.substring(1);
-        final TapGestureRecognizer recognizer = TapGestureRecognizer()
-          ..onTap = () {
-            if (mounted) {
-              AppUrlLauncher.openUrl(context, '/g/$username');
-            }
-          };
-        _recognizers.add(recognizer);
+      final bool isMention = token.startsWith('@');
+      final String target = isMention ? token.substring(1) : token;
+
+      final TapGestureRecognizer recognizer = TapGestureRecognizer()
+        ..onTap = () {
+          if (mounted) {
+            AppUrlLauncher.openUrl(context, isMention ? '/g/$target' : target);
+          }
+        };
+      _recognizers.add(recognizer);
+
+      _tokens.add(_ParsedTextToken(
+        prefix: prefix,
+        token: token,
+        trailing: trailingPunctuation,
+        isMention: isMention,
+        isLink: !isMention,
+        target: target,
+      ));
+
+      lastEnd = match.end;
+    }
+
+    _trailingText = lastEnd < lastMatch ? text.substring(lastEnd) : '';
+  }
+
+  void _updateSpans() {
+    final Color linkColor = widget.isMine
+        ? widget.scheme.onPrimaryContainer
+        : widget.scheme.primary;
+
+    final List<TextSpan> spans = <TextSpan>[];
+
+    for (int i = 0; i < _tokens.length; i++) {
+      final _ParsedTextToken t = _tokens[i];
+      if (t.prefix.isNotEmpty) {
+        spans.add(TextSpan(text: t.prefix));
+      }
+      final TapGestureRecognizer recognizer = _recognizers[i];
+      if (t.isMention) {
         spans.add(TextSpan(
-          text: token,
+          text: t.token,
           style: widget.baseStyle.copyWith(
             color: linkColor,
             fontWeight: FontWeight.w600,
@@ -1231,15 +1284,8 @@ class _InteractiveMessageTextState extends State<_InteractiveMessageText> {
           recognizer: recognizer,
         ));
       } else {
-        final TapGestureRecognizer recognizer = TapGestureRecognizer()
-          ..onTap = () {
-            if (mounted) {
-              AppUrlLauncher.openUrl(context, token);
-            }
-          };
-        _recognizers.add(recognizer);
         spans.add(TextSpan(
-          text: token,
+          text: t.token,
           style: widget.baseStyle.copyWith(
             color: linkColor,
             fontWeight: FontWeight.w600,
@@ -1249,16 +1295,13 @@ class _InteractiveMessageTextState extends State<_InteractiveMessageText> {
           recognizer: recognizer,
         ));
       }
-
-      if (trailingPunctuation.isNotEmpty) {
-        spans.add(TextSpan(text: trailingPunctuation));
+      if (t.trailing.isNotEmpty) {
+        spans.add(TextSpan(text: t.trailing));
       }
-
-      lastEnd = match.end;
     }
 
-    if (lastEnd < lastMatch) {
-      spans.add(TextSpan(text: text.substring(lastEnd)));
+    if (_trailingText.isNotEmpty) {
+      spans.add(TextSpan(text: _trailingText));
     }
 
     _cachedSpan = TextSpan(
@@ -1330,9 +1373,9 @@ class _MessageBubbleHeader extends StatelessWidget {
               senderDisplayName!,
               style: textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w800,
-                color: _getAuthorColor(
+                color: AppColors.avatarColorFor(
                   senderDisplayName!,
-                  Theme.of(context).brightness == Brightness.dark,
+                  scheme,
                 ),
               ),
             ),
@@ -1350,33 +1393,6 @@ class _MessageBubbleHeader extends StatelessWidget {
       ),
     );
   }
-
-  static Color _getAuthorColor(String name, bool isDark) {
-    const lightPalette = <Color>[
-      Color(0xFF00796B), // Teal
-      Color(0xFFE65100), // Deep Orange
-      Color(0xFF6A1B9A), // Purple
-      Color(0xFF1565C0), // Blue
-      Color(0xFF2E7D32), // Green
-      Color(0xFFC2185B), // Pink
-      Color(0xFFD84315), // Rust
-      Color(0xFF0277BD), // Light Blue
-    ];
-    const darkPalette = <Color>[
-      Color(0xFF4DB6AC), // Teal light
-      Color(0xFFFFB74D), // Orange light
-      Color(0xFFBA68C8), // Purple light
-      Color(0xFF64B5F6), // Blue light
-      Color(0xFF81C784), // Green light
-      Color(0xFFFF80AB), // Pink light
-      Color(0xFFFF8A65), // Rust light
-      Color(0xFF4FC3F7), // Light blue
-    ];
-    final palette = isDark ? darkPalette : lightPalette;
-    if (name.isEmpty) return palette[0];
-    final int hash = name.codeUnits.fold(0, (int prev, int elem) => prev + elem);
-    return palette[hash.abs() % palette.length];
-  }
 }
 
 class _ChannelCommentsBar extends StatelessWidget {
@@ -1385,27 +1401,20 @@ class _ChannelCommentsBar extends StatelessWidget {
     required this.scheme,
     required this.textTheme,
     required this.onTap,
+    this.borderRadius = 8.0,
   });
 
   final int commentsCount;
   final ColorScheme scheme;
   final TextTheme textTheme;
   final VoidCallback onTap;
-
-  static String _pluralComments(int n) {
-    final int mod10 = n % 10;
-    final int mod100 = n % 100;
-    if (mod100 >= 11 && mod100 <= 19) return 'комментариев';
-    if (mod10 == 1) return 'комментарий';
-    if (mod10 >= 2 && mod10 <= 4) return 'комментария';
-    return 'комментариев';
-  }
+  final double borderRadius;
 
   @override
   Widget build(BuildContext context) {
     final String label = commentsCount > 0
-        ? '$commentsCount ${_pluralComments(commentsCount)}'
-        : 'Прокомментировать';
+        ? context.l10n.commentsCount(commentsCount)
+        : context.l10n.commentsHint;
 
     return Material(
       color: Colors.transparent,
@@ -1414,12 +1423,12 @@ class _ChannelCommentsBar extends StatelessWidget {
           HapticService.tap();
           onTap();
         },
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(borderRadius),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
             color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
               color: scheme.outlineVariant.withValues(alpha: 0.25),
               width: 0.5,
@@ -1579,7 +1588,7 @@ class _SwipeToReplyState extends State<_SwipeToReply>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
-  double _dragX = 0;
+  final ValueNotifier<double> _dragNotifier = ValueNotifier<double>(0.0);
   static const double _maxDrag = 64;
   bool _triggered = false;
 
@@ -1592,14 +1601,13 @@ class _SwipeToReplyState extends State<_SwipeToReply>
     );
     _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
     _controller.addListener(() {
-      setState(() {
-        _dragX = _animation.value;
-      });
+      _dragNotifier.value = _animation.value;
     });
   }
 
   @override
   void dispose() {
+    _dragNotifier.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -1613,66 +1621,71 @@ class _SwipeToReplyState extends State<_SwipeToReply>
         _triggered = false;
       },
       onHorizontalDragUpdate: (DragUpdateDetails details) {
-        setState(() {
-          double delta = details.delta.dx;
-          // Apply friction if pulled past the threshold
-          if (_dragX < -_maxDrag && delta < 0) {
-            delta *= 0.3; 
-          }
-          
-          _dragX = (_dragX + delta).clamp(-_maxDrag * 1.2, 0);
+        double delta = details.delta.dx;
+        // Apply friction if pulled past the threshold
+        if (_dragNotifier.value < -_maxDrag && delta < 0) {
+          delta *= 0.3;
+        }
 
-          if (_dragX <= -_maxDrag && !_triggered) {
-            _triggered = true;
-            HapticService.reaction(); // small pop when threshold met
-          } else if (_dragX > -_maxDrag && _triggered) {
-            _triggered = false;
-            HapticService.reaction(); // small pop when threshold un-met
-          }
-        });
+        final double next = (_dragNotifier.value + delta).clamp(-_maxDrag * 1.2, 0.0);
+        _dragNotifier.value = next;
+
+        if (next <= -_maxDrag && !_triggered) {
+          _triggered = true;
+          HapticService.reaction(); // Pop when threshold met
+        } else if (next > -_maxDrag + 12.0 && _triggered) {
+          _triggered = false; // Reset with hysteresis, without chatter vibration
+        }
       },
       onHorizontalDragEnd: (DragEndDetails details) {
-        if (_dragX <= -_maxDrag) {
+        final double current = _dragNotifier.value;
+        if (current <= -_maxDrag) {
           HapticService.tap();
           widget.onReply();
         }
-        
+
         // Snap back without overshooting past 0
         _animation = Tween<double>(
-          begin: _dragX,
+          begin: current,
           end: 0,
         ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
-        
+
         _controller.forward(from: 0);
       },
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Transform.translate(
-            offset: Offset(_dragX, 0),
-            child: widget.child,
-          ),
-          if (_dragX < -8)
-            Positioned(
-              right: 16,
-              top: 0,
-              bottom: 0,
-              child: Transform.scale(
-                scale: (_dragX.abs() / _maxDrag).clamp(0.0, 1.0),
-                child: Center(
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: widget.scheme.primaryContainer,
-                      shape: BoxShape.circle,
+      child: ValueListenableBuilder<double>(
+        valueListenable: _dragNotifier,
+        builder: (BuildContext context, double dragX, Widget? cachedChild) {
+          return Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              Transform.translate(
+                offset: Offset(dragX, 0),
+                child: cachedChild,
+              ),
+              if (dragX < -8)
+                Positioned(
+                  right: 16,
+                  top: 0,
+                  bottom: 0,
+                  child: Transform.scale(
+                    scale: (dragX.abs() / _maxDrag).clamp(0.0, 1.0),
+                    child: Center(
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: widget.scheme.primaryContainer,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.reply_rounded, color: widget.scheme.primary, size: 20),
+                      ),
                     ),
-                    child: Icon(Icons.reply_rounded, color: widget.scheme.primary, size: 20),
                   ),
                 ),
-              ),
-            ),
-        ],
+            ],
+          );
+        },
+        child: widget.child,
       ),
     );
   }
@@ -1720,14 +1733,20 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
   bool _initialized = false;
   bool _playing = false;
   bool _showThumbnail = true;
+  bool _isLoading = false;
 
   @override
-  void initState() {
-    super.initState();
-    _initVideo();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bool isTickerActive = TickerMode.valuesOf(context).enabled;
+    if (!isTickerActive && _videoController != null && _playing) {
+      _videoController!.pause();
+    }
   }
 
   Future<void> _initVideo() async {
+    if (_isLoading) return;
+    _isLoading = true;
     try {
       Uint8List? fileKey;
       if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
@@ -1738,15 +1757,26 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
         wsClient: widget.wsClient,
         e2eeFileKey: fileKey,
       );
+      if (!mounted) return;
       _videoController = VideoPlayerController.file(
         File(localPath),
       );
       await _videoController!.initialize();
       await _videoController!.setLooping(true);
       _videoController!.addListener(_onVideoStateChange);
-      if (mounted) setState(() => _initialized = true);
+      if (mounted) {
+        setState(() {
+          _initialized = true;
+          _isLoading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _initialized = false);
+      if (mounted) {
+        setState(() {
+          _initialized = false;
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -1757,7 +1787,14 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
     if (wasPlaying != nowPlaying) setState(() => _playing = nowPlaying);
   }
 
-  void _togglePlay() {
+  Future<void> _togglePlay() async {
+    if (_videoController == null && !_isLoading) {
+      await _initVideo();
+      if (!mounted || _videoController == null) return;
+      setState(() => _showThumbnail = false);
+      _videoController!.play();
+      return;
+    }
     if (!_initialized || _videoController == null) return;
     if (_showThumbnail) {
       setState(() => _showThumbnail = false);
@@ -1772,6 +1809,7 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
   @override
   void dispose() {
     _videoController?.removeListener(_onVideoStateChange);
+    _videoController?.pause();
     _videoController?.dispose();
     super.dispose();
   }
@@ -1882,13 +1920,6 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
             ? widget.scheme.onPrimary.withValues(alpha: 0.12)
             : widget.scheme.surfaceContainerHigh,
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: widget.scheme.shadow.withValues(alpha: 0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: const Center(
         child: Icon(Icons.videocam_rounded, size: 32),
@@ -1914,6 +1945,7 @@ class _MediaCarousel extends StatefulWidget {
     required this.chatId,
     required this.isE2ee,
     this.e2eeFileKey,
+    this.radius = 12.0,
   });
 
   final List<String> urls;
@@ -1925,107 +1957,106 @@ class _MediaCarousel extends StatefulWidget {
   final int chatId;
   final bool isE2ee;
   final String? e2eeFileKey;
+  final double radius;
 
   @override
   State<_MediaCarousel> createState() => _MediaCarouselState();
 }
 
 class _MediaCarouselState extends State<_MediaCarousel> {
-  final PageController _controller = PageController(viewportFraction: 0.85);
-  int _currentPage = 0;
+  final PageController _controller = PageController(viewportFraction: 1.0);
+  final ValueNotifier<int> _pageNotifier = ValueNotifier<int>(0);
 
   @override
   void dispose() {
     _controller.dispose();
+    _pageNotifier.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final double rad = widget.radius;
     return InkWell(
       onTap: widget.onOpenMedia,
       onLongPress: widget.onLongPressMedia,
-      borderRadius: BorderRadius.circular(12),
-      child: SizedBox(
-        width: 220,
-        height: 180,
-        child: Stack(
-          children: <Widget>[
-            PageView.builder(
-              controller: _controller,
-              itemCount: widget.urls.length,
-              onPageChanged: (int index) =>
-                  setState(() => _currentPage = index),
-              itemBuilder: (BuildContext context, int index) {
-                final double scale =
-                    index == _currentPage ? 1.0 : 0.9;
-                return Padding(
-                  padding: EdgeInsets.only(
-                    right: index < widget.urls.length - 1 ? 8 : 0,
-                  ),
-                  child: AnimatedScale(
-                    scale: scale,
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOut,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: WsCachedImage(
-                        e2eeFileKey: widget.e2eeFileKey,
-                        mediaUrl: widget.urls[index],
-                        chatId: widget.chatId,
-                        isE2ee: widget.isE2ee,
-                        width: 220,
-                        height: 180,
-                        fit: BoxFit.cover,
-                        placeholder: (BuildContext context) => SizedBox(
-                          width: 220,
-                          height: 180,
-                          child: Center(
-                            child: AppLoadingIndicator(
-                              color: widget.isMine
-                                  ? widget.scheme.onPrimary
-                                  : widget.scheme.primary,
-                            ),
-                          ),
-                        ),
-                        errorWidget: (BuildContext context, Object error) => Container(
-                          width: 220,
-                          height: 180,
-                          alignment: Alignment.center,
+      borderRadius: BorderRadius.circular(rad),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(rad),
+        child: SizedBox(
+          width: 240,
+          height: 190,
+          child: Stack(
+            children: <Widget>[
+              PageView.builder(
+                controller: _controller,
+                itemCount: widget.urls.length,
+                onPageChanged: (int index) => _pageNotifier.value = index,
+                itemBuilder: (BuildContext context, int index) {
+                  return WsCachedImage(
+                    e2eeFileKey: widget.e2eeFileKey,
+                    mediaUrl: widget.urls[index],
+                    chatId: widget.chatId,
+                    isE2ee: widget.isE2ee,
+                    width: 240,
+                    height: 190,
+                    fit: BoxFit.cover,
+                    placeholder: (BuildContext context) => SizedBox(
+                      width: 240,
+                      height: 190,
+                      child: Center(
+                        child: AppLoadingIndicator(
                           color: widget.isMine
-                              ? widget.scheme.onPrimary.withValues(alpha: 0.12)
-                              : widget.scheme.surfaceContainerHigh,
-                          child: Semantics(
-                            label: context.l10n.chatImageUnavailable,
-                            child: Text(
-                              context.l10n.chatImageUnavailable,
-                              style: widget.textStyle,
-                            ),
-                          ),
+                              ? widget.scheme.onPrimary
+                              : widget.scheme.primary,
                         ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
-            if (widget.urls.length > 1)
-              Positioned(
-                bottom: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: widget.scheme.surface.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${_currentPage + 1}/${widget.urls.length}',
-                    style: TextStyle(color: widget.scheme.onSurface, fontSize: 12),
+                    errorWidget: (BuildContext context, Object error) => Container(
+                      width: 240,
+                      height: 190,
+                      alignment: Alignment.center,
+                      color: widget.isMine
+                          ? widget.scheme.onPrimary.withValues(alpha: 0.12)
+                          : widget.scheme.surfaceContainerHigh,
+                      child: Semantics(
+                        label: context.l10n.chatImageUnavailable,
+                        child: Text(
+                          context.l10n.chatImageUnavailable,
+                          style: widget.textStyle,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              if (widget.urls.length > 1)
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: _pageNotifier,
+                    builder: (BuildContext context, int page, Widget? _) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: widget.scheme.surfaceContainerHighest.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${page + 1}/${widget.urls.length}',
+                          style: TextStyle(
+                            color: widget.scheme.onSurface,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -2077,12 +2108,6 @@ class _UploadProgressOverlay extends StatelessWidget {
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHighest.withValues(alpha: 0.85),
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.2),
-                    blurRadius: 10,
-                  ),
-                ],
               ),
               child: Stack(
                 alignment: Alignment.center,
@@ -2124,12 +2149,6 @@ class _UploadProgressOverlay extends StatelessWidget {
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHighest.withValues(alpha: 0.88),
                 borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.15),
-                    blurRadius: 6,
-                  ),
-                ],
               ),
               child: Text(
                 progressLabel,
@@ -2165,6 +2184,17 @@ class _StickerVideoPlayerState extends State<_StickerVideoPlayer> {
     _initVideo();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bool isTickerActive = TickerMode.valuesOf(context).enabled;
+    if (!isTickerActive && _controller != null && _controller!.value.isPlaying) {
+      _controller!.pause();
+    } else if (isTickerActive && _controller != null && _isInit && !_controller!.value.isPlaying) {
+      _controller!.play();
+    }
+  }
+
   Future<void> _initVideo() async {
     try {
       final Uri uri = Uri.parse(widget.url);
@@ -2172,7 +2202,9 @@ class _StickerVideoPlayerState extends State<_StickerVideoPlayer> {
       await _controller!.initialize();
       await _controller!.setLooping(true);
       await _controller!.setVolume(0.0);
-      await _controller!.play();
+      if (mounted && TickerMode.valuesOf(context).enabled) {
+        await _controller!.play();
+      }
       if (mounted) setState(() => _isInit = true);
     } catch (_) {
       // Graceful fallback to static thumbnail
@@ -2181,6 +2213,7 @@ class _StickerVideoPlayerState extends State<_StickerVideoPlayer> {
 
   @override
   void dispose() {
+    _controller?.pause();
     _controller?.dispose();
     super.dispose();
   }

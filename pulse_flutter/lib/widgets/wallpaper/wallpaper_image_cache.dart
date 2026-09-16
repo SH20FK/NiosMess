@@ -8,17 +8,52 @@ import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_painter.dart';
 import 'package:pulse_flutter/widgets/wallpaper/icon_sources_catalog.dart';
 import 'package:pulse_flutter/widgets/wallpaper/wallpaper_color_resolver.dart';
 
+class _WallpaperCacheKey {
+  const _WallpaperCacheKey({
+    required this.config,
+    required this.schemeHash,
+    required this.width,
+    required this.height,
+  });
+
+  final ChatWallpaperConfig config;
+  final int schemeHash;
+  final int width;
+  final int height;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is _WallpaperCacheKey &&
+        other.config == config &&
+        other.schemeHash == schemeHash &&
+        other.width == width &&
+        other.height == height;
+  }
+
+  @override
+  int get hashCode => Object.hash(config, schemeHash, width, height);
+}
+
 class WallpaperImageCache {
   const WallpaperImageCache._();
 
-  static ui.Image? _cachedImage;
-  static ChatWallpaperConfig? _cachedConfig;
-  static ColorScheme? _cachedScheme;
-  static int? _cachedWidth;
-  static int? _cachedHeight;
-  static Future<ui.Image>? _inFlightFuture;
+  static const int _kMaxCacheEntries = 4;
+  static final Map<_WallpaperCacheKey, ui.Image> _lruCache =
+      <_WallpaperCacheKey, ui.Image>{};
+  static final Map<_WallpaperCacheKey, Future<ui.Image>> _inFlightFutures =
+      <_WallpaperCacheKey, Future<ui.Image>>{};
 
   static final Map<String, String> _rawSvgStringCache = <String, String>{};
+
+  static int _schemeKey(ColorScheme scheme) {
+    return Object.hash(
+      scheme.primary.toARGB32(),
+      scheme.surface.toARGB32(),
+      scheme.surfaceContainerLow.toARGB32(),
+      scheme.brightness,
+    );
+  }
 
   static int quantizeWidth(double width, double pixelRatio) {
     final int raw = (width * pixelRatio).round();
@@ -73,65 +108,85 @@ class WallpaperImageCache {
     required Size size,
     double pixelRatio = 1.0,
   }) {
+    if (size.width <= 0 || size.height <= 0) return null;
+
     final int targetWidth = quantizeWidth(size.width, pixelRatio);
     final int targetHeight = quantizeHeight(size.height, pixelRatio);
+    final _WallpaperCacheKey key = _WallpaperCacheKey(
+      config: config,
+      schemeHash: _schemeKey(scheme),
+      width: targetWidth,
+      height: targetHeight,
+    );
 
-    if (_cachedImage != null &&
-        _cachedConfig == config &&
-        _cachedScheme == scheme &&
-        _cachedWidth == targetWidth &&
-        _cachedHeight == targetHeight) {
-      return _cachedImage;
+    final ui.Image? image = _lruCache.remove(key);
+    if (image != null) {
+      _lruCache[key] = image;
+      return image;
     }
     return null;
   }
 
-  static Future<ui.Image> render({
+  static Future<ui.Image?> render({
     required ChatWallpaperConfig config,
     required ColorScheme scheme,
     required Size size,
     double pixelRatio = 1.0,
     bool force = false,
   }) async {
-    if (size.width <= 0 || size.height <= 0) {
-      throw ArgumentError('Invalid canvas size for wallpaper rendering: $size');
-    }
+    if (size.width <= 0 || size.height <= 0) return null;
 
     final int targetWidth = quantizeWidth(size.width, pixelRatio);
     final int targetHeight = quantizeHeight(size.height, pixelRatio);
+    final _WallpaperCacheKey key = _WallpaperCacheKey(
+      config: config,
+      schemeHash: _schemeKey(scheme),
+      width: targetWidth,
+      height: targetHeight,
+    );
 
-    if (!force &&
-        _cachedImage != null &&
-        _cachedConfig == config &&
-        _cachedScheme == scheme &&
-        _cachedWidth == targetWidth &&
-        _cachedHeight == targetHeight) {
-      return _cachedImage!;
+    if (!force) {
+      final ui.Image? cached = _lruCache.remove(key);
+      if (cached != null) {
+        _lruCache[key] = cached;
+        return cached;
+      }
     }
 
-    if (_inFlightFuture != null) {
-      return _inFlightFuture!;
+    final Future<ui.Image>? inFlight = _inFlightFutures[key];
+    if (inFlight != null) {
+      return inFlight;
     }
 
-    _inFlightFuture = _doRender(
+    final Future<ui.Image> future = _doRender(
       config: config,
       scheme: scheme,
       targetWidth: targetWidth,
       targetHeight: targetHeight,
       logicalSize: size,
     );
+    _inFlightFutures[key] = future;
 
     try {
-      final ui.Image result = await _inFlightFuture!;
-      _cachedImage = result;
-      _cachedConfig = config;
-      _cachedScheme = scheme;
-      _cachedWidth = targetWidth;
-      _cachedHeight = targetHeight;
+      final ui.Image result = await future;
+      _putCache(key, result);
       return result;
     } finally {
-      _inFlightFuture = null;
+      _inFlightFutures.remove(key);
     }
+  }
+
+  static void _putCache(_WallpaperCacheKey key, ui.Image image) {
+    final ui.Image? existing = _lruCache.remove(key);
+    if (existing != null && existing != image) {
+      existing.dispose();
+    }
+    while (_lruCache.length >= _kMaxCacheEntries) {
+      final _WallpaperCacheKey oldestKey = _lruCache.keys.first;
+      final ui.Image? evicted = _lruCache.remove(oldestKey);
+      evicted?.dispose();
+    }
+    _lruCache[key] = image;
   }
 
   static Future<ui.Image> _doRender({
@@ -196,6 +251,34 @@ class WallpaperImageCache {
           filled: config.filled,
         );
       }
+
+      // Populate paletteSvgPictures for multi-tone palette/accent coloring
+      if (config.colorMode == WallpaperColorMode.palette ||
+          config.colorMode == WallpaperColorMode.tonalAccent) {
+        final List<String> activeRoles =
+            ChatWallpaperPainter.resolveActiveRoles(config);
+        final String sampleAsset = iconsToLoad.isNotEmpty
+            ? 'assets/svg/pattern_icons/$folder/${iconsToLoad.first}.svg'
+            : (config.svgAssetPath ?? '');
+        if (sampleAsset.isNotEmpty) {
+          paletteSvgPictures = <String, ui.Picture>{};
+          for (final String role in activeRoles) {
+            final Color roleColor = WallpaperColorResolver.resolveIconColor(
+              scheme,
+              role,
+              config.iconAlpha,
+            );
+            final ui.Picture? pic = await loadPatternSvg(
+              assetPath: sampleAsset,
+              color: roleColor,
+              filled: config.filled,
+            );
+            if (pic != null) {
+              paletteSvgPictures[role] = pic;
+            }
+          }
+        }
+      }
     } else if (config.iconSource == IconSource.niosMess) {
       if (!config.useAllIcons &&
           config.svgAssetPath != null &&
@@ -230,15 +313,15 @@ class WallpaperImageCache {
 
     final ui.Picture picture = recorder.endRecording();
     final ui.Image image = await picture.toImage(targetWidth, targetHeight);
+    picture.dispose();
     return image;
   }
 
   static void clear() {
-    _cachedImage = null;
-    _cachedConfig = null;
-    _cachedScheme = null;
-    _cachedWidth = null;
-    _cachedHeight = null;
-    _inFlightFuture = null;
+    for (final ui.Image img in _lruCache.values) {
+      img.dispose();
+    }
+    _lruCache.clear();
+    _inFlightFutures.clear();
   }
 }

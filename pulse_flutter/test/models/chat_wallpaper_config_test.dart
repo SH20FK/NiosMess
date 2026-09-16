@@ -106,6 +106,22 @@ void main() {
       expect(restored.gradientAngle, 135.0);
     });
 
+    test('paletteRoles affects equality and hashCode', () {
+      const config1 = ChatWallpaperConfig(
+        paletteRoles: <String>['primary', 'secondary'],
+      );
+      const config2 = ChatWallpaperConfig(
+        paletteRoles: <String>['primary', 'tertiary'],
+      );
+      const config3 = ChatWallpaperConfig(
+        paletteRoles: <String>['primary', 'secondary'],
+      );
+
+      expect(config1 == config2, isFalse);
+      expect(config1 == config3, isTrue);
+      expect(config1.hashCode == config3.hashCode, isTrue);
+    });
+
     test('kDefaultWallpaperPresets contains valid curated presets', () {
       expect(kDefaultWallpaperPresets, isNotEmpty);
       for (final preset in kDefaultWallpaperPresets) {

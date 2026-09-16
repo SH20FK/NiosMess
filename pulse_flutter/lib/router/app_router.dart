@@ -6,7 +6,7 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/screens/chat_detail_screen.dart';
 import 'package:pulse_flutter/screens/chat_manage_screen.dart';
 import 'package:pulse_flutter/screens/chat_members_screen.dart';
-import 'package:pulse_flutter/screens/chat_redirect_screen.dart';
+import 'package:pulse_flutter/screens/direct_chat_resolver_screen.dart';
 import 'package:pulse_flutter/screens/create_chat_screen.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/join_chat_screen.dart';
@@ -40,7 +40,6 @@ import 'package:pulse_flutter/screens/splash_screen.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/screens/settings_wallpaper_screen.dart';
 import 'package:pulse_flutter/screens/settings_chats_screen.dart';
-import 'package:pulse_flutter/screens/settings/settings_hub_screen.dart';
 import 'package:pulse_flutter/screens/calls/active_call_screen.dart';
 import 'package:pulse_flutter/screens/calls/outgoing_call_screen.dart';
 
@@ -86,10 +85,13 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
   ref.onDispose(refreshListenable.dispose);
 
   ref.listen(authProvider, (AuthState? previous, AuthState next) {
-    if (previous?.isAuthenticated != next.isAuthenticated) {
+    if (previous?.isAuthenticated != next.isAuthenticated ||
+        previous?.hydrated != next.hydrated) {
       refreshListenable.value++;
     }
   });
+
+  String? savedDeepLink;
 
   return GoRouter(
     navigatorKey: AppRouter.navigatorKey,
@@ -101,10 +103,27 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       final bool isAuth = authState.isAuthenticated;
       final String path = state.uri.path;
 
-      final bool isPublic = path == '/' || path == '/web' || path == '/login' || path == '/onboarding' || path.startsWith('/legal');
+      final bool isPublic = path == '/' ||
+          path == '/web' ||
+          path == '/login' ||
+          path == '/onboarding' ||
+          path.startsWith('/legal');
 
-      if (!isAuth && !isPublic) return '/login';
-      if (isAuth && (path == '/login' || path == '/web' || path == '/onboarding')) return '/main/chats';
+      if (!isAuth && !isPublic) {
+        // Save the intended deep link so we can resume it after login (РОУТ-3)
+        savedDeepLink = state.uri.toString();
+        return '/login';
+      }
+      if (isAuth) {
+        if (savedDeepLink != null && savedDeepLink!.isNotEmpty) {
+          final String target = savedDeepLink!;
+          savedDeepLink = null;
+          return target;
+        }
+        if (path == '/login' || path == '/web' || path == '/onboarding') {
+          return '/main/chats';
+        }
+      }
       return null;
     },
     routes: <RouteBase>[
@@ -166,8 +185,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/chat/dm/:username',
-        redirect: (context, state) =>
-            '/profile/${state.pathParameters['username']}',
+        pageBuilder: (context, state) => _page(
+          state,
+          DirectChatResolverScreen(username: state.pathParameters['username']!),
+          pageKey: state.pageKey,
+        ),
+      ),
+      GoRoute(
+        path: '/chat/support',
+        redirect: (context, state) => '/chat/dm/support',
       ),
       GoRoute(
         path: '/media-viewer',
@@ -192,14 +218,24 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             initialIndex = (extra['initialIndex'] as int?) ?? 0;
           }
 
-          return _page(state, MediaViewerScreen(
-            url: url,
-            title: Uri.decodeComponent(state.uri.queryParameters['title'] ?? 'Attachment'),
-            mediaType: mediaType,
-            e2eeFileKey: e2eeKey,
-            playlist: playlist,
-            initialIndex: initialIndex,
-          ));
+          return CustomTransitionPage<void>(
+            key: state.pageKey,
+            opaque: false,
+            barrierColor: Colors.transparent,
+            transitionDuration: const Duration(milliseconds: 250),
+            reverseTransitionDuration: const Duration(milliseconds: 200),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            child: MediaViewerScreen(
+              url: url,
+              title: Uri.decodeComponent(state.uri.queryParameters['title'] ?? 'Attachment'),
+              mediaType: mediaType,
+              e2eeFileKey: e2eeKey,
+              playlist: playlist,
+              initialIndex: initialIndex,
+            ),
+          );
         },
       ),
       GoRoute(
@@ -233,7 +269,14 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/u/:slug',
-        pageBuilder: (context, state) => _page(state, ChatRedirectScreen(slug: state.pathParameters['slug']!)),
+        redirect: (context, state) {
+          final String slug = state.pathParameters['slug'] ?? '';
+          if (slug.startsWith('+')) {
+            return '/join?slug=${Uri.encodeComponent(slug)}';
+          }
+          final String cleanSlug = slug.startsWith('@') ? slug.substring(1) : slug;
+          return '/profile/$cleanSlug';
+        },
       ),
       GoRoute(
         path: '/stickers/:setId',
@@ -251,11 +294,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/settings',
-        pageBuilder: (context, state) => _page(
-          state,
-          const SettingsHubScreen(),
-          pageKey: state.pageKey,
-        ),
+        redirect: (context, state) {
+          final String? section = state.uri.queryParameters['section'];
+          return section != null
+              ? '/main/profile?section=$section'
+              : '/main/profile';
+        },
       ),
       GoRoute(
         path: '/settings/appearance',
@@ -407,23 +451,6 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         )),
       ),
       GoRoute(
-        path: '/call/:callId',
-        pageBuilder: (context, state) => _page(state, const ActiveCallScreen(), pageKey: state.pageKey),
-      ),
-      GoRoute(
-        path: '/call/dm/:username',
-        pageBuilder: (context, state) => _page(
-          state,
-          OutgoingCallScreen(
-            args: OutgoingCallArgs(
-              username: state.pathParameters['username']!,
-              isVideo: state.uri.queryParameters['isVideo'] == '1',
-            ),
-          ),
-          pageKey: state.pageKey,
-        ),
-      ),
-      GoRoute(
         path: '/call/outgoing',
         pageBuilder: (context, state) {
           final Object? extra = state.extra;
@@ -441,6 +468,29 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             pageKey: state.pageKey,
           );
         },
+      ),
+      GoRoute(
+        path: '/call/dm/:username',
+        pageBuilder: (context, state) {
+          final Object? extra = state.extra;
+          final OutgoingCallArgs args = extra is OutgoingCallArgs
+              ? extra
+              : OutgoingCallArgs(
+                  username: state.pathParameters['username']!,
+                  displayName: state.uri.queryParameters['displayName'] ?? '',
+                  avatarUrl: state.uri.queryParameters['avatarUrl'],
+                  isVideo: state.uri.queryParameters['isVideo'] == '1',
+                );
+          return _page(
+            state,
+            OutgoingCallScreen(args: args),
+            pageKey: state.pageKey,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/call/:callId',
+        pageBuilder: (context, state) => _page(state, const ActiveCallScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/:pathMatch(.*)',

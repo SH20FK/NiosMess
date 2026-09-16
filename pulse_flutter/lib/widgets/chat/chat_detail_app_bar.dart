@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/widgets/profile/responsive_profile_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
@@ -89,12 +90,15 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
               Stack(
                 clipBehavior: Clip.none,
                 children: <Widget>[
-                  Hero(
-                    tag: 'chat_avatar_$chatId',
-                    child: PulseAvatar(
-                      radius: 19,
-                      name: title,
-                      avatarUrl: avatarUrl,
+                  HeroMode(
+                    enabled: !isDesktopSplit,
+                    child: Hero(
+                      tag: 'chat_avatar_$chatId',
+                      child: PulseAvatar(
+                        radius: 19,
+                        name: title,
+                        avatarUrl: avatarUrl,
+                      ),
                     ),
                   ),
                   if (isOnline && !isGroup && !isChannel)
@@ -105,7 +109,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                         width: 12,
                         height: 12,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4CAF50),
+                          color: AppColors.statusOnline,
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: scheme.surface,
@@ -158,9 +162,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (isVerified ||
-                            directUsername?.toLowerCase() == 'support' ||
-                            title.toLowerCase() == 'support') ...<Widget>[
+                        if (isVerified) ...<Widget>[
                           const SizedBox(width: 4),
                           Icon(
                             Icons.verified_rounded,
@@ -266,7 +268,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                 onPressed: () => context.push(
                   '/settings/wallpaper?chatId=$chatId&chatTitle=${Uri.encodeComponent(title)}',
                 ),
-                child: const Text('Обои чата'),
+                child: Text(context.l10n.chatWallpaperMenu),
               ),
             ],
           ),

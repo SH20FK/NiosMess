@@ -1,4 +1,4 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -255,13 +255,6 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
                   border: Border.all(
                     color: scheme.outlineVariant.withValues(alpha: 0.20),
                   ),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: scheme.shadow.withValues(alpha: 0.12),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
                 ),
                 child: Text(
                   label,
@@ -284,13 +277,6 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
                   border: Border.all(
                     color: scheme.outlineVariant.withValues(alpha: 0.15),
                   ),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: scheme.shadow.withValues(alpha: 0.14),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
                 ),
                 alignment: Alignment.center,
                 child: Icon(icon, color: iconColor, size: 24),
@@ -309,11 +295,10 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
   }) {
     return Semantics(
       button: true,
-      label: isExpanded ? 'Закрыть меню создания' : context.l10n.commonCreate,
+      label: isExpanded ? context.l10n.shellCloseMenu : context.l10n.commonCreate,
       child: Material(
         color: scheme.primaryContainer,
-        elevation: isExpanded ? 6 : 3,
-        shadowColor: scheme.shadow.withValues(alpha: 0.28),
+        elevation: 0,
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: onTap,
@@ -355,6 +340,12 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
+    final Widget fabContent = _buildFabButton(
+      scheme: scheme,
+      isExpanded: false,
+      onTap: _toggle,
+    );
+
     return CompositedTransformTarget(
       link: _layerLink,
       child: AnimatedScale(
@@ -367,11 +358,9 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
           curve: Curves.easeInOut,
           child: _isOpen
               ? const SizedBox(width: 56, height: 56)
-              : _buildFabButton(
-                  scheme: scheme,
-                  isExpanded: false,
-                  onTap: _toggle,
-                ),
+              : (widget.heroTag != null
+                  ? Hero(tag: widget.heroTag!, child: fabContent)
+                  : fabContent),
         ),
       ),
     );

@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
 /// Material 3 Expressive bottom sheet displaying the current user's profile QR code
@@ -53,7 +54,12 @@ class MyQrCodeSheet extends ConsumerWidget {
         (resolvedUsername.isNotEmpty ? resolvedUsername : 'User');
     final String? resolvedAvatar = avatarUrl ?? auth.profile?.avatarUrl;
 
-    final String profileUrl = 'https://ni-os.ru/u/@$resolvedUsername';
+    final bool isSelf = username == null ||
+        username!.isEmpty ||
+        username == auth.session?.username ||
+        username == auth.profile?.username;
+
+    final String profileUrl = 'https://ni-os.ru/u/$resolvedUsername';
     final String qrData =
         resolvedUsername.isNotEmpty ? profileUrl : 'https://ni-os.ru';
 
@@ -64,7 +70,7 @@ class MyQrCodeSheet extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           Text(
-            'Мой QR-код',
+            isSelf ? 'Мой QR-код' : 'QR-код контакта',
             style: textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w800,
               letterSpacing: -0.4,
@@ -81,41 +87,41 @@ class MyQrCodeSheet extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
-          // QR Card Container
+          // QR Card Container (tonal container surface, zero boxShadow per M3E)
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: scheme.surfaceContainerLowest,
+              color: scheme.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
                 color: scheme.outlineVariant.withValues(alpha: 0.2),
               ),
-              boxShadow: <BoxShadow>[
-                BoxShadow(
-                  color: scheme.shadow.withValues(alpha: 0.05),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
             child: Column(
               children: <Widget>[
-                // QR Code
-                SizedBox(
-                  width: 220,
-                  height: 220,
-                  child: QrImageView(
-                    data: qrData,
-                    version: QrVersions.auto,
-                    eyeStyle: QrEyeStyle(
-                      eyeShape: QrEyeShape.square,
-                      color: scheme.onSurface,
+                // QR Code Viewport: pure white background ensures scannability in all themes/lighting
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFFFF),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: SizedBox(
+                    width: 200,
+                    height: 200,
+                    child: QrImageView(
+                      data: qrData,
+                      version: QrVersions.auto,
+                      eyeStyle: const QrEyeStyle(
+                        eyeShape: QrEyeShape.square,
+                        color: Color(0xFF000000),
+                      ),
+                      dataModuleStyle: const QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.circle,
+                        color: Color(0xFF000000),
+                      ),
+                      padding: EdgeInsets.zero,
                     ),
-                    dataModuleStyle: QrDataModuleStyle(
-                      dataModuleShape: QrDataModuleShape.circle,
-                      color: scheme.onSurface,
-                    ),
-                    padding: const EdgeInsets.all(4),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -176,13 +182,15 @@ class MyQrCodeSheet extends ConsumerWidget {
                     }
                     await SharePlus.instance.share(
                       ShareParams(
-                        text: 'Мой профиль в NiosMess: $profileUrl',
+                        text: isSelf
+                            ? 'Мой профиль в NiosMess: $profileUrl'
+                            : 'Профиль $resolvedDisplayName в NiosMess: $profileUrl',
                         subject: 'NiosMess контакт',
                       ),
                     );
                   },
                   icon: const Icon(Icons.share_rounded, size: 20),
-                  label: const Text('Поделиться'),
+                  label: Text(context.l10n.groupProfileShare),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -202,10 +210,13 @@ class MyQrCodeSheet extends ConsumerWidget {
                     }
                     await Clipboard.setData(ClipboardData(text: profileUrl));
                     if (!context.mounted) return;
-                    AppToast.showSuccess(context, 'Ссылка скопирована');
+                    AppToast.showSuccess(
+                      context,
+                      context.l10n.filePreviewLinkCopied,
+                    );
                   },
                   icon: const Icon(Icons.copy_rounded, size: 20),
-                  label: const Text('Копировать'),
+                  label: Text(context.l10n.botCopied),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(

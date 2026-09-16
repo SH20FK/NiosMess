@@ -199,107 +199,104 @@ class ChatDetailInputArea extends ConsumerWidget {
     return SafeArea(
       top: false,
       child: RepaintBoundary(
-        child: Container(
-          color: Colors.transparent,
-          child: canPostInChannel
-              ? DecoratedBox(
-                  decoration: const BoxDecoration(
-                    color: Colors.transparent,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      if (showInlineOverlay)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
-                          child: InlineQueryOverlay(
-                            state: inlineState,
-                            onSelectResult: (InlineQueryResult result) {
-                              inputController.clear();
-                              ref.read(inlineQueryProvider.notifier).clear();
-                              if (onSendInlineResult != null) {
-                                onSendInlineResult!(result);
-                              } else {
-                                inputController.text = result.messageText;
-                                onSend();
-                              }
-                            },
-                            onClose: () =>
-                                ref.read(inlineQueryProvider.notifier).clear(),
+        child: canPostInChannel
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (showInlineOverlay)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                      child: InlineQueryOverlay(
+                        state: inlineState,
+                        onSelectResult: (InlineQueryResult result) {
+                          inputController.clear();
+                          ref.read(inlineQueryProvider.notifier).clear();
+                          if (onSendInlineResult != null) {
+                            onSendInlineResult!(result);
+                          } else {
+                            inputController.text = result.messageText;
+                            onSend();
+                          }
+                        },
+                        onClose: () =>
+                            ref.read(inlineQueryProvider.notifier).clear(),
+                      ),
+                    ),
+                  if (showDraftRestoredBanner)
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: scheme.tertiaryContainer.withValues(alpha: 0.3),
+                        border: Border(
+                          bottom: BorderSide(
+                            color: scheme.tertiaryContainer,
+                            width: 0.5,
                           ),
-                        ),
-                      if (showDraftRestoredBanner)
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: scheme.tertiaryContainer.withValues(alpha: 0.3),
-                            border: Border(
-                              bottom: BorderSide(
-                                color: scheme.tertiaryContainer,
-                                width: 0.5,
-                              ),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                            child: Row(
-                              children: <Widget>[
-                                Icon(
-                                  Icons.edit_note_rounded,
-                                  size: 16,
-                                  color: scheme.onTertiaryContainer,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    context.l10n.chatDraftRestored,
-                                    style: textTheme.labelMedium?.copyWith(
-                                      color: scheme.onTertiaryContainer,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: onClearDraft,
-                                  icon: const Icon(Icons.delete_outline_rounded),
-                                  iconSize: 18,
-                                  color: scheme.onTertiaryContainer,
-                                  tooltip: context.l10n.commonDelete,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      RepaintBoundary(
-                        child: ChatInputBar(
-                          chatId: chatId,
-                          onSendSticker: onSendSticker,
-                          inputController: inputController,
-                          inputFocusNode: inputFocusNode,
-                          isAiProcessing: isAiProcessing,
-                          uploadingMedia: uploadingMedia,
-                          editingMessageId: editingMessageId,
-                          editingOriginalText: editingOriginalText,
-                          replyToMessageId: replyToMessageId,
-                          replyPreviewText: replyPreviewText,
-                          onSend: onSend,
-                          onCommitEdit: onCommitEdit,
-                          onCancelEdit: onCancelEdit,
-                          onClearReply: onClearReply,
-                          onAttachMedia: onAttachMedia,
-                          onAiPressed: onAiPressed,
-                          onVoiceSend: onVoiceSend,
-                          onCircleSend: onCircleSend,
-                          hapticsEnabled: hapticsEnabled,
-                          sendOnEnter: sendOnEnter,
                         ),
                       ),
-                    ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        child: Row(
+                          children: <Widget>[
+                            Icon(
+                              Icons.edit_note_rounded,
+                              size: 16,
+                              color: scheme.onTertiaryContainer,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                context.l10n.chatDraftRestored,
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: scheme.onTertiaryContainer,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: onClearDraft,
+                              icon: const Icon(Icons.close_rounded, size: 14),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 24,
+                                minHeight: 24,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                              tooltip: context.l10n.commonDelete,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 0),
+                    child: ChatInputBar(
+                      inputController: inputController,
+                      inputFocusNode: inputFocusNode,
+                      isAiProcessing: isAiProcessing,
+                      uploadingMedia: uploadingMedia,
+                      editingMessageId: editingMessageId,
+                      editingOriginalText: editingOriginalText,
+                      replyToMessageId: replyToMessageId,
+                      replyPreviewText: replyPreviewText,
+                      onSend: onSend,
+                      onCommitEdit: onCommitEdit,
+                      onCancelEdit: onCancelEdit,
+                      onClearReply: onClearReply,
+                      onAttachMedia: onAttachMedia,
+                      onAiPressed: onAiPressed,
+                      onVoiceSend: onVoiceSend,
+                      chatId: chatId,
+                      onSendSticker: onSendSticker,
+                      onCircleSend: onCircleSend,
+                      hapticsEnabled: hapticsEnabled,
+                      sendOnEnter: sendOnEnter,
+                    ),
                   ),
-                )
-              : _ChannelSubscriberBar(
-                  chatId: chatId,
-                  hapticsEnabled: hapticsEnabled,
-                ),
-        ),
+                ],
+              )
+            : _ChannelSubscriberBar(
+                chatId: chatId,
+                hapticsEnabled: hapticsEnabled,
+              ),
       ),
     );
   }
@@ -371,7 +368,9 @@ class _ChannelSubscriberBar extends ConsumerWidget {
                 size: 20,
               ),
               label: Text(
-                isMuted ? 'ВКЛЮЧИТЬ УВЕДОМЛЕНИЯ' : 'ОТКЛЮЧИТЬ УВЕДОМЛЕНИЯ',
+                isMuted
+                    ? context.l10n.profileUnmuteNotifications
+                    : context.l10n.profileMuteNotifications,
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
@@ -388,8 +387,8 @@ class _ChannelSubscriberBar extends ConsumerWidget {
                     AppToast.showInfo(
                       context,
                       isMuted
-                          ? 'Уведомления включены'
-                          : 'Уведомления отключены',
+                          ? context.l10n.profileUnmuteNotifications
+                          : context.l10n.profileMuteNotifications,
                     );
                   }
                 }

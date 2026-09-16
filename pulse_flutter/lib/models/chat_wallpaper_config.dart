@@ -129,7 +129,7 @@ class ChatWallpaperConfig {
     bool? filled,
     double? weight,
     double? cellSize,
-    gridAngle,
+    double? gridAngle,
     double? density,
     WallpaperLayoutMode? layoutMode,
     bool? staggerByRow,
@@ -305,6 +305,7 @@ class ChatWallpaperConfig {
         other.backgroundStyle == backgroundStyle &&
         other.gradientAngle == gradientAngle &&
         other.iconColorRole == iconColorRole &&
+        _listEquals(other.paletteRoles, paletteRoles) &&
         other.themePack == themePack &&
         _listEquals(other.selectedGlyphs, selectedGlyphs);
   }
@@ -344,6 +345,7 @@ class ChatWallpaperConfig {
         backgroundStyle,
         gradientAngle,
         iconColorRole,
+        Object.hashAll(paletteRoles),
         themePack,
         Object.hashAll(selectedGlyphs),
       ]);

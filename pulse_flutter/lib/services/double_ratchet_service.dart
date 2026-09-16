@@ -97,6 +97,10 @@ class DoubleRatchetSession {
   }
 
   Future<Map<String, dynamic>> toJson() async {
+    final Map<String, String> skipKsEncoded = {};
+    for (final entry in skipKs.entries) {
+      skipKsEncoded[entry.key] = base64Encode(await entry.value.extractBytes());
+    }
     return <String, dynamic>{
       'ratKey': base64Encode(await ratKey.extractBytes()),
       'dhsSeed': dhsSeed != null ? base64Encode(dhsSeed!) : null,
@@ -106,6 +110,7 @@ class DoubleRatchetSession {
       'numSnt': numSnt,
       'numRcv': numRcv,
       'prvNum': prvNum,
+      'skipKs': skipKsEncoded,
       'keyVal': base64Encode(await keyVal.extractBytes()),
       'prvKey': prvKey != null ? base64Encode(await prvKey!.extractBytes()) : null,
       'peerStaticEd': peerStaticEd,
@@ -115,6 +120,15 @@ class DoubleRatchetSession {
   static Future<DoubleRatchetSession> fromJson(
     Map<String, dynamic> json,
   ) async {
+    final Map<String, SecretKey> skipKsRestored = {};
+    if (json['skipKs'] is Map) {
+      (json['skipKs'] as Map).forEach((k, v) {
+        if (v is String) {
+          skipKsRestored[k.toString()] = SecretKey(base64Decode(v));
+        }
+      });
+    }
+
     return DoubleRatchetSession(
       ratKey: SecretKey(base64Decode(json['ratKey'] as String)),
       dhsSeed: json['dhsSeed'] != null
@@ -130,6 +144,7 @@ class DoubleRatchetSession {
       numSnt: json['numSnt'] as int? ?? 0,
       numRcv: json['numRcv'] as int? ?? 0,
       prvNum: json['prvNum'] as int? ?? 0,
+      skipKs: skipKsRestored,
       keyVal: SecretKey(base64Decode(json['keyVal'] as String)),
       prvKey: json['prvKey'] != null
           ? SecretKey(base64Decode(json['prvKey'] as String))
@@ -205,24 +220,25 @@ class DoubleRatchetService {
     );
   }
 
-  Future<SecretKey> _computeVisualKey(
-    SecretKey? chnKsx,
-    SecretKey? chnKrx,
-  ) async {
-    final ck1 = chnKsx != null ? await chnKsx.extractBytes() : <int>[];
-    final ck2 = chnKrx != null ? await chnKrx.extractBytes() : <int>[];
-    List<int> minCk;
-    List<int> maxCk;
-    if (_compareBytes(ck1, ck2) <= 0) {
-      minCk = ck1;
-      maxCk = ck2;
+  Future<SecretKey> computeMasterVerificationKey({
+    required SecretKey staticDhSecret,
+    required List<int> ourStaticPubBytes,
+    required List<int> theirStaticPubBytes,
+  }) async {
+    List<int> first;
+    List<int> second;
+    if (_compareBytes(ourStaticPubBytes, theirStaticPubBytes) <= 0) {
+      first = ourStaticPubBytes;
+      second = theirStaticPubBytes;
     } else {
-      minCk = ck2;
-      maxCk = ck1;
+      first = theirStaticPubBytes;
+      second = ourStaticPubBytes;
     }
     return _hkdf(
-      [...minCk, ...maxCk],
-      utf8.encode('Visual'),
+      await staticDhSecret.extractBytes(),
+      utf8.encode('NiosMess-Master-Verification-v1'),
+      salt: [...first, ...second],
+      outputLength: 32,
     );
   }
 
@@ -327,8 +343,6 @@ class DoubleRatchetService {
       ...secretBox.mac.bytes,
     ];
 
-    session.keyVal = await _computeVisualKey(session.chnKsx, session.chnKrx);
-
     return (headerB64: headerB64, ciphertext: ciphertext);
   }
 
@@ -344,8 +358,12 @@ class DoubleRatchetService {
 
     final mksKey = '${header.dh}_${header.n}';
     if (session.skipKs.containsKey(mksKey)) {
-      final msgKey = session.skipKs.remove(mksKey)!;
-      return _decryptWithKey(msgKey, headerBytes, ciphertext);
+      final msgKey = session.skipKs[mksKey]!;
+      final plaintext = await _decryptWithKey(msgKey, headerBytes, ciphertext);
+      if (plaintext != null) {
+        session.skipKs.remove(mksKey);
+      }
+      return plaintext;
     }
 
     final tmpSession = session.copy();
@@ -378,9 +396,6 @@ class DoubleRatchetService {
       session.prvNum = tmpSession.prvNum;
       session.skipKs = tmpSession.skipKs;
 
-      session.prvKey = session.keyVal;
-      session.keyVal =
-          await _computeVisualKey(session.chnKsx, session.chnKrx);
       return plaintext;
     } catch (e) {
       debugPrint('[DoubleRatchet] Decrypt failed: $e');
@@ -430,6 +445,7 @@ class DoubleRatchetService {
     required String peerStaticEdB64,
   }) async {
     final ourStatic = await _x25519.newKeyPairFromSeed(ourStaticSeed);
+    final ourStaticPub = await ourStatic.extractPublicKey();
 
     final dhOut = await _x25519.sharedSecretKey(
       keyPair: ourStatic,
@@ -451,7 +467,11 @@ class DoubleRatchetService {
     ratKey = r.newRoot;
     final chnKsx = r.newChain;
 
-    final keyVal = await _computeVisualKey(chnKsx, chnKrx);
+    final keyVal = await computeMasterVerificationKey(
+      staticDhSecret: dhOut,
+      ourStaticPubBytes: ourStaticPub.bytes,
+      theirStaticPubBytes: theirStaticPublic.bytes,
+    );
 
     return DoubleRatchetSession(
       ratKey: ratKey,
@@ -472,6 +492,7 @@ class DoubleRatchetService {
     required String peerStaticEdB64,
   }) async {
     final ourStatic = await _x25519.newKeyPairFromSeed(ourStaticSeed);
+    final ourStaticPub = await ourStatic.extractPublicKey();
 
     final dhOut1 = await _x25519.sharedSecretKey(
       keyPair: ourStatic,
@@ -500,7 +521,11 @@ class DoubleRatchetService {
     ratKey = r.newRoot;
     final chnKsx = r.newChain;
 
-    final keyVal = await _computeVisualKey(chnKsx, chnKrx);
+    final keyVal = await computeMasterVerificationKey(
+      staticDhSecret: dhOut1,
+      ourStaticPubBytes: ourStaticPub.bytes,
+      theirStaticPubBytes: theirStaticPublic.bytes,
+    );
 
     return DoubleRatchetSession(
       ratKey: ratKey,
@@ -532,15 +557,13 @@ class DoubleRatchetService {
     ratKey = r.newRoot;
     final chnKsx = r.newChain;
 
-    final keyVal = await _computeVisualKey(chnKsx, null);
-
     return DoubleRatchetSession(
       ratKey: ratKey,
       dhsSeed: pendingSession.dhsSeed,
       dhrKeyBytes: List<int>.from(theirEphemeralPublic.bytes),
       chnKsx: chnKsx,
-      chnKrx: null,
-      keyVal: keyVal,
+      chnKrx: pendingSession.chnKrx,
+      keyVal: pendingSession.keyVal,
       peerStaticEd: peerStaticEdB64,
     );
   }
@@ -554,22 +577,24 @@ class DoubleRatchetService {
     final hashBytes = hash.bytes;
 
     const words = [
-      'acid', 'apex', 'band', 'bark', 'beta', 'bolt', 'born', 'calm', 'clay',
-      'coal', 'dark', 'dawn', 'echo', 'edge', 'envy', 'fade', 'film', 'flow',
-      'flux', 'glow', 'grid', 'hawk', 'haze', 'hint', 'icon', 'iron', 'jade',
-      'jolt', 'kept', 'lava', 'leaf', 'limo', 'maze', 'mist', 'neon', 'node',
-      'opal', 'open', 'path', 'pave', 'rift', 'rust', 'sand', 'silk', 'spark',
-      'tide', 'toad', 'volt', 'wave', 'zinc',
+      'acid', 'apex', 'aqua', 'atom', 'band', 'bark', 'beta', 'bolt',
+      'born', 'calm', 'clay', 'coal', 'core', 'cube', 'dark', 'dawn',
+      'dusk', 'echo', 'edge', 'envy', 'epic', 'fade', 'film', 'flow',
+      'flux', 'glow', 'gold', 'grid', 'hawk', 'haze', 'hint', 'icon',
+      'iron', 'jade', 'jolt', 'keen', 'kept', 'lava', 'leaf', 'lime',
+      'lion', 'maze', 'mist', 'moon', 'neon', 'node', 'nova', 'opal',
+      'open', 'path', 'pave', 'peak', 'rift', 'rust', 'sand', 'silk',
+      'star', 'tide', 'toad', 'volt', 'wave', 'wolf', 'zeno', 'zinc',
     ];
 
     const colors = [
-      'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
+      'red', 'green', 'yellow', 'blue', 'purple', 'cyan', 'orange', 'teal',
     ];
 
     final result = <({String word, String color})>[];
     for (var i = 0; i < 12; i++) {
-      final wordIdx = hashBytes[i * 2] % 50;
-      final colorIdx = hashBytes[i * 2 + 1] % 7;
+      final wordIdx = hashBytes[i * 2] & 0x3F;
+      final colorIdx = hashBytes[i * 2 + 1] & 0x07;
       result.add((word: words[wordIdx], color: colors[colorIdx]));
     }
     return result;

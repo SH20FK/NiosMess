@@ -7,8 +7,8 @@ import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_filter_bar.dart';
-import 'package:pulse_flutter/widgets/chat/chat_list_tile.dart';
 import 'package:pulse_flutter/widgets/chat/chat_search_bar.dart';
+import 'package:pulse_flutter/widgets/chat_tile.dart';
 
 class MockChatsNotifier extends ChatsNotifier {
   MockChatsNotifier(this._initial);
@@ -64,7 +64,7 @@ void main() {
 
       await tester.pumpWidget(
         _buildTestApp(
-          child: ChatListTile(
+          child: ChatTile(
             title: 'Alice Cooper',
             subtitle: 'Hey there!',
             formattedTime: '12:45',
@@ -81,7 +81,7 @@ void main() {
       expect(find.text('Hey there!'), findsOneWidget);
       expect(find.text('12:45'), findsOneWidget);
 
-      await tester.tap(find.byType(ChatListTile));
+      await tester.tap(find.byType(ChatTile));
       expect(tapped, isTrue);
     });
 
@@ -90,7 +90,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _buildTestApp(
-          child: ChatListTile(
+          child: ChatTile(
             title: 'Bob Dylan',
             subtitle: 'New track dropped',
             formattedTime: '14:20',
@@ -111,7 +111,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _buildTestApp(
-          child: ChatListTile(
+          child: ChatTile(
             title: 'Group Chat',
             subtitle: 'Busy discussion',
             formattedTime: '15:00',
@@ -132,7 +132,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _buildTestApp(
-          child: ChatListTile(
+          child: ChatTile(
             title: 'Charlie Online',
             subtitle: 'Active now',
             formattedTime: 'Now',
@@ -146,7 +146,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(ChatListTile), findsOneWidget);
+      expect(find.byType(ChatTile), findsOneWidget);
     });
   });
 

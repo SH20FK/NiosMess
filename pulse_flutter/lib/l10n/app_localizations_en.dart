@@ -4821,4 +4821,129 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileLastSeen => 'last seen';
   @override
   String get profileConnectingDirect => 'Connecting to chat...';
+  @override
+  String get sharedMediaTabMedia => 'Media';
+  @override
+  String get sharedMediaTabVoice => 'Voice';
+  @override
+  String get sharedMediaTabFiles => 'Files';
+  @override
+  String get sharedMediaTabLinks => 'Links';
+  @override
+  String get sharedMediaLoadFailed => 'Failed to load media files';
+  @override
+  String get sharedMediaNoMedia => 'No media files';
+  @override
+  String get sharedMediaStartDialogHint =>
+      'Start a chat to share photos, voice messages, and files.';
+  @override
+  String get sharedMediaNoPhotosVideos => 'No photos or videos';
+  @override
+  String get sharedMediaNoPhotosVideosSub =>
+      'Photos and videos sent to this chat will appear here';
+  @override
+  String get sharedMediaNoVoice => 'No voice messages';
+  @override
+  String get sharedMediaNoVoiceSub =>
+      'Voice messages and video notes will appear here';
+  @override
+  String get sharedMediaVideoMessage => 'Video message';
+  @override
+  String get sharedMediaNoFiles => 'No files';
+  @override
+  String get sharedMediaNoFilesSub => 'Documents and files will appear here';
+  @override
+  String get sharedMediaNoLinks => 'No links';
+  @override
+  String get sharedMediaNoLinksSub =>
+      'Links shared in this chat will appear here';
+  @override
+  String get sharedMediaFileDownloadError => 'Failed to download file';
+  @override
+  String get sharedMediaTapToDownload => 'Tap to download';
+  @override
+  String get sharedMediaDownloadError => 'Download error';
+  @override
+  String get sharedMediaUnavailable => 'Image unavailable';
+  @override
+  String get sharedMediaFile => 'Document';
+  @override
+  String get sharedMediaOpenFile => 'Open file';
+  @override
+  String get sharedMediaDownloadFile => 'Download file';
+  @override
+  String get appearancePaletteStyle => 'Palette Style';
+  @override
+  String get appearancePaletteExpressive => 'Expressive';
+  @override
+  String get appearancePaletteVibrant => 'Vibrant';
+  @override
+  String get appearancePaletteContent => 'Content';
+  @override
+  String get appearancePaletteCalm => 'Calm';
+  @override
+  String get appearancePaletteMono => 'Mono';
+  @override
+  String get callSessionNotFound => 'Call session not found or has ended';
+  @override
+  String get callTimeout => 'Connection timeout exceeded';
+  @override
+  String get callRetry => 'Retry';
+  @override
+  String get callBackToChats => 'Back to chats';
+  @override
+  String get shellPushNotificationsTitle => 'Push notifications';
+  @override
+  String get shellPushNotificationsDesc =>
+      'Enable notifications for new messages and calls';
+  @override
+  String get shellPushNotificationsEnable => 'Enable';
+  @override
+  String get shellPushNotificationsSuccess =>
+      'Notifications enabled successfully!';
+  @override
+  String get shellPressAgainToExit => 'Press back again to exit';
+  @override
+  String get shellSelectChatToStart => 'Select a chat to start messaging';
+  @override
+  String get shellE2eeNotice =>
+      'Messages and calls are protected with end-to-end encryption';
+  @override
+  String get shellCloseMenu => 'Close menu';
+  @override
+  String get autoDeleteTitle => 'Auto-delete messages';
+  @override
+  String get autoDeleteSubtitle =>
+      'New messages will be automatically deleted after the selected period';
+  @override
+  String get autoDeleteOff => 'Off';
+  @override
+  String get autoDelete1Minute => '1 minute';
+  @override
+  String get autoDelete5Minutes => '5 minutes';
+  @override
+  String get autoDelete1Hour => '1 hour';
+  @override
+  String get autoDelete24Hours => '24 hours (1 day)';
+  @override
+  String get autoDelete7Days => '7 days (1 week)';
+  @override
+  String get autoDelete30Days => '1 month (30 days)';
+  @override
+  String get autoDeleteCustom => 'Custom duration';
+  @override
+  String get autoDeleteUpdated => 'Auto-delete updated';
+  @override
+  String get wallpaperScreenTitle => 'Chat Wallpaper';
+  @override
+  String get wallpaperResetTitle => 'Reset wallpaper?';
+  @override
+  String get wallpaperResetSubtitle =>
+      'All layout, density, and symbol settings will return to defaults.';
+  @override
+  String get wallpaperResetAction => 'Reset';
+  @override
+  String get wallpaperRandomUndo => 'Random pattern applied';
+  @override
+  String get wallpaperSaved => 'Wallpaper saved';
 }

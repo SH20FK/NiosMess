@@ -137,13 +137,13 @@ class _ChatWallpaperBackgroundState extends ConsumerState<ChatWallpaperBackgroun
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       try {
-        final ui.Image newImage = await WallpaperImageCache.render(
+        final ui.Image? newImage = await WallpaperImageCache.render(
           config: config,
           scheme: scheme,
           size: size,
           pixelRatio: pixelRatio,
         );
-        if (mounted) {
+        if (mounted && newImage != null) {
           setState(() {
             _renderedImage = newImage;
             _lastConfig = config;
@@ -152,6 +152,8 @@ class _ChatWallpaperBackgroundState extends ConsumerState<ChatWallpaperBackgroun
             _lastHeight = targetHeight;
             _isRendering = false;
           });
+        } else if (mounted) {
+          _isRendering = false;
         }
       } catch (_) {
         if (mounted) {

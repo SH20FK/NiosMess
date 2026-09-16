@@ -11,7 +11,7 @@ import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/services/calls/call_starter.dart';
-import 'package:pulse_flutter/services/permission_service.dart';
+import 'package:pulse_flutter/core/utils/bot_detector.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -64,8 +64,8 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
   Future<void> _startCallFlow() async {
     final String targetUsername = widget.args.username.trim().toLowerCase();
 
-    // 1. Bot check
-    if (targetUsername.endsWith('_bot') || targetUsername == 'bot') {
+    // 1. Bot check (ЗВН-7)
+    if (BotDetector.isBot(targetUsername)) {
       if (!mounted || _cancelled) return;
       setState(() {
         _errorMessage = context.l10n.callsBotForbidden;
@@ -114,18 +114,7 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
       return;
     }
 
-    // 3. Request permissions explicitly with inline feedback
-    final bool hasPermissions = await PermissionService()
-        .requestCallPermissions(video: widget.args.isVideo);
-    if (_cancelled || !mounted) return;
-
-    if (!hasPermissions) {
-      setState(() {
-        _isListenerNotice = true;
-      });
-    }
-
-    // 4. Initiate outgoing call
+    // 3. Initiate outgoing call (permissions requested in call_starter per ЗВН-4)
     try {
       final String peerName = widget.args.displayName.isNotEmpty
           ? widget.args.displayName
@@ -136,6 +125,13 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
         chatId: resolvedChatId,
         isVideo: widget.args.isVideo,
         peerName: peerName,
+        onPermissionResult: (bool isListener) {
+          if (mounted && isListener) {
+            setState(() {
+              _isListenerNotice = true;
+            });
+          }
+        },
       );
 
       if (_cancelled || !mounted) return;

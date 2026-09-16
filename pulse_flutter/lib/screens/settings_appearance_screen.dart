@@ -81,7 +81,46 @@ class _AppearanceScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final UiSettingsState settings = ref.watch(uiSettingsProvider);
+    final VisualThemeSettings visualTheme = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.visualTheme),
+    );
+    final bool useSystemDynamic = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.useSystemDynamic),
+    );
+    final ThemeMode themeMode = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.themeMode),
+    );
+    final Color seedColor = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.seedColor),
+    );
+    final double messageBubbleRadius = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.messageBubbleRadius),
+    );
+    final double uiCornerRadius = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.uiCornerRadius),
+    );
+    final AppFontScale fontScale = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.fontScale),
+    );
+    final PaletteStyle paletteStyle = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.paletteStyle),
+    );
+    final bool pureBlackOled = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.pureBlackOled),
+    );
+    final bool navBarFloating = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.navBarFloating),
+    );
+    final bool predictiveBackEnabled = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.predictiveBackEnabled),
+    );
+    final double predictiveBackStrength = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.predictiveBackStrength),
+    );
+    final bool optimizeForWeakDevices = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.optimizeForWeakDevices),
+    );
+
     final PerformanceTier tier = ref.watch(
       adaptivePerformanceProvider.select((AdaptivePerformanceState s) => s.tier),
     );
@@ -91,9 +130,9 @@ class _AppearanceScreen extends ConsumerWidget {
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
         final ColorScheme? dynamicScheme =
             brightness == Brightness.light ? lightDynamic : darkDynamic;
-        final ThemeData targetTheme = settings.useSystemDynamic
+        final ThemeData targetTheme = useSystemDynamic
             ? AppTheme.themed(
-                settings.visualTheme,
+                visualTheme,
                 brightness,
                 dynamicScheme: dynamicScheme,
               )
@@ -106,9 +145,20 @@ class _AppearanceScreen extends ConsumerWidget {
           child: _buildContent(
             context,
             ref,
-            settings,
             targetTheme.colorScheme,
             tier,
+            themeMode: themeMode,
+            seedColor: seedColor,
+            messageBubbleRadius: messageBubbleRadius,
+            uiCornerRadius: uiCornerRadius,
+            fontScale: fontScale,
+            paletteStyle: paletteStyle,
+            pureBlackOled: pureBlackOled,
+            useSystemDynamic: useSystemDynamic,
+            navBarFloating: navBarFloating,
+            predictiveBackEnabled: predictiveBackEnabled,
+            predictiveBackStrength: predictiveBackStrength,
+            optimizeForWeakDevices: optimizeForWeakDevices,
           ),
         );
       },
@@ -118,27 +168,40 @@ class _AppearanceScreen extends ConsumerWidget {
   Widget _buildContent(
     BuildContext context,
     WidgetRef ref,
-    UiSettingsState settings,
     ColorScheme scheme,
-    PerformanceTier tier,
-  ) {
+    PerformanceTier tier, {
+    required ThemeMode themeMode,
+    required Color seedColor,
+    required double messageBubbleRadius,
+    required double uiCornerRadius,
+    required AppFontScale fontScale,
+    required PaletteStyle paletteStyle,
+    required bool pureBlackOled,
+    required bool useSystemDynamic,
+    required bool navBarFloating,
+    required bool predictiveBackEnabled,
+    required double predictiveBackStrength,
+    required bool optimizeForWeakDevices,
+  }) {
     final Widget heroBanner = _ConnectedMeshAndPaletteBanner(
       scheme: scheme,
-      settings: settings,
+      seedColor: seedColor,
+      optimizeForWeakDevices: optimizeForWeakDevices,
+      useSystemDynamic: useSystemDynamic,
       tier: tier,
       onColorSelected: (Color color) {
         ref.read(uiSettingsProvider.notifier).setSeedColor(color);
       },
       onCustomColorTap: () {
-        _openCustomColorPicker(context, ref, settings.seedColor);
+        _openCustomColorPicker(context, ref, seedColor);
       },
     );
 
     final Widget themeCard = _ThemeModeSelectorCard(
-      currentMode: settings.themeMode,
+      currentMode: themeMode,
       scheme: scheme,
       onSelectMode: (ThemeMode newMode, Offset tapOffset) {
-        if (newMode == settings.themeMode) return;
+        if (newMode == themeMode) return;
         final switcher = CircularThemeSwitcher.maybeOf(context);
         if (switcher != null) {
           switcher.toggleTheme(
@@ -161,8 +224,8 @@ class _AppearanceScreen extends ConsumerWidget {
           icon: Icons.chat_bubble_outline_rounded,
           title: context.l10n.appearanceMessageRounding,
           subtitle: context.l10n.appearanceMessageRoundingDesc,
-          badgeText: '${settings.messageBubbleRadius.toInt()} dp',
-          value: settings.messageBubbleRadius,
+          badgeText: '${messageBubbleRadius.toInt()} dp',
+          value: messageBubbleRadius,
           min: 4.0,
           max: 28.0,
           divisions: 24,
@@ -177,8 +240,8 @@ class _AppearanceScreen extends ConsumerWidget {
           icon: Icons.rounded_corner_rounded,
           title: context.l10n.appearanceUiRounding,
           subtitle: context.l10n.appearanceUiRoundingDesc,
-          badgeText: '${settings.uiCornerRadius.toInt()} dp',
-          value: settings.uiCornerRadius,
+          badgeText: '${uiCornerRadius.toInt()} dp',
+          value: uiCornerRadius,
           min: 8.0,
           max: 28.0,
           divisions: 20,
@@ -190,7 +253,7 @@ class _AppearanceScreen extends ConsumerWidget {
 
         // Font Scale Slider
         _FontScaleSliderTile(
-          currentScale: settings.fontScale,
+          currentScale: fontScale,
           scheme: scheme,
           onChanged: (AppFontScale scale) {
             ref.read(uiSettingsProvider.notifier).setFontScale(scale);
@@ -204,7 +267,7 @@ class _AppearanceScreen extends ConsumerWidget {
       subtitle: context.l10n.appearanceContrastColorsDesc,
       children: [
         _PaletteStyleSelectorTile(
-          currentStyle: settings.paletteStyle,
+          currentStyle: paletteStyle,
           scheme: scheme,
           onChanged: (PaletteStyle style) {
             ref.read(uiSettingsProvider.notifier).setPaletteStyle(style);
@@ -215,7 +278,7 @@ class _AppearanceScreen extends ConsumerWidget {
           title: context.l10n.appearanceDeepBlackOled,
           subtitle: context.l10n.appearanceDeepBlackOledDesc,
           iconColor: scheme.primary,
-          value: settings.pureBlackOled,
+          value: pureBlackOled,
           onChanged: (bool v) {
             ref.read(uiSettingsProvider.notifier).setPureBlackOled(v);
           },
@@ -225,7 +288,7 @@ class _AppearanceScreen extends ConsumerWidget {
           title: context.l10n.appearanceSystemColors,
           subtitle: context.l10n.appearanceSystemColorsSubtitle,
           iconColor: scheme.secondary,
-          value: settings.useSystemDynamic,
+          value: useSystemDynamic,
           onChanged: (bool v) {
             ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(v);
           },
@@ -242,7 +305,7 @@ class _AppearanceScreen extends ConsumerWidget {
           title: context.l10n.appearanceFloatingNav,
           subtitle: context.l10n.appearanceFloatingNavSubtitle,
           iconColor: scheme.primary,
-          value: settings.navBarFloating,
+          value: navBarFloating,
           onChanged: (bool v) {
             ref.read(uiSettingsProvider.notifier).setNavBarFloating(v);
           },
@@ -252,14 +315,14 @@ class _AppearanceScreen extends ConsumerWidget {
           title: context.l10n.appearancePredictiveBack,
           subtitle: context.l10n.appearancePredictiveBackDesc,
           iconColor: scheme.secondary,
-          value: settings.predictiveBackEnabled,
+          value: predictiveBackEnabled,
           onChanged: (bool v) {
             ref.read(uiSettingsProvider.notifier).setPredictiveBackEnabled(v);
           },
         ),
-        if (settings.predictiveBackEnabled)
+        if (predictiveBackEnabled)
           _PredictiveBackStrengthTile(
-            strength: settings.predictiveBackStrength,
+            strength: predictiveBackStrength,
             scheme: scheme,
             onChanged: (double val) {
               ref.read(uiSettingsProvider.notifier).setPredictiveBackStrength(val);
@@ -367,14 +430,18 @@ class _AppearanceScreen extends ConsumerWidget {
 class _ConnectedMeshAndPaletteBanner extends StatefulWidget {
   const _ConnectedMeshAndPaletteBanner({
     required this.scheme,
-    required this.settings,
+    required this.seedColor,
+    required this.optimizeForWeakDevices,
+    required this.useSystemDynamic,
     required this.tier,
     required this.onColorSelected,
     required this.onCustomColorTap,
   });
 
   final ColorScheme scheme;
-  final UiSettingsState settings;
+  final Color seedColor;
+  final bool optimizeForWeakDevices;
+  final bool useSystemDynamic;
   final PerformanceTier tier;
   final ValueChanged<Color> onColorSelected;
   final VoidCallback onCustomColorTap;
@@ -386,20 +453,28 @@ class _ConnectedMeshAndPaletteBanner extends StatefulWidget {
 
 class _ConnectedMeshAndPaletteBannerState
     extends State<_ConnectedMeshAndPaletteBanner> {
+  static bool _precacheInitiated = false;
+  static bool _shaderWarm = false;
+
   final ValueNotifier<Offset?> _touchNotifier = ValueNotifier<Offset?>(null);
-  bool _isShaderReady = false;
+  bool _isShaderReady = _shaderWarm;
 
   @override
   void initState() {
     super.initState();
-    // Warm up the fragment shader immediately for zero pop-in delay
-    ShaderBuilder.precacheShader(
-      'packages/mesh_gradient/shaders/animated_mesh_gradient.frag',
-    ).then((_) {
-      if (mounted) setState(() => _isShaderReady = true);
-    }).catchError((_) {
-      if (mounted) setState(() => _isShaderReady = true);
-    });
+    // Warm up the fragment shader once globally for zero pop-in delay
+    if (!_shaderWarm && !_precacheInitiated) {
+      _precacheInitiated = true;
+      ShaderBuilder.precacheShader(
+        'packages/mesh_gradient/shaders/animated_mesh_gradient.frag',
+      ).then((_) {
+        _shaderWarm = true;
+        if (mounted) setState(() => _isShaderReady = true);
+      }).catchError((_) {
+        _shaderWarm = true;
+        if (mounted) setState(() => _isShaderReady = true);
+      });
+    }
   }
 
   @override
@@ -411,13 +486,12 @@ class _ConnectedMeshAndPaletteBannerState
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = widget.scheme;
-    final UiSettingsState settings = widget.settings;
     final PerformanceTier tier = widget.tier;
     final bool optimize =
-        settings.optimizeForWeakDevices || tier != PerformanceTier.tierA || kIsWeb;
+        widget.optimizeForWeakDevices || tier != PerformanceTier.tierA || kIsWeb;
 
     final bool isPresetSelected = _palettes.any(
-      (_PaletteEntry p) => p.color.toARGB32() == settings.seedColor.toARGB32(),
+      (_PaletteEntry p) => p.color.toARGB32() == widget.seedColor.toARGB32(),
     );
 
     return LayoutBuilder(
@@ -578,7 +652,7 @@ class _ConnectedMeshAndPaletteBannerState
                       if (index < _palettes.length) {
                         final _PaletteEntry entry = _palettes[index];
                         final bool isSelected = entry.color.toARGB32() ==
-                            settings.seedColor.toARGB32();
+                            widget.seedColor.toARGB32();
                         return _ColorOrbItem(
                           color: entry.color,
                           label: entry.getName(context.l10n),
@@ -592,10 +666,10 @@ class _ConnectedMeshAndPaletteBannerState
 
                       // 9th Rainbow / Custom Color Orb
                       final bool isCustomSelected =
-                          !isPresetSelected && !settings.useSystemDynamic;
+                          !isPresetSelected && !widget.useSystemDynamic;
                       return _RainbowCustomOrbItem(
                         isSelected: isCustomSelected,
-                        currentColor: settings.seedColor,
+                        currentColor: widget.seedColor,
                         onTap: () {
                           HapticService.tap();
                           widget.onCustomColorTap();
@@ -937,11 +1011,27 @@ class _SliderSettingTile extends StatefulWidget {
 
 class _SliderSettingTileState extends State<_SliderSettingTile> {
   bool _isDragging = false;
+  late double _localValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _localValue = widget.value;
+  }
+
+  @override
+  void didUpdateWidget(covariant _SliderSettingTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_isDragging && oldWidget.value != widget.value) {
+      _localValue = widget.value;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final scheme = widget.scheme;
+    final String currentBadgeText = '${_localValue.toInt()} dp';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
@@ -1001,8 +1091,8 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
                       child: child,
                     ),
                     child: Text(
-                      widget.badgeText,
-                      key: ValueKey<String>(widget.badgeText),
+                      currentBadgeText,
+                      key: ValueKey<String>(currentBadgeText),
                       style: textTheme.labelMedium?.copyWith(
                         color: scheme.primary,
                         fontWeight: FontWeight.bold,
@@ -1023,22 +1113,32 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
               trackHeight: 4,
             ),
             child: Slider(
-              value: widget.value.clamp(widget.min, widget.max),
+              value: _localValue.clamp(widget.min, widget.max),
               min: widget.min,
               max: widget.max,
               divisions: widget.divisions,
-              onChangeStart: (_) {
-                setState(() => _isDragging = true);
+              onChangeStart: (double v) {
+                setState(() {
+                  _isDragging = true;
+                  _localValue = v;
+                });
                 HapticService.selection();
               },
-              onChangeEnd: (_) {
-                setState(() => _isDragging = false);
+              onChangeEnd: (double v) {
+                setState(() {
+                  _isDragging = false;
+                  _localValue = v;
+                });
+                widget.onChanged(v);
               },
               onChanged: (double v) {
-                if (v != widget.value) {
+                final double step = (widget.max - widget.min) / widget.divisions;
+                if ((v - _localValue).abs() >= step * 0.9) {
                   HapticService.selection();
-                  widget.onChanged(v);
                 }
+                setState(() {
+                  _localValue = v;
+                });
               },
             ),
           ),
@@ -1300,23 +1400,30 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
 
   void _onHexChanged(String value) {
     String clean = value.trim();
-    if (!clean.startsWith('#')) clean = '#$clean';
+    if (clean.startsWith('#')) clean = clean.substring(1);
 
-    final RegExp hexRegex = RegExp(r'^#?([0-9a-fA-F]{6})$');
-    if (hexRegex.hasMatch(clean)) {
-      final String hexOnly = clean.replaceFirst('#', '');
-      final int? intVal = int.tryParse('FF$hexOnly', radix: 16);
+    if (clean.isEmpty) {
+      setState(() => _hexError = null);
+      return;
+    }
+
+    if (clean.length == 6 || clean.length == 8) {
+      final int? intVal = int.tryParse(clean.length == 6 ? 'FF$clean' : clean, radix: 16);
       if (intVal != null) {
         setState(() {
           _selectedColor = Color(intVal);
           _hexError = null;
         });
         return;
+      } else {
+        setState(() {
+          _hexError = mounted ? context.l10n.appearanceInvalidHex : 'Invalid HEX';
+        });
       }
+    } else {
+      // Incomplete while typing, do not prematurely display error
+      setState(() => _hexError = null);
     }
-    setState(() {
-      _hexError = mounted ? context.l10n.appearanceInvalidHex : 'Invalid HEX';
-    });
   }
 
   @override
@@ -1537,19 +1644,17 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
   final ValueChanged<PaletteStyle> onChanged;
 
   String _labelFor(BuildContext context, PaletteStyle style) {
-    final bool isRu = Localizations.localeOf(context).languageCode == 'ru';
     return switch (style) {
-      PaletteStyle.expressive => isRu ? 'Выразительный' : 'Expressive',
-      PaletteStyle.vibrant => isRu ? 'Насыщенный' : 'Vibrant',
-      PaletteStyle.content => isRu ? 'Контент' : 'Content',
-      PaletteStyle.calm => isRu ? 'Спокойный' : 'Calm',
-      PaletteStyle.mono => isRu ? 'Моно' : 'Mono',
+      PaletteStyle.expressive => context.l10n.appearancePaletteExpressive,
+      PaletteStyle.vibrant => context.l10n.appearancePaletteVibrant,
+      PaletteStyle.content => context.l10n.appearancePaletteContent,
+      PaletteStyle.calm => context.l10n.appearancePaletteCalm,
+      PaletteStyle.mono => context.l10n.appearancePaletteMono,
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isRu = Localizations.localeOf(context).languageCode == 'ru';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -1560,7 +1665,7 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
               Icon(Icons.palette_outlined, size: 20, color: scheme.primary),
               const SizedBox(width: 8),
               Text(
-                isRu ? 'Характер палитры' : 'Palette Style',
+                context.l10n.appearancePaletteStyle,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: scheme.onSurface,

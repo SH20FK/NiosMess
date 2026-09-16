@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
+import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
@@ -38,12 +39,16 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) => _listenToState());
   }
 
+  int _retryCount = 0;
+
   void _listenToState() {
     final session = ref.read(callSessionProvider)?.session;
     if (session == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _listenToState();
-      });
+      if (_retryCount++ < 5) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _listenToState();
+        });
+      }
       return;
     }
 
@@ -157,7 +162,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                                     width: 6,
                                     height: 6,
                                     decoration: const BoxDecoration(
-                                      color: Color(0xFF22C55E),
+                                      color: AppColors.statusOnline,
                                       shape: BoxShape.circle,
                                     ),
                                   ),
@@ -172,6 +177,27 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                                       letterSpacing: 1.0,
                                     ),
                                   ),
+                                  if (data.isListener) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.hearing_rounded, size: 12, color: Colors.amberAccent),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            context.l10n.callListenerModeNotice,
+                                            style: const TextStyle(color: Colors.amberAccent, fontSize: 10, fontWeight: FontWeight.w600),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               );
                             }
@@ -241,17 +267,10 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                       BorderRadius.circular(CallTokens.meetTileBorderRadius),
                   border: Border.all(
                     color: data.state == CallSessionState.inCall
-                        ? const Color(0xFF22C55E).withValues(alpha: 0.25)
+                        ? AppColors.statusOnline.withValues(alpha: 0.25)
                         : Colors.white.withValues(alpha: 0.08),
                     width: 1.5,
                   ),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(

@@ -13,6 +13,7 @@ import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/services/global_voice_playback_service.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class VoiceMessagePlayer extends StatefulWidget {
   const VoiceMessagePlayer({
@@ -52,7 +53,8 @@ class VoiceMessagePlayer extends StatefulWidget {
 
 class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   late final AudioPlayer _player;
-  Duration _position = Duration.zero;
+  final ValueNotifier<Duration> _positionNotifier =
+      ValueNotifier<Duration>(Duration.zero);
   Duration _duration = Duration.zero;
   late final List<double> _waveformBars;
   bool _seeking = false;
@@ -65,7 +67,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     _waveformBars = (widget.waveformAmplitudes != null &&
             widget.waveformAmplitudes!.isNotEmpty)
         ? _resampleWaveform(widget.waveformAmplitudes!, 50)
-        : _generateWaveform(widget.audioUrl.hashCode);
+        : List<double>.filled(50, 0.35);
     _setupPlayer();
   }
 
@@ -75,20 +77,6 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     if (oldWidget.audioUrl != widget.audioUrl) {
       _setupPlayer();
     }
-  }
-
-  List<double> _generateWaveform(int seed) {
-    final math.Random rng = math.Random(seed);
-    final List<double> bars = List<double>.generate(50, (i) {
-      final double envelope = math.sin(math.pi * i / 49);
-      final double noise = 0.15 + 0.65 * rng.nextDouble();
-      final double wave = 0.3 + 0.4 * math.sin(i * 0.3 + seed * 0.001);
-      return (envelope * 0.4 + noise * 0.4 + wave * 0.2).clamp(0.08, 1.0);
-    });
-    for (int i = 1; i < bars.length - 1; i++) {
-      bars[i] = (bars[i - 1] + bars[i] + bars[i + 1]) / 3;
-    }
-    return bars;
   }
 
   static List<double> _resampleWaveform(List<double> source, int targetCount) {
@@ -156,11 +144,14 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
       );
       _duration = Duration(seconds: widget.durationSeconds);
       _posSub = _player.positionStream.listen((p) {
-        if (mounted && !_seeking) setState(() => _position = p);
+        if (mounted && !_seeking) {
+          _positionNotifier.value = p;
+        }
       });
       _stateSub = _player.playerStateStream.listen((state) {
         if (state.processingState == ProcessingState.completed) {
           GlobalVoicePlaybackService.instance.unregisterPlaying(widget.audioUrl);
+          _positionNotifier.value = Duration.zero;
         }
         if (mounted) setState(() {});
       });
@@ -175,6 +166,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     GlobalVoicePlaybackService.instance.unregisterPlaying(widget.audioUrl);
     _cancelSubscriptions();
     _player.dispose();
+    _positionNotifier.dispose();
     super.dispose();
   }
 
@@ -189,8 +181,9 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
           if (mounted) setState(() {});
         }
       });
-      if (_position >= _duration && _duration > Duration.zero) {
+      if (_positionNotifier.value >= _duration && _duration > Duration.zero) {
         _player.seek(Duration.zero);
+        _positionNotifier.value = Duration.zero;
       }
       _player.play();
     }
@@ -200,16 +193,12 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   void _seekTo(double fraction) {
     final Duration target = _duration * fraction.clamp(0.0, 1.0);
     _player.seek(target);
-    setState(() => _position = target);
+    _positionNotifier.value = target;
   }
 
   @override
   Widget build(BuildContext context) {
     final bool playing = _player.playing;
-    final double progress = _duration.inMilliseconds > 0
-        ? _position.inMilliseconds / _duration.inMilliseconds
-        : 0.0;
-    final Duration remaining = _duration - _position;
     final Color fg = widget.isMine ? widget.scheme.onPrimary : widget.scheme.primary;
     final Color onFg = widget.isMine ? widget.scheme.primary : widget.scheme.onPrimary;
     final Color bg = widget.isMine
@@ -230,22 +219,14 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                 ? Consumer(
                     builder: (context, ref, child) {
                       final localId = widget.audioUrl.replaceFirst('local://', '');
-                      final task = ref.watch(uploadTaskProvider(localId));
-                      final uploadProgress = task?.progress ?? 0.0;
+                      ref.watch(uploadTaskProvider(localId));
                       return Container(
                         width: 48,
                         height: 48,
                         alignment: Alignment.center,
-                        child: SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: CircularProgressIndicator(
-                            value: uploadProgress,
-                            strokeWidth: 2.5,
-                            strokeCap: StrokeCap.round,
-                            backgroundColor: fg.withValues(alpha: 0.2),
-                            valueColor: AlwaysStoppedAnimation<Color>(fg),
-                          ),
+                        child: AppLoadingIndicator(
+                          size: 26,
+                          color: fg,
                         ),
                       );
                     },
@@ -253,21 +234,12 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                 : TouchContainer(
                     borderRadius: AppRadii.fullRadius,
                     onTap: _togglePlay,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
+                    child: Container(
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
                         color: fg,
                         shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: fg.withValues(alpha: 0.3),
-                            blurRadius: playing ? 12 : 6,
-                            spreadRadius: playing ? 2 : 0,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
@@ -284,129 +256,149 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
           ),
           const SizedBox(width: 4),
           Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                SizedBox(
-                  height: 40,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      if (widget.audioUrl.startsWith('local://')) {
-                        final localId = widget.audioUrl.replaceFirst('local://', '');
-                        return Consumer(
-                          builder: (context, ref, child) {
-                            final task = ref.watch(uploadTaskProvider(localId));
-                            final progressVal = task?.progress ?? 0.0;
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 14),
-                              child: LinearProgressIndicator(
-                                value: progressVal,
-                                color: fg,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
+            child: ValueListenableBuilder<Duration>(
+              valueListenable: _positionNotifier,
+              builder: (context, pos, _) {
+                final double progress = _duration.inMilliseconds > 0
+                    ? pos.inMilliseconds / _duration.inMilliseconds
+                    : 0.0;
+                final Duration remaining = _duration - pos;
+
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    SizedBox(
+                      height: 40,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (widget.audioUrl.startsWith('local://')) {
+                            final localId = widget.audioUrl.replaceFirst('local://', '');
+                            return Consumer(
+                              builder: (context, ref, child) {
+                                final task = ref.watch(uploadTaskProvider(localId));
+                                final progressVal = task?.progress ?? 0.0;
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 18),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: SizedBox(
+                                      height: 4,
+                                      child: Stack(
+                                        children: [
+                                          Container(color: fg.withValues(alpha: 0.2)),
+                                          FractionallySizedBox(
+                                            widthFactor: progressVal.clamp(0.0, 1.0),
+                                            child: Container(color: fg),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             );
-                          },
-                        );
-                      }
-                      return GestureDetector(
-                        onTapDown: (TapDownDetails details) {
-                          final double localX = details.localPosition.dx;
-                          final double width = constraints.maxWidth;
-                          _seekTo(localX / width);
-                        },
-                        onHorizontalDragStart: (_) => _seeking = true,
-                        onHorizontalDragUpdate: (DragUpdateDetails details) {
-                          final double localX = details.localPosition.dx;
-                          final double width = constraints.maxWidth;
-                          _seekTo(localX / width);
-                        },
-                        onHorizontalDragEnd: (_) => _seeking = false,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: RepaintBoundary(
-                            child: CustomPaint(
-                              size: Size(constraints.maxWidth, 34),
-                              painter: _WaveformPainter(
-                                bars: _waveformBars,
-                                progress: progress,
-                                playedColor: fg,
-                                unplayedColor: fg.withValues(alpha: 0.30),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8, bottom: 2),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      if (widget.formattedTime != null)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              if (widget.isE2ee)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 3),
-                                  child: Icon(
-                                    Icons.lock_rounded,
-                                    size: 10,
-                                    color: fg.withValues(alpha: 0.6),
+                          }
+                          return GestureDetector(
+                            onTapDown: (TapDownDetails details) {
+                              final double localX = details.localPosition.dx;
+                              final double width = constraints.maxWidth;
+                              _seekTo(localX / width);
+                            },
+                            onHorizontalDragStart: (_) => _seeking = true,
+                            onHorizontalDragUpdate: (DragUpdateDetails details) {
+                              final double localX = details.localPosition.dx;
+                              final double width = constraints.maxWidth;
+                              _seekTo(localX / width);
+                            },
+                            onHorizontalDragEnd: (_) => _seeking = false,
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: RepaintBoundary(
+                                child: CustomPaint(
+                                  size: Size(constraints.maxWidth, 34),
+                                  painter: _WaveformPainter(
+                                    bars: _waveformBars,
+                                    progress: progress,
+                                    playedColor: fg,
+                                    unplayedColor: fg.withValues(alpha: 0.30),
                                   ),
                                 ),
-                              if (widget.isEdited)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 3),
-                                  child: Text(
-                                    context.l10n.chatEdited,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8, bottom: 2),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          if (widget.formattedTime != null)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  if (widget.isE2ee)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 3),
+                                      child: Icon(
+                                        Icons.lock_rounded,
+                                        size: 10,
+                                        color: fg.withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                  if (widget.isEdited)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 3),
+                                      child: Text(
+                                        context.l10n.chatEdited,
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                          color: fg.withValues(alpha: 0.6),
+                                        ),
+                                      ),
+                                    ),
+                                  Text(
+                                    widget.formattedTime!,
                                     style: TextStyle(
                                       fontSize: 9,
                                       fontWeight: FontWeight.w600,
                                       color: fg.withValues(alpha: 0.6),
                                     ),
                                   ),
-                                ),
-                              Text(
-                                widget.formattedTime!,
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w600,
-                                  color: fg.withValues(alpha: 0.6),
-                                ),
+                                  if (widget.isMine)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 3),
+                                      child: Icon(
+                                        widget.isRead
+                                            ? Icons.done_all_rounded
+                                            : Icons.check_rounded,
+                                        size: 11,
+                                        color: fg.withValues(alpha: 0.7),
+                                      ),
+                                    ),
+                                ],
                               ),
-                              if (widget.isMine)
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 3),
-                                  child: Icon(
-                                    widget.isRead
-                                        ? Icons.done_all_rounded
-                                        : Icons.check_rounded,
-                                    size: 11,
-                                    color: fg.withValues(alpha: 0.7),
-                                  ),
-                                ),
-                            ],
+                            ),
+                          Text(
+                            _formatDuration(remaining),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: fg.withValues(alpha: 0.7),
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                            ),
                           ),
-                        ),
-                      Text(
-                        _formatDuration(remaining),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: fg.withValues(alpha: 0.7),
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],

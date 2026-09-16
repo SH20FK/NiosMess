@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
@@ -15,6 +16,7 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
     this.onMore,
     this.isMe = false,
     this.topInset = 0.0,
+    this.heroTag,
   });
 
   final String name;
@@ -27,12 +29,19 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
   final VoidCallback? onMore;
   final bool isMe;
   final double topInset;
+  final String? heroTag;
 
   @override
   double get minExtent => kToolbarHeight + topInset;
 
   @override
   double get maxExtent => 230.0 + topInset;
+
+  Widget _buildFadedLayer(double opacity, Widget child) {
+    if (opacity <= 0.0) return const SizedBox.shrink();
+    if (opacity >= 0.98) return child;
+    return Opacity(opacity: opacity, child: child);
+  }
 
   @override
   Widget build(
@@ -46,15 +55,25 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
     final double maxShrink = (maxExtent - minExtent).clamp(0.1, 1000.0);
     final double progress = (shrinkOffset / maxShrink).clamp(0.0, 1.0);
 
-    // Fade curves for expanded vs collapsed layers
-    final double expandedOpacity = (1.0 - progress * 2.2).clamp(0.0, 1.0);
-    final double collapsedOpacity = ((progress - 0.55) * 2.2).clamp(0.0, 1.0);
+    // Smooth continuous crossfade without dead animation gap
+    final double expandedOpacity = (1.0 - progress * 1.8).clamp(0.0, 1.0);
+    final double collapsedOpacity = ((progress - 0.45) * 1.8).clamp(0.0, 1.0);
 
     final Color headerBackground = Color.lerp(
       scheme.surface,
       scheme.surfaceContainer,
       progress,
     )!;
+
+    final Widget avatar = PulseAvatar(
+      name: name,
+      avatarUrl: avatarUrl,
+      radius: 48,
+      fallbackColor: scheme.primaryContainer,
+      textColor: scheme.onPrimaryContainer,
+      borderColor: scheme.surface,
+      borderWidth: 3,
+    );
 
     return Material(
       color: headerBackground,
@@ -64,9 +83,9 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
           // ── Expanded Content (Avatar + Name + Status) ──────────────
           if (expandedOpacity > 0.0)
             Positioned.fill(
-              child: Opacity(
-                opacity: expandedOpacity,
-                child: Padding(
+              child: _buildFadedLayer(
+                expandedOpacity,
+                Padding(
                   padding: EdgeInsets.only(top: topInset + 12),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -77,15 +96,10 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
                         clipBehavior: Clip.none,
                         alignment: Alignment.bottomRight,
                         children: <Widget>[
-                          PulseAvatar(
-                            name: name,
-                            avatarUrl: avatarUrl,
-                            radius: 48,
-                            fallbackColor: scheme.primaryContainer,
-                            textColor: scheme.onPrimaryContainer,
-                            borderColor: scheme.surface,
-                            borderWidth: 3,
-                          ),
+                          if (heroTag != null && heroTag!.isNotEmpty)
+                            Hero(tag: heroTag!, child: avatar)
+                          else
+                            avatar,
                           if (badges.isNotEmpty)
                             Positioned(
                               right: -2,
@@ -171,7 +185,7 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
                                 height: 6,
                                 margin: const EdgeInsets.only(right: 5),
                                 decoration: const BoxDecoration(
-                                  color: Color(0xFF22C55E),
+                                  color: AppColors.statusOnline,
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -180,7 +194,7 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
                               statusText!,
                               style: textTheme.bodySmall?.copyWith(
                                 color: isOnline
-                                    ? const Color(0xFF22C55E)
+                                    ? AppColors.statusOnline
                                     : scheme.onSurfaceVariant,
                                 fontWeight: isOnline ? FontWeight.w600 : FontWeight.normal,
                               ),
@@ -201,9 +215,9 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
               right: isMe || onMore == null ? 16 : 56,
               top: topInset,
               height: kToolbarHeight,
-              child: Opacity(
-                opacity: collapsedOpacity,
-                child: Row(
+              child: _buildFadedLayer(
+                collapsedOpacity,
+                Row(
                   children: <Widget>[
                     PulseAvatar(
                       name: name,
@@ -235,7 +249,7 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
                               overflow: TextOverflow.ellipsis,
                               style: textTheme.bodySmall?.copyWith(
                                 color: isOnline
-                                    ? const Color(0xFF22C55E)
+                                    ? AppColors.statusOnline
                                     : scheme.onSurfaceVariant,
                                 fontSize: 11,
                               ),
@@ -306,6 +320,7 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
         statusText != oldDelegate.statusText ||
         isOnline != oldDelegate.isOnline ||
         isMe != oldDelegate.isMe ||
-        topInset != oldDelegate.topInset;
+        topInset != oldDelegate.topInset ||
+        heroTag != oldDelegate.heroTag;
   }
 }
