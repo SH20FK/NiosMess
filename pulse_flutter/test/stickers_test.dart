@@ -511,6 +511,7 @@ void main() {
         name: 'super_pack',
         title: 'Super Pack',
         isPublic: true,
+        isOwner: true,
         stickers: [
           ApiSticker(id: 1, url: 'https://test.com/1.webp', emoji: '🌟'),
           ApiSticker(id: 2, url: 'https://test.com/2.webp', emoji: '🚀'),
