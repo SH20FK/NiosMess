@@ -1,8 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/nios_motion.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 class FluidPreviewCard extends StatefulWidget {
@@ -26,9 +27,8 @@ class _FluidPreviewCardState extends State<FluidPreviewCard>
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  double _squishFactor = 0;
-  double _parallaxDx = 0;
-  double _parallaxDy = 0;
+  final ValueNotifier<double> _squishFactorNotifier = ValueNotifier<double>(0.0);
+  final ValueNotifier<Offset> _parallaxNotifier = ValueNotifier<Offset>(Offset.zero);
 
   late final AnimationController _squishController;
 
@@ -37,7 +37,7 @@ class _FluidPreviewCardState extends State<FluidPreviewCard>
     super.initState();
     _squishController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 350),
     );
     _pageController.addListener(_onPageScroll);
   }
@@ -53,7 +53,7 @@ class _FluidPreviewCardState extends State<FluidPreviewCard>
     }
     final double raw = offset / viewport;
     final double pageDiff = raw - _currentPage;
-    setState(() => _squishFactor = (pageDiff * 6).clamp(-12, 12));
+    _squishFactorNotifier.value = (pageDiff * 6).clamp(-12.0, 12.0);
   }
 
   @override
@@ -61,54 +61,73 @@ class _FluidPreviewCardState extends State<FluidPreviewCard>
     _pageController.removeListener(_onPageScroll);
     _pageController.dispose();
     _squishController.dispose();
+    _squishFactorNotifier.dispose();
+    _parallaxNotifier.dispose();
     super.dispose();
   }
 
   void _onPageChanged(int page) {
-    _currentPage = page;
-    _squishController.forward(from: 0).then((_) {
+    setState(() => _currentPage = page);
+    _squishController
+        .animateWithSpring(
+      spring: NiosMotion.snappy,
+      target: 1.0,
+    )
+        .then((_) {
       if (mounted) {
-        setState(() => _squishFactor = 0);
+        _squishFactorNotifier.value = 0.0;
+        _squishController.value = 0.0;
       }
     });
   }
 
   void _onPanUpdate(DragUpdateDetails d) {
-    setState(() {
-      _parallaxDx = (d.delta.dx * 0.3 + _parallaxDx).clamp(-12, 12);
-      _parallaxDy = (d.delta.dy * 0.3 + _parallaxDy).clamp(-8, 8);
-    });
+    final Offset current = _parallaxNotifier.value;
+    _parallaxNotifier.value = Offset(
+      (d.delta.dx * 0.3 + current.dx).clamp(-12.0, 12.0),
+      (d.delta.dy * 0.3 + current.dy).clamp(-8.0, 8.0),
+    );
   }
 
   void _onPanEnd(DragEndDetails d) {
-    _squishController.forward(from: 0).then((_) {
+    _squishController
+        .animateWithSpring(
+      spring: NiosMotion.snappy,
+      target: 1.0,
+    )
+        .then((_) {
       if (mounted) {
-        setState(() {
-          _parallaxDx = 0;
-          _parallaxDy = 0;
-        });
+        _parallaxNotifier.value = Offset.zero;
+        _squishController.value = 0.0;
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final double squishOffset = _squishFactor + _squishController.value * _squishFactor * -0.3;
-
     return GestureDetector(
-      onPanUpdate: kIsWeb ? _onPanUpdate : null,
-      onPanEnd: kIsWeb ? _onPanEnd : null,
+      onPanUpdate: _onPanUpdate,
+      onPanEnd: _onPanEnd,
       child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _squishController,
-          builder: (context, _) {
+        child: ListenableBuilder(
+          listenable: Listenable.merge(<Listenable>[
+            _squishFactorNotifier,
+            _parallaxNotifier,
+            _squishController,
+          ]),
+          builder: (BuildContext context, _) {
+            final double squishFactor = _squishFactorNotifier.value;
+            final Offset parallax = _parallaxNotifier.value;
+            final double squishOffset =
+                squishFactor * (1.0 - _squishController.value * 0.5);
+
             return Transform(
               transform: Matrix4.identity()
                 ..setEntry(3, 2, 0.001)
                 ..setEntry(1, 0, squishOffset * 0.008)
                 ..translateByDouble(
-                  _parallaxDx * (1 - _squishController.value * 0.5),
-                  _parallaxDy * (1 - _squishController.value * 0.5),
+                  parallax.dx * (1.0 - _squishController.value * 0.5),
+                  parallax.dy * (1.0 - _squishController.value * 0.5),
                   0,
                   1.0,
                 ),
@@ -116,16 +135,16 @@ class _FluidPreviewCardState extends State<FluidPreviewCard>
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(
-                      math.max(20 - squishOffset.abs() * 0.5, 12),
+                      math.max(20.0 - squishOffset.abs() * 0.5, AppRadii.md),
                     ),
                     topRight: Radius.circular(
-                      math.max(20 - squishOffset.abs() * 0.5, 12),
+                      math.max(20.0 - squishOffset.abs() * 0.5, AppRadii.md),
                     ),
                     bottomLeft: Radius.circular(
-                      math.max(20 + squishOffset.abs() * 0.3, 12),
+                      math.max(20.0 + squishOffset.abs() * 0.3, AppRadii.md),
                     ),
                     bottomRight: Radius.circular(
-                      math.max(20 + squishOffset.abs() * 0.3, 12),
+                      math.max(20.0 + squishOffset.abs() * 0.3, AppRadii.md),
                     ),
                   ),
                 ),

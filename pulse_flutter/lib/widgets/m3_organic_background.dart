@@ -92,6 +92,7 @@ class M3OrganicBackground extends ConsumerWidget {
                 if (!isDesktop) {
                   return child;
                 }
+                final radii = AppRadii.of(context);
                 return Center(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(
@@ -101,12 +102,12 @@ class M3OrganicBackground extends ConsumerWidget {
                       child: Material(
                         color: scheme.surfaceContainerHigh
                             .withValues(alpha: isDark ? 0.92 : 0.98),
-                        borderRadius: AppRadii.lgRadius,
+                        borderRadius: radii.lgRadius,
                         elevation: 0,
                         child: Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            borderRadius: AppRadii.lgRadius,
+                            borderRadius: radii.lgRadius,
                             border: Border.all(
                               color: scheme.outlineVariant
                                   .withValues(alpha: 0.35),
@@ -231,18 +232,19 @@ class _TopIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radii = AppRadii.of(context);
     final Widget button = Material(
       color: scheme.surfaceContainerHigh.withValues(alpha: 0.8),
-      borderRadius: AppRadii.fullRadius,
+      borderRadius: radii.fullRadius,
       elevation: 0,
       child: InkWell(
         onTap: onTap,
-        borderRadius: AppRadii.fullRadius,
+        borderRadius: radii.fullRadius,
         child: Container(
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            borderRadius: AppRadii.fullRadius,
+            borderRadius: radii.fullRadius,
             border: Border.all(
               color: scheme.outlineVariant.withValues(alpha: 0.25),
               width: 1,
@@ -275,6 +277,59 @@ class _TopIconButton extends StatelessWidget {
   }
 }
 
+@immutable
+class _BlobsCacheKey {
+  const _BlobsCacheKey({
+    required this.width,
+    required this.height,
+    required this.primary,
+    required this.secondary,
+    required this.tertiary,
+    required this.primaryContainer,
+    required this.isDark,
+    required this.blurSigma,
+    required this.isTierB,
+  });
+
+  final double width;
+  final double height;
+  final Color primary;
+  final Color secondary;
+  final Color tertiary;
+  final Color primaryContainer;
+  final bool isDark;
+  final double blurSigma;
+  final bool isTierB;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is _BlobsCacheKey &&
+        other.width == width &&
+        other.height == height &&
+        other.primary == primary &&
+        other.secondary == secondary &&
+        other.tertiary == tertiary &&
+        other.primaryContainer == primaryContainer &&
+        other.isDark == isDark &&
+        other.blurSigma == blurSigma &&
+        other.isTierB == isTierB;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        width,
+        height,
+        primary,
+        secondary,
+        tertiary,
+        primaryContainer,
+        isDark,
+        blurSigma,
+        isTierB,
+      );
+}
+
 class _OrganicBlobsPainter extends CustomPainter {
   const _OrganicBlobsPainter({
     required this.scheme,
@@ -288,41 +343,48 @@ class _OrganicBlobsPainter extends CustomPainter {
   final double blurSigma;
   final bool isTierB;
 
-  static ui.Picture? _cachedPicture;
-  static Size? _cachedSize;
-  static ColorScheme? _cachedScheme;
-  static bool? _cachedIsDark;
-  static double? _cachedBlurSigma;
-  static bool? _cachedIsTierB;
+  static final Map<_BlobsCacheKey, ui.Picture> _cache = <_BlobsCacheKey, ui.Picture>{};
+  static const int _maxCacheSize = 4;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.width <= 0 || size.height <= 0) return;
 
-    if (_cachedPicture != null &&
-        _cachedSize == size &&
-        _cachedScheme == scheme &&
-        _cachedIsDark == isDark &&
-        _cachedBlurSigma == blurSigma &&
-        _cachedIsTierB == isTierB) {
-      canvas.drawPicture(_cachedPicture!);
+    final key = _BlobsCacheKey(
+      width: size.width,
+      height: size.height,
+      primary: scheme.primary,
+      secondary: scheme.secondary,
+      tertiary: scheme.tertiary,
+      primaryContainer: scheme.primaryContainer,
+      isDark: isDark,
+      blurSigma: blurSigma,
+      isTierB: isTierB,
+    );
+
+    final existing = _cache[key];
+    if (existing != null) {
+      // Re-insert to keep LRU fresh
+      _cache.remove(key);
+      _cache[key] = existing;
+      canvas.drawPicture(existing);
       return;
     }
-
-    _cachedPicture?.dispose();
 
     final recorder = ui.PictureRecorder();
     final recordingCanvas =
         Canvas(recorder, Rect.fromLTWH(0, 0, size.width, size.height));
     _paintBlobs(recordingCanvas, size);
-    _cachedPicture = recorder.endRecording();
-    _cachedSize = size;
-    _cachedScheme = scheme;
-    _cachedIsDark = isDark;
-    _cachedBlurSigma = blurSigma;
-    _cachedIsTierB = isTierB;
+    final newPicture = recorder.endRecording();
 
-    canvas.drawPicture(_cachedPicture!);
+    if (_cache.length >= _maxCacheSize) {
+      final oldestKey = _cache.keys.first;
+      final oldPicture = _cache.remove(oldestKey);
+      oldPicture?.dispose();
+    }
+    _cache[key] = newPicture;
+
+    canvas.drawPicture(newPicture);
   }
 
   void _paintBlobs(Canvas canvas, Size size) {

@@ -16,10 +16,10 @@ import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:math' as math;
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/motion/nios_dismissible.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:universal_io/io.dart';
@@ -99,7 +99,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   late final PageController _pageController =
       PageController(initialPage: _currentIndex);
 
-  double _dragOffsetY = 0.0;
+  double _dragProgress = 0.0;
   bool _showChrome = true;
 
   void _toggleChrome() {
@@ -214,11 +214,6 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
             ? context.l10n.mediaViewerTitle
             : currentItem.title!.trim());
 
-    final double dragFraction = (_dragOffsetY / 300.0).clamp(0.0, 1.0);
-    final double scrimAlpha = (1.0 - dragFraction).clamp(0.0, 1.0);
-    final double scale = (1.0 - (_dragOffsetY / 1200.0)).clamp(0.8, 1.0);
-    final bool isInteractingWithDrag = _dragOffsetY > 0;
-
     final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
     return PopScope(
       canPop: canRoutePop,
@@ -226,42 +221,30 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         if (didPop) return;
         _dismiss();
       },
-      child: Scaffold(
-        backgroundColor: scheme.scrim.withValues(alpha: 0.95 * scrimAlpha),
-        extendBodyBehindAppBar: true,
-        body: Stack(
-          children: <Widget>[
-            // ── Interactive Swipe-Down Body ──────────────────────────
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _toggleChrome,
-                onVerticalDragUpdate: (DragUpdateDetails details) {
-                  if (details.delta.dy > 0 || _dragOffsetY > 0) {
-                    setState(() {
-                      _dragOffsetY = math.max(0.0, _dragOffsetY + details.delta.dy);
-                    });
-                  }
-                },
-                onVerticalDragEnd: (DragEndDetails details) {
-                  if (_dragOffsetY > 120 ||
-                      (details.primaryVelocity != null && details.primaryVelocity! > 600)) {
-                    _dismiss();
-                  } else {
-                    setState(() {
-                      _dragOffsetY = 0.0;
-                    });
-                  }
-                },
-                child: Transform.translate(
-                  offset: Offset(0, _dragOffsetY),
-                  child: Transform.scale(
-                    scale: scale,
-                    child: _buildBody(scheme),
+      child: NiosDismissible(
+        onDismissed: _dismiss,
+        onProgress: (double progress) {
+          if ((_dragProgress - progress).abs() > 0.01) {
+            setState(() => _dragProgress = progress);
+          }
+        },
+        builder: (BuildContext ctx, Widget transformedBody, double progress) {
+          final double scrimAlpha = (1.0 - progress.abs()).clamp(0.0, 1.0);
+          final bool isInteractingWithDrag = progress.abs() > 0.001;
+
+          return Scaffold(
+            backgroundColor: scheme.scrim.withValues(alpha: 0.95 * scrimAlpha),
+            extendBodyBehindAppBar: true,
+            body: Stack(
+              children: <Widget>[
+                // ── Interactive Swipe-Down Body ──────────────────────────
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _toggleChrome,
+                    child: transformedBody,
                   ),
                 ),
-              ),
-            ),
 
             // ── Top Animated App Bar ─────────────────────────────────
             AnimatedPositioned(
@@ -362,8 +345,11 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
             ),
           ],
         ),
-      ),
-    );
+      );
+    },
+    child: _buildBody(scheme),
+  ),
+);
   }
 
   Widget _buildBody(ColorScheme scheme) {

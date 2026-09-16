@@ -1,9 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:pulse_flutter/core/utils/haptic_service.dart';
-import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/core/motion/nios_motion.dart';
+import 'package:pulse_flutter/core/motion/tri_sync.dart';
 
 class ActiveColorOrb extends ConsumerStatefulWidget {
   const ActiveColorOrb({
@@ -24,16 +23,27 @@ class ActiveColorOrb extends ConsumerStatefulWidget {
 }
 
 class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController;
   late ColorScheme _previewScheme;
+
+  /// Static scheme memoizer to prevent heavy HCT quantization spikes on UI thread.
+  static final Map<int, ColorScheme> _schemeCache = <int, ColorScheme>{};
+
+  static ColorScheme _getScheme(Color seed, Brightness brightness) {
+    final int key = seed.toARGB32() ^ (brightness == Brightness.dark ? 1 : 0);
+    return _schemeCache.putIfAbsent(
+      key,
+      () => ColorScheme.fromSeed(seedColor: seed, brightness: brightness),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 250),
     );
 
     if (widget.selected) {
@@ -44,25 +54,25 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _previewScheme = ColorScheme.fromSeed(
-      seedColor: widget.color,
-      brightness: Theme.of(context).brightness,
-    );
+    _previewScheme = _getScheme(widget.color, Theme.of(context).brightness);
   }
 
   @override
   void didUpdateWidget(ActiveColorOrb old) {
     super.didUpdateWidget(old);
     if (widget.color != old.color) {
-      _previewScheme = ColorScheme.fromSeed(
-        seedColor: widget.color,
-        brightness: Theme.of(context).brightness,
-      );
+      _previewScheme = _getScheme(widget.color, Theme.of(context).brightness);
     }
     if (widget.selected && !old.selected) {
-      _pulseController.forward(from: 0);
+      _pulseController.animateWithSpring(
+        spring: NiosMotion.snappy,
+        target: 1.0,
+      );
     } else if (!widget.selected && old.selected) {
-      _pulseController.reverse();
+      _pulseController.animateWithSpring(
+        spring: NiosMotion.snappy,
+        target: 0.0,
+      );
     }
   }
 
@@ -83,10 +93,7 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
       label: widget.label,
       child: GestureDetector(
         onTap: () {
-          ref.read(appSoundProvider).playUiTick();
-          if (ref.read(uiSettingsProvider).haptics) {
-            HapticService.tap();
-          }
+          TriSync.snap(ref: ref, context: context);
           widget.onTap();
         },
         child: Column(
@@ -100,41 +107,31 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
                   type: MaterialType.transparency,
                   shape: const CircleBorder(),
                   clipBehavior: Clip.antiAlias,
-                  child: Container(
-                    width: 84,
-                    height: 84,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: widget.selected
-                          ? Border.all(
-                              color: _previewScheme.primary.withValues(alpha: 0.5),
-                              width: 2,
-                            )
-                          : Border.all(
-                              color: scheme.outlineVariant.withValues(alpha: 0.15),
-                              width: 1,
-                            ),
-                      boxShadow: widget.selected
-                          ? <BoxShadow>[
-                              BoxShadow(
-                                color: _previewScheme.primary.withValues(
-                                    alpha: 0.25 + pulse * 0.15),
-                                blurRadius: 10 + pulse * 8,
-                                spreadRadius: 2 + pulse * 3,
+                  child: Transform.scale(
+                    scale: 1.0 + pulse * 0.05,
+                    child: Container(
+                      width: 84,
+                      height: 84,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: widget.selected
+                            ? scheme.surfaceContainerHighest
+                            : scheme.surfaceContainerLow,
+                        border: widget.selected
+                            ? Border.all(
+                                color: _previewScheme.primary,
+                                width: 2.5,
+                              )
+                            : Border.all(
+                                color: scheme.outlineVariant.withValues(alpha: 0.20),
+                                width: 1,
                               ),
-                            ]
-                          : <BoxShadow>[
-                              BoxShadow(
-                                color: scheme.shadow.withValues(alpha: 0.06),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                    ),
-                    padding: EdgeInsets.all(4),
-                    child: CustomPaint(
-                      painter: _PaletteOrbPainter(scheme: _previewScheme),
-                      child: const SizedBox.expand(),
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: CustomPaint(
+                        painter: _PaletteOrbPainter(scheme: _previewScheme),
+                        child: const SizedBox.expand(),
+                      ),
                     ),
                   ),
                 );
