@@ -38,7 +38,7 @@ class _WallpaperCacheKey {
 class WallpaperImageCache {
   const WallpaperImageCache._();
 
-  static const int _kMaxCacheEntries = 4;
+  static const int _kMaxCacheEntries = 16;
   static final Map<_WallpaperCacheKey, ui.Image> _lruCache =
       <_WallpaperCacheKey, ui.Image>{};
   static final Map<_WallpaperCacheKey, Future<ui.Image>> _inFlightFutures =

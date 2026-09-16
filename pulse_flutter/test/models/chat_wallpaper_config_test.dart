@@ -130,6 +130,29 @@ void main() {
         expect(preset.config, isNotNull);
       }
     });
+
+    test('Custom photo wallpaper fields serialize and deserialize correctly', () {
+      const config = ChatWallpaperConfig(
+        imagePath: '/path/to/my_custom_wallpaper.png',
+        imageBlur: 8.5,
+        imageDim: 0.35,
+      );
+
+      final jsonStr = config.toJson();
+      final restored = ChatWallpaperConfig.fromJson(jsonStr);
+
+      expect(restored.imagePath, '/path/to/my_custom_wallpaper.png');
+      expect(restored.imageBlur, 8.5);
+      expect(restored.imageDim, 0.35);
+
+      final updated = restored.copyWith(imageBlur: 12.0, imageDim: 0.5);
+      expect(updated.imageBlur, 12.0);
+      expect(updated.imageDim, 0.5);
+      expect(updated.imagePath, '/path/to/my_custom_wallpaper.png');
+
+      final cleared = updated.copyWith(imagePath: '');
+      expect(cleared.imagePath, '');
+    });
   });
 }
 

@@ -4968,4 +4968,136 @@ class AppLocalizationsRu extends AppLocalizations {
   String get wallpaperRandomUndo => 'Случайный узор применён';
   @override
   String get wallpaperSaved => 'Обои сохранены';
+  @override
+  String get wallpaperForThisChat => 'Для этого чата';
+  @override
+  String get wallpaperForAllChats => 'Для всех чатов';
+  @override
+  String get wallpaperCustomize => 'Настроить узор';
+  @override
+  String get wallpaperApply => 'Применить';
+  @override
+  String get wallpaperDiscard => 'Отмена';
+  @override
+  String get wallpaperRandomize => 'Случайный узор';
+  @override
+  String get wallpaperMyPhoto => 'Моё фото';
+  @override
+  String get wallpaperChoosePhoto => 'Выбрать фото';
+  @override
+  String get wallpaperPhotoBlur => 'Размытие';
+  @override
+  String get wallpaperPhotoDim => 'Затемнение';
+  @override
+  String get wallpaperRemovePhoto => 'Удалить фото';
+  @override
+  String get wallpaperTabPattern => 'Узор';
+  @override
+  String get wallpaperTabColors => 'Цвет';
+  @override
+  String get wallpaperTabGeometry => 'Геометрия';
+  @override
+  String get wallpaperAdvanced => 'Дополнительно';
+  @override
+  String get wallpaperLayoutGrid => 'Сетка';
+  @override
+  String get wallpaperLayoutStagger => 'Шахматы';
+  @override
+  String get wallpaperLayoutScatter => 'Россыпь';
+  @override
+  String get wallpaperLayoutHex => 'Соты';
+  @override
+  String get wallpaperLayoutSpiral => 'Спираль';
+  @override
+  String get wallpaperBgSolid => 'Сплошной';
+  @override
+  String get wallpaperBgGradient => 'Градиент';
+  @override
+  String get wallpaperBgGlow => 'Свечение';
+  @override
+  String get wallpaperColorModeSingle => 'Один тон';
+  @override
+  String get wallpaperColorModeAccents => 'Акценты';
+  @override
+  String get wallpaperColorModePalette => 'Палитра';
+  @override
+  String get wallpaperPackAll => 'Все';
+  @override
+  String get wallpaperPackChat => 'Общение';
+  @override
+  String get wallpaperPackTech => 'Технологии';
+  @override
+  String get wallpaperPackSpace => 'Космос';
+  @override
+  String get wallpaperPackFood => 'Еда';
+  @override
+  String get wallpaperPackNature => 'Природа';
+  @override
+  String get wallpaperPackMinimal => 'Минимализм';
+  @override
+  String get wallpaperPackCustom => 'Свой набор';
+  @override
+  String get wallpaperSourceMaterial => 'Material Symbols';
+  @override
+  String get wallpaperSourceLucide => 'Lucide';
+  @override
+  String get wallpaperSourceTabler => 'Tabler';
+  @override
+  String get wallpaperSourceCupertino => 'Cupertino';
+  @override
+  String get wallpaperSourceShapes => 'Формы M3';
+  @override
+  String get wallpaperCellSize => 'Размер ячейки';
+  @override
+  String get wallpaperDensity => 'Плотность';
+  @override
+  String get wallpaperOpacity => 'Прозрачность';
+  @override
+  String get wallpaperFilled => 'Сплошная заливка';
+  @override
+  String get wallpaperGridAngle => 'Угол сетки';
+  @override
+  String get wallpaperRandomRotation => 'Разброс угла';
+  @override
+  String get wallpaperRandomScale => 'Разброс размера';
+  @override
+  String get wallpaperWeight => 'Толщина символов';
+  @override
+  String get wallpaperBaseColor => 'Базовый цвет';
+  @override
+  String get wallpaperSecondaryColor => 'Второй цвет';
+  @override
+  String get wallpaperPresetCosmos => 'Космос';
+  @override
+  String get wallpaperPresetCyberpunk => 'Киберпанк';
+  @override
+  String get wallpaperPresetSunset => 'Неоновый закат';
+  @override
+  String get wallpaperPresetOled => 'OLED Минимал';
+  @override
+  String get wallpaperPresetCupertino => 'Купертино';
+  @override
+  String get wallpaperPresetPastel => 'Пастель';
+  @override
+  String get wallpaperPresetMatrix => 'Nios Matrix';
+  @override
+  String get wallpaperCustomSetTitle => 'Выбор символов';
+  @override
+  String get wallpaperCustomSetLimit => 'Максимум 12 символов';
+  @override
+  String get wallpaperSearchGlyphs => 'Поиск символа...';
+  @override
+  String get wallpaperSaveSet => 'Сохранить набор';
+  @override
+  String get wallpaperTryOn => 'Примерить';
+  @override
+  String get wallpaperMockupToggle => 'Примерка чата';
+  @override
+  String get wallpaperNoPhotoSelected => 'Фото не выбрано';
+  @override
+  String get wallpaperDiscardConfirmTitle => 'Отменить изменения?';
+  @override
+  String get wallpaperDiscardConfirmBody => 'Все несохранённые изменения обоев будут потеряны.';
+  @override
+  String get wallpaperDiscardConfirmAction => 'Сбросить изменения';
 }

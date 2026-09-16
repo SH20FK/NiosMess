@@ -4946,4 +4946,136 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wallpaperRandomUndo => 'Random pattern applied';
   @override
   String get wallpaperSaved => 'Wallpaper saved';
+  @override
+  String get wallpaperForThisChat => 'For this chat';
+  @override
+  String get wallpaperForAllChats => 'For all chats';
+  @override
+  String get wallpaperCustomize => 'Customize pattern';
+  @override
+  String get wallpaperApply => 'Apply';
+  @override
+  String get wallpaperDiscard => 'Cancel';
+  @override
+  String get wallpaperRandomize => 'Randomize pattern';
+  @override
+  String get wallpaperMyPhoto => 'My photo';
+  @override
+  String get wallpaperChoosePhoto => 'Choose photo';
+  @override
+  String get wallpaperPhotoBlur => 'Blur';
+  @override
+  String get wallpaperPhotoDim => 'Dimming';
+  @override
+  String get wallpaperRemovePhoto => 'Remove photo';
+  @override
+  String get wallpaperTabPattern => 'Pattern';
+  @override
+  String get wallpaperTabColors => 'Color';
+  @override
+  String get wallpaperTabGeometry => 'Geometry';
+  @override
+  String get wallpaperAdvanced => 'Advanced';
+  @override
+  String get wallpaperLayoutGrid => 'Grid';
+  @override
+  String get wallpaperLayoutStagger => 'Stagger';
+  @override
+  String get wallpaperLayoutScatter => 'Scatter';
+  @override
+  String get wallpaperLayoutHex => 'Hex';
+  @override
+  String get wallpaperLayoutSpiral => 'Spiral';
+  @override
+  String get wallpaperBgSolid => 'Solid';
+  @override
+  String get wallpaperBgGradient => 'Gradient';
+  @override
+  String get wallpaperBgGlow => 'Radial glow';
+  @override
+  String get wallpaperColorModeSingle => 'Single tone';
+  @override
+  String get wallpaperColorModeAccents => 'Accents';
+  @override
+  String get wallpaperColorModePalette => 'Palette';
+  @override
+  String get wallpaperPackAll => 'All';
+  @override
+  String get wallpaperPackChat => 'Chat';
+  @override
+  String get wallpaperPackTech => 'Tech';
+  @override
+  String get wallpaperPackSpace => 'Space';
+  @override
+  String get wallpaperPackFood => 'Food';
+  @override
+  String get wallpaperPackNature => 'Nature';
+  @override
+  String get wallpaperPackMinimal => 'Minimal';
+  @override
+  String get wallpaperPackCustom => 'Custom set';
+  @override
+  String get wallpaperSourceMaterial => 'Material Symbols';
+  @override
+  String get wallpaperSourceLucide => 'Lucide';
+  @override
+  String get wallpaperSourceTabler => 'Tabler';
+  @override
+  String get wallpaperSourceCupertino => 'Cupertino';
+  @override
+  String get wallpaperSourceShapes => 'M3 Shapes';
+  @override
+  String get wallpaperCellSize => 'Cell size';
+  @override
+  String get wallpaperDensity => 'Density';
+  @override
+  String get wallpaperOpacity => 'Opacity';
+  @override
+  String get wallpaperFilled => 'Filled glyphs';
+  @override
+  String get wallpaperGridAngle => 'Grid angle';
+  @override
+  String get wallpaperRandomRotation => 'Rotation jitter';
+  @override
+  String get wallpaperRandomScale => 'Scale jitter';
+  @override
+  String get wallpaperWeight => 'Glyph weight';
+  @override
+  String get wallpaperBaseColor => 'Base color';
+  @override
+  String get wallpaperSecondaryColor => 'Secondary color';
+  @override
+  String get wallpaperPresetCosmos => 'Cosmos';
+  @override
+  String get wallpaperPresetCyberpunk => 'Cyberpunk';
+  @override
+  String get wallpaperPresetSunset => 'Neon Sunset';
+  @override
+  String get wallpaperPresetOled => 'OLED Minimal';
+  @override
+  String get wallpaperPresetCupertino => 'Cupertino';
+  @override
+  String get wallpaperPresetPastel => 'Pastel';
+  @override
+  String get wallpaperPresetMatrix => 'Nios Matrix';
+  @override
+  String get wallpaperCustomSetTitle => 'Select glyphs';
+  @override
+  String get wallpaperCustomSetLimit => 'Maximum 12 glyphs';
+  @override
+  String get wallpaperSearchGlyphs => 'Search glyphs...';
+  @override
+  String get wallpaperSaveSet => 'Save set';
+  @override
+  String get wallpaperTryOn => 'Try on';
+  @override
+  String get wallpaperMockupToggle => 'Chat mockup';
+  @override
+  String get wallpaperNoPhotoSelected => 'No photo selected';
+  @override
+  String get wallpaperDiscardConfirmTitle => 'Discard changes?';
+  @override
+  String get wallpaperDiscardConfirmBody => 'All unsaved wallpaper changes will be lost.';
+  @override
+  String get wallpaperDiscardConfirmAction => 'Discard';
 }

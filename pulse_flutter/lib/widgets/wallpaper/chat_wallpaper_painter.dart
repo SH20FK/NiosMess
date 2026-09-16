@@ -402,20 +402,40 @@ class ChatWallpaperPainter extends CustomPainter {
     final double endX = cx + (countX * D) / 2.0;
     final double endY = cy + (countY * D) / 2.0;
 
-    int row = 0;
-    for (double y = startY; y <= endY; y += D, row++) {
-      final double rowOffset = (row % 2 == 1) ? (D * 0.5) : 0.0;
-      for (double x = startX + rowOffset; x <= endX; x += D) {
-        if (rng.nextDouble() <= config.density) {
-          _drawSingleIcon(
-            canvas: canvas,
-            x: x,
-            y: y,
-            config: config,
-            rng: rng,
-            iconBaseSize: iconBaseSize,
-            cache: cache,
-          );
+    if (config.staggerByRow) {
+      int row = 0;
+      for (double y = startY; y <= endY; y += D, row++) {
+        final double rowOffset = (row % 2 == 1) ? (D * 0.5) : 0.0;
+        for (double x = startX + rowOffset; x <= endX; x += D) {
+          if (rng.nextDouble() <= config.density) {
+            _drawSingleIcon(
+              canvas: canvas,
+              x: x,
+              y: y,
+              config: config,
+              rng: rng,
+              iconBaseSize: iconBaseSize,
+              cache: cache,
+            );
+          }
+        }
+      }
+    } else {
+      int col = 0;
+      for (double x = startX; x <= endX; x += D, col++) {
+        final double colOffset = (col % 2 == 1) ? (D * 0.5) : 0.0;
+        for (double y = startY + colOffset; y <= endY; y += D) {
+          if (rng.nextDouble() <= config.density) {
+            _drawSingleIcon(
+              canvas: canvas,
+              x: x,
+              y: y,
+              config: config,
+              rng: rng,
+              iconBaseSize: iconBaseSize,
+              cache: cache,
+            );
+          }
         }
       }
     }
@@ -566,9 +586,10 @@ class ChatWallpaperPainter extends CustomPainter {
           ..strokeWidth = max(1.2, iconBaseSize * 0.075);
       }
     } else if (config.iconSource == IconSource.materialSymbols) {
-      // 1. Determine active codepoints based on themePack, customGlyphs or allIcons
       if (config.themePack != 'all' && config.themePack != 'custom') {
-        final List<String> packNames = IconSourcesCatalog.getThemePackIcons(config.themePack, isLucide: false);
+        final List<String> packNames =
+            IconSourcesCatalog.getThemePackIcons(config.themePack,
+                source: config.iconSource);
         for (final String name in packNames) {
           final int? cp = MaterialSymbolsData.codepoints[name];
           if (cp != null) activeCodepoints.add(cp);

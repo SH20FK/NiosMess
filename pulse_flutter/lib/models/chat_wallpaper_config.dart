@@ -86,6 +86,9 @@ class ChatWallpaperConfig {
     ],
     this.themePack = 'all',
     this.selectedGlyphs = const <String>[],
+    this.imagePath,
+    this.imageBlur = 0.0,
+    this.imageDim = 0.15,
   });
 
   final IconSource iconSource;
@@ -115,6 +118,9 @@ class ChatWallpaperConfig {
   final List<String> paletteRoles;
   final String themePack;
   final List<String> selectedGlyphs;
+  final String? imagePath;
+  final double imageBlur;
+  final double imageDim;
 
   static const ChatWallpaperConfig defaultPattern = ChatWallpaperConfig();
 
@@ -146,6 +152,10 @@ class ChatWallpaperConfig {
     List<String>? paletteRoles,
     String? themePack,
     List<String>? selectedGlyphs,
+    String? imagePath,
+    bool clearImagePath = false,
+    double? imageBlur,
+    double? imageDim,
   }) {
     return ChatWallpaperConfig(
       iconSource: iconSource ?? this.iconSource,
@@ -176,6 +186,9 @@ class ChatWallpaperConfig {
       paletteRoles: paletteRoles ?? this.paletteRoles,
       themePack: themePack ?? this.themePack,
       selectedGlyphs: selectedGlyphs ?? this.selectedGlyphs,
+      imagePath: clearImagePath ? null : (imagePath ?? this.imagePath),
+      imageBlur: imageBlur ?? this.imageBlur,
+      imageDim: imageDim ?? this.imageDim,
     );
   }
 
@@ -208,6 +221,9 @@ class ChatWallpaperConfig {
       'paletteRoles': paletteRoles,
       'themePack': themePack,
       'selectedGlyphs': selectedGlyphs,
+      if (imagePath != null) 'imagePath': imagePath,
+      'imageBlur': imageBlur,
+      'imageDim': imageDim,
     };
   }
 
@@ -262,6 +278,9 @@ class ChatWallpaperConfig {
               ?.map((e) => e.toString())
               .toList(growable: false) ??
           const <String>[],
+      imagePath: map['imagePath'] as String?,
+      imageBlur: (map['imageBlur'] as num?)?.toDouble() ?? 0.0,
+      imageDim: (map['imageDim'] as num?)?.toDouble() ?? 0.15,
     );
   }
 
@@ -307,7 +326,10 @@ class ChatWallpaperConfig {
         other.iconColorRole == iconColorRole &&
         _listEquals(other.paletteRoles, paletteRoles) &&
         other.themePack == themePack &&
-        _listEquals(other.selectedGlyphs, selectedGlyphs);
+        _listEquals(other.selectedGlyphs, selectedGlyphs) &&
+        other.imagePath == imagePath &&
+        other.imageBlur == imageBlur &&
+        other.imageDim == imageDim;
   }
 
   static bool _listEquals(List<String> a, List<String> b) {
@@ -348,6 +370,9 @@ class ChatWallpaperConfig {
         Object.hashAll(paletteRoles),
         themePack,
         Object.hashAll(selectedGlyphs),
+        imagePath,
+        imageBlur,
+        imageDim,
       ]);
 }
 
@@ -355,8 +380,8 @@ class ChatWallpaperConfig {
 final List<ChatWallpaperPreset> kDefaultWallpaperPresets = <ChatWallpaperPreset>[
   const ChatWallpaperPreset(
     id: 'cosmos',
-    name: 'Космос',
-    description: 'Звездная россыпь в полуночном небе',
+    name: 'Cosmos',
+    description: 'Starry scatter in the midnight sky',
     icon: Icons.rocket_launch_rounded,
     config: ChatWallpaperConfig(
       iconSource: IconSource.lucide,
@@ -377,8 +402,8 @@ final List<ChatWallpaperPreset> kDefaultWallpaperPresets = <ChatWallpaperPreset>
   ),
   const ChatWallpaperPreset(
     id: 'cyberpunk',
-    name: 'Киберпанк',
-    description: 'Технологичные соты с неоновым акцентом',
+    name: 'Cyberpunk',
+    description: 'High-tech hexagonal lattice with neon accents',
     icon: Icons.terminal_rounded,
     config: ChatWallpaperConfig(
       iconSource: IconSource.tabler,
@@ -400,8 +425,8 @@ final List<ChatWallpaperPreset> kDefaultWallpaperPresets = <ChatWallpaperPreset>
   ),
   const ChatWallpaperPreset(
     id: 'sunset',
-    name: 'Неоновый закат',
-    description: 'Мягкое радиальное свечение и теплые иконки',
+    name: 'Sunset',
+    description: 'Soft radial glow with warm expressive icons',
     icon: Icons.wb_twilight_rounded,
     config: ChatWallpaperConfig(
       iconSource: IconSource.materialSymbols,
@@ -421,8 +446,8 @@ final List<ChatWallpaperPreset> kDefaultWallpaperPresets = <ChatWallpaperPreset>
   ),
   const ChatWallpaperPreset(
     id: 'oled_minimal',
-    name: 'OLED Минимал',
-    description: 'Глубокий черный с аккуратной геометрией',
+    name: 'OLED Minimal',
+    description: 'Deep black with neat crisp geometry',
     icon: Icons.dark_mode_rounded,
     config: ChatWallpaperConfig(
       iconSource: IconSource.lucide,
@@ -442,8 +467,8 @@ final List<ChatWallpaperPreset> kDefaultWallpaperPresets = <ChatWallpaperPreset>
   ),
   const ChatWallpaperPreset(
     id: 'cupertino',
-    name: 'Купертино',
-    description: 'Элегантные символы Apple с вертикальным градиентом',
+    name: 'Cupertino',
+    description: 'Clean Apple-style symbols with vertical gradient',
     icon: Icons.apple_rounded,
     config: ChatWallpaperConfig(
       iconSource: IconSource.cupertino,
@@ -465,8 +490,8 @@ final List<ChatWallpaperPreset> kDefaultWallpaperPresets = <ChatWallpaperPreset>
   ),
   const ChatWallpaperPreset(
     id: 'pastel',
-    name: 'Пастель',
-    description: 'Природная спираль в нежных переливах',
+    name: 'Pastel',
+    description: 'Natural spiral in gentle soothing hues',
     icon: Icons.eco_rounded,
     config: ChatWallpaperConfig(
       iconSource: IconSource.tabler,
@@ -488,7 +513,7 @@ final List<ChatWallpaperPreset> kDefaultWallpaperPresets = <ChatWallpaperPreset>
   const ChatWallpaperPreset(
     id: 'nios_matrix',
     name: 'Nios Matrix',
-    description: 'Матричные экспрессивные формы Material 3',
+    description: 'Expressive Material 3 algorithmic shape matrix',
     icon: Icons.auto_awesome_mosaic_rounded,
     config: ChatWallpaperConfig(
       iconSource: IconSource.niosMess,

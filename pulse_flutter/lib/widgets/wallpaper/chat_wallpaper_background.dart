@@ -6,6 +6,7 @@ import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
 import 'package:pulse_flutter/providers/chat_wallpaper_provider.dart';
 import 'package:pulse_flutter/widgets/wallpaper/wallpaper_color_resolver.dart';
 import 'package:pulse_flutter/widgets/wallpaper/wallpaper_image_cache.dart';
+import 'package:universal_io/io.dart' as io;
 
 class ChatWallpaperBackground extends ConsumerStatefulWidget {
   const ChatWallpaperBackground({
@@ -64,52 +65,94 @@ class _ChatWallpaperBackgroundState extends ConsumerState<ChatWallpaperBackgroun
       placeholderDecoration = BoxDecoration(color: bgColor);
     }
 
+    Widget? photoLayer;
+    if (config.imagePath != null && config.imagePath!.isNotEmpty) {
+      final io.File file = io.File(config.imagePath!);
+      if (file.existsSync()) {
+        Widget img = Image.file(
+          file,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          alignment: Alignment.center,
+          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+        );
+        if (config.imageBlur > 0.01) {
+          img = ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(
+              sigmaX: config.imageBlur,
+              sigmaY: config.imageBlur,
+            ),
+            child: img,
+          );
+        }
+        if (config.imageDim > 0.01) {
+          img = Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              img,
+              ColoredBox(
+                color: Colors.black.withValues(alpha: config.imageDim.clamp(0.0, 0.95)),
+              ),
+            ],
+          );
+        }
+        photoLayer = img;
+      }
+    }
+
     return RepaintBoundary(
-      child: Container(
-        decoration: placeholderDecoration,
-        width: double.infinity,
-        height: double.infinity,
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final Size screenSize = MediaQuery.sizeOf(context);
-            final double width = constraints.maxWidth.isFinite && constraints.maxWidth > 0
-                ? constraints.maxWidth
-                : screenSize.width;
-            final double height = screenSize.height;
-            final Size size = Size(width, height);
-            final double pixelRatio = MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0);
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          Container(
+            decoration: placeholderDecoration,
+            width: double.infinity,
+            height: double.infinity,
+          ),
+          ?photoLayer,
+          LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final Size screenSize = MediaQuery.sizeOf(context);
+              final double width = constraints.maxWidth.isFinite && constraints.maxWidth > 0
+                  ? constraints.maxWidth
+                  : screenSize.width;
+              final double height = screenSize.height;
+              final Size size = Size(width, height);
+              final double pixelRatio = MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0);
 
-            // Check if we can get a synchronous cached image
-            final ui.Image? syncImage = WallpaperImageCache.getSyncCachedImage(
-              config: config,
-              scheme: scheme,
-              size: size,
-              pixelRatio: pixelRatio,
-            );
-
-            if (syncImage != null) {
-              _renderedImage = syncImage;
-              _lastConfig = config;
-              _lastScheme = scheme;
-              _lastWidth = WallpaperImageCache.quantizeWidth(width, pixelRatio);
-              _lastHeight = WallpaperImageCache.quantizeHeight(height, pixelRatio);
-            } else {
-              _triggerRenderIfNeeded(config, scheme, size, pixelRatio);
-            }
-
-            if (_renderedImage != null) {
-              return RawImage(
-                image: _renderedImage,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                width: double.infinity,
-                height: double.infinity,
+              // Check if we can get a synchronous cached image
+              final ui.Image? syncImage = WallpaperImageCache.getSyncCachedImage(
+                config: config,
+                scheme: scheme,
+                size: size,
+                pixelRatio: pixelRatio,
               );
-            }
 
-            return const SizedBox.shrink();
-          },
-        ),
+              if (syncImage != null) {
+                _renderedImage = syncImage;
+                _lastConfig = config;
+                _lastScheme = scheme;
+                _lastWidth = WallpaperImageCache.quantizeWidth(width, pixelRatio);
+                _lastHeight = WallpaperImageCache.quantizeHeight(height, pixelRatio);
+              } else {
+                _triggerRenderIfNeeded(config, scheme, size, pixelRatio);
+              }
+
+              if (_renderedImage != null) {
+                return RawImage(
+                  image: _renderedImage,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  width: double.infinity,
+                  height: double.infinity,
+                );
+              }
+
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
       ),
     );
   }

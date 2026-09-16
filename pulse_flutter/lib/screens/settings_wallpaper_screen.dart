@@ -1,22 +1,28 @@
 import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
 import 'package:pulse_flutter/providers/chat_wallpaper_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
-import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_painter.dart';
-import 'package:pulse_flutter/widgets/wallpaper/icon_sources_catalog.dart';
 import 'package:pulse_flutter/widgets/wallpaper/cupertino_icons_data.dart';
+import 'package:pulse_flutter/widgets/wallpaper/icon_sources_catalog.dart';
 import 'package:pulse_flutter/widgets/wallpaper/material_symbols_data.dart';
 import 'package:pulse_flutter/widgets/wallpaper/wallpaper_color_resolver.dart';
 import 'package:pulse_flutter/widgets/wallpaper/wallpaper_image_cache.dart';
+import 'package:universal_io/io.dart' as io;
 
 class SettingsWallpaperScreen extends ConsumerStatefulWidget {
   const SettingsWallpaperScreen({
@@ -38,22 +44,39 @@ class SettingsWallpaperScreen extends ConsumerStatefulWidget {
 class _SettingsWallpaperScreenState
     extends ConsumerState<SettingsWallpaperScreen>
     with SingleTickerProviderStateMixin {
-  late ChatWallpaperConfig _config;
-  Timer? _debounceSaveTimer;
+  late ChatWallpaperConfig _draftConfig;
+  late ChatWallpaperConfig _savedConfig;
+  bool _userModified = false;
+  bool _editingThisChatOnly = false;
+  bool _showChatMockup = true;
+
   ui.Picture? _previewSvgPicture;
   List<ui.Picture>? _previewPoolSvgPictures;
-  bool _dependenciesInitialized = false;
+  Map<String, ui.Picture>? _previewPaletteSvgPictures;
   Color? _lastLoadedIconColor;
-  bool _userModified = false;
+  bool _dependenciesInitialized = false;
 
   late AnimationController _diceAnimController;
   late Animation<double> _diceRotationAnimation;
+  Timer? _hapticThrottleTimer;
+
+  static const List<String> _kBgRoleKeys = <String>[
+    'surfaceContainerLowest',
+    'surfaceContainerLow',
+    'surfaceContainer',
+    'surfaceContainerHigh',
+    'primaryContainer',
+    'secondaryContainer',
+    'tertiaryContainer',
+  ];
 
   @override
   void initState() {
     super.initState();
+    _editingThisChatOnly = widget.chatId != null;
     final ChatWallpaperState wallpaperState = ref.read(chatWallpaperProvider);
-    _config = wallpaperState.forChat(widget.chatId);
+    _savedConfig = wallpaperState.forChat(widget.chatId);
+    _draftConfig = _savedConfig;
 
     _diceAnimController = AnimationController(
       vsync: this,
@@ -71,8 +94,8 @@ class _SettingsWallpaperScreenState
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final Color currentIconColor = WallpaperColorResolver.resolveIconColor(
       scheme,
-      _config.iconColorRole,
-      _config.iconAlpha,
+      _draftConfig.iconColorRole,
+      _draftConfig.iconAlpha,
     );
     if (!_dependenciesInitialized || _lastLoadedIconColor != currentIconColor) {
       _dependenciesInitialized = true;
@@ -83,9 +106,35 @@ class _SettingsWallpaperScreenState
 
   @override
   void dispose() {
-    _debounceSaveTimer?.cancel();
+    _hapticThrottleTimer?.cancel();
     _diceAnimController.dispose();
     super.dispose();
+  }
+
+  void _throttledHaptic() {
+    if (_hapticThrottleTimer?.isActive ?? false) return;
+    HapticService.selection();
+    _hapticThrottleTimer = Timer(const Duration(milliseconds: 60), () {});
+  }
+
+  void _updateDraft(ChatWallpaperConfig newConfig) {
+    final bool needsSvgReload = newConfig.iconSource != _draftConfig.iconSource ||
+        newConfig.themePack != _draftConfig.themePack ||
+        newConfig.seed != _draftConfig.seed ||
+        newConfig.filled != _draftConfig.filled ||
+        newConfig.iconAlpha != _draftConfig.iconAlpha ||
+        newConfig.colorMode != _draftConfig.colorMode ||
+        newConfig.iconColorRole != _draftConfig.iconColorRole ||
+        newConfig.selectedGlyphs != _draftConfig.selectedGlyphs;
+
+    setState(() {
+      _userModified = true;
+      _draftConfig = newConfig;
+    });
+
+    if (needsSvgReload) {
+      _loadSvgPreviewIfNeeded();
+    }
   }
 
   Future<void> _loadSvgPreviewIfNeeded() async {
@@ -93,30 +142,30 @@ class _SettingsWallpaperScreenState
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final Color iconColor = WallpaperColorResolver.resolveIconColor(
       scheme,
-      _config.iconColorRole,
-      _config.iconAlpha,
+      _draftConfig.iconColorRole,
+      _draftConfig.iconAlpha,
     );
     _lastLoadedIconColor = iconColor;
 
-    if (_config.iconSource == IconSource.lucide ||
-        _config.iconSource == IconSource.tabler) {
+    if (_draftConfig.iconSource == IconSource.lucide ||
+        _draftConfig.iconSource == IconSource.tabler) {
       final String folder =
-          _config.iconSource == IconSource.lucide ? 'lucide' : 'tabler';
+          _draftConfig.iconSource == IconSource.lucide ? 'lucide' : 'tabler';
 
       List<String> iconsToLoad = <String>[];
-      if (_config.themePack != 'all' && _config.themePack != 'custom') {
+      if (_draftConfig.themePack != 'all' && _draftConfig.themePack != 'custom') {
         iconsToLoad = IconSourcesCatalog.getThemePackIcons(
-          _config.themePack,
-          source: _config.iconSource,
+          _draftConfig.themePack,
+          source: _draftConfig.iconSource,
         );
-      } else if (_config.themePack == 'custom' &&
-          _config.selectedGlyphs.isNotEmpty) {
-        iconsToLoad = _config.selectedGlyphs;
-      } else if (_config.useAllIcons || _config.themePack == 'all') {
-        final List<String> catalog = _config.iconSource == IconSource.lucide
+      } else if (_draftConfig.themePack == 'custom' &&
+          _draftConfig.selectedGlyphs.isNotEmpty) {
+        iconsToLoad = _draftConfig.selectedGlyphs;
+      } else if (_draftConfig.useAllIcons || _draftConfig.themePack == 'all') {
+        final List<String> catalog = _draftConfig.iconSource == IconSource.lucide
             ? IconSourcesCatalog.lucideIcons
             : IconSourcesCatalog.tablerIcons;
-        final Random rng = Random(_config.seed);
+        final Random rng = Random(_draftConfig.seed);
         final int count = min(28, catalog.length);
         for (int i = 0; i < count; i++) {
           iconsToLoad.add(catalog[rng.nextInt(catalog.length)]);
@@ -129,122 +178,111 @@ class _SettingsWallpaperScreenState
             (name) => WallpaperImageCache.loadPatternSvg(
               assetPath: 'assets/svg/pattern_icons/$folder/$name.svg',
               color: iconColor,
-              filled: _config.filled,
+              filled: _draftConfig.filled,
             ),
           ),
         );
         final List<ui.Picture> pool = results.whereType<ui.Picture>().toList();
+
+        Map<String, ui.Picture>? paletteMap;
+        if (_draftConfig.colorMode != WallpaperColorMode.singleTone) {
+          final List<String> activeRoles =
+              ChatWallpaperPainter.resolveActiveRoles(_draftConfig);
+          final String sampleAsset =
+              'assets/svg/pattern_icons/$folder/${iconsToLoad.first}.svg';
+          paletteMap = <String, ui.Picture>{};
+          for (final String role in activeRoles) {
+            final Color roleColor = WallpaperColorResolver.resolveIconColor(
+              scheme,
+              role,
+              _draftConfig.iconAlpha,
+            );
+            final ui.Picture? pic = await WallpaperImageCache.loadPatternSvg(
+              assetPath: sampleAsset,
+              color: roleColor,
+              filled: _draftConfig.filled,
+            );
+            if (pic != null) {
+              paletteMap[role] = pic;
+            }
+          }
+        }
+
         if (mounted) {
           setState(() {
             _previewPoolSvgPictures = pool;
+            _previewPaletteSvgPictures = paletteMap;
             _previewSvgPicture = null;
           });
         }
         return;
       }
 
-      if (_config.svgAssetPath != null && _config.svgAssetPath!.isNotEmpty) {
+      if (_draftConfig.svgAssetPath != null &&
+          _draftConfig.svgAssetPath!.isNotEmpty) {
         final ui.Picture? pic = await WallpaperImageCache.loadPatternSvg(
-          assetPath: _config.svgAssetPath!,
+          assetPath: _draftConfig.svgAssetPath!,
           color: iconColor,
-          filled: _config.filled,
+          filled: _draftConfig.filled,
         );
         if (mounted) {
           setState(() {
             _previewSvgPicture = pic;
             _previewPoolSvgPictures = null;
+            _previewPaletteSvgPictures = null;
           });
         }
       }
     } else {
-      if (_previewSvgPicture != null || _previewPoolSvgPictures != null) {
+      if (_previewSvgPicture != null ||
+          _previewPoolSvgPictures != null ||
+          _previewPaletteSvgPictures != null) {
         setState(() {
           _previewSvgPicture = null;
           _previewPoolSvgPictures = null;
+          _previewPaletteSvgPictures = null;
         });
       }
     }
   }
 
-  void _updateConfig(ChatWallpaperConfig newConfig,
-      {bool immediateSave = false}) {
-    _userModified = true;
-    final bool needsSvgReload =
-        newConfig.iconSource != _config.iconSource ||
-        newConfig.themePack != _config.themePack ||
-        newConfig.selectedGlyphs != _config.selectedGlyphs ||
-        newConfig.svgAssetPath != _config.svgAssetPath ||
-        newConfig.seed != _config.seed ||
-        newConfig.filled != _config.filled ||
-        newConfig.useAllIcons != _config.useAllIcons;
-
-    final bool alphaOrColorChanged =
-        newConfig.iconAlpha != _config.iconAlpha ||
-        newConfig.iconColorRole != _config.iconColorRole;
-
-    setState(() {
-      _config = newConfig;
-    });
-
-    if (immediateSave) {
-      _debounceSaveTimer?.cancel();
-      _saveConfig(newConfig);
-      if (alphaOrColorChanged && !needsSvgReload) {
-        _loadSvgPreviewIfNeeded();
-      }
-    } else {
-      _debounceSaveTimer?.cancel();
-      _debounceSaveTimer = Timer(const Duration(milliseconds: 300), () {
-        _saveConfig(newConfig);
-        if (alphaOrColorChanged && !needsSvgReload) {
-          _loadSvgPreviewIfNeeded();
-        }
-      });
-    }
-
-    if (needsSvgReload) {
-      _loadSvgPreviewIfNeeded();
-    }
-  }
-
-  void _saveConfig(ChatWallpaperConfig newConfig) {
+  void _saveConfig() {
+    HapticService.confirm();
     final notifier = ref.read(chatWallpaperProvider.notifier);
-    if (widget.chatId != null) {
-      notifier.setChatWallpaper(widget.chatId!, newConfig);
+    if (_editingThisChatOnly && widget.chatId != null) {
+      notifier.setChatWallpaper(widget.chatId!, _draftConfig);
     } else {
-      notifier.updateGlobalConfig(newConfig);
+      notifier.updateGlobalConfig(_draftConfig);
     }
+    setState(() {
+      _savedConfig = _draftConfig;
+      _userModified = false;
+    });
+    AppToast.showSuccess(context, context.l10n.wallpaperSaved);
   }
 
   Future<void> _resetConfig() async {
     HapticService.tap();
-    final bool? confirmed = await showAppConfirmDialog(
+    final bool? confirm = await showAppConfirmDialog(
       context: context,
       title: context.l10n.wallpaperResetTitle,
       subtitle: context.l10n.wallpaperResetSubtitle,
       confirmLabel: context.l10n.wallpaperResetAction,
-      cancelLabel: 'Отмена',
-      icon: Icons.restart_alt_rounded,
+      cancelLabel: context.l10n.wallpaperDiscard,
       destructive: true,
     );
 
-    if (confirmed == true && mounted) {
-      _debounceSaveTimer?.cancel();
-      final notifier = ref.read(chatWallpaperProvider.notifier);
-      if (widget.chatId != null) {
-        notifier.resetChatWallpaper(widget.chatId!);
-        final globalConfig = ref.read(chatWallpaperProvider).global;
-        setState(() {
-          _config = globalConfig;
-        });
-      } else {
-        notifier.resetGlobalToDefault();
-        setState(() {
-          _config = ChatWallpaperConfig.defaultPattern;
-        });
-      }
-      _loadSvgPreviewIfNeeded();
+    if (confirm != true || !mounted) return;
+
+    final notifier = ref.read(chatWallpaperProvider.notifier);
+    if (_editingThisChatOnly && widget.chatId != null) {
+      notifier.resetChatWallpaper(widget.chatId!);
+      _updateDraft(ref.read(chatWallpaperProvider).global);
+    } else {
+      notifier.resetGlobalToDefault();
+      _updateDraft(ChatWallpaperConfig.defaultPattern);
     }
+    AppToast.showSuccess(context, context.l10n.wallpaperResetAction);
   }
 
   void _randomizeConfigWithSpin() {
@@ -273,24 +311,15 @@ class _SettingsWallpaperScreenState
     ];
     const List<WallpaperBackgroundStyle> bgStyles =
         WallpaperBackgroundStyle.values;
-    const List<String> bgRoles = <String>[
-      'surfaceContainerLowest',
-      'surfaceContainerLow',
-      'surfaceContainer',
-      'surfaceContainerHigh',
-      'primaryContainer',
-      'secondaryContainer',
-      'tertiaryContainer',
-    ];
 
     final IconSource randomSource = sources[rng.nextInt(sources.length)];
     final WallpaperBackgroundStyle randomBg =
         bgStyles[rng.nextInt(bgStyles.length)];
-    final String bgRole1 = bgRoles[rng.nextInt(bgRoles.length)];
-    final String bgRole2 = bgRoles[rng.nextInt(bgRoles.length)];
+    final String bgRole1 = _kBgRoleKeys[rng.nextInt(_kBgRoleKeys.length)];
+    final String bgRole2 = _kBgRoleKeys[rng.nextInt(_kBgRoleKeys.length)];
 
-    final ChatWallpaperConfig previous = _config;
-    final ChatWallpaperConfig randomized = _config.copyWith(
+    final ChatWallpaperConfig previous = _draftConfig;
+    final ChatWallpaperConfig randomized = _draftConfig.copyWith(
       seed: rng.nextInt(100000),
       iconSource: randomSource,
       layoutMode: modes[rng.nextInt(modes.length)],
@@ -306,27 +335,355 @@ class _SettingsWallpaperScreenState
       backgroundRole: bgRole1,
       backgroundSecondaryRole: bgRole2,
       gradientAngle: (rng.nextInt(8) * 45.0).toDouble(),
+      clearImagePath: true,
     );
 
-    _updateConfig(randomized, immediateSave: true);
+    _updateDraft(randomized);
+
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(context.l10n.wallpaperRandomUndo),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedSuperellipseBorder(
+            borderRadius: AppRadii.lgRadius,
+          ),
           action: SnackBarAction(
-            label: 'Отменить',
+            label: context.l10n.wallpaperDiscard,
             onPressed: () {
               HapticService.tap();
-              _updateConfig(previous, immediateSave: true);
+              _updateDraft(previous);
             },
           ),
           duration: const Duration(seconds: 4),
         ),
       );
     }
+  }
+
+  Future<void> _pickCustomPhoto() async {
+    HapticService.tap();
+    try {
+      final List<PlatformFile> result = await FilePicker.pickFiles(
+        type: FileType.image,
+      );
+      if (result.isNotEmpty && mounted) {
+        final String? path = result.first.path;
+        if (path != null && path.isNotEmpty) {
+          _updateDraft(_draftConfig.copyWith(imagePath: path));
+          _openPhotoTuningSheet();
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _openPhotoTuningSheet() {
+    AppBottomSheets.show(
+      context: context,
+      builder: (BuildContext sheetCtx) {
+        return StatefulBuilder(
+          builder: (BuildContext ctx, StateSetter setSheetState) {
+            final scheme = Theme.of(ctx).colorScheme;
+            final textTheme = Theme.of(ctx).textTheme;
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Text(
+                    context.l10n.wallpaperMyPhoto,
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '${context.l10n.wallpaperPhotoBlur} (${_draftConfig.imageBlur.toStringAsFixed(1)} dp)',
+                    style: textTheme.labelLarge,
+                  ),
+                  Slider(
+                    value: _draftConfig.imageBlur,
+                    min: 0.0,
+                    max: 20.0,
+                    divisions: 20,
+                    onChanged: (val) {
+                      _throttledHaptic();
+                      _updateDraft(_draftConfig.copyWith(imageBlur: val));
+                      setSheetState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${context.l10n.wallpaperPhotoDim} (${(_draftConfig.imageDim * 100).round()}%)',
+                    style: textTheme.labelLarge,
+                  ),
+                  Slider(
+                    value: _draftConfig.imageDim,
+                    min: 0.0,
+                    max: 0.8,
+                    divisions: 16,
+                    onChanged: (val) {
+                      _throttledHaptic();
+                      _updateDraft(_draftConfig.copyWith(imageDim: val));
+                      setSheetState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.of(sheetCtx).pop();
+                            _pickCustomPhoto();
+                          },
+                          icon: const Icon(Icons.photo_library_rounded, size: 18),
+                          label: Text(context.l10n.wallpaperChoosePhoto),
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedSuperellipseBorder(
+                              borderRadius: AppRadii.lgRadius,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          onPressed: () {
+                            _updateDraft(_draftConfig.copyWith(clearImagePath: true));
+                            Navigator.of(sheetCtx).pop();
+                          },
+                          icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                          label: Text(context.l10n.wallpaperRemovePhoto),
+                          style: FilledButton.styleFrom(
+                            shape: RoundedSuperellipseBorder(
+                              borderRadius: AppRadii.lgRadius,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _openCustomGlyphPicker(BuildContext context, ColorScheme scheme) {
+    HapticService.tap();
+    final List<String> catalog = switch (_draftConfig.iconSource) {
+      IconSource.lucide => IconSourcesCatalog.lucideIcons,
+      IconSource.tabler => IconSourcesCatalog.tablerIcons,
+      IconSource.cupertino => CupertinoIconsData.allNames,
+      _ => MaterialSymbolsData.allNames,
+    };
+
+    final Set<String> selected = Set<String>.from(_draftConfig.selectedGlyphs);
+    String filterQuery = '';
+
+    AppBottomSheets.show(
+      context: context,
+      builder: (BuildContext sheetCtx) {
+        return StatefulBuilder(
+          builder: (BuildContext ctx, StateSetter setModalState) {
+            final textTheme = Theme.of(ctx).textTheme;
+            final List<String> matches = filterQuery.isEmpty
+                ? catalog.take(90).toList()
+                : catalog
+                    .where((s) => s.toLowerCase().contains(filterQuery))
+                    .take(90)
+                    .toList();
+
+            return Container(
+              height: MediaQuery.sizeOf(ctx).height * 0.75,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: <Widget>[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Text(
+                        '${context.l10n.wallpaperCustomSetTitle} (${selected.length} / 12)',
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: selected.isEmpty
+                            ? null
+                            : () {
+                                _updateDraft(
+                                  _draftConfig.copyWith(
+                                    selectedGlyphs: selected.toList(),
+                                    themePack: 'custom',
+                                  ),
+                                );
+                                Navigator.of(sheetCtx).pop();
+                              },
+                        child: Text(
+                          context.l10n.wallpaperSaveSet,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    onChanged: (val) {
+                      setModalState(() {
+                        filterQuery = val.trim().toLowerCase();
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: context.l10n.wallpaperSearchGlyphs,
+                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                      filled: true,
+                      fillColor: scheme.surfaceContainerHighest,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: AppRadii.lgRadius,
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: GridView.builder(
+                      itemCount: matches.length,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 5,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 1.0,
+                      ),
+                      itemBuilder: (context, index) {
+                        final String name = matches[index];
+                        final bool isChecked = selected.contains(name);
+
+                        return TouchContainer(
+                          borderRadius: AppRadii.mdRadius,
+                          onTap: () {
+                            HapticService.tap();
+                            setModalState(() {
+                              if (isChecked) {
+                                selected.remove(name);
+                              } else {
+                                if (selected.length < 12) {
+                                  selected.add(name);
+                                } else {
+                                  AppToast.showInfo(
+                                    ctx,
+                                    context.l10n.wallpaperCustomSetLimit,
+                                  );
+                                }
+                              }
+                            });
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isChecked
+                                  ? scheme.primaryContainer
+                                  : scheme.surfaceContainerHigh,
+                              borderRadius: AppRadii.mdRadius,
+                              border: Border.all(
+                                color: isChecked
+                                    ? scheme.primary
+                                    : Colors.transparent,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: <Widget>[
+                                _renderMiniThumbnail(name, scheme),
+                                if (isChecked)
+                                  Positioned(
+                                    top: 4,
+                                    right: 4,
+                                    child: Icon(
+                                      Icons.check_circle_rounded,
+                                      size: 14,
+                                      color: scheme.primary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _renderMiniThumbnail(String name, ColorScheme scheme) {
+    if (_draftConfig.iconSource == IconSource.lucide ||
+        _draftConfig.iconSource == IconSource.tabler) {
+      final String folder =
+          _draftConfig.iconSource == IconSource.lucide ? 'lucide' : 'tabler';
+      return SvgPicture.asset(
+        'assets/svg/pattern_icons/$folder/$name.svg',
+        width: 22,
+        height: 22,
+        colorFilter: ColorFilter.mode(scheme.onSurface, BlendMode.srcIn),
+      );
+    } else if (_draftConfig.iconSource == IconSource.cupertino) {
+      final int? code = CupertinoIconsData.codepoints[name];
+      if (code == null) {
+        return Icon(Icons.star_rounded, size: 20, color: scheme.onSurface);
+      }
+      return Icon(
+        // ignore: non_const_argument_for_const_parameter
+        IconData(code, fontFamily: 'CupertinoIcons', matchTextDirection: true),
+        size: 20,
+        color: scheme.onSurface,
+      );
+    } else {
+      final int? code = MaterialSymbolsData.codepoints[name];
+      if (code == null) {
+        return Icon(Icons.star_rounded, size: 20, color: scheme.onSurface);
+      }
+      return Icon(
+        // ignore: non_const_argument_for_const_parameter
+        IconData(code, fontFamily: 'MaterialSymbolsRounded'),
+        size: 20,
+        color: scheme.onSurface,
+      );
+    }
+  }
+
+  void _openPatternEditorSheet() {
+    AppBottomSheets.show(
+      context: context,
+      builder: (BuildContext sheetCtx) {
+        return _WallpaperEditorSheet(
+          draftConfig: _draftConfig,
+          onUpdateDraft: _updateDraft,
+          onOpenCustomGlyphPicker: () =>
+              _openCustomGlyphPicker(context, Theme.of(context).colorScheme),
+          onThrottledHaptic: _throttledHaptic,
+        );
+      },
+    );
   }
 
   @override
@@ -337,1887 +694,1261 @@ class _SettingsWallpaperScreenState
     ref.listen<ChatWallpaperState>(chatWallpaperProvider, (previous, next) {
       if (!_userModified && next.isLoaded) {
         final newConfig = next.forChat(widget.chatId);
-        if (newConfig != _config) {
+        if (newConfig != _draftConfig) {
           setState(() {
-            _config = newConfig;
+            _savedConfig = newConfig;
+            _draftConfig = newConfig;
           });
           _loadSvgPreviewIfNeeded();
         }
       }
     });
 
-    final String screenTitle = widget.chatId != null
-        ? 'Обои чата: ${widget.chatTitle ?? widget.chatId}'
-        : 'Фон чатов';
+    final String screenTitle = widget.chatId != null && widget.chatTitle != null
+        ? '${context.l10n.wallpaperScreenTitle}: ${widget.chatTitle}'
+        : context.l10n.wallpaperScreenTitle;
 
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isWide = constraints.maxWidth >= 840;
-
-        if (isWide) {
-          return SettingsShell(
-            title: screenTitle,
-            isEmbedded: widget.isEmbedded,
-            maxWidth: 1120,
-            children: <Widget>[
-              const SizedBox(height: 10),
-              _buildPresetsCarousel(scheme, textTheme),
-              const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        _buildPreviewCard(scheme, textTheme, height: 280),
-                        const SizedBox(height: 16),
-                        _buildActionButtons(scheme),
-                        const SizedBox(height: 16),
-                        _buildColorSection(scheme, textTheme),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    flex: 6,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        _buildLayoutSelector(scheme, textTheme),
-                        const SizedBox(height: 16),
-                        _buildPacksAndSourceSection(scheme, textTheme),
-                        const SizedBox(height: 16),
-                        _buildGeometrySection(scheme, textTheme),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 36),
-            ],
-          );
-        }
-
-        return SettingsShell(
-          title: screenTitle,
-          isEmbedded: widget.isEmbedded,
-          maxWidth: 860,
-          children: <Widget>[
-            _buildPresetsCarousel(scheme, textTheme),
-            const SizedBox(height: 14),
-            _buildPreviewCard(scheme, textTheme, height: 230),
-            const SizedBox(height: 14),
-            _buildLayoutSelector(scheme, textTheme),
-            const SizedBox(height: 14),
-            _buildPacksAndSourceSection(scheme, textTheme),
-            const SizedBox(height: 14),
-            _buildGeometrySection(scheme, textTheme),
-            const SizedBox(height: 14),
-            _buildColorSection(scheme, textTheme),
-            const SizedBox(height: 20),
-            _buildActionButtons(scheme),
-            const SizedBox(height: 36),
-          ],
+    return PopScope(
+      canPop: _draftConfig == _savedConfig,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final bool? discard = await showAppConfirmDialog(
+          context: context,
+          title: context.l10n.wallpaperDiscardConfirmTitle,
+          subtitle: context.l10n.wallpaperDiscardConfirmBody,
+          confirmLabel: context.l10n.wallpaperDiscardConfirmAction,
+          cancelLabel: context.l10n.wallpaperDiscard,
+          destructive: true,
         );
+        if (discard == true && context.mounted) {
+          Navigator.of(context).pop();
+        }
       },
-    );
-  }
-
-  Widget _buildPresetsCarousel(ColorScheme scheme, TextTheme textTheme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              Icon(Icons.auto_awesome_rounded, size: 18, color: scheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                'Готовые стили (1-тап)',
-                style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.1,
-                ),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(screenTitle, style: textTheme.titleMedium),
+          actions: <Widget>[
+            RotationTransition(
+              turns: _diceRotationAnimation,
+              child: IconButton(
+                tooltip: context.l10n.wallpaperRandomize,
+                onPressed: _randomizeConfigWithSpin,
+                icon: const Icon(Icons.casino_rounded),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 104,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            scrollDirection: Axis.horizontal,
-            itemCount: kDefaultWallpaperPresets.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 10),
-            itemBuilder: (BuildContext context, int index) {
-              final ChatWallpaperPreset preset =
-                  kDefaultWallpaperPresets[index];
-              final bool isSelected = _config.seed == preset.config.seed &&
-                  _config.iconSource == preset.config.iconSource &&
-                  _config.themePack == preset.config.themePack &&
-                  _config.backgroundStyle == preset.config.backgroundStyle;
-
-              return InkWell(
-                onTap: () {
-                  HapticService.tap();
-                  _updateConfig(preset.config, immediateSave: true);
-                },
-                borderRadius: BorderRadius.circular(18),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: M3SpringCurves.spatial,
-                  width: 130,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? scheme.primaryContainer.withValues(alpha: 0.75)
-                        : scheme.surfaceContainerHigh.withValues(alpha: 0.45),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: isSelected
-                          ? scheme.primary
-                          : scheme.outlineVariant.withValues(alpha: 0.25),
-                      width: isSelected ? 2.0 : 1.0,
-                    ),
-                    
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? scheme.primary
-                                  : scheme.surfaceContainerHighest,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              preset.icon,
-                              size: 16,
-                              color: isSelected
-                                  ? scheme.onPrimary
-                                  : scheme.onSurfaceVariant,
-                            ),
-                          ),
-                          if (isSelected)
-                            Icon(
-                              Icons.check_circle_rounded,
-                              size: 16,
-                              color: scheme.primary,
-                            ),
-                        ],
-                      ),
-                      const Spacer(),
-                      Text(
-                        preset.name,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: isSelected
-                              ? scheme.onPrimaryContainer
-                              : scheme.onSurface,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        preset.description,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: isSelected
-                              ? scheme.onPrimaryContainer.withValues(alpha: 0.8)
-                              : scheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons(ColorScheme scheme) {
-    return _WallpaperActionButtons(
-      diceRotationAnimation: _diceRotationAnimation,
-      onRandomize: _randomizeConfigWithSpin,
-      onReset: _resetConfig,
-    );
-  }
-
-  // ── 1. Live Interactive Preview Card (Clean wallpaper canvas) ──────────────
-  Widget _buildPreviewCard(ColorScheme scheme, TextTheme textTheme, {double height = 220}) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.35),
-              width: 1.0,
             ),
-            
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(23),
-            child: Stack(
+            const SizedBox(width: 8),
+          ],
+        ),
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
               children: <Widget>[
-                // Clean Wallpaper Canvas
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: ChatWallpaperPainter(
-                      config: _config,
-                      scheme: scheme,
-                      svgPicture: _previewSvgPicture,
-                      poolSvgPictures: _previewPoolSvgPictures,
-                    ),
-                  ),
+                TextButton(
+                  onPressed: _resetConfig,
+                  child: Text(context.l10n.wallpaperResetAction),
                 ),
-
-                // Live Chat Mockup Overlay
-                
-
-                // Subtle edge fade gradient overlay
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            scheme.surface.withValues(alpha: 0.28),
-                            Colors.transparent,
-                            Colors.transparent,
-                            scheme.surface.withValues(alpha: 0.36),
-                          ],
-                          stops: const [0.0, 0.20, 0.78, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Top Left: Floating Layout Badge
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: scheme.surface.withValues(alpha: 0.88),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: scheme.outlineVariant.withValues(alpha: 0.35),
-                      ),
-                      
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _getLayoutIcon(_config.layoutMode),
-                          size: 15,
-                          color: scheme.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${_getLayoutLabel(_config.layoutMode)} • ${_config.cellSize.toInt()} dp',
-                          style: textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurface,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Top Right: Actions (Mockup Toggle + Fullscreen)
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-
-                      FilledButton.tonalIcon(
-                        onPressed: () => _openFullScreenPreview(context, scheme),
-                        icon: const Icon(Icons.fullscreen_rounded, size: 16),
-                        label: const Text('Примерить',
-                            style: TextStyle(fontSize: 12)),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          minimumSize: const Size(0, 34),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Bottom Left: Double-tap Hint Badge
-                Positioned(
-                  bottom: 12,
-                  left: 12,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: scheme.surface.withValues(alpha: 0.82),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: scheme.outlineVariant.withValues(alpha: 0.25),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.touch_app_rounded,
-                            size: 13, color: scheme.primary),
-                        const SizedBox(width: 5),
-                        Text(
-                          '2x тап для генерации ✨',
-                          style: textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Bottom Right: Quick Dice Spin Button
-                Positioned(
-                  bottom: 10,
-                  right: 10,
-                  child: Tooltip(
-                    message: 'Случайный узор',
-                    child: Material(
-                      color: scheme.surface.withValues(alpha: 0.90),
-                      shape: const CircleBorder(),
-                      elevation: 2,
-                      shadowColor: scheme.shadow.withValues(alpha: 0.2),
-                      child: InkWell(
-                        onTap: _randomizeConfigWithSpin,
-                        customBorder: const CircleBorder(),
-                        child: Padding(
-                          padding: const EdgeInsets.all(9.0),
-                          child: RotationTransition(
-                            turns: _diceRotationAnimation,
-                            child: Icon(
-                              Icons.casino_rounded,
-                              size: 19,
-                              color: scheme.primary,
-                            ),
-                          ),
-                        ),
-                      ),
+                const Spacer(),
+                FilledButton.icon(
+                  onPressed: _saveConfig,
+                  icon: const Icon(Icons.check_rounded, size: 18),
+                  label: Text(context.l10n.wallpaperApply),
+                  style: FilledButton.styleFrom(
+                    shape: RoundedSuperellipseBorder(
+                      borderRadius: AppRadii.lgRadius,
                     ),
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // Context switcher if editing in a chat
+              if (widget.chatId != null) ...[
+                SegmentedButton<bool>(
+                  segments: <ButtonSegment<bool>>[
+                    ButtonSegment<bool>(
+                      value: true,
+                      label: Text(context.l10n.wallpaperForThisChat),
+                      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                    ),
+                    ButtonSegment<bool>(
+                      value: false,
+                      label: Text(context.l10n.wallpaperForAllChats),
+                      icon: const Icon(Icons.public_rounded, size: 16),
+                    ),
+                  ],
+                  selected: <bool>{_editingThisChatOnly},
+                  onSelectionChanged: (Set<bool> sel) {
+                    HapticService.tap();
+                    setState(() {
+                      _editingThisChatOnly = sel.first;
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // Live Preview Card
+              Container(
+                height: 280,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerLow,
+                  borderRadius: AppRadii.xlRadius,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    _buildPreviewBackground(scheme),
+                    if (_showChatMockup) const _ChatMockupView(),
+                    // Top controls
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: IconButton.filledTonal(
+                        tooltip: context.l10n.wallpaperMockupToggle,
+                        onPressed: () {
+                          HapticService.tap();
+                          setState(() => _showChatMockup = !_showChatMockup);
+                        },
+                        icon: Icon(
+                          _showChatMockup
+                              ? Icons.chat_bubble_rounded
+                              : Icons.chat_bubble_outline_rounded,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                    // Customize Button
+                    Positioned(
+                      bottom: 12,
+                      right: 12,
+                      child: FilledButton.tonalIcon(
+                        onPressed: _openPatternEditorSheet,
+                        icon: const Icon(Icons.tune_rounded, size: 18),
+                        label: Text(context.l10n.wallpaperCustomize),
+                        style: FilledButton.styleFrom(
+                          shape: RoundedSuperellipseBorder(
+                            borderRadius: AppRadii.lgRadius,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Preset Wallpapers & My Photo Carousel
+              Text(
+                context.l10n.wallpaperTabPattern,
+                style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 160,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: <Widget>[
+                    // Card 1: My Photo
+                    _MyPhotoThumbnailCard(
+                      imagePath: _draftConfig.imagePath,
+                      onTap: _pickCustomPhoto,
+                      onSettingsTap: _draftConfig.imagePath != null
+                          ? _openPhotoTuningSheet
+                          : null,
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Cards 2..8: Presets with live rendered miniatures
+                    ...kDefaultWallpaperPresets.map((preset) {
+                      final bool isSelected = _draftConfig.imagePath == null &&
+                          _draftConfig.seed == preset.config.seed &&
+                          _draftConfig.iconSource == preset.config.iconSource &&
+                          _draftConfig.themePack == preset.config.themePack &&
+                          _draftConfig.backgroundStyle == preset.config.backgroundStyle;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: _PresetThumbnailCard(
+                          preset: preset,
+                          isSelected: isSelected,
+                          onTap: () {
+                            HapticService.tap();
+                            _updateDraft(preset.config);
+                          },
+                        ),
+                      );
+                    }),
+
+                    // Card 9: Custom Set
+                    _CustomPatternCard(
+                      isSelected: _draftConfig.themePack == 'custom',
+                      onTap: () {
+                        _openCustomGlyphPicker(context, scheme);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
       ),
     );
   }
 
-  // ── Full-Screen Interactive Preview (Clean canvas, no chat bubbles) ─────────
-  void _openFullScreenPreview(BuildContext context, ColorScheme scheme) {
-    HapticService.tap();
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        fullscreenDialog: true,
-        builder: (BuildContext ctx) {
-          return StatefulBuilder(
-            builder: (BuildContext innerCtx, StateSetter setModalState) {
-              return Scaffold(
-                appBar: AppBar(
-                  title: const Text('Примерка обоев'),
-                  leading: IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.of(innerCtx).pop(),
+  Widget _buildPreviewBackground(ColorScheme scheme) {
+    if (_draftConfig.imagePath != null && _draftConfig.imagePath!.isNotEmpty) {
+      final io.File file = io.File(_draftConfig.imagePath!);
+      if (file.existsSync()) {
+        Widget img = Image.file(
+          file,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (context, error, stackTrace) =>
+              _buildFallbackPainter(scheme),
+        );
+        if (_draftConfig.imageBlur > 0.01) {
+          img = ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(
+              sigmaX: _draftConfig.imageBlur,
+              sigmaY: _draftConfig.imageBlur,
+            ),
+            child: img,
+          );
+        }
+        if (_draftConfig.imageDim > 0.01) {
+          img = Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              img,
+              ColoredBox(
+                color: Colors.black
+                    .withValues(alpha: _draftConfig.imageDim.clamp(0.0, 0.95)),
+              ),
+            ],
+          );
+        }
+        return img;
+      }
+    }
+    return _buildFallbackPainter(scheme);
+  }
+
+  Widget _buildFallbackPainter(ColorScheme scheme) {
+    return CustomPaint(
+      size: const Size(double.infinity, 280),
+      painter: ChatWallpaperPainter(
+        config: _draftConfig,
+        scheme: scheme,
+        svgPicture: _previewSvgPicture,
+        poolSvgPictures: _previewPoolSvgPictures,
+        paletteSvgPictures: _previewPaletteSvgPictures,
+      ),
+    );
+  }
+}
+
+class _PresetThumbnailCard extends StatelessWidget {
+  const _PresetThumbnailCard({
+    required this.preset,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final ChatWallpaperPreset preset;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Semantics(
+      selected: isSelected,
+      button: true,
+      label: _presetName(context, preset.id),
+      child: TouchContainer(
+        onTap: onTap,
+        borderRadius: AppRadii.lgRadius,
+        child: AnimatedContainer(
+          duration: M3Durations.short4,
+          curve: M3SpringCurves.expressiveStandard,
+          width: 104,
+          height: 156,
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: AppRadii.lgRadius,
+            border: Border.all(
+              color: isSelected
+                  ? scheme.primary
+                  : scheme.outlineVariant.withValues(alpha: 0.4),
+              width: isSelected ? 2.5 : 1.0,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              FutureBuilder<ui.Image?>(
+                future: WallpaperImageCache.render(
+                  config: preset.config,
+                  scheme: scheme,
+                  size: const Size(104, 156),
+                  pixelRatio: 1.0,
+                ),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data != null) {
+                    return RawImage(
+                      image: snapshot.data,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                    );
+                  }
+                  return Container(
+                    color: scheme.surfaceContainerHighest,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      preset.icon,
+                      size: 24,
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
+                  );
+                },
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(6, 12, 6, 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: <Color>[
+                        Colors.black.withValues(alpha: 0.75),
+                        Colors.black.withValues(alpha: 0.0),
+                      ],
+                    ),
                   ),
-                  actions: <Widget>[
-
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(innerCtx).pop();
-                        _saveConfig(_config);
-                      },
-                      child: const Text('Готово',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(
+                    _presetName(context, preset.id),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.w500,
                     ),
-                  ],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                body: Stack(
-                  children: <Widget>[
-                    // Clean Fullscreen Canvas
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: ChatWallpaperPainter(
-                          config: _config,
-                          scheme: scheme,
-                          svgPicture: _previewSvgPicture,
-                          poolSvgPictures: _previewPoolSvgPictures,
-                        ),
+              ),
+              if (isSelected)
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.check_rounded,
+                      size: 14,
+                      color: scheme.onPrimary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MyPhotoThumbnailCard extends StatelessWidget {
+  const _MyPhotoThumbnailCard({
+    required this.imagePath,
+    required this.onTap,
+    required this.onSettingsTap,
+  });
+
+  final String? imagePath;
+  final VoidCallback onTap;
+  final VoidCallback? onSettingsTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final bool hasPhoto = imagePath != null && imagePath!.isNotEmpty;
+
+    return Semantics(
+      button: true,
+      label: context.l10n.wallpaperMyPhoto,
+      child: TouchContainer(
+        onTap: onTap,
+        borderRadius: AppRadii.lgRadius,
+        child: Container(
+          width: 104,
+          height: 156,
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: AppRadii.lgRadius,
+            border: Border.all(
+              color: hasPhoto
+                  ? scheme.primary
+                  : scheme.outlineVariant.withValues(alpha: 0.4),
+              width: hasPhoto ? 2.5 : 1.0,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              if (hasPhoto && io.File(imagePath!).existsSync())
+                Image.file(
+                  io.File(imagePath!),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      _buildPlaceholder(scheme),
+                )
+              else
+                _buildPlaceholder(scheme),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(6, 12, 6, 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: <Color>[
+                        Colors.black.withValues(alpha: 0.75),
+                        Colors.black.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                  child: Text(
+                    context.l10n.wallpaperMyPhoto,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight:
+                          hasPhoto ? FontWeight.bold : FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              if (hasPhoto)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: IconButton.filledTonal(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: onSettingsTap,
+                    icon: const Icon(Icons.tune_rounded, size: 16),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder(ColorScheme scheme) {
+    return Container(
+      color: scheme.surfaceContainerHighest,
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.add_photo_alternate_rounded,
+        size: 28,
+        color: scheme.primary,
+      ),
+    );
+  }
+}
+
+class _CustomPatternCard extends StatelessWidget {
+  const _CustomPatternCard({
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: context.l10n.wallpaperPackCustom,
+      child: TouchContainer(
+        onTap: onTap,
+        borderRadius: AppRadii.lgRadius,
+        child: Container(
+          width: 104,
+          height: 156,
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: AppRadii.lgRadius,
+            border: Border.all(
+              color: isSelected
+                  ? scheme.primary
+                  : scheme.outlineVariant.withValues(alpha: 0.4),
+              width: isSelected ? 2.5 : 1.0,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              Container(
+                color: scheme.surfaceContainerHigh,
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.draw_rounded,
+                  size: 28,
+                  color: scheme.primary,
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(6, 12, 6, 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: <Color>[
+                        Colors.black.withValues(alpha: 0.75),
+                        Colors.black.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                  child: Text(
+                    context.l10n.wallpaperPackCustom,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatMockupView extends StatelessWidget {
+  const _ChatMockupView();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 240),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(AppRadii.lg),
+                  topRight: Radius.circular(AppRadii.lg),
+                  bottomRight: Radius.circular(AppRadii.lg),
+                  bottomLeft: Radius.circular(AppRadii.xs),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Material 3 Expressive',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: Text(
+                      '14:20',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
-
-                    // Live Chat Mockup Overlay
-                    
-
-                    // Bottom Floating Information Capsule with Quick Randomize
-                    Positioned(
-                      left: 16,
-                      right: 16,
-                      bottom: 32,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest
-                              .withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color:
-                                scheme.outlineVariant.withValues(alpha: 0.35),
-                          ),
-                          
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: scheme.primary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                _getLayoutIcon(_config.layoutMode),
-                                color: scheme.primary,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Раскладка: ${_getLayoutLabel(_config.layoutMode)}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Размер: ${_config.cellSize.toInt()} dp • Плотность: ${(_config.density * 100).toInt()}%',
-                                    style: TextStyle(
-                                      color: scheme.onSurfaceVariant,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            FilledButton.tonalIcon(
-                              onPressed: () {
-                                _randomizeConfig();
-                                setModalState(() {});
-                              },
-                              icon: const Icon(Icons.casino_rounded, size: 16),
-                              label: const Text('Случайный',
-                                  style: TextStyle(fontSize: 12)),
-                              style: FilledButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                minimumSize: const Size(0, 36),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 240),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(AppRadii.lg),
+                  topRight: Radius.circular(AppRadii.lg),
+                  bottomLeft: Radius.circular(AppRadii.lg),
+                  bottomRight: Radius.circular(AppRadii.xs),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  Text(
+                    'NiosMess Chat Wallpaper',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: scheme.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        '14:21',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: scheme.onPrimaryContainer
+                              .withValues(alpha: 0.7),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              );
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.done_all_rounded,
+                        size: 14,
+                        color: scheme.onPrimaryContainer
+                            .withValues(alpha: 0.7),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WallpaperEditorSheet extends StatefulWidget {
+  const _WallpaperEditorSheet({
+    required this.draftConfig,
+    required this.onUpdateDraft,
+    required this.onOpenCustomGlyphPicker,
+    required this.onThrottledHaptic,
+  });
+
+  final ChatWallpaperConfig draftConfig;
+  final ValueChanged<ChatWallpaperConfig> onUpdateDraft;
+  final VoidCallback onOpenCustomGlyphPicker;
+  final VoidCallback onThrottledHaptic;
+
+  @override
+  State<_WallpaperEditorSheet> createState() => _WallpaperEditorSheetState();
+}
+
+class _WallpaperEditorSheetState extends State<_WallpaperEditorSheet> {
+  int _selectedTabIndex = 0;
+  bool _isAdvancedExpanded = false;
+
+  static const List<IconSource> _kSources = <IconSource>[
+    IconSource.materialSymbols,
+    IconSource.lucide,
+    IconSource.tabler,
+    IconSource.cupertino,
+    IconSource.niosMess,
+  ];
+
+  static const List<String> _kPacks = <String>[
+    'all',
+    'chat',
+    'tech',
+    'space',
+    'food',
+    'nature',
+    'minimal',
+    'custom',
+  ];
+
+  static const List<WallpaperLayoutMode> _kLayoutModes = <WallpaperLayoutMode>[
+    WallpaperLayoutMode.grid,
+    WallpaperLayoutMode.stagger,
+    WallpaperLayoutMode.scatter,
+    WallpaperLayoutMode.hex,
+    WallpaperLayoutMode.spiral,
+  ];
+
+  static const List<String> _kBgRoles = <String>[
+    'surfaceContainerLowest',
+    'surfaceContainerLow',
+    'surfaceContainer',
+    'surfaceContainerHigh',
+    'primaryContainer',
+    'secondaryContainer',
+    'tertiaryContainer',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final cfg = widget.draftConfig;
+
+    return Container(
+      height: MediaQuery.sizeOf(context).height * 0.65,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          SegmentedButton<int>(
+            segments: <ButtonSegment<int>>[
+              ButtonSegment<int>(
+                value: 0,
+                label: Text(context.l10n.wallpaperTabPattern),
+                icon: const Icon(Icons.grid_on_rounded, size: 16),
+              ),
+              ButtonSegment<int>(
+                value: 1,
+                label: Text(context.l10n.wallpaperTabColors),
+                icon: const Icon(Icons.palette_rounded, size: 16),
+              ),
+              ButtonSegment<int>(
+                value: 2,
+                label: Text(context.l10n.wallpaperTabGeometry),
+                icon: const Icon(Icons.category_rounded, size: 16),
+              ),
+            ],
+            selected: <int>{_selectedTabIndex},
+            onSelectionChanged: (Set<int> sel) {
+              HapticService.tap();
+              setState(() => _selectedTabIndex = sel.first);
             },
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: SingleChildScrollView(
+              child: switch (_selectedTabIndex) {
+                0 => _buildPatternTab(scheme, textTheme, cfg),
+                1 => _buildColorsTab(scheme, textTheme, cfg),
+                _ => _buildGeometryTab(scheme, textTheme, cfg),
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPatternTab(
+    ColorScheme scheme,
+    TextTheme textTheme,
+    ChatWallpaperConfig cfg,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          context.l10n.wallpaperTabPattern,
+          style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _kSources.map((source) {
+            final bool isSelected = cfg.iconSource == source;
+            return ChoiceChip(
+              label: Text(_sourceName(context, source)),
+              selected: isSelected,
+              onSelected: (bool sel) {
+                if (sel) {
+                  HapticService.tap();
+                  widget.onUpdateDraft(cfg.copyWith(iconSource: source));
+                }
+              },
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          context.l10n.wallpaperPresetCosmos,
+          style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _kPacks.map((pack) {
+            final bool isSelected = cfg.themePack == pack;
+            return ChoiceChip(
+              label: Text(_packName(context, pack)),
+              selected: isSelected,
+              onSelected: (bool sel) {
+                if (sel) {
+                  HapticService.tap();
+                  if (pack == 'custom') {
+                    widget.onOpenCustomGlyphPicker();
+                  } else {
+                    widget.onUpdateDraft(
+                      cfg.copyWith(
+                        themePack: pack,
+                        useAllIcons: pack == 'all',
+                      ),
+                    );
+                  }
+                }
+              },
+            );
+          }).toList(),
+        ),
+        if (cfg.themePack == 'custom') ...[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: widget.onOpenCustomGlyphPicker,
+            icon: const Icon(Icons.edit_rounded, size: 16),
+            label: Text(
+              '${context.l10n.wallpaperCustomSetTitle} (${cfg.selectedGlyphs.length})',
+            ),
+            style: OutlinedButton.styleFrom(
+              shape: RoundedSuperellipseBorder(
+                borderRadius: AppRadii.lgRadius,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildColorsTab(
+    ColorScheme scheme,
+    TextTheme textTheme,
+    ChatWallpaperConfig cfg,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          context.l10n.wallpaperBgGradient,
+          style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        SegmentedButton<WallpaperBackgroundStyle>(
+          segments: WallpaperBackgroundStyle.values.map((style) {
+            return ButtonSegment<WallpaperBackgroundStyle>(
+              value: style,
+              label: Text(_bgStyleName(context, style)),
+            );
+          }).toList(),
+          selected: <WallpaperBackgroundStyle>{cfg.backgroundStyle},
+          onSelectionChanged: (Set<WallpaperBackgroundStyle> sel) {
+            HapticService.tap();
+            widget.onUpdateDraft(cfg.copyWith(backgroundStyle: sel.first));
+          },
+        ),
+        const SizedBox(height: 16),
+        Text(
+          context.l10n.wallpaperBaseColor,
+          style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        _buildColorDotsRow(
+          scheme: scheme,
+          selectedRole: cfg.backgroundRole,
+          onSelected: (role) {
+            HapticService.tap();
+            widget.onUpdateDraft(cfg.copyWith(backgroundRole: role));
+          },
+        ),
+        if (cfg.backgroundStyle != WallpaperBackgroundStyle.solid) ...[
+          const SizedBox(height: 16),
+          Text(
+            context.l10n.wallpaperSecondaryColor,
+            style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          _buildColorDotsRow(
+            scheme: scheme,
+            selectedRole: cfg.backgroundSecondaryRole,
+            onSelected: (role) {
+              HapticService.tap();
+              widget.onUpdateDraft(cfg.copyWith(backgroundSecondaryRole: role));
+            },
+          ),
+        ],
+        const SizedBox(height: 16),
+        Text(
+          context.l10n.wallpaperColorModePalette,
+          style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        SegmentedButton<WallpaperColorMode>(
+          segments: WallpaperColorMode.values.map((mode) {
+            return ButtonSegment<WallpaperColorMode>(
+              value: mode,
+              label: Text(_colorModeName(context, mode)),
+            );
+          }).toList(),
+          selected: <WallpaperColorMode>{cfg.colorMode},
+          onSelectionChanged: (Set<WallpaperColorMode> sel) {
+            HapticService.tap();
+            widget.onUpdateDraft(cfg.copyWith(colorMode: sel.first));
+          },
+        ),
+        const SizedBox(height: 16),
+        Text(
+          '${context.l10n.wallpaperOpacity} (${(cfg.iconAlpha * 100).round()}%)',
+          style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        Slider(
+          value: cfg.iconAlpha,
+          min: 0.04,
+          max: 0.40,
+          divisions: 18,
+          onChanged: (val) {
+            widget.onThrottledHaptic();
+            widget.onUpdateDraft(cfg.copyWith(iconAlpha: val));
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGeometryTab(
+    ColorScheme scheme,
+    TextTheme textTheme,
+    ChatWallpaperConfig cfg,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          context.l10n.wallpaperTabGeometry,
+          style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _kLayoutModes.map((mode) {
+            final bool isSelected = cfg.layoutMode == mode;
+            return ChoiceChip(
+              label: Text(_layoutName(context, mode)),
+              selected: isSelected,
+              onSelected: (bool sel) {
+                if (sel) {
+                  HapticService.tap();
+                  widget.onUpdateDraft(cfg.copyWith(layoutMode: mode));
+                }
+              },
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          '${context.l10n.wallpaperCellSize} (${cfg.cellSize.round()} dp)',
+          style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        Slider(
+          value: cfg.cellSize,
+          min: 36.0,
+          max: 120.0,
+          divisions: 21,
+          onChanged: (val) {
+            widget.onThrottledHaptic();
+            widget.onUpdateDraft(cfg.copyWith(cellSize: val));
+          },
+        ),
+        const SizedBox(height: 12),
+        Text(
+          '${context.l10n.wallpaperDensity} (${(cfg.density * 100).round()}%)',
+          style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        Slider(
+          value: cfg.density,
+          min: 0.30,
+          max: 1.0,
+          divisions: 14,
+          onChanged: (val) {
+            widget.onThrottledHaptic();
+            widget.onUpdateDraft(cfg.copyWith(density: val));
+          },
+        ),
+        const SizedBox(height: 12),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(context.l10n.wallpaperFilled, style: textTheme.bodyMedium),
+          value: cfg.filled,
+          onChanged: (val) {
+            HapticService.tap();
+            widget.onUpdateDraft(cfg.copyWith(filled: val));
+          },
+        ),
+        const Divider(),
+        Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(
+              context.l10n.wallpaperAdvanced,
+              style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            initiallyExpanded: _isAdvancedExpanded,
+            onExpansionChanged: (val) => setState(() => _isAdvancedExpanded = val),
+            children: <Widget>[
+              const SizedBox(height: 8),
+              Text(
+                '${context.l10n.wallpaperGridAngle} (${cfg.gridAngle.round()}°)',
+                style: textTheme.labelLarge,
+              ),
+              Slider(
+                value: cfg.gridAngle,
+                min: -45.0,
+                max: 45.0,
+                divisions: 18,
+                onChanged: (val) {
+                  widget.onThrottledHaptic();
+                  widget.onUpdateDraft(cfg.copyWith(gridAngle: val));
+                },
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${context.l10n.wallpaperRandomRotation} (${cfg.randomRotationDeg.round()}°)',
+                style: textTheme.labelLarge,
+              ),
+              Slider(
+                value: cfg.randomRotationDeg,
+                min: 0.0,
+                max: 60.0,
+                divisions: 12,
+                onChanged: (val) {
+                  widget.onThrottledHaptic();
+                  widget.onUpdateDraft(cfg.copyWith(randomRotationDeg: val));
+                },
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${context.l10n.wallpaperRandomScale} (${(cfg.randomScaleJitter * 100).round()}%)',
+                style: textTheme.labelLarge,
+              ),
+              Slider(
+                value: cfg.randomScaleJitter,
+                min: 0.0,
+                max: 0.40,
+                divisions: 8,
+                onChanged: (val) {
+                  widget.onThrottledHaptic();
+                  widget.onUpdateDraft(cfg.copyWith(randomScaleJitter: val));
+                },
+              ),
+              if (cfg.iconSource == IconSource.materialSymbols) ...[
+                const SizedBox(height: 8),
+                Text(context.l10n.wallpaperSourceMaterial, style: textTheme.labelLarge),
+                const SizedBox(height: 6),
+                Row(
+                  children: MaterialSymbolsStyle.values.map((style) {
+                    final bool isSelected = cfg.symbolsStyle == style;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        selected: isSelected,
+                        label: Text(style.name),
+                        onSelected: (bool sel) {
+                          if (sel) {
+                            HapticService.tap();
+                            widget.onUpdateDraft(cfg.copyWith(symbolsStyle: style));
+                          }
+                        },
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${context.l10n.wallpaperWeight} (${cfg.weight.round()})',
+                  style: textTheme.labelLarge,
+                ),
+                Slider(
+                  value: cfg.weight,
+                  min: 100.0,
+                  max: 700.0,
+                  divisions: 6,
+                  onChanged: (val) {
+                    widget.onThrottledHaptic();
+                    widget.onUpdateDraft(cfg.copyWith(weight: val));
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildColorDotsRow({
+    required ColorScheme scheme,
+    required String selectedRole,
+    required ValueChanged<String> onSelected,
+  }) {
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _kBgRoles.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final String role = _kBgRoles[index];
+          final Color color = WallpaperColorResolver.resolveBackground(scheme, role);
+          final bool isSelected = selectedRole == role;
+
+          return TouchContainer(
+            onTap: () => onSelected(role),
+            borderRadius: AppRadii.fullRadius,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? scheme.primary : scheme.outlineVariant,
+                  width: isSelected ? 2.5 : 1.0,
+                ),
+              ),
+              child: isSelected
+                  ? Icon(
+                      Icons.check_rounded,
+                      size: 18,
+                      color: ThemeData.estimateBrightnessForColor(color) ==
+                              Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                    )
+                  : null,
+            ),
           );
         },
       ),
     );
   }
-
-  // ── 2. Layout Mode Selector (Expressive Cards) ─────────────────────────────
-  Widget _buildLayoutSelector(ColorScheme scheme, TextTheme textTheme) {
-    const List<({WallpaperLayoutMode mode, String label, IconData icon})>
-        modes = [
-      (
-        mode: WallpaperLayoutMode.stagger,
-        label: 'Шахматы',
-        icon: Icons.grid_view_rounded,
-      ),
-      (
-        mode: WallpaperLayoutMode.grid,
-        label: 'Сетка',
-        icon: Icons.grid_on_rounded,
-      ),
-      (
-        mode: WallpaperLayoutMode.hex,
-        label: 'Соты',
-        icon: Icons.hexagon_outlined,
-      ),
-      (
-        mode: WallpaperLayoutMode.spiral,
-        label: 'Спираль',
-        icon: Icons.cyclone_rounded,
-      ),
-      (
-        mode: WallpaperLayoutMode.scatter,
-        label: 'Хаос',
-        icon: Icons.bubble_chart_rounded,
-      ),
-    ];
-
-    return SettingsSection(
-      title: 'Раскладка сетки',
-      subtitle: 'Геометрический алгоритм расположения элементов узора',
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-          child: Row(
-            children: modes.map((m) {
-              final bool isSelected = _config.layoutMode == m.mode;
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: _LayoutModeCard(
-                    mode: m.mode,
-                    label: m.label,
-                    icon: m.icon,
-                    isSelected: isSelected,
-                    scheme: scheme,
-                    onTap: () {
-                      HapticService.tap();
-                      _updateConfig(
-                        _config.copyWith(layoutMode: m.mode),
-                        immediateSave: true,
-                      );
-                    },
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── 3. Theme Packs & Icon Source ──────────────────────────────────────────
-  Widget _buildPacksAndSourceSection(ColorScheme scheme, TextTheme textTheme) {
-    const List<({String key, String label, IconData icon})> packs = [
-      (key: 'all', label: 'Все', icon: Icons.all_inclusive_rounded),
-      (key: 'chat', label: 'Чат', icon: Icons.chat_bubble_outline_rounded),
-      (key: 'tech', label: 'IT & Код', icon: Icons.terminal_rounded),
-      (key: 'space', label: 'Космос', icon: Icons.rocket_launch_outlined),
-      (key: 'food', label: 'Еда', icon: Icons.coffee_rounded),
-      (key: 'nature', label: 'Природа', icon: Icons.eco_outlined),
-      (key: 'minimal', label: 'Минимал', icon: Icons.interests_outlined),
-      (key: 'custom', label: 'Свой выбор', icon: Icons.tune_rounded),
-    ];
-
-    final int customCount = _config.selectedGlyphs.length;
-
-    return SettingsSection(
-      title: 'Символы и паки',
-      subtitle: 'Библиотека векторных символов и тематические коллекции',
-      children: <Widget>[
-        // Icon Sources Expressive Pill Selector
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: <({
-                IconSource source,
-                String label,
-                String count,
-                IconData icon
-              })>[
-                (
-                  source: IconSource.materialSymbols,
-                  label: 'Material',
-                  count: '4.2k',
-                  icon: Icons.layers_rounded,
-                ),
-                (
-                  source: IconSource.lucide,
-                  label: 'Lucide',
-                  count: '1.8k',
-                  icon: Icons.auto_fix_high_rounded,
-                ),
-                (
-                  source: IconSource.tabler,
-                  label: 'Tabler',
-                  count: '5.1k',
-                  icon: Icons.widgets_rounded,
-                ),
-                (
-                  source: IconSource.cupertino,
-                  label: 'Cupertino',
-                  count: '1.3k',
-                  icon: Icons.apple_rounded,
-                ),
-                (
-                  source: IconSource.niosMess,
-                  label: 'Формы M3',
-                  count: 'Шейпы',
-                  icon: Icons.interests_rounded,
-                ),
-              ].map((s) {
-                final bool isSelected = _config.iconSource == s.source;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: FilterChip(
-                    selected: isSelected,
-                    showCheckmark: false,
-                    avatar: Icon(
-                      s.icon,
-                      size: 15,
-                      color: isSelected ? scheme.onPrimary : scheme.primary,
-                    ),
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          s.label,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isSelected ? scheme.onPrimary : null,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? scheme.onPrimary.withValues(alpha: 0.22)
-                                : scheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            s.count,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected
-                                  ? scheme.onPrimary
-                                  : scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    onSelected: (_) {
-                      HapticService.tap();
-                      _updateConfig(
-                        _config.copyWith(iconSource: s.source),
-                        immediateSave: true,
-                      );
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-
-        // Packs Chips
-        if (_config.iconSource != IconSource.niosMess) ...<Widget>[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: packs.map((p) {
-                final bool isSelected = _config.themePack == p.key;
-                String chipLabel = p.label;
-                if (p.key == 'custom' && customCount > 0) {
-                  chipLabel = 'Свой ($customCount)';
-                }
-
-                return ChoiceChip(
-                  selected: isSelected,
-                  label: Text(chipLabel, style: const TextStyle(fontSize: 12)),
-                  avatar: Icon(p.icon, size: 14),
-                  visualDensity: VisualDensity.compact,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  onSelected: (bool sel) {
-                    HapticService.tap();
-                    if (p.key == 'custom') {
-                      _openCustomGlyphPicker(context, scheme);
-                    } else {
-                      _updateConfig(
-                        _config.copyWith(
-                          themePack: p.key,
-                          useAllIcons: p.key == 'all',
-                        ),
-                        immediateSave: true,
-                      );
-                    }
-                  },
-                );
-              }).toList(),
-            ),
-          ),
-                  if (_config.iconSource == IconSource.materialSymbols)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: <({MaterialSymbolsStyle style, String label})>[
-                (style: MaterialSymbolsStyle.rounded, label: 'Rounded'),
-                (style: MaterialSymbolsStyle.outlined, label: 'Outlined'),
-                (style: MaterialSymbolsStyle.sharp, label: 'Sharp'),
-              ].map((entry) {
-                final bool isSelected = _config.symbolsStyle == entry.style;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    selected: isSelected,
-                    label: Text(entry.label, style: const TextStyle(fontSize: 11)),
-                    visualDensity: VisualDensity.compact,
-                    onSelected: (bool sel) {
-                      if (sel) {
-                        HapticService.tap();
-                        _updateConfig(
-                          _config.copyWith(symbolsStyle: entry.style),
-                          immediateSave: true,
-                        );
-                      }
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-
-        if (_config.themePack == 'custom')
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
-              child: OutlinedButton.icon(
-                onPressed: () => _openCustomGlyphPicker(context, scheme),
-                icon: const Icon(Icons.edit_rounded, size: 16),
-                label: Text(
-                  customCount > 0
-                      ? 'Изменить набор ($customCount выбрано)'
-                      : 'Выбрать иконки для набора',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(40),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ],
-    );
-  }
-
-  // ── Custom Glyph Picker Modal Sheet ───────────────────────────────────────
-  void _openCustomGlyphPicker(BuildContext context, ColorScheme scheme) {
-    HapticService.tap();
-    final List<String> catalog = switch (_config.iconSource) {
-      IconSource.lucide => IconSourcesCatalog.lucideIcons,
-      IconSource.tabler => IconSourcesCatalog.tablerIcons,
-      IconSource.cupertino => CupertinoIconsData.allNames,
-      _ => MaterialSymbolsData.allNames,
-    };
-
-    final Set<String> selected = Set<String>.from(_config.selectedGlyphs);
-    String filterQuery = '';
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: scheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (BuildContext sheetCtx) {
-        return StatefulBuilder(
-          builder: (BuildContext ctx, StateSetter setModalState) {
-            final List<String> matches = filterQuery.isEmpty
-                ? catalog.take(90).toList()
-                : catalog
-                    .where((s) => s.toLowerCase().contains(filterQuery))
-                    .take(90)
-                    .toList();
-
-            return DraggableScrollableSheet(
-              initialChildSize: 0.8,
-              maxChildSize: 0.95,
-              minChildSize: 0.5,
-              expand: false,
-              builder: (_, ScrollController scrollController) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: <Widget>[
-                      const SizedBox(height: 12),
-                      Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: scheme.outlineVariant.withValues(alpha: 0.6),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: <Widget>[
-                          Text(
-                            'Свой набор (${selected.length} / 12)',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              _updateConfig(
-                                _config.copyWith(
-                                  selectedGlyphs: selected.toList(),
-                                  themePack: 'custom',
-                                ),
-                                immediateSave: true,
-                              );
-                              Navigator.of(sheetCtx).pop();
-                            },
-                            child: const Text('Сохранить',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Поиск символа...',
-                          prefixIcon:
-                              const Icon(Icons.search_rounded, size: 20),
-                          filled: true,
-                          isDense: true,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        onChanged: (String q) {
-                          setModalState(() {
-                            filterQuery = q.trim().toLowerCase();
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: GridView.builder(
-                          controller: scrollController,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 4,
-                            childAspectRatio: 1.0,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
-                          ),
-                          itemCount: matches.length,
-                          itemBuilder: (BuildContext _, int idx) {
-                            final String name = matches[idx];
-                            final bool isChecked = selected.contains(name);
-
-                            return InkWell(
-                              onTap: () {
-                                HapticService.selection();
-                                setModalState(() {
-                                  if (isChecked) {
-                                    selected.remove(name);
-                                  } else {
-                                    if (selected.length < 12) {
-                                      selected.add(name);
-                                    }
-                                  }
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(14),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                curve: M3SpringCurves.spatial,
-                                decoration: BoxDecoration(
-                                  color: isChecked
-                                      ? scheme.primary.withValues(alpha: 0.16)
-                                      : scheme.surfaceContainerHigh
-                                          .withValues(alpha: 0.4),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: isChecked
-                                        ? scheme.primary
-                                        : scheme.outlineVariant
-                                            .withValues(alpha: 0.2),
-                                    width: isChecked ? 2.0 : 1.0,
-                                  ),
-                                ),
-                                child: Stack(
-                                  children: <Widget>[
-                                    Center(
-                                      child:
-                                          _renderMiniThumbnail(name, scheme),
-                                    ),
-                                    if (isChecked)
-                                      Positioned(
-                                        top: 4,
-                                        right: 4,
-                                        child: Icon(
-                                          Icons.check_circle_rounded,
-                                          size: 16,
-                                          color: scheme.primary,
-                                        ),
-                                      ),
-                                    Positioned(
-                                      bottom: 4,
-                                      left: 4,
-                                      right: 4,
-                                      child: Text(
-                                        name,
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          color: isChecked
-                                              ? scheme.primary
-                                              : scheme.onSurfaceVariant,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 1,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _renderMiniThumbnail(String name, ColorScheme scheme) {
-    if (_config.iconSource == IconSource.materialSymbols) {
-      final int code = MaterialSymbolsData.codepoints[name] ?? 0xe838;
-      final String fontFamily = _resolveFontFamily(_config.symbolsStyle);
-      return Text(
-        String.fromCharCode(code),
-        style: TextStyle(
-          fontFamily: fontFamily,
-          fontSize: 22,
-          color: scheme.primary,
-        ),
-      );
-    } else if (_config.iconSource == IconSource.cupertino) {
-      final int code =
-          CupertinoIconsData.resolveCodepoint(name, filled: _config.filled);
-      return Text(
-        String.fromCharCode(code),
-        style: TextStyle(
-          fontFamily: 'packages/cupertino_icons/CupertinoIcons',
-          fontSize: 22,
-          color: scheme.primary,
-        ),
-      );
-    } else if (_config.iconSource == IconSource.lucide ||
-        _config.iconSource == IconSource.tabler) {
-      final String folder =
-          _config.iconSource == IconSource.lucide ? 'lucide' : 'tabler';
-      return SvgPicture.asset(
-        'assets/svg/pattern_icons/$folder/$name.svg',
-        width: 20,
-        height: 20,
-        colorFilter: ColorFilter.mode(scheme.primary, BlendMode.srcIn),
-      );
-    }
-    return Icon(Icons.star_rounded, size: 20, color: scheme.primary);
-  }
-
-  // ── 4. Geometry & Dynamics ────────────────────────────────────────────────
-  Widget _buildGeometrySection(ColorScheme scheme, TextTheme textTheme) {
-    return SettingsSection(
-      title: 'Геометрия и динамика',
-      subtitle: 'Размер элементов, плотность покрытия и угол поворота',
-      children: <Widget>[
-                if (_config.iconSource == IconSource.materialSymbols)
-          _buildSliderRow(
-            title: 'Толщина линий',
-            value: _config.weight,
-            min: 100.0,
-            max: 700.0,
-            divisions: 6,
-            unit: '',
-            onChanged: (val) => _updateConfig(_config.copyWith(weight: val)),
-          ),
-        _buildSliderRow(
-          title: 'Размер ячейки',
-          value: _config.cellSize,
-          min: 32.0,
-          max: 128.0,
-          divisions: 24,
-          unit: 'dp',
-          onChanged: (val) => _updateConfig(_config.copyWith(cellSize: val)),
-        ),
-        _buildSliderRow(
-          title: 'Плотность покрытия',
-          value: _config.density,
-          min: 0.20,
-          max: 1.0,
-          divisions: 16,
-          unit: '%',
-          displayMultiplier: 100,
-          onChanged: (val) => _updateConfig(_config.copyWith(density: val)),
-        ),
-        _buildSliderRow(
-          title: 'Угол поворота сетки',
-          value: _config.gridAngle,
-          min: -45.0,
-          max: 45.0,
-          divisions: 36,
-          unit: '°',
-          onChanged: (val) => _updateConfig(_config.copyWith(gridAngle: val)),
-        ),
-        _buildSliderRow(
-          title: 'Разброс угла иконки',
-          value: _config.randomRotationDeg,
-          min: 0.0,
-          max: 90.0,
-          divisions: 18,
-          unit: '°',
-          onChanged: (val) =>
-              _updateConfig(_config.copyWith(randomRotationDeg: val)),
-        ),
-        _buildSliderRow(
-          title: 'Разброс масштаба',
-          value: _config.randomScaleJitter,
-          min: 0.0,
-          max: 0.5,
-          divisions: 10,
-          unit: '',
-          onChanged: (val) =>
-              _updateConfig(_config.copyWith(randomScaleJitter: val)),
-        ),
-        _buildSliderRow(
-          title: 'Прозрачность',
-          value: _config.iconAlpha,
-          min: 0.04,
-          max: 0.35,
-          divisions: 31,
-          unit: '',
-          onChanged: (val) => _updateConfig(_config.copyWith(iconAlpha: val)),
-        ),
-        SettingsSwitchTile(
-          icon: Icons.format_paint_rounded,
-          title: 'Сплошная заливка (Filled)',
-          subtitle: 'Сплошное заполнение контура символов',
-          value: _config.filled,
-          onChanged: (bool val) {
-            HapticService.tap();
-            _updateConfig(_config.copyWith(filled: val), immediateSave: true);
-          },
-        ),
-      ],
-    );
-  }
-
-  // ── 5. Colors and Background Style ────────────────────────────────────────
-  Widget _buildColorSection(ColorScheme scheme, TextTheme textTheme) {
-    return SettingsSection(
-      title: 'Цвета и стиль фона',
-      subtitle: 'Подложка, градиенты и режим окрашивания символов',
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          child: Text(
-            'Основной цвет фона:',
-            style: textTheme.labelMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: <({String role, String label})>[
-                (role: 'surfaceContainerLowest', label: 'Глубокий темный'),
-                (role: 'surfaceContainerLow', label: 'Мягкий фон'),
-                (role: 'surfaceContainer', label: 'Базовый контейнер'),
-                (role: 'surfaceContainerHigh', label: 'Контрастный'),
-                (role: 'surfaceContainerHighest', label: 'Яркий контейнер'),
-                (role: 'primaryContainer', label: 'Основной акцент'),
-                (role: 'secondaryContainer', label: 'Вторичный'),
-                (role: 'tertiaryContainer', label: 'Теплый тон'),
-              ].map((item) {
-                final bool isSelected = _config.backgroundRole == item.role;
-                final Color c = WallpaperColorResolver.resolveBackground(
-                    scheme, item.role);
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: ChoiceChip(
-                    selected: isSelected,
-                    avatar: Container(
-                      width: 14,
-                      height: 14,
-                      decoration: BoxDecoration(
-                        color: c,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: scheme.outlineVariant.withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ),
-                    label: Text(item.label, style: const TextStyle(fontSize: 11)),
-                    visualDensity: VisualDensity.compact,
-                    onSelected: (bool sel) {
-                      if (sel) {
-                        HapticService.tap();
-                        _updateConfig(
-                          _config.copyWith(backgroundRole: item.role),
-                          immediateSave: true,
-                        );
-                      }
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-                // Background Style: Solid, Linear Gradient, Radial Glow
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          child: SegmentedButton<WallpaperBackgroundStyle>(
-            segments: const <ButtonSegment<WallpaperBackgroundStyle>>[
-              ButtonSegment<WallpaperBackgroundStyle>(
-                value: WallpaperBackgroundStyle.solid,
-                label: Text('Сплошной', style: TextStyle(fontSize: 12)),
-                icon: Icon(Icons.square_rounded, size: 16),
-              ),
-              ButtonSegment<WallpaperBackgroundStyle>(
-                value: WallpaperBackgroundStyle.linearGradient,
-                label: Text('Градиент', style: TextStyle(fontSize: 12)),
-                icon: Icon(Icons.gradient_rounded, size: 16),
-              ),
-              ButtonSegment<WallpaperBackgroundStyle>(
-                value: WallpaperBackgroundStyle.radialGlow,
-                label: Text('Свечение', style: TextStyle(fontSize: 12)),
-                icon: Icon(Icons.lens_blur_rounded, size: 16),
-              ),
-            ],
-            selected: <WallpaperBackgroundStyle>{_config.backgroundStyle},
-            onSelectionChanged: (Set<WallpaperBackgroundStyle> val) {
-              HapticService.tap();
-              _updateConfig(
-                _config.copyWith(backgroundStyle: val.first),
-                immediateSave: true,
-              );
-            },
-          ),
-        ),
-
-        // If Gradient or Radial Glow: secondary tone selector & angle slider
-        if (_config.backgroundStyle != WallpaperBackgroundStyle.solid) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text(
-              _config.backgroundStyle == WallpaperBackgroundStyle.radialGlow
-                  ? 'Внешний тон свечения:'
-                  : 'Второй цвет градиента:',
-              style: textTheme.labelMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: <({String role, String label})>[
-                  (role: 'surfaceContainerLowest', label: 'Глубокий темный'),
-                  (role: 'surfaceContainerLow', label: 'Мягкий фон'),
-                  (role: 'surfaceContainerHigh', label: 'Контрастный'),
-                  (role: 'primaryContainer', label: 'Основной акцент'),
-                  (role: 'secondaryContainer', label: 'Вторичный'),
-                  (role: 'tertiaryContainer', label: 'Теплый тон'),
-                ].map((item) {
-                  final bool isSelected =
-                      _config.backgroundSecondaryRole == item.role;
-                  final Color c = WallpaperColorResolver.resolveBackground(
-                      scheme, item.role);
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: ChoiceChip(
-                      selected: isSelected,
-                      avatar: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: c,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: scheme.outlineVariant
-                                .withValues(alpha: 0.5),
-                          ),
-                        ),
-                      ),
-                      label: Text(item.label,
-                          style: const TextStyle(fontSize: 11)),
-                      visualDensity: VisualDensity.compact,
-                      onSelected: (bool sel) {
-                        if (sel) {
-                          HapticService.tap();
-                          _updateConfig(
-                            _config.copyWith(
-                                backgroundSecondaryRole: item.role),
-                            immediateSave: true,
-                          );
-                        }
-                      },
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          if (_config.backgroundStyle ==
-              WallpaperBackgroundStyle.linearGradient)
-            _buildSliderRow(
-              title: 'Угол градиента',
-              value: _config.gradientAngle,
-              min: -180.0,
-              max: 180.0,
-              divisions: 24,
-              unit: '°',
-              onChanged: (val) =>
-                  _updateConfig(_config.copyWith(gradientAngle: val)),
-            ),
-          const SizedBox(height: 6),
-        ],
-
-        // Icon coloring mode
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-          child: Text(
-            'Окрашивание символов:',
-            style: textTheme.labelMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          child: SegmentedButton<WallpaperColorMode>(
-            segments: const <ButtonSegment<WallpaperColorMode>>[
-              ButtonSegment<WallpaperColorMode>(
-                value: WallpaperColorMode.singleTone,
-                label: Text('Один цвет', style: TextStyle(fontSize: 12)),
-              ),
-              ButtonSegment<WallpaperColorMode>(
-                value: WallpaperColorMode.tonalAccent,
-                label: Text('Акценты', style: TextStyle(fontSize: 12)),
-              ),
-              ButtonSegment<WallpaperColorMode>(
-                value: WallpaperColorMode.palette,
-                label: Text('Палитра', style: TextStyle(fontSize: 12)),
-              ),
-            ],
-            selected: <WallpaperColorMode>{_config.colorMode},
-            onSelectionChanged: (Set<WallpaperColorMode> val) {
-              HapticService.tap();
-              _updateConfig(
-                _config.copyWith(colorMode: val.first),
-                immediateSave: true,
-              );
-            },
-          ),
-        ),
-
-        // Live Color Preview Dots & Explanation
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 240),
-            switchInCurve: M3SpringCurves.spatial,
-            switchOutCurve: Curves.easeOut,
-            child:
-                _buildColorModePreview(scheme, textTheme, _config.colorMode),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildColorModePreview(
-      ColorScheme scheme, TextTheme textTheme, WallpaperColorMode mode) {
-    final (List<Color> dots, String description) = switch (mode) {
-      WallpaperColorMode.singleTone => (
-          [scheme.primary],
-          'Единый акцентный тон темы для спокойного, монохромного фона',
-        ),
-      WallpaperColorMode.tonalAccent => (
-          [scheme.primary, scheme.tertiary],
-          'Чередование основного и третичного тонов для выразительного ритма',
-        ),
-      WallpaperColorMode.palette => (
-          [
-            scheme.primary,
-            scheme.secondary,
-            scheme.tertiary,
-            scheme.surfaceContainerHighest,
-          ],
-          'Полноцветный спектр темы для насыщенного, динамичного паттерна',
-        ),
-    };
-
-    return Container(
-      key: ValueKey<WallpaperColorMode>(mode),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.20),
-        ),
-      ),
-      child: Row(
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: dots
-                .map(
-                  (c) => Container(
-                    margin: const EdgeInsets.only(right: 6),
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: c,
-                      shape: BoxShape.circle,
-                      
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              description,
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                height: 1.25,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── M3 Expressive Slider Row with Spring Badge Bounce ─────────────────────
-  Widget _buildSliderRow({
-    required String title,
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    required String unit,
-    double displayMultiplier = 1.0,
-    required ValueChanged<double> onChanged,
-  }) {
-    return _M3WallpaperSliderRow(
-      title: title,
-      value: value,
-      min: min,
-      max: max,
-      divisions: divisions,
-      unit: unit,
-      displayMultiplier: displayMultiplier,
-      onChanged: onChanged,
-    );
-  }
-
-  IconData _getLayoutIcon(WallpaperLayoutMode mode) {
-    return switch (mode) {
-      WallpaperLayoutMode.stagger => Icons.grid_view_rounded,
-      WallpaperLayoutMode.grid => Icons.grid_on_rounded,
-      WallpaperLayoutMode.hex => Icons.hexagon_outlined,
-      WallpaperLayoutMode.spiral => Icons.cyclone_rounded,
-      WallpaperLayoutMode.scatter => Icons.bubble_chart_rounded,
-    };
-  }
-
-  String _getLayoutLabel(WallpaperLayoutMode mode) {
-    return switch (mode) {
-      WallpaperLayoutMode.stagger => 'Шахматы',
-      WallpaperLayoutMode.grid => 'Сетка',
-      WallpaperLayoutMode.hex => 'Соты',
-      WallpaperLayoutMode.spiral => 'Спираль',
-      WallpaperLayoutMode.scatter => 'Хаос',
-    };
-  }
-
-  String _resolveFontFamily(MaterialSymbolsStyle style) {
-    switch (style) {
-      case MaterialSymbolsStyle.outlined:
-        return 'MaterialSymbolsOutlined';
-      case MaterialSymbolsStyle.rounded:
-        return 'MaterialSymbolsRounded';
-      case MaterialSymbolsStyle.sharp:
-        return 'MaterialSymbolsSharp';
-    }
-  }
 }
 
-/// Action buttons for wallpaper randomize and reset with M3 bouncy spring press feedback
-class _WallpaperActionButtons extends StatefulWidget {
-  const _WallpaperActionButtons({
-    required this.diceRotationAnimation,
-    required this.onRandomize,
-    required this.onReset,
-  });
-
-  final Animation<double> diceRotationAnimation;
-  final VoidCallback onRandomize;
-  final VoidCallback onReset;
-
-  @override
-  State<_WallpaperActionButtons> createState() =>
-      _WallpaperActionButtonsState();
+String _presetName(BuildContext context, String id) {
+  final l10n = context.l10n;
+  return switch (id) {
+    'cosmos' => l10n.wallpaperPresetCosmos,
+    'cyberpunk' => l10n.wallpaperPresetCyberpunk,
+    'sunset' => l10n.wallpaperPresetSunset,
+    'oled_minimal' => l10n.wallpaperPresetOled,
+    'cupertino' => l10n.wallpaperPresetCupertino,
+    'pastel' => l10n.wallpaperPresetPastel,
+    'nios_matrix' => l10n.wallpaperPresetMatrix,
+    _ => id,
+  };
 }
 
-class _WallpaperActionButtonsState extends State<_WallpaperActionButtons> {
-  bool _isRandomizePressed = false;
-  bool _isResetPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: Listener(
-            onPointerDown: (_) => setState(() => _isRandomizePressed = true),
-            onPointerUp: (_) => setState(() => _isRandomizePressed = false),
-            onPointerCancel: (_) => setState(() => _isRandomizePressed = false),
-            child: AnimatedScale(
-              scale: _isRandomizePressed ? 0.96 : 1.0,
-              duration: const Duration(milliseconds: 180),
-              curve: _isRandomizePressed
-                  ? M3SpringCurves.snappy
-                  : M3SpringCurves.bouncy,
-              child: FilledButton.tonalIcon(
-                onPressed: widget.onRandomize,
-                icon: RotationTransition(
-                  turns: widget.diceRotationAnimation,
-                  child: const Icon(Icons.casino_rounded, size: 20),
-                ),
-                label: const Text('Случайный узор'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Listener(
-            onPointerDown: (_) => setState(() => _isResetPressed = true),
-            onPointerUp: (_) => setState(() => _isResetPressed = false),
-            onPointerCancel: (_) => setState(() => _isResetPressed = false),
-            child: AnimatedScale(
-              scale: _isResetPressed ? 0.96 : 1.0,
-              duration: const Duration(milliseconds: 180),
-              curve: _isResetPressed
-                  ? M3SpringCurves.snappy
-                  : M3SpringCurves.bouncy,
-              child: OutlinedButton.icon(
-                onPressed: widget.onReset,
-                icon: const Icon(Icons.restart_alt_rounded, size: 18),
-                label: const Text('Сбросить'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+String _packName(BuildContext context, String pack) {
+  final l10n = context.l10n;
+  return switch (pack) {
+    'all' => l10n.wallpaperPackAll,
+    'chat' => l10n.wallpaperPackChat,
+    'tech' => l10n.wallpaperPackTech,
+    'space' => l10n.wallpaperPackSpace,
+    'food' => l10n.wallpaperPackFood,
+    'nature' => l10n.wallpaperPackNature,
+    'minimal' => l10n.wallpaperPackMinimal,
+    'custom' => l10n.wallpaperPackCustom,
+    _ => pack,
+  };
 }
 
-/// Slider row with drag state expansion and M3 spring badge bounce
-class _M3WallpaperSliderRow extends StatefulWidget {
-  const _M3WallpaperSliderRow({
-    required this.title,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.divisions,
-    required this.unit,
-    this.displayMultiplier = 1.0,
-    required this.onChanged,
-  });
-
-  final String title;
-  final double value;
-  final double min;
-  final double max;
-  final int divisions;
-  final String unit;
-  final double displayMultiplier;
-  final ValueChanged<double> onChanged;
-
-  @override
-  State<_M3WallpaperSliderRow> createState() => _M3WallpaperSliderRowState();
+String _sourceName(BuildContext context, IconSource source) {
+  final l10n = context.l10n;
+  return switch (source) {
+    IconSource.materialSymbols => l10n.wallpaperSourceMaterial,
+    IconSource.lucide => l10n.wallpaperSourceLucide,
+    IconSource.tabler => l10n.wallpaperSourceTabler,
+    IconSource.cupertino => l10n.wallpaperSourceCupertino,
+    IconSource.niosMess => l10n.wallpaperSourceShapes,
+    IconSource.phosphor => 'Phosphor',
+  };
 }
 
-class _M3WallpaperSliderRowState extends State<_M3WallpaperSliderRow> {
-  bool _isDragging = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final double displayVal = widget.value * widget.displayMultiplier;
-    final String formatted = widget.unit == '%' || widget.unit == '°'
-        ? '${displayVal.toStringAsFixed(0)}${widget.unit}'
-        : '${displayVal.toStringAsFixed(widget.unit.isEmpty ? 2 : 0)} ${widget.unit}'.trim();
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            flex: 4,
-            child: Text(
-              widget.title,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-          ),
-          AnimatedScale(
-            scale: _isDragging ? 1.14 : 1.0,
-            duration: const Duration(milliseconds: 220),
-            curve: M3SpringCurves.bouncy,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: _isDragging
-                    ? scheme.primary.withValues(alpha: 0.22)
-                    : scheme.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-                
-              ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                transitionBuilder: (child, anim) => ScaleTransition(
-                  scale: CurvedAnimation(
-                    parent: anim,
-                    curve: M3SpringCurves.bouncy,
-                  ),
-                  child: child,
-                ),
-                child: Text(
-                  formatted,
-                  key: ValueKey<String>(formatted),
-                  style: TextStyle(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 6,
-            child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                activeTrackColor: scheme.primary,
-                inactiveTrackColor: scheme.surfaceContainerHighest,
-                thumbColor: scheme.primary,
-                overlayColor: scheme.primary.withValues(alpha: 0.12),
-                trackHeight: 4,
-              ),
-              child: Slider(
-                value: widget.value.clamp(widget.min, widget.max),
-                min: widget.min,
-                max: widget.max,
-                divisions: widget.divisions,
-                onChangeStart: (_) {
-                  setState(() => _isDragging = true);
-                  HapticService.selection();
-                },
-                onChangeEnd: (_) {
-                  setState(() => _isDragging = false);
-                },
-                onChanged: (double v) {
-                  if (v != widget.value) {
-                    HapticService.selection();
-                    widget.onChanged(v);
-                  }
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+String _layoutName(BuildContext context, WallpaperLayoutMode mode) {
+  final l10n = context.l10n;
+  return switch (mode) {
+    WallpaperLayoutMode.grid => l10n.wallpaperLayoutGrid,
+    WallpaperLayoutMode.stagger => l10n.wallpaperLayoutStagger,
+    WallpaperLayoutMode.scatter => l10n.wallpaperLayoutScatter,
+    WallpaperLayoutMode.hex => l10n.wallpaperLayoutHex,
+    WallpaperLayoutMode.spiral => l10n.wallpaperLayoutSpiral,
+  };
 }
 
-/// Expressive Layout Card with mini geometry preview and spring physics
-class _LayoutModeCard extends StatefulWidget {
-  const _LayoutModeCard({
-    required this.mode,
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.scheme,
-    required this.onTap,
-  });
-
-  final WallpaperLayoutMode mode;
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final ColorScheme scheme;
-  final VoidCallback onTap;
-
-  @override
-  State<_LayoutModeCard> createState() => _LayoutModeCardState();
+String _bgStyleName(BuildContext context, WallpaperBackgroundStyle style) {
+  final l10n = context.l10n;
+  return switch (style) {
+    WallpaperBackgroundStyle.solid => l10n.wallpaperBgSolid,
+    WallpaperBackgroundStyle.linearGradient => l10n.wallpaperBgGradient,
+    WallpaperBackgroundStyle.radialGlow => l10n.wallpaperBgGlow,
+  };
 }
 
-class _LayoutModeCardState extends State<_LayoutModeCard> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = widget.scheme;
-    final isSelected = widget.isSelected;
-
-    return Listener(
-      onPointerDown: (_) => setState(() => _isPressed = true),
-      onPointerUp: (_) => setState(() => _isPressed = false),
-      onPointerCancel: (_) => setState(() => _isPressed = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: _isPressed ? 0.94 : (isSelected ? 1.04 : 1.0),
-          duration: const Duration(milliseconds: 240),
-          curve: M3SpringCurves.bouncy,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 240),
-            curve: M3SpringCurves.spatial,
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? scheme.primaryContainer.withValues(alpha: 0.55)
-                  : scheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected
-                    ? scheme.primary
-                    : scheme.outlineVariant.withValues(alpha: 0.28),
-                width: isSelected ? 2.0 : 1.0,
-              ),
-              
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Visual Geometry Miniature
-                SizedBox(
-                  height: 30,
-                  width: 30,
-                  child: CustomPaint(
-                    painter: _LayoutMiniaturePainter(
-                      mode: widget.mode,
-                      color: isSelected
-                          ? scheme.primary
-                          : scheme.onSurfaceVariant,
-                      accentColor: scheme.tertiary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 5),
-                // Label
-                Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.w600,
-                    color: isSelected ? scheme.primary : scheme.onSurface,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3),
-                // Active Indicator Pill
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  height: 3,
-                  width: isSelected ? 12 : 0,
-                  decoration: BoxDecoration(
-                    color: isSelected ? scheme.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Custom painter rendering a distinctive visual miniature of the geometric algorithm
-class _LayoutMiniaturePainter extends CustomPainter {
-  const _LayoutMiniaturePainter({
-    required this.mode,
-    required this.color,
-    required this.accentColor,
-  });
-
-  final WallpaperLayoutMode mode;
-  final Color color;
-  final Color accentColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final double w = size.width;
-    final double h = size.height;
-    final double r = w * 0.10;
-
-    switch (mode) {
-      case WallpaperLayoutMode.stagger:
-        // Chess pattern: alternating offset rows
-        canvas.drawCircle(Offset(w * 0.28, h * 0.28), r, paint);
-        canvas.drawCircle(Offset(w * 0.72, h * 0.28), r, paint);
-        canvas.drawCircle(Offset(w * 0.50, h * 0.72), r, paint);
-        break;
-
-      case WallpaperLayoutMode.grid:
-        // Regular 2x2 grid
-        canvas.drawCircle(Offset(w * 0.30, h * 0.30), r, paint);
-        canvas.drawCircle(Offset(w * 0.70, h * 0.30), r, paint);
-        canvas.drawCircle(Offset(w * 0.30, h * 0.70), r, paint);
-        canvas.drawCircle(Offset(w * 0.70, h * 0.70), r, paint);
-        break;
-
-      case WallpaperLayoutMode.hex:
-        // Hexagonal honeycomb (center dot + 5 surrounding)
-        canvas.drawCircle(Offset(w * 0.50, h * 0.50), r * 1.1, paint);
-        canvas.drawCircle(Offset(w * 0.50, h * 0.20), r * 0.9, paint);
-        canvas.drawCircle(Offset(w * 0.76, h * 0.35), r * 0.9, paint);
-        canvas.drawCircle(Offset(w * 0.76, h * 0.65), r * 0.9, paint);
-        canvas.drawCircle(Offset(w * 0.50, h * 0.80), r * 0.9, paint);
-        canvas.drawCircle(Offset(w * 0.24, h * 0.65), r * 0.9, paint);
-        canvas.drawCircle(Offset(w * 0.24, h * 0.35), r * 0.9, paint);
-        break;
-
-      case WallpaperLayoutMode.spiral:
-        // Spiral dots along a swirl
-        canvas.drawCircle(Offset(w * 0.50, h * 0.50), r * 0.8, paint);
-        canvas.drawCircle(Offset(w * 0.65, h * 0.45), r * 0.9, paint);
-        canvas.drawCircle(Offset(w * 0.60, h * 0.70), r * 1.0, paint);
-        canvas.drawCircle(Offset(w * 0.30, h * 0.72), r * 1.1, paint);
-        canvas.drawCircle(Offset(w * 0.22, h * 0.35), r * 1.2, paint);
-        break;
-
-      case WallpaperLayoutMode.scatter:
-        // Chaotic scatter with varying radii
-        canvas.drawCircle(Offset(w * 0.25, h * 0.35), r * 1.2, paint);
-        canvas.drawCircle(Offset(w * 0.68, h * 0.25), r * 0.8, paint);
-        canvas.drawCircle(Offset(w * 0.52, h * 0.55), r * 1.1, paint);
-        canvas.drawCircle(Offset(w * 0.75, h * 0.75), r * 1.3, paint);
-        canvas.drawCircle(Offset(w * 0.30, h * 0.78), r * 0.7, paint);
-        break;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _LayoutMiniaturePainter oldDelegate) {
-    return oldDelegate.mode != mode || oldDelegate.color != color;
-  }
+String _colorModeName(BuildContext context, WallpaperColorMode mode) {
+  final l10n = context.l10n;
+  return switch (mode) {
+    WallpaperColorMode.singleTone => l10n.wallpaperColorModeSingle,
+    WallpaperColorMode.tonalAccent => l10n.wallpaperColorModeAccents,
+    WallpaperColorMode.palette => l10n.wallpaperColorModePalette,
+  };
 }
