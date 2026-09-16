@@ -151,8 +151,16 @@ At the conclusion of EVERY task or feature implementation, inspect all completed
 Always increment the build number (`+N`) and report the new version in the final task summary.
 
 ### Changelog & Sub-version Prompt Rule
-- **Sub-version / Minor updates (e.g. x.Y.x)**: Whenever bumping a sub-version or releasing a feature update, explicitly notify the user and ask them for a short, simple summary in their own words.
-- Never write corporate AI buzzwords or "нейрослоп" into release notes.
+- **Стиль чейнджлогов («в стиле прикола», но с реальными изменениями)**:
+  - Все пункты чейнджлога ОБЯЗАТЕЛЬНО пишутся с юмором, лёгкой иронией или сарказмом («в стиле прикола»), но за каждой шуткой ДОЛЖНО стоять реальное техническое изменение.
+  - Примеры:
+    - *«Обновили галерею, чтобы удобнее следить за пользователями»*
+    - *«Приколотили таблетку таб-бара гвоздями, чтобы кнопки больше не убегали от пальцев»*
+    - *«Наладили передачу ключей в секретных чатах — теперь паранойя работает без сбоев»*
+    - *«При клике на чужой QR-код теперь открывается реально чужой код, а не свой собственный (нарциссизм временно отключён)»*
+    - *«Исправили цвета лиц разработчиков на фото, а то они выглядели как пришельцы из параллельной вселенной»*
+  - **Категорический запрет на скучный корпоративный официоз и «нейрослоп»** (никаких «произведена оптимизация внутренних компонентов», «повышена стабильность решения» и прочей шаблонной тоски).
+- **Sub-version / Minor updates (e.g. x.Y.x)**: Whenever bumping a sub-version or releasing a feature update, explicitly notify the user and ask them for a short, simple summary in their own words (или предложить вариант в фирменном шуточном стиле).
 - The user's provided description is placed directly at the top of `CHANGELOG.md` under `## [X.Y.Z]`.
 - **Single-Version Display**: In the application (`AppUpdateDialog`), strictly display ONLY the changelog section for the latest version being updated to, never old historical changelog blocks.
 
