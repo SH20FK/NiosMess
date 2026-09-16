@@ -651,22 +651,41 @@ class _SettingsWallpaperScreenState
       if (code == null) {
         return Icon(Icons.star_rounded, size: 20, color: scheme.onSurface);
       }
-      return Icon(
-        // ignore: non_const_argument_for_const_parameter
-        IconData(code, fontFamily: 'CupertinoIcons', matchTextDirection: true),
-        size: 20,
-        color: scheme.onSurface,
+      return SizedBox(
+        width: 20,
+        height: 20,
+        child: Center(
+          child: Text(
+            String.fromCharCode(code),
+            style: TextStyle(
+              fontFamily: 'CupertinoIcons',
+              package: 'cupertino_icons',
+              fontSize: 20,
+              height: 1.0,
+              color: scheme.onSurface,
+            ),
+          ),
+        ),
       );
     } else {
       final int? code = MaterialSymbolsData.codepoints[name];
       if (code == null) {
         return Icon(Icons.star_rounded, size: 20, color: scheme.onSurface);
       }
-      return Icon(
-        // ignore: non_const_argument_for_const_parameter
-        IconData(code, fontFamily: 'MaterialSymbolsRounded'),
-        size: 20,
-        color: scheme.onSurface,
+      return SizedBox(
+        width: 20,
+        height: 20,
+        child: Center(
+          child: Text(
+            String.fromCharCode(code),
+            style: TextStyle(
+              fontFamily: 'MaterialSymbolsRounded',
+              fontSize: 20,
+              height: 1.0,
+              color: scheme.onSurface,
+            ),
+          ),
+        ),
       );
     }
   }
