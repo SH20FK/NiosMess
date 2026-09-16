@@ -82,18 +82,20 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
     super.dispose();
   }
 
-  double _slotX(int i) =>
-      widget.count <= 1 ? 0.0 : (2 * i + 1) / widget.count - 1.0;
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        if (widget.count <= 0 || constraints.maxWidth <= 0) {
+          return const SizedBox.shrink();
+        }
         final double slot = constraints.maxWidth / widget.count;
         final double baseWidth =
             (slot * 0.62).clamp(48.0, widget.maxPillWidth);
         final double travel =
             ((widget.index - _from).abs() / widget.count).clamp(0.0, 1.0);
+
+        double slotCenterX(int i) => (i + 0.5) * slot;
 
         return AnimatedBuilder(
           animation: _spatial,
@@ -102,22 +104,30 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
             // Squash and stretch: the pill elongates mid-flight, then settles.
             final double wobble =
                 math.sin(math.pi * t.clamp(0.0, 1.0)) * travel;
-            return Align(
-              alignment: Alignment(
-                ui.lerpDouble(_slotX(_from), _slotX(widget.index), t)!
-                    .clamp(-1.0, 1.0),
-                0.0,
-              ),
-              child: SizedBox(
-                width: baseWidth * (1.0 + widget.stretch * wobble),
-                height: widget.pillHeight * (1.0 - 0.16 * wobble),
-                child: DecoratedBox(
-                  decoration: ShapeDecoration(
-                    color: widget.color,
-                    shape: const StadiumBorder(),
+            final double pillW = baseWidth * (1.0 + widget.stretch * wobble);
+            final double pillH = widget.pillHeight * (1.0 - 0.16 * wobble);
+            final double fromX = slotCenterX(_from);
+            final double toX = slotCenterX(widget.index);
+            final double currentCenterX = ui.lerpDouble(fromX, toX, t)!;
+            final double left = currentCenterX - pillW / 2;
+            final double top = (constraints.maxHeight - pillH) / 2;
+
+            return Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                Positioned(
+                  left: left,
+                  top: top,
+                  width: pillW,
+                  height: pillH,
+                  child: DecoratedBox(
+                    decoration: ShapeDecoration(
+                      color: widget.color,
+                      shape: const StadiumBorder(),
+                    ),
                   ),
                 ),
-              ),
+              ],
             );
           },
         );

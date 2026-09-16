@@ -22,7 +22,6 @@ import 'package:pulse_flutter/screens/sticker_set_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
-import 'package:pulse_flutter/screens/about_changelog_screen.dart';
 import 'package:pulse_flutter/screens/help_faq_screen.dart';
 import 'package:pulse_flutter/screens/settings_system_device_screen.dart';
 import 'package:pulse_flutter/screens/legal_viewer_screen.dart';
@@ -355,10 +354,6 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/settings/about',
         pageBuilder: (context, state) => _page(state, const SettingsAboutScreen(), pageKey: state.pageKey),
-      ),
-      GoRoute(
-        path: '/settings/about/changelog',
-        pageBuilder: (context, state) => _page(state, const AboutChangelogScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/help/faq',

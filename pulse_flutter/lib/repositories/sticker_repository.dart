@@ -47,15 +47,16 @@ class StickerRepository {
     );
 
     if (response is Map) {
-      if (response['set'] is Map) {
+      final dynamic rawSet = response['set'] ??
+          response['sticker_set'] ??
+          response['data'] ??
+          response['result'] ??
+          response;
+      if (rawSet is Map) {
         return ApiStickerSet.fromJson(
-          (response['set'] as Map)
-              .map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
+          rawSet.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
         );
       }
-      return ApiStickerSet.fromJson(
-        response.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
-      );
     }
     return null;
   }

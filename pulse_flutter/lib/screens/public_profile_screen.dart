@@ -223,6 +223,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       setState(() {
         _resolvedChatId = chatId;
       });
+    } else {
+      AppToast.showError(context, 'Не удалось создать секретный чат');
     }
   }
 
@@ -247,6 +249,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       builder: (BuildContext ctx) => MyQrCodeSheet(
         username: profile.username,
         displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
       ),
     );
   }
@@ -621,7 +624,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(radii.xl),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
         ),
       ),
       child: Column(

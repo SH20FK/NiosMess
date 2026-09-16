@@ -200,28 +200,26 @@ void main() {
       await tester.pumpWidget(buildIndicator(0));
       await tester.pump();
 
-      // Find initial alignment
-      final Finder initialAlignFinder = find.byType(Align);
-      expect(initialAlignFinder, findsOneWidget);
-      final Align initialAlign = tester.widget(initialAlignFinder);
-      final double initialX = (initialAlign.alignment as Alignment).x;
-      // Slot 0 of 4 -> (2*0 + 1)/4 - 1.0 = 0.25 - 1.0 = -0.75
-      expect(initialX, closeTo(-0.75, 0.01));
+      // Find initial center position
+      final Finder pillFinder = find.byType(DecoratedBox);
+      expect(pillFinder, findsOneWidget);
+      final Finder navFinder = find.byType(TravelingNavIndicator);
+      double pillLocalCenterX() =>
+          tester.getCenter(pillFinder).dx - tester.getTopLeft(navFinder).dx;
+
+      // Container width 400, slot 0 of 4 -> center at (0 + 0.5) * 100 = 50.0
+      expect(pillLocalCenterX(), closeTo(50.0, 0.5));
 
       // Move to index 1
       await tester.pumpWidget(buildIndicator(1));
       await tester.pump(const Duration(milliseconds: 100));
 
-      final Align midAlign = tester.widget(find.byType(Align));
-      final double midX = (midAlign.alignment as Alignment).x;
-      // X should be moving right from -0.75 towards -0.25
-      expect(midX, greaterThan(-0.75));
+      // Moving right towards slot 1 center (150.0)
+      expect(pillLocalCenterX(), greaterThan(50.0));
 
       await tester.pumpAndSettle();
-      final Align finalAlign = tester.widget(find.byType(Align));
-      final double finalX = (finalAlign.alignment as Alignment).x;
-      // Slot 1 of 4 -> (2*1 + 1)/4 - 1.0 = 0.75 - 1.0 = -0.25
-      expect(finalX, closeTo(-0.25, 0.01));
+      // Settled at slot 1 of 4 -> center at (1 + 0.5) * 100 = 150.0
+      expect(pillLocalCenterX(), closeTo(150.0, 0.5));
     });
   });
 }

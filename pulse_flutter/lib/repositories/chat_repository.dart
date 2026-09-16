@@ -132,6 +132,7 @@ class ChatRepository {
       return null;
     }
     if (publicKey != null && publicKey.isNotEmpty) {
+      payload['public_key'] = publicKey;
       payload['target_public_key'] = publicKey;
     }
 

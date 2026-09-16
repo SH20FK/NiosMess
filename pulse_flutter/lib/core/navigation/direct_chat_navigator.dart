@@ -25,14 +25,21 @@ Future<int?> navigateToDirectChat(
   final String cleanUsername = username.trim().toLowerCase();
 
   // 1. Fast path: chat ID already known or found in local chats list
-  final int? fastId = (knownChatId != null && knownChatId > 0)
-      ? knownChatId
-      : ref.read(chatsProvider).value?.where((ApiChatSummary c) {
+  final int? fastId = isSecret
+      ? ref.read(chatsProvider).value?.where((ApiChatSummary c) {
           return c.chatType == 'direct' &&
+              c.isSecret &&
               c.username?.trim().toLowerCase() == cleanUsername;
-        }).firstOrNull?.id;
+        }).firstOrNull?.id
+      : ((knownChatId != null && knownChatId > 0)
+          ? knownChatId
+          : ref.read(chatsProvider).value?.where((ApiChatSummary c) {
+              return c.chatType == 'direct' &&
+                  !c.isSecret &&
+                  c.username?.trim().toLowerCase() == cleanUsername;
+            }).firstOrNull?.id);
 
-  if (fastId != null && fastId > 0 && !isSecret) {
+  if (fastId != null && fastId > 0) {
     if (context.mounted) {
       context.push('/chat/$fastId');
     }
@@ -78,7 +85,8 @@ Future<int?> navigateToDirectChat(
               unreadCount: 0,
               membersCount: 2,
               partnerUserId: withUser?.id ?? userId,
-              isSecret: result.isSecret,
+              isSecret: result.isSecret || isSecret,
+              partnerPublicKey: withUser?.publicKey,
             ))
         .copyWith(
       name: (withUser?.displayName.isNotEmpty == true
@@ -90,6 +98,8 @@ Future<int?> navigateToDirectChat(
               : existingChat?.username) ??
           username,
       partnerUserId: withUser?.id ?? existingChat?.partnerUserId ?? userId,
+      isSecret: result.isSecret || isSecret,
+      partnerPublicKey: withUser?.publicKey ?? existingChat?.partnerPublicKey,
     );
 
     ref.read(chatsProvider.notifier).upsertChat(syntheticChat);
@@ -101,7 +111,8 @@ Future<int?> navigateToDirectChat(
       context.push('/chat/${result.chatId}');
     }
     return result.chatId;
-  } catch (_) {
+  } catch (e, st) {
+    debugPrint('[navigateToDirectChat] failed: $e\n$st');
     return null;
   }
 }

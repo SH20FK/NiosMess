@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
 import 'package:pulse_flutter/widgets/chat/add_sticker_dialog.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -53,25 +54,38 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
   }
 
   Future<void> _fetchSetIfNeeded() async {
-    if (widget.stickerSet != null || widget.setId == null) return;
+    final int? targetId = widget.setId ?? widget.stickerSet?.id;
+    if (targetId == null || targetId <= 0) return;
+
+    // If sticker set with stickers is already provided, check if it has stickers
+    if (widget.stickerSet != null && widget.stickerSet!.stickers.isNotEmpty) {
+      return;
+    }
 
     final List<ApiStickerSet>? installed = ref.read(stickerSetsProvider).value;
-    if (installed != null &&
-        installed.any((ApiStickerSet s) => s.id == widget.setId)) {
-      return;
+    if (installed != null) {
+      final ApiStickerSet? cached = installed.cast<ApiStickerSet?>().firstWhere(
+            (ApiStickerSet? s) => s?.id == targetId && (s?.stickers.isNotEmpty == true),
+            orElse: () => null,
+          );
+      if (cached != null) {
+        if (mounted) setState(() => _fetchedSet = cached);
+        return;
+      }
     }
 
     setState(() => _isFetchingSet = true);
     try {
       final ApiStickerSet? fetched =
-          await ref.read(stickerRepositoryProvider).getStickerSet(widget.setId!);
+          await ref.read(stickerRepositoryProvider).getStickerSet(targetId);
       if (mounted) {
         setState(() {
           _fetchedSet = fetched;
           _isFetchingSet = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[StickerSetModal] Failed to fetch set: $e');
       if (mounted) {
         setState(() => _isFetchingSet = false);
       }
@@ -88,16 +102,17 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
 
     // Resolve current sticker set
     ApiStickerSet? currentSet = widget.stickerSet ?? _fetchedSet;
-    if (currentSet == null && widget.setId != null) {
+    final int? targetId = widget.setId ?? widget.stickerSet?.id;
+    if (currentSet == null && targetId != null) {
       for (final ApiStickerSet s in installedSets) {
-        if (s.id == widget.setId) {
+        if (s.id == targetId) {
           currentSet = s;
           break;
         }
       }
     }
 
-    if (_isFetchingSet && currentSet == null) {
+    if (_isFetchingSet && (currentSet == null || currentSet.stickers.isEmpty)) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
         child: AppLoadingIndicator(
@@ -121,6 +136,12 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            const SizedBox(height: 16),
+            FilledButton.tonalIcon(
+              onPressed: _fetchSetIfNeeded,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Повторить попытку'),
+            ),
           ],
         ),
       );
@@ -129,6 +150,9 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
     final ApiStickerSet resolvedSet = currentSet;
     final bool isInstalled = (resolvedSet.isSaved ?? false) ||
         installedSets.any((ApiStickerSet s) => s.id == resolvedSet.id);
+    final int myUserId = ref.watch(authProvider).session?.userId ?? -1;
+    final bool isOwner = resolvedSet.isOwner == true ||
+        (resolvedSet.authorId != null && resolvedSet.authorId == myUserId);
 
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -161,17 +185,24 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHigh,
+                    color: scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: resolvedSet.coverSticker != null
                       ? CachedNetworkImage(
                           imageUrl: resolvedSet.coverSticker!.resolvedUrl,
-                          fit: BoxFit.contain,
-                          memCacheWidth: 160,
-                          memCacheHeight: 160,
-                          errorWidget: (_, _, _) => Icon(
+                          fit: BoxFit.cover,
+                          placeholder: (BuildContext ctx, String url) =>
+                              Center(
+                            child: AppLoadingIndicator(
+                              size: 18,
+                              color: scheme.primary,
+                            ),
+                          ),
+                          errorWidget:
+                              (BuildContext ctx, String url, Object error) =>
+                                  Icon(
                             Icons.sticky_note_2_outlined,
                             color: scheme.onSurfaceVariant,
                           ),
@@ -218,134 +249,138 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
             // Primary actions: Add/Remove + Add Stickers
             Row(
               children: <Widget>[
-                // Add Stickers button
-                Expanded(
-                  child: FilledButton.tonalIcon(
-                    onPressed: () {
-                      HapticService.tap();
-                      AddStickerDialog.show(
-                        context,
-                        setId: resolvedSet.id,
-                        setTitle: resolvedSet.title,
-                      );
-                    },
-                    icon: const Icon(Icons.add_photo_alternate_rounded,
-                        size: 18),
-                    label: const Text(
-                      'Добавить стикеры',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                if (isOwner) ...<Widget>[
+                  // Add Stickers button
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: () {
+                        HapticService.tap();
+                        AddStickerDialog.show(
+                          context,
+                          setId: resolvedSet.id,
+                          setTitle: resolvedSet.title,
+                        );
+                      },
+                      icon: const Icon(Icons.add_photo_alternate_rounded,
+                          size: 18),
+                      label: const Text(
+                        'Добавить стикеры',
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
-                      minimumSize: const Size.fromHeight(44),
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        minimumSize: const Size.fromHeight(44),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
+                  const SizedBox(width: 10),
+                ],
                 // Install or Remove button
-                isInstalled
-                    ? OutlinedButton.icon(
-                        onPressed: _isActionLoading
-                            ? null
-                            : () async {
-                                setState(() => _isActionLoading = true);
-                                HapticService.tap();
-                                try {
-                                  await ref
-                                      .read(stickerSetsProvider.notifier)
-                                      .removeStickerSet(resolvedSet.id);
-                                  if (mounted) {
-                                    setState(() {
-                                      _fetchedSet = (_fetchedSet ?? resolvedSet)
-                                          .copyWith(isSaved: false);
-                                    });
+                Expanded(
+                  child: isInstalled
+                      ? OutlinedButton.icon(
+                          onPressed: _isActionLoading
+                              ? null
+                              : () async {
+                                  setState(() => _isActionLoading = true);
+                                  HapticService.tap();
+                                  try {
+                                    await ref
+                                        .read(stickerSetsProvider.notifier)
+                                        .removeStickerSet(resolvedSet.id);
+                                    if (mounted) {
+                                      setState(() {
+                                        _fetchedSet = (_fetchedSet ?? resolvedSet)
+                                            .copyWith(isSaved: false);
+                                      });
+                                    }
+                                    if (context.mounted) {
+                                      AppToast.showSuccess(
+                                        context,
+                                        'Стикерпак удален из коллекции',
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      AppToast.showError(
+                                        context,
+                                        'Не удалось удалить: $e',
+                                      );
+                                    }
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() => _isActionLoading = false);
+                                    }
                                   }
-                                  if (context.mounted) {
-                                    AppToast.showSuccess(
-                                      context,
-                                      'Стикерпак удален из коллекции',
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    AppToast.showError(
-                                      context,
-                                      'Не удалось удалить: $e',
-                                    );
-                                  }
-                                } finally {
-                                  if (mounted) {
-                                    setState(() => _isActionLoading = false);
-                                  }
-                                }
-                              },
-                        icon: _isActionLoading
-                            ? const AppLoadingIndicator(size: 16)
-                            : const Icon(Icons.delete_outline_rounded,
-                                size: 18),
-                        label: const Text('Удалить'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: scheme.error,
-                          side: BorderSide(
-                            color: scheme.error.withValues(alpha: 0.5),
+                                },
+                          icon: _isActionLoading
+                              ? const AppLoadingIndicator(size: 16)
+                              : const Icon(Icons.delete_outline_rounded,
+                                  size: 18),
+                          label: const Text('Удалить'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: scheme.error,
+                            side: BorderSide(
+                              color: scheme.error.withValues(alpha: 0.5),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            minimumSize: const Size(0, 44),
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                        )
+                      : FilledButton.icon(
+                          onPressed: _isActionLoading
+                              ? null
+                              : () async {
+                                  setState(() => _isActionLoading = true);
+                                  HapticService.confirm();
+                                  try {
+                                    await ref
+                                        .read(stickerSetsProvider.notifier)
+                                        .saveStickerSet(resolvedSet.id);
+                                    if (mounted) {
+                                      setState(() {
+                                        _fetchedSet = (_fetchedSet ?? resolvedSet)
+                                            .copyWith(isSaved: true);
+                                      });
+                                    }
+                                    if (context.mounted) {
+                                      AppToast.showSuccess(
+                                        context,
+                                        'Стикерпак добавлен в коллекцию',
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      AppToast.showError(
+                                        context,
+                                        'Не удалось добавить: $e',
+                                      );
+                                    }
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() => _isActionLoading = false);
+                                    }
+                                  }
+                                },
+                          icon: _isActionLoading
+                              ? AppLoadingIndicator(
+                                  size: 16,
+                                  color: scheme.onPrimary,
+                                )
+                              : const Icon(Icons.add_rounded, size: 18),
+                          label: const Text('В коллекцию'),
+                          style: FilledButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            minimumSize: const Size(0, 44),
                           ),
-                          minimumSize: const Size(0, 44),
                         ),
-                      )
-                    : FilledButton.icon(
-                        onPressed: _isActionLoading
-                            ? null
-                            : () async {
-                                setState(() => _isActionLoading = true);
-                                HapticService.confirm();
-                                try {
-                                  await ref
-                                      .read(stickerSetsProvider.notifier)
-                                      .saveStickerSet(resolvedSet.id);
-                                  if (mounted) {
-                                    setState(() {
-                                      _fetchedSet = (_fetchedSet ?? resolvedSet)
-                                          .copyWith(isSaved: true);
-                                    });
-                                  }
-                                  if (context.mounted) {
-                                    AppToast.showSuccess(
-                                      context,
-                                      'Стикерпак добавлен в коллекцию',
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    AppToast.showError(
-                                      context,
-                                      'Не удалось добавить: $e',
-                                    );
-                                  }
-                                } finally {
-                                  if (mounted) {
-                                    setState(() => _isActionLoading = false);
-                                  }
-                                }
-                              },
-                        icon: _isActionLoading
-                            ? AppLoadingIndicator(
-                                size: 16,
-                                color: scheme.onPrimary,
-                              )
-                            : const Icon(Icons.add_rounded, size: 18),
-                        label: const Text('В коллекцию'),
-                        style: FilledButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          minimumSize: const Size(0, 44),
-                        ),
-                      ),
+                ),
               ],
             ),
             const SizedBox(height: 16),

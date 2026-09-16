@@ -378,7 +378,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             isSticker: isSticker,
             sticker: message.sticker,
             onStickerTap: () {
-              final int? targetSetId = message.resolvedStickerSetId;
+              final int? targetSetId =
+                  message.resolvedStickerSetId ?? message.sticker?.setId;
               if (targetSetId != null && targetSetId > 0) {
                 StickerSetModal.show(context, setId: targetSetId);
               } else if (message.sticker?.id != null) {
@@ -390,6 +391,9 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
                     StickerSetModal.show(context, stickerSet: s, setId: s.id);
                     return;
                   }
+                }
+                if (message.sticker?.setId != null && message.sticker!.setId! > 0) {
+                  StickerSetModal.show(context, setId: message.sticker!.setId);
                 }
               }
             },

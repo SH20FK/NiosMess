@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
 
 class WorkingHoursWidget extends StatefulWidget {
@@ -90,7 +91,7 @@ class _WorkingHoursWidgetState extends State<WorkingHoursWidget> {
                               width: 8,
                               height: 8,
                               decoration: BoxDecoration(
-                                color: isOpen ? Colors.green : scheme.error,
+                                color: isOpen ? AppColors.statusOnline : scheme.error,
                                 shape: BoxShape.circle,
                               ),
                             ),

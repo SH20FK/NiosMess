@@ -536,24 +536,6 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                 textTheme,
                 context.l10n.aboutUpToDate,
               ),
-
-            const SizedBox(height: 16),
-
-            // Action to view complete version history
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.tonalIcon(
-                onPressed: () => context.push('/settings/about/changelog'),
-                icon: const Icon(Icons.history_rounded, size: 20),
-                label: Text(context.l10n.aboutTabWhatsNew),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: AppRadii.of(context).mdRadius,
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -1329,23 +1311,23 @@ class _TeamMemberTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: <Widget>[
-              // Avatar placed in BrandShape with high contrast
+              // Avatar placed in BrandShape container with clean presentation
               StaticBrandShapeContainer(
                 shape: kBrandShapes[member.shapeIndex % kBrandShapes.length],
-                color: scheme.primary,
+                color: scheme.surfaceContainerHigh,
                 size: 52,
-                child: SizedBox.square(
-                  dimension: 34,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
                   child: Image.asset(
                     member.assetPath,
-                    fit: BoxFit.contain,
-                    color: scheme.onPrimary,
-                    colorBlendMode: BlendMode.srcIn,
+                    fit: BoxFit.cover,
+                    width: 44,
+                    height: 44,
                     errorBuilder: (_, _, _) => Center(
                       child: Icon(
                         member.fallbackIcon,
                         size: 24,
-                        color: scheme.onPrimary,
+                        color: scheme.primary,
                       ),
                     ),
                   ),

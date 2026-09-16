@@ -46,18 +46,21 @@ class MyQrCodeSheet extends ConsumerWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final AuthState auth = ref.watch(authProvider);
 
-    final String resolvedUsername =
-        username ?? auth.session?.username ?? auth.profile?.username ?? '';
-    final String resolvedDisplayName = displayName ??
-        auth.session?.displayName ??
-        auth.profile?.displayName ??
-        (resolvedUsername.isNotEmpty ? resolvedUsername : 'User');
-    final String? resolvedAvatar = avatarUrl ?? auth.profile?.avatarUrl;
+    final bool isSelf = (username == null || username!.isEmpty)
+        ? true
+        : (username == auth.session?.username || username == auth.profile?.username);
 
-    final bool isSelf = username == null ||
-        username!.isEmpty ||
-        username == auth.session?.username ||
-        username == auth.profile?.username;
+    final String resolvedUsername = (username != null && username!.isNotEmpty)
+        ? username!
+        : (auth.session?.username ?? auth.profile?.username ?? '');
+    final String resolvedDisplayName = (displayName != null && displayName!.isNotEmpty)
+        ? displayName!
+        : (isSelf
+            ? (auth.session?.displayName ??
+                auth.profile?.displayName ??
+                (resolvedUsername.isNotEmpty ? resolvedUsername : 'User'))
+            : (resolvedUsername.isNotEmpty ? resolvedUsername : 'User'));
+    final String? resolvedAvatar = avatarUrl ?? (isSelf ? auth.profile?.avatarUrl : null);
 
     final String profileUrl = 'https://ni-os.ru/u/$resolvedUsername';
     final String qrData =
@@ -70,7 +73,7 @@ class MyQrCodeSheet extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           Text(
-            isSelf ? 'Мой QR-код' : 'QR-код контакта',
+            isSelf ? 'Мой QR-код' : 'QR-код профиля',
             style: textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w800,
               letterSpacing: -0.4,

@@ -302,10 +302,20 @@ class ApiMessage {
                 (dynamic k, dynamic v) => MapEntry(k.toString(), v),
               ),
             )
-          : null,
+          : (json['msg_type'] == 'sticker' || _parseBool(json['is_sticker']))
+              ? ApiSticker(
+                  id: (json['sticker_id'] as num?)?.toInt() ?? (json['id'] as num?)?.toInt() ?? 0,
+                  url: json['media_url'] as String? ?? json['file_path'] as String? ?? '',
+                  setId: (json['sticker_set_id'] as num?)?.toInt() ?? (json['set_id'] as num?)?.toInt(),
+                )
+              : null,
       stickerSetId: (json['sticker_set_id'] as num?)?.toInt() ??
+          (json['set_id'] as num?)?.toInt() ??
+          (json['setId'] as num?)?.toInt() ??
           (json['sticker'] is Map
-              ? ((json['sticker'] as Map)['set_id'] as num?)?.toInt()
+              ? (((json['sticker'] as Map)['set_id'] as num?)?.toInt() ??
+                 ((json['sticker'] as Map)['setId'] as num?)?.toInt() ??
+                 ((json['sticker'] as Map)['sticker_set_id'] as num?)?.toInt())
               : null),
       isStickerExplicit:
           json['is_sticker'] != null ? _parseBool(json['is_sticker']) : null,

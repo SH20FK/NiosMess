@@ -1144,6 +1144,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       content: '',
       msgType: 'sticker',
       sticker: foundSticker,
+      stickerSetId: foundSticker?.setId,
       replyToId: replyToId,
       mediaUrl: foundSticker?.url,
       mediaType: foundSticker?.mediaType,
