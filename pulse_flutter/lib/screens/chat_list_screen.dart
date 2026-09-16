@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
+import 'package:pulse_flutter/core/identity/nios_mark.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -44,6 +45,8 @@ class ChatListScreen extends ConsumerStatefulWidget {
 
 class _ChatListScreenState extends ConsumerState<ChatListScreen>
     with SingleTickerProviderStateMixin {
+  Offset? _lastTapPosition;
+
   @override
   void initState() {
     super.initState();
@@ -326,7 +329,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                   .read(desktopSelectedChatProvider.notifier)
                                   .setSelectedChat(chat.id);
                             } else {
-                              context.push('/chat/${chat.id}');
+                              context.push('/chat/${chat.id}', extra: _lastTapPosition);
                             }
                           },
                           onLongPress: () =>
@@ -338,9 +341,17 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 ),
               );
 
+              final interactiveItem = Listener(
+                onPointerDown: (PointerDownEvent event) {
+                  _lastTapPosition = event.position;
+                },
+                behavior: HitTestBehavior.translucent,
+                child: item,
+              );
+
               return RepaintBoundary(
                 key: ValueKey<int>(chat.id),
-                child: item,
+                child: interactiveItem,
               );
             },
             addAutomaticKeepAlives: false,
@@ -453,14 +464,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   Color _avatarColor(int seed, ColorScheme scheme) {
-    final List<Color> colors = <Color>[
-      scheme.primary,
-      scheme.secondary,
-      scheme.tertiary,
-      scheme.primaryContainer,
-      scheme.secondaryContainer,
-    ];
-    return colors[seed.abs() % colors.length];
+    return NiosMark.resolveColor('$seed', scheme);
   }
 
   Widget _swipeBackground({

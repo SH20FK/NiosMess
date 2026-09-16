@@ -1,10 +1,9 @@
-import 'dart:collection';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
-import 'package:pulse_flutter/core/theme/app_colors.dart';
+import 'package:pulse_flutter/core/identity/nios_mark.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 
 class PulseAvatar extends StatelessWidget {
@@ -19,17 +18,8 @@ class PulseAvatar extends StatelessWidget {
     super.key,
   });
 
-  static final LinkedHashMap<String, Color> _colorCache =
-      LinkedHashMap<String, Color>();
-
-  static Color _colorFromName(String name, ColorScheme scheme) {
-    final String key = '${name}_${scheme.brightness.index}_${scheme.primary.toARGB32()}';
-    if (_colorCache.containsKey(key)) return _colorCache[key]!;
-    if (_colorCache.length >= 200) _colorCache.remove(_colorCache.keys.first);
-    final Color color = avatarColorFor(name, scheme);
-    _colorCache[key] = color;
-    return color;
-  }
+  static Color _colorFromName(String name, ColorScheme scheme) =>
+      NiosMark.resolveColor(name, scheme);
 
   final String name;
   final String? avatarUrl;

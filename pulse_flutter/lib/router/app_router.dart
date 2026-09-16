@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/motion/circular_reveal_transition.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/screens/chat_detail_screen.dart';
 import 'package:pulse_flutter/screens/chat_manage_screen.dart';
@@ -74,6 +75,29 @@ Page<void> _m3eEntryPage(GoRouterState state, Widget child, {LocalKey? pageKey})
           scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnimation),
           child: child,
         ),
+      );
+    },
+  );
+}
+
+Page<void> _chatDetailPage(GoRouterState state, Widget child, {LocalKey? pageKey}) {
+  final Object? extra = state.extra;
+  final Offset? tapOffset = extra is Offset ? extra : null;
+
+  if (tapOffset == null) {
+    return _m3eEntryPage(state, child, pageKey: pageKey);
+  }
+
+  return CustomTransitionPage<void>(
+    key: pageKey ?? state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 380),
+    reverseTransitionDuration: const Duration(milliseconds: 280),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return CircularRevealTransition(
+        animation: animation,
+        center: tapOffset,
+        child: child,
       );
     },
   );
@@ -180,7 +204,14 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/chat/:chatId',
-        pageBuilder: (context, state) => _page(state, ChatDetailScreen(chatId: state.pathParameters['chatId']!, highlightMessageId: int.tryParse(state.uri.queryParameters['highlight'] ?? '')), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _chatDetailPage(
+          state,
+          ChatDetailScreen(
+            chatId: state.pathParameters['chatId']!,
+            highlightMessageId: int.tryParse(state.uri.queryParameters['highlight'] ?? ''),
+          ),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/chat/dm/:username',

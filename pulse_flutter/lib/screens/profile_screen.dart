@@ -22,6 +22,7 @@ import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/common/app_pill_field.dart';
+import 'package:pulse_flutter/widgets/nios_mark_badge.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
@@ -482,6 +483,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ],
             ),
           ),
+          const SizedBox(width: 8),
+          NiosMarkBadge(
+            id: (auth.session?.userId ?? auth.profile?.id ?? 0).toString(),
+            name: displayName,
+            size: isCompact ? 36 : 42,
+          ),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(

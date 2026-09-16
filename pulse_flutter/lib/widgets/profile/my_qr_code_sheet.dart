@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/nios_mark_badge.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
 /// Material 3 Expressive bottom sheet displaying the current user's profile QR code
@@ -164,6 +165,12 @@ class MyQrCodeSheet extends ConsumerWidget {
                             ),
                         ],
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    NiosMarkBadge(
+                      id: resolvedUsername.isNotEmpty ? resolvedUsername : resolvedDisplayName,
+                      name: resolvedDisplayName,
+                      size: 38,
                     ),
                   ],
                 ),

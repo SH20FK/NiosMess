@@ -9,6 +9,8 @@ import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/bot_detector.dart';
+import 'package:pulse_flutter/core/theme/nios_chroma.dart';
+import 'package:pulse_flutter/providers/chat_wallpaper_provider.dart';
 import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_background.dart';
 
 import 'package:flutter/material.dart';
@@ -1823,7 +1825,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final List<ApiChatMember> members =
         ref.watch(chatMembersProvider(chatId)).value ?? const <ApiChatMember>[];
 
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final ColorScheme baseScheme = Theme.of(context).colorScheme;
+    final wallpaperState = ref.watch(chatWallpaperProvider);
+    final chatWallpaper = wallpaperState.forChat(chatId.toString());
+    final bool hasCustomWallpaper = chatWallpaper != wallpaperState.global ||
+        chatWallpaper.imagePath != null;
+
+    final bool isDirect = chat?.chatType == 'direct' && !isGroup && !isChannel;
+    final ColorScheme scheme = (isDirect && NiosChroma.shouldApply(hasCustomWallpaper: hasCustomWallpaper))
+        ? NiosChroma.resolveChromaScheme(
+            userScheme: baseScheme,
+            partnerId: chat?.name.isNotEmpty == true ? chat!.name : chatId.toString(),
+            chatId: chatId,
+          )
+        : baseScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final String? directUsername = _resolveDirectUsername(
       chat,
@@ -1844,7 +1859,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               : context.l10n.chatTitleFallback(chatId));
 
     final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
-    return PopScope(
+    final Widget content = PopScope(
       canPop: !widget.isDesktopSplit && canRoutePop,
       onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) return;
@@ -2167,6 +2182,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       ),
       backgroundColor: scheme.surface,
     ),
+  );
+
+  if (scheme == baseScheme) {
+    return content;
+  }
+
+  return Theme(
+    data: Theme.of(context).copyWith(colorScheme: scheme),
+    child: content,
   );
   }
 }
