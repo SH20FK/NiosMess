@@ -24,6 +24,7 @@ import 'package:pulse_flutter/widgets/post_card.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
+import 'package:pulse_flutter/widgets/post_media_strip.dart';
 
 class NiosgramScreen extends ConsumerStatefulWidget {
   const NiosgramScreen({super.key});
@@ -569,6 +570,7 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
   bool _isLoading = false;
   String? _error;
 
+  static const int _maxPostLength = 2000;
   static const int _maxFileBytes = 10 * 1024 * 1024; // 10 MB
 
   @override
@@ -713,8 +715,8 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
         context.l10n.profileGuestName;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOutCubic,
+      duration: const Duration(milliseconds: 280),
+      curve: M3SpringCurves.spatial,
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: isDark ? scheme.surfaceContainerLow : scheme.surface,
@@ -736,357 +738,327 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
               ],
       ),
       padding: EdgeInsets.all(_isExpanded ? 16 : 10),
-      child: !_isExpanded
-          // Collapsed single-line bar
-          ? Row(
-              children: <Widget>[
-                PulseAvatar(
-                  name: displayName,
-                  avatarUrl: auth.profile?.avatarUrl,
-                  radius: 18,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _expand,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest.withValues(
-                            alpha: isDark ? 0.35 : 0.45,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          'Что у вас нового?',
-                          style: TextStyle(
-                            color: scheme.onSurfaceVariant
-                                .withValues(alpha: 0.8),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Material(
-                  color: scheme.primary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(14),
-                  child: Tooltip(
-                    message: 'Добавить фото',
-                    child: InkWell(
-                      onTap: _pickMedia,
-                      borderRadius: BorderRadius.circular(14),
-                      child: Padding(
-                        padding: const EdgeInsets.all(9),
-                        child: Icon(
-                          Icons.image_outlined,
-                          size: 20,
-                          color: scheme.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          // Expanded inline composer
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                // Header
-                Row(
-                  children: <Widget>[
-                    PulseAvatar(
-                      name: displayName,
-                      avatarUrl: auth.profile?.avatarUrl,
-                      radius: 18,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            displayName,
-                            style: textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            'Новая публикация',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant
-                                  .withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20),
-                      tooltip: 'Свернуть',
-                      onPressed: _isLoading ? null : _collapse,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Text field
-                Container(
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest.withValues(
-                      alpha: isDark ? 0.30 : 0.40,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  child: TextField(
-                    controller: _textController,
-                    focusNode: _focusNode,
-                    maxLines: 6,
-                    minLines: 3,
-                    style: textTheme.bodyLarge?.copyWith(fontSize: 14.5),
-                    decoration: InputDecoration(
-                      hintText: 'Что у вас нового?',
-                      hintStyle: TextStyle(
-                        color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-                      ),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-
-                // Selected media preview (compact horizontal strip)
-                if (_previewBytesList.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 76,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _previewBytesList.length +
-                          (_previewBytesList.length < 5 ? 1 : 0),
-                      separatorBuilder: (_, _) => const SizedBox(width: 8),
-                      itemBuilder: (BuildContext context, int index) {
-                        if (index == _previewBytesList.length) {
-                          // [+] Slot to add more photos
-                          return Material(
-                            color: scheme.surfaceContainerHighest
-                                .withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(12),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: _isLoading ? null : _pickMedia,
-                              child: Container(
-                                width: 76,
-                                height: 76,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: scheme.outlineVariant
-                                        .withValues(alpha: 0.35),
-                                  ),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: <Widget>[
-                                    Icon(
-                                      Icons.add_photo_alternate_rounded,
-                                      size: 22,
-                                      color: scheme.primary,
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      'Ещё',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: scheme.primary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-
-                        return Stack(
-                          children: <Widget>[
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.memory(
-                                _previewBytesList[index],
-                                width: 76,
-                                height: 76,
-                                cacheWidth: 200,
-                                cacheHeight: 200,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            Positioned(
-                              top: 3,
-                              right: 3,
-                              child: Material(
-                                color: scheme.scrim.withValues(alpha: 0.65),
-                                shape: const CircleBorder(),
-                                child: Tooltip(
-                                  message: 'Удалить фото',
-                                  child: InkWell(
-                                    customBorder: const CircleBorder(),
-                                    onTap: () => setState(() {
-                                      _selectedFiles.removeAt(index);
-                                      _previewBytesList.removeAt(index);
-                                    }),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(4),
-                                      child: Icon(
-                                        Icons.close_rounded,
-                                        size: 13,
-                                        color: scheme.onPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ],
-
-                // Error message
-                if (_error != null) ...<Widget>[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: scheme.errorContainer,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 280),
+          curve: M3SpringCurves.spatial,
+          alignment: Alignment.topCenter,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: !_isExpanded
+                // Collapsed single-line bar
+                ? KeyedSubtree(
+                    key: const ValueKey<String>('collapsed_quick_bar'),
                     child: Row(
                       children: <Widget>[
-                        Icon(
-                          Icons.error_outline_rounded,
-                          size: 16,
-                          color: scheme.onErrorContainer,
+                        PulseAvatar(
+                          name: displayName,
+                          avatarUrl: auth.profile?.avatarUrl,
+                          radius: 18,
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: Text(
-                            _error!,
-                            style: TextStyle(
-                              color: scheme.onErrorContainer,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 12),
-
-                // Bottom toolbar
-                LayoutBuilder(
-                  builder: (BuildContext context, BoxConstraints constraints) {
-                    final bool isVeryNarrow = constraints.maxWidth < 310;
-                    return Row(
-                      children: <Widget>[
-                        Tooltip(
-                          message: _selectedFiles.isEmpty
-                              ? 'Прикрепить фото'
-                              : 'Прикреплено фото: ${_selectedFiles.length}/5',
-                          child: IconButton.filledTonal(
-                            onPressed: _isLoading || _selectedFiles.length >= 5
-                                ? null
-                                : _pickMedia,
-                            icon: Badge(
-                              isLabelVisible: _selectedFiles.isNotEmpty,
-                              label: Text('${_selectedFiles.length}'),
-                              child: const Icon(
-                                Icons.add_photo_alternate_outlined,
-                                size: 20,
-                              ),
-                            ),
-                            style: IconButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _expand,
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: scheme.surfaceContainerHighest
+                                      .withValues(
+                                    alpha: isDark ? 0.35 : 0.45,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  context.l10n.postHint,
+                                  style: TextStyle(
+                                    color: scheme.onSurfaceVariant
+                                        .withValues(alpha: 0.8),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        if (_textController.text.isNotEmpty && !isVeryNarrow)
-                          Text(
-                            '${_textController.text.length} симв.',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant
-                                  .withValues(alpha: 0.6),
-                              fontSize: 11,
-                            ),
-                          ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: _isLoading ? null : _collapse,
-                          style: TextButton.styleFrom(
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          child: const Text('Отмена', style: TextStyle(fontSize: 13)),
-                        ),
-                        const SizedBox(width: 4),
-                        FilledButton.icon(
-                          onPressed: _isLoading ? null : _submit,
-                          icon: _isLoading
-                              ? AppLoadingIndicator(
-                                  size: 14,
-                                  color: scheme.onPrimary,
-                                )
-                              : const Icon(Icons.send_rounded, size: 14),
-                          label: Text(
-                            isVeryNarrow ? 'Пост' : 'Опубликовать',
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                          style: FilledButton.styleFrom(
-                            visualDensity: VisualDensity.compact,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isVeryNarrow ? 10 : 14,
-                              vertical: 0,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        Material(
+                          color: scheme.primary.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(14),
+                          child: Tooltip(
+                            message: context.l10n.postAttachMedia,
+                            child: InkWell(
+                              onTap: _pickMedia,
+                              borderRadius: BorderRadius.circular(14),
+                              child: Padding(
+                                padding: const EdgeInsets.all(9),
+                                child: Icon(
+                                  Icons.image_outlined,
+                                  size: 20,
+                                  color: scheme.primary,
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ],
-                    );
-                  },
-                ),
-              ],
-            ),
+                    ),
+                  )
+                // Expanded inline composer
+                : KeyedSubtree(
+                    key: const ValueKey<String>('expanded_quick_composer'),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        // Header
+                        Row(
+                          children: <Widget>[
+                            PulseAvatar(
+                              name: displayName,
+                              avatarUrl: auth.profile?.avatarUrl,
+                              radius: 18,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(
+                                    displayName,
+                                    style: textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    context.l10n.postNewPost,
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: scheme.onSurfaceVariant
+                                          .withValues(alpha: 0.7),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 20),
+                              tooltip: context.l10n.commonCancel,
+                              onPressed: _isLoading ? null : _collapse,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Text field with M3 Expressive padding & geometry
+                        Container(
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHighest.withValues(
+                              alpha: isDark ? 0.30 : 0.40,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: TextField(
+                            controller: _textController,
+                            focusNode: _focusNode,
+                            maxLines: 6,
+                            minLines: 1,
+                            maxLength: _maxPostLength,
+                            buildCounter: (_,
+                                    {required int currentLength,
+                                    required bool isFocused,
+                                    int? maxLength}) =>
+                                null,
+                            style:
+                                textTheme.bodyLarge?.copyWith(fontSize: 14.5),
+                            decoration: InputDecoration(
+                              hintText: context.l10n.postHint,
+                              hintStyle: TextStyle(
+                                color: scheme.onSurfaceVariant
+                                    .withValues(alpha: 0.7),
+                              ),
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 6,
+                              ),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+
+                        // Selected media preview (reusable PostMediaStrip)
+                        if (_previewBytesList.isNotEmpty) ...<Widget>[
+                          const SizedBox(height: 12),
+                          PostMediaStrip(
+                            selectedFiles: _selectedFiles,
+                            previewBytesList: _previewBytesList,
+                            tileSize: 76,
+                            isLoading: _isLoading,
+                            onAdd: _pickMedia,
+                            onRemove: (int index) {
+                              setState(() {
+                                _selectedFiles.removeAt(index);
+                                _previewBytesList.removeAt(index);
+                              });
+                            },
+                          ),
+                        ],
+
+                        // Error message
+                        if (_error != null) ...<Widget>[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: scheme.errorContainer,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: <Widget>[
+                                Icon(
+                                  Icons.error_outline_rounded,
+                                  size: 16,
+                                  color: scheme.onErrorContainer,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    _error!,
+                                    style: TextStyle(
+                                      color: scheme.onErrorContainer,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 12),
+
+                        // Bottom toolbar
+                        LayoutBuilder(
+                          builder: (BuildContext context,
+                              BoxConstraints constraints) {
+                            final bool isVeryNarrow =
+                                constraints.maxWidth < 310;
+                            final int textLength = _textController.text.length;
+                            final bool isNearLimit =
+                                textLength > (_maxPostLength - 200);
+
+                            return Row(
+                              children: <Widget>[
+                                Tooltip(
+                                  message: _selectedFiles.isEmpty
+                                      ? context.l10n.postAttachMedia
+                                      : '${context.l10n.postAttachMedia}: ${_selectedFiles.length}/5',
+                                  child: IconButton.filledTonal(
+                                    onPressed: _isLoading ||
+                                            _selectedFiles.length >= 5
+                                        ? null
+                                        : _pickMedia,
+                                    icon: Badge(
+                                      isLabelVisible:
+                                          _selectedFiles.isNotEmpty,
+                                      label: Text('${_selectedFiles.length}'),
+                                      child: const Icon(
+                                        Icons.add_photo_alternate_outlined,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    style: IconButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                if (textLength > 0 && !isVeryNarrow)
+                                  Text(
+                                    '$textLength / $_maxPostLength',
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: isNearLimit
+                                          ? scheme.error
+                                          : scheme.onSurfaceVariant
+                                              .withValues(alpha: 0.6),
+                                      fontSize: 11,
+                                      fontWeight: isNearLimit
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                    ),
+                                  ),
+                                const Spacer(),
+                                TextButton(
+                                  onPressed: _isLoading ? null : _collapse,
+                                  style: TextButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  child: Text(
+                                    context.l10n.commonCancel,
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                FilledButton.icon(
+                                  onPressed: _isLoading ? null : _submit,
+                                  icon: _isLoading
+                                      ? AppLoadingIndicator(
+                                          size: 14,
+                                          color: scheme.onPrimary,
+                                        )
+                                      : const Icon(Icons.send_rounded,
+                                          size: 14),
+                                  label: Text(
+                                    isVeryNarrow
+                                        ? 'Пост'
+                                        : context.l10n.postPublish,
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                  style: FilledButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isVeryNarrow ? 10 : 14,
+                                      vertical: 0,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        ),
+      ),
     );
   }
 }

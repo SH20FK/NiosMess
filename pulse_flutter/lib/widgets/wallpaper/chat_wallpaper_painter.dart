@@ -6,21 +6,9 @@ import 'package:pulse_flutter/core/identity/nios_weave.dart';
 import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
 import 'package:pulse_flutter/widgets/wallpaper/cupertino_icons_data.dart';
 import 'package:pulse_flutter/widgets/wallpaper/icon_sources_catalog.dart';
+import 'package:pulse_flutter/widgets/wallpaper/curated_wallpaper_catalog.dart';
 import 'package:pulse_flutter/widgets/wallpaper/material_symbols_data.dart';
 import 'package:pulse_flutter/widgets/wallpaper/wallpaper_color_resolver.dart';
-
-const List<Shapes> _kAllM3Shapes = <Shapes>[
-  Shapes.gem,
-  Shapes.c9_sided_cookie,
-  Shapes.l4_leaf_clover,
-  Shapes.burst,
-  Shapes.pentagon,
-  Shapes.slanted,
-  Shapes.very_sunny,
-  Shapes.sunny,
-  Shapes.flower,
-  Shapes.puffy,
-];
 
 class ChatWallpaperPainter extends CustomPainter {
   ChatWallpaperPainter({
@@ -560,12 +548,18 @@ class ChatWallpaperPainter extends CustomPainter {
     final Map<String, ui.Paragraph> cachedParagraphs = <String, ui.Paragraph>{};
 
     if (config.iconSource == IconSource.niosMess) {
-      if (config.useAllIcons) {
-        shapesPool.addAll(_kAllM3Shapes);
+      if (config.selectedGlyphs.isNotEmpty) {
+        for (final String name in config.selectedGlyphs) {
+          shapesPool.add(CuratedWallpaperCatalog.resolveShape(name));
+        }
+      } else if (config.themePack.startsWith('m3_')) {
+        shapesPool.addAll(CuratedWallpaperCatalog.getShapesForPack(config.themePack));
+      } else if (config.useAllIcons || config.themePack == 'all') {
+        shapesPool.addAll(CuratedWallpaperCatalog.allM3Shapes);
       } else if (config.m3ShapeName != null && config.m3ShapeName!.isNotEmpty) {
-        shapesPool.add(_resolveM3Shape(config.m3ShapeName!));
+        shapesPool.add(CuratedWallpaperCatalog.resolveShape(config.m3ShapeName!));
       } else {
-        shapesPool.add(Shapes.gem);
+        shapesPool.addAll(CuratedWallpaperCatalog.organicShapes);
       }
 
       for (final Shapes shape in shapesPool) {
@@ -579,7 +573,7 @@ class ChatWallpaperPainter extends CustomPainter {
         shapePaints[role] = Paint()
           ..color = c
           ..style = config.filled ? PaintingStyle.fill : PaintingStyle.stroke
-          ..strokeWidth = max(1.2, iconBaseSize * 0.075);
+          ..strokeWidth = max(1.5, iconBaseSize * 0.08);
       }
     } else if (config.iconSource == IconSource.materialSymbols) {
       if (config.themePack != 'all' && config.themePack != 'custom') {
@@ -745,45 +739,6 @@ class ChatWallpaperPainter extends CustomPainter {
         return 'MaterialSymbolsRounded';
       case MaterialSymbolsStyle.sharp:
         return 'MaterialSymbolsSharp';
-    }
-  }
-
-  static Shapes _resolveM3Shape(String shapeName) {
-    switch (shapeName.toLowerCase()) {
-      case 'm3_gem':
-      case 'gem':
-        return Shapes.gem;
-      case 'm3_cookie':
-      case 'cookie':
-      case 'c9_sided_cookie':
-        return Shapes.c9_sided_cookie;
-      case 'm3_clover':
-      case 'clover':
-      case 'l4_leaf_clover':
-        return Shapes.l4_leaf_clover;
-      case 'm3_burst':
-      case 'burst':
-        return Shapes.burst;
-      case 'm3_pentagon':
-      case 'pentagon':
-        return Shapes.pentagon;
-      case 'm3_slanted':
-      case 'slanted':
-        return Shapes.slanted;
-      case 'm3_sunny':
-      case 'sunny':
-        return Shapes.sunny;
-      case 'm3_very_sunny':
-      case 'very_sunny':
-        return Shapes.very_sunny;
-      case 'm3_flower':
-      case 'flower':
-        return Shapes.flower;
-      case 'm3_puffy':
-      case 'puffy':
-        return Shapes.puffy;
-      default:
-        return Shapes.gem;
     }
   }
 

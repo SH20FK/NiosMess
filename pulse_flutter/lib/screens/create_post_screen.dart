@@ -16,6 +16,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/post_media_strip.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key, this.autoPickMedia = false});
@@ -34,6 +35,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   bool _isLoading = false;
   String? _error;
 
+  static const int _maxPostLength = 2000;
   static const int _maxFileBytes = 10 * 1024 * 1024; // 10 MB
 
   @override
@@ -372,7 +374,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                           color: scheme.surfaceContainerHighest.withValues(
                             alpha: isDark ? 0.35 : 0.40,
                           ),
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
@@ -381,7 +383,13 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                         child: TextField(
                           controller: _textController,
                           maxLines: 8,
-                          minLines: 4,
+                          minLines: 1,
+                          maxLength: _maxPostLength,
+                          buildCounter: (_,
+                                  {required int currentLength,
+                                  required bool isFocused,
+                                  int? maxLength}) =>
+                              null,
                           style: textTheme.bodyLarge?.copyWith(fontSize: 15),
                           decoration: InputDecoration(
                             hintText: context.l10n.postHint,
@@ -391,148 +399,41 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                             ),
                             border: InputBorder.none,
                             isDense: true,
-                            contentPadding: EdgeInsets.zero,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 6,
+                            ),
                           ),
+                          onChanged: (_) => setState(() {}),
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      // Media preview (compact horizontal strip ~84dp)
+                      // Media preview (reusable PostMediaStrip)
                       if (_previewBytesList.isNotEmpty) ...<Widget>[
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Text(
-                            'Прикрепленные фото (${_previewBytesList.length}/5)',
+                            '${context.l10n.postAttachMedia} (${_previewBytesList.length}/5)',
                             style: textTheme.labelMedium?.copyWith(
                               color: scheme.onSurfaceVariant,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                        SizedBox(
-                          height: 84,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _previewBytesList.length +
-                                (_previewBytesList.length < 5 ? 1 : 0),
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(width: 8),
-                            itemBuilder: (BuildContext context, int index) {
-                              if (index == _previewBytesList.length) {
-                                // [+] Slot to add more photos
-                                return Material(
-                                  color: scheme.surfaceContainerHighest
-                                      .withValues(alpha: 0.4),
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(14),
-                                    onTap: _pickMedia,
-                                    child: Container(
-                                      width: 84,
-                                      height: 84,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(
-                                          color: scheme.outlineVariant
-                                              .withValues(alpha: 0.4),
-                                        ),
-                                      ),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: <Widget>[
-                                          Icon(
-                                            Icons.add_photo_alternate_rounded,
-                                            size: 24,
-                                            color: scheme.primary,
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Ещё фото',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w600,
-                                              color: scheme.primary,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-
-                              final bool isVideo = _isVideoFile(_selectedFiles[index].name);
-                              return Stack(
-                                children: <Widget>[
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(14),
-                                    child: isVideo
-                                        ? Container(
-                                            width: 84,
-                                            height: 84,
-                                            decoration: BoxDecoration(
-                                              color: scheme.surfaceContainerHighest,
-                                              borderRadius: BorderRadius.circular(14),
-                                            ),
-                                            alignment: Alignment.center,
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: <Widget>[
-                                                Icon(Icons.videocam_rounded, size: 30, color: scheme.primary),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  'Видео',
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: scheme.primary,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          )
-                                        : Image.memory(
-                                            _previewBytesList[index],
-                                            width: 84,
-                                            height: 84,
-                                            cacheWidth: 200,
-                                            cacheHeight: 200,
-                                            fit: BoxFit.cover,
-                                          ),
-                                  ),
-                                  Positioned(
-                                    top: 4,
-                                    right: 4,
-                                    child: Material(
-                                      color: scheme.scrim.withValues(alpha: 0.65),
-                                      shape: const CircleBorder(),
-                                      child: Tooltip(
-                                        message: 'Удалить',
-                                        child: InkWell(
-                                          customBorder: const CircleBorder(),
-                                          onTap: () => setState(() {
-                                            _selectedFiles.removeAt(index);
-                                            _previewBytesList.removeAt(index);
-                                            _selectedFile =
-                                                _selectedFiles.firstOrNull;
-                                          }),
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(4),
-                                            child: Icon(
-                                              Icons.close_rounded,
-                                              size: 14,
-                                              color: scheme.onPrimary,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
+                        PostMediaStrip(
+                          selectedFiles: _selectedFiles,
+                          previewBytesList: _previewBytesList,
+                          isLoading: _isLoading,
+                          tileSize: 84,
+                          onAdd: _pickMedia,
+                          onRemove: (int index) {
+                            setState(() {
+                              _selectedFiles.removeAt(index);
+                              _previewBytesList.removeAt(index);
+                              _selectedFile = _selectedFiles.firstOrNull;
+                            });
+                          },
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -609,10 +510,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                       ),
                       label: Text(
                         _selectedFiles.isEmpty
-                            ? (isNarrow ? 'Фото' : 'Добавить фото')
+                            ? (isNarrow ? 'Фото' : context.l10n.postAttachMedia)
                             : (isNarrow
                                 ? '${_selectedFiles.length}/5'
-                                : 'Фото (${_selectedFiles.length}/5)'),
+                                : '${context.l10n.postAttachMedia} (${_selectedFiles.length}/5)'),
                       ),
                       style: FilledButton.styleFrom(
                         shape: RoundedRectangleBorder(
@@ -629,10 +530,18 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                       Padding(
                         padding: const EdgeInsets.only(right: 10),
                         child: Text(
-                          '${_textController.text.length} симв.',
+                          '${_textController.text.length} / $_maxPostLength',
                           style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant
-                                .withValues(alpha: 0.6),
+                            color: _textController.text.length >
+                                    (_maxPostLength - 200)
+                                ? scheme.error
+                                : scheme.onSurfaceVariant
+                                    .withValues(alpha: 0.6),
+                            fontSize: 11,
+                            fontWeight: _textController.text.length >
+                                    (_maxPostLength - 200)
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                           ),
                         ),
                       ),

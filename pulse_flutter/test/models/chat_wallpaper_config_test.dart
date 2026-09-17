@@ -5,11 +5,11 @@ void main() {
   group('ChatWallpaperConfig', () {
     test('Default configuration holds correct defaults', () {
       const config = ChatWallpaperConfig.defaultPattern;
-      expect(config.iconSource, IconSource.materialSymbols);
-      expect(config.glyphName, 'star');
+      expect(config.iconSource, IconSource.niosMess);
+      expect(config.glyphName, 'gem');
       expect(config.useAllIcons, true);
       expect(config.layoutMode, WallpaperLayoutMode.stagger);
-      expect(config.density, 0.75);
+      expect(config.density, 0.70);
       expect(config.seed, 42);
     });
 
