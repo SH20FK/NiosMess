@@ -21,6 +21,8 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
@@ -2224,6 +2226,7 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
     with SingleTickerProviderStateMixin {
   AnimationController? _controller;
   Animation<double>? _fade;
+  Animation<double>? _scale;
   Animation<Offset>? _slide;
 
   @override
@@ -2232,14 +2235,33 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
     if (widget.animate) {
       final ctrl = AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 250),
+        duration: M3Durations.medium3,
       );
       _controller = ctrl;
-      _fade = CurvedAnimation(parent: ctrl, curve: Curves.easeOut);
-      _slide = Tween<Offset>(
-        begin: const Offset(0.0, 0.2),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeOutCubic));
+      _fade = CurvedAnimation(
+        parent: ctrl,
+        curve: const Interval(0.0, 0.65, curve: M3SpringCurves.gentle),
+      );
+
+      // MOM-1: Physical spring entrance from composer / origin
+      if (widget.isMine) {
+        _scale = Tween<double>(begin: 0.35, end: 1.0).animate(
+          CurvedAnimation(parent: ctrl, curve: M3SpringCurves.emphasized),
+        );
+        _slide = Tween<Offset>(
+          begin: const Offset(0.10, 0.35),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: ctrl, curve: M3SpringCurves.emphasized));
+        TriSync.pop(context: context);
+      } else {
+        _scale = Tween<double>(begin: 0.55, end: 1.0).animate(
+          CurvedAnimation(parent: ctrl, curve: M3SpringCurves.spatial),
+        );
+        _slide = Tween<Offset>(
+          begin: const Offset(-0.06, 0.20),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: ctrl, curve: M3SpringCurves.spatial));
+      }
       ctrl.forward();
     }
   }
@@ -2259,7 +2281,11 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
       opacity: _fade!,
       child: SlideTransition(
         position: _slide!,
-        child: widget.child,
+        child: ScaleTransition(
+          scale: _scale!,
+          alignment: widget.isMine ? Alignment.bottomRight : Alignment.bottomLeft,
+          child: widget.child,
+        ),
       ),
     );
   }

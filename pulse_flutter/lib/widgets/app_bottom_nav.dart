@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -112,6 +113,17 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
             final double left = currentCenterX - pillW / 2;
             final double top = (constraints.maxHeight - pillH) / 2;
 
+            const List<Shapes> tabShapes = <Shapes>[
+              Shapes.gem,
+              Shapes.c9_sided_cookie,
+              Shapes.burst,
+              Shapes.flower,
+            ];
+            final Shapes fromShape =
+                tabShapes[_from.clamp(0, tabShapes.length - 1)];
+            final Shapes toShape =
+                tabShapes[widget.index.clamp(0, tabShapes.length - 1)];
+
             return Stack(
               clipBehavior: Clip.none,
               children: <Widget>[
@@ -120,11 +132,29 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
                   top: top,
                   width: pillW,
                   height: pillH,
-                  child: DecoratedBox(
-                    decoration: ShapeDecoration(
-                      color: widget.color,
-                      shape: const StadiumBorder(),
-                    ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: <Widget>[
+                      DecoratedBox(
+                        decoration: ShapeDecoration(
+                          color: widget.color,
+                          shape: const StadiumBorder(),
+                        ),
+                        child: const SizedBox.expand(),
+                      ),
+                      // MOM-5: Expressive brand shape morphing between tabs
+                      Opacity(
+                        opacity: (1.0 - wobble * 0.7).clamp(0.0, 1.0),
+                        child: ClipPath(
+                          clipper: M3Clipper(t < 0.5 ? fromShape : toShape),
+                          child: Container(
+                            width: pillH * 0.80,
+                            height: pillH * 0.80,
+                            color: widget.color.withValues(alpha: 0.30),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -233,7 +263,7 @@ class AppBottomNav extends ConsumerWidget {
                   ? Badge(
                       label: item.badge < 100
                           ? AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 250),
+                              duration: M3Durations.medium1,
                               transitionBuilder:
                                   (Widget child, Animation<double> anim) =>
                                       ScaleTransition(

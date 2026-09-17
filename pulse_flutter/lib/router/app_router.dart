@@ -346,6 +346,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           SettingsWallpaperScreen(
             chatId: state.uri.queryParameters['chatId'],
             chatTitle: state.uri.queryParameters['chatTitle'],
+            initialCode: state.uri.queryParameters['code'],
           ),
           pageKey: state.pageKey,
         ),

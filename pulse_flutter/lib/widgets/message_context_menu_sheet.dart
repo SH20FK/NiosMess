@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
@@ -249,14 +251,14 @@ class _ReactionsRow extends StatelessWidget {
               emoji: reaction.emoji,
               scheme: scheme,
               onTap: () {
-                HapticService.tap();
+                TriSync.reaction(context: context);
                 Navigator.of(context).pop();
                 onReact(reaction.emoji);
               },
             ),
           ],
           _ReactionAddButton(scheme: scheme, onTap: () {
-            HapticService.tap();
+            TriSync.pop(context: context);
             Navigator.of(context).pop();
             onShowAllReactions();
           }),
@@ -266,7 +268,7 @@ class _ReactionsRow extends StatelessWidget {
   }
 }
 
-class _ReactionButton extends StatelessWidget {
+class _ReactionButton extends StatefulWidget {
   const _ReactionButton({
     required this.emoji,
     required this.scheme,
@@ -278,15 +280,67 @@ class _ReactionButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_ReactionButton> createState() => _ReactionButtonState();
+}
+
+class _ReactionButtonState extends State<_ReactionButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: M3Durations.short4,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.28).animate(
+      CurvedAnimation(
+        parent: _animController,
+        curve: M3SpringCurves.bouncy,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return TouchContainer(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      color: scheme.surfaceContainerHighest,
-      width: 44,
-      height: 44,
-      child: Center(
-        child: Text(emoji, style: const TextStyle(fontSize: 22)),
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: TouchContainer(
+        onTap: () {
+          _animController.forward().then((_) {
+            if (mounted) _animController.reverse();
+          });
+          widget.onTap();
+        },
+        borderRadius: BorderRadius.circular(22),
+        width: 44,
+        height: 44,
+        scaleDown: 0.88,
+        releaseCurve: M3SpringCurves.bouncy,
+        child: Stack(
+          alignment: Alignment.center,
+          children: <Widget>[
+            ClipPath(
+              clipper: M3Clipper(Shapes.flower),
+              child: Container(
+                width: 44,
+                height: 44,
+                color: widget.scheme.surfaceContainerHighest,
+              ),
+            ),
+            Center(
+              child: Text(widget.emoji, style: const TextStyle(fontSize: 22)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -303,11 +357,25 @@ class _ReactionAddButton extends StatelessWidget {
     return TouchContainer(
       onTap: onTap,
       borderRadius: BorderRadius.circular(22),
-      color: scheme.primaryContainer,
       width: 44,
       height: 44,
-      child: Center(
-        child: Icon(Icons.add_rounded, size: 22, color: scheme.primary),
+      scaleDown: 0.88,
+      releaseCurve: M3SpringCurves.bouncy,
+      child: Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          ClipPath(
+            clipper: M3Clipper(Shapes.c9_sided_cookie),
+            child: Container(
+              width: 44,
+              height: 44,
+              color: scheme.primaryContainer,
+            ),
+          ),
+          Center(
+            child: Icon(Icons.add_rounded, size: 22, color: scheme.primary),
+          ),
+        ],
       ),
     );
   }

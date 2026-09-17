@@ -127,4 +127,12 @@ class TriSync {
   /// Convenience shortcut for view dismissals or sheet closes.
   static void dismiss({WidgetRef? ref, BuildContext? context}) =>
       trigger(TriSyncEvent.dismiss, ref: ref, context: context);
+
+  /// Convenience shortcut for celebration or message reactions.
+  static void reaction({WidgetRef? ref, BuildContext? context}) =>
+      trigger(TriSyncEvent.reaction, ref: ref, context: context);
+
+  /// Convenience shortcut for destructive actions.
+  static void destructive({WidgetRef? ref, BuildContext? context}) =>
+      trigger(TriSyncEvent.destructive, ref: ref, context: context);
 }

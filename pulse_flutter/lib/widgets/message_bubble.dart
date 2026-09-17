@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -277,7 +279,7 @@ class MessageBubble extends ConsumerWidget {
                       final String emoji =
                           ref.read(uiSettingsProvider).doubleTapReactionEmoji;
                       if (emoji.isNotEmpty) {
-                        HapticService.reaction();
+                        TriSync.reaction(context: context);
                         onReactionTap!(emoji);
                       }
                     }
@@ -496,26 +498,46 @@ class MessageBubble extends ConsumerWidget {
                   alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
                   children: reactions.entries
                       .map((MapEntry<String, int> item) {
-                        return TouchContainer(
-                          borderRadius: AppRadii.fullRadius,
-                          onTap: onReactionTap != null
-                              ? () {
-                                  HapticService.reaction();
-                                  onReactionTap!(item.key);
-                                }
-                              : null,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: scheme.surfaceContainerHigh,
-                              borderRadius: AppRadii.fullRadius,
-                            ),
-                            child: Text(
-                              '${normalizeReactionEmoji(item.key)} ${item.value}',
-                              style: textTheme.labelSmall,
+                        return TweenAnimationBuilder<double>(
+                          key: ValueKey<String>('react_${item.key}_${item.value}'),
+                          tween: Tween<double>(begin: 0.65, end: 1.0),
+                          duration: M3Durations.medium1,
+                          curve: M3SpringCurves.bouncy,
+                          builder: (BuildContext context, double scale, Widget? child) {
+                            return Transform.scale(
+                              scale: scale,
+                              child: child,
+                            );
+                          },
+                          child: TouchContainer(
+                            borderRadius: AppRadii.fullRadius,
+                            scaleDown: 0.90,
+                            releaseCurve: M3SpringCurves.bouncy,
+                            onTap: onReactionTap != null
+                                ? () {
+                                    TriSync.reaction(context: context);
+                                    onReactionTap!(item.key);
+                                  }
+                                : null,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerHigh,
+                                borderRadius: AppRadii.fullRadius,
+                                border: Border.all(
+                                  color: scheme.outlineVariant.withValues(alpha: 0.25),
+                                  width: 0.75,
+                                ),
+                              ),
+                              child: Text(
+                                '${normalizeReactionEmoji(item.key)} ${item.value}',
+                                style: textTheme.labelSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
                         );
@@ -590,7 +612,7 @@ class MessageBubble extends ConsumerWidget {
         },
         onDoubleTap: onReactionTap != null
             ? () {
-                HapticService.reaction();
+                TriSync.reaction(context: context);
                 onReactionTap!('❤️');
               }
             : null,

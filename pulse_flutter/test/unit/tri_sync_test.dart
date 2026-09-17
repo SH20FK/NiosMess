@@ -16,6 +16,8 @@ void main() {
       expect(() => TriSync.snap(), returnsNormally);
       expect(() => TriSync.pop(), returnsNormally);
       expect(() => TriSync.dismiss(), returnsNormally);
+      expect(() => TriSync.reaction(), returnsNormally);
+      expect(() => TriSync.destructive(), returnsNormally);
     });
 
     test('Throttling guard suppresses rapid back-to-back triggers of same event', () {

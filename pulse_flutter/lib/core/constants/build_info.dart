@@ -5,23 +5,23 @@ class BuildInfo {
   const BuildInfo._();
 
   /// Semantic version (e.g. "3.63.0").
-  static const String version = '3.70.0';
+  static const String version = '3.72.0';
 
   /// Build number (e.g. "147").
-  static const String buildNumber = '157';
+  static const String buildNumber = '159';
 
   /// Version with 'v' prefix (e.g. "v3.63.1").
-  static const String versionWithPrefix = 'v3.70.0';
+  static const String versionWithPrefix = 'v3.72.0';
 
   /// Full version with build number (e.g. "v3.63.1+147").
-  static const String fullVersion = 'v3.70.0+157';
+  static const String fullVersion = 'v3.72.0+159';
 
   /// Git commit hash of this release.
-  static const String commitHash = 'eca736a';
+  static const String commitHash = '422a971';
 
   /// Release channel (e.g. "stable", "beta", "alpha").
   static const String buildChannel = 'stable';
 
   /// Release date string (YYYY-MM-DD).
-  static const String buildDate = '2026-09-16';
+  static const String buildDate = '2026-09-17';
 }

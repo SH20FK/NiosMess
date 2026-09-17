@@ -31,12 +31,14 @@ class SettingsWallpaperScreen extends ConsumerStatefulWidget {
   const SettingsWallpaperScreen({
     this.chatId,
     this.chatTitle,
+    this.initialCode,
     this.isEmbedded = false,
     super.key,
   });
 
   final String? chatId;
   final String? chatTitle;
+  final String? initialCode;
   final bool isEmbedded;
 
   @override
@@ -46,7 +48,7 @@ class SettingsWallpaperScreen extends ConsumerStatefulWidget {
 
 class _SettingsWallpaperScreenState
     extends ConsumerState<SettingsWallpaperScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late ChatWallpaperConfig _draftConfig;
   late ChatWallpaperConfig _savedConfig;
   bool _userModified = false;
@@ -61,6 +63,8 @@ class _SettingsWallpaperScreenState
 
   late AnimationController _diceAnimController;
   late Animation<double> _diceRotationAnimation;
+  late AnimationController _revealAnimController;
+  late Animation<double> _revealAnimation;
   Timer? _hapticThrottleTimer;
 
   static const List<String> _kBgRoleKeys = <String>[
@@ -89,6 +93,29 @@ class _SettingsWallpaperScreenState
       parent: _diceAnimController,
       curve: M3SpringCurves.bouncy,
     );
+
+    _revealAnimController = AnimationController(
+      vsync: this,
+      duration: M3Durations.medium3,
+    );
+    _revealAnimation = CurvedAnimation(
+      parent: _revealAnimController,
+      curve: M3SpringCurves.spatial,
+    );
+
+    if (widget.initialCode != null && widget.initialCode!.trim().isNotEmpty) {
+      final ChatWallpaperConfig? imported = NiosWeave.decode(widget.initialCode!.trim());
+      if (imported != null) {
+        _draftConfig = imported;
+        _userModified = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            AppToast.showSuccess(context, 'Узор Weave загружен по ссылке');
+            _triggerReveal();
+          }
+        });
+      }
+    }
   }
 
   @override
@@ -111,7 +138,12 @@ class _SettingsWallpaperScreenState
   void dispose() {
     _hapticThrottleTimer?.cancel();
     _diceAnimController.dispose();
+    _revealAnimController.dispose();
     super.dispose();
+  }
+
+  void _triggerReveal() {
+    _revealAnimController.forward(from: 0.0);
   }
 
   void _throttledHaptic() {
@@ -120,7 +152,7 @@ class _SettingsWallpaperScreenState
     _hapticThrottleTimer = Timer(const Duration(milliseconds: 60), () {});
   }
 
-  void _updateDraft(ChatWallpaperConfig newConfig) {
+  void _updateDraft(ChatWallpaperConfig newConfig, {bool triggerReveal = false}) {
     final bool needsSvgReload = newConfig.iconSource != _draftConfig.iconSource ||
         newConfig.themePack != _draftConfig.themePack ||
         newConfig.seed != _draftConfig.seed ||
@@ -134,6 +166,10 @@ class _SettingsWallpaperScreenState
       _userModified = true;
       _draftConfig = newConfig;
     });
+
+    if (triggerReveal) {
+      _triggerReveal();
+    }
 
     if (needsSvgReload) {
       _loadSvgPreviewIfNeeded();
@@ -983,7 +1019,7 @@ class _SettingsWallpaperScreenState
                 child: Stack(
                   fit: StackFit.expand,
                   children: <Widget>[
-                    _buildPreviewBackground(scheme),
+                    _buildLivePreviewWithReveal(scheme),
                     if (_showChatMockup) const _ChatMockupView(),
                     // Top controls
                     Positioned(
@@ -1059,8 +1095,8 @@ class _SettingsWallpaperScreenState
                           preset: preset,
                           isSelected: isSelected,
                           onTap: () {
-                            HapticService.tap();
-                            _updateDraft(preset.config);
+                            TriSync.pop(context: context);
+                            _updateDraft(preset.config, triggerReveal: true);
                           },
                         ),
                       );
@@ -1081,6 +1117,31 @@ class _SettingsWallpaperScreenState
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLivePreviewWithReveal(ColorScheme scheme) {
+    final Widget bg = _buildPreviewBackground(scheme);
+    return AnimatedBuilder(
+      animation: _revealAnimation,
+      builder: (BuildContext context, Widget? child) {
+        if (_revealAnimation.value <= 0.0 || _revealAnimation.isCompleted) {
+          return bg;
+        }
+        final double t = _revealAnimation.value;
+        // MOM-6: Spatial expansion reveal originating from the thumbnail carousel below
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(24.0 * (1.0 - t * 0.5)),
+          child: Transform.scale(
+            scale: 0.93 + 0.07 * t,
+            alignment: Alignment.bottomCenter,
+            child: Opacity(
+              opacity: (0.35 + 0.65 * t).clamp(0.0, 1.0),
+              child: bg,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1160,9 +1221,11 @@ class _PresetThumbnailCard extends StatelessWidget {
       child: TouchContainer(
         onTap: onTap,
         borderRadius: AppRadii.lgRadius,
+        scaleDown: 0.92,
+        releaseCurve: M3SpringCurves.bouncy,
         child: AnimatedContainer(
-          duration: M3Durations.short4,
-          curve: M3SpringCurves.expressiveStandard,
+          duration: M3Durations.medium1,
+          curve: M3SpringCurves.spatial,
           width: 104,
           height: 156,
           decoration: BoxDecoration(
