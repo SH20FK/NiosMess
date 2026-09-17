@@ -22,7 +22,10 @@ import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/services/deep_link_service.dart';
 import 'package:pulse_flutter/firebase_options.dart';
+import 'package:pulse_flutter/providers/call_incoming_provider.dart';
 import 'package:pulse_flutter/providers/call_push_handler.dart';
+import 'package:pulse_flutter/repositories/call_repository.dart';
+import 'package:pulse_flutter/services/calls/call_starter.dart';
 import 'package:pulse_flutter/widgets/calls/call_overlay.dart';
 import 'package:pulse_flutter/screens/calls/incoming_call_overlay.dart';
 import 'package:pulse_flutter/widgets/notifications/in_app_notification_banner.dart';
@@ -126,10 +129,52 @@ class _PulseAppState extends ConsumerState<PulseApp> {
         ref.read(uiSettingsProvider.notifier).flushPersist();
       },
     );
+
+    PushNotificationService.onCallAccepted = (Map<String, dynamic> data) {
+      final int? chatId = int.tryParse(data['chat_id']?.toString() ?? '');
+      final int? callId = int.tryParse(
+          data['call_id']?.toString() ?? data['message_id']?.toString() ?? '');
+      final String? roomId = data['room_id']?.toString();
+      final bool isVideo = data['is_video'] == true ||
+          data['is_video'] == 'true' ||
+          data['is_video'] == 1 ||
+          data['is_video'] == '1';
+      final String? callerName = data['caller_nickname']?.toString();
+
+      if (chatId != null && callId != null && roomId != null) {
+        ref.read(incomingCallProvider.notifier).set(null);
+        unawaited(startIncomingCall(
+          ref: ref,
+          chatId: chatId,
+          callId: callId,
+          roomId: roomId,
+          isVideo: isVideo,
+          peerName: callerName,
+        ));
+        AppRouter.navigatorKey.currentContext?.push('/call/$callId');
+      }
+    };
+
+    PushNotificationService.onCallDeclined = (Map<String, dynamic> data) {
+      final int? chatId = int.tryParse(data['chat_id']?.toString() ?? '');
+      final String? roomId = data['room_id']?.toString();
+      final int? callId = int.tryParse(
+          data['call_id']?.toString() ?? data['message_id']?.toString() ?? '');
+      if (chatId != null && roomId != null) {
+        ref.read(incomingCallProvider.notifier).set(null);
+        unawaited(ref.read(callRepositoryProvider).decline(
+              chatId: chatId,
+              roomId: roomId,
+              messageId: callId ?? 0,
+            ));
+      }
+    };
   }
 
   @override
   void dispose() {
+    PushNotificationService.onCallAccepted = null;
+    PushNotificationService.onCallDeclined = null;
     _lifecycleListener.dispose();
     super.dispose();
   }

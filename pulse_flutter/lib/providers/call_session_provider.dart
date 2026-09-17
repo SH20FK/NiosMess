@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/call_models.dart';
-import 'package:pulse_flutter/providers/call_video_provider.dart';
-import 'package:pulse_flutter/services/calls/call_session.dart';
-import 'package:pulse_flutter/repositories/call_repository.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/services/calls/call_session_types.dart';
+import 'package:pulse_flutter/services/calls/webrtc_call_service.dart';
 
-/// Provider for the current active call session.
+/// Provider for the current active call session manager.
 ///
-/// null when no call is active.
-final callSessionProvider = NotifierProvider<CallSessionNotifier, CallSessionManager?>(
+/// `null` when no call is active.
+final callSessionProvider =
+    NotifierProvider<CallSessionNotifier, CallSessionManager?>(
   CallSessionNotifier.new,
 );
 
@@ -18,9 +21,16 @@ class CallSessionNotifier extends Notifier<CallSessionManager?> {
   CallSessionManager? build() => null;
 
   void setSession(CallSessionManager? manager) => state = manager;
+
+  /// Trigger rebuild of widgets watching this provider
+  void notify() {
+    final CallSessionManager? cur = state;
+    state = null;
+    state = cur;
+  }
 }
 
-/// Manages call session lifecycle — start, accept, end.
+/// Orchestrates the WebRTC 1:1 call session with Riverpod and application lifecycle.
 class CallSessionManager {
   CallSessionManager({
     required this.ref,
@@ -31,12 +41,29 @@ class CallSessionManager {
     required this.direction,
     required this.displayName,
     this.peerName,
-    required this.aesKeyBytes,
     this.isListener = false,
     this.gatewayInfo,
-  });
+  }) {
+    _service = WebrtcCallService(
+      sendWsAction: (String action, Map<String, dynamic> payload) async {
+        final dynamic res = await ref
+            .read(webSocketClientProvider)
+            .request(action, payload: payload);
+        return asStringMap(res);
+      },
+    );
 
-  final WidgetRef ref;
+    _service.roomId = roomId;
+    _service.chatId = chatId;
+    _service.messageId = callId;
+    _service.isVideo = isVideo;
+    _service.peerName = peerName;
+
+    _service.onChanged = _onServiceChanged;
+    _emitCurrentData();
+  }
+
+  final dynamic ref;
   final int chatId;
   final int callId;
   final String roomId;
@@ -44,120 +71,195 @@ class CallSessionManager {
   final CallDirection direction;
   final String displayName;
   final String? peerName;
-  final Uint8List aesKeyBytes;
   final bool isListener;
   final ApiCallGatewayInfo? gatewayInfo;
 
-  CallSession? _session;
-  StreamSubscription<CallSessionData>? _stateSub;
+  late final WebrtcCallService _service;
+  final StreamController<CallSessionData> _stateController =
+      StreamController<CallSessionData>.broadcast();
+
   Timer? _soloTimer;
+  Timer? _tickerTimer;
+  bool _ended = false;
 
-  CallSession? get session => _session;
+  WebrtcCallService get service => _service;
+  CallState get state => _service.state;
+  int get durationSeconds => _service.durationSeconds;
+  bool get isMuted => _service.isMuted;
+  bool get isSpeakerOn => _service.isSpeakerOn;
+  MediaStream? get localStream => _service.localStream;
+  Map<int, MediaStream> get remoteStreams => _service.remoteStreams;
+  Stream<CallSessionData> get stateStream => _stateController.stream;
 
-  void _handleSoloCheck(CallSessionData data) {
-    if (data.state == CallSessionState.ended || data.state == CallSessionState.idle) {
-      _soloTimer?.cancel();
-      _soloTimer = null;
-      return;
+  CallSessionData get currentData {
+    CallSessionState mappedState = CallSessionState.idle;
+    switch (_service.state) {
+      case CallState.idle:
+        mappedState = CallSessionState.idle;
+        break;
+      case CallState.calling:
+      case CallState.incoming:
+      case CallState.connecting:
+        mappedState = CallSessionState.connecting;
+        break;
+      case CallState.connected:
+        mappedState = CallSessionState.inCall;
+        break;
+      case CallState.ending:
+        mappedState = CallSessionState.ended;
+        break;
     }
 
-    if (data.remoteParticipants.isEmpty) {
-      _soloTimer ??= Timer(const Duration(minutes: 3), () {
-        debugPrint('[call_session_provider] Solo waiting timeout reached (3 min), ending call');
-        end();
-      });
-    } else {
-      _soloTimer?.cancel();
-      _soloTimer = null;
+    final List<RemoteParticipant> participants = <RemoteParticipant>[];
+    for (final int peerId in _service.peers.keys) {
+      participants.add(RemoteParticipant(
+        clientId: peerId,
+        nickname: _service.peerName ?? 'Собеседник',
+      ));
     }
-  }
 
-  CallSession start({bool preferQuic = false}) {
-    _session = CallSession(
-      chatId: chatId,
+    return CallSessionData(
+      state: mappedState,
       callId: callId,
       roomId: roomId,
-      isVideo: isVideo,
+      isVideo: _service.isVideo,
       direction: direction,
-      displayName: displayName,
-      peerName: peerName,
-      aesKeyBytes: aesKeyBytes,
+      peerName: _service.peerName ?? peerName,
+      isMuted: _service.isMuted,
+      isSpeakerOn: _service.isSpeakerOn,
+      isSelfVideoEnabled: !_service.isMuted,
       isListener: isListener,
-      onCameraReady: isVideo
-          ? (controller) {
-              ref.read(localCameraControllerProvider.notifier).set(controller);
-            }
-          : null,
+      durationSeconds: _service.durationSeconds,
+      remoteParticipants: participants,
     );
-    _stateSub?.cancel();
-    _stateSub = _session!.stateStream.listen((data) {
-      if (data.state == CallSessionState.ended) {
-        _soloTimer?.cancel();
-        _soloTimer = null;
-        ref.read(callSessionProvider.notifier).setSession(null);
-        return;
-      }
-
-      _handleSoloCheck(data);
-
-      if (gatewayInfo?.maxDurationSeconds != null &&
-          data.durationSeconds >= gatewayInfo!.maxDurationSeconds!) {
-        debugPrint(
-            '[call_session_provider] Max duration quota reached (${gatewayInfo!.maxDurationSeconds}s), ending call');
-        end();
-      }
-    });
-
-    _handleSoloCheck(_session!.currentData);
-    _session!.start(preferQuic: preferQuic);
-    return _session!;
   }
 
-  Future<void> end() async {
-    _soloTimer?.cancel();
-    _soloTimer = null;
-    final duration = _session?.currentData.durationSeconds ?? 0;
-    final wasMissed = _session?.currentData.durationSeconds == 0;
+  void _emitCurrentData() {
+    if (!_stateController.isClosed) {
+      _stateController.add(currentData);
+    }
+  }
+
+  void _onServiceChanged() {
+    _emitCurrentData();
+    ref.read(callSessionProvider.notifier).notify();
+
+    if (_service.state == CallState.connected && _tickerTimer == null) {
+      _tickerTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        _emitCurrentData();
+      });
+    }
+
+    // Handle solo timeout (Rule: max 3 minutes waiting alone in room)
+    if (_service.state == CallState.connected) {
+      if (_service.peers.isEmpty) {
+        _soloTimer ??= Timer(const Duration(minutes: 3), () {
+          debugPrint('[CallSessionManager] Solo 3-minute timeout reached. Ending call.');
+          end();
+        });
+      } else {
+        _soloTimer?.cancel();
+        _soloTimer = null;
+      }
+    }
+
+    // Handle max quota duration
+    if (gatewayInfo?.maxDurationSeconds != null &&
+        _service.durationSeconds >= gatewayInfo!.maxDurationSeconds!) {
+      debugPrint(
+        '[CallSessionManager] Max quota duration reached (${gatewayInfo!.maxDurationSeconds}s). Ending call.',
+      );
+      end();
+    }
+
+    if (_service.state == CallState.idle && !_ended) {
+      _ended = true;
+      _cleanup();
+      ref.read(callSessionProvider.notifier).setSession(null);
+    }
+  }
+
+  /// Start outgoing call flow
+  Future<void> start({String? peerDisplayName}) async {
     try {
-      await ref.read(callRepositoryProvider).end(
-        chatId: chatId,
-        roomId: roomId,
-        messageId: callId,
-        duration: duration,
-        wasMissed: wasMissed,
+      await _service.startCall(
+        chatId,
+        video: isVideo,
+        peerDisplayName: peerDisplayName ?? peerName,
       );
     } catch (e) {
-      debugPrint('[call_session_provider] Send call log error: $e');
+      debugPrint('[CallSessionManager] startCall error: $e');
+      await end();
+      rethrow;
     }
-    _stateSub?.cancel();
-    _stateSub = null;
-    await _session?.end();
-    _session?.dispose();
-    _session = null;
+  }
+
+  /// Called when `call_joined` push is received from WS
+  Future<void> onCallJoined(Map<String, dynamic> payload) async {
+    await _service.onCallJoined(payload);
+  }
+
+  /// Accept incoming call
+  Future<void> accept() async {
+    await _service.accept();
+  }
+
+  /// Decline incoming call
+  Future<void> decline() async {
+    await _service.decline();
+    await end();
+  }
+
+  /// End call locally
+  Future<void> end() async {
+    if (_ended) return;
+    _ended = true;
+    _cleanup();
+    await _service.hangUp();
     ref.read(callSessionProvider.notifier).setSession(null);
+  }
+
+  /// Server or remote peer ended call
+  Future<void> remoteEnd({Map<String, dynamic>? payload}) async {
+    if (_ended) return;
+    _ended = true;
+    _cleanup();
+    if (payload != null) {
+      await _service.onServerEndCall(payload);
+    } else {
+      await _service.reset();
+    }
+    ref.read(callSessionProvider.notifier).setSession(null);
+  }
+
+  RTCVideoRenderer get localRenderer => _service.localRenderer;
+  RTCVideoRenderer get remoteRenderer => _service.remoteRenderer;
+  bool get isLocalVideoEnabled => _service.isLocalVideoEnabled;
+  Future<void> initRenderers() => _service.initRenderers();
+
+  void toggleMute({bool? muted}) => _service.toggleMute(muted: muted);
+  void setMuted(bool muted) => _service.toggleMute(muted: muted);
+  void toggleVideo({bool? enabled}) => _service.toggleVideo(enabled: enabled);
+  void setLocalVideoEnabled(bool enabled) => _service.toggleVideo(enabled: enabled);
+  Future<void> toggleSpeaker({bool? speaker}) => _service.toggleSpeaker(speaker: speaker);
+  Future<void> setSpeakerOn(bool speaker) => _service.toggleSpeaker(speaker: speaker);
+  Future<void> switchCamera() => _service.switchCamera();
+
+  void _cleanup() {
+    _soloTimer?.cancel();
+    _soloTimer = null;
+    _tickerTimer?.cancel();
+    _tickerTimer = null;
   }
 
   void dispose() {
-    _soloTimer?.cancel();
-    _soloTimer = null;
-    _stateSub?.cancel();
-    _stateSub = null;
-    _session?.dispose();
-    _session = null;
+    _cleanup();
+    _service.reset();
+    _stateController.close();
   }
 
-  /// The remote side ended the call (end_call push): tear down locally
-  /// without echoing end signaling back to the server.
-  Future<void> remoteEnd() async {
-    _soloTimer?.cancel();
-    _soloTimer = null;
-    _stateSub?.cancel();
-    _stateSub = null;
-    await _session?.end();
-    _session?.dispose();
-    _session = null;
-    ref.read(callSessionProvider.notifier).setSession(null);
-  }
+  /// Compatibility getter returning this manager as the session object
+  CallSessionManager get session => this;
 }
 
 class IsCallScreenOpenNotifier extends Notifier<bool> {
@@ -171,4 +273,3 @@ final isCallScreenOpenProvider =
     NotifierProvider<IsCallScreenOpenNotifier, bool>(
   IsCallScreenOpenNotifier.new,
 );
-

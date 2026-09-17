@@ -6,7 +6,7 @@ import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
-import 'package:pulse_flutter/services/calls/call_session.dart';
+import 'package:pulse_flutter/router/app_router.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
 import 'package:pulse_flutter/widgets/calls/call_audio_ripple.dart';
 import 'package:pulse_flutter/widgets/calls/call_control_dock.dart';
@@ -106,7 +106,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
             : context.l10n.callsInProgress);
 
     return Scaffold(
-      backgroundColor: CallTokens.meetSurface,
+      backgroundColor: CallTokens.darkSurface,
       body: SizedBox.expand(
         child: Stack(
           fit: StackFit.expand,
@@ -119,15 +119,19 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
               child: Row(
                 children: <Widget>[
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.keyboard_arrow_down_rounded,
-                      color: Colors.white,
+                      color: callScheme.onSurface,
                       size: 28,
                     ),
                     tooltip: context.l10n.callMinimize,
                     onPressed: () {
                       HapticService.tap();
-                      Navigator.of(context).pop();
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      } else {
+                        ref.read(appRouterProvider).go('/main/chats');
+                      }
                     },
                   ),
                   const SizedBox(width: 4),
@@ -138,8 +142,8 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                       children: <Widget>[
                         Text(
                           participantName,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: callScheme.onSurface,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -169,8 +173,8 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                                   const SizedBox(width: 6),
                                   Text(
                                     timerText,
-                                    style: const TextStyle(
-                                      color: Colors.white70,
+                                    style: TextStyle(
+                                      color: callScheme.onSurfaceVariant,
                                       fontSize: 12,
                                       fontFamily: 'monospace',
                                       fontWeight: FontWeight.w500,
@@ -182,17 +186,17 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: Colors.amber.withValues(alpha: 0.2),
+                                        color: callScheme.surfaceContainerHighest,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.hearing_rounded, size: 12, color: Colors.amberAccent),
+                                          Icon(Icons.hearing_rounded, size: 12, color: callScheme.primary),
                                           const SizedBox(width: 4),
                                           Text(
                                             context.l10n.callListenerModeNotice,
-                                            style: const TextStyle(color: Colors.amberAccent, fontSize: 10, fontWeight: FontWeight.w600),
+                                            style: TextStyle(color: callScheme.primary, fontSize: 10, fontWeight: FontWeight.w600),
                                           ),
                                         ],
                                       ),
@@ -209,7 +213,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                               style: TextStyle(
                                 color: data.state == CallSessionState.reconnecting
                                     ? callScheme.error
-                                    : Colors.white60,
+                                    : callScheme.onSurfaceVariant,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -223,25 +227,25 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: CallTokens.meetTileBackground,
+                      color: callScheme.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.12),
+                        color: callScheme.outlineVariant.withValues(alpha: 0.20),
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         Icon(
                           Icons.lock_rounded,
                           size: 12,
-                          color: Color(0xFF8AB4F8),
+                          color: callScheme.primary,
                         ),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(
                           'E2EE',
                           style: TextStyle(
-                            color: Colors.white70,
+                            color: callScheme.onSurface,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.5,
@@ -262,19 +266,19 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
               right: 14,
               child: Container(
                 decoration: BoxDecoration(
-                  color: CallTokens.meetTileBackground,
+                  color: callScheme.surfaceContainerLow,
                   borderRadius:
-                      BorderRadius.circular(CallTokens.meetTileBorderRadius),
+                      BorderRadius.circular(CallTokens.cardBorderRadius),
                   border: Border.all(
                     color: data.state == CallSessionState.inCall
-                        ? AppColors.statusOnline.withValues(alpha: 0.25)
-                        : Colors.white.withValues(alpha: 0.08),
-                    width: 1.5,
+                        ? callScheme.primary.withValues(alpha: 0.35)
+                        : callScheme.outlineVariant.withValues(alpha: 0.20),
+                    width: 1.2,
                   ),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(
-                    CallTokens.meetTileBorderRadius - 1.5,
+                    CallTokens.cardBorderRadius - 1.2,
                   ),
                   child: Stack(
                     alignment: Alignment.center,
@@ -293,13 +297,10 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                             height: CallTokens.avatarLargeSize,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              boxShadow: <BoxShadow>[
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.45),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
+                              border: Border.all(
+                                color: callScheme.outlineVariant.withValues(alpha: 0.3),
+                                width: 2,
+                              ),
                             ),
                             child: ClipOval(
                               child: PulseAvatar(
@@ -325,8 +326,11 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: CallTokens.meetChipBackground,
+                              color: callScheme.surfaceContainerHigh,
                               borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: callScheme.outlineVariant.withValues(alpha: 0.2),
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -355,10 +359,10 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: CallTokens.meetChipBackground,
+                            color: callScheme.surfaceContainerHigh,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.12),
+                              color: callScheme.outlineVariant.withValues(alpha: 0.20),
                               width: 0.8,
                             ),
                           ),
@@ -370,8 +374,8 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                                     const BoxConstraints(maxWidth: 180),
                                 child: Text(
                                   participantName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: callScheme.onSurface,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -385,8 +389,8 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                                     ? Icons.mic_off_rounded
                                     : Icons.mic_rounded,
                                 color: data.isMuted
-                                    ? const Color(0xFFFFB4AB)
-                                    : Colors.white,
+                                    ? callScheme.error
+                                    : callScheme.onSurface,
                                 size: 15,
                               ),
                             ],
@@ -399,7 +403,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
               ),
             ),
 
-            // ── Google Meet Bottom Control Dock ────────────────────────
+            // ── Bottom Control Dock ────────────────────────────────────
             Positioned(
               bottom: 0,
               left: 0,
@@ -411,7 +415,11 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                 onEnd: _endCall,
                 onMinimize: () {
                   HapticService.tap();
-                  Navigator.of(context).pop();
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  } else {
+                    ref.read(appRouterProvider).go('/main/chats');
+                  }
                 },
               ),
             ),

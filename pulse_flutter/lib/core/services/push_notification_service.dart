@@ -114,6 +114,24 @@ class PushNotificationService {
         playSound: true,
         sound: const RawResourceAndroidNotificationSound('notification'),
         ticker: title,
+        actions: isCall
+            ? const <AndroidNotificationAction>[
+                AndroidNotificationAction(
+                  'action_accept',
+                  'Принять',
+                  showsUserInterface: true,
+                  contextual: true,
+                ),
+                AndroidNotificationAction(
+                  'action_decline',
+                  'Отклонить',
+                  showsUserInterface: false,
+                  cancelNotification: true,
+                  contextual: true,
+                ),
+              ]
+            : null,
+        fullScreenIntent: isCall,
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,
@@ -286,10 +304,67 @@ class PushNotificationService {
     );
   }
 
+  static const int kCallNotificationId = 999999;
+
+  /// Callback when user taps 'Принять' on a call notification
+  static void Function(Map<String, dynamic> data)? onCallAccepted;
+
+  /// Callback when user taps 'Отклонить' on a call notification
+  static void Function(Map<String, dynamic> data)? onCallDeclined;
+
+  static Future<void> showIncomingCallNotification({
+    required int chatId,
+    required int callId,
+    required String roomId,
+    required String callerName,
+    required bool isVideo,
+  }) async {
+    final Map<String, dynamic> data = <String, dynamic>{
+      'type': 'incoming_call',
+      'chat_id': chatId,
+      'call_id': callId,
+      'message_id': callId,
+      'room_id': roomId,
+      'caller_nickname': callerName,
+      'is_video': isVideo,
+    };
+    final String callType = isVideo ? 'Видеозвонок' : 'Голосовой звонок';
+    await _local.show(
+      id: kCallNotificationId,
+      title: callerName,
+      body: '$callType...',
+      notificationDetails: _buildNotificationDetails(
+        title: callerName,
+        body: '$callType...',
+        isCall: true,
+        chatId: chatId,
+      ),
+      payload: jsonEncode(data),
+    );
+  }
+
+  static Future<void> cancelCallNotification() async {
+    try {
+      await _local.cancel(id: kCallNotificationId);
+    } catch (_) {}
+  }
+
   static void _onNotificationTap(NotificationResponse response) {
     if (response.payload == null) return;
     try {
-      final data = jsonDecode(response.payload!) as Map<String, dynamic>;
+      final Map<String, dynamic> data =
+          jsonDecode(response.payload!) as Map<String, dynamic>;
+
+      if (response.actionId == 'action_accept') {
+        unawaited(cancelCallNotification());
+        onCallAccepted?.call(data);
+        return;
+      } else if (response.actionId == 'action_decline') {
+        unawaited(cancelCallNotification());
+        onCallDeclined?.call(data);
+        return;
+      }
+
       _handleNavigation(data);
     } catch (_) {}
   }

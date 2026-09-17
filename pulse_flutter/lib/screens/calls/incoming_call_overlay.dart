@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
@@ -10,7 +12,9 @@ import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
 import 'package:pulse_flutter/router/app_router.dart';
 import 'package:pulse_flutter/services/calls/call_starter.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
+/// Material 3 Expressive heads-up incoming call overlay banner.
 class IncomingCallOverlay extends ConsumerStatefulWidget {
   const IncomingCallOverlay({super.key});
 
@@ -24,7 +28,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
   late final Animation<Offset> _slideAnimation;
   late final Animation<double> _fadeAnimation;
 
-  // Pulse ring around the call-type icon
+  // Pulsing animated tonal ring around avatar
   late final AnimationController _pulseController;
   late final Animation<double> _pulseScale;
   late final Animation<double> _pulseOpacity;
@@ -48,18 +52,18 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     ));
     _fadeAnimation = CurvedAnimation(
       parent: _slideController,
-      curve: CallTokens.incomingOverlayCurve,
+      curve: Curves.easeInOutCubic,
     );
 
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
+      duration: const Duration(milliseconds: 1800),
     )..repeat();
 
-    _pulseScale = Tween<double>(begin: 1.0, end: 1.55).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
+    _pulseScale = Tween<double>(begin: 1.0, end: 1.45).animate(
+      CurvedAnimation(parent: _pulseController, curve: M3SpringCurves.gentle),
     );
-    _pulseOpacity = Tween<double>(begin: 0.55, end: 0.0).animate(
+    _pulseOpacity = Tween<double>(begin: 0.45, end: 0.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
     );
   }
@@ -95,7 +99,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     return Align(
       alignment: Alignment.topCenter,
       child: Padding(
-        padding: EdgeInsets.only(top: safeTop + 10, left: 14, right: 14),
+        padding: EdgeInsets.only(top: safeTop + 10, left: 16, right: 16),
         child: SlideTransition(
           position: _slideAnimation,
           child: FadeTransition(
@@ -105,16 +109,9 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                 color: scheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
                 border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.25),
+                  color: scheme.outlineVariant.withValues(alpha: 0.35),
                   width: 1.0,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.16),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: GestureDetector(
@@ -165,22 +162,46 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                     const SizedBox(width: 10),
 
                     // Decline Button (M3 ErrorContainer)
-                    _M3CallActionButton(
-                      icon: Icons.call_end_rounded,
-                      color: scheme.onErrorContainer,
-                      bg: scheme.errorContainer,
-                      label: context.l10n.callEnd,
+                    TouchContainer(
+                      scaleDown: 0.90,
                       onTap: () => _declineCall(data),
+                      child: Container(
+                        width: CallTokens.incomingButtonSize,
+                        height: CallTokens.incomingButtonSize,
+                        decoration: BoxDecoration(
+                          color: scheme.errorContainer,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.call_end_rounded,
+                            color: scheme.onErrorContainer,
+                            size: 24,
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 10),
 
                     // Accept Button (M3 Primary)
-                    _M3CallActionButton(
-                      icon: data.isVideo ? Icons.videocam_rounded : Icons.phone_rounded,
-                      color: scheme.onPrimary,
-                      bg: scheme.primary,
-                      label: 'Accept',
+                    TouchContainer(
+                      scaleDown: 0.90,
                       onTap: () => _acceptCall(context, ref, data),
+                      child: Container(
+                        width: CallTokens.incomingButtonSize,
+                        height: CallTokens.incomingButtonSize,
+                        decoration: BoxDecoration(
+                          color: scheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            data.isVideo ? Icons.videocam_rounded : Icons.phone_rounded,
+                            color: scheme.onPrimary,
+                            size: 24,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -193,7 +214,9 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
   }
 
   void _declineCall(IncomingCallData incoming) {
+    HapticService.tap();
     ref.read(incomingCallProvider.notifier).set(null);
+    unawaited(PushNotificationService.cancelCallNotification());
     unawaited(
       ref.read(callRepositoryProvider).decline(
         chatId: incoming.chatId,
@@ -206,7 +229,9 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
   }
 
   Future<void> _acceptCall(BuildContext context, WidgetRef ref, IncomingCallData incoming) async {
+    HapticService.confirm();
     ref.read(incomingCallProvider.notifier).set(null);
+    unawaited(PushNotificationService.cancelCallNotification());
 
     final isAlreadyInCall = ref.read(callSessionProvider) != null;
     if (isAlreadyInCall) {
@@ -278,7 +303,7 @@ class _PulsingCallIcon extends StatelessWidget {
                   height: 44,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: scheme.primary.withValues(alpha: 0.35),
+                    color: scheme.primary.withValues(alpha: 0.30),
                   ),
                 ),
               ),
@@ -290,13 +315,6 @@ class _PulsingCallIcon extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: scheme.primaryContainer,
-              boxShadow: [
-                BoxShadow(
-                  color: scheme.primary.withValues(alpha: 0.20),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
             child: Center(
               child: Icon(
@@ -307,56 +325,6 @@ class _PulsingCallIcon extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ── Action Button with M3 Shape ───────────────────────────────────────────────
-
-class _M3CallActionButton extends StatelessWidget {
-  const _M3CallActionButton({
-    required this.icon,
-    required this.color,
-    required this.bg,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final Color color;
-  final Color bg;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: GestureDetector(
-        onTap: () {
-          HapticService.tap();
-          onTap();
-        },
-        child: Container(
-          width: CallTokens.incomingButtonSize,
-          height: CallTokens.incomingButtonSize,
-          decoration: BoxDecoration(
-            color: bg,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: bg.withValues(alpha: 0.35),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Icon(icon, color: color, size: 24),
-          ),
-        ),
       ),
     );
   }

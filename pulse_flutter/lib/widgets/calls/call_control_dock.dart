@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
-import 'package:pulse_flutter/services/calls/call_session.dart';
+import 'package:pulse_flutter/providers/call_session_provider.dart';
+import 'package:pulse_flutter/services/calls/call_session_types.dart';
 
+/// Material 3 Expressive Call Control Dock.
+///
+/// Provides quick toggles for microphone, speaker / flip camera, video, and hang up.
+/// Uses tonal surfaces, 0 elevation, and tactile haptic response.
 class CallControlDock extends StatelessWidget {
   const CallControlDock({
     super.key,
@@ -17,7 +22,7 @@ class CallControlDock extends StatelessWidget {
     this.isVideoCall = false,
   });
 
-  final CallSession session;
+  final CallSessionManager session;
   final CallSessionData data;
   final ColorScheme scheme;
   final VoidCallback onEnd;
@@ -39,21 +44,14 @@ class CallControlDock extends StatelessWidget {
           right: 16,
           bottom: bottomInset > 0 ? bottomInset + 8 : 24,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
           color: CallTokens.darkSurfaceContainerHigh.withValues(alpha: 0.94),
           borderRadius: BorderRadius.circular(CallTokens.dockBorderRadius),
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.10),
+            color: scheme.outlineVariant.withValues(alpha: 0.20),
             width: 1.0,
           ),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 28,
-              offset: const Offset(0, 8),
-            ),
-          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -78,7 +76,7 @@ class CallControlDock extends StatelessWidget {
                 session.setMuted(!data.isMuted);
               },
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
 
             // ── Speaker (or Flip Camera in Video call) ────────────────
             if (!isVideoCall)
@@ -116,7 +114,7 @@ class CallControlDock extends StatelessWidget {
 
             // ── Video Toggle Button ────────────────────────────────────
             if (onToggleVideo != null) ...<Widget>[
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               _CallActionButton(
                 icon: isVideoActive
                     ? Icons.videocam_rounded
@@ -136,9 +134,9 @@ class CallControlDock extends StatelessWidget {
               ),
             ],
 
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
 
-            // ── End Call Button (Google Meet Red Stadium Pill) ────────
+            // ── End Call Button (M3 Expressive Red Stadium Pill) ────────
             Semantics(
               button: true,
               label: context.l10n.callEnd,
@@ -158,20 +156,13 @@ class CallControlDock extends StatelessWidget {
                       width: CallTokens.meetEndButtonWidth,
                       height: CallTokens.meetEndButtonHeight,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE53935),
+                        color: scheme.error,
                         borderRadius: BorderRadius.circular(CallTokens.meetEndButtonHeight / 2),
-                        boxShadow: <BoxShadow>[
-                          BoxShadow(
-                            color: const Color(0xFFE53935).withValues(alpha: 0.45),
-                            blurRadius: 18,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Icon(
                           Icons.call_end_rounded,
-                          color: Colors.white,
+                          color: scheme.onError,
                           size: 28,
                         ),
                       ),
@@ -228,8 +219,8 @@ class _CallActionButton extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOutCubic,
-              width: 54,
-              height: 54,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
                 color: bgColor,
                 shape: BoxShape.circle,
@@ -238,7 +229,7 @@ class _CallActionButton extends StatelessWidget {
                 child: Icon(
                   icon,
                   color: fgColor,
-                  size: 25,
+                  size: 24,
                 ),
               ),
             ),

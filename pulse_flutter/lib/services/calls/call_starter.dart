@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -117,12 +118,6 @@ Future<int> startOutgoingCall({
     throw Exception('Failed to obtain a valid call session ID from server');
   }
 
-  final Uint8List aesKeyBytes = await deriveCallMediaKey(
-    ref,
-    chatId: chatId,
-    callId: callId,
-  );
-
   final CallSessionManager manager = CallSessionManager(
     ref: ref,
     chatId: chatId,
@@ -132,12 +127,11 @@ Future<int> startOutgoingCall({
     direction: CallDirection.outgoing,
     displayName: nickname,
     peerName: peerName ?? chat?.name,
-    aesKeyBytes: aesKeyBytes,
     isListener: isListener,
     gatewayInfo: gatewayInfo,
-  )..start(preferQuic: false);
-
+  );
   ref.read(callSessionProvider.notifier).setSession(manager);
+  unawaited(manager.start(peerDisplayName: peerName ?? chat?.name));
   return callId;
 }
 
@@ -159,33 +153,13 @@ Future<void> startIncomingCall({
   }
   onPermissionResult?.call(isListener);
 
-  // Signal server that we accepted the call (mirrors web.html acceptCall join_call)
-  Map<String, dynamic> joinResult = <String, dynamic>{};
-  try {
-    joinResult = await ref.read(callRepositoryProvider).join(
-      chatId: chatId,
-      roomId: roomId,
-      messageId: callId,
-    );
-  } catch (e) {
-    // If signaling fails, proceed to attempt connection
-  }
-
   final bool isCallsTester =
       ref.read(authProvider).profile?.isCallsTester ?? false;
-  final ApiCallInitiateResult initResult =
-      ApiCallInitiateResult.fromJson(joinResult, isCallsTester: isCallsTester);
-  final ApiCallGatewayInfo gatewayInfo = initResult.gatewayInfo ??
+  final ApiCallGatewayInfo gatewayInfo =
       ApiCallGatewayInfo.defaultFor(isCallsTester: isCallsTester);
 
   final String nickname =
       ref.read(authProvider).session?.displayName ?? 'User';
-
-  final Uint8List aesKeyBytes = await deriveCallMediaKey(
-    ref,
-    chatId: chatId,
-    callId: callId,
-  );
 
   final CallSessionManager manager = CallSessionManager(
     ref: ref,
@@ -196,10 +170,9 @@ Future<void> startIncomingCall({
     direction: CallDirection.incoming,
     displayName: nickname,
     peerName: peerName,
-    aesKeyBytes: aesKeyBytes,
     isListener: isListener,
     gatewayInfo: gatewayInfo,
-  )..start(preferQuic: false);
-
+  );
   ref.read(callSessionProvider.notifier).setSession(manager);
+  await manager.accept();
 }

@@ -178,7 +178,7 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
         : widget.args.username;
 
     return Scaffold(
-      backgroundColor: CallTokens.meetSurface,
+      backgroundColor: CallTokens.darkSurface,
       body: SafeArea(
         child: Stack(
           children: <Widget>[
@@ -187,9 +187,9 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
               top: 8,
               left: 12,
               child: IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_back_rounded,
-                  color: Colors.white,
+                  color: scheme.onSurface,
                   size: 26,
                 ),
                 onPressed: _cancelAndPop,
@@ -206,11 +206,11 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
                     PulseAvatar(
                       name: displayName,
                       avatarUrl: widget.args.avatarUrl,
-                      radius: 60,
+                      radius: 64,
                       fallbackColor: scheme.primaryContainer,
                       textColor: scheme.onPrimaryContainer,
-                      borderColor: scheme.surface.withValues(alpha: 0.2),
-                      borderWidth: 3,
+                      borderColor: scheme.outlineVariant.withValues(alpha: 0.3),
+                      borderWidth: 2,
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -219,7 +219,7 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
+                        color: scheme.onSurface,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -229,11 +229,46 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
                         '@${widget.args.username}',
                         textAlign: TextAlign.center,
                         style: textTheme.bodyMedium?.copyWith(
-                          color: Colors.white70,
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                     ],
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 24),
+
+                    // Call type indicator pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(CallTokens.pillBorderRadius),
+                        border: Border.all(
+                          color: scheme.outlineVariant.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            widget.args.isVideo
+                                ? Icons.videocam_rounded
+                                : Icons.phone_rounded,
+                            size: 16,
+                            color: scheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            widget.args.isVideo
+                                ? context.l10n.callIncomingVideo
+                                : context.l10n.callIncomingVoice,
+                            style: textTheme.labelMedium?.copyWith(
+                              color: scheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
 
                     // Status / Error
                     if (_errorMessage != null) ...[
@@ -243,7 +278,7 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
                           vertical: 12,
                         ),
                         decoration: BoxDecoration(
-                          color: scheme.errorContainer.withValues(alpha: 0.9),
+                          color: scheme.errorContainer,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
@@ -269,15 +304,15 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          const AppLoadingIndicator(
-                            size: 16,
-                            color: Colors.white70,
+                          AppLoadingIndicator(
+                            size: 18,
+                            color: scheme.primary,
                           ),
                           const SizedBox(width: 12),
                           Text(
                             context.l10n.callsConnecting,
                             style: textTheme.bodyLarge?.copyWith(
-                              color: Colors.white70,
+                              color: scheme.onSurfaceVariant,
                               letterSpacing: 0.2,
                             ),
                           ),
@@ -291,21 +326,21 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white12,
+                            color: scheme.surfaceContainerHigh,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
-                              const Icon(Icons.hearing_rounded,
-                                  size: 16, color: Colors.white70),
+                              Icon(Icons.hearing_rounded,
+                                  size: 16, color: scheme.onSurfaceVariant),
                               const SizedBox(width: 8),
                               Flexible(
                                 child: Text(
                                   context.l10n.callListenerModeNotice,
                                   textAlign: TextAlign.center,
                                   style: textTheme.bodySmall?.copyWith(
-                                    color: Colors.white70,
+                                    color: scheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -326,18 +361,25 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
               right: 0,
               child: Center(
                 child: Material(
-                  color: const Color(0xFFE53935),
-                  shape: const CircleBorder(),
-                  elevation: 2,
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(CallTokens.meetEndButtonHeight / 2),
+                  clipBehavior: Clip.antiAlias,
                   child: InkWell(
-                    customBorder: const CircleBorder(),
+                    borderRadius: BorderRadius.circular(CallTokens.meetEndButtonHeight / 2),
                     onTap: _cancelAndPop,
-                    child: const Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Icon(
-                        Icons.call_end_rounded,
-                        color: Colors.white,
-                        size: 32,
+                    child: Container(
+                      width: CallTokens.meetEndButtonWidth,
+                      height: CallTokens.meetEndButtonHeight,
+                      decoration: BoxDecoration(
+                        color: scheme.error,
+                        borderRadius: BorderRadius.circular(CallTokens.meetEndButtonHeight / 2),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.call_end_rounded,
+                          color: scheme.onError,
+                          size: 28,
+                        ),
                       ),
                     ),
                   ),
