@@ -127,6 +127,8 @@ Future<int> startOutgoingCall({
     direction: CallDirection.outgoing,
     displayName: nickname,
     peerName: peerName ?? chat?.name,
+    peerAvatarUrl: chat?.avatarUrl,
+    peerUsername: chat?.username,
     isListener: isListener,
     gatewayInfo: gatewayInfo,
   );
@@ -143,6 +145,8 @@ Future<void> startIncomingCall({
   required String roomId,
   required bool isVideo,
   String? peerName,
+  String? peerAvatarUrl,
+  String? peerUsername,
   void Function(bool isListener)? onPermissionResult,
 }) async {
   bool isListener = false;
@@ -160,6 +164,7 @@ Future<void> startIncomingCall({
 
   final String nickname =
       ref.read(authProvider).session?.displayName ?? 'User';
+  final chat = ref.read(chatByIdProvider(chatId));
 
   final CallSessionManager manager = CallSessionManager(
     ref: ref,
@@ -169,7 +174,9 @@ Future<void> startIncomingCall({
     isVideo: isVideo,
     direction: CallDirection.incoming,
     displayName: nickname,
-    peerName: peerName,
+    peerName: peerName ?? chat?.name,
+    peerAvatarUrl: peerAvatarUrl ?? chat?.avatarUrl,
+    peerUsername: peerUsername ?? chat?.username,
     isListener: isListener,
     gatewayInfo: gatewayInfo,
   );

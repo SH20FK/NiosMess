@@ -11,6 +11,7 @@ import 'package:pulse_flutter/services/calls/call_session_types.dart';
 import 'package:pulse_flutter/widgets/calls/call_audio_ripple.dart';
 import 'package:pulse_flutter/widgets/calls/call_control_dock.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class ActiveVoiceCallScreen extends ConsumerStatefulWidget {
   const ActiveVoiceCallScreen({super.key});
@@ -61,7 +62,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
             SnackBar(content: Text(data.fatalError!)),
           );
         }
-        Navigator.of(context).pop();
+        _popOrGoHome();
       }
       _timerNotifier.value = data.durationSeconds;
       setState(() {});
@@ -76,11 +77,19 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     super.dispose();
   }
 
+  void _popOrGoHome() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      ref.read(appRouterProvider).go('/main/chats');
+    }
+  }
+
   Future<void> _endCall() async {
-    HapticService.tap();
+    HapticService.confirm();
     final manager = ref.read(callSessionProvider);
     await manager?.end();
-    if (mounted) Navigator.of(context).pop();
+    if (mounted) _popOrGoHome();
   }
 
   @override
@@ -92,6 +101,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
       seedColor: appScheme.primary,
       brightness: Brightness.dark,
     );
+    final textTheme = Theme.of(context).textTheme;
 
     if (session == null) {
       return const Scaffold(backgroundColor: CallTokens.darkSurface);
@@ -105,52 +115,151 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
             ? data.peerName!
             : context.l10n.callsInProgress);
 
+    final double bottomInset = MediaQuery.paddingOf(context).bottom;
+
     return Scaffold(
       backgroundColor: CallTokens.darkSurface,
-      body: SizedBox.expand(
-        child: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            // ── Meet Top Bar ───────────────────────────────────────────
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + 6,
-              left: 12,
-              right: 12,
-              child: Row(
-                children: <Widget>[
-                  IconButton(
-                    icon: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: callScheme.onSurface,
-                      size: 28,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D0F14),
+          gradient: RadialGradient(
+            center: const Alignment(0.0, -0.28),
+            radius: 1.15,
+            colors: [
+              callScheme.primary.withValues(alpha: 0.18),
+              callScheme.tertiary.withValues(alpha: 0.07),
+              const Color(0xFF0B0C10),
+            ],
+            stops: const [0.0, 0.50, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: <Widget>[
+              // ── Top Navigation & Status Bar ──────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: <Widget>[
+                    IconButton(
+                      icon: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: callScheme.onSurface,
+                        size: 32,
+                      ),
+                      tooltip: context.l10n.callMinimize,
+                      onPressed: () {
+                        HapticService.tap();
+                        _popOrGoHome();
+                      },
                     ),
-                    tooltip: context.l10n.callMinimize,
-                    onPressed: () {
-                      HapticService.tap();
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.of(context).pop();
-                      } else {
-                        ref.read(appRouterProvider).go('/main/chats');
-                      }
-                    },
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: callScheme.surfaceContainerHigh.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: callScheme.outlineVariant.withValues(alpha: 0.20),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            Icons.lock_rounded,
+                            size: 13,
+                            color: callScheme.primary,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'E2EE ЗАЩИЩЕНО',
+                            style: TextStyle(
+                              color: callScheme.onSurface,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Central Hero Stage ───────────────────────────────────
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
+                        // Avatar with animated breathing ripples
+                        CallAudioRipple(
+                          animation: _rippleController,
+                          scheme: callScheme,
+                          isActive: data.state == CallSessionState.inCall ||
+                              data.state == CallSessionState.connecting ||
+                              data.state == CallSessionState.connected,
+                          size: 140,
+                          child: Container(
+                            width: 140,
+                            height: 140,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: callScheme.primary.withValues(alpha: 0.35),
+                                width: 2.5,
+                              ),
+                            ),
+                            child: ClipOval(
+                              child: PulseAvatar(
+                                name: participantName,
+                                avatarUrl: data.peerAvatarUrl,
+                                radius: 70,
+                                fallbackColor: callScheme.primaryContainer,
+                                textColor: callScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Participant Name
                         Text(
                           participantName,
-                          style: TextStyle(
+                          style: textTheme.headlineMedium?.copyWith(
                             color: callScheme.onSurface,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.4,
                           ),
+                          textAlign: TextAlign.center,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
+
+                        // Username (if present)
+                        if (data.peerUsername != null && data.peerUsername!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            '@${data.peerUsername}',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: callScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                        const SizedBox(height: 14),
+
+                        // Call Status Pill
                         ValueListenableBuilder<int>(
                           valueListenable: _timerNotifier,
                           builder: (context, seconds, _) {
@@ -159,271 +268,220 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                               final int s = seconds % 60;
                               final timerText =
                                   '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-                              return Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: <Widget>[
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.statusOnline,
-                                      shape: BoxShape.circle,
-                                    ),
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: callScheme.surfaceContainerHigh
+                                      .withValues(alpha: 0.85),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: callScheme.outlineVariant
+                                        .withValues(alpha: 0.22),
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    timerText,
-                                    style: TextStyle(
-                                      color: callScheme.onSurfaceVariant,
-                                      fontSize: 12,
-                                      fontFamily: 'monospace',
-                                      fontWeight: FontWeight.w500,
-                                      letterSpacing: 1.0,
-                                    ),
-                                  ),
-                                  if (data.isListener) ...[
-                                    const SizedBox(width: 8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: callScheme.surfaceContainerHighest,
-                                        borderRadius: BorderRadius.circular(6),
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.statusOnline,
+                                        shape: BoxShape.circle,
                                       ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.hearing_rounded, size: 12, color: callScheme.primary),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            context.l10n.callListenerModeNotice,
-                                            style: TextStyle(color: callScheme.primary, fontSize: 10, fontWeight: FontWeight.w600),
-                                          ),
-                                        ],
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      timerText,
+                                      style: TextStyle(
+                                        color: callScheme.onSurface,
+                                        fontSize: 14,
+                                        fontFamily: 'monospace',
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 1.2,
                                       ),
                                     ),
                                   ],
-                                ],
+                                ),
                               );
                             }
 
-                            return Text(
-                              data.state == CallSessionState.reconnecting
-                                  ? 'Переподключение...'
-                                  : context.l10n.callConnecting,
-                              style: TextStyle(
-                                color: data.state == CallSessionState.reconnecting
-                                    ? callScheme.error
-                                    : callScheme.onSurfaceVariant,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                            if (data.state == CallSessionState.reconnecting) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: callScheme.errorContainer
+                                      .withValues(alpha: 0.70),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: callScheme.error,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Переподключение...',
+                                      style: TextStyle(
+                                        color: callScheme.onErrorContainer,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: callScheme.surfaceContainerHigh
+                                    .withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: callScheme.outlineVariant
+                                      .withValues(alpha: 0.22),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  AppLoadingIndicator(
+                                    size: 14,
+                                    color: callScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    data.direction == CallDirection.outgoing
+                                        ? 'Звоним...'
+                                        : context.l10n.callConnecting,
+                                    style: TextStyle(
+                                      color: callScheme.onSurfaceVariant,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             );
                           },
                         ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: callScheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: callScheme.outlineVariant.withValues(alpha: 0.20),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(
-                          Icons.lock_rounded,
-                          size: 12,
-                          color: callScheme.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'E2EE',
-                          style: TextStyle(
-                            color: callScheme.onSurface,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
-            // ── Google Meet Participant Squircle Tile ──────────────────
-            Positioned.fill(
-              top: MediaQuery.paddingOf(context).top + 64,
-              bottom: MediaQuery.paddingOf(context).bottom + 106,
-              left: 14,
-              right: 14,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: callScheme.surfaceContainerLow,
-                  borderRadius:
-                      BorderRadius.circular(CallTokens.cardBorderRadius),
-                  border: Border.all(
-                    color: data.state == CallSessionState.inCall
-                        ? callScheme.primary.withValues(alpha: 0.35)
-                        : callScheme.outlineVariant.withValues(alpha: 0.20),
-                    width: 1.2,
-                  ),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(
-                    CallTokens.cardBorderRadius - 1.2,
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: <Widget>[
-                      // Centered Avatar with Audio Ripple
-                      Center(
-                        child: CallAudioRipple(
-                          animation: _rippleController,
-                          scheme: callScheme,
-                          isActive: data.state == CallSessionState.inCall ||
-                              data.state == CallSessionState.connecting ||
-                              data.state == CallSessionState.connected,
-                          size: CallTokens.avatarLargeSize,
-                          child: Container(
-                            width: CallTokens.avatarLargeSize,
-                            height: CallTokens.avatarLargeSize,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: callScheme.outlineVariant.withValues(alpha: 0.3),
-                                width: 2,
+                        // Verification Emojis (if present)
+                        if (data.verificationEmojis.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          Tooltip(
+                            message: 'Ключ сквозного шифрования (E2EE)',
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 6,
                               ),
-                            ),
-                            child: ClipOval(
-                              child: PulseAvatar(
-                                name: participantName,
-                                avatarUrl: null,
-                                radius: CallTokens.avatarLargeSize / 2,
-                                fallbackColor: callScheme.primaryContainer,
-                                textColor: callScheme.onPrimaryContainer,
+                              decoration: BoxDecoration(
+                                color: callScheme.surfaceContainerHigh
+                                    .withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: callScheme.outlineVariant
+                                      .withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.verified_user_rounded,
+                                    size: 14,
+                                    color: callScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ...data.verificationEmojis.map(
+                                    (String e) => Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 3,
+                                      ),
+                                      child: Text(
+                                        e,
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ),
-                      ),
+                        ],
 
-                      // Verification Emojis in Tile Top-Right (if present)
-                      if (data.verificationEmojis.isNotEmpty)
-                        Positioned(
-                          top: 14,
-                          right: 14,
-                          child: Container(
+                        // Listener Notice (if microphone unavailable)
+                        if (data.isListener) ...[
+                          const SizedBox(height: 14),
+                          Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
+                              horizontal: 14,
+                              vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: callScheme.surfaceContainerHigh,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: callScheme.outlineVariant.withValues(alpha: 0.2),
-                              ),
+                              color: callScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: data.verificationEmojis
-                                  .map((String e) => Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 2,
-                                        ),
-                                        child: Text(
-                                          e,
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                      ))
-                                  .toList(),
-                            ),
-                          ),
-                        ),
-
-                      // Bottom-Left Meet Participant Chip (Name & Mic Pill)
-                      Positioned(
-                        left: 14,
-                        bottom: 14,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: callScheme.surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: callScheme.outlineVariant.withValues(alpha: 0.20),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              ConstrainedBox(
-                                constraints:
-                                    const BoxConstraints(maxWidth: 180),
-                                child: Text(
-                                  participantName,
+                              children: [
+                                Icon(Icons.hearing_rounded,
+                                    size: 14, color: callScheme.primary),
+                                const SizedBox(width: 6),
+                                Text(
+                                  context.l10n.callListenerModeNotice,
                                   style: TextStyle(
-                                    color: callScheme.onSurface,
-                                    fontSize: 13,
+                                    color: callScheme.primary,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                data.isMuted
-                                    ? Icons.mic_off_rounded
-                                    : Icons.mic_rounded,
-                                color: data.isMuted
-                                    ? callScheme.error
-                                    : callScheme.onSurface,
-                                size: 15,
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            // ── Bottom Control Dock ────────────────────────────────────
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: CallControlDock(
+              // ── Bottom Control Dock ──────────────────────────────────
+              CallControlDock(
                 session: session,
                 data: data,
                 scheme: callScheme,
                 onEnd: _endCall,
+                onToggleVideo: () {
+                  HapticService.tap();
+                  session.toggleVideo();
+                },
                 onMinimize: () {
                   HapticService.tap();
-                  if (Navigator.of(context).canPop()) {
-                    Navigator.of(context).pop();
-                  } else {
-                    ref.read(appRouterProvider).go('/main/chats');
-                  }
+                  _popOrGoHome();
                 },
               ),
-            ),
-          ],
+              SizedBox(height: bottomInset > 0 ? 0 : 8),
+            ],
+          ),
         ),
       ),
     );

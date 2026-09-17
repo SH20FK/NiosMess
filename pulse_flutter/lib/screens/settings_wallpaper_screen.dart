@@ -4,10 +4,13 @@ import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:pulse_flutter/core/identity/nios_weave.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -283,6 +286,152 @@ class _SettingsWallpaperScreenState
       _updateDraft(ChatWallpaperConfig.defaultPattern);
     }
     AppToast.showSuccess(context, context.l10n.wallpaperResetAction);
+  }
+
+  void _showShareWeaveModal(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final String code = NiosWeave.encode(_draftConfig);
+    final String shareUrl = NiosWeave.toShareUrl(code);
+
+    AppBottomSheets.show<void>(
+      context: context,
+      builder: (BuildContext sheetCtx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.auto_awesome_rounded, size: 22),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Поделиться обоями',
+                    style: textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Live Mini Preview Tile
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: SizedBox(
+                    height: 130,
+                    child: Stack(
+                      children: <Widget>[
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: ChatWallpaperPainter(
+                              config: _draftConfig,
+                              scheme: scheme,
+                              svgPicture: _previewSvgPicture,
+                              paletteSvgPictures: _previewPaletteSvgPictures,
+                              poolSvgPictures: _previewPoolSvgPictures,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 10,
+                          left: 12,
+                          right: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHighest.withValues(alpha: 0.90),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              code,
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.labelSmall?.copyWith(
+                                fontFamily: 'monospace',
+                                fontWeight: FontWeight.w600,
+                                color: scheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        TriSync.pop(ref: ref);
+                        await Clipboard.setData(ClipboardData(text: code));
+                        if (sheetCtx.mounted) {
+                          AppToast.showSuccess(sheetCtx, 'Код обоев ($code) скопирован!');
+                        }
+                      },
+                      icon: const Icon(Icons.copy_rounded, size: 18),
+                      label: const Text('Скопировать код'),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        TriSync.pop(ref: ref);
+                        await Clipboard.setData(ClipboardData(text: shareUrl));
+                        if (sheetCtx.mounted) {
+                          AppToast.showSuccess(sheetCtx, 'Ссылка скопирована!');
+                        }
+                      },
+                      icon: const Icon(Icons.link_rounded, size: 18),
+                      label: const Text('Скопировать ссылку'),
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showImportWeaveModal(BuildContext context) {
+    AppBottomSheets.show<void>(
+      context: context,
+      builder: (BuildContext sheetCtx) {
+        return _WeaveImportSheet(
+          scheme: Theme.of(context).colorScheme,
+          onApply: (ChatWallpaperConfig imported) {
+            TriSync.pop(ref: ref);
+            _updateDraft(imported);
+            AppToast.showSuccess(context, 'Обои успешно применены!');
+          },
+        );
+      },
+    );
   }
 
   void _randomizeConfigWithSpin() {
@@ -747,6 +896,16 @@ class _SettingsWallpaperScreenState
         appBar: AppBar(
           title: Text(screenTitle, style: textTheme.titleMedium),
           actions: <Widget>[
+            IconButton(
+              tooltip: 'Вставить код',
+              onPressed: () => _showImportWeaveModal(context),
+              icon: const Icon(Icons.file_download_outlined),
+            ),
+            IconButton(
+              tooltip: 'Поделиться',
+              onPressed: () => _showShareWeaveModal(context),
+              icon: const Icon(Icons.share_rounded),
+            ),
             RotationTransition(
               turns: _diceRotationAnimation,
               child: IconButton(
@@ -1970,4 +2129,172 @@ String _colorModeName(BuildContext context, WallpaperColorMode mode) {
     WallpaperColorMode.tonalAccent => l10n.wallpaperColorModeAccents,
     WallpaperColorMode.palette => l10n.wallpaperColorModePalette,
   };
+}
+
+class _WeaveImportSheet extends StatefulWidget {
+  const _WeaveImportSheet({
+    required this.scheme,
+    required this.onApply,
+  });
+
+  final ColorScheme scheme;
+  final ValueChanged<ChatWallpaperConfig> onApply;
+
+  @override
+  State<_WeaveImportSheet> createState() => _WeaveImportSheetState();
+}
+
+class _WeaveImportSheetState extends State<_WeaveImportSheet> {
+  late final TextEditingController _controller;
+  ChatWallpaperConfig? _previewConfig;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _controller.addListener(_onTextChanged);
+    _checkClipboard();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkClipboard() async {
+    final ClipboardData? data = await Clipboard.getData(Clipboard.kTextPlain);
+    final String? text = data?.text?.trim();
+    if (text != null &&
+        text.isNotEmpty &&
+        (text.startsWith('nwv1:') || text.contains('/w/'))) {
+      if (mounted) {
+        _controller.text = text;
+      }
+    }
+  }
+
+  void _onTextChanged() {
+    final String text = _controller.text.trim();
+    if (text.isEmpty) {
+      setState(() {
+        _previewConfig = null;
+        _errorMessage = null;
+      });
+      return;
+    }
+
+    final ChatWallpaperConfig? parsed = NiosWeave.decode(text);
+    setState(() {
+      _previewConfig = parsed;
+      _errorMessage =
+          parsed == null ? 'Некорректный код или ссылка Nios Weave' : null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 8,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              const Icon(Icons.file_download_outlined, size: 22),
+              const SizedBox(width: 10),
+              Text(
+                'Вставить код обоев',
+                style: textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _controller,
+            decoration: InputDecoration(
+              hintText: 'nwv1:... или ni-os.ru/w/...',
+              errorText: _errorMessage,
+              prefixIcon: const Icon(Icons.qr_code_rounded, size: 20),
+              suffixIcon: _controller.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, size: 18),
+                      onPressed: () => _controller.clear(),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.paste_rounded, size: 18),
+                      tooltip: 'Вставить из буфера',
+                      onPressed: () async {
+                        final ClipboardData? data =
+                            await Clipboard.getData(Clipboard.kTextPlain);
+                        if (data?.text != null && mounted) {
+                          _controller.text = data!.text!.trim();
+                        }
+                      },
+                    ),
+              filled: true,
+              fillColor: widget.scheme.surfaceContainerLowest,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          if (_previewConfig != null) ...[
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: widget.scheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: widget.scheme.outlineVariant.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: SizedBox(
+                  height: 120,
+                  child: CustomPaint(
+                    painter: ChatWallpaperPainter(
+                      config: _previewConfig!,
+                      scheme: widget.scheme,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: _previewConfig == null
+                ? null
+                : () {
+                    widget.onApply(_previewConfig!);
+                    Navigator.of(context).pop();
+                  },
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text('Применить обои'),
+            style: FilledButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

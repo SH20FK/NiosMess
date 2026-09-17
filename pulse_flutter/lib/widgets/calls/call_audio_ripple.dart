@@ -37,6 +37,7 @@ class CallAudioRipple extends StatelessWidget {
                         progress: animation.value,
                         primaryColor: scheme.primary,
                         tertiaryColor: scheme.tertiary,
+                        baseSize: size,
                       ),
                     );
                   },
@@ -61,43 +62,43 @@ class _AudioRipplePainter extends CustomPainter {
     required this.progress,
     required this.primaryColor,
     required this.tertiaryColor,
+    required this.baseSize,
   });
 
   final double progress;
   final Color primaryColor;
   final Color tertiaryColor;
+  final double baseSize;
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final maxRadius = min(size.width, size.height) / 2;
-    const baseRadius = CallTokens.avatarLargeSize * 0.52;
+    final baseRadius = baseSize * 0.52;
 
-    const ringCount = 3;
+    const ringCount = 4;
     for (int i = 0; i < ringCount; i++) {
       final ringProgress = (progress + (i / ringCount)) % 1.0;
       final currentRadius = baseRadius + (maxRadius - baseRadius) * ringProgress;
-      
-      // Easing alpha out
-      final alpha = (sin(ringProgress * pi)).clamp(0.0, 1.0) * 0.28 * (1.0 - ringProgress * 0.4);
+
+      // Easing alpha out smoothly with sine curve
+      final alpha = (sin(ringProgress * pi)).clamp(0.0, 1.0) * 0.32 * (1.0 - ringProgress * 0.5);
       final ringColor = Color.lerp(primaryColor, tertiaryColor, (i / ringCount))!
           .withValues(alpha: alpha);
 
       final paint = Paint()
         ..color = ringColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5 * (1.0 - ringProgress * 0.5)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0);
+        ..strokeWidth = (3.0 * (1.0 - ringProgress * 0.6)).clamp(1.0, 3.0);
 
       canvas.drawCircle(center, currentRadius, paint);
 
-      // Soft glow fill inside first ring
+      // Subtle translucent inner wave
       if (i == 0) {
         final fillPaint = Paint()
-          ..color = primaryColor.withValues(alpha: alpha * 0.3)
-          ..style = PaintingStyle.fill
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12.0);
-        canvas.drawCircle(center, currentRadius * 0.85, fillPaint);
+          ..color = primaryColor.withValues(alpha: alpha * 0.18)
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(center, currentRadius * 0.96, fillPaint);
       }
     }
   }

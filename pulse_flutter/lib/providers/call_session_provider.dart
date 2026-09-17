@@ -41,6 +41,8 @@ class CallSessionManager {
     required this.direction,
     required this.displayName,
     this.peerName,
+    this.peerAvatarUrl,
+    this.peerUsername,
     this.isListener = false,
     this.gatewayInfo,
   }) {
@@ -71,6 +73,8 @@ class CallSessionManager {
   final CallDirection direction;
   final String displayName;
   final String? peerName;
+  final String? peerAvatarUrl;
+  final String? peerUsername;
   final bool isListener;
   final ApiCallGatewayInfo? gatewayInfo;
 
@@ -125,6 +129,8 @@ class CallSessionManager {
       isVideo: _service.isVideo,
       direction: direction,
       peerName: _service.peerName ?? peerName,
+      peerAvatarUrl: peerAvatarUrl,
+      peerUsername: peerUsername,
       isMuted: _service.isMuted,
       isSpeakerOn: _service.isSpeakerOn,
       isSelfVideoEnabled: !_service.isMuted,

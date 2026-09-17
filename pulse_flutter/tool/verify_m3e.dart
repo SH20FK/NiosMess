@@ -19,11 +19,11 @@ void main() {
 
   // Gate 1: Check pubspec.yaml version
   final pubspec = File('pubspec.yaml').readAsStringSync();
-  check('pubspec.yaml version bumped to >= 3.62.0+145', RegExp(r'version: 3\.6[2-9]\.\d+\+\d+').hasMatch(pubspec));
+  check('pubspec.yaml version bumped to >= 3.62.0+145', RegExp(r'version: 3\.(?:[7-9]\d|\d{3,}|6[2-9])\.\d+\+\d+').hasMatch(pubspec));
 
   // Gate 2: Check build_info.dart version
   final buildInfo = File('lib/core/constants/build_info.dart').readAsStringSync();
-  check('build_info.dart version is >= 3.62.0+145', RegExp(r"version = '3\.6[2-9]\.\d+'").hasMatch(buildInfo));
+  check('build_info.dart version is >= 3.62.0+145', RegExp(r"version = '3\.(?:[7-9]\d|\d{3,}|6[2-9])\.\d+'").hasMatch(buildInfo));
 
   // Gate 3: Shimmer eradication
   final libFiles = Directory('lib').listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart')).toList();

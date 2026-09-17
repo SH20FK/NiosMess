@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
+import 'package:pulse_flutter/core/identity/nios_weave.dart';
 import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
 import 'package:pulse_flutter/widgets/wallpaper/cupertino_icons_data.dart';
 import 'package:pulse_flutter/widgets/wallpaper/icon_sources_catalog.dart';
@@ -126,8 +127,7 @@ class ChatWallpaperPainter extends CustomPainter {
       );
     }
 
-    // 2. Setup seeded random and positioning bounds
-    final Random rng = Random(config.seed);
+    // 2. Setup positioning bounds
     final double cellSize = config.cellSize.clamp(20.0, 240.0);
     final double iconBaseSize = cellSize * 0.44;
 
@@ -171,7 +171,6 @@ class ChatWallpaperPainter extends CustomPainter {
         canvas: canvas,
         size: size,
         config: config,
-        rng: rng,
         cellSize: cellSize,
         iconBaseSize: iconBaseSize,
         cache: cache,
@@ -211,7 +210,6 @@ class ChatWallpaperPainter extends CustomPainter {
         diagonal: diagonal,
         cellSize: cellSize,
         config: config,
-        rng: rng,
         iconBaseSize: iconBaseSize,
         cache: cache,
       );
@@ -223,7 +221,6 @@ class ChatWallpaperPainter extends CustomPainter {
         diagonal: diagonal,
         cellSize: cellSize,
         config: config,
-        rng: rng,
         iconBaseSize: iconBaseSize,
         cache: cache,
       );
@@ -235,7 +232,6 @@ class ChatWallpaperPainter extends CustomPainter {
         diagonal: diagonal,
         cellSize: cellSize,
         config: config,
-        rng: rng,
         iconBaseSize: iconBaseSize,
         cache: cache,
       );
@@ -247,7 +243,6 @@ class ChatWallpaperPainter extends CustomPainter {
         diagonal: diagonal,
         cellSize: cellSize,
         config: config,
-        rng: rng,
         iconBaseSize: iconBaseSize,
         cache: cache,
       );
@@ -264,31 +259,29 @@ class ChatWallpaperPainter extends CustomPainter {
     required double diagonal,
     required double cellSize,
     required ChatWallpaperConfig config,
-    required Random rng,
     required double iconBaseSize,
     required PainterGlyphCache cache,
   }) {
     final double D = cellSize;
     final double H = D * 0.8660254037844386; // sqrt(3)/2 = ~0.866
 
-    final int countX = (diagonal / D).ceil() + 2;
-    final int countY = (diagonal / H).ceil() + 2;
-    final double startX = cx - (countX * D) / 2.0;
-    final double startY = cy - (countY * H) / 2.0;
-    final double endX = cx + (countX * D) / 2.0;
-    final double endY = cy + (countY * H) / 2.0;
+    final int halfCountX = (diagonal / (2.0 * D)).ceil() + 1;
+    final int halfCountY = (diagonal / (2.0 * H)).ceil() + 1;
 
-    int row = 0;
-    for (double y = startY; y <= endY; y += H, row++) {
-      final double rowOffset = (row % 2 == 1) ? (D * 0.5) : 0.0;
-      for (double x = startX + rowOffset; x <= endX; x += D) {
-        if (rng.nextDouble() <= config.density) {
+    for (int r = -halfCountY; r <= halfCountY; r++) {
+      final double rowOffset = r.isOdd ? (D * 0.5) : 0.0;
+      final double y = cy + r * H;
+      for (int c = -halfCountX; c <= halfCountX; c++) {
+        final double x = cx + c * D + rowOffset;
+        final int h = NiosWeave.posHash(config.seed, c, r);
+        if ((h % 10000) / 10000.0 <= config.density) {
           _drawSingleIcon(
             canvas: canvas,
             x: x,
             y: y,
+            col: c,
+            row: r,
             config: config,
-            rng: rng,
             iconBaseSize: iconBaseSize,
             cache: cache,
           );
@@ -302,7 +295,6 @@ class ChatWallpaperPainter extends CustomPainter {
     required Canvas canvas,
     required Size size,
     required ChatWallpaperConfig config,
-    required Random rng,
     required double cellSize,
     required double iconBaseSize,
     required PainterGlyphCache cache,
@@ -325,13 +317,15 @@ class ChatWallpaperPainter extends CustomPainter {
       final double posX = cx + r * cos(theta);
       final double posY = cy + r * sin(theta);
 
-      if (rng.nextDouble() <= config.density) {
+      final int h = NiosWeave.posHash(config.seed, n, 0);
+      if ((h % 10000) / 10000.0 <= config.density) {
         _drawSingleIcon(
           canvas: canvas,
           x: posX,
           y: posY,
+          col: n,
+          row: 0,
           config: config,
-          rng: rng,
           iconBaseSize: iconBaseSize,
           cache: cache,
         );
@@ -348,32 +342,30 @@ class ChatWallpaperPainter extends CustomPainter {
     required double diagonal,
     required double cellSize,
     required ChatWallpaperConfig config,
-    required Random rng,
     required double iconBaseSize,
     required PainterGlyphCache cache,
   }) {
     final double D = cellSize;
-    final int countX = (diagonal / D).ceil() + 2;
-    final int countY = (diagonal / D).ceil() + 2;
-    final double startX = cx - (countX * D) / 2.0;
-    final double startY = cy - (countY * D) / 2.0;
-    final double endX = cx + (countX * D) / 2.0;
-    final double endY = cy + (countY * D) / 2.0;
-
-    // Jitter is strictly bounded by 0.32 D to guarantee minimum distance > 0.36 D
+    final int halfCount = (diagonal / (2.0 * D)).ceil() + 1;
     final double maxJitter = D * 0.32;
 
-    for (double y = startY; y <= endY; y += D) {
-      for (double x = startX; x <= endX; x += D) {
-        if (rng.nextDouble() <= config.density) {
-          final double jx = (rng.nextDouble() * 2.0 - 1.0) * maxJitter;
-          final double jy = (rng.nextDouble() * 2.0 - 1.0) * maxJitter;
+    for (int r = -halfCount; r <= halfCount; r++) {
+      final double yBase = cy + r * D;
+      for (int c = -halfCount; c <= halfCount; c++) {
+        final double xBase = cx + c * D;
+        final int h = NiosWeave.posHash(config.seed, c, r);
+        if ((h % 10000) / 10000.0 <= config.density) {
+          final int hx = NiosWeave.posHash(config.seed ^ 0x4B0D3A2C, c, r);
+          final int hy = NiosWeave.posHash(config.seed ^ 0x7F21A3C4, c, r);
+          final double jx = (((hx % 10000) / 10000.0) * 2.0 - 1.0) * maxJitter;
+          final double jy = (((hy % 10000) / 10000.0) * 2.0 - 1.0) * maxJitter;
           _drawSingleIcon(
             canvas: canvas,
-            x: x + jx,
-            y: y + jy,
+            x: xBase + jx,
+            y: yBase + jy,
+            col: c,
+            row: r,
             config: config,
-            rng: rng,
             iconBaseSize: iconBaseSize,
             cache: cache,
           );
@@ -390,30 +382,27 @@ class ChatWallpaperPainter extends CustomPainter {
     required double diagonal,
     required double cellSize,
     required ChatWallpaperConfig config,
-    required Random rng,
     required double iconBaseSize,
     required PainterGlyphCache cache,
   }) {
     final double D = cellSize;
-    final int countX = (diagonal / D).ceil() + 2;
-    final int countY = (diagonal / D).ceil() + 2;
-    final double startX = cx - (countX * D) / 2.0;
-    final double startY = cy - (countY * D) / 2.0;
-    final double endX = cx + (countX * D) / 2.0;
-    final double endY = cy + (countY * D) / 2.0;
+    final int halfCount = (diagonal / (2.0 * D)).ceil() + 1;
 
     if (config.staggerByRow) {
-      int row = 0;
-      for (double y = startY; y <= endY; y += D, row++) {
-        final double rowOffset = (row % 2 == 1) ? (D * 0.5) : 0.0;
-        for (double x = startX + rowOffset; x <= endX; x += D) {
-          if (rng.nextDouble() <= config.density) {
+      for (int r = -halfCount; r <= halfCount; r++) {
+        final double rowOffset = r.isOdd ? (D * 0.5) : 0.0;
+        final double y = cy + r * D;
+        for (int c = -halfCount; c <= halfCount; c++) {
+          final double x = cx + c * D + rowOffset;
+          final int h = NiosWeave.posHash(config.seed, c, r);
+          if ((h % 10000) / 10000.0 <= config.density) {
             _drawSingleIcon(
               canvas: canvas,
               x: x,
               y: y,
+              col: c,
+              row: r,
               config: config,
-              rng: rng,
               iconBaseSize: iconBaseSize,
               cache: cache,
             );
@@ -421,17 +410,20 @@ class ChatWallpaperPainter extends CustomPainter {
         }
       }
     } else {
-      int col = 0;
-      for (double x = startX; x <= endX; x += D, col++) {
-        final double colOffset = (col % 2 == 1) ? (D * 0.5) : 0.0;
-        for (double y = startY + colOffset; y <= endY; y += D) {
-          if (rng.nextDouble() <= config.density) {
+      for (int c = -halfCount; c <= halfCount; c++) {
+        final double colOffset = c.isOdd ? (D * 0.5) : 0.0;
+        final double x = cx + c * D;
+        for (int r = -halfCount; r <= halfCount; r++) {
+          final double y = cy + r * D + colOffset;
+          final int h = NiosWeave.posHash(config.seed, c, r);
+          if ((h % 10000) / 10000.0 <= config.density) {
             _drawSingleIcon(
               canvas: canvas,
               x: x,
               y: y,
+              col: c,
+              row: r,
               config: config,
-              rng: rng,
               iconBaseSize: iconBaseSize,
               cache: cache,
             );
@@ -449,27 +441,25 @@ class ChatWallpaperPainter extends CustomPainter {
     required double diagonal,
     required double cellSize,
     required ChatWallpaperConfig config,
-    required Random rng,
     required double iconBaseSize,
     required PainterGlyphCache cache,
   }) {
     final double D = cellSize;
-    final int countX = (diagonal / D).ceil() + 2;
-    final int countY = (diagonal / D).ceil() + 2;
-    final double startX = cx - (countX * D) / 2.0;
-    final double startY = cy - (countY * D) / 2.0;
-    final double endX = cx + (countX * D) / 2.0;
-    final double endY = cy + (countY * D) / 2.0;
+    final int halfCount = (diagonal / (2.0 * D)).ceil() + 1;
 
-    for (double y = startY; y <= endY; y += D) {
-      for (double x = startX; x <= endX; x += D) {
-        if (rng.nextDouble() <= config.density) {
+    for (int r = -halfCount; r <= halfCount; r++) {
+      final double y = cy + r * D;
+      for (int c = -halfCount; c <= halfCount; c++) {
+        final double x = cx + c * D;
+        final int h = NiosWeave.posHash(config.seed, c, r);
+        if ((h % 10000) / 10000.0 <= config.density) {
           _drawSingleIcon(
             canvas: canvas,
             x: x,
             y: y,
+            col: c,
+            row: r,
             config: config,
-            rng: rng,
             iconBaseSize: iconBaseSize,
             cache: cache,
           );
@@ -483,18 +473,22 @@ class ChatWallpaperPainter extends CustomPainter {
     required Canvas canvas,
     required double x,
     required double y,
+    required int col,
+    required int row,
     required ChatWallpaperConfig config,
-    required Random rng,
     required double iconBaseSize,
     required PainterGlyphCache cache,
   }) {
-    final double scaleJitter = 1.0 + (rng.nextDouble() * 2.0 - 1.0) * config.randomScaleJitter;
+    final int hScale = NiosWeave.posHash(config.seed ^ 0x243F6A88, col, row);
+    final double scaleJitter = 1.0 + (((hScale % 10000) / 10000.0) * 2.0 - 1.0) * config.randomScaleJitter;
     final double scale = scaleJitter.clamp(0.25, 2.4);
 
-    final double rotationJitterDeg = (rng.nextDouble() * 2.0 - 1.0) * config.randomRotationDeg;
+    final int hRot = NiosWeave.posHash(config.seed ^ 0x85A308D3, col, row);
+    final double rotationJitterDeg = (((hRot % 10000) / 10000.0) * 2.0 - 1.0) * config.randomRotationDeg;
     final double rotationRad = rotationJitterDeg * pi / 180.0;
 
-    final String selectedRole = cache.activeRoles[rng.nextInt(cache.activeRoles.length)];
+    final int hRole = NiosWeave.posHash(config.seed ^ 0x13198A2E, col, row);
+    final String selectedRole = cache.activeRoles[hRole % cache.activeRoles.length];
 
     canvas.save();
     canvas.translate(x, y);
@@ -506,8 +500,10 @@ class ChatWallpaperPainter extends CustomPainter {
       canvas.scale(scale, scale);
     }
 
+    final int hGlyph = NiosWeave.posHash(config.seed ^ 0x03707344, col, row);
+
     if (config.iconSource == IconSource.niosMess) {
-      final Shapes shape = cache.shapesPool[rng.nextInt(cache.shapesPool.length)];
+      final Shapes shape = cache.shapesPool[hGlyph % cache.shapesPool.length];
       final Path? path = cache.shapePaths[shape];
       final Paint? paint = cache.shapePaints[selectedRole];
       if (path != null && paint != null) {
@@ -516,7 +512,7 @@ class ChatWallpaperPainter extends CustomPainter {
     } else if (config.iconSource == IconSource.lucide || config.iconSource == IconSource.tabler) {
       ui.Picture? pic;
       if (cache.poolSvgPictures != null && cache.poolSvgPictures!.isNotEmpty) {
-        pic = cache.poolSvgPictures![rng.nextInt(cache.poolSvgPictures!.length)];
+        pic = cache.poolSvgPictures![hGlyph % cache.poolSvgPictures!.length];
       } else {
         pic = cache.paletteSvgPictures?[selectedRole] ?? cache.svgPicture;
       }
@@ -530,7 +526,7 @@ class ChatWallpaperPainter extends CustomPainter {
     } else {
       // Material Symbols or Cupertino Icons via Pre-Laid-Out ui.Paragraph
       if (cache.activeCodepoints.isNotEmpty) {
-        final int code = cache.activeCodepoints[rng.nextInt(cache.activeCodepoints.length)];
+        final int code = cache.activeCodepoints[hGlyph % cache.activeCodepoints.length];
         final String key = '${code}_$selectedRole';
         final ui.Paragraph? paragraph = cache.cachedParagraphs[key];
         if (paragraph != null) {
