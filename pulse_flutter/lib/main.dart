@@ -29,6 +29,9 @@ import 'package:pulse_flutter/services/calls/call_starter.dart';
 import 'package:pulse_flutter/widgets/calls/call_overlay.dart';
 import 'package:pulse_flutter/screens/calls/incoming_call_overlay.dart';
 import 'package:pulse_flutter/widgets/notifications/in_app_notification_banner.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 
@@ -122,6 +125,17 @@ class _PulseAppState extends ConsumerState<PulseApp> {
   void initState() {
     super.initState();
     _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        try {
+          ref.read(webSocketClientProvider).reconnectNow();
+        } catch (_) {}
+        try {
+          ref.read(chatsProvider.notifier).refresh();
+        } catch (_) {}
+        try {
+          ref.read(authProvider.notifier).refreshFcmTokenRegistration();
+        } catch (_) {}
+      },
       onPause: () {
         ref.read(uiSettingsProvider.notifier).flushPersist();
       },
@@ -169,6 +183,10 @@ class _PulseAppState extends ConsumerState<PulseApp> {
             ));
       }
     };
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushNotificationService.checkAndHandlePendingNotification();
+    });
   }
 
   @override

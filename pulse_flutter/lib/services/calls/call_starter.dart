@@ -61,6 +61,8 @@ Future<int> startOutgoingCall({
   required int chatId,
   required bool isVideo,
   String? peerName,
+  String? peerAvatarUrl,
+  String? peerUsername,
   void Function(bool isListener)? onPermissionResult,
 }) async {
   final chat = ref.read(chatByIdProvider(chatId));
@@ -127,8 +129,8 @@ Future<int> startOutgoingCall({
     direction: CallDirection.outgoing,
     displayName: nickname,
     peerName: peerName ?? chat?.name,
-    peerAvatarUrl: chat?.avatarUrl,
-    peerUsername: chat?.username,
+    peerAvatarUrl: peerAvatarUrl ?? chat?.avatarUrl,
+    peerUsername: peerUsername ?? chat?.username,
     isListener: isListener,
     gatewayInfo: gatewayInfo,
   );

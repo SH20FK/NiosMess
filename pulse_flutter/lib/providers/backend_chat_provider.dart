@@ -14,6 +14,7 @@ import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/chat_muted_provider.dart';
 import 'package:pulse_flutter/providers/in_app_notification_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
@@ -277,14 +278,17 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     if (currentChats == null) return;
 
     final int index = currentChats.indexWhere((ApiChatSummary c) => c.id == message.chatId);
+    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+    final bool isCurrentChatOpen =
+        PushNotificationService.currentChatId == message.chatId;
+
     if (index != -1) {
       final List<ApiChatSummary> updated = List<ApiChatSummary>.from(currentChats);
       final ApiChatSummary chat = updated[index];
 
-      final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-      final int newUnreadCount = message.senderId != myUserId
+      final int newUnreadCount = (message.senderId != myUserId && !isCurrentChatOpen)
           ? chat.unreadCount + 1
-          : chat.unreadCount;
+          : (isCurrentChatOpen ? 0 : chat.unreadCount);
 
       updated[index] = chat.copyWith(
         lastMessage: message,
@@ -301,6 +305,13 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       state = AsyncData<List<ApiChatSummary>>(updated);
       ref.read(cacheServiceProvider).saveChats(updated);
 
+      if (message.senderId != myUserId && isCurrentChatOpen) {
+        // Chat is currently open: automatically mark read on backend in real time
+        unawaited(
+          ref.read(chatRepositoryProvider).markRead(message.chatId),
+        );
+      }
+
       if (message.senderId != myUserId) {
         final String chatName = chat.name.isNotEmpty ? chat.name : 'NiosMess';
         final String body = message.content.isNotEmpty
@@ -312,7 +323,8 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
           route: '/chat/${message.chatId}',
         );
 
-        if (PushNotificationService.currentChatId != message.chatId) {
+        final bool isMuted = ref.read(chatMutedProvider(chat.id)).value ?? false;
+        if (!isCurrentChatOpen && !isMuted) {
           ref.read(inAppNotificationProvider.notifier).show(
             InAppNotificationItem(
               id: 'msg_${message.id}',
@@ -328,8 +340,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       }
     } else {
       refresh();
-      final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-      if (message.senderId != myUserId && PushNotificationService.currentChatId != message.chatId) {
+      if (message.senderId != myUserId && !isCurrentChatOpen) {
         final String body = message.content.isNotEmpty
             ? message.content
             : (message.msgType == 'media' ? '📎 Media' : '...');
@@ -428,6 +439,19 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       isBlockedByUser: isBlocked,
       isBlocked: isBlocked || chat.isBlockedByMe,
     );
+    state = AsyncData<List<ApiChatSummary>>(updated);
+    ref.read(cacheServiceProvider).saveChats(updated);
+  }
+
+  void markChatAsRead(int chatId) {
+    final List<ApiChatSummary>? current = state.value;
+    if (current == null) return;
+    final int idx = current.indexWhere((ApiChatSummary c) => c.id == chatId);
+    if (idx == -1) return;
+    final ApiChatSummary chat = current[idx];
+    if (chat.unreadCount == 0) return;
+    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(current);
+    updated[idx] = chat.copyWith(unreadCount: 0);
     state = AsyncData<List<ApiChatSummary>>(updated);
     ref.read(cacheServiceProvider).saveChats(updated);
   }
@@ -645,7 +669,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     await _saveToCache(next);
 
     if (message.senderId != myUserId) {
-      await _playNotificationSound();
+      if (PushNotificationService.currentChatId == _chatId) {
+        unawaited(markRead());
+      } else {
+        await _playNotificationSound();
+      }
     }
   }
 

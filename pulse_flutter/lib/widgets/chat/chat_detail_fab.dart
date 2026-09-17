@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 class ChatDetailScrollToBottomFAB extends StatelessWidget {
   const ChatDetailScrollToBottomFAB({
@@ -30,8 +31,8 @@ class ChatDetailScrollToBottomFAB extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               child: AnimatedScale(
                 scale: show ? 1.0 : 0.7,
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutBack,
+                duration: const Duration(milliseconds: 250),
+                curve: M3SpringCurves.spatial,
                 child: Badge(
                   isLabelVisible: unreadCount > 0,
                   label: Text(
@@ -47,8 +48,16 @@ class ChatDetailScrollToBottomFAB extends StatelessWidget {
                     tooltip: context.l10n.chatScrollToBottom,
                     backgroundColor: scheme.surfaceContainerHigh,
                     foregroundColor: scheme.onSurface,
-                    elevation: 3,
-                    child: const Icon(Icons.keyboard_arrow_down_rounded),
+                    elevation: 0,
+                    highlightElevation: 1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: scheme.outlineVariant.withValues(alpha: 0.35),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: const Icon(Icons.keyboard_arrow_down_rounded, size: 22),
                   ),
                 ),
               ),

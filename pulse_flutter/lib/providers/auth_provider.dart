@@ -86,12 +86,14 @@ class AuthNotifier extends Notifier<AuthState> {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   Future<void>? _loadFuture;
   StreamSubscription<String>? _fcmTokenRefreshSubscription;
+  StreamSubscription<void>? _wsConnectedSubscription;
 
   @override
   AuthState build() {
     _loadFuture = _load();
     ref.onDispose(() {
       _fcmTokenRefreshSubscription?.cancel();
+      _wsConnectedSubscription?.cancel();
     });
     return const AuthState.initial();
   }
@@ -327,6 +329,8 @@ class AuthNotifier extends Notifier<AuthState> {
     BackgroundService.stop();
     await _fcmTokenRefreshSubscription?.cancel();
     _fcmTokenRefreshSubscription = null;
+    await _wsConnectedSubscription?.cancel();
+    _wsConnectedSubscription = null;
 
     ref.read(webSocketClientProvider).disconnect();
     await _clearSessionStorage();
@@ -354,6 +358,14 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> _registerFcmToken() async {
     await _fcmTokenRefreshSubscription?.cancel();
     _fcmTokenRefreshSubscription = null;
+
+    _wsConnectedSubscription ??= ref.read(webSocketClientProvider).onConnected.listen((_) {
+      if (state.isAuthenticated) {
+        debugPrint('[AuthNotifier] Socket connected/reconnected: refreshing FCM registration');
+        _registerFcmToken();
+      }
+    });
+
     try {
       final String? fcmToken = await PushNotificationService.getToken();
       final String platform = kIsWeb
@@ -361,26 +373,35 @@ class AuthNotifier extends Notifier<AuthState> {
           : (Platform.isAndroid ? 'android' : 'ios');
 
       if (fcmToken != null && fcmToken.isNotEmpty) {
-        ref.read(webSocketClientProvider).request(
-              'register_fcm_token',
-              payload: {
-                'fcm_token': fcmToken,
-                'platform': platform,
-              },
-            );
+        unawaited(_sendFcmTokenWithRetry(fcmToken, platform));
       }
 
       _fcmTokenRefreshSubscription = PushNotificationService.onTokenRefresh.listen((newToken) {
-        ref.read(webSocketClientProvider).request(
-              'register_fcm_token',
-              payload: {
-                'fcm_token': newToken,
-                'platform': platform,
-              },
-            );
+        unawaited(_sendFcmTokenWithRetry(newToken, platform));
       });
     } catch (e) {
       debugPrint('[AuthNotifier] Failed to register FCM token: $e');
+    }
+  }
+
+  Future<void> _sendFcmTokenWithRetry(String token, String platform) async {
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await ref.read(webSocketClientProvider).request(
+              'register_fcm_token',
+              payload: {
+                'fcm_token': token,
+                'platform': platform,
+              },
+            );
+        debugPrint('[AuthNotifier] FCM token registered successfully (attempt $attempt)');
+        break;
+      } catch (e) {
+        debugPrint('[AuthNotifier] FCM token register attempt $attempt failed: $e');
+        if (attempt < 3) {
+          await Future<void>.delayed(Duration(seconds: attempt * 2));
+        }
+      }
     }
   }
 

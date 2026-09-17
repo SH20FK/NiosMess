@@ -249,7 +249,19 @@ class PushNotificationService {
     );
 
     final RemoteMessage? initial = await _fcm.getInitialMessage();
-    if (initial != null) _handleNavigation(initial.data);
+    if (initial != null) {
+      pendingNotificationData = initial.data;
+    }
+  }
+
+  static Map<String, dynamic>? pendingNotificationData;
+
+  static void checkAndHandlePendingNotification() {
+    if (pendingNotificationData != null) {
+      final Map<String, dynamic> data = pendingNotificationData!;
+      pendingNotificationData = null;
+      _handleNavigation(data);
+    }
   }
 
   static Future<void> dispose() async {
@@ -289,6 +301,10 @@ class PushNotificationService {
         ? chatIdRaw
         : int.tryParse(chatIdRaw?.toString() ?? '');
     if (chatId != null && chatId == _currentChatId) return;
+
+    // When the app is in the foreground, in-app banner already presents new messages.
+    // Only incoming calls require system tray notification with heads-up call actions.
+    if (!isCall) return;
 
     await _local.show(
       id: ++_notificationIdCounter,

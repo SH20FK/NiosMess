@@ -50,13 +50,12 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBkUhRH8VhbdrkEBkDw7ZGExrqQ1RKZMik',
-    appId: '1:1071718522582:web:a189cbf4f8a1b033c27377',
-    messagingSenderId: '1071718522582',
-    projectId: 'niosmess-push',
-    authDomain: 'niosmess-push.firebaseapp.com',
-    storageBucket: 'niosmess-push.firebasestorage.app',
-    measurementId: 'G-YWXBMZ5GN6',
+    apiKey: 'AIzaSyBKS1OjGKwwJmvEnBwg8q1_WDw1G_def2w',
+    appId: '1:825221435616:web:225ca60a8de4e3ce388085',
+    messagingSenderId: '825221435616',
+    projectId: 'niosmes',
+    authDomain: 'niosmes.firebaseapp.com',
+    storageBucket: 'niosmes.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(

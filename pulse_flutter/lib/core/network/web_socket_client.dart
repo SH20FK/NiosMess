@@ -43,7 +43,11 @@ class WebSocketClient {
   final StreamController<Map<String, dynamic>> _pushStreamController =
       StreamController<Map<String, dynamic>>.broadcast();
 
+  final StreamController<void> _connectedStreamController =
+      StreamController<void>.broadcast();
+
   Stream<Map<String, dynamic>> get pushStream => _pushStreamController.stream;
+  Stream<void> get onConnected => _connectedStreamController.stream;
 
   bool get isConnected => _isSocketOpen && _secretKey != null;
 
@@ -285,6 +289,9 @@ class WebSocketClient {
           if (_connectionReadyCompleter != null &&
               !_connectionReadyCompleter!.isCompleted) {
             _connectionReadyCompleter!.complete();
+          }
+          if (!_connectedStreamController.isClosed) {
+            _connectedStreamController.add(null);
           }
         }
         return;
@@ -539,5 +546,6 @@ class WebSocketClient {
   void close() {
     disconnect();
     _closed = true;
+    _connectedStreamController.close();
   }
 }

@@ -57,7 +57,7 @@ import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
-import 'package:pulse_flutter/services/calls/call_starter.dart';
+import 'package:pulse_flutter/screens/calls/outgoing_call_screen.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 
 class ChatDetailScreen extends ConsumerStatefulWidget {
@@ -332,6 +332,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
     if (offset <= 60 && _unreadWhileScrolledNotifier.value != 0) {
       _unreadWhileScrolledNotifier.value = 0;
+      final int? cid = _chatId;
+      if (cid != null) {
+        unawaited(ref.read(chatMessagesProvider(cid).notifier).markRead());
+        ref.read(chatsProvider.notifier).markChatAsRead(cid);
+      }
     }
     // Auto-load older messages when near the top (end of reversed list)
     if (offset > maxExtent - 400 && !_loadingOlderNotifier.value) {
@@ -354,6 +359,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       HapticService.tap();
     }
     _unreadWhileScrolledNotifier.value = 0;
+    final int? cid = _chatId;
+    if (cid != null) {
+      unawaited(ref.read(chatMessagesProvider(cid).notifier).markRead());
+      ref.read(chatsProvider.notifier).markChatAsRead(cid);
+    }
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
         0,
@@ -365,6 +375,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   @override
   void dispose() {
+    final int? cid = _chatId;
+    if (cid != null) {
+      try {
+        unawaited(ref.read(chatMessagesProvider(cid).notifier).markRead());
+        ref.read(chatsProvider.notifier).markChatAsRead(cid);
+      } catch (_) {}
+    }
     PushNotificationService.setCurrentChat(null);
     WidgetsBinding.instance.removeObserver(this);
     _secretPollTimer?.cancel();
@@ -662,10 +679,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     try {
       await ref.read(chatMessagesProvider(chatId).notifier).refresh();
       await ref.read(chatMessagesProvider(chatId).notifier).markRead();
+      ref.read(chatsProvider.notifier).markChatAsRead(chatId);
       final ApiChatSummary? freshChat =
           await ref.read(chatRepositoryProvider).getChat(chatId);
       if (freshChat != null && mounted) {
-        ref.read(chatsProvider.notifier).upsertChat(freshChat);
+        ref.read(chatsProvider.notifier).upsertChat(freshChat.copyWith(unreadCount: 0));
       }
     } catch (e) {
       debugPrint('Failed to refresh: $e');
@@ -1700,7 +1718,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     await ref.read(chatMessagesProvider(chatId).notifier).send(message.content, replyToId: message.replyToId);
   }
 
-  Future<void> _startCall({required bool isVideo}) async {
+  void _startCall({required bool isVideo}) {
     final int? chatId = _chatId;
     if (chatId == null) return;
 
@@ -1719,30 +1737,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       }
     }
 
-    try {
-      final int callId = await startOutgoingCall(
-        ref: ref,
+    final String partnerName = currentChat?.name ?? '';
+    final String partnerUsername = currentChat?.username ?? '';
+    final String? avatarUrl = currentChat?.avatarUrl;
+
+    context.push(
+      '/call/outgoing',
+      extra: OutgoingCallArgs(
+        username: partnerUsername.isNotEmpty ? partnerUsername : partnerName,
+        displayName: partnerName,
+        avatarUrl: avatarUrl,
         chatId: chatId,
         isVideo: isVideo,
-      );
-
-      if (mounted) {
-        context.push('/call/$callId');
-      }
-    } on CallStartException catch (e) {
-      if (mounted) {
-        AppToast.showError(
-          context,
-          e.failure == CallStartFailure.permissions
-              ? context.l10n.chatCallPermissionRequired
-              : context.l10n.chatCallFailed(e),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.showError(context, e);
-      }
-    }
+      ),
+    );
   }
 
   void _startVoiceCall() => _startCall(isVideo: false);

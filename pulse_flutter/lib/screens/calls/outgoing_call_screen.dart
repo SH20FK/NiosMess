@@ -137,6 +137,8 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen>
         chatId: resolvedChatId,
         isVideo: widget.args.isVideo,
         peerName: peerName,
+        peerAvatarUrl: widget.args.avatarUrl,
+        peerUsername: widget.args.username,
         onPermissionResult: (bool isListener) {
           if (mounted && isListener) {
             setState(() {
