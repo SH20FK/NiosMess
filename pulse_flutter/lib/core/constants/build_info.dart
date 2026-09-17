@@ -8,13 +8,13 @@ class BuildInfo {
   static const String version = '3.75.0';
 
   /// Build number (e.g. "147").
-  static const String buildNumber = '163';
+  static const String buildNumber = '164';
 
   /// Version with 'v' prefix (e.g. "v3.63.1").
   static const String versionWithPrefix = 'v3.75.0';
 
   /// Full version with build number (e.g. "v3.63.1+147").
-  static const String fullVersion = 'v3.75.0+163';
+  static const String fullVersion = 'v3.75.0+164';
 
   /// Git commit hash of this release.
   static const String commitHash = '02b328a';

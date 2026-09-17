@@ -784,14 +784,17 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      final createBar = find.text('Что у вас нового?');
+      final createBar = find.byKey(const ValueKey<String>('collapsed_quick_bar'));
       expect(createBar, findsOneWidget);
+      expect(find.text('О чём думаешь?'), findsOneWidget);
 
       await tester.tap(createBar);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
 
-      expect(find.text('Новая публикация'), findsOneWidget);
+      final expandedComposer = find.byKey(const ValueKey<String>('expanded_quick_composer'));
+      expect(expandedComposer, findsOneWidget);
+      expect(find.descendant(of: expandedComposer, matching: find.text('Новый пост')), findsOneWidget);
       expect(find.text('Опубликовать'), findsOneWidget);
     });
 

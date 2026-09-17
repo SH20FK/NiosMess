@@ -436,13 +436,16 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       // 6. Tap quick-creation in feed
-      final createFinder = find.text('Что у вас нового?');
+      final createFinder = find.byKey(const ValueKey<String>('collapsed_quick_bar'));
       expect(createFinder, findsOneWidget);
+      expect(find.text('О чём думаешь?'), findsOneWidget);
       await tester.tap(createFinder);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Новая публикация'), findsOneWidget);
+      final expandedComposer = find.byKey(const ValueKey<String>('expanded_quick_composer'));
+      expect(expandedComposer, findsOneWidget);
+      expect(find.descendant(of: expandedComposer, matching: find.text('Новый пост')), findsOneWidget);
       expect(find.text('Опубликовать'), findsOneWidget);
     });
 

@@ -95,6 +95,7 @@ void main() {
             niosgramProvider.overrideWith(() => _MockNiosgramNotifier()),
           ],
           child: const MaterialApp(
+            locale: Locale('ru'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: NiosgramScreen(),
@@ -104,13 +105,16 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      final quickBarFinder = find.text('Что у вас нового?');
+      final quickBarFinder = find.byKey(const ValueKey<String>('collapsed_quick_bar'));
       expect(quickBarFinder, findsOneWidget);
+      expect(find.text('О чём думаешь?'), findsOneWidget);
       await tester.tap(quickBarFinder);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
 
-      expect(find.text('Новая публикация'), findsOneWidget);
+      final expandedComposerFinder = find.byKey(const ValueKey<String>('expanded_quick_composer'));
+      expect(expandedComposerFinder, findsOneWidget);
+      expect(find.descendant(of: expandedComposerFinder, matching: find.text('Новый пост')), findsOneWidget);
       expect(find.text('Отмена'), findsOneWidget);
       expect(find.byIcon(Icons.add_photo_alternate_outlined), findsOneWidget);
       expect(tester.takeException(), isNull);
