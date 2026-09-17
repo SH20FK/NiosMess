@@ -27,6 +27,9 @@ import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
 import 'package:pulse_flutter/widgets/contacts/call_log_view.dart';
 import 'package:pulse_flutter/widgets/contacts/online_presence_radar.dart';
 import 'package:pulse_flutter/widgets/profile/my_qr_code_sheet.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/widgets/nav/tab_shared_axis_switcher.dart';
 import 'package:pulse_flutter/widgets/profile/responsive_profile_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -43,6 +46,7 @@ class ContactsScreen extends ConsumerStatefulWidget {
 
 class _ContactsScreenState extends ConsumerState<ContactsScreen> {
   _ContactsMainTab _selectedTab = _ContactsMainTab.contacts;
+  final TabTransitionController _tabTransition = TabTransitionController();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String? _openingUsername;
@@ -406,6 +410,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                     if (haptics) {
                       HapticService.tap();
                     }
+                    _tabTransition.captureOutgoing();
                     setState(() => _selectedTab = newSelection.first);
                   },
                   style: ButtonStyle(
@@ -420,8 +425,8 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                       BorderSide.none,
                     ),
                     shape: WidgetStatePropertyAll<OutlinedBorder>(
-                      RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                      RoundedSuperellipseBorder(
+                        borderRadius: AppRadii.lgRadius,
                       ),
                     ),
                   ),
@@ -429,10 +434,12 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               ),
             ),
 
-            // Content: Calls or Contacts (IndexedStack preserves scroll position of both tabs)
+            // Content: Calls or Contacts (TabSharedAxisSwitcher preserves scroll position and animates cleanly)
             Expanded(
-              child: IndexedStack(
+              child: TabSharedAxisSwitcher(
                 index: _selectedTab.index,
+                controller: _tabTransition,
+                duration: M3Durations.medium1,
                 children: <Widget>[
                   _buildContactsTab(
                     isAuthenticated: isAuthenticated,

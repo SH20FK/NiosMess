@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -224,7 +223,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   icon: const Icon(Icons.chevron_left_rounded, size: 20),
                   onPressed: _index > 0
                       ? () {
-                          HapticFeedback.selectionClick();
+                          HapticService.selection();
                           _pageController.previousPage(
                             duration: const Duration(milliseconds: 300),
                             curve: M3SpringCurves.spatial,
@@ -242,7 +241,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       label: '${dotIndex + 1} / $_totalSlides',
                       child: GestureDetector(
                         onTap: () {
-                          HapticFeedback.selectionClick();
+                          HapticService.selection();
                           _pageController.animateToPage(
                             dotIndex,
                             duration: const Duration(milliseconds: 320),
@@ -271,7 +270,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   icon: const Icon(Icons.chevron_right_rounded, size: 20),
                   onPressed: _index < _totalSlides - 1
                       ? () {
-                          HapticFeedback.selectionClick();
+                          HapticService.selection();
                           _pageController.nextPage(
                             duration: const Duration(milliseconds: 300),
                             curve: M3SpringCurves.spatial,

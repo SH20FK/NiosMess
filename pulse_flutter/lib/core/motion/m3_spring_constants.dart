@@ -108,31 +108,31 @@ abstract final class M3SpringCurves {
   /// Spatial curve: smooth, natural container morph with slight overshoot.
   static const Curve spatial = SpringCurve(
     dampingRatio: 0.75,
-    stiffness: 220.0,
+    stiffness: 32.0,
   );
 
   /// Emphasized curve: expressive overshoot for important UI elements.
   static const Curve emphasized = SpringCurve(
     dampingRatio: 0.70,
-    stiffness: 200.0,
+    stiffness: 36.0,
   );
 
   /// Snappy curve: immediate responsiveness with tight damping.
   static const Curve snappy = SpringCurve(
     dampingRatio: 0.85,
-    stiffness: 340.0,
+    stiffness: 52.0,
   );
 
   /// Bouncy curve: visible, playful bounce for icons, orbs, badges, toggles.
   static const Curve bouncy = SpringCurve(
     dampingRatio: 0.55,
-    stiffness: 260.0,
+    stiffness: 58.0,
   );
 
   /// Gentle curve: soft, fluid settling without aggressive bounce.
   static const Curve gentle = SpringCurve(
     dampingRatio: 0.90,
-    stiffness: 150.0,
+    stiffness: 24.0,
   );
 
   /// Material 3 Expressive decelerate curve (guaranteed strictly in [0.0, 1.0]).

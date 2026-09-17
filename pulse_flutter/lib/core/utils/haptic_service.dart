@@ -29,6 +29,10 @@ class HapticService {
     if (_supported) HapticFeedback.lightImpact();
   }
 
+  static void lightImpact() {
+    if (_supported) HapticFeedback.lightImpact();
+  }
+
   static void notification() {
     if (_supported) HapticFeedback.mediumImpact();
   }

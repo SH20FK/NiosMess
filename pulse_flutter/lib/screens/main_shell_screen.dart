@@ -61,6 +61,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   double _desktopChatListWidth = 360.0;
   DateTime? _lastBackPressTime;
   Timer? _startupTimer;
+  Timer? _prewarmTimer;
 
   @override
   void initState() {
@@ -70,6 +71,12 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _runStartupSequence();
+      _prewarmTimer = Timer(const Duration(milliseconds: 1500), () {
+        if (!mounted) return;
+        setState(() {
+          _activatedTabs.addAll(<int>[0, 1, 2, 3]);
+        });
+      });
     });
   }
 
@@ -264,6 +271,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   @override
   void dispose() {
     _startupTimer?.cancel();
+    _prewarmTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -418,7 +426,11 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
             if (!_activatedTabs.contains(index)) {
               return const SizedBox.shrink();
             }
-            return RepaintBoundary(child: pages[index]);
+            final bool isActive = index == currentIndex;
+            return TickerMode(
+              enabled: isActive,
+              child: RepaintBoundary(child: pages[index]),
+            );
           }),
         );
 

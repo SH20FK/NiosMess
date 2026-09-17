@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
 
 class VoiceRecordingPanel extends StatefulWidget {
@@ -204,7 +204,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: () {
-                  HapticFeedback.mediumImpact();
+                  HapticService.confirm();
                   widget.onCancel();
                 },
                 customBorder: const CircleBorder(),
@@ -227,7 +227,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
               elevation: 2,
               child: InkWell(
                 onTap: () {
-                  HapticFeedback.mediumImpact();
+                  HapticService.confirm();
                   widget.onSend();
                 },
                 customBorder: const CircleBorder(),
@@ -303,7 +303,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () {
-                HapticFeedback.mediumImpact();
+                HapticService.confirm();
                 widget.onCancel();
               },
               customBorder: const CircleBorder(),
@@ -326,7 +326,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
             elevation: 2,
             child: InkWell(
               onTap: () {
-                HapticFeedback.mediumImpact();
+                HapticService.confirm();
                 widget.onSend();
               },
               customBorder: const CircleBorder(),

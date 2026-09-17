@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
 /// Optimized Animated Theme Toggler wrapper.
 /// Smoothly reveals the new theme via an expanding circular cutout from tap coordinates
@@ -102,7 +102,7 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
     _tapOffset = offset;
 
     try {
-      HapticFeedback.lightImpact();
+      HapticService.lightImpact();
     } catch (_) {}
 
     // 2. Change theme state

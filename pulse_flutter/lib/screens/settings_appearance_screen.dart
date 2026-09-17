@@ -209,7 +209,7 @@ class _AppearanceScreen extends ConsumerWidget {
             tapOffset: tapOffset,
           );
         } else {
-          HapticFeedback.lightImpact();
+          HapticService.lightImpact();
           ref.read(uiSettingsProvider.notifier).setThemeMode(newMode);
         }
       },
@@ -1081,22 +1081,11 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
                       width: 1,
                     ),
                   ),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    transitionBuilder: (child, anim) => ScaleTransition(
-                      scale: CurvedAnimation(
-                        parent: anim,
-                        curve: M3SpringCurves.bouncy,
-                      ),
-                      child: child,
-                    ),
-                    child: Text(
-                      currentBadgeText,
-                      key: ValueKey<String>(currentBadgeText),
-                      style: textTheme.labelMedium?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  child: Text(
+                    currentBadgeText,
+                    style: textTheme.labelMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
@@ -1202,22 +1191,11 @@ class _FontScaleSliderTile extends StatelessWidget {
                   color: scheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  transitionBuilder: (child, anim) => ScaleTransition(
-                    scale: CurvedAnimation(
-                      parent: anim,
-                      curve: M3SpringCurves.bouncy,
-                    ),
-                    child: child,
-                  ),
-                  child: Text(
-                    '$percent%',
-                    key: ValueKey<int>(percent),
-                    style: textTheme.labelMedium?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                child: Text(
+                  '$percent%',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -1705,7 +1683,7 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
                       ),
                     ),
                     onSelected: (_) {
-                      HapticFeedback.selectionClick();
+                      HapticService.selection();
                       onChanged(style);
                     },
                   ),

@@ -46,12 +46,12 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _spatial;
-  int _from = 0;
+  double _from = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _from = widget.index;
+    _from = widget.index.toDouble();
     _controller = AnimationController(
       vsync: this,
       duration: widget.duration,
@@ -69,7 +69,13 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
       _controller.duration = widget.duration;
     }
     if (oldWidget.index == widget.index) return;
-    _from = oldWidget.index;
+    if (_controller.isAnimating) {
+      final double currentT = _spatial.value;
+      _from = ui.lerpDouble(_from, oldWidget.index.toDouble(), currentT) ??
+          oldWidget.index.toDouble();
+    } else {
+      _from = oldWidget.index.toDouble();
+    }
     if (widget.animate) {
       _controller.forward(from: 0.0);
     } else {
@@ -94,21 +100,23 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
         final double baseWidth =
             (slot * 0.62).clamp(48.0, widget.maxPillWidth);
         final double travel =
-            ((widget.index - _from).abs() / widget.count).clamp(0.0, 1.0);
+            ((widget.index.toDouble() - _from).abs() / widget.count)
+                .clamp(0.0, 1.0);
 
-        double slotCenterX(int i) => (i + 0.5) * slot;
+        double slotCenterX(double i) => (i + 0.5) * slot;
 
         return AnimatedBuilder(
-          animation: _spatial,
+          animation: _controller,
           builder: (BuildContext context, Widget? child) {
             final double t = _spatial.value;
-            // Squash and stretch: the pill elongates mid-flight, then settles.
+            // Squash and stretch: computed from linear time _controller.value
+            // to ensure peak at midpoint and settling at 1.0 without negative jerk.
             final double wobble =
-                math.sin(math.pi * t.clamp(0.0, 1.0)) * travel;
+                math.sin(math.pi * _controller.value.clamp(0.0, 1.0)) * travel;
             final double pillW = baseWidth * (1.0 + widget.stretch * wobble);
             final double pillH = widget.pillHeight * (1.0 - 0.16 * wobble);
             final double fromX = slotCenterX(_from);
-            final double toX = slotCenterX(widget.index);
+            final double toX = slotCenterX(widget.index.toDouble());
             final double currentCenterX = ui.lerpDouble(fromX, toX, t)!;
             final double left = currentCenterX - pillW / 2;
             final double top = (constraints.maxHeight - pillH) / 2;
@@ -120,7 +128,7 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
               Shapes.flower,
             ];
             final Shapes fromShape =
-                tabShapes[_from.clamp(0, tabShapes.length - 1)];
+                tabShapes[_from.round().clamp(0, tabShapes.length - 1)];
             final Shapes toShape =
                 tabShapes[widget.index.clamp(0, tabShapes.length - 1)];
 
@@ -251,19 +259,43 @@ class AppBottomNav extends ConsumerWidget {
               final _NavItem item = items[index];
               final bool isSelected = index == currentIndex;
 
-              final Widget iconWidget = Icon(
-                isSelected ? item.selectedIcon : item.icon,
-                size: 24,
-                color: isSelected
-                    ? scheme.onSecondaryContainer
-                    : scheme.onSurfaceVariant,
+              final Widget iconWidget = AnimatedSwitcher(
+                duration: animate ? duration : Duration.zero,
+                switchInCurve: M3SpringCurves.spatial,
+                switchOutCurve: M3SpringCurves.spatial,
+                transitionBuilder: (Widget child, Animation<double> anim) {
+                  return FadeTransition(opacity: anim, child: child);
+                },
+                child: TweenAnimationBuilder<Color?>(
+                  key: ValueKey<bool>(isSelected),
+                  duration: animate ? duration : Duration.zero,
+                  curve: M3SpringCurves.spatial,
+                  tween: ColorTween(
+                    begin: isSelected
+                        ? scheme.onSurfaceVariant
+                        : scheme.onSecondaryContainer,
+                    end: isSelected
+                        ? scheme.onSecondaryContainer
+                        : scheme.onSurfaceVariant,
+                  ),
+                  builder: (BuildContext context, Color? color, Widget? _) {
+                    return Icon(
+                      isSelected ? item.selectedIcon : item.icon,
+                      size: 24,
+                      color: color,
+                      key: ValueKey<IconData>(
+                        isSelected ? item.selectedIcon : item.icon,
+                      ),
+                    );
+                  },
+                ),
               );
 
               final Widget badgedIcon = item.badge > 0
                   ? Badge(
                       label: item.badge < 100
                           ? AnimatedSwitcher(
-                              duration: M3Durations.medium1,
+                              duration: duration,
                               transitionBuilder:
                                   (Widget child, Animation<double> anim) =>
                                       ScaleTransition(
@@ -294,11 +326,11 @@ class AppBottomNav extends ConsumerWidget {
 
               final Widget animatedIcon = animate
                   ? AnimatedScale(
-                      duration: M3Durations.medium1,
+                      duration: duration,
                       curve: M3SpringCurves.bouncy,
                       scale: isSelected ? (tier.isTierA ? 1.12 : 1.05) : 1.0,
                       child: AnimatedSlide(
-                        duration: M3Durations.medium1,
+                        duration: duration,
                         curve: M3SpringCurves.spatial,
                         offset: Offset(0.0, isSelected ? -0.06 : 0.0),
                         child: badgedIcon,
@@ -307,7 +339,7 @@ class AppBottomNav extends ConsumerWidget {
                   : badgedIcon;
 
               final Widget labelWidget = AnimatedDefaultTextStyle(
-                duration: animate ? M3Durations.medium1 : Duration.zero,
+                duration: animate ? duration : Duration.zero,
                 curve: M3SpringCurves.spatial,
                 style: TextStyle(
                   fontSize: 12,

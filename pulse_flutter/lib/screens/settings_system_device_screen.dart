@@ -113,7 +113,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             FilledButton.tonalIcon(
               onPressed: () {
-                HapticFeedback.lightImpact();
+                HapticService.lightImpact();
                 ref.invalidate(deviceHardwareProvider);
               },
               icon: const Icon(Icons.refresh_rounded, size: 18),

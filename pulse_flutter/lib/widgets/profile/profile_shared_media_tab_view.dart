@@ -14,6 +14,7 @@ import 'package:pulse_flutter/core/storage/chat_media_cache.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
@@ -446,9 +447,19 @@ class _ProfileSharedMediaTabViewState
 
         // ── Active Tab View with Smooth Transition (Unified Scrolling) ──
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          switchInCurve: M3SpringCurves.snappy,
-          switchOutCurve: Curves.easeInQuad,
+          duration: M3Durations.short4,
+          switchInCurve: M3SpringCurves.expressiveDecel,
+          switchOutCurve: M3SpringCurves.expressiveAccel,
+          layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
+            return Stack(
+              alignment: Alignment.topCenter,
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                ...previousChildren,
+                ?currentChild,
+              ],
+            );
+          },
           child: KeyedSubtree(
             key: ValueKey<int>(_selectedTabIndex),
             child: currentTabView,
@@ -567,13 +578,13 @@ class _ProfileSharedMediaTabViewState
               color: Colors.transparent,
               child: InkWell(
                 onTap: () {
-                  HapticFeedback.lightImpact();
+                  HapticService.selection();
                   setState(() => _selectedTabIndex = index);
                 },
                 borderRadius: BorderRadius.circular(20),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOutCubic,
+                  duration: M3Durations.medium1,
+                  curve: M3SpringCurves.spatial,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: isSelected
@@ -682,7 +693,7 @@ class _ProfileSharedMediaTabViewState
 
   void _openGallery(int initialIndex, List<_SharedMediaItem> allItems) {
     if (initialIndex < 0 || initialIndex >= allItems.length) return;
-    HapticFeedback.lightImpact();
+    HapticService.tap();
 
     final List<MediaViewerItem> playlist = allItems.map((item) {
       return MediaViewerItem(
@@ -905,7 +916,7 @@ class _ProfileSharedMediaTabViewState
                   IconButton.filledTonal(
                     icon: const Icon(Icons.play_arrow_rounded, size: 22),
                     onPressed: () {
-                      HapticFeedback.lightImpact();
+                      HapticService.tap();
                       if ((m.mediaUrl ?? '').isNotEmpty) {
                         context.push(
                           '/media-viewer?url=${Uri.encodeComponent(m.mediaUrl!)}&type=video&title=${Uri.encodeComponent(context.l10n.sharedMediaVideoMessage)}',
@@ -1046,7 +1057,7 @@ class _ProfileSharedMediaTabViewState
             padding: EdgeInsets.only(bottom: index < items.length - 1 ? 10.0 : 0.0),
             child: InkWell(
               onTap: () {
-                HapticFeedback.lightImpact();
+                HapticService.tap();
                 if (url.isNotEmpty) {
                   AppUrlLauncher.openUrl(context, url);
                 }
@@ -1228,7 +1239,7 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
           _localPath = localPath;
         });
 
-        HapticFeedback.mediumImpact();
+        HapticService.confirm();
         FileOpener.openFile(
           context: context,
           filePath: localPath,

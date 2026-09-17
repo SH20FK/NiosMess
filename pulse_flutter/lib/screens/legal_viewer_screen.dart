@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 enum LegalDocType { privacy, tos, consent }
@@ -208,7 +209,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
   }
 
   void _scrollToSection(int index) {
-    HapticFeedback.selectionClick();
+    HapticService.selection();
     final GlobalKey? key = _sectionKeys[index];
     if (key != null && key.currentContext != null) {
       Scrollable.ensureVisible(
@@ -222,7 +223,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
 
   void _copyDocument() {
     Clipboard.setData(ClipboardData(text: _rawContent));
-    HapticFeedback.lightImpact();
+    HapticService.lightImpact();
     AppToast.showSuccess(context, 'Текст документа скопирован');
   }
 
@@ -788,7 +789,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
               height: 52,
             child: FilledButton.icon(
               onPressed: () {
-                HapticFeedback.lightImpact();
+                HapticService.lightImpact();
                 Navigator.of(context).pop();
               },
               icon: const Icon(Icons.check_rounded, size: 20),
