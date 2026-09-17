@@ -2,12 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pulse_flutter/core/motion/circular_reveal_transition.dart';
+import 'package:pulse_flutter/core/motion/container_transform_transition.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/screens/chat_detail_screen.dart';
 import 'package:pulse_flutter/screens/chat_manage_screen.dart';
 import 'package:pulse_flutter/screens/chat_members_screen.dart';
-import 'package:pulse_flutter/screens/direct_chat_resolver_screen.dart';
 import 'package:pulse_flutter/screens/create_chat_screen.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/join_chat_screen.dart';
@@ -82,21 +81,21 @@ Page<void> _m3eEntryPage(GoRouterState state, Widget child, {LocalKey? pageKey})
 
 Page<void> _chatDetailPage(GoRouterState state, Widget child, {LocalKey? pageKey}) {
   final Object? extra = state.extra;
-  final Offset? tapOffset = extra is Offset ? extra : null;
+  final NavigationOrigin? origin = extra is NavigationOrigin ? extra : null;
 
-  if (tapOffset == null) {
+  if (origin == null) {
     return _m3eEntryPage(state, child, pageKey: pageKey);
   }
 
   return CustomTransitionPage<void>(
     key: pageKey ?? state.pageKey,
     child: child,
-    transitionDuration: const Duration(milliseconds: 380),
-    reverseTransitionDuration: const Duration(milliseconds: 280),
+    transitionDuration: const Duration(milliseconds: 400),
+    reverseTransitionDuration: const Duration(milliseconds: 300),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return CircularRevealTransition(
+      return ContainerTransformTransition(
         animation: animation,
-        center: tapOffset,
+        origin: origin,
         child: child,
       );
     },
@@ -215,15 +214,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/chat/dm/:username',
-        pageBuilder: (context, state) => _page(
-          state,
-          DirectChatResolverScreen(username: state.pathParameters['username']!),
-          pageKey: state.pageKey,
-        ),
+        redirect: (context, state) =>
+            '/profile/${state.pathParameters['username']}',
       ),
       GoRoute(
         path: '/chat/support',
-        redirect: (context, state) => '/chat/dm/support',
+        redirect: (context, state) => '/profile/support',
       ),
       GoRoute(
         path: '/media-viewer',

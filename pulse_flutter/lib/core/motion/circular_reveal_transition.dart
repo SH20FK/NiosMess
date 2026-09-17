@@ -14,15 +14,13 @@ class CircularRevealClipper extends CustomClipper<Path> {
 
   @override
   Path getClip(Size size) {
-    if (fraction >= 1.0) {
-      return Path()..addRect(Offset.zero & size);
-    }
-    if (fraction <= 0.0) {
+    final double clampedFraction = fraction.clamp(0.0, 1.0);
+    if (clampedFraction <= 0.0) {
       return Path();
     }
 
     final double maxRadius = calcMaxRadius(center, size);
-    final double radius = maxRadius * fraction;
+    final double radius = maxRadius * clampedFraction;
 
     return Path()
       ..addOval(Rect.fromCircle(center: center, radius: radius));
@@ -40,10 +38,9 @@ class CircularRevealClipper extends CustomClipper<Path> {
       oldClipper.fraction != fraction || oldClipper.center != center;
 }
 
-/// Circular Reveal Transition Widget (MOM-3).
+/// Circular Reveal Transition Widget.
 ///
-/// Smoothly unveils [child] using an expanding circular mask starting from [center]
-/// driven by [animation] with Material 3 Expressive spatial motion physics.
+/// Used exclusively for circular theme morphs.
 class CircularRevealTransition extends StatelessWidget {
   const CircularRevealTransition({
     super.key,
@@ -61,17 +58,15 @@ class CircularRevealTransition extends StatelessWidget {
     return AnimatedBuilder(
       animation: animation,
       builder: (BuildContext context, Widget? cachedChild) {
-        final double t = animation.value;
-        if (t >= 1.0) return cachedChild!;
+        final double t = animation.value.clamp(0.0, 1.0);
+        final double curvedProgress = M3SpringCurves.gentle.transform(t);
 
-        final double curvedProgress = M3SpringCurves.spatial.transform(t.clamp(0.0, 1.0));
-
-        return RepaintBoundary(
-          child: ClipPath(
-            clipper: CircularRevealClipper(
-              fraction: curvedProgress,
-              center: center,
-            ),
+        return ClipPath(
+          clipper: CircularRevealClipper(
+            fraction: curvedProgress,
+            center: center,
+          ),
+          child: RepaintBoundary(
             child: cachedChild,
           ),
         );

@@ -35,9 +35,9 @@ class _FluidPreviewCardState extends State<FluidPreviewCard>
   @override
   void initState() {
     super.initState();
-    _squishController = AnimationController(
+    _squishController = AnimationController.unbounded(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      value: 0.0,
     );
     _pageController.addListener(_onPageScroll);
   }

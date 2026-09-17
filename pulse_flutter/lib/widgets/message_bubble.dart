@@ -262,7 +262,7 @@ class MessageBubble extends ConsumerWidget {
                     ),
                   ),
                 ),
-              _buildStickerContent(context, scheme, textTheme, radius: mediaRadius),
+              _buildStickerContent(context, scheme, textTheme, ref: ref, radius: mediaRadius),
             ]
             else if (isCircleVideo && hasMedia)
               _buildCircleVideoContent(context, scheme, textTheme,
@@ -279,7 +279,7 @@ class MessageBubble extends ConsumerWidget {
                       final String emoji =
                           ref.read(uiSettingsProvider).doubleTapReactionEmoji;
                       if (emoji.isNotEmpty) {
-                        TriSync.reaction(context: context);
+                        TriSync.reaction(ref: ref, context: context);
                         onReactionTap!(emoji);
                       }
                     }
@@ -515,7 +515,7 @@ class MessageBubble extends ConsumerWidget {
                             releaseCurve: M3SpringCurves.bouncy,
                             onTap: onReactionTap != null
                                 ? () {
-                                    TriSync.reaction(context: context);
+                                    TriSync.reaction(ref: ref, context: context);
                                     onReactionTap!(item.key);
                                   }
                                 : null,
@@ -586,6 +586,7 @@ class MessageBubble extends ConsumerWidget {
     BuildContext context,
     ColorScheme scheme,
     TextTheme textTheme, {
+    required WidgetRef ref,
     double radius = 16.0,
   }) {
     final String stickerUrl = sticker?.resolvedUrl.trim() ?? '';
@@ -612,7 +613,7 @@ class MessageBubble extends ConsumerWidget {
         },
         onDoubleTap: onReactionTap != null
             ? () {
-                TriSync.reaction(context: context);
+                TriSync.reaction(ref: ref, context: context);
                 onReactionTap!('❤️');
               }
             : null,

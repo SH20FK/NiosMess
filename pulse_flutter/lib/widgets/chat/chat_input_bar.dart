@@ -36,6 +36,7 @@ class ChatInputBar extends StatefulWidget {
     this.onCircleSend,
     this.chatId,
     this.onSendSticker,
+    this.onCancelAi,
     this.hapticsEnabled = true,
     this.sendOnEnter = true,
     super.key,
@@ -44,6 +45,7 @@ class ChatInputBar extends StatefulWidget {
   final TextEditingController inputController;
   final FocusNode inputFocusNode;
   final bool isAiProcessing;
+  final VoidCallback? onCancelAi;
   final bool uploadingMedia;
   final int? editingMessageId;
   final String? editingOriginalText;
@@ -634,11 +636,32 @@ class _ChatInputBarState extends State<ChatInputBar>
 
                                 // AI Assistant Button
                                 if (widget.isAiProcessing)
-                                  SizedBox(
-                                    width: 44,
-                                    height: 44,
-                                    child: AppLoadingIndicator(
-                                        size: 18, color: scheme.primary),
+                                  Tooltip(
+                                    message: 'Остановить',
+                                    child: TouchContainer(
+                                      borderRadius: AppRadii.fullRadius,
+                                      onTap: widget.onCancelAi,
+                                      child: SizedBox(
+                                        width: 44,
+                                        height: 44,
+                                        child: Center(
+                                          child: Stack(
+                                            alignment: Alignment.center,
+                                            children: <Widget>[
+                                              AppLoadingIndicator(
+                                                size: 22,
+                                                color: scheme.primary,
+                                              ),
+                                              Icon(
+                                                Icons.stop_rounded,
+                                                size: 13,
+                                                color: scheme.primary,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   )
                                 else
                                   Tooltip(

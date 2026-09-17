@@ -147,7 +147,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
 
   void _throttledHaptic() {
     if (_hapticThrottleTimer?.isActive ?? false) return;
-    TriSync.snap();
+    TriSync.snap(ref: ref);
     _hapticThrottleTimer = Timer(const Duration(milliseconds: 55), () {});
   }
 
@@ -237,7 +237,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
   }
 
   void _saveConfig() {
-    TriSync.pop(context: context);
+    TriSync.pop(ref: ref, context: context);
     final notifier = ref.read(chatWallpaperProvider.notifier);
     if (_editingThisChatOnly && widget.chatId != null) {
       notifier.setChatWallpaper(widget.chatId!, _draftConfig);
@@ -252,7 +252,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
   }
 
   Future<void> _resetConfig() async {
-    TriSync.tap();
+    TriSync.tap(ref: ref);
     final bool? confirm = await showAppConfirmDialog(
       context: context,
       title: context.l10n.wallpaperResetTitle,
@@ -365,7 +365,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        TriSync.pop(context: context);
+                        TriSync.pop(ref: ref, context: context);
                         await Clipboard.setData(ClipboardData(text: code));
                         if (sheetCtx.mounted) {
                           AppToast.showSuccess(
@@ -385,7 +385,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: () async {
-                        TriSync.pop(context: context);
+                        TriSync.pop(ref: ref, context: context);
                         await Clipboard.setData(ClipboardData(text: shareUrl));
                         if (sheetCtx.mounted) {
                           AppToast.showSuccess(sheetCtx, 'Ссылка скопирована!');
@@ -416,7 +416,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
         return _WeaveImportSheet(
           scheme: Theme.of(context).colorScheme,
           onApply: (ChatWallpaperConfig imported) {
-            TriSync.pop(context: context);
+            TriSync.pop(ref: ref, context: context);
             _updateDraft(imported, triggerReveal: true);
             AppToast.showSuccess(context, 'Обои успешно применены!');
           },
@@ -431,7 +431,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
   }
 
   void _randomizeConfig() {
-    TriSync.pop(context: context);
+    TriSync.pop(ref: ref, context: context);
     final Random rng = Random();
 
     const List<String> m3Packs = <String>[
@@ -496,7 +496,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
           action: SnackBarAction(
             label: context.l10n.wallpaperDiscard,
             onPressed: () {
-              TriSync.tap();
+              TriSync.tap(ref: ref);
               _updateDraft(previous, triggerReveal: true);
             },
           ),
@@ -507,7 +507,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
   }
 
   Future<void> _pickCustomPhoto() async {
-    TriSync.tap();
+    TriSync.tap(ref: ref);
     try {
       final List<PlatformFile> result = await FilePicker.pickFiles(
         type: FileType.image,
@@ -565,7 +565,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
                     padding: const EdgeInsets.only(top: 12),
                     child: FilledButton.tonalIcon(
                       onPressed: () {
-                        TriSync.tap();
+                        TriSync.tap(ref: ref);
                         setState(() => _isFullscreenPreview = false);
                       },
                       icon: const Icon(Icons.fullscreen_exit_rounded, size: 18),
@@ -673,7 +673,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
                   ],
                   selected: <bool>{_editingThisChatOnly},
                   onSelectionChanged: (Set<bool> sel) {
-                    TriSync.tap();
+                    TriSync.tap(ref: ref);
                     setState(() => _editingThisChatOnly = sel.first);
                   },
                 ),
@@ -686,7 +686,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
                 label: 'Полноэкранный просмотр обоев',
                 child: TouchContainer(
                   onTap: () {
-                    TriSync.pop(context: context);
+                    TriSync.pop(ref: ref, context: context);
                     setState(() => _isFullscreenPreview = true);
                   },
                   borderRadius: AppRadii.xlRadius,
@@ -727,7 +727,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
                                   visualDensity: VisualDensity.compact,
                                   tooltip: 'Переключить мокап сообщений',
                                   onPressed: () {
-                                    TriSync.tap();
+                                    TriSync.tap(ref: ref);
                                     setState(
                                         () => _showChatMockup = !_showChatMockup);
                                   },
@@ -791,7 +791,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
               _M3StylePillSelector(
                 draftConfig: _draftConfig,
                 onSelectPack: (String packId, IconSource source) {
-                  TriSync.snap();
+                  TriSync.snap(ref: ref);
                   if (packId == 'my_photo') {
                     if (_draftConfig.imagePath == null) {
                       _pickCustomPhoto();
@@ -1060,7 +1060,7 @@ class _M3StylePillSelector extends StatelessWidget {
 // ── Consolidated M3E Control Island ──────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _M3ControlIsland extends StatelessWidget {
+class _M3ControlIsland extends ConsumerWidget {
   const _M3ControlIsland({
     required this.draftConfig,
     required this.onUpdateDraft,
@@ -1074,7 +1074,7 @@ class _M3ControlIsland extends StatelessWidget {
   final VoidCallback onPickPhoto;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -1146,7 +1146,7 @@ class _M3ControlIsland extends StatelessWidget {
                 Expanded(
                   child: FilledButton.tonalIcon(
                     onPressed: () {
-                      TriSync.pop();
+                      TriSync.pop(ref: ref, context: context);
                       onUpdateDraft(draftConfig.copyWith(clearImagePath: true));
                     },
                     icon: const Icon(Icons.delete_outline_rounded, size: 18),
@@ -1187,7 +1187,7 @@ class _M3ControlIsland extends StatelessWidget {
                   ],
                   selected: <bool>{draftConfig.filled},
                   onSelectionChanged: (Set<bool> sel) {
-                    TriSync.tap();
+                    TriSync.tap(ref: ref);
                     onUpdateDraft(draftConfig.copyWith(filled: sel.first));
                   },
                 ),
@@ -1198,9 +1198,9 @@ class _M3ControlIsland extends StatelessWidget {
 
             // Individual shape toggles for active M3 collection
             if (draftConfig.iconSource == IconSource.niosMess)
-              _buildM3ShapeChips(scheme, textTheme)
+              _buildM3ShapeChips(scheme, textTheme, ref)
             else
-              _buildDoodlePackChips(scheme, textTheme),
+              _buildDoodlePackChips(scheme, textTheme, ref),
 
             const SizedBox(height: 18),
             const Divider(height: 1),
@@ -1233,7 +1233,7 @@ class _M3ControlIsland extends StatelessWidget {
                       draftConfig.backgroundStyle
                     },
                     onSelectionChanged: (Set<WallpaperBackgroundStyle> sel) {
-                      TriSync.tap();
+                      TriSync.tap(ref: ref);
                       onUpdateDraft(
                           draftConfig.copyWith(backgroundStyle: sel.first));
                     },
@@ -1245,7 +1245,7 @@ class _M3ControlIsland extends StatelessWidget {
             const SizedBox(height: 12),
 
             // Tonal Color Swatch Strip
-            _buildTonalSwatches(scheme),
+            _buildTonalSwatches(scheme, ref),
 
             const SizedBox(height: 14),
 
@@ -1297,7 +1297,7 @@ class _M3ControlIsland extends StatelessWidget {
                         : (draftConfig.cellSize <= 72 ? 62 : 84)
                   },
                   onSelectionChanged: (Set<int> sel) {
-                    TriSync.tap();
+                    TriSync.tap(ref: ref);
                     final int step = sel.first;
                     onUpdateDraft(
                       draftConfig.copyWith(
@@ -1334,7 +1334,7 @@ class _M3ControlIsland extends StatelessWidget {
                   selected: isSelected,
                   onSelected: (bool sel) {
                     if (sel) {
-                      TriSync.tap();
+                      TriSync.tap(ref: ref);
                       onUpdateDraft(draftConfig.copyWith(layoutMode: mode));
                     }
                   },
@@ -1347,7 +1347,8 @@ class _M3ControlIsland extends StatelessWidget {
     );
   }
 
-  Widget _buildM3ShapeChips(ColorScheme scheme, TextTheme textTheme) {
+  Widget _buildM3ShapeChips(
+      ColorScheme scheme, TextTheme textTheme, WidgetRef ref) {
     final List<Shapes> shapesInPack =
         CuratedWallpaperCatalog.getShapesForPack(draftConfig.themePack);
     final Set<String> activeGlyphs = Set<String>.from(draftConfig.selectedGlyphs);
@@ -1366,7 +1367,7 @@ class _M3ControlIsland extends StatelessWidget {
 
           return TouchContainer(
             onTap: () {
-              TriSync.tap();
+              TriSync.tap(ref: ref);
               final Set<String> updated = Set<String>.from(activeGlyphs);
               if (updated.isEmpty) {
                 // Was using all shapes; clicking one selects ONLY that one
@@ -1434,7 +1435,8 @@ class _M3ControlIsland extends StatelessWidget {
     );
   }
 
-  Widget _buildDoodlePackChips(ColorScheme scheme, TextTheme textTheme) {
+  Widget _buildDoodlePackChips(
+      ColorScheme scheme, TextTheme textTheme, WidgetRef ref) {
     const List<({String id, String label, IconData icon})> packs = [
       (id: 'chat', label: 'Чат', icon: Icons.chat_bubble_rounded),
       (id: 'space', label: 'Космос', icon: Icons.rocket_launch_rounded),
@@ -1454,7 +1456,7 @@ class _M3ControlIsland extends StatelessWidget {
           selected: isSelected,
           onSelected: (bool sel) {
             if (sel) {
-              TriSync.tap();
+              TriSync.tap(ref: ref);
               onUpdateDraft(draftConfig.copyWith(themePack: p.id));
             }
           },
@@ -1463,7 +1465,7 @@ class _M3ControlIsland extends StatelessWidget {
     );
   }
 
-  Widget _buildTonalSwatches(ColorScheme scheme) {
+  Widget _buildTonalSwatches(ColorScheme scheme, WidgetRef ref) {
     const List<String> roles = <String>[
       'surfaceContainerLowest',
       'surfaceContainerLow',
@@ -1488,7 +1490,7 @@ class _M3ControlIsland extends StatelessWidget {
 
           return TouchContainer(
             onTap: () {
-              TriSync.tap();
+              TriSync.tap(ref: ref);
               onUpdateDraft(draftConfig.copyWith(backgroundRole: role));
             },
             borderRadius: AppRadii.fullRadius,

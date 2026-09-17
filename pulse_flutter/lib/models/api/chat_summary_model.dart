@@ -1,5 +1,6 @@
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
+import 'package:pulse_flutter/models/api/status_emoji_model.dart';
 
 bool _parseBool(dynamic value) {
   return value == true || value == 1 || value == '1' || value == 'true';
@@ -24,6 +25,7 @@ class ApiChatSummary {
     this.avatarUrl,
     this.lastMessage,
     this.partnerBadges = const <ApiBadge>[],
+    this.partnerStatusEmoji,
     this.description = '',
     this.commentsEnabled,
     this.commentsChatId,
@@ -50,6 +52,7 @@ class ApiChatSummary {
   final String? avatarUrl;
   final ApiMessage? lastMessage;
   final List<ApiBadge> partnerBadges;
+  final ApiStatusEmoji? partnerStatusEmoji;
   final String description;
   final bool? commentsEnabled;
   final int? commentsChatId;
@@ -164,6 +167,15 @@ class ApiChatSummary {
 
     final String? resolvedAvatar = json['avatar_url'] as String? ?? partnerMap?['avatar_url'] as String?;
 
+    final dynamic emojiRaw = json['partner_status_emoji'] ?? partnerMap?['status_emoji'];
+    final ApiStatusEmoji? partnerStatusEmoji = emojiRaw is Map
+        ? ApiStatusEmoji.fromJson(
+            emojiRaw.map(
+              (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+            ),
+          )
+        : null;
+
     return ApiChatSummary(
       id: json['id'] as int? ?? 0,
       chatType: json['chat_type'] as String? ?? 'direct',
@@ -173,6 +185,7 @@ class ApiChatSummary {
       unreadCount: json['unread_count'] as int? ?? 0,
       membersCount: json['members_count'] as int? ?? 0,
       partnerBadges: partnerBadges,
+      partnerStatusEmoji: partnerStatusEmoji,
       description: json['description'] as String? ?? '',
       commentsEnabled: json['comments_enabled'] != null ? _parseBool(json['comments_enabled']) : null,
       commentsChatId: json['comments_chat_id'] as int?,
@@ -208,6 +221,7 @@ class ApiChatSummary {
     String? avatarUrl,
     ApiMessage? lastMessage,
     List<ApiBadge>? partnerBadges,
+    ApiStatusEmoji? partnerStatusEmoji,
     String? description,
     bool? commentsEnabled,
     int? commentsChatId,
@@ -234,6 +248,7 @@ class ApiChatSummary {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       lastMessage: lastMessage ?? this.lastMessage,
       partnerBadges: partnerBadges ?? this.partnerBadges,
+      partnerStatusEmoji: partnerStatusEmoji ?? this.partnerStatusEmoji,
       description: description ?? this.description,
       commentsEnabled: commentsEnabled ?? this.commentsEnabled,
       commentsChatId: commentsChatId ?? this.commentsChatId,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
@@ -14,6 +15,7 @@ class AppBottomSheets {
     bool isDismissible = true,
     bool enableDrag = true,
     bool showDragHandle = true,
+    WidgetRef? ref,
   }) async {
     final T? result = await showModalBottomSheet<T>(
       context: context,
@@ -36,7 +38,11 @@ class AppBottomSheets {
         );
       },
     );
-    TriSync.dismiss();
+    if (context.mounted) {
+      TriSync.dismiss(ref: ref, context: context);
+    } else {
+      TriSync.dismiss(ref: ref);
+    }
     return result;
   }
 }

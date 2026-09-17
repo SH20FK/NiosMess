@@ -9,6 +9,7 @@ import 'package:pulse_flutter/providers/token_provider.dart';
 class PulseAvatar extends StatelessWidget {
   const PulseAvatar({
     required this.name,
+    this.id,
     this.avatarUrl,
     this.radius = 24,
     this.fallbackColor,
@@ -18,10 +19,11 @@ class PulseAvatar extends StatelessWidget {
     super.key,
   });
 
-  static Color _colorFromName(String name, ColorScheme scheme) =>
-      NiosMark.resolveColor(name, scheme);
+  static Color _colorFromName(String seed, ColorScheme scheme) =>
+      NiosMark.resolveColor(seed, scheme);
 
   final String name;
+  final String? id;
   final String? avatarUrl;
   final double radius;
   final Color? fallbackColor;
@@ -33,7 +35,7 @@ class PulseAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final Color background = fallbackColor ?? _colorFromName(name, scheme);
+    final Color background = fallbackColor ?? _colorFromName(id ?? name, scheme);
     final Color foreground = textColor ??
         (scheme.brightness == Brightness.dark
             ? scheme.onPrimary

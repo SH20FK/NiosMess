@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
@@ -224,7 +225,7 @@ class _MessagePreviewCard extends StatelessWidget {
   }
 }
 
-class _ReactionsRow extends StatelessWidget {
+class _ReactionsRow extends ConsumerWidget {
   const _ReactionsRow({
     required this.scheme,
     required this.onReact,
@@ -236,7 +237,7 @@ class _ReactionsRow extends StatelessWidget {
   final VoidCallback onShowAllReactions;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
@@ -251,14 +252,14 @@ class _ReactionsRow extends StatelessWidget {
               emoji: reaction.emoji,
               scheme: scheme,
               onTap: () {
-                TriSync.reaction(context: context);
+                TriSync.reaction(ref: ref, context: context);
                 Navigator.of(context).pop();
                 onReact(reaction.emoji);
               },
             ),
           ],
           _ReactionAddButton(scheme: scheme, onTap: () {
-            TriSync.pop(context: context);
+            TriSync.pop(ref: ref, context: context);
             Navigator.of(context).pop();
             onShowAllReactions();
           }),

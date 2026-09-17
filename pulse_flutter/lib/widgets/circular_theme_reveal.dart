@@ -169,10 +169,11 @@ class _CircularRevealPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (progress >= 1.0) return;
+    final double clampedProgress = progress.clamp(0.0, 1.0);
+    if (clampedProgress >= 1.0) return;
 
     final double maxRadius = _calcMaxRadius(center, size);
-    final double holeRadius = maxRadius * progress;
+    final double holeRadius = maxRadius * clampedProgress;
 
     canvas.save();
 

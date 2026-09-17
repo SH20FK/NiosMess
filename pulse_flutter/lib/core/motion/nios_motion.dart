@@ -70,6 +70,12 @@ extension NiosMotionControllerExtension on AnimationController {
     required double target,
     double velocity = 0.0,
   }) {
+    assert(
+      lowerBound == double.negativeInfinity && upperBound == double.infinity,
+      'animateWithSpring requires an unbounded AnimationController '
+      '(AnimationController.unbounded(vsync: this)) to allow natural spring '
+      'overshoot and settling without artificial clipping to [0.0, 1.0].',
+    );
     final SpringSimulation simulation = NiosMotion.simulate(
       spring: spring,
       from: value,

@@ -1,4 +1,5 @@
 import 'package:pulse_flutter/models/api/badge_model.dart';
+import 'package:pulse_flutter/models/api/status_emoji_model.dart';
 
 bool _parseBool(dynamic value) {
   return value == true ||
@@ -17,6 +18,7 @@ class ApiChatMember {
     required this.isBanned,
     this.avatarUrl,
     this.badges = const <ApiBadge>[],
+    this.statusEmoji,
     this.mutedUntil,
     this.muteReason,
     this.bannedUntil,
@@ -31,6 +33,7 @@ class ApiChatMember {
   final bool isBanned;
   final String? avatarUrl;
   final List<ApiBadge> badges;
+  final ApiStatusEmoji? statusEmoji;
   final DateTime? mutedUntil;
   final String? muteReason;
   final DateTime? bannedUntil;
@@ -65,6 +68,13 @@ class ApiChatMember {
       isBanned: _parseBool(json['is_banned']),
       avatarUrl: json['avatar_url'] as String?,
       badges: badges,
+      statusEmoji: json['status_emoji'] is Map
+          ? ApiStatusEmoji.fromJson(
+              (json['status_emoji'] as Map).map(
+                (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+              ),
+            )
+          : null,
       mutedUntil: json['muted_until'] != null
           ? DateTime.tryParse(json['muted_until'] as String)
           : null,
@@ -86,6 +96,7 @@ class ApiChatMember {
       'is_banned': isBanned,
       'avatar_url': avatarUrl,
       'badges': badges.map((ApiBadge b) => b.toJson()).toList(),
+      if (statusEmoji != null) 'status_emoji': statusEmoji!.toJson(),
       if (mutedUntil != null) 'muted_until': mutedUntil!.toIso8601String(),
       if (muteReason != null) 'mute_reason': muteReason,
       if (bannedUntil != null) 'banned_until': bannedUntil!.toIso8601String(),

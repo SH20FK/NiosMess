@@ -22,6 +22,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/motion/smooth_text_streamer.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
@@ -104,12 +105,18 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   bool _isInputEmpty = true;
   bool _isAiProcessing = false;
+  SmoothTextStreamer? _aiTextStreamer;
+  StreamSubscription<String>? _aiStreamSubscription;
 
   // Secret chat polling
   Timer? _secretPollTimer;
 
   // Screenshot protection overlay
   OverlayEntry? _screenshotOverlay;
+
+  // TR-8: Transition animation tracking to defer heavy frame
+  bool _isTransitionActive = false;
+  Animation<double>? _routeAnimation;
 
   int? get _chatId => int.tryParse(widget.chatId);
 
@@ -278,21 +285,37 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (cid != null) PushNotificationService.setCurrentChat(cid);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _restoreDraft();
-      _applySecureFlag();
-      final routeAnim = ModalRoute.of(context)?.animation;
-      if (routeAnim != null && !routeAnim.isCompleted) {
-        void onAnimEnd(AnimationStatus status) {
-          if (status == AnimationStatus.completed) {
-            routeAnim.removeStatusListener(onAnimEnd);
-            if (mounted) _refreshNow();
-          }
-        }
-        routeAnim.addStatusListener(onAnimEnd);
-      } else {
+      if (!_isTransitionActive) {
+        _restoreDraft();
+        _applySecureFlag();
         _refreshNow();
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final Animation<double>? anim = ModalRoute.of(context)?.animation;
+    if (anim != null && !anim.isCompleted && _routeAnimation != anim) {
+      _routeAnimation = anim;
+      _isTransitionActive = true;
+      anim.addStatusListener(_onRouteAnimationStatus);
+    }
+  }
+
+  void _onRouteAnimationStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      _routeAnimation?.removeStatusListener(_onRouteAnimationStatus);
+      if (mounted) {
+        setState(() {
+          _isTransitionActive = false;
+        });
+        _restoreDraft();
+        _applySecureFlag();
+        _refreshNow();
+      }
+    }
   }
 
   bool _isSecret = false;
@@ -385,8 +408,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       } catch (_) {}
     }
     PushNotificationService.setCurrentChat(null);
+    _routeAnimation?.removeStatusListener(_onRouteAnimationStatus);
     WidgetsBinding.instance.removeObserver(this);
     _secretPollTimer?.cancel();
+    _aiStreamSubscription?.cancel();
+    _aiTextStreamer?.dispose();
     _removeScreenshotOverlay();
     _showScrollToBottomNotifier.dispose();
     _unreadWhileScrolledNotifier.dispose();
@@ -502,33 +528,93 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final String currentText = _inputController.text.trim();
     if (currentText.isEmpty) return;
 
+    _cancelAiProcessing();
+
+    final String backupText = _inputController.text;
+    bool hasReceivedFirstChunk = false;
+
     setState(() {
       _isAiProcessing = true;
     });
 
-    try {
-      final String resultText = await ref.read(aiRepositoryProvider).processText(
-        text: currentText,
-        action: action,
-        targetLanguage: targetLanguage,
-      );
-
-      if (mounted) {
-        _inputController.text = resultText;
+    _aiTextStreamer = SmoothTextStreamer(
+      onUpdate: (String rendered, bool isFinished) {
+        if (!mounted) return;
+        _inputController.text = rendered;
         _inputController.selection = TextSelection.fromPosition(
-          TextPosition(offset: resultText.length),
+          TextPosition(offset: rendered.length),
         );
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.showError(context, e);
-      }
-    } finally {
-      if (mounted) {
+        if (isFinished) {
+          setState(() {
+            _isAiProcessing = false;
+          });
+        }
+      },
+      onDone: (String fullText) {
+        if (!mounted) return;
         setState(() {
           _isAiProcessing = false;
         });
+      },
+      onError: (dynamic error) {
+        if (!mounted) return;
+        if (!hasReceivedFirstChunk) {
+          _inputController.text = backupText;
+        }
+        setState(() {
+          _isAiProcessing = false;
+        });
+        AppToast.showError(context, error);
+      },
+    );
+
+    try {
+      final Stream<String> stream = ref.read(aiRepositoryProvider).streamRewriteText(
+        text: currentText,
+        mode: action,
+        targetLanguage: targetLanguage,
+      );
+
+      _aiStreamSubscription = stream.listen(
+        (String chunk) {
+          hasReceivedFirstChunk = true;
+          _aiTextStreamer?.appendChunk(chunk);
+        },
+        onError: (dynamic error) {
+          if (mounted) {
+            _cancelAiProcessing();
+            if (!hasReceivedFirstChunk) {
+              _inputController.text = backupText;
+            }
+            AppToast.showError(context, error);
+          }
+        },
+        onDone: () {
+          _aiTextStreamer?.completeStream();
+        },
+        cancelOnError: true,
+      );
+    } catch (e) {
+      if (mounted) {
+        _cancelAiProcessing();
+        if (!hasReceivedFirstChunk) {
+          _inputController.text = backupText;
+        }
+        AppToast.showError(context, e);
       }
+    }
+  }
+
+  void _cancelAiProcessing() {
+    _aiStreamSubscription?.cancel();
+    _aiStreamSubscription = null;
+    _aiTextStreamer?.cancel();
+    _aiTextStreamer?.dispose();
+    _aiTextStreamer = null;
+    if (mounted && _isAiProcessing) {
+      setState(() {
+        _isAiProcessing = false;
+      });
     }
   }
 
@@ -1882,6 +1968,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           title: title,
           avatarUrl: chat?.avatarUrl,
           headerIcon: _chatHeaderIcon(isChannel, isGroup),
+          statusEmoji: chat?.partnerStatusEmoji,
           isGroup: isGroup,
           isChannel: isChannel,
           isSecret: chat?.isSecret == true,
@@ -1913,7 +2000,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             ),
           ),
         ),
-      body: PulseScaffoldBody(
+      body: _isTransitionActive
+          ? ColoredBox(
+              color: scheme.surface,
+              child: const SizedBox.expand(),
+            )
+          : PulseScaffoldBody(
         animatedBackdrop: false,
         expand: true,
         bottomSafe: false,
@@ -2137,6 +2229,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                       }
                     }
                   : null,
+              onCancelAi: _cancelAiProcessing,
               onSendSticker: _sendSticker,
               onSendInlineResult: (InlineQueryResult result) {
                 _inputController.text = result.messageText;
@@ -2206,7 +2299,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 }
 
 // ── Animated message entrance widget ────────────────────────────────────────
-class _AnimatedMessage extends StatefulWidget {
+class _AnimatedMessage extends ConsumerStatefulWidget {
   const _AnimatedMessage({
     super.key,
     required this.animate,
@@ -2219,10 +2312,10 @@ class _AnimatedMessage extends StatefulWidget {
   final Widget child;
 
   @override
-  State<_AnimatedMessage> createState() => _AnimatedMessageState();
+  ConsumerState<_AnimatedMessage> createState() => _AnimatedMessageState();
 }
 
-class _AnimatedMessageState extends State<_AnimatedMessage>
+class _AnimatedMessageState extends ConsumerState<_AnimatedMessage>
     with SingleTickerProviderStateMixin {
   AnimationController? _controller;
   Animation<double>? _fade;
@@ -2252,7 +2345,7 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
           begin: const Offset(0.10, 0.35),
           end: Offset.zero,
         ).animate(CurvedAnimation(parent: ctrl, curve: M3SpringCurves.emphasized));
-        TriSync.pop(context: context);
+        TriSync.pop(ref: ref, context: context);
       } else {
         _scale = Tween<double>(begin: 0.55, end: 1.0).animate(
           CurvedAnimation(parent: ctrl, curve: M3SpringCurves.spatial),

@@ -92,7 +92,6 @@ class M3OrganicBackground extends ConsumerWidget {
                 if (!isDesktop) {
                   return child;
                 }
-                final radii = AppRadii.of(context);
                 return Center(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(
@@ -102,12 +101,12 @@ class M3OrganicBackground extends ConsumerWidget {
                       child: Material(
                         color: scheme.surfaceContainerHigh
                             .withValues(alpha: isDark ? 0.92 : 0.98),
-                        borderRadius: radii.lgRadius,
+                        borderRadius: AppRadii.lgRadius,
                         elevation: 0,
                         child: Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            borderRadius: radii.lgRadius,
+                            borderRadius: AppRadii.lgRadius,
                             border: Border.all(
                               color: scheme.outlineVariant
                                   .withValues(alpha: 0.35),
@@ -235,11 +234,11 @@ class _TopIconButton extends StatelessWidget {
     final radii = AppRadii.of(context);
     final Widget button = Material(
       color: scheme.surfaceContainerHigh.withValues(alpha: 0.8),
-      borderRadius: radii.fullRadius,
+      borderRadius: AppRadii.fullRadius,
       elevation: 0,
       child: InkWell(
         onTap: onTap,
-        borderRadius: radii.fullRadius,
+        borderRadius: AppRadii.fullRadius,
         child: Container(
           width: 44,
           height: 44,
@@ -345,6 +344,7 @@ class _OrganicBlobsPainter extends CustomPainter {
 
   static final Map<_BlobsCacheKey, ui.Picture> _cache = <_BlobsCacheKey, ui.Picture>{};
   static const int _maxCacheSize = 4;
+  static ui.Picture? _cachedPicture(_BlobsCacheKey key) => _cache[key];
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -362,12 +362,12 @@ class _OrganicBlobsPainter extends CustomPainter {
       isTierB: isTierB,
     );
 
-    final existing = _cache[key];
-    if (existing != null) {
+    final ui.Picture? cached = _cachedPicture(key);
+    if (cached != null) {
       // Re-insert to keep LRU fresh
       _cache.remove(key);
-      _cache[key] = existing;
-      canvas.drawPicture(existing);
+      _cache[key] = cached;
+      canvas.drawPicture(cached);
       return;
     }
 

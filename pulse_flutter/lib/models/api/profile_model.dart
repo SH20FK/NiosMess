@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
+import 'package:pulse_flutter/models/api/status_emoji_model.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
 
 @immutable
@@ -80,6 +81,7 @@ class ApiProfile {
     this.spamBlockUntil,
     this.spamBlockReason,
     this.badges = const <ApiBadge>[],
+    this.statusEmoji,
     this.createdAt,
     this.phoneNumber,
     this.birthday,
@@ -103,6 +105,7 @@ class ApiProfile {
   final DateTime? spamBlockUntil;
   final String? spamBlockReason;
   final List<ApiBadge> badges;
+  final ApiStatusEmoji? statusEmoji;
   final DateTime? createdAt;
   final String? phoneNumber;
   final String? birthday;
@@ -202,6 +205,13 @@ class ApiProfile {
           : null,
       spamBlockReason: json['spam_block_reason'] as String?,
       badges: badges,
+      statusEmoji: json['status_emoji'] is Map
+          ? ApiStatusEmoji.fromJson(
+              (json['status_emoji'] as Map).map(
+                (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+              ),
+            )
+          : null,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String)
           : null,
@@ -248,6 +258,7 @@ class ApiProfile {
         'spam_block_until': spamBlockUntil!.toIso8601String(),
       if (spamBlockReason != null) 'spam_block_reason': spamBlockReason,
       'badges': badges.map((b) => b.toJson()).toList(),
+      if (statusEmoji != null) 'status_emoji': statusEmoji!.toJson(),
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
       if (phoneNumber != null) 'phone_number': phoneNumber,
       if (birthday != null) 'birthday': birthday,

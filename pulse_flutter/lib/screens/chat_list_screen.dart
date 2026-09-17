@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/identity/nios_mark.dart';
+import 'package:pulse_flutter/core/motion/container_transform_transition.dart';
+import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -45,8 +47,6 @@ class ChatListScreen extends ConsumerStatefulWidget {
 
 class _ChatListScreenState extends ConsumerState<ChatListScreen>
     with SingleTickerProviderStateMixin {
-  Offset? _lastTapPosition;
-
   @override
   void initState() {
     super.initState();
@@ -320,6 +320,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           isOnline: chat.chatType == 'direct' && chat.isOnline,
                           isSecret: chat.isSecret,
                           partnerBadges: chat.partnerBadges,
+                          statusEmoji: chat.partnerStatusEmoji,
                           chatId: chat.id,
                           isSelected: desktopChatId == chat.id,
                           onTap: () {
@@ -329,7 +330,23 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                   .read(desktopSelectedChatProvider.notifier)
                                   .setSelectedChat(chat.id);
                             } else {
-                              context.push('/chat/${chat.id}', extra: _lastTapPosition);
+                              context.push('/chat/${chat.id}');
+                            }
+                          },
+                          onTapWithRect: (Rect? rect) {
+                            if (MediaQuery.sizeOf(context).width >=
+                                Breakpoints.medium) {
+                              ref
+                                  .read(desktopSelectedChatProvider.notifier)
+                                  .setSelectedChat(chat.id);
+                            } else {
+                              final NavigationOrigin? origin = rect != null
+                                  ? NavigationOrigin(
+                                      fromRect: rect,
+                                      heroTag: 'chat_avatar_${chat.id}',
+                                    )
+                                  : null;
+                              context.push('/chat/${chat.id}', extra: origin);
                             }
                           },
                           onLongPress: () =>
@@ -341,17 +358,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 ),
               );
 
-              final interactiveItem = Listener(
-                onPointerDown: (PointerDownEvent event) {
-                  _lastTapPosition = event.position;
-                },
-                behavior: HitTestBehavior.translucent,
-                child: item,
-              );
-
               return RepaintBoundary(
                 key: ValueKey<int>(chat.id),
-                child: interactiveItem,
+                child: item,
               );
             },
             addAutomaticKeepAlives: false,
@@ -619,9 +628,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     PulseAvatar(
                       radius: 24,
                       name: chat.name,
+                      id: chat.id.toString(),
                       avatarUrl: chat.avatarUrl,
                       fallbackColor: _avatarColor(chat.id, scheme),
-                      textColor: scheme.onPrimary,
+                      textColor: AppColors.avatarTextColorFor(
+                        _avatarColor(chat.id, scheme),
+                        scheme,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(

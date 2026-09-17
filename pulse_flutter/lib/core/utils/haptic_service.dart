@@ -32,4 +32,8 @@ class HapticService {
   static void notification() {
     if (_supported) HapticFeedback.mediumImpact();
   }
+
+  static void mediumImpact() {
+    if (_supported) HapticFeedback.mediumImpact();
+  }
 }

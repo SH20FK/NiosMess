@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
+import 'package:pulse_flutter/models/api/status_emoji_model.dart';
 import 'package:pulse_flutter/widgets/profile/responsive_profile_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/status_emoji_badge.dart';
 
 class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ChatDetailAppBar({
@@ -15,6 +17,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.headerIcon,
     required this.typingSubtitle,
     this.directUsername,
+    this.statusEmoji,
     this.isGroup = false,
     this.isChannel = false,
     this.isSecret = false,
@@ -35,6 +38,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final IconData headerIcon;
   final Widget typingSubtitle;
   final String? directUsername;
+  final ApiStatusEmoji? statusEmoji;
   final bool isGroup;
   final bool isChannel;
   final bool isSecret;
@@ -97,6 +101,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                       child: PulseAvatar(
                         radius: 19,
                         name: title,
+                        id: chatId.toString(),
                         avatarUrl: avatarUrl,
                       ),
                     ),
@@ -162,6 +167,9 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (statusEmoji != null) ...<Widget>[
+                          StatusEmojiBadge(emoji: statusEmoji!, size: 16),
+                        ],
                         if (isVerified) ...<Widget>[
                           const SizedBox(width: 4),
                           Icon(

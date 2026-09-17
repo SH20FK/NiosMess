@@ -57,20 +57,34 @@ class TriSync {
     }
     _lastTriggerTimes[event] = now;
 
-    // Check user settings if ref is available
+    // Check user settings if ref or context is available
     bool hapticsEnabled = true;
     bool soundEnabled = true;
+    SoundService? sound;
 
     if (ref != null) {
       final UiSettingsState settings = ref.read(uiSettingsProvider);
       hapticsEnabled = settings.haptics;
       soundEnabled = settings.soundEffects;
+      sound = ref.read(appSoundProvider);
+    } else if (context != null) {
+      try {
+        final container = ProviderScope.containerOf(context, listen: false);
+        final UiSettingsState settings = container.read(uiSettingsProvider);
+        hapticsEnabled = settings.haptics;
+        soundEnabled = settings.soundEffects;
+        sound = container.read(appSoundProvider);
+      } catch (_) {
+        // Fallback when invoked outside ProviderScope
+      }
     }
 
     // 1. Tactile channel
     if (hapticsEnabled) {
       switch (event) {
         case TriSyncEvent.tap:
+          HapticService.tap();
+          break;
         case TriSyncEvent.snap:
           HapticService.selection();
           break;
@@ -78,7 +92,7 @@ class TriSync {
           HapticService.confirm();
           break;
         case TriSyncEvent.dismiss:
-          HapticService.confirm();
+          HapticService.mediumImpact();
           break;
         case TriSyncEvent.reaction:
           HapticService.reaction();
@@ -90,15 +104,14 @@ class TriSync {
     }
 
     // 2. Audio channel
-    if (soundEnabled && ref != null) {
-      final SoundService sound = ref.read(appSoundProvider);
+    if (soundEnabled && sound != null) {
       switch (event) {
         case TriSyncEvent.tap:
         case TriSyncEvent.snap:
           sound.playUiTick();
           break;
         case TriSyncEvent.pop:
-          sound.playUiTick();
+          sound.playReaction();
           break;
         case TriSyncEvent.dismiss:
           sound.play(AppSound.navigation);

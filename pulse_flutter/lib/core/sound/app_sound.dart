@@ -157,6 +157,10 @@ class SoundService {
     }
   }
 
+  Future<void> playReaction({double volume = 0.9}) async {
+    return play(AppSound.message, volume: volume);
+  }
+
   Future<void> startLoop(AppSound sound, {double volume = 0.75}) async {
     if (!_enabled) return;
     if (_loopingSound == sound) return;

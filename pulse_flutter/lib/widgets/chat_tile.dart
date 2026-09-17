@@ -3,9 +3,11 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/utils/app_curves.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
+import 'package:pulse_flutter/models/api/status_emoji_model.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/status_emoji_badge.dart';
 
 /// Google Messages / M3 Expressive Chat List Tile with unread pills,
 /// dynamic online indicator cutout, and refined typography.
@@ -19,6 +21,7 @@ class ChatTile extends StatefulWidget {
     required this.avatarColor,
     this.avatarUrl,
     required this.onTap,
+    this.onTapWithRect,
     this.onLongPress,
     this.subtitleIcon,
     this.isPinned = false,
@@ -26,6 +29,7 @@ class ChatTile extends StatefulWidget {
     this.isOnline = false,
     this.isSecret = false,
     this.partnerBadges = const <ApiBadge>[],
+    this.statusEmoji,
     this.animateEntrance = false,
     this.actions = const <Widget>[],
     this.draftLabel,
@@ -42,6 +46,7 @@ class ChatTile extends StatefulWidget {
   final Color avatarColor;
   final String? avatarUrl;
   final VoidCallback onTap;
+  final void Function(Rect? rect)? onTapWithRect;
   final VoidCallback? onLongPress;
   final IconData? subtitleIcon;
   final bool isPinned;
@@ -49,6 +54,7 @@ class ChatTile extends StatefulWidget {
   final bool isOnline;
   final bool isSecret;
   final List<ApiBadge> partnerBadges;
+  final ApiStatusEmoji? statusEmoji;
   final bool animateEntrance;
   final List<Widget> actions;
   final String? draftLabel;
@@ -104,6 +110,20 @@ class _ChatTileState extends State<ChatTile>
     widget.onLongPress?.call();
   }
 
+  Rect? _globalRect() {
+    final RenderObject? ro = context.findRenderObject();
+    if (ro is! RenderBox || !ro.attached || !ro.hasSize) return null;
+    return ro.localToGlobal(Offset.zero) & ro.size;
+  }
+
+  void _handleTap() {
+    if (widget.onTapWithRect != null) {
+      widget.onTapWithRect!(_globalRect());
+    } else {
+      widget.onTap();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
@@ -131,7 +151,7 @@ class _ChatTileState extends State<ChatTile>
           button: true,
           label: semanticsLabel,
           child: TouchContainer(
-            onTap: widget.onTap,
+            onTap: _handleTap,
             onLongPress: _handleLongPress,
             borderRadius: BorderRadius.circular(24),
             scaleDown: 0.98,
@@ -174,17 +194,22 @@ class _ChatTileState extends State<ChatTile>
                       Stack(
                         clipBehavior: Clip.none,
                         children: <Widget>[
-                          PulseAvatar(
-                            key: ValueKey<String>(
-                              '${widget.avatarText}_${widget.avatarUrl ?? ''}',
-                            ),
-                            radius: 25,
-                            name: widget.avatarText,
-                            avatarUrl: widget.avatarUrl,
-                            fallbackColor: widget.avatarColor,
-                            textColor: AppColors.avatarTextColorFor(
-                              widget.avatarColor,
-                              scheme,
+                          Hero(
+                            tag: widget.chatId != null
+                                ? 'chat_avatar_${widget.chatId}'
+                                : Object(),
+                            child: PulseAvatar(
+                              key: ValueKey<String>(
+                                '${widget.avatarText}_${widget.avatarUrl ?? ''}',
+                              ),
+                              radius: 25,
+                              name: widget.avatarText,
+                              avatarUrl: widget.avatarUrl,
+                              fallbackColor: widget.avatarColor,
+                              textColor: AppColors.avatarTextColorFor(
+                                widget.avatarColor,
+                                scheme,
+                              ),
                             ),
                           ),
                           if (widget.isOnline)
@@ -229,6 +254,12 @@ class _ChatTileState extends State<ChatTile>
                                           ),
                                         ),
                                       ),
+                                      if (widget.statusEmoji != null) ...<Widget>[
+                                        StatusEmojiBadge(
+                                          emoji: widget.statusEmoji!,
+                                          size: 16,
+                                        ),
+                                      ],
                                       if (widget.isSecret) ...<Widget>[
                                         const SizedBox(width: 4),
                                         Icon(

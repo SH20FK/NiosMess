@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/motion/nios_motion.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
 
@@ -29,6 +30,7 @@ class NiosDismissible extends StatefulWidget {
     this.velocityThreshold = 1.8,
     this.builder,
     this.onProgress,
+    this.ref,
     super.key,
   });
 
@@ -55,6 +57,9 @@ class NiosDismissible extends StatefulWidget {
   /// Optional progress listener callback.
   final ValueChanged<double>? onProgress;
 
+  /// Optional WidgetRef for TriSync multi-channel feedback.
+  final WidgetRef? ref;
+
   @override
   State<NiosDismissible> createState() => _NiosDismissibleState();
 }
@@ -64,6 +69,7 @@ class _NiosDismissibleState extends State<NiosDismissible>
   late final AnimationController _controller;
   double _dragOffset = 0.0;
   bool _thresholdCrossed = false;
+  int _dragGeneration = 0;
 
   @override
   void initState() {
@@ -82,60 +88,77 @@ class _NiosDismissibleState extends State<NiosDismissible>
   }
 
   void _onAnimationTick() {
-    widget.onProgress?.call(_controller.value.clamp(0.0, 1.0));
+    widget.onProgress?.call(_controller.value.clamp(-1.0, 1.0));
   }
 
+  // ND-3: Dimension-normalized rubber-band resistance
   double _rubberBand(double offset, double dimension) {
+    if (dimension <= 0.0) return offset;
     if (widget.direction == NiosDismissDirection.down && offset < 0) {
-      // High resistance when dragging up against boundary
-      return -math.pow(offset.abs(), 0.70).toDouble();
+      final double fraction = (-offset / dimension).clamp(0.0, 1.0);
+      return -math.pow(fraction, 0.70).toDouble() * dimension * 0.25;
     }
-    // Subtle organic drag resistance
     return offset;
   }
 
   void _onDragStart(DragStartDetails details) {
+    // ND-1: Increment generation to invalidate any in-flight settlement callback
+    _dragGeneration++;
     _controller.stop();
-    _dragOffset = _controller.value * (context.size?.height ?? 600.0);
+
+    // ND-2: Use MediaQuery height instead of nullable context.size
+    final double height = MediaQuery.sizeOf(context).height;
+    _dragOffset = _controller.value * height;
     _thresholdCrossed = false;
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
-    final double height = context.size?.height ?? 600.0;
+    final double height = MediaQuery.sizeOf(context).height;
     _dragOffset += details.primaryDelta ?? 0.0;
 
     final double effectiveOffset = _rubberBand(_dragOffset, height);
-    final double rawProgress = (effectiveOffset / height).clamp(
-      widget.direction == NiosDismissDirection.down ? -0.2 : -1.0,
-      1.5,
-    );
+    final double minProgress = widget.direction == NiosDismissDirection.down ? -0.2 : -1.5;
+    final double rawProgress = (effectiveOffset / height).clamp(minProgress, 1.5);
 
     _controller.value = rawProgress;
 
-    // Tactical haptic bump when crossing the dismiss point
-    if (rawProgress >= widget.dismissThreshold && !_thresholdCrossed) {
+    // ND-5: Hysteresis (0.05) to prevent rapid oscillating haptic clicks
+    final double absProgress = rawProgress.abs();
+    if (absProgress >= widget.dismissThreshold && !_thresholdCrossed) {
       _thresholdCrossed = true;
-      TriSync.pop(context: context);
-    } else if (rawProgress < widget.dismissThreshold && _thresholdCrossed) {
+      TriSync.pop(ref: widget.ref, context: context);
+    } else if (absProgress < (widget.dismissThreshold - 0.05) && _thresholdCrossed) {
       _thresholdCrossed = false;
     }
   }
 
   void _onDragEnd(DragEndDetails details) {
-    final double height = context.size?.height ?? 600.0;
+    final int currentGeneration = _dragGeneration;
+    final double height = MediaQuery.sizeOf(context).height;
     final double pixelVelocity = details.primaryVelocity ?? 0.0;
     final double normalizedVelocity =
         NiosMotion.normalizeVelocity(pixelVelocity, height);
 
     final double currentProgress = _controller.value;
-    final bool shouldDismiss = (currentProgress >= widget.dismissThreshold &&
-            normalizedVelocity >= -0.2) ||
-        normalizedVelocity >= widget.velocityThreshold;
+    final bool isDown = currentProgress >= 0;
 
-    final double target = shouldDismiss ? 1.0 : 0.0;
+    // ND-6: Support vertical (up and down) dismiss direction
+    final bool shouldDismiss;
+    if (widget.direction == NiosDismissDirection.down) {
+      shouldDismiss = (currentProgress >= widget.dismissThreshold &&
+              normalizedVelocity >= -0.2) ||
+          normalizedVelocity >= widget.velocityThreshold;
+    } else {
+      final double absProgress = currentProgress.abs();
+      shouldDismiss = (absProgress >= widget.dismissThreshold &&
+              (isDown ? normalizedVelocity >= -0.2 : normalizedVelocity <= 0.2)) ||
+          normalizedVelocity.abs() >= widget.velocityThreshold;
+    }
+
+    final double target = shouldDismiss ? (isDown ? 1.0 : -1.0) : 0.0;
 
     if (shouldDismiss) {
-      TriSync.dismiss(context: context);
+      TriSync.dismiss(ref: widget.ref, context: context);
     }
 
     // NF-1: Hand off user velocity directly into the spatial spring simulation
@@ -149,7 +172,11 @@ class _NiosDismissibleState extends State<NiosDismissible>
       ),
     )
         .whenCompleteOrCancel(() {
-      if (mounted && shouldDismiss && _controller.value >= 0.95) {
+      // ND-1: Only dismiss if generation hasn't changed (not interrupted by user catch)
+      if (mounted &&
+          _dragGeneration == currentGeneration &&
+          shouldDismiss &&
+          _controller.value.abs() >= 0.95) {
         widget.onDismissed();
       }
     });
@@ -166,11 +193,11 @@ class _NiosDismissibleState extends State<NiosDismissible>
         animation: _controller,
         builder: (BuildContext ctx, Widget? child) {
           final double progress = _controller.value;
-          final double height = context.size?.height ?? 600.0;
+          final double height = MediaQuery.sizeOf(context).height;
           final double offsetY = progress * height;
 
-          // Scale down smoothly as view is dragged away
-          final double scale = math.max(0.70, 1.0 - progress.abs() * 0.15);
+          // ND-4: Normalized, reachable scale down
+          final double scale = (1.0 - progress.abs() * 0.15).clamp(0.70, 1.0);
 
           final Widget transformedChild = Transform.translate(
             offset: Offset(0, offsetY),

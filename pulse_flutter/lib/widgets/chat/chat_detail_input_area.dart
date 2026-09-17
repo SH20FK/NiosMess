@@ -45,6 +45,7 @@ class ChatDetailInputArea extends ConsumerWidget {
     this.isBlockedByMe = false,
     this.isBlockedByUser = false,
     this.onUnblockUser,
+    this.onCancelAi,
   });
 
   final bool canPostInChannel;
@@ -58,6 +59,7 @@ class ChatDetailInputArea extends ConsumerWidget {
   final bool isBlockedByMe;
   final bool isBlockedByUser;
   final VoidCallback? onUnblockUser;
+  final VoidCallback? onCancelAi;
 
   /// True while this chat has uploads in flight — swaps the attach button
   /// for a spinner in [ChatInputBar]. Per-message progress lives in the
@@ -272,6 +274,7 @@ class ChatDetailInputArea extends ConsumerWidget {
                       inputController: inputController,
                       inputFocusNode: inputFocusNode,
                       isAiProcessing: isAiProcessing,
+                      onCancelAi: onCancelAi,
                       uploadingMedia: uploadingMedia,
                       editingMessageId: editingMessageId,
                       editingOriginalText: editingOriginalText,

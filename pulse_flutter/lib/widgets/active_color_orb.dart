@@ -41,14 +41,10 @@ class _ActiveColorOrbState extends ConsumerState<ActiveColorOrb>
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
+    _pulseController = AnimationController.unbounded(
       vsync: this,
-      duration: const Duration(milliseconds: 250),
+      value: widget.selected ? 1.0 : 0.0,
     );
-
-    if (widget.selected) {
-      _pulseController.value = 1.0;
-    }
   }
 
   @override

@@ -222,6 +222,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         _dismiss();
       },
       child: NiosDismissible(
+        ref: ref,
         onDismissed: _dismiss,
         onProgress: (double progress) {
           if ((_dragProgress - progress).abs() > 0.01) {
