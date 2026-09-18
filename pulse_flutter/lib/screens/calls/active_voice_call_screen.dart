@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/router/app_router.dart';
@@ -58,9 +59,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
       if (!mounted) return;
       if (data.state == CallSessionState.ended) {
         if (data.fatalError != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(data.fatalError!)),
-          );
+          AppToast.showError(context, data.fatalError!);
         }
         _popOrGoHome();
       }

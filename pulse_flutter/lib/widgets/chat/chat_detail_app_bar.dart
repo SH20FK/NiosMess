@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/models/api/status_emoji_model.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/widgets/common/app_action_menu_item.dart';
 import 'package:pulse_flutter/widgets/profile/responsive_profile_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/status_emoji_badge.dart';
@@ -311,27 +312,30 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                 tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
               );
             },
-            menuChildren: <Widget>[
-              if (isGroup || isChannel) ...<Widget>[
-                MenuItemButton(
-                  leadingIcon: const Icon(Icons.people_rounded),
-                  onPressed: () => context.push('/chat/$chatId/members'),
-                  child: Text(context.l10n.chatMembers),
-                ),
-                MenuItemButton(
-                  leadingIcon: const Icon(Icons.settings_rounded),
-                  onPressed: () => context.push('/chat/$chatId/manage'),
-                  child: Text(context.l10n.chatManage),
+            menuChildren: AppActionMenuItem.buildItems(
+              context,
+              <AppActionMenuItem>[
+                if (isGroup || isChannel) ...<AppActionMenuItem>[
+                  AppActionMenuItem(
+                    label: context.l10n.chatMembers,
+                    icon: Icons.people_rounded,
+                    onPressed: () => context.push('/chat/$chatId/members'),
+                  ),
+                  AppActionMenuItem(
+                    label: context.l10n.chatManage,
+                    icon: Icons.settings_rounded,
+                    onPressed: () => context.push('/chat/$chatId/manage'),
+                  ),
+                ],
+                AppActionMenuItem(
+                  label: context.l10n.chatWallpaperMenu,
+                  icon: Icons.texture_rounded,
+                  onPressed: () => context.push(
+                    '/settings/wallpaper?chatId=$chatId&chatTitle=${Uri.encodeComponent(title)}',
+                  ),
                 ),
               ],
-              MenuItemButton(
-                leadingIcon: const Icon(Icons.texture_rounded),
-                onPressed: () => context.push(
-                  '/settings/wallpaper?chatId=$chatId&chatTitle=${Uri.encodeComponent(title)}',
-                ),
-                child: Text(context.l10n.chatWallpaperMenu),
-              ),
-            ],
+            ),
           ),
       ],
     );

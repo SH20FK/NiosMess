@@ -15,6 +15,7 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/app_error_banner.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/chat/moderation_bottom_sheet.dart';
+import 'package:pulse_flutter/widgets/common/app_action_menu_item.dart';
 import 'package:pulse_flutter/widgets/common/app_pill_field.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
@@ -457,38 +458,38 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                                                 },
                                               );
                                             },
-                                            menuChildren: <Widget>[
-                                              MenuItemButton(
-                                                leadingIcon: Icon(Icons.gavel_rounded, size: 18, color: scheme.primary),
-                                                onPressed: () => _openModeration(member),
-                                                child: const Text('Модерация (мут/бан)'),
-                                              ),
-                                              if (!member.isAdmin && !member.isOwner)
-                                                MenuItemButton(
-                                                  leadingIcon: Icon(Icons.shield_rounded, size: 18, color: scheme.tertiary),
-                                                  onPressed: () => _promote(member, 'admin'),
-                                                  child: Text(
-                                                    context.l10n.chatMembersPromoteAdmin,
-                                                  ),
+                                            menuChildren: AppActionMenuItem.buildItems(
+                                              context,
+                                              <AppActionMenuItem>[
+                                                AppActionMenuItem(
+                                                  label: 'Модерация (мут/бан)',
+                                                  icon: Icons.gavel_rounded,
+                                                  iconColor: scheme.primary,
+                                                  onPressed: () => _openModeration(member),
                                                 ),
-                                              if (member.isAdmin && !member.isOwner)
-                                                MenuItemButton(
-                                                  leadingIcon: Icon(Icons.person_outline_rounded, size: 18, color: scheme.onSurfaceVariant),
-                                                  onPressed: () => _promote(member, 'member'),
-                                                  child: Text(
-                                                    context.l10n.chatMembersDemoteMember,
+                                                if (!member.isAdmin && !member.isOwner)
+                                                  AppActionMenuItem(
+                                                    label: context.l10n.chatMembersPromoteAdmin,
+                                                    icon: Icons.shield_rounded,
+                                                    iconColor: scheme.tertiary,
+                                                    onPressed: () => _promote(member, 'admin'),
                                                   ),
-                                                ),
-                                              if (!member.isOwner)
-                                                MenuItemButton(
-                                                  leadingIcon: Icon(Icons.person_remove_rounded, size: 18, color: scheme.error),
-                                                  onPressed: () => _kick(member),
-                                                  child: Text(
-                                                    'Исключить из группы',
-                                                    style: TextStyle(color: scheme.error),
+                                                if (member.isAdmin && !member.isOwner)
+                                                  AppActionMenuItem(
+                                                    label: context.l10n.chatMembersDemoteMember,
+                                                    icon: Icons.person_outline_rounded,
+                                                    iconColor: scheme.onSurfaceVariant,
+                                                    onPressed: () => _promote(member, 'member'),
                                                   ),
-                                                ),
-                                            ],
+                                                if (!member.isOwner)
+                                                  AppActionMenuItem(
+                                                    label: 'Исключить из группы',
+                                                    icon: Icons.person_remove_rounded,
+                                                    isDestructive: true,
+                                                    onPressed: () => _kick(member),
+                                                  ),
+                                              ],
+                                            ),
                                           ),
                                       ],
                                     ),

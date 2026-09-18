@@ -1,10 +1,12 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 
 /// An adaptive tonal container that adjusts its surface tone and opacity
 /// based on the active [PerformanceTier].
-/// Strictly enforces 0 live GPU blur passes (zero BackdropFilter) to maintain 120 FPS.
+/// Strictly enforces bounded GPU blur passes for static panels on Tier A,
+/// and zero live blur passes on Tier B/C or inside scrollables to maintain 120 FPS.
 class AdaptiveGlass extends ConsumerWidget {
   const AdaptiveGlass({
     super.key,
@@ -44,7 +46,7 @@ class AdaptiveGlass extends ConsumerWidget {
     // Tier C / PowerSaver: fully opaque tonal surface (0.98 alpha)
     // Tier A/B: clean M3 Expressive tonal surface (0.92 alpha)
     final double alpha = (tier == PerformanceTier.tierC) ? 0.98 : 0.92;
-    final Widget container = Container(
+    Widget content = Container(
       padding: padding,
       decoration: BoxDecoration(
         color: tintColor ??
@@ -59,13 +61,27 @@ class AdaptiveGlass extends ConsumerWidget {
       child: child,
     );
 
+    // Live BackdropFilter is ONLY permitted on Tier A for static panels outside scrollables
+    final bool enableBackdrop = (tier == PerformanceTier.tierA) &&
+        isStaticPanel &&
+        (inScrollable != true) &&
+        tierASigma > 0.0;
+
+    if (enableBackdrop) {
+      final double sigma = tierASigma.clamp(0.0, 10.0);
+      content = BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+        child: content,
+      );
+    }
+
     if (clipBehavior == Clip.none) {
-      return container;
+      return content;
     }
     return ClipRRect(
       borderRadius: radius,
       clipBehavior: clipBehavior,
-      child: container,
+      child: content,
     );
   }
 }

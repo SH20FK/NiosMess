@@ -45,8 +45,8 @@ class M3SharedAxis extends StatelessWidget {
 
     return AnimatedSwitcher(
       duration: duration,
-      switchInCurve: curve,
-      switchOutCurve: M3SpringCurves.expressiveDecel,
+      switchInCurve: Curves.linear,
+      switchOutCurve: Curves.linear,
       layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
         return Stack(
           alignment: Alignment.topLeft,

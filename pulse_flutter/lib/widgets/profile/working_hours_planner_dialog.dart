@@ -268,8 +268,9 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
         _schedule[day] = List<TimeInterval>.from(source);
       }
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Расписание скопировано на будни (Пн–Пт)')),
+    AppToast.showSuccess(
+      context,
+      'Расписание скопировано на будни (Пн–Пт)',
     );
   }
 
@@ -290,8 +291,9 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
         _schedule[day] = List<TimeInterval>.from(source);
       }
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Расписание скопировано на всю неделю (Пн–Вс)')),
+    AppToast.showSuccess(
+      context,
+      'Расписание скопировано на всю неделю (Пн–Вс)',
     );
   }
 

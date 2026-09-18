@@ -146,8 +146,8 @@ class M3SpringSwitcher extends StatelessWidget {
     return AnimatedSwitcher(
       duration: duration,
       reverseDuration: reverseDuration,
-      switchInCurve: switchInCurve,
-      switchOutCurve: switchOutCurve,
+      switchInCurve: Curves.linear,
+      switchOutCurve: Curves.linear,
       transitionBuilder: _buildTransition,
       layoutBuilder: layoutBuilder,
       child: child,

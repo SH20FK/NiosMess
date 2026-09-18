@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 enum AppErrorBannerVariant { inline, centered, snackbar }
 
@@ -50,17 +51,7 @@ class AppErrorBanner extends StatelessWidget {
       case AppErrorBannerVariant.snackbar:
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(message),
-                action: onRetry != null
-                    ? SnackBarAction(
-                        label: context.l10n.commonRetry,
-                        onPressed: onRetry!,
-                      )
-                    : null,
-              ),
-            );
+            AppToast.showError(context, message);
           }
         });
         return const SizedBox.shrink();
