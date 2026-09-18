@@ -112,8 +112,10 @@ void main() {
   final List<String> backdropFilterViolations = <String>[];
   for (final File file in dartFiles) {
     final String normalized = file.path.replaceAll(r'\', '/');
-    // BackdropFilter is forbidden across all repeating UI and modals
-    if (normalized.contains('/widgets/')) {
+    // BackdropFilter is forbidden across all repeating UI, tiles, and modals.
+    // AdaptiveGlass is the only strictly bounded container for Tier A static panels.
+    if (normalized.contains('/widgets/') &&
+        !normalized.endsWith('adaptive_glass.dart')) {
       final String content = file.readAsStringSync();
       if (content.contains('BackdropFilter(')) {
         backdropFilterViolations.add(file.path);
@@ -121,7 +123,7 @@ void main() {
     }
   }
   report(
-    'Zero BackdropFilter() in widgets/ (strictly tonal M3E surfaces)',
+    'Zero BackdropFilter() in widgets/ (except bounded AdaptiveGlass Tier A)',
     backdropFilterViolations.isEmpty,
     backdropFilterViolations.map((p) => '    Violation: $p').join('\n'),
   );
