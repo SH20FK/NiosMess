@@ -62,6 +62,7 @@ import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/core/utils/screen_security_service.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
+import 'package:pulse_flutter/widgets/chat/chat_state_surface.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
