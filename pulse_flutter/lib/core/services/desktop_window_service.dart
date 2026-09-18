@@ -37,7 +37,6 @@ class DesktopWindowService with WindowListener, TrayListener {
         size: Size(1100, 750),
         minimumSize: Size(680, 520),
         center: true,
-        backgroundColor: Colors.transparent,
         skipTaskbar: false,
         titleBarStyle: TitleBarStyle.normal,
         title: 'NiosMess',

@@ -1,4 +1,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
@@ -9,16 +10,30 @@ enum NetworkType {
   none,
 }
 
+bool _isConnected(List<ConnectivityResult> results) {
+  if (kIsWeb) return true;
+  final bool hasActive = results.any((r) => r != ConnectivityResult.none);
+  if (hasActive) return true;
+  // On desktop, fallback to true if results are empty or indeterminate
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux)) {
+    return results.isEmpty;
+  }
+  return false;
+}
+
 final connectivityProvider = StreamProvider<bool>((ref) async* {
   final Connectivity connectivity = Connectivity();
 
   // Initial state — true = connected, false = disconnected
   final List<ConnectivityResult> initialResult = await connectivity.checkConnectivity();
-  yield !initialResult.contains(ConnectivityResult.none);
+  yield _isConnected(initialResult);
 
   // Stream state
   await for (final List<ConnectivityResult> result in connectivity.onConnectivityChanged) {
-    yield !result.contains(ConnectivityResult.none);
+    yield _isConnected(result);
   }
 });
 
@@ -26,7 +41,14 @@ final networkTypeProvider = StreamProvider<NetworkType>((ref) async* {
   final Connectivity connectivity = Connectivity();
 
   NetworkType mapResults(List<ConnectivityResult> results) {
-    if (results.contains(ConnectivityResult.none) || results.isEmpty) {
+    final bool hasActive = results.any((r) => r != ConnectivityResult.none);
+    if (!hasActive) {
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.windows ||
+              defaultTargetPlatform == TargetPlatform.macOS ||
+              defaultTargetPlatform == TargetPlatform.linux)) {
+        return NetworkType.other;
+      }
       return NetworkType.none;
     }
     if (results.contains(ConnectivityResult.wifi) ||

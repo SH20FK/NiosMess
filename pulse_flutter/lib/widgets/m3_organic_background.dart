@@ -52,7 +52,7 @@ class M3OrganicBackground extends ConsumerWidget {
         children: [
           // ── Organic Geometric Blobs Background ───────────────────────
           Positioned.fill(
-            child: (tier == PerformanceTier.tierC || optimize)
+            child: (tier == PerformanceTier.tierC || optimize || _isDesktopPlatform)
                 ? Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -96,30 +96,9 @@ class M3OrganicBackground extends ConsumerWidget {
                   return child;
                 }
                 return Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 32),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 520),
-                      child: Material(
-                        color: scheme.surfaceContainerHigh
-                            .withValues(alpha: isDark ? 0.92 : 0.98),
-                        borderRadius: AppRadii.lgRadius,
-                        elevation: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            borderRadius: AppRadii.lgRadius,
-                            border: Border.all(
-                              color: scheme.outlineVariant
-                                  .withValues(alpha: 0.35),
-                              width: 1.0,
-                            ),
-                          ),
-                          child: child,
-                        ),
-                      ),
-                    ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 560),
+                    child: child,
                   ),
                 );
               },

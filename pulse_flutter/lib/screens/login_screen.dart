@@ -203,14 +203,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   /// Initiates RFC 8628 OAuth Device Flow for seamless universal login.
   Future<void> _startNiosIdAuth() async {
-    // Offline pre-check
-    final bool isOnline = ref.read(connectivityProvider).value ?? true;
-    if (!isOnline) {
-      HapticService.destructive();
-      AppToast.showError(context, context.l10n.loginOfflineError);
-      return;
-    }
-
     HapticService.tap();
     _countdownTimer?.cancel();
     _countdownTimer = null;
@@ -250,9 +242,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       });
 
-      // Open authorization page with pre-filled code in browser
-      await OAuthNavigationHelper()
-          .openInBrowser(deviceResp.verificationUriComplete);
+      // Open authorization page with pre-filled code in browser safely
+      try {
+        await OAuthNavigationHelper()
+            .openInBrowser(deviceResp.verificationUriComplete);
+      } catch (e) {
+        debugPrint('[LoginScreen] Automatic browser launch failed: $e');
+      }
 
       // Start polling for token
       _runDeviceTokenPolling(deviceResp);

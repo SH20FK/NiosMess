@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
@@ -121,7 +122,19 @@ class AuthNotifier extends Notifier<AuthState> {
       } catch (_) {}
     }
 
-    final String? raw = await _storage.read(key: _sessionKey);
+    String? raw;
+    try {
+      raw = await _storage.read(key: _sessionKey);
+    } catch (e) {
+      debugPrint('[auth_provider] Secure storage read failed: $e');
+    }
+    if (raw == null || raw.isEmpty) {
+      try {
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        raw = prefs.getString(_sessionKey);
+      } catch (_) {}
+    }
+
     AuthSession? session;
 
     if (raw != null && raw.isNotEmpty) {
@@ -137,7 +150,7 @@ class AuthNotifier extends Notifier<AuthState> {
     }
 
     if (session != null && session.accessToken.startsWith('demo_')) {
-      await _storage.delete(key: _sessionKey);
+      await _clearSessionStorage();
       await ref.read(cacheServiceProvider).clearAll();
       session = null;
     }
@@ -161,12 +174,26 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> _saveSession(AuthSession session) async {
     final String serialized = jsonEncode(session.toJson());
-    await _storage.write(key: _sessionKey, value: serialized);
+    try {
+      await _storage.write(key: _sessionKey, value: serialized);
+    } catch (e) {
+      debugPrint('[auth_provider] Secure storage write error: $e');
+    }
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_sessionKey, serialized);
+    } catch (_) {}
     ref.read(sessionAccessTokenProvider.notifier).setToken(session.accessToken);
   }
 
   Future<void> _clearSessionStorage() async {
-    await _storage.delete(key: _sessionKey);
+    try {
+      await _storage.delete(key: _sessionKey);
+    } catch (_) {}
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_sessionKey);
+    } catch (_) {}
     ref.read(sessionAccessTokenProvider.notifier).clear();
   }
 
@@ -356,6 +383,12 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> _registerFcmToken() async {
+    // FCM is exclusively supported on mobile (Android/iOS) and Web.
+    // Calling Firebase on desktop throws [core/no-app].
+    if (!kIsWeb && !Platform.isAndroid && !Platform.isIOS) {
+      return;
+    }
+
     await _fcmTokenRefreshSubscription?.cancel();
     _fcmTokenRefreshSubscription = null;
 
@@ -408,7 +441,8 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> refreshFcmTokenRegistration() => _registerFcmToken();
 
   void _updateBackgroundService() {
-    if (kIsWeb) return;
+    // FlutterForegroundTask is mobile-only. Desktop uses tray and window minimization.
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
     try {
       final BackgroundMode mode = ref.read(uiSettingsProvider).backgroundMode;
       if (mode == BackgroundMode.reliable) {

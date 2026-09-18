@@ -37,16 +37,41 @@ class AuthLoginResult {
             ? rawUser.map((dynamic k, dynamic v) => MapEntry(k.toString(), v))
             : <String, dynamic>{};
 
-    final dynamic rawUserId = json['user_id'] ?? json['id'] ?? userMap['id'] ?? userMap['user_id'];
+    final dynamic rawPayload = json['payload'];
+    final Map<String, dynamic> payloadMap = rawPayload is Map<String, dynamic>
+        ? rawPayload
+        : rawPayload is Map
+            ? rawPayload.map((dynamic k, dynamic v) => MapEntry(k.toString(), v))
+            : <String, dynamic>{};
+
+    final dynamic rawUserId = json['user_id'] ??
+        json['id'] ??
+        userMap['id'] ??
+        userMap['user_id'] ??
+        payloadMap['user_id'] ??
+        payloadMap['id'];
     final int? userId = rawUserId is int
         ? rawUserId
         : rawUserId is num
             ? rawUserId.toInt()
             : int.tryParse(rawUserId?.toString() ?? '');
 
-    final String? username = (json['username'] ?? userMap['username'])?.toString();
-    final String? displayName = (json['display_name'] ?? json['name'] ?? userMap['display_name'] ?? userMap['name'])?.toString();
-    final String? accessToken = (json['access_token'] ?? sessionMap['access_token'] ?? json['token'] ?? sessionMap['token'])?.toString();
+    final String? username =
+        (json['username'] ?? userMap['username'] ?? payloadMap['username'])?.toString();
+    final String? displayName = (json['display_name'] ??
+            json['name'] ??
+            userMap['display_name'] ??
+            userMap['name'] ??
+            payloadMap['display_name'] ??
+            payloadMap['name'])
+        ?.toString();
+    final String? accessToken = (json['access_token'] ??
+            sessionMap['access_token'] ??
+            json['token'] ??
+            sessionMap['token'] ??
+            payloadMap['access_token'] ??
+            payloadMap['token'])
+        ?.toString();
 
     return AuthLoginResult(
       accessToken: accessToken,
