@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
@@ -61,19 +60,8 @@ class AdaptiveGlass extends ConsumerWidget {
       child: child,
     );
 
-    // Live BackdropFilter is ONLY permitted on Tier A for static panels outside scrollables
-    final bool enableBackdrop = (tier == PerformanceTier.tierA) &&
-        isStaticPanel &&
-        (inScrollable != true) &&
-        tierASigma > 0.0;
-
-    if (enableBackdrop) {
-      final double sigma = tierASigma.clamp(0.0, 10.0);
-      content = BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-        child: content,
-      );
-    }
+    // Pure Material 3 Expressive tonal surface with zero live raster blur passes
+    // to maintain 60-120 FPS fluidity across all device tiers.
 
     if (clipBehavior == Clip.none) {
       return content;

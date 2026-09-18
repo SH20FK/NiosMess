@@ -22,7 +22,6 @@ import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_background.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/widgets/chat/chat_message_list.dart';
-import 'package:pulse_flutter/widgets/empty_feed_widget.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -2103,11 +2102,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                       if (messages.isEmpty) {
                         final bool isSecretChat = chat?.isSecret == true || _isSecret;
                         if (isSecretChat) {
-                          return EmptyFeedWidget(
-                            icon: Icons.lock_rounded,
+                          return ChatStateSurface.secret(
                             title: context.l10n.secretChatTitle,
                             description: context.l10n.secretChatDesc,
-                            features: [
+                            features: <String>[
                               context.l10n.secretChatFeature1,
                               context.l10n.secretChatFeature2,
                               context.l10n.secretChatFeature3,
@@ -2118,8 +2116,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                           );
                         }
 
-                        return EmptyFeedWidget(
-                          icon: Icons.chat_bubble_outline_rounded,
+                        return ChatStateSurface.empty(
                           title: context.l10n.chatNoMessages,
                           description: context.l10n.chatSendFirst,
                           actionLabel: context.l10n.chatSendFirst,
@@ -2167,51 +2164,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     },
                     loading: () => const MessageListSkeleton(),
                     error: (Object error, StackTrace trace) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: scheme.primaryContainer.withValues(alpha: 0.6),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: Icon(
-                                    Icons.sync_rounded,
-                                    color: scheme.primary,
-                                    size: 28,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                context.l10n.chatConnecting,
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                context.l10n.chatReconnecting,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              FilledButton.tonalIcon(
-                                onPressed: () => ref.invalidate(
-                                  chatMessagesProvider(chatId),
-                                ),
-                                icon: const Icon(Icons.refresh_rounded, size: 18),
-                                label: Text(context.l10n.refreshAction),
-                              ),
-                            ],
-                          ),
+                      return ChatStateSurface.error(
+                        title: context.l10n.chatConnecting,
+                        description: context.l10n.chatReconnecting,
+                        actionLabel: context.l10n.refreshAction,
+                        onAction: () => ref.invalidate(
+                          chatMessagesProvider(chatId),
                         ),
                       );
                     },
