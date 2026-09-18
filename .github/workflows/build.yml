@@ -206,10 +206,14 @@ jobs:
       - name: Compile Inno Setup Installer (.exe)
         shell: pwsh
         run: |
-          $releaseDir = (Get-ChildItem -Path build/windows -Recurse -Directory -Filter "Release" | Select-Object -First 1).FullName
-          if (-not $releaseDir) {
-            throw "Release directory not found under build/windows!"
+          $exeFile = Get-ChildItem -Path build/windows -Recurse -Filter "pulse_flutter.exe" | Where-Object { $_.FullName -match "Release" } | Select-Object -First 1
+          if (-not $exeFile) {
+            $exeFile = Get-ChildItem -Path build/windows -Recurse -Filter "pulse_flutter.exe" | Select-Object -First 1
           }
+          if (-not $exeFile) {
+            throw "pulse_flutter.exe not found under build/windows!"
+          }
+          $releaseDir = $exeFile.DirectoryName
           Write-Host "Found Release binaries at: $releaseDir"
 
           $rawVersion = (Get-Content pubspec.yaml | Select-String -Pattern '^version:\s*(.+)$').Matches.Groups[1].Value.Trim()
