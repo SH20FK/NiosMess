@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/services/desktop_pasteboard_service.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -37,6 +41,8 @@ class ChatInputBar extends StatefulWidget {
     this.chatId,
     this.onSendSticker,
     this.onCancelAi,
+    this.onEditLastMessage,
+    this.onAttachFiles,
     this.hapticsEnabled = true,
     this.sendOnEnter = true,
     super.key,
@@ -61,6 +67,8 @@ class ChatInputBar extends StatefulWidget {
   final void Function(String filePath)? onCircleSend;
   final int? chatId;
   final void Function(ApiSticker sticker)? onSendSticker;
+  final VoidCallback? onEditLastMessage;
+  final void Function(List<String> filePaths, {bool sendAsDocument})? onAttachFiles;
   final bool hapticsEnabled;
   final bool sendOnEnter;
 
@@ -218,6 +226,123 @@ class _ChatInputBarState extends State<ChatInputBar>
         selection: TextSelection.collapsed(offset: newText.length),
       );
     }
+  }
+
+  Future<void> _pickDesktopFiles({
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    bool sendAsDocument = false,
+  }) async {
+    try {
+      final List<PlatformFile> picked = await FilePicker.pickFiles(
+        type: type,
+        allowedExtensions: allowedExtensions,
+      );
+      if (picked.isNotEmpty && mounted) {
+        final List<String> validPaths = picked
+            .map((PlatformFile f) => f.path)
+            .whereType<String>()
+            .where((String p) => p.isNotEmpty)
+            .toList();
+        if (validPaths.isNotEmpty) {
+          if (widget.onAttachFiles != null) {
+            widget.onAttachFiles!(validPaths, sendAsDocument: sendAsDocument);
+          } else {
+            widget.onAttachMedia();
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[ChatInputBar] Error picking desktop files: $e');
+    }
+  }
+
+  Widget _buildAttachButton(BuildContext context, ColorScheme scheme) {
+    final bool isDesktop = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.linux ||
+            defaultTargetPlatform == TargetPlatform.macOS);
+
+    if (isDesktop) {
+      return MenuAnchor(
+        builder: (BuildContext context, MenuController controller, Widget? child) {
+          return Tooltip(
+            message: context.l10n.chatAttachMedia,
+            child: TouchContainer(
+              borderRadius: AppRadii.fullRadius,
+              onTap: () {
+                if (controller.isOpen) {
+                  controller.close();
+                } else {
+                  controller.open();
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                child: Icon(
+                  Icons.add_rounded,
+                  size: 24,
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
+                ),
+              ),
+            ),
+          );
+        },
+        menuChildren: <Widget>[
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.image_outlined, size: 20),
+            onPressed: () => _pickDesktopFiles(
+              type: FileType.custom,
+              allowedExtensions: <String>[
+                'jpg',
+                'jpeg',
+                'png',
+                'webp',
+                'gif',
+                'mp4',
+                'mov',
+                'mkv',
+              ],
+            ),
+            child: const Text('Фото или видео'),
+          ),
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.description_outlined, size: 20),
+            onPressed: () => _pickDesktopFiles(
+              type: FileType.any,
+              sendAsDocument: true,
+            ),
+            child: const Text('Файл или документ'),
+          ),
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.audiotrack_outlined, size: 20),
+            onPressed: () => _pickDesktopFiles(type: FileType.audio),
+            child: const Text('Аудиозапись'),
+          ),
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.videocam_outlined, size: 20),
+            onPressed: () => _openCircleVideo(autoStart: true),
+            child: const Text('Записать видеокружок'),
+          ),
+        ],
+      );
+    }
+
+    return Tooltip(
+      message: context.l10n.chatAttachMedia,
+      child: TouchContainer(
+        borderRadius: AppRadii.fullRadius,
+        onTap: widget.onAttachMedia,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          child: Icon(
+            Icons.add_rounded,
+            size: 24,
+            color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _openCircleVideo({bool autoStart = false}) async {
@@ -564,21 +689,67 @@ class _ChatInputBarState extends State<ChatInputBar>
                                   child: Focus(
                                     onKeyEvent: (FocusNode node,
                                         KeyEvent event) {
-                                      if (event is KeyDownEvent &&
-                                          event.logicalKey ==
-                                              LogicalKeyboardKey.enter) {
-                                        if (!widget.sendOnEnter ||
-                                            HardwareKeyboard
-                                                .instance.isShiftPressed) {
-                                          return KeyEventResult.ignored;
-                                        } else {
-                                          if (widget.editingMessageId !=
-                                              null) {
-                                            widget.onCommitEdit();
-                                          } else if (!_isInputEmpty) {
-                                            widget.onSend();
+                                      if (event is KeyDownEvent) {
+                                        // 1. Enter: send message or commit edit
+                                        if (event.logicalKey ==
+                                            LogicalKeyboardKey.enter) {
+                                          if (!widget.sendOnEnter ||
+                                              HardwareKeyboard
+                                                  .instance.isShiftPressed) {
+                                            return KeyEventResult.ignored;
+                                          } else {
+                                            if (widget.editingMessageId !=
+                                                null) {
+                                              widget.onCommitEdit();
+                                            } else if (!_isInputEmpty) {
+                                              widget.onSend();
+                                            }
+                                            return KeyEventResult.handled;
                                           }
-                                          return KeyEventResult.handled;
+                                        }
+
+                                        // 2. Escape: cancel edit / clear reply / close emoji picker
+                                        if (event.logicalKey ==
+                                            LogicalKeyboardKey.escape) {
+                                          if (_showEmojiPicker) {
+                                            setState(() => _showEmojiPicker = false);
+                                            return KeyEventResult.handled;
+                                          }
+                                          if (widget.editingMessageId != null) {
+                                            widget.onCancelEdit();
+                                            return KeyEventResult.handled;
+                                          }
+                                          if (widget.replyToMessageId != null) {
+                                            widget.onClearReply();
+                                            return KeyEventResult.handled;
+                                          }
+                                        }
+
+                                        // 3. Arrow Up: edit last sent message if input is empty
+                                        if (event.logicalKey ==
+                                                LogicalKeyboardKey.arrowUp &&
+                                            widget.inputController.text
+                                                .trim()
+                                                .isEmpty &&
+                                            widget.editingMessageId == null) {
+                                          if (widget.onEditLastMessage != null) {
+                                            widget.onEditLastMessage!();
+                                            return KeyEventResult.handled;
+                                          }
+                                        }
+
+                                        // 4. Ctrl+V / Cmd+V: check for clipboard images or files on desktop
+                                        if ((HardwareKeyboard.instance.isControlPressed ||
+                                                HardwareKeyboard.instance.isMetaPressed) &&
+                                            event.logicalKey == LogicalKeyboardKey.keyV &&
+                                            DesktopPasteboardService.isDesktop) {
+                                          unawaited(() async {
+                                            final List<String> files =
+                                                await DesktopPasteboardService.getClipboardFilesOrImage();
+                                            if (files.isNotEmpty && mounted) {
+                                              widget.onAttachFiles?.call(files);
+                                            }
+                                          }());
                                         }
                                       }
                                       return KeyEventResult.ignored;
@@ -685,23 +856,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                                   ),
 
                                 // Attach Media Button
-                                Tooltip(
-                                  message: context.l10n.chatAttachMedia,
-                                  child: TouchContainer(
-                                    borderRadius: AppRadii.fullRadius,
-                                    onTap: widget.onAttachMedia,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 12),
-                                      child: Icon(
-                                        Icons.add_rounded,
-                                        size: 24,
-                                        color: scheme.onSurfaceVariant
-                                            .withValues(alpha: 0.75),
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                                _buildAttachButton(context, scheme),
                               ],
                             ),
                           ),
@@ -997,17 +1152,50 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   // ── Record button (mic/video toggle + long press to record) ──
   Widget _buildRecordButton(ColorScheme scheme) {
-    return Tooltip(
-      message: _isVideoMode
-          ? context.l10n.chatCircleVideo
-          : context.l10n.chatVoiceMessage,
+    final bool isDesktop = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.linux ||
+            defaultTargetPlatform == TargetPlatform.macOS);
+
+    final String tooltipMessage = isDesktop
+        ? (_isVideoMode
+            ? 'Видеокружок (ЛКМ — запись, ПКМ — микрофон)'
+            : 'Голосовое сообщение (ЛКМ — запись, ПКМ — кружок)')
+        : (_isVideoMode
+            ? context.l10n.chatCircleVideo
+            : context.l10n.chatVoiceMessage);
+
+    final Widget mainRecordBtn = Tooltip(
+      message: tooltipMessage,
       child: GestureDetector(
-        onTap: () {
-          // Tap toggles mic ↔ video mode
-          setState(() => _isVideoMode = !_isVideoMode);
-          HapticService.confirm();
+        onTap: () async {
+          if (isDesktop) {
+            if (_isVideoMode) {
+              HapticService.tap();
+              _openCircleVideo(autoStart: true);
+            } else {
+              if (_isRecording) {
+                await _sendVoiceRecording();
+              } else {
+                await _startVoiceRecording();
+                setState(() => _isRecordingLocked = true);
+              }
+            }
+          } else {
+            // Tap toggles mic ↔ video mode on mobile
+            setState(() => _isVideoMode = !_isVideoMode);
+            HapticService.confirm();
+          }
         },
+        onSecondaryTap: isDesktop
+            ? () {
+                // Secondary click toggles mode on desktop
+                setState(() => _isVideoMode = !_isVideoMode);
+                HapticService.confirm();
+              }
+            : null,
         onLongPressStart: (LongPressStartDetails details) async {
+          if (isDesktop) return; // Desktop uses single tap
           if (_isVideoMode) {
             // Video mode: open circle recorder with auto-start
             HapticService.tap();
@@ -1018,7 +1206,7 @@ class _ChatInputBarState extends State<ChatInputBar>
           await _startVoiceRecording();
         },
         onLongPressMoveUpdate: (LongPressMoveUpdateDetails details) {
-          if (!_isRecording || _isRecordingLocked) return;
+          if (isDesktop || !_isRecording || _isRecordingLocked) return;
           _dragOffsetNotifier.value = details.localOffsetFromOrigin;
 
           // Real-time lock detection: lock as soon as threshold is crossed
@@ -1028,6 +1216,7 @@ class _ChatInputBarState extends State<ChatInputBar>
           }
         },
         onLongPressCancel: () async {
+          if (isDesktop) return;
           if (_isStartingRecording) {
             _cancelOnStart = true;
             return;
@@ -1037,6 +1226,7 @@ class _ChatInputBarState extends State<ChatInputBar>
           }
         },
         onLongPressEnd: (LongPressEndDetails details) async {
+          if (isDesktop) return;
           if (_isStartingRecording) {
             if (_dragOffsetNotifier.value.dx < -120) {
               _cancelOnStart = true;
@@ -1085,6 +1275,45 @@ class _ChatInputBarState extends State<ChatInputBar>
         ),
       ),
     );
+
+    if (isDesktop) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _isVideoMode = !_isVideoMode);
+                HapticService.selection();
+              },
+              child: Tooltip(
+                message: _isVideoMode
+                    ? 'Переключить на микрофон'
+                    : 'Переключить на видеокружок',
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  margin: const EdgeInsets.only(right: 6),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.8),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _isVideoMode ? Icons.mic_rounded : Icons.videocam_rounded,
+                    size: 16,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          mainRecordBtn,
+        ],
+      );
+    }
+
+    return mainRecordBtn;
   }
 
   // ── Send / Commit edit button ──

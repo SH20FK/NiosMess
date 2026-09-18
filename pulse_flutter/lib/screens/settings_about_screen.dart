@@ -14,6 +14,7 @@ import 'package:pulse_flutter/core/constants/team.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -115,8 +116,9 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
 
   void _showBugReportDialog(BuildContext context) {
     HapticService.tap();
-    showDialog<void>(
+    AppModal.showDialog<void>(
       context: context,
+      maxWidth: 460,
       builder: (BuildContext dialogContext) => const _BugReportDialog(),
     );
   }
@@ -1447,93 +1449,123 @@ class _BugReportDialogState extends ConsumerState<_BugReportDialog> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: AppRadii.of(context).lgRadius,
-      ),
-      icon: Icon(
-        Icons.bug_report_rounded,
-        size: 32,
-        color: scheme.primary,
-      ),
-      title: Text(
-        context.l10n.aboutReportBugAction,
-        style: textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
-        textAlign: TextAlign.center,
-      ),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            TextField(
-              controller: _subjectController,
-              decoration: InputDecoration(
-                labelText: context.l10n.aboutReportSubject,
-                isDense: true,
-                border: OutlineInputBorder(
-                  borderRadius: AppRadii.of(context).smRadius,
-                ),
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Center(
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                Icons.bug_report_rounded,
+                size: 26,
+                color: scheme.primary,
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _bodyController,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: context.l10n.aboutReportDescription,
-                isDense: true,
-                border: OutlineInputBorder(
-                  borderRadius: AppRadii.of(context).smRadius,
-                ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            context.l10n.aboutReportBugAction,
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurface,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _subjectController,
+            decoration: InputDecoration(
+              labelText: context.l10n.aboutReportSubject,
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: AppRadii.of(context).smRadius,
               ),
             ),
-          ],
-        ),
-      ),
-      actionsAlignment: MainAxisAlignment.spaceBetween,
-      actions: <Widget>[
-        TextButton(
-          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
-          child: Text(context.l10n.commonCancel),
-        ),
-        FilledButton(
-          onPressed: (_isSubmitting || !_canSubmit)
-              ? null
-              : () async {
-                  final String subj = _subjectController.text.trim();
-                  final String desc = _bodyController.text.trim();
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _bodyController,
+            maxLines: 4,
+            decoration: InputDecoration(
+              labelText: context.l10n.aboutReportDescription,
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: AppRadii.of(context).smRadius,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: TextButton(
+                  onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: AppRadii.fullRadius,
+                    ),
+                  ),
+                  child: Text(context.l10n.commonCancel),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: (_isSubmitting || !_canSubmit)
+                      ? null
+                      : () async {
+                          final String subj = _subjectController.text.trim();
+                          final String desc = _bodyController.text.trim();
 
-                  setState(() => _isSubmitting = true);
-                  try {
-                    await ref.read(supportRepositoryProvider).createTicket(
-                          ticketType: 'bug',
-                          subject: subj,
-                          body: desc,
-                        );
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                      AppToast.showSuccess(
-                        context,
-                        context.l10n.aboutReportSuccess,
-                      );
-                    }
-                  } catch (_) {
-                    if (context.mounted) {
-                      setState(() => _isSubmitting = false);
-                      AppToast.showError(
-                        context,
-                        context.l10n.aboutReportError,
-                      );
-                    }
-                  }
-                },
-          child: _isSubmitting
-              ? AppLoadingIndicator(size: 16, color: scheme.onPrimary)
-              : Text(context.l10n.settingsSubmit),
-        ),
-      ],
+                          setState(() => _isSubmitting = true);
+                          try {
+                            await ref.read(supportRepositoryProvider).createTicket(
+                                  ticketType: 'bug',
+                                  subject: subj,
+                                  body: desc,
+                                );
+                            if (context.mounted) {
+                              Navigator.of(context).pop();
+                              AppToast.showSuccess(
+                                context,
+                                context.l10n.aboutReportSuccess,
+                              );
+                            }
+                          } catch (_) {
+                            if (context.mounted) {
+                              setState(() => _isSubmitting = false);
+                              AppToast.showError(
+                                context,
+                                context.l10n.aboutReportError,
+                              );
+                            }
+                          }
+                        },
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: AppRadii.fullRadius,
+                    ),
+                  ),
+                  child: _isSubmitting
+                      ? AppLoadingIndicator(size: 16, color: scheme.onPrimary)
+                      : Text(context.l10n.settingsSubmit),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

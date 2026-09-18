@@ -128,20 +128,23 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFFFF),
+                    color: scheme.surface,
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: QrImageView(
                     data: qrData,
                     version: QrVersions.auto,
                     size: 200,
-                    eyeStyle: const QrEyeStyle(
+                    eyeStyle: QrEyeStyle(
                       eyeShape: QrEyeShape.square,
-                      color: Color(0xFF1E1E1E),
+                      color: scheme.onSurface,
                     ),
-                    dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleStyle: QrDataModuleStyle(
                       dataModuleShape: QrDataModuleShape.square,
-                      color: Color(0xFF1E1E1E),
+                      color: scheme.onSurface,
                     ),
                   ),
                 ),
@@ -227,7 +230,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        'E2EE v1',
+                        'Double Ratchet v2',
                         style: textTheme.labelSmall?.copyWith(
                           color: scheme.onSecondaryContainer,
                           fontWeight: FontWeight.w700,
@@ -455,56 +458,76 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                 color: scheme.outlineVariant.withValues(alpha: 0.3),
               ),
             ),
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemCount: words.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 2.1,
-              ),
-              itemBuilder: (context, i) {
-                final item = words[i];
-                final Color accent = _semanticColorFor(item.color, scheme);
-                return Container(
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: accent.withValues(alpha: 0.35),
-                      width: 1,
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '#${i + 1}',
-                        style: textTheme.labelSmall?.copyWith(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          color: accent.withValues(alpha: 0.75),
-                          fontFeatures: const [FontFeature.tabularFigures()],
+            child: Column(
+              children: <Widget>[
+                for (int row = 0; row < (words.length / 3).ceil(); row++) ...<Widget>[
+                  if (row > 0) const SizedBox(height: 8),
+                  Row(
+                    children: <Widget>[
+                      for (int col = 0; col < 3; col++) ...<Widget>[
+                        if (col > 0) const SizedBox(width: 8),
+                        Expanded(
+                          child: (row * 3 + col < words.length)
+                              ? Builder(
+                                  builder: (context) {
+                                    final int i = row * 3 + col;
+                                    final item = words[i];
+                                    final Color accent =
+                                        _semanticColorFor(item.color, scheme);
+                                    return Container(
+                                      decoration: BoxDecoration(
+                                        color: accent.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: accent.withValues(alpha: 0.35),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 6,
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            '#${i + 1}',
+                                            style:
+                                                textTheme.labelSmall?.copyWith(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w600,
+                                              color: accent
+                                                  .withValues(alpha: 0.75),
+                                              fontFeatures: const [
+                                                FontFeature.tabularFigures(),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            item.word.toUpperCase(),
+                                            style:
+                                                textTheme.labelLarge?.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                              color: accent,
+                                              letterSpacing: 0.5,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                )
+                              : const SizedBox.shrink(),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.word.toUpperCase(),
-                        style: textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: accent,
-                          letterSpacing: 0.5,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      ],
                     ],
                   ),
-                );
-              },
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 8),

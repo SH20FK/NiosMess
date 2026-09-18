@@ -719,13 +719,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
       final _E2eeHelo? helo = _parseHeloMessage(msg);
       if (helo != null) {
-        // Only act on a HELO when it is the newest message (fresh handshake
-        // in flight); old HELOs from history must not re-key the session.
-        final bool isLatest = i == messages.length - 1;
-        if (isLatest) {
+        // Handshake messages are protocol traffic — never rendered in UI.
+        // Critical: never process our own HELO echo (КРИП-ECHO).
+        if (msg.senderId != myUserId) {
           await _handleIncomingHelo(helo, partnerPublicKey);
         }
-        // Handshake messages are protocol traffic — never rendered.
         continue;
       }
 
@@ -809,6 +807,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   /// Runs the receiving side of the E2EE handshake state machine:
+  static final Map<int, Future<void>> _handshakeFutures = <int, Future<void>>{};
+
+  /// Runs the receiving side of the E2EE handshake state machine:
   /// - no session → respond (create responder session, reply with our HELO);
   /// - pending initiator session → the peer's HELO completes it;
   /// - secured/compromised → ignore (old duplicate).
@@ -817,6 +818,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     String partnerPublicKey,
   ) async {
     final E2eeService e2ee = ref.read(e2eeServiceProvider);
+    await e2ee.ready;
     final E2eeSessionStatus status = e2ee.getSessionStatus(_chatId);
     final DoubleRatchetSession? existing =
         await e2ee.getOrCreateSession(chatId: _chatId, theirPublicKeyBase64: partnerPublicKey);
@@ -861,31 +863,45 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   /// exactly one side (the one with the lexicographically greater static
   /// public key) initiates, the other responds on HELO receipt.
   Future<void> ensureSecretHandshake() async {
-    final String? partnerPublicKey = await _getPartnerPublicKey();
-    if (partnerPublicKey == null) return;
+    final Future<void>? active = _handshakeFutures[_chatId];
+    if (active != null) {
+      await active;
+      return;
+    }
+    final Completer<void> completer = Completer<void>();
+    _handshakeFutures[_chatId] = completer.future;
 
-    final E2eeService e2ee = ref.read(e2eeServiceProvider);
-    final DoubleRatchetSession? existing = await e2ee.getOrCreateSession(
-      chatId: _chatId,
-      theirPublicKeyBase64: partnerPublicKey,
-    );
-    if (existing != null) return;
+    try {
+      final String? partnerPublicKey = await _getPartnerPublicKey();
+      if (partnerPublicKey == null) return;
 
-    final String ourPub = await e2ee.getPublicKeyBase64();
-    if (ourPub.compareTo(partnerPublicKey) <= 0) return; // peer initiates
+      final E2eeService e2ee = ref.read(e2eeServiceProvider);
+      await e2ee.ready;
+      final DoubleRatchetSession? existing = await e2ee.getOrCreateSession(
+        chatId: _chatId,
+        theirPublicKeyBase64: partnerPublicKey,
+      );
+      if (existing != null) return;
 
-    await e2ee.initiateHandshake(
-      chatId: _chatId,
-      theirPublicKeyBase64: partnerPublicKey,
-    );
-    final ({String dhPubB64, String edPubB64, List<int> signature}) msg =
-        await e2ee.createHandshakeMessage(_chatId);
-    await sendHandshakeMessage(
-      dhPubB64: msg.dhPubB64,
-      edPubB64: msg.edPubB64,
-      signature: msg.signature,
-    );
-    debugPrint('[backend_chat_provider.dart] E2EE handshake auto-initiated for chat $_chatId');
+      final String ourPub = await e2ee.getPublicKeyBase64();
+      if (ourPub.compareTo(partnerPublicKey) <= 0) return; // peer initiates
+
+      await e2ee.initiateHandshake(
+        chatId: _chatId,
+        theirPublicKeyBase64: partnerPublicKey,
+      );
+      final ({String dhPubB64, String edPubB64, List<int> signature}) msg =
+          await e2ee.createHandshakeMessage(_chatId);
+      await sendHandshakeMessage(
+        dhPubB64: msg.dhPubB64,
+        edPubB64: msg.edPubB64,
+        signature: msg.signature,
+      );
+      debugPrint('[backend_chat_provider.dart] E2EE handshake auto-initiated for chat $_chatId');
+    } finally {
+      completer.complete();
+      _handshakeFutures.remove(_chatId);
+    }
   }
 
   Future<void> _saveToCache(List<ApiMessage> messages) async {
@@ -1011,27 +1027,33 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     if (chat?.isSecret == true &&
         chat?.partnerPublicKey != null &&
         e2eePlain.isNotEmpty) {
-      try {
-        final e2eeService = ref.read(e2eeServiceProvider);
-        final session = await e2eeService.getOrCreateSession(
+      final e2eeService = ref.read(e2eeServiceProvider);
+      await e2eeService.ready;
+      DoubleRatchetSession? session = await e2eeService.getOrCreateSession(
+        chatId: _chatId,
+        theirPublicKeyBase64: chat!.partnerPublicKey!,
+      );
+      if (session == null) {
+        await ensureSecretHandshake();
+        session = await e2eeService.getOrCreateSession(
           chatId: _chatId,
-          theirPublicKeyBase64: chat!.partnerPublicKey!,
+          theirPublicKeyBase64: chat.partnerPublicKey!,
         );
-        if (session != null) {
-          e2eeContent = await e2eeService.encryptE2EEMessageDR(
-            plaintext: e2eePlain,
-            chatId: _chatId,
-          );
-        } else {
-          e2eeContent = await e2eeService.encryptE2EEMessage(
-            plaintext: e2eePlain,
-            chatId: _chatId,
-            theirPublicKeyBase64: chat.partnerPublicKey!,
-          );
-        }
+      }
+      if (session == null) {
+        throw StateError(
+          'Сквозное шифрование еще устанавливается. Пожалуйста, подождите завершения рукопожатия ключей.',
+        );
+      }
+      try {
+        e2eeContent = await e2eeService.encryptE2EEMessageDR(
+          plaintext: e2eePlain,
+          chatId: _chatId,
+        );
         isE2ee = true;
       } catch (e) {
         debugPrint('[backend_chat_provider.dart] E2EE encrypt failed: $e');
+        rethrow;
       }
     }
 

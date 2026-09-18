@@ -1,98 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/screens/group_profile_screen.dart';
 import 'package:pulse_flutter/screens/public_profile_screen.dart';
 
-/// Opens user profile responsively: as a smooth right-side slide panel on Desktop (width >= 800)
+/// Opens user profile responsively: as a smooth right-side slide panel on Desktop (width >= Breakpoints.large)
 /// or as a full route push on mobile.
-Future<void> openResponsiveProfile(BuildContext context, {required String username}) async {
+Future<void> openResponsiveProfile(
+  BuildContext context, {
+  required String username,
+}) async {
   final double width = MediaQuery.sizeOf(context).width;
-  if (width < 800) {
+  if (width < Breakpoints.large) {
     context.push('/profile/$username');
     return;
   }
 
-  final scheme = Theme.of(context).colorScheme;
-  await showGeneralDialog(
+  await AppModal.showSideSheet<void>(
     context: context,
-    barrierDismissible: true,
     barrierLabel: 'Profile',
-    barrierColor: scheme.scrim.withValues(alpha: 0.45),
-    transitionDuration: const Duration(milliseconds: 280),
-    pageBuilder: (dialogContext, anim1, anim2) {
-      final scheme = Theme.of(dialogContext).colorScheme;
-      return Align(
-        alignment: Alignment.centerRight,
-        child: Material(
-          color: scheme.surface,
-          elevation: 16,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.horizontal(left: Radius.circular(24)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: SizedBox(
-            width: 440,
-            height: double.infinity,
-            child: PublicProfileScreen(username: username),
-          ),
-        ),
-      );
-    },
-    transitionBuilder: (dialogContext, anim1, anim2, child) {
-      return SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(1, 0),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic)),
-        child: child,
-      );
-    },
+    width: 440,
+    child: PublicProfileScreen(username: username),
   );
 }
 
-/// Opens group/channel profile responsively: as a smooth right-side slide panel on Desktop (width >= 800)
+/// Opens group/channel profile responsively: as a smooth right-side slide panel on Desktop (width >= Breakpoints.large)
 /// or as a full route push on mobile.
-Future<void> openResponsiveGroupProfile(BuildContext context, {required int chatId}) async {
+Future<void> openResponsiveGroupProfile(
+  BuildContext context, {
+  required int chatId,
+}) async {
   final double width = MediaQuery.sizeOf(context).width;
-  if (width < 800) {
+  if (width < Breakpoints.large) {
     context.push('/chat/$chatId/profile');
     return;
   }
 
-  final scheme = Theme.of(context).colorScheme;
-  await showGeneralDialog(
+  await AppModal.showSideSheet<void>(
     context: context,
-    barrierDismissible: true,
     barrierLabel: 'Chat Info',
-    barrierColor: scheme.scrim.withValues(alpha: 0.45),
-    transitionDuration: const Duration(milliseconds: 280),
-    pageBuilder: (dialogContext, anim1, anim2) {
-      final scheme = Theme.of(dialogContext).colorScheme;
-      return Align(
-        alignment: Alignment.centerRight,
-        child: Material(
-          color: scheme.surface,
-          elevation: 16,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.horizontal(left: Radius.circular(24)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: SizedBox(
-            width: 440,
-            height: double.infinity,
-            child: GroupProfileScreen(chatId: chatId),
-          ),
-        ),
-      );
-    },
-    transitionBuilder: (dialogContext, anim1, anim2, child) {
-      return SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(1, 0),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic)),
-        child: child,
-      );
-    },
+    width: 440,
+    child: GroupProfileScreen(chatId: chatId),
   );
 }

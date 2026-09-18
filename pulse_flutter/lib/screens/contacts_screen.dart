@@ -410,7 +410,6 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                     if (haptics) {
                       HapticService.tap();
                     }
-                    _tabTransition.captureOutgoing();
                     setState(() => _selectedTab = newSelection.first);
                   },
                   style: ButtonStyle(
@@ -434,12 +433,13 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               ),
             ),
 
-            // Content: Calls or Contacts (TabSharedAxisSwitcher preserves scroll position and animates cleanly)
+            // Content: Calls or Contacts (M3TabPageSwitcher preserves scroll position and animates cleanly)
             Expanded(
-              child: TabSharedAxisSwitcher(
+              child: M3TabPageSwitcher(
                 index: _selectedTab.index,
                 controller: _tabTransition,
                 duration: M3Durations.medium1,
+                slideDistance: 10.0,
                 children: <Widget>[
                   _buildContactsTab(
                     isAuthenticated: isAuthenticated,

@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
@@ -66,7 +67,7 @@ class _ChatWallpaperBackgroundState extends ConsumerState<ChatWallpaperBackgroun
     }
 
     Widget? photoLayer;
-    if (config.imagePath != null && config.imagePath!.isNotEmpty) {
+    if (config.imagePath != null && config.imagePath!.isNotEmpty && !kIsWeb) {
       final io.File file = io.File(config.imagePath!);
       if (file.existsSync()) {
         Widget img = Image.file(
@@ -92,7 +93,7 @@ class _ChatWallpaperBackgroundState extends ConsumerState<ChatWallpaperBackgroun
             children: <Widget>[
               img,
               ColoredBox(
-                color: Colors.black.withValues(alpha: config.imageDim.clamp(0.0, 0.95)),
+                color: scheme.scrim.withValues(alpha: config.imageDim.clamp(0.0, 0.95)),
               ),
             ],
           );

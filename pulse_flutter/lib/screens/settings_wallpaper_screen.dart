@@ -3,10 +3,13 @@ import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:intl/intl.dart';
 import 'package:pulse_flutter/core/identity/nios_weave.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -21,6 +24,7 @@ import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_painter.dart';
 import 'package:pulse_flutter/widgets/wallpaper/curated_wallpaper_catalog.dart';
 import 'package:pulse_flutter/widgets/wallpaper/icon_sources_catalog.dart';
+import 'package:pulse_flutter/widgets/wallpaper/material_symbols_data.dart';
 import 'package:pulse_flutter/widgets/wallpaper/wallpaper_color_resolver.dart';
 import 'package:pulse_flutter/widgets/wallpaper/wallpaper_image_cache.dart';
 import 'package:universal_io/io.dart' as io;
@@ -52,6 +56,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
   bool _editingThisChatOnly = false;
   bool _showChatMockup = true;
   bool _isFullscreenPreview = false;
+  int _loadToken = 0;
 
   ui.Picture? _previewSvgPicture;
   List<ui.Picture>? _previewPoolSvgPictures;
@@ -151,19 +156,18 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
     _hapticThrottleTimer = Timer(const Duration(milliseconds: 55), () {});
   }
 
-  void _updateDraft(ChatWallpaperConfig newConfig, {bool triggerReveal = false}) {
+  void _updateDraft(ChatWallpaperConfig newConfig, {bool triggerReveal = false, bool isReset = false}) {
     final bool needsSvgReload =
         newConfig.iconSource != _draftConfig.iconSource ||
             newConfig.themePack != _draftConfig.themePack ||
             newConfig.seed != _draftConfig.seed ||
             newConfig.filled != _draftConfig.filled ||
-            newConfig.iconAlpha != _draftConfig.iconAlpha ||
-            newConfig.colorMode != _draftConfig.colorMode ||
-            newConfig.iconColorRole != _draftConfig.iconColorRole ||
             newConfig.selectedGlyphs != _draftConfig.selectedGlyphs;
 
     setState(() {
-      _userModified = true;
+      if (!isReset) {
+        _userModified = true;
+      }
       _draftConfig = newConfig;
     });
 
@@ -178,13 +182,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
 
   Future<void> _loadSvgPreviewIfNeeded() async {
     if (!mounted) return;
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final Color iconColor = WallpaperColorResolver.resolveIconColor(
-      scheme,
-      _draftConfig.iconColorRole,
-      _draftConfig.iconAlpha,
-    );
-    _lastLoadedIconColor = iconColor;
+    final int token = ++_loadToken;
 
     if (_draftConfig.iconSource == IconSource.lucide ||
         _draftConfig.iconSource == IconSource.tabler) {
@@ -200,6 +198,19 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
       } else if (_draftConfig.themePack == 'custom' &&
           _draftConfig.selectedGlyphs.isNotEmpty) {
         iconsToLoad = _draftConfig.selectedGlyphs;
+      } else {
+        final List<String> allIcons = _draftConfig.iconSource == IconSource.lucide
+            ? IconSourcesCatalog.lucideIcons
+            : IconSourcesCatalog.tablerIcons;
+        if (allIcons.isNotEmpty) {
+          final Random sampleRng = Random(_draftConfig.seed);
+          final int count = min(28, allIcons.length);
+          final Set<String> sampled = <String>{};
+          while (sampled.length < count) {
+            sampled.add(allIcons[sampleRng.nextInt(allIcons.length)]);
+          }
+          iconsToLoad = sampled.toList();
+        }
       }
 
       if (iconsToLoad.isNotEmpty) {
@@ -207,24 +218,23 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
           iconsToLoad.map(
             (name) => WallpaperImageCache.loadPatternSvg(
               assetPath: 'assets/svg/pattern_icons/$folder/$name.svg',
-              color: iconColor,
               filled: _draftConfig.filled,
             ),
           ),
         );
+        if (token != _loadToken || !mounted) return;
         final List<ui.Picture> pool = results.whereType<ui.Picture>().toList();
 
-        if (mounted) {
-          setState(() {
-            _previewPoolSvgPictures = pool;
-            _previewPaletteSvgPictures = null;
-            _previewSvgPicture = null;
-          });
-        }
+        setState(() {
+          _previewPoolSvgPictures = pool;
+          _previewPaletteSvgPictures = null;
+          _previewSvgPicture = null;
+        });
         return;
       }
     }
 
+    if (token != _loadToken || !mounted) return;
     if (_previewSvgPicture != null ||
         _previewPoolSvgPictures != null ||
         _previewPaletteSvgPictures != null) {
@@ -265,14 +275,43 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
     if (confirm != true || !mounted) return;
 
     final notifier = ref.read(chatWallpaperProvider.notifier);
+    final ChatWallpaperConfig resetTarget;
     if (_editingThisChatOnly && widget.chatId != null) {
       notifier.resetChatWallpaper(widget.chatId!);
-      _updateDraft(ref.read(chatWallpaperProvider).global, triggerReveal: true);
+      resetTarget = ref.read(chatWallpaperProvider).global;
     } else {
       notifier.resetGlobalToDefault();
-      _updateDraft(ChatWallpaperConfig.defaultPattern, triggerReveal: true);
+      resetTarget = ChatWallpaperConfig.defaultPattern;
     }
+    setState(() {
+      _savedConfig = resetTarget;
+      _userModified = false;
+    });
+    _updateDraft(resetTarget, triggerReveal: true, isReset: true);
     AppToast.showSuccess(context, context.l10n.wallpaperResetAction);
+  }
+
+  void _openCustomGlyphPicker(BuildContext context) {
+    TriSync.pop(ref: ref, context: context);
+    AppBottomSheets.show<void>(
+      context: context,
+      builder: (BuildContext sheetCtx) {
+        return _CustomGlyphPickerSheet(
+          scheme: Theme.of(context).colorScheme,
+          initialSource: _draftConfig.iconSource,
+          initialSelectedGlyphs: _draftConfig.selectedGlyphs,
+          onApply: (List<String> glyphs) {
+            _updateDraft(
+              _draftConfig.copyWith(
+                themePack: 'custom',
+                selectedGlyphs: glyphs,
+              ),
+              triggerReveal: true,
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showShareWeaveModal(BuildContext context) {
@@ -485,23 +524,15 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
     _updateDraft(randomized, triggerReveal: true);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.wallpaperRandomUndo),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedSuperellipseBorder(
-            borderRadius: AppRadii.lgRadius,
-          ),
-          action: SnackBarAction(
-            label: context.l10n.wallpaperDiscard,
-            onPressed: () {
-              TriSync.tap(ref: ref);
-              _updateDraft(previous, triggerReveal: true);
-            },
-          ),
-          duration: const Duration(seconds: 4),
-        ),
+      AppToast.showAction(
+        context,
+        message: context.l10n.wallpaperRandomUndo,
+        actionLabel: context.l10n.wallpaperRevert,
+        icon: Icons.auto_awesome_rounded,
+        onAction: () {
+          TriSync.tap(ref: ref);
+          _updateDraft(previous, triggerReveal: true);
+        },
       );
     }
   }
@@ -518,7 +549,11 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
           _updateDraft(_draftConfig.copyWith(imagePath: path), triggerReveal: true);
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        AppToast.showError(context, e);
+      }
+    }
   }
 
   @override
@@ -603,7 +638,12 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(screenTitle, style: textTheme.titleMedium),
+          title: Text(
+            screenTitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.titleMedium,
+          ),
           actions: <Widget>[
             IconButton(
               tooltip: 'Вставить код',
@@ -615,46 +655,49 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
               onPressed: () => _showShareWeaveModal(context),
               icon: const Icon(Icons.share_rounded),
             ),
-            RotationTransition(
-              turns: _diceRotationAnimation,
-              child: IconButton(
-                tooltip: context.l10n.wallpaperRandomize,
-                onPressed: _randomizeConfigWithSpin,
-                icon: const Icon(Icons.casino_rounded),
+            IconButton(
+              tooltip: context.l10n.wallpaperRandomize,
+              onPressed: _randomizeConfigWithSpin,
+              icon: RotationTransition(
+                turns: _diceRotationAnimation,
+                child: const Icon(Icons.casino_rounded),
               ),
             ),
             const SizedBox(width: 8),
           ],
         ),
-        bottomNavigationBar: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: <Widget>[
-                TextButton(
-                  onPressed: _resetConfig,
-                  child: Text(context.l10n.wallpaperResetAction),
-                ),
-                const Spacer(),
-                FilledButton.icon(
-                  onPressed: _saveConfig,
-                  icon: const Icon(Icons.check_rounded, size: 18),
-                  label: Text(context.l10n.wallpaperApply),
-                  style: FilledButton.styleFrom(
-                    shape: RoundedSuperellipseBorder(
-                      borderRadius: AppRadii.lgRadius,
-                    ),
+        bottomNavigationBar: BottomAppBar(
+          color: scheme.surfaceContainer,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: <Widget>[
+              TextButton(
+                onPressed: _resetConfig,
+                child: Text(context.l10n.wallpaperResetAction),
+              ),
+              const Spacer(),
+              FilledButton.icon(
+                onPressed: _draftConfig == _savedConfig ? null : _saveConfig,
+                icon: const Icon(Icons.check_rounded, size: 18),
+                label: Text(context.l10n.wallpaperApply),
+                style: FilledButton.styleFrom(
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: AppRadii.lgRadius,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
               // Chat Context Switcher
               if (widget.chatId != null) ...[
                 SegmentedButton<bool>(
@@ -787,6 +830,12 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
 
               const SizedBox(height: 16),
 
+              Text(
+                context.l10n.wallpaperPacksTitle,
+                style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+
               // ── 2. Modern M3 Expressive Style Pill Selector (52dp) ──────────
               _M3StylePillSelector(
                 draftConfig: _draftConfig,
@@ -803,7 +852,7 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
                         themePack: packId,
                         clearImagePath: true,
                         selectedGlyphs: const <String>[],
-                        useAllIcons: true,
+                        useAllIcons: packId == 'all',
                       ),
                       triggerReveal: true,
                     );
@@ -819,12 +868,15 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
                 onUpdateDraft: _updateDraft,
                 onThrottledHaptic: _throttledHaptic,
                 onPickPhoto: _pickCustomPhoto,
+                onOpenGlyphPicker: () => _openCustomGlyphPicker(context),
               ),
             ],
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _buildLivePreviewWithReveal(ColorScheme scheme) {
@@ -853,52 +905,56 @@ class _SettingsWallpaperScreenState extends ConsumerState<SettingsWallpaperScree
 
   Widget _buildPreviewBackground(ColorScheme scheme) {
     if (_draftConfig.imagePath != null && _draftConfig.imagePath!.isNotEmpty) {
-      final io.File file = io.File(_draftConfig.imagePath!);
-      if (file.existsSync()) {
-        Widget img = Image.file(
-          file,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          errorBuilder: (context, error, stackTrace) =>
-              _buildFallbackPainter(scheme),
-        );
-        if (_draftConfig.imageBlur > 0.01) {
-          img = ImageFiltered(
-            imageFilter: ui.ImageFilter.blur(
-              sigmaX: _draftConfig.imageBlur,
-              sigmaY: _draftConfig.imageBlur,
-            ),
-            child: img,
+      if (!kIsWeb) {
+        final io.File file = io.File(_draftConfig.imagePath!);
+        if (file.existsSync()) {
+          Widget img = Image.file(
+            file,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (context, error, stackTrace) =>
+                _buildFallbackPainter(scheme),
           );
-        }
-        if (_draftConfig.imageDim > 0.01) {
-          img = Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              img,
-              ColoredBox(
-                color: Colors.black
-                    .withValues(alpha: _draftConfig.imageDim.clamp(0.0, 0.95)),
+          if (_draftConfig.imageBlur > 0.01) {
+            img = ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(
+                sigmaX: _draftConfig.imageBlur,
+                sigmaY: _draftConfig.imageBlur,
               ),
-            ],
-          );
+              child: img,
+            );
+          }
+          if (_draftConfig.imageDim > 0.01) {
+            img = Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                img,
+                ColoredBox(
+                  color: scheme.scrim
+                      .withValues(alpha: _draftConfig.imageDim.clamp(0.0, 0.95)),
+                ),
+              ],
+            );
+          }
+          return RepaintBoundary(child: img);
         }
-        return img;
       }
     }
     return _buildFallbackPainter(scheme);
   }
 
   Widget _buildFallbackPainter(ColorScheme scheme) {
-    return CustomPaint(
-      size: const Size(double.infinity, 320),
-      painter: ChatWallpaperPainter(
-        config: _draftConfig,
-        scheme: scheme,
-        svgPicture: _previewSvgPicture,
-        poolSvgPictures: _previewPoolSvgPictures,
-        paletteSvgPictures: _previewPaletteSvgPictures,
+    return RepaintBoundary(
+      child: CustomPaint(
+        size: const Size(double.infinity, 320),
+        painter: ChatWallpaperPainter(
+          config: _draftConfig,
+          scheme: scheme,
+          svgPicture: _previewSvgPicture,
+          poolSvgPictures: _previewPoolSvgPictures,
+          paletteSvgPictures: _previewPaletteSvgPictures,
+        ),
       ),
     );
   }
@@ -956,10 +1012,24 @@ class _M3StylePillSelector extends StatelessWidget {
     ),
     (
       id: 'chat',
-      label: 'Дудлы',
+      label: 'Material',
       shape: Shapes.flower,
-      icon: Icons.chat_bubble_rounded,
+      icon: Icons.auto_awesome_outlined,
       source: IconSource.materialSymbols,
+    ),
+    (
+      id: 'chat',
+      label: 'Lucide (1.8k)',
+      shape: Shapes.pentagon,
+      icon: Icons.draw_rounded,
+      source: IconSource.lucide,
+    ),
+    (
+      id: 'chat',
+      label: 'Tabler (5.1k)',
+      shape: Shapes.slanted,
+      icon: Icons.grain_rounded,
+      source: IconSource.tabler,
     ),
     (
       id: 'my_photo',
@@ -988,7 +1058,9 @@ class _M3StylePillSelector extends StatelessWidget {
               ? (draftConfig.imagePath != null && draftConfig.imagePath!.isNotEmpty)
               : (draftConfig.imagePath == null &&
                   draftConfig.iconSource == item.source &&
-                  draftConfig.themePack == item.id);
+                  (draftConfig.iconSource == IconSource.niosMess
+                      ? draftConfig.themePack == item.id
+                      : true));
 
           return TouchContainer(
             onTap: () => onSelectPack(item.id, item.source),
@@ -1066,12 +1138,14 @@ class _M3ControlIsland extends ConsumerWidget {
     required this.onUpdateDraft,
     required this.onThrottledHaptic,
     required this.onPickPhoto,
+    required this.onOpenGlyphPicker,
   });
 
   final ChatWallpaperConfig draftConfig;
   final ValueChanged<ChatWallpaperConfig> onUpdateDraft;
   final VoidCallback onThrottledHaptic;
   final VoidCallback onPickPhoto;
+  final VoidCallback onOpenGlyphPicker;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1168,7 +1242,7 @@ class _M3ControlIsland extends ConsumerWidget {
                 Text(
                   draftConfig.iconSource == IconSource.niosMess
                       ? 'Фигуры коллекции'
-                      : 'Тема символов',
+                      : context.l10n.wallpaperSymbolsStyle,
                   style: textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.bold),
                 ),
@@ -1437,12 +1511,22 @@ class _M3ControlIsland extends ConsumerWidget {
 
   Widget _buildDoodlePackChips(
       ColorScheme scheme, TextTheme textTheme, WidgetRef ref) {
-    const List<({String id, String label, IconData icon})> packs = [
+    final List<({String id, String label, IconData icon})> packs = [
       (id: 'chat', label: 'Чат', icon: Icons.chat_bubble_rounded),
       (id: 'space', label: 'Космос', icon: Icons.rocket_launch_rounded),
+      (id: 'tech', label: 'Технологии', icon: Icons.memory_rounded),
       (id: 'food', label: 'Еда & Кофе', icon: Icons.coffee_rounded),
       (id: 'nature', label: 'Природа', icon: Icons.eco_rounded),
       (id: 'minimal', label: 'Минимал', icon: Icons.grain_rounded),
+      (id: 'all', label: 'Все иконки', icon: Icons.auto_awesome_motion_rounded),
+      (
+        id: 'custom',
+        label: draftConfig.themePack == 'custom' &&
+                draftConfig.selectedGlyphs.isNotEmpty
+            ? 'Свой (${draftConfig.selectedGlyphs.length})'
+            : 'Свой выбор...',
+        icon: Icons.dashboard_customize_rounded,
+      ),
     ];
 
     return Wrap(
@@ -1455,9 +1539,25 @@ class _M3ControlIsland extends ConsumerWidget {
           label: Text(p.label),
           selected: isSelected,
           onSelected: (bool sel) {
-            if (sel) {
-              TriSync.tap(ref: ref);
-              onUpdateDraft(draftConfig.copyWith(themePack: p.id));
+            TriSync.tap(ref: ref);
+            if (p.id == 'custom') {
+              onOpenGlyphPicker();
+            } else if (p.id == 'all') {
+              onUpdateDraft(
+                draftConfig.copyWith(
+                  themePack: 'all',
+                  useAllIcons: true,
+                  selectedGlyphs: const <String>[],
+                ),
+              );
+            } else {
+              onUpdateDraft(
+                draftConfig.copyWith(
+                  themePack: p.id,
+                  useAllIcons: false,
+                  selectedGlyphs: const <String>[],
+                ),
+              );
             }
           },
         );
@@ -1499,12 +1599,14 @@ class _M3ControlIsland extends ConsumerWidget {
               duration: M3Durations.medium1,
               width: 36,
               height: 36,
-              decoration: BoxDecoration(
+              decoration: ShapeDecoration(
                 color: color,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? scheme.primary : scheme.outlineVariant,
-                  width: isSelected ? 2.5 : 1.0,
+                shape: RoundedSuperellipseBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  side: BorderSide(
+                    color: isSelected ? scheme.primary : scheme.outlineVariant,
+                    width: isSelected ? 2.5 : 1.0,
+                  ),
                 ),
               ),
               child: isSelected
@@ -1513,8 +1615,8 @@ class _M3ControlIsland extends ConsumerWidget {
                       size: 18,
                       color: ThemeData.estimateBrightnessForColor(color) ==
                               Brightness.dark
-                          ? Colors.white
-                          : Colors.black,
+                          ? scheme.surfaceBright
+                          : scheme.surfaceDim,
                     )
                   : null,
             ),
@@ -1569,6 +1671,8 @@ class _ChatMockupView extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final String locale = Localizations.localeOf(context).toString();
+    final String timeStr = DateFormat.Hm(locale).format(DateTime.now());
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1594,7 +1698,7 @@ class _ChatMockupView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'Material 3 Expressive',
+                    context.l10n.wallpaperMockupPartnerMessage,
                     style: textTheme.bodyMedium?.copyWith(
                       color: scheme.onSurface,
                       fontWeight: FontWeight.bold,
@@ -1604,7 +1708,7 @@ class _ChatMockupView extends StatelessWidget {
                   Align(
                     alignment: Alignment.bottomRight,
                     child: Text(
-                      '14:20',
+                      timeStr,
                       style: textTheme.labelSmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -1633,7 +1737,7 @@ class _ChatMockupView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: <Widget>[
                   Text(
-                    'NiosMess Chat Wallpaper',
+                    context.l10n.wallpaperMockupUserMessage,
                     style: textTheme.bodyMedium?.copyWith(
                       color: scheme.onPrimaryContainer,
                     ),
@@ -1643,7 +1747,7 @@ class _ChatMockupView extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       Text(
-                        '14:21',
+                        timeStr,
                         style: textTheme.labelSmall?.copyWith(
                           color: scheme.onPrimaryContainer.withValues(alpha: 0.7),
                         ),
@@ -1826,8 +1930,8 @@ class _WeaveImportSheetState extends State<_WeaveImportSheet> {
             icon: const Icon(Icons.check_rounded, size: 18),
             label: const Text('Применить обои'),
             style: FilledButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+              shape: RoundedSuperellipseBorder(
+                borderRadius: AppRadii.lgRadius,
               ),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
@@ -1837,3 +1941,385 @@ class _WeaveImportSheetState extends State<_WeaveImportSheet> {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── Custom Glyph Picker Sheet (Full 6936 SVG Catalog) ─────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CustomGlyphPickerSheet extends StatefulWidget {
+  const _CustomGlyphPickerSheet({
+    required this.scheme,
+    required this.initialSource,
+    required this.initialSelectedGlyphs,
+    required this.onApply,
+  });
+
+  final ColorScheme scheme;
+  final IconSource initialSource;
+  final List<String> initialSelectedGlyphs;
+  final ValueChanged<List<String>> onApply;
+
+  @override
+  State<_CustomGlyphPickerSheet> createState() => _CustomGlyphPickerSheetState();
+}
+
+class _CustomGlyphPickerSheetState extends State<_CustomGlyphPickerSheet> {
+  late IconSource _source;
+  late final Set<String> _selectedGlyphs;
+  late final TextEditingController _searchController;
+  String _selectedCategory = 'all';
+  List<String> _filteredIcons = <String>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _source = (widget.initialSource == IconSource.niosMess)
+        ? IconSource.tabler
+        : widget.initialSource;
+    _selectedGlyphs = Set<String>.from(widget.initialSelectedGlyphs);
+    _searchController = TextEditingController();
+    _searchController.addListener(_onSearchChanged);
+    _recomputeFilteredIcons();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      _recomputeFilteredIcons();
+    });
+  }
+
+  void _recomputeFilteredIcons() {
+    final List<String> catalog;
+    if (_source == IconSource.lucide) {
+      catalog = IconSourcesCatalog.lucideIcons;
+    } else if (_source == IconSource.materialSymbols) {
+      catalog = MaterialSymbolsData.codepoints.keys.toList();
+    } else {
+      catalog = IconSourcesCatalog.tablerIcons;
+    }
+
+    final String q = _searchController.text.trim().toLowerCase();
+    _filteredIcons = catalog.where((name) {
+      if (_selectedCategory != 'all' &&
+          !IconSourcesCatalog.matchesCategory(name, _selectedCategory)) {
+        return false;
+      }
+      if (q.isNotEmpty && !name.toLowerCase().contains(q)) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  void _toggleGlyph(String name) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_selectedGlyphs.contains(name)) {
+        _selectedGlyphs.remove(name);
+      } else {
+        _selectedGlyphs.add(name);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = widget.scheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 8,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // Drag handle
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: scheme.outlineVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Header: Title and action buttons
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  'Символы узора (${_selectedGlyphs.length})',
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (_selectedGlyphs.isNotEmpty)
+                TextButton(
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedGlyphs.clear());
+                  },
+                  child: const Text('Сбросить'),
+                ),
+              const SizedBox(width: 8),
+              FilledButton.tonalIcon(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  widget.onApply(_selectedGlyphs.toList());
+                  Navigator.of(context).pop();
+                },
+                icon: const Icon(Icons.check_rounded, size: 18),
+                label: const Text('Готово'),
+                style: FilledButton.styleFrom(
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: AppRadii.lgRadius,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Source Switcher
+          SegmentedButton<IconSource>(
+            segments: const <ButtonSegment<IconSource>>[
+              ButtonSegment<IconSource>(
+                value: IconSource.tabler,
+                label: Text('Tabler'),
+                icon: Icon(Icons.grain_rounded, size: 16),
+              ),
+              ButtonSegment<IconSource>(
+                value: IconSource.lucide,
+                label: Text('Lucide'),
+                icon: Icon(Icons.draw_rounded, size: 16),
+              ),
+              ButtonSegment<IconSource>(
+                value: IconSource.materialSymbols,
+                label: Text('Material'),
+                icon: Icon(Icons.auto_awesome_outlined, size: 16),
+              ),
+            ],
+            selected: <IconSource>{_source},
+            onSelectionChanged: (Set<IconSource> sel) {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _source = sel.first;
+                _recomputeFilteredIcons();
+              });
+            },
+          ),
+
+          const SizedBox(height: 10),
+
+          // Search Field
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Поиск среди ${_filteredIcons.length} иконок...',
+              prefixIcon: const Icon(Icons.search_rounded, size: 20),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, size: 18),
+                      onPressed: () => _searchController.clear(),
+                    )
+                  : null,
+              filled: true,
+              fillColor: scheme.surfaceContainerLowest,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Categories Chips Bar
+          SizedBox(
+            height: 38,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: IconSourcesCatalog.catalogCategories.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final cat = IconSourcesCatalog.catalogCategories[index];
+                final bool isSelected = _selectedCategory == cat.id;
+                return ChoiceChip(
+                  label: Text(cat.label),
+                  selected: isSelected,
+                  onSelected: (bool sel) {
+                    if (sel) {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _selectedCategory = cat.id;
+                        _recomputeFilteredIcons();
+                      });
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Full Icons Grid (6936 vector SVGs / Material symbols)
+          Expanded(
+            child: _filteredIcons.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Icons.search_off_rounded,
+                          size: 48,
+                          color: scheme.outlineVariant,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Ничего не найдено',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : GridView.builder(
+                    itemCount: _filteredIcons.length,
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 6,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemBuilder: (BuildContext context, int index) {
+                      final String name = _filteredIcons[index];
+                      final bool isSelected = _selectedGlyphs.contains(name);
+
+                      return TouchContainer(
+                        onTap: () => _toggleGlyph(name),
+                        borderRadius: AppRadii.mdRadius,
+                        scaleDown: 0.90,
+                        child: AnimatedContainer(
+                          duration: M3Durations.medium1,
+                          decoration: ShapeDecoration(
+                            color: isSelected
+                                ? scheme.primaryContainer.withValues(alpha: 0.50)
+                                : scheme.surfaceContainerHigh,
+                            shape: RoundedSuperellipseBorder(
+                              borderRadius: AppRadii.mdRadius,
+                              side: BorderSide(
+                                color: isSelected
+                                    ? scheme.primary
+                                    : scheme.outlineVariant.withValues(alpha: 0.35),
+                                width: isSelected ? 2.0 : 1.0,
+                              ),
+                            ),
+                          ),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: <Widget>[
+                              Center(
+                                child: _GlyphThumbnail(
+                                  name: name,
+                                  source: _source,
+                                  isSelected: isSelected,
+                                  scheme: scheme,
+                                ),
+                              ),
+                              if (isSelected)
+                                Positioned(
+                                  top: 3,
+                                  right: 3,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: scheme.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    padding: const EdgeInsets.all(1.5),
+                                    child: Icon(
+                                      Icons.check_rounded,
+                                      size: 10,
+                                      color: scheme.onPrimary,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── Vector Glyph Thumbnail (Svg / Material Symbols) ──────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GlyphThumbnail extends StatelessWidget {
+  const _GlyphThumbnail({
+    required this.name,
+    required this.source,
+    required this.isSelected,
+    required this.scheme,
+  });
+
+  final String name;
+  final IconSource source;
+  final bool isSelected;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color iconColor =
+        isSelected ? scheme.primary : scheme.onSurfaceVariant;
+
+    if (source == IconSource.materialSymbols) {
+      final int? code = MaterialSymbolsData.codepoints[name];
+      if (code == null) {
+        return Icon(Icons.circle_outlined, size: 22, color: iconColor);
+      }
+      return Text(
+        String.fromCharCode(code),
+        style: TextStyle(
+          fontFamily: 'MaterialSymbolsOutlined',
+          fontSize: 22,
+          color: iconColor,
+        ),
+      );
+    }
+
+    final String folder = source == IconSource.lucide ? 'lucide' : 'tabler';
+    return SvgPicture.asset(
+      'assets/svg/pattern_icons/$folder/$name.svg',
+      width: 22,
+      height: 22,
+      colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+    );
+  }
+}
+

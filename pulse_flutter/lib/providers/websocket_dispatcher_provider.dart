@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/core/services/desktop_window_service.dart';
 
 /// Minimal message stub carrying only routing ids.
 ApiMessage _stub(int id, int chatId, {int senderId = 0, bool isDeleted = false}) =>
@@ -140,6 +141,9 @@ class WebSocketPushDispatcher {
         case 'new_message':
           final ApiMessage msg = ApiMessage.fromJson(payload);
           emit(msg, ChatPushEvent.newMessage(msg));
+          if (DesktopWindowService.isWindows) {
+            unawaited(DesktopWindowService.instance.flashTaskbar());
+          }
           break;
         case 'edit_message':
         case 'message_edited':

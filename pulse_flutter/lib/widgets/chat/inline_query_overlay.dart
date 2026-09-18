@@ -168,7 +168,7 @@ class InlineQueryOverlay extends StatelessWidget {
 
     return ListView.separated(
       padding: EdgeInsets.zero,
-      shrinkWrap: true,
+      shrinkWrap: false,
       physics: const ClampingScrollPhysics(),
       itemCount: state.results.length,
       separatorBuilder: (_, _) => Divider(

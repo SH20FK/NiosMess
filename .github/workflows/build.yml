@@ -1,4 +1,4 @@
-name: Build Android & Web
+name: Build & Release (Android APK & Windows Installer)
 
 on:
   push:
@@ -9,10 +9,17 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
 jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # 1. Test & Static Analysis (Runs on PRs and main pushes)
+  # ──────────────────────────────────────────────────────────────────────────
   test:
     name: Analyze & Test
     runs-on: ubuntu-latest
@@ -30,14 +37,22 @@ jobs:
 
       - run: flutter pub get
 
-      - run: flutter analyze --fatal-infos
+      - name: Static Analysis
+        run: flutter analyze --fatal-infos
 
-      - run: flutter test test/suite_test.dart --timeout 60s
+      - name: Run Test Suite
+        run: flutter test test/suite_test.dart --timeout 90s
 
+  # ──────────────────────────────────────────────────────────────────────────
+  # 2. Build Android APK (Release with Gradle Cache)
+  # ──────────────────────────────────────────────────────────────────────────
   build-android:
     name: Build Android APK
     needs: test
+    if: (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.version_meta.outputs.app_version }}
     defaults:
       run:
         working-directory: pulse_flutter
@@ -51,6 +66,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -58,7 +78,7 @@ jobs:
 
       - run: flutter pub get
 
-      - name: Create google-services.json
+      - name: Inject google-services.json
         run: |
           mkdir -p android/app
           cat > android/app/google-services.json << 'EOF'
@@ -93,13 +113,16 @@ jobs:
           }
           EOF
 
-      - run: flutter build apk --release
-      - run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/niosmess.apk
+      - name: Build Android APK (Release)
+        run: |
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/niosmess.apk
 
       - name: Generate Version Metadata & Changelog
+        id: version_meta
         run: |
           VERSION=$(grep '^version:' pubspec.yaml | head -n 1 | awk '{print $2}')
-          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "app_version=$VERSION" >> $GITHUB_OUTPUT
           python3 -c "
           import json, re, os
 
@@ -124,119 +147,137 @@ jobs:
                   'tag_name': 'latest',
                   'changelog': changelog,
                   'download_url': 'https://github.com/SH20FK/NiosMess/releases/download/latest/niosmess.apk',
-                  'published_at': os.popen('date -u +\"%Y-%m-%dT%H:%M:%SZ\"').read().strip()
+                  'windows_download_url': 'https://github.com/SH20FK/NiosMess/releases/download/latest/niosmess-windows-setup.exe',
+                  'published_at': os.popen('date -u +"%Y-%m-%dT%H:%M:%SZ"').read().strip()
               }, f, ensure_ascii=False, indent=2)
 
           with open('changelog_release.txt', 'w', encoding='utf-8') as f:
               f.write(changelog)
           "
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
         with:
           name: android-apk-release
           path: pulse_flutter/build/app/outputs/flutter-apk/niosmess.apk
+          retention-days: 7
 
-      - name: Publish GitHub Release
-        if: (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') && github.event_name != 'pull_request'
+      - name: Upload Release Metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-metadata
+          path: |
+            pulse_flutter/build/app/outputs/flutter-apk/version.json
+            pulse_flutter/changelog_release.txt
+          retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 3. Build Windows Installer (.exe via Inno Setup)
+  # ──────────────────────────────────────────────────────────────────────────
+  build-windows:
+    name: Build Windows Installer
+    needs: test
+    if: (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') && github.event_name != 'pull_request'
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: pulse_flutter
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Build Windows Desktop (Release)
+        run: flutter build windows --release
+
+      - name: Compile Inno Setup Installer (.exe)
+        shell: pwsh
+        run: |
+          $releaseDir = (Get-ChildItem -Path build/windows -Recurse -Directory -Filter "Release" | Select-Object -First 1).FullName
+          if (-not $releaseDir) {
+            throw "Release directory not found under build/windows!"
+          }
+          Write-Host "Found Release binaries at: $releaseDir"
+
+          $rawVersion = (Get-Content pubspec.yaml | Select-String -Pattern '^version:\s*(.+)$').Matches.Groups[1].Value.Trim()
+          $cleanVersion = $rawVersion.Split('+')[0]
+          Write-Host "Packaging installer for version: $cleanVersion"
+
+          $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $isccPath)) {
+            $isccPath = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          }
+          if (-not $isccPath) {
+            throw "Inno Setup compiler (ISCC.exe) not found!"
+          }
+
+          & $isccPath "/DSourceDir=$releaseDir" "/DMyAppVersion=$cleanVersion" windows/installer/inno_setup.iss
+
+          if (-not (Test-Path "build/installer/niosmess-windows-setup.exe")) {
+            throw "Failed to build niosmess-windows-setup.exe!"
+          }
+          Write-Host "Installer successfully built: build/installer/niosmess-windows-setup.exe"
+
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-release
+          path: pulse_flutter/build/installer/niosmess-windows-setup.exe
+          retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 4. Publish GitHub Release (Unified: APK + Windows Installer)
+  # ──────────────────────────────────────────────────────────────────────────
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-android, build-windows]
+    if: (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Android APK
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk-release
+          path: dist
+
+      - name: Download Windows Installer
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer-release
+          path: dist
+
+      - name: Download Release Metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: release-metadata
+          path: dist
+
+      - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            pulse_flutter/build/app/outputs/flutter-apk/niosmess.apk
-            pulse_flutter/build/app/outputs/flutter-apk/version.json
+            dist/niosmess.apk
+            dist/niosmess-windows-setup.exe
+            dist/version.json
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'latest' }}
-          name: NiosMess v${{ env.APP_VERSION }}
-          body_path: pulse_flutter/changelog_release.txt
+          name: NiosMess v${{ needs.build-android.outputs.app_version }}
+          body_path: dist/changelog_release.txt
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-android-debug:
-    name: Build Android APK (debug)
-    needs: test
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: pulse_flutter
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - run: flutter pub get
-
-      - name: Create google-services.json
-        run: |
-          mkdir -p android/app
-          cat > android/app/google-services.json << 'EOF'
-          {
-            "project_info": {
-              "project_number": "825221435616",
-              "project_id": "niosmes",
-              "storage_bucket": "niosmes.firebasestorage.app"
-            },
-            "client": [
-              {
-                "client_info": {
-                  "mobilesdk_app_id": "1:825221435616:android:225ca60a8de4e3ce388085",
-                  "android_client_info": {
-                    "package_name": "com.niosmess.pulse"
-                  }
-                },
-                "oauth_client": [],
-                "api_key": [
-                  {
-                    "current_key": "AIzaSyBKS1OjGKwwJmvEnBwg8q1_WDw1G_def2w"
-                  }
-                ],
-                "services": {
-                  "appinvite_service": {
-                    "other_platform_oauth_client": []
-                  }
-                }
-              }
-            ],
-            "configuration_version": "1"
-          }
-          EOF
-
-      - run: flutter build apk --debug --split-per-abi
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: android-apk-debug
-          path: pulse_flutter/build/app/outputs/flutter-apk/*.apk
-
-  build-web:
-    name: Build Web
-    needs: test
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: pulse_flutter
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - run: flutter pub get
-
-      - run: flutter build web --release
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: web-build
-          path: pulse_flutter/build/web

@@ -64,6 +64,8 @@ import 'widgets/settings_scroll_smoothness_test.dart' as widgets_settings_scroll
 import 'widgets/settings_system_device_test.dart' as widgets_settings_system_device;
 import 'widgets/tab_shared_axis_switcher_test.dart' as widgets_tab_shared_axis_switcher;
 import 'widgets/vector_illustrations_test.dart' as widgets_vector_illustrations;
+import 'unit/m3_motion_kit_unit_test.dart' as unit_m3_motion_kit;
+import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -94,6 +96,7 @@ void main() {
     unit_morphing_brand_mark.main();
     unit_moments.main();
     unit_tri_sync.main();
+    unit_m3_motion_kit.main();
 
     // Stress Tests
     stress_oauth_service.main();
@@ -140,6 +143,7 @@ void main() {
     widgets_settings_system_device.main();
     widgets_tab_shared_axis_switcher.main();
     widgets_vector_illustrations.main();
+    widgets_m3_motion_kit.main();
 
     // End-to-End & Integration Suites
     e2e_niosgram_and_settings.main();

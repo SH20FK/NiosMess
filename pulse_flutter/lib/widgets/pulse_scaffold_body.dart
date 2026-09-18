@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
@@ -76,12 +77,16 @@ class _BackdropCacheKey {
     required this.height,
     required this.primaryColor,
     required this.brightness,
+    required this.devicePixelRatio,
+    required this.isWeakDevice,
   });
 
   final int width;
   final int height;
   final int primaryColor;
   final Brightness brightness;
+  final double devicePixelRatio;
+  final bool isWeakDevice;
 
   @override
   bool operator ==(Object other) =>
@@ -90,10 +95,19 @@ class _BackdropCacheKey {
           width == other.width &&
           height == other.height &&
           primaryColor == other.primaryColor &&
-          brightness == other.brightness;
+          brightness == other.brightness &&
+          devicePixelRatio == other.devicePixelRatio &&
+          isWeakDevice == other.isWeakDevice;
 
   @override
-  int get hashCode => Object.hash(width, height, primaryColor, brightness);
+  int get hashCode => Object.hash(
+        width,
+        height,
+        primaryColor,
+        brightness,
+        devicePixelRatio,
+        isWeakDevice,
+      );
 }
 
 class _BackdropImageCache {
@@ -110,6 +124,8 @@ class _BackdropImageCache {
   static ui.Image renderSync({
     required int width,
     required int height,
+    required double devicePixelRatio,
+    required bool isWeakDevice,
     required ColorScheme scheme,
     required Brightness brightness,
   }) {
@@ -121,6 +137,7 @@ class _BackdropImageCache {
       t: 0.5,
       scheme: scheme,
       brightness: brightness,
+      isWeakDevice: isWeakDevice,
     );
     painter.paint(canvas, size);
 
@@ -136,6 +153,8 @@ class _BackdropImageCache {
       height: height,
       primaryColor: scheme.primary.toARGB32(),
       brightness: brightness,
+      devicePixelRatio: devicePixelRatio,
+      isWeakDevice: isWeakDevice,
     );
     _cachedImage = image;
     return image;
@@ -213,12 +232,16 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     final Brightness brightness = theme.brightness;
+    final PerformanceTier tier = ref.watch(
+      adaptivePerformanceProvider.select((s) => s.tier),
+    );
     final bool optimize = ref.watch(
       uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
     );
+    final bool isWeak = tier == PerformanceTier.tierC || optimize;
 
     final bool shouldAnimate =
-        widget.animated && !optimize && !kIsWeb && _controller != null;
+        widget.animated && !isWeak && !kIsWeb && _controller != null;
 
     return RepaintBoundary(
       child: LayoutBuilder(
@@ -227,19 +250,28 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
             return const SizedBox.shrink();
           }
 
-          final int width = constraints.maxWidth.ceil();
-          final int height = constraints.maxHeight.ceil();
+          final double rawDpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0;
+          final double dpr = rawDpr.clamp(1.0, 2.0);
+          final int rawW = (constraints.maxWidth * (isWeak ? 1.0 : dpr)).ceil();
+          final int rawH = (constraints.maxHeight * (isWeak ? 1.0 : dpr)).ceil();
+          final int width = math.max(64, ((rawW + 15) ~/ 16) * 16);
+          final int height = math.max(64, ((rawH + 15) ~/ 16) * 16);
+
           final _BackdropCacheKey key = _BackdropCacheKey(
             width: width,
             height: height,
             primaryColor: scheme.primary.toARGB32(),
             brightness: brightness,
+            devicePixelRatio: isWeak ? 1.0 : dpr,
+            isWeakDevice: isWeak,
           );
 
           ui.Image? image = _BackdropImageCache.getSync(key);
           image ??= _BackdropImageCache.renderSync(
             width: width,
             height: height,
+            devicePixelRatio: isWeak ? 1.0 : dpr,
+            isWeakDevice: isWeak,
             scheme: scheme,
             brightness: brightness,
           );
@@ -280,11 +312,13 @@ class _BackdropPainter extends CustomPainter {
     required this.t,
     required this.scheme,
     required this.brightness,
+    this.isWeakDevice = false,
   });
 
   final double t;
   final ColorScheme scheme;
   final Brightness brightness;
+  final bool isWeakDevice;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -294,6 +328,10 @@ class _BackdropPainter extends CustomPainter {
     final Paint gradientPaint = Paint()
       ..shader = AppTheme.heroGradient(scheme).createShader(rect);
     canvas.drawRect(rect, gradientPaint);
+
+    if (isWeakDevice) {
+      return;
+    }
 
     final double tw = t * math.pi * 2;
 
@@ -434,6 +472,7 @@ class _BackdropPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _BackdropPainter oldDelegate) {
     return scheme.primary != oldDelegate.scheme.primary ||
-        brightness != oldDelegate.brightness;
+        brightness != oldDelegate.brightness ||
+        isWeakDevice != oldDelegate.isWeakDevice;
   }
 }

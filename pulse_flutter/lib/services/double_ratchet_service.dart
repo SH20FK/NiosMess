@@ -63,6 +63,7 @@ class DoubleRatchetSession {
   SecretKey keyVal;
   SecretKey? prvKey;
   String peerStaticEd;
+  String peerStaticDh;
 
   DoubleRatchetSession({
     required this.ratKey,
@@ -77,6 +78,7 @@ class DoubleRatchetSession {
     required this.keyVal,
     this.prvKey,
     required this.peerStaticEd,
+    this.peerStaticDh = '',
   }) : skipKs = skipKs ?? {};
 
   DoubleRatchetSession copy() {
@@ -93,6 +95,7 @@ class DoubleRatchetSession {
       keyVal: keyVal,
       prvKey: prvKey,
       peerStaticEd: peerStaticEd,
+      peerStaticDh: peerStaticDh,
     );
   }
 
@@ -114,6 +117,7 @@ class DoubleRatchetSession {
       'keyVal': base64Encode(await keyVal.extractBytes()),
       'prvKey': prvKey != null ? base64Encode(await prvKey!.extractBytes()) : null,
       'peerStaticEd': peerStaticEd,
+      'peerStaticDh': peerStaticDh,
     };
   }
 
@@ -150,6 +154,7 @@ class DoubleRatchetSession {
           ? SecretKey(base64Decode(json['prvKey'] as String))
           : null,
       peerStaticEd: json['peerStaticEd'] as String? ?? '',
+      peerStaticDh: json['peerStaticDh'] as String? ?? '',
     );
   }
 }

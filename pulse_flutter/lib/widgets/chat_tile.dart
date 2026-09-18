@@ -71,7 +71,6 @@ class _ChatTileState extends State<ChatTile>
   Animation<double>? _fadeAnim;
   Animation<Offset>? _slideAnim;
   final ValueNotifier<bool> _isHoveredNotifier = ValueNotifier<bool>(false);
-  bool _isExpanded = false;
 
   @override
   void initState() {
@@ -102,11 +101,6 @@ class _ChatTileState extends State<ChatTile>
   }
 
   void _handleLongPress() {
-    if (widget.actions.isNotEmpty) {
-      setState(() {
-        _isExpanded = !_isExpanded;
-      });
-    }
     widget.onLongPress?.call();
   }
 
@@ -162,12 +156,12 @@ class _ChatTileState extends State<ChatTile>
               builder: (BuildContext context, bool isHovered, Widget? child) {
                 final Color tileBg = widget.isSelected
                     ? scheme.primaryContainer.withValues(alpha: 0.55)
-                    : (isHovered || _isExpanded
+                    : (isHovered
                         ? scheme.primaryContainer.withValues(alpha: 0.28)
                         : scheme.surfaceContainerLow.withValues(alpha: 0.82));
                 final Color borderColor = widget.isSelected
                     ? scheme.primary.withValues(alpha: 0.65)
-                    : (isHovered || _isExpanded
+                    : (isHovered
                         ? scheme.primary.withValues(alpha: 0.24)
                         : scheme.outlineVariant.withValues(alpha: 0.18));
 
@@ -348,28 +342,21 @@ class _ChatTileState extends State<ChatTile>
                     ],
                   ),
                   if (widget.actions.isNotEmpty)
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 250),
-                      curve: M3SpringCurves.spatial,
-                      alignment: Alignment.topCenter,
-                      child: !_isExpanded
-                          ? const SizedBox.shrink()
-                          : Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: scheme.surfaceContainerHigh
-                                      .withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: widget.actions,
-                                ),
-                              ),
-                            ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHigh
+                              .withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceEvenly,
+                          children: widget.actions,
+                        ),
+                      ),
                     ),
                 ],
               ),

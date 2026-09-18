@@ -6,8 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/identity/nios_mark.dart';
-import 'package:pulse_flutter/core/motion/container_transform_transition.dart';
-import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -24,7 +22,6 @@ import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/chat_tile.dart';
 import 'package:pulse_flutter/widgets/empty_state_widget.dart';
-import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/providers/chat_filter_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_filter_bar.dart';
@@ -32,8 +29,8 @@ import 'package:pulse_flutter/widgets/chat/chat_search_field.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:flutter/rendering.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/widgets/chat/chat_actions_modal.dart';
 
 
 enum _LastMessageKind { photo, video, audio, file }
@@ -333,22 +330,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                               context.push('/chat/${chat.id}');
                             }
                           },
-                          onTapWithRect: (Rect? rect) {
-                            if (MediaQuery.sizeOf(context).width >=
-                                Breakpoints.medium) {
-                              ref
-                                  .read(desktopSelectedChatProvider.notifier)
-                                  .setSelectedChat(chat.id);
-                            } else {
-                              final NavigationOrigin? origin = rect != null
-                                  ? NavigationOrigin(
-                                      fromRect: rect,
-                                      heroTag: 'chat_avatar_${chat.id}',
-                                    )
-                                  : null;
-                              context.push('/chat/${chat.id}', extra: origin);
-                            }
-                          },
                           onLongPress: () =>
                               _showChatContextMenu(context, chat),
                         );
@@ -551,192 +532,22 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     BuildContext context,
     ApiChatSummary chat,
   ) async {
-    final bool isWide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
-
-    Widget buildMenuContent(BuildContext ctx) {
-      final ColorScheme scheme = Theme.of(ctx).colorScheme;
-      final TextTheme textTheme = Theme.of(ctx).textTheme;
-
-      Widget actionTile({
-        required IconData icon,
-        required String title,
-        String? subtitle,
-        required String value,
-        bool destructive = false,
-      }) {
-        final Color fg = destructive ? scheme.error : scheme.onSurface;
-        return InkWell(
-          onTap: () => Navigator.of(ctx).pop(value),
-          borderRadius: BorderRadius.circular(18),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: (destructive ? scheme.error : scheme.primary)
-                        .withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(icon, size: 20, color: fg),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        style: textTheme.titleMedium?.copyWith(color: fg),
-                      ),
-                      if ((subtitle ?? '').isNotEmpty)
-                        Text(
-                          subtitle!,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    PulseAvatar(
-                      radius: 24,
-                      name: chat.name,
-                      id: chat.id.toString(),
-                      avatarUrl: chat.avatarUrl,
-                      fallbackColor: _avatarColor(chat.id, scheme),
-                      textColor: AppColors.avatarTextColorFor(
-                        _avatarColor(chat.id, scheme),
-                        scheme,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(chat.name, style: textTheme.titleLarge),
-                          const SizedBox(height: 2),
-                          Text(
-                            _contextMenuSubtitle(chat),
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
-                ),
-                child: Column(
-                  children: <Widget>[
-                    actionTile(
-                      icon: Icons.visibility_rounded,
-                      title: context.l10n.chatListMarkRead,
-                      subtitle: context.l10n.chatListMarkReadSubtitle,
-                      value: 'read',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: scheme.error.withValues(alpha: 0.14),
-                  ),
-                ),
-                child: actionTile(
-                  icon: Icons.delete_outline_rounded,
-                  title: context.l10n.chatListLeave,
-                  subtitle: context.l10n.chatListLeaveSubtitle,
-                  value: 'leave',
-                  destructive: true,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final String? action = await (isWide
-        ? showDialog<String>(
-            context: context,
-            builder: (BuildContext ctx) => Dialog(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              child: SizedBox(
-                width: 380,
-                child: buildMenuContent(ctx),
-              ),
-            ),
-          )
-        : AppBottomSheets.show<String>(
-            context: context,
-            
-            builder: buildMenuContent,
-          ));
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final ChatActionResult? action = await ChatActionsModal.show(
+      context,
+      chat: chat,
+      avatarColor: _avatarColor(chat.id, scheme),
+    );
 
     if (action == null || !context.mounted) return;
 
     switch (action) {
-      case 'read':
+      case ChatActionResult.markRead:
         await ref.read(chatMessagesProvider(chat.id).notifier).markRead();
         return;
-      case 'leave':
+      case ChatActionResult.leave:
         await _leaveChat(context, chat);
         return;
     }
   }
-
-  String _contextMenuSubtitle(ApiChatSummary chat) {
-    final String type = switch (chat.chatType) {
-      'channel' => context.l10n.groupTypeChannel,
-      'group' => context.l10n.groupTypeGroup,
-      _ => context.l10n.chatListFilterDirect,
-    };
-    if (chat.unreadCount <= 0) return type;
-    return '${context.l10n.chatListUnreadCount(chat.unreadCount)} • $type';
-  }
 }
-
-

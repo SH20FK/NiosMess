@@ -8,21 +8,40 @@ import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
+enum MessageActionType {
+  react,
+  showAllReactions,
+  reply,
+  copy,
+  forward,
+  comments,
+  edit,
+  delete,
+  report,
+}
+
+class MessageActionResult {
+  const MessageActionResult(this.type, {this.emoji});
+
+  final MessageActionType type;
+  final String? emoji;
+}
+
 class MessageContextMenuSheet extends StatelessWidget {
   const MessageContextMenuSheet({
     required this.message,
     required this.isMine,
     required this.isChannel,
     required this.amAdminOrOwner,
-    required this.onReact,
-    required this.onShowAllReactions,
-    required this.onReply,
-    required this.onCopy,
-    required this.onForward,
-    required this.onComments,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onReport,
+    this.onReact,
+    this.onShowAllReactions,
+    this.onReply,
+    this.onCopy,
+    this.onForward,
+    this.onComments,
+    this.onEdit,
+    this.onDelete,
+    this.onReport,
     this.isSecret = false,
     super.key,
   });
@@ -31,15 +50,15 @@ class MessageContextMenuSheet extends StatelessWidget {
   final bool isMine;
   final bool isChannel;
   final bool amAdminOrOwner;
-  final void Function(String emoji) onReact;
-  final VoidCallback onShowAllReactions;
-  final VoidCallback onReply;
-  final VoidCallback onCopy;
-  final VoidCallback onForward;
-  final VoidCallback onComments;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final VoidCallback onReport;
+  final void Function(String emoji)? onReact;
+  final VoidCallback? onShowAllReactions;
+  final VoidCallback? onReply;
+  final VoidCallback? onCopy;
+  final VoidCallback? onForward;
+  final VoidCallback? onComments;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final VoidCallback? onReport;
   final bool isSecret;
 
   static const List<_QuickReaction> _quickReactions = <_QuickReaction>[
@@ -228,13 +247,13 @@ class _MessagePreviewCard extends StatelessWidget {
 class _ReactionsRow extends ConsumerWidget {
   const _ReactionsRow({
     required this.scheme,
-    required this.onReact,
-    required this.onShowAllReactions,
+    this.onReact,
+    this.onShowAllReactions,
   });
 
   final ColorScheme scheme;
-  final void Function(String emoji) onReact;
-  final VoidCallback onShowAllReactions;
+  final void Function(String emoji)? onReact;
+  final VoidCallback? onShowAllReactions;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -253,15 +272,15 @@ class _ReactionsRow extends ConsumerWidget {
               scheme: scheme,
               onTap: () {
                 TriSync.reaction(ref: ref, context: context);
-                Navigator.of(context).pop();
-                onReact(reaction.emoji);
+                Navigator.of(context).pop(MessageActionResult(MessageActionType.react, emoji: reaction.emoji));
+                onReact?.call(reaction.emoji);
               },
             ),
           ],
           _ReactionAddButton(scheme: scheme, onTap: () {
             TriSync.pop(ref: ref, context: context);
-            Navigator.of(context).pop();
-            onShowAllReactions();
+            Navigator.of(context).pop(const MessageActionResult(MessageActionType.showAllReactions));
+            onShowAllReactions?.call();
           }),
         ],
       ),
@@ -296,10 +315,10 @@ class _ReactionButtonState extends State<_ReactionButton>
       vsync: this,
       duration: M3Durations.short4,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.28).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.06).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: M3SpringCurves.bouncy,
+        curve: Curves.easeOutCubic,
       ),
     );
   }
@@ -390,13 +409,13 @@ class _ActionsCompact extends StatelessWidget {
     required this.amAdminOrOwner,
     required this.isSecret,
     required this.scheme,
-    required this.onReply,
-    required this.onCopy,
-    required this.onForward,
-    required this.onComments,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onReport,
+    this.onReply,
+    this.onCopy,
+    this.onForward,
+    this.onComments,
+    this.onEdit,
+    this.onDelete,
+    this.onReport,
   });
 
   final ApiMessage message;
@@ -405,13 +424,13 @@ class _ActionsCompact extends StatelessWidget {
   final bool amAdminOrOwner;
   final bool isSecret;
   final ColorScheme scheme;
-  final VoidCallback onReply;
-  final VoidCallback onCopy;
-  final VoidCallback onForward;
-  final VoidCallback onComments;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final VoidCallback onReport;
+  final VoidCallback? onReply;
+  final VoidCallback? onCopy;
+  final VoidCallback? onForward;
+  final VoidCallback? onComments;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final VoidCallback? onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -469,8 +488,8 @@ class _ActionsCompact extends StatelessWidget {
       icon: Icons.reply_rounded,
       label: context.l10n.chatReply,
       onTap: () {
-        Navigator.of(context).pop();
-        onReply();
+        Navigator.of(context).pop(const MessageActionResult(MessageActionType.reply));
+        onReply?.call();
       },
     ));
 
@@ -479,8 +498,8 @@ class _ActionsCompact extends StatelessWidget {
         icon: Icons.copy_rounded,
         label: context.l10n.chatCopyText,
         onTap: () {
-          Navigator.of(context).pop();
-          onCopy();
+          Navigator.of(context).pop(const MessageActionResult(MessageActionType.copy));
+          onCopy?.call();
         },
       ));
     }
@@ -490,8 +509,8 @@ class _ActionsCompact extends StatelessWidget {
         icon: Icons.forward_rounded,
         label: context.l10n.chatResendTo,
         onTap: () {
-          Navigator.of(context).pop();
-          onForward();
+          Navigator.of(context).pop(const MessageActionResult(MessageActionType.forward));
+          onForward?.call();
         },
       ));
     }
@@ -504,8 +523,8 @@ class _ActionsCompact extends StatelessWidget {
             ? context.l10n.chatCommentsCount(message.commentsCount)
             : null,
         onTap: () {
-          Navigator.of(context).pop();
-          onComments();
+          Navigator.of(context).pop(const MessageActionResult(MessageActionType.comments));
+          onComments?.call();
         },
       ));
     }
@@ -517,8 +536,8 @@ class _ActionsCompact extends StatelessWidget {
         icon: Icons.edit_rounded,
         label: context.l10n.chatEdit,
         onTap: () {
-          Navigator.of(context).pop();
-          onEdit();
+          Navigator.of(context).pop(const MessageActionResult(MessageActionType.edit));
+          onEdit?.call();
         },
       ));
     }
@@ -535,8 +554,8 @@ class _ActionsCompact extends StatelessWidget {
         label: context.l10n.chatDelete,
         color: scheme.error,
         onTap: () {
-          Navigator.of(context).pop();
-          onDelete();
+          Navigator.of(context).pop(const MessageActionResult(MessageActionType.delete));
+          onDelete?.call();
         },
       ));
     }
@@ -547,8 +566,8 @@ class _ActionsCompact extends StatelessWidget {
         label: context.l10n.reportAction,
         color: scheme.error,
         onTap: () {
-          Navigator.of(context).pop();
-          onReport();
+          Navigator.of(context).pop(const MessageActionResult(MessageActionType.report));
+          onReport?.call();
         },
       ));
     }

@@ -5078,4 +5078,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wallpaperDiscardConfirmBody => 'All unsaved wallpaper changes will be lost.';
   @override
   String get wallpaperDiscardConfirmAction => 'Discard';
+  @override
+  String get wallpaperPacksTitle => 'Theme packs';
+  @override
+  String get wallpaperSymbolsStyle => 'Symbols style';
+  @override
+  String get wallpaperRevert => 'Revert';
+  @override
+  String get wallpaperMockupUserMessage => 'NiosMess Wallpaper';
+  @override
+  String get wallpaperMockupPartnerMessage => 'Material 3 Expressive';
 }

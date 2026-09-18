@@ -12,6 +12,7 @@ import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
@@ -407,10 +408,8 @@ class _AppearanceScreen extends ConsumerWidget {
     WidgetRef ref,
     Color initialColor,
   ) {
-    showModalBottomSheet<void>(
+    AppModal.showSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) {
         return _CustomColorPickerSheet(
           initialColor: initialColor,
@@ -1409,14 +1408,10 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+    return Padding(
       padding: EdgeInsets.fromLTRB(
         20,
-        12,
+        8,
         20,
         MediaQuery.of(context).viewInsets.bottom + 24,
       ),
@@ -1425,18 +1420,6 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-          // Handle bar
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: scheme.outlineVariant.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
 
           // Title & Live Preview swatch
           Row(

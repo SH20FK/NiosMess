@@ -61,6 +61,28 @@ class StickerRepository {
     return null;
   }
 
+  /// Retrieves a sticker set containing the specified sticker ID.
+  Future<ApiStickerSet?> getStickerSetForSticker(int stickerId) async {
+    final dynamic response = await _ref.read(webSocketClientProvider).request(
+      'get_sticker_set',
+      payload: <String, dynamic>{'sticker_id': stickerId},
+    );
+
+    if (response is Map) {
+      final dynamic rawSet = response['set'] ??
+          response['sticker_set'] ??
+          response['data'] ??
+          response['result'] ??
+          response;
+      if (rawSet is Map && rawSet['id'] != null) {
+        return ApiStickerSet.fromJson(
+          rawSet.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
+        );
+      }
+    }
+    return null;
+  }
+
   /// Creates a new public or personal sticker set.
   /// The first uploaded sticker automatically becomes the pack cover.
   Future<ApiStickerSet> createStickerSet({

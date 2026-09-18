@@ -38,6 +38,32 @@ void main() {
       expect(AppUrlLauncher.resolveInternalAppRoute(customScheme), equals('/stickers/902'));
     });
 
+    test('Resolves Nios Weave procedural wallpaper links /w/:code and niosmess:// variants', () {
+      final Uri uri = Uri.parse('https://ni-os.ru/w/0104e4b500094b23023000');
+      expect(
+        AppUrlLauncher.resolveInternalAppRoute(uri),
+        equals('/settings/wallpaper?code=0104e4b500094b23023000'),
+      );
+
+      final Uri customScheme = Uri.parse('niosmess://w/0104e4b500094b23023000');
+      expect(
+        AppUrlLauncher.resolveInternalAppRoute(customScheme),
+        equals('/settings/wallpaper?code=0104e4b500094b23023000'),
+      );
+
+      final Uri customSchemeWithDomain = Uri.parse('niosmess://ni-os.ru/w/0104e4b500094b23023000');
+      expect(
+        AppUrlLauncher.resolveInternalAppRoute(customSchemeWithDomain),
+        equals('/settings/wallpaper?code=0104e4b500094b23023000'),
+      );
+
+      final Uri customSchemeUserWithDomain = Uri.parse('niosmess://ni-os.ru/u/alice');
+      expect(
+        AppUrlLauncher.resolveInternalAppRoute(customSchemeUserWithDomain),
+        equals('/u/alice'),
+      );
+    });
+
     test('Resolves chat and group routes', () {
       final Uri uri = Uri.parse('https://ni-os.ru/chat/1024?highlight=55');
       expect(AppUrlLauncher.resolveInternalAppRoute(uri), equals('/chat/1024?highlight=55'));

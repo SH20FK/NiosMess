@@ -6,16 +6,22 @@ list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   audioplayers_windows
   connectivity_plus
+  desktop_drop
   dynamic_color
   emoji_picker_flutter
   firebase_core
   flutter_secure_storage_windows
   flutter_webrtc
   local_auth_windows
+  pasteboard
   permission_handler_windows
   record_windows
+  screen_retriever_windows
   share_plus
+  tray_manager
   url_launcher_windows
+  window_manager
+  windows_taskbar
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

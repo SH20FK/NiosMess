@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 enum IconSource {
   materialSymbols,
-  phosphor,
   lucide,
   tabler,
   cupertino,

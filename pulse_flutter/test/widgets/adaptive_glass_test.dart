@@ -6,7 +6,7 @@ import 'package:pulse_flutter/widgets/adaptive/adaptive_glass.dart';
 
 void main() {
   group('F4: AdaptiveGlass Widget Tests', () {
-    testWidgets('renders BackdropFilter with tierASigma on Tier A', (tester) async {
+    testWidgets('renders BackdropFilter with tierASigma on Tier A for static panels', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -18,6 +18,7 @@ void main() {
           child: MaterialApp(
             home: Scaffold(
               body: AdaptiveGlass(
+                isStaticPanel: true,
                 tierASigma: 22.0,
                 tierBSigma: 7.0,
                 child: const Text('Tier A Glass'),
@@ -36,6 +37,60 @@ void main() {
       expect(find.text('Tier A Glass'), findsOneWidget);
     });
 
+    testWidgets('omits BackdropFilter on Tier A when isStaticPanel is false (default)', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      container.read(adaptivePerformanceProvider.notifier).setMode(PerformanceMode.flagship);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(
+              body: AdaptiveGlass(
+                // isStaticPanel defaults to false
+                tierASigma: 22.0,
+                tierBSigma: 7.0,
+                child: const Text('Tier A Non-Static Glass'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Under Anti-Regression Protocol, non-static panels avoid live BackdropFilter
+      expect(find.byType(BackdropFilter), findsNothing);
+      expect(find.text('Tier A Non-Static Glass'), findsOneWidget);
+    });
+
+    testWidgets('omits BackdropFilter on Tier A when inScrollable is true', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      container.read(adaptivePerformanceProvider.notifier).setMode(PerformanceMode.flagship);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(
+              body: AdaptiveGlass(
+                isStaticPanel: true,
+                inScrollable: true,
+                tierASigma: 22.0,
+                child: const Text('Scrollable Glass'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Zero live blur in scrollables under all tiers
+      expect(find.byType(BackdropFilter), findsNothing);
+      expect(find.text('Scrollable Glass'), findsOneWidget);
+    });
+
     testWidgets('renders crisp tonal surface without BackdropFilter on Tier B (zero blur passes)', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -48,6 +103,7 @@ void main() {
           child: MaterialApp(
             home: Scaffold(
               body: AdaptiveGlass(
+                isStaticPanel: true,
                 tierASigma: 22.0,
                 tierBSigma: 7.0,
                 child: const Text('Tier B Glass'),
@@ -74,6 +130,7 @@ void main() {
           child: MaterialApp(
             home: Scaffold(
               body: AdaptiveGlass(
+                isStaticPanel: true,
                 tierASigma: 22.0,
                 tierBSigma: 7.0,
                 child: const Text('Tier C Glass'),

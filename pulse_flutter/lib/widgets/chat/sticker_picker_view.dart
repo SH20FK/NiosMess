@@ -29,7 +29,7 @@ class StickerPickerView extends ConsumerStatefulWidget {
 }
 
 class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
-  int _selectedSetIndex = 0;
+  int? _selectedSetId;
   final ScrollController _dockScrollController = ScrollController();
 
   @override
@@ -49,9 +49,9 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
     }
   }
 
-  void _selectSet(int index) {
+  void _selectSet(int index, int setId) {
     HapticService.tap();
-    setState(() => _selectedSetIndex = index);
+    setState(() => _selectedSetId = setId);
     if (_dockScrollController.hasClients) {
       _dockScrollController.animateTo(
         (index * 48.0).clamp(0.0, _dockScrollController.position.maxScrollExtent),
@@ -151,7 +151,13 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
           );
         }
 
-        final int activeIndex = _selectedSetIndex.clamp(0, sets.length - 1);
+        int activeIndex = 0;
+        if (_selectedSetId != null) {
+          final int found = sets.indexWhere((ApiStickerSet s) => s.id == _selectedSetId);
+          if (found != -1) {
+            activeIndex = found;
+          }
+        }
         final ApiStickerSet currentSet = sets[activeIndex];
 
         return Column(
@@ -494,11 +500,11 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
           final bool isSelected = index == activeIndex;
 
           return GestureDetector(
-            onTap: () => _selectSet(index),
+            onTap: () => _selectSet(index, s.id),
             child: AnimatedScale(
-              scale: isSelected ? 1.06 : 1.0,
+              scale: isSelected ? 1.04 : 1.0,
               duration: const Duration(milliseconds: 200),
-              curve: M3SpringCurves.bouncy,
+              curve: M3SpringCurves.expressiveStandard,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: M3SpringCurves.snappy,
@@ -514,15 +520,6 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
                     color: isSelected ? scheme.primary : Colors.transparent,
                     width: 1.8,
                   ),
-                  boxShadow: isSelected
-                      ? <BoxShadow>[
-                          BoxShadow(
-                            color: scheme.primary.withValues(alpha: 0.2),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
                 ),
                 child: s.coverSticker != null
                     ? CachedNetworkImage(
@@ -552,7 +549,7 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
   }
 }
 
-/// Bouncy animated sticker tile with Material 3 Expressive spring physics
+/// Animated sticker tile with Material 3 Expressive spring physics
 class _ExpressiveStickerTile extends StatefulWidget {
   const _ExpressiveStickerTile({
     required this.sticker,
@@ -584,9 +581,9 @@ class _ExpressiveStickerTileState extends State<_ExpressiveStickerTile> {
       onTapCancel: () => setState(() => _isPressed = false),
       onLongPress: widget.onLongPress,
       child: AnimatedScale(
-        scale: _isPressed ? 0.90 : 1.0,
+        scale: _isPressed ? 0.96 : 1.0,
         duration: const Duration(milliseconds: 140),
-        curve: M3SpringCurves.bouncy,
+        curve: Curves.easeOutCubic,
         child: Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(

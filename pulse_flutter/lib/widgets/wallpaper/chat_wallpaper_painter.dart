@@ -509,7 +509,16 @@ class ChatWallpaperPainter extends CustomPainter {
         final double svgScale = iconBaseSize / 24.0;
         canvas.scale(svgScale, svgScale);
         canvas.translate(-12.0, -12.0);
+
+        final Color roleColor = cache.resolvedColors[selectedRole] ??
+            (cache.resolvedColors.isNotEmpty
+                ? cache.resolvedColors.values.first
+                : const Color(0xFFFFFFFF));
+        final Paint tintPaint = Paint()
+          ..colorFilter = ColorFilter.mode(roleColor, BlendMode.srcIn);
+        canvas.saveLayer(const Rect.fromLTWH(0, 0, 24.0, 24.0), tintPaint);
         canvas.drawPicture(pic);
+        canvas.restore();
       }
     } else {
       // Material Symbols or Cupertino Icons via Pre-Laid-Out ui.Paragraph
@@ -552,10 +561,10 @@ class ChatWallpaperPainter extends CustomPainter {
         for (final String name in config.selectedGlyphs) {
           shapesPool.add(CuratedWallpaperCatalog.resolveShape(name));
         }
-      } else if (config.themePack.startsWith('m3_')) {
-        shapesPool.addAll(CuratedWallpaperCatalog.getShapesForPack(config.themePack));
       } else if (config.useAllIcons || config.themePack == 'all') {
         shapesPool.addAll(CuratedWallpaperCatalog.allM3Shapes);
+      } else if (config.themePack.startsWith('m3_')) {
+        shapesPool.addAll(CuratedWallpaperCatalog.getShapesForPack(config.themePack));
       } else if (config.m3ShapeName != null && config.m3ShapeName!.isNotEmpty) {
         shapesPool.add(CuratedWallpaperCatalog.resolveShape(config.m3ShapeName!));
       } else {

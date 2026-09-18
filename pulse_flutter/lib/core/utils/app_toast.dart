@@ -123,6 +123,56 @@ class AppToast {
     );
   }
 
+  static void showAction(
+    BuildContext context, {
+    required String message,
+    required String actionLabel,
+    required VoidCallback onAction,
+    IconData icon = Icons.info_outline_rounded,
+    Duration duration = const Duration(seconds: 4),
+  }) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final ScaffoldMessengerState? scaffoldMessenger =
+        ScaffoldMessenger.maybeOf(context);
+    if (scaffoldMessenger == null) return;
+
+    scaffoldMessenger.hideCurrentSnackBar();
+    scaffoldMessenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: scheme.onSurface, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  fontFamily: AppFonts.ui,
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: actionLabel,
+          textColor: scheme.primary,
+          onPressed: onAction,
+        ),
+        backgroundColor: scheme.surfaceContainerHighest,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        elevation: 3,
+        duration: duration,
+      ),
+    );
+  }
+
   static void _show(
     BuildContext context,
     String message, {

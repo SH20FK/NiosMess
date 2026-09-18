@@ -183,6 +183,7 @@ class M3EmojiSearchView extends SearchView {
 
 class M3EmojiSearchViewState extends SearchViewState<M3EmojiSearchView> {
   final TextEditingController _textController = TextEditingController();
+  int _searchRequestId = 0;
 
   @override
   void dispose() {
@@ -192,12 +193,13 @@ class M3EmojiSearchViewState extends SearchViewState<M3EmojiSearchView> {
 
   @override
   void onTextInputChanged(String text) {
-    final clean = text.trim().toLowerCase();
+    final int currentRequestId = ++_searchRequestId;
+    final String clean = text.trim().toLowerCase();
     if (clean.isEmpty) {
       links.clear();
       results.clear();
       utils.getRecentEmojis().then((value) {
-        if (mounted) {
+        if (mounted && currentRequestId == _searchRequestId) {
           setState(() {
             _updateResults(value.map((e) => e.emoji).toList());
           });
@@ -216,31 +218,26 @@ class M3EmojiSearchViewState extends SearchViewState<M3EmojiSearchView> {
       }
     }
 
-    final Set<String> seenEmojis = <String>{};
-    final List<Emoji> matchedList = <Emoji>[];
+    // 2. Parallelize with Future.wait, discard stale requests, and deduplicate
+    final List<Future<List<Emoji>>> futures = searchTerms
+        .map((String term) => utils.searchEmoji(term, widget.state.categoryEmoji))
+        .toList();
 
-    void processTerms(int index) {
-      if (index >= searchTerms.length) {
-        if (mounted) {
-          setState(() {
-            _updateResults(matchedList);
-          });
-        }
-        return;
-      }
-
-      final term = searchTerms[index];
-      utils.searchEmoji(term, widget.state.categoryEmoji).then((found) {
-        for (final e in found) {
+    Future.wait(futures).then((List<List<Emoji>> allFound) {
+      if (!mounted || currentRequestId != _searchRequestId) return;
+      final Set<String> seenEmojis = <String>{};
+      final List<Emoji> matchedList = <Emoji>[];
+      for (final List<Emoji> found in allFound) {
+        for (final Emoji e in found) {
           if (seenEmojis.add(e.emoji)) {
             matchedList.add(e);
           }
         }
-        processTerms(index + 1);
+      }
+      setState(() {
+        _updateResults(matchedList);
       });
-    }
-
-    processTerms(0);
+    });
   }
 
   void _updateResults(List<Emoji> emojis) {

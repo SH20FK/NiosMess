@@ -7615,6 +7615,11 @@ abstract class AppLocalizations {
   String get wallpaperDiscardConfirmTitle;
   String get wallpaperDiscardConfirmBody;
   String get wallpaperDiscardConfirmAction;
+  String get wallpaperPacksTitle;
+  String get wallpaperSymbolsStyle;
+  String get wallpaperRevert;
+  String get wallpaperMockupUserMessage;
+  String get wallpaperMockupPartnerMessage;
 }
 
 class _AppLocalizationsDelegate

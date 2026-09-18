@@ -21,6 +21,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/services/deep_link_service.dart';
+import 'package:pulse_flutter/core/services/desktop_window_service.dart';
 import 'package:pulse_flutter/firebase_options.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
 import 'package:pulse_flutter/providers/call_push_handler.dart';
@@ -96,6 +97,8 @@ Future<void> main() async {
                 AppLogger.instance.error(e, StackTrace.current, source: 'firebase');
               }
             })(),
+          if (DesktopWindowService.isDesktop)
+            DesktopWindowService.instance.initialize(),
         ]);
         BackgroundService.init();
       }

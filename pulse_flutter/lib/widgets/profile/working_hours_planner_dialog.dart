@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
+import 'package:pulse_flutter/core/modal/app_time_picker.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 
 class WorkingHoursPlannerDialog extends StatefulWidget {
   const WorkingHoursPlannerDialog({
@@ -16,21 +20,21 @@ class WorkingHoursPlannerDialog extends StatefulWidget {
     BuildContext context, {
     WorkingHours? initialWorkingHours,
   }) {
-    final bool isWide = MediaQuery.sizeOf(context).width >= 600;
+    final bool isWide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
     if (isWide) {
-      return showDialog<WorkingHours>(
+      return AppModal.showDialog<WorkingHours>(
         context: context,
+        maxWidth: 580,
         builder: (BuildContext context) => WorkingHoursPlannerDialog(
           initialWorkingHours: initialWorkingHours,
           isDialog: true,
         ),
       );
     }
-    return showModalBottomSheet<WorkingHours>(
+    return AppModal.showSheet<WorkingHours>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
+      showDragHandle: true,
       builder: (BuildContext context) => WorkingHoursPlannerDialog(
         initialWorkingHours: initialWorkingHours,
         isDialog: false,
@@ -85,9 +89,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
     HapticService.tap();
     final List<TimeInterval> current = _schedule[_selectedDay]!;
     if (current.length >= 4) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Максимум 4 интервала в день')),
-      );
+      AppToast.showError(context, 'Максимум 4 интервала в день');
       return;
     }
 
@@ -103,28 +105,20 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
       }
     }
 
-    final TimeOfDay? start = await showTimePicker(
+    final TimeOfDay? start = await AppTimePicker.show(
       context: context,
       initialTime: defaultStart,
       helpText: 'Начало работы',
-      builder: (BuildContext context, Widget? child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-        child: child!,
-      ),
     );
     if (start == null || !mounted) return;
 
-    final TimeOfDay? end = await showTimePicker(
+    final TimeOfDay? end = await AppTimePicker.show(
       context: context,
       initialTime: TimeOfDay(
         hour: (start.hour + 9) % 24,
         minute: start.minute,
       ),
       helpText: 'Конец работы',
-      builder: (BuildContext context, Widget? child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-        child: child!,
-      ),
     );
     if (end == null || !mounted) return;
 
@@ -132,9 +126,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
     final int endMinutes = end.hour * 60 + end.minute;
     if (endMinutes <= startMinutes) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Конец интервала должен быть позже начала')),
-      );
+      AppToast.showError(context, 'Конец интервала должен быть позже начала');
       return;
     }
 
@@ -158,9 +150,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
             return;
           }
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Интервалы не должны пересекаться')),
-          );
+          AppToast.showError(context, 'Интервалы не должны пересекаться');
           return;
         }
       }
@@ -196,25 +186,17 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
         ? TimeOfDay(hour: curEndMin ~/ 60, minute: curEndMin % 60)
         : const TimeOfDay(hour: 18, minute: 0);
 
-    final TimeOfDay? start = await showTimePicker(
+    final TimeOfDay? start = await AppTimePicker.show(
       context: context,
       initialTime: initialStart,
       helpText: 'Начало работы',
-      builder: (BuildContext context, Widget? child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-        child: child!,
-      ),
     );
     if (start == null || !mounted) return;
 
-    final TimeOfDay? end = await showTimePicker(
+    final TimeOfDay? end = await AppTimePicker.show(
       context: context,
       initialTime: initialEnd,
       helpText: 'Конец работы',
-      builder: (BuildContext context, Widget? child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-        child: child!,
-      ),
     );
     if (end == null || !mounted) return;
 
@@ -222,9 +204,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
     final int endMinutes = end.hour * 60 + end.minute;
     if (endMinutes <= startMinutes) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Конец интервала должен быть позже начала')),
-      );
+      AppToast.showError(context, 'Конец интервала должен быть позже начала');
       return;
     }
 
@@ -236,9 +216,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
       if (exStart != null && exEnd != null) {
         if (startMinutes < exEnd && endMinutes > exStart) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Интервалы не должны пересекаться')),
-          );
+          AppToast.showError(context, 'Интервалы не должны пересекаться');
           return;
         }
       }

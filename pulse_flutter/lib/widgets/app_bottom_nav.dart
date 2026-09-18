@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -121,16 +120,7 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
             final double left = currentCenterX - pillW / 2;
             final double top = (constraints.maxHeight - pillH) / 2;
 
-            const List<Shapes> tabShapes = <Shapes>[
-              Shapes.gem,
-              Shapes.c9_sided_cookie,
-              Shapes.burst,
-              Shapes.flower,
-            ];
-            final Shapes fromShape =
-                tabShapes[_from.round().clamp(0, tabShapes.length - 1)];
-            final Shapes toShape =
-                tabShapes[widget.index.clamp(0, tabShapes.length - 1)];
+
 
             return Stack(
               clipBehavior: Clip.none,
@@ -140,29 +130,12 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
                   top: top,
                   width: pillW,
                   height: pillH,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: <Widget>[
-                      DecoratedBox(
-                        decoration: ShapeDecoration(
-                          color: widget.color,
-                          shape: const StadiumBorder(),
-                        ),
-                        child: const SizedBox.expand(),
-                      ),
-                      // MOM-5: Expressive brand shape morphing between tabs
-                      Opacity(
-                        opacity: (1.0 - wobble * 0.7).clamp(0.0, 1.0),
-                        child: ClipPath(
-                          clipper: M3Clipper(t < 0.5 ? fromShape : toShape),
-                          child: Container(
-                            width: pillH * 0.80,
-                            height: pillH * 0.80,
-                            color: widget.color.withValues(alpha: 0.30),
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: DecoratedBox(
+                    decoration: ShapeDecoration(
+                      color: widget.color,
+                      shape: const StadiumBorder(),
+                    ),
+                    child: const SizedBox.expand(),
                   ),
                 ),
               ],
@@ -259,67 +232,37 @@ class AppBottomNav extends ConsumerWidget {
               final _NavItem item = items[index];
               final bool isSelected = index == currentIndex;
 
+              final Color slotColor = isSelected
+                  ? scheme.onSecondaryContainer
+                  : scheme.onSurfaceVariant;
+
               final Widget iconWidget = AnimatedSwitcher(
                 duration: animate ? duration : Duration.zero,
-                switchInCurve: M3SpringCurves.spatial,
-                switchOutCurve: M3SpringCurves.spatial,
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
                 transitionBuilder: (Widget child, Animation<double> anim) {
                   return FadeTransition(opacity: anim, child: child);
                 },
-                child: TweenAnimationBuilder<Color?>(
-                  key: ValueKey<bool>(isSelected),
-                  duration: animate ? duration : Duration.zero,
-                  curve: M3SpringCurves.spatial,
-                  tween: ColorTween(
-                    begin: isSelected
-                        ? scheme.onSurfaceVariant
-                        : scheme.onSecondaryContainer,
-                    end: isSelected
-                        ? scheme.onSecondaryContainer
-                        : scheme.onSurfaceVariant,
+                child: Icon(
+                  isSelected ? item.selectedIcon : item.icon,
+                  size: 24,
+                  color: slotColor,
+                  key: ValueKey<IconData>(
+                    isSelected ? item.selectedIcon : item.icon,
                   ),
-                  builder: (BuildContext context, Color? color, Widget? _) {
-                    return Icon(
-                      isSelected ? item.selectedIcon : item.icon,
-                      size: 24,
-                      color: color,
-                      key: ValueKey<IconData>(
-                        isSelected ? item.selectedIcon : item.icon,
-                      ),
-                    );
-                  },
                 ),
               );
 
               final Widget badgedIcon = item.badge > 0
                   ? Badge(
-                      label: item.badge < 100
-                          ? AnimatedSwitcher(
-                              duration: duration,
-                              transitionBuilder:
-                                  (Widget child, Animation<double> anim) =>
-                                      ScaleTransition(
-                                scale: anim,
-                                child: child,
-                              ),
-                              child: Text(
-                                '${item.badge}',
-                                key: ValueKey<int>(item.badge),
-                                style: const TextStyle(
-                                  fontFamily: AppFonts.ui,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            )
-                          : const Text(
-                              '99+',
-                              style: TextStyle(
-                                fontFamily: AppFonts.ui,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                      label: Text(
+                        item.badge < 100 ? '${item.badge}' : '99+',
+                        style: const TextStyle(
+                          fontFamily: AppFonts.ui,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       child: iconWidget,
                     )
                   : iconWidget;
@@ -327,27 +270,20 @@ class AppBottomNav extends ConsumerWidget {
               final Widget animatedIcon = animate
                   ? AnimatedScale(
                       duration: duration,
-                      curve: M3SpringCurves.bouncy,
-                      scale: isSelected ? (tier.isTierA ? 1.12 : 1.05) : 1.0,
-                      child: AnimatedSlide(
-                        duration: duration,
-                        curve: M3SpringCurves.spatial,
-                        offset: Offset(0.0, isSelected ? -0.06 : 0.0),
-                        child: badgedIcon,
-                      ),
+                      curve: M3SpringCurves.gentle,
+                      scale: isSelected ? 1.06 : 1.0,
+                      child: badgedIcon,
                     )
                   : badgedIcon;
 
               final Widget labelWidget = AnimatedDefaultTextStyle(
                 duration: animate ? duration : Duration.zero,
-                curve: M3SpringCurves.spatial,
+                curve: Curves.easeOutCubic,
                 style: TextStyle(
                   fontSize: 12,
                   fontFamily: 'Onest',
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected
-                      ? scheme.onSecondaryContainer
-                      : scheme.onSurfaceVariant,
+                  color: slotColor,
                   letterSpacing: 0.1,
                 ),
                 child: Text(

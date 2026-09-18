@@ -25,6 +25,10 @@ class HapticService {
     if (_supported) HapticFeedback.heavyImpact();
   }
 
+  static void danger() {
+    destructive();
+  }
+
   static void reaction() {
     if (_supported) HapticFeedback.lightImpact();
   }

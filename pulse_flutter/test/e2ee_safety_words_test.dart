@@ -109,8 +109,8 @@ void main() {
       // Settle future builder
       await tester.pumpAndSettle();
 
-      // Check E2EE v1 badge
-      expect(find.text('E2EE v1'), findsOneWidget);
+      // Check Double Ratchet v2 badge
+      expect(find.text('Double Ratchet v2'), findsOneWidget);
 
       // Check 12 word numbered prefixes (#1 through #12)
       for (int i = 1; i <= 12; i++) {

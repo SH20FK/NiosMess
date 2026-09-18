@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -138,118 +139,97 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
     HapticService.tap();
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    await showModalBottomSheet<void>(
+    await AppModal.showSheet<void>(
       context: context,
-      backgroundColor: scheme.surfaceContainerHigh,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      title: _chatType == 'channel'
+          ? context.l10n.wizardChannelAvatar
+          : context.l10n.wizardGroupAvatar,
       builder: (BuildContext sheetCtx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: scheme.primaryContainer,
+                  child: Icon(
+                    Icons.camera_alt_rounded,
+                    color: scheme.onPrimaryContainer,
                   ),
                 ),
-                Text(
-                  _chatType == 'channel'
-                      ? sheetCtx.l10n.wizardChannelAvatar
-                      : sheetCtx.l10n.wizardGroupAvatar,
-                  style: Theme.of(sheetCtx).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                title: Text(sheetCtx.l10n.wizardTakePhoto),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                const SizedBox(height: 16),
-                ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: scheme.primaryContainer,
-                    child: Icon(
-                      Icons.camera_alt_rounded,
-                      color: scheme.onPrimaryContainer,
-                    ),
+                onTap: () async {
+                  Navigator.of(sheetCtx).pop();
+                  final String? photoPath =
+                      await QuickCameraCaptureScreen.capturePhoto(context);
+                  if (photoPath != null && mounted) {
+                    final File f = File(photoPath);
+                    final Uint8List bytes = await f.readAsBytes();
+                    setState(() {
+                      _avatarBytes = bytes;
+                      _avatarFileName = f.uri.pathSegments.last;
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: scheme.secondaryContainer,
+                  child: Icon(
+                    Icons.photo_library_rounded,
+                    color: scheme.onSecondaryContainer,
                   ),
-                  title: Text(sheetCtx.l10n.wizardTakePhoto),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  onTap: () async {
-                    Navigator.of(sheetCtx).pop();
-                    final String? photoPath =
-                        await QuickCameraCaptureScreen.capturePhoto(context);
-                    if (photoPath != null && mounted) {
-                      final File f = File(photoPath);
-                      final Uint8List bytes = await f.readAsBytes();
+                ),
+                title: Text(sheetCtx.l10n.wizardChooseGallery),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                onTap: () async {
+                  Navigator.of(sheetCtx).pop();
+                  final List<PlatformFile> picked =
+                      await FilePicker.pickFiles(type: FileType.image);
+                  if (picked.isNotEmpty && mounted) {
+                    final Uint8List bytes =
+                        await picked.first.readAsBytes();
+                    if (bytes.isNotEmpty) {
                       setState(() {
                         _avatarBytes = bytes;
-                        _avatarFileName = f.uri.pathSegments.last;
+                        _avatarFileName = picked.first.name;
                       });
                     }
-                  },
-                ),
+                  }
+                },
+              ),
+              if (_avatarBytes != null)
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: scheme.secondaryContainer,
+                    backgroundColor: scheme.errorContainer,
                     child: Icon(
-                      Icons.photo_library_rounded,
-                      color: scheme.onSecondaryContainer,
+                      Icons.delete_outline_rounded,
+                      color: scheme.onErrorContainer,
                     ),
                   ),
-                  title: Text(sheetCtx.l10n.wizardChooseGallery),
+                  title: Text(
+                    sheetCtx.l10n.wizardRemovePhoto,
+                    style: TextStyle(color: scheme.error),
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  onTap: () async {
+                  onTap: () {
                     Navigator.of(sheetCtx).pop();
-                    final List<PlatformFile> picked =
-                        await FilePicker.pickFiles(type: FileType.image);
-                    if (picked.isNotEmpty && mounted) {
-                      final Uint8List bytes =
-                          await picked.first.readAsBytes();
-                      if (bytes.isNotEmpty) {
-                        setState(() {
-                          _avatarBytes = bytes;
-                          _avatarFileName = picked.first.name;
-                        });
-                      }
-                    }
+                    setState(() {
+                      _avatarBytes = null;
+                      _avatarFileName = null;
+                    });
                   },
                 ),
-                if (_avatarBytes != null)
-                  ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: scheme.errorContainer,
-                      child: Icon(
-                        Icons.delete_outline_rounded,
-                        color: scheme.onErrorContainer,
-                      ),
-                    ),
-                    title: Text(
-                      sheetCtx.l10n.wizardRemovePhoto,
-                      style: TextStyle(color: scheme.error),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    onTap: () {
-                      Navigator.of(sheetCtx).pop();
-                      setState(() {
-                        _avatarBytes = null;
-                        _avatarFileName = null;
-                      });
-                    },
-                  ),
-                const SizedBox(height: 8),
-              ],
-            ),
+              const SizedBox(height: 8),
+            ],
           ),
         );
       },

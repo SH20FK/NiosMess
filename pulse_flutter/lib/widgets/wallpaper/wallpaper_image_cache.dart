@@ -65,38 +65,55 @@ class WallpaperImageCache {
     return max(64, ((raw + 31) ~/ 32) * 32);
   }
 
-  /// High-performance SVG loader with in-memory string caching and smart fill injection
+  static final Map<String, ui.Picture> _uncoloredPictureCache = <String, ui.Picture>{};
+
+  /// High-performance SVG loader with in-memory picture caching and smart fill injection.
+  /// Pictures are loaded in neutral white (0xFFFFFFFF) once, then tinted at draw time
+  /// via Paint.colorFilter / saveLayer to eliminate reload churn on alpha or theme changes.
   static Future<ui.Picture?> loadPatternSvg({
     required String assetPath,
-    required Color color,
+    Color color = const Color(0xFFFFFFFF),
     required bool filled,
   }) async {
+    final String cacheKey = '${assetPath}_$filled';
+    final ui.Picture? cachedPic = _uncoloredPictureCache[cacheKey];
+    if (cachedPic != null) {
+      return cachedPic;
+    }
+
     try {
+      final ui.Picture pic;
       if (!filled) {
         final PictureInfo info = await vg.loadPicture(
-          SvgAssetLoader(assetPath, theme: SvgTheme(currentColor: color)),
+          SvgAssetLoader(assetPath, theme: const SvgTheme(currentColor: Color(0xFFFFFFFF))),
           null,
         );
-        return info.picture;
-      }
-
-      String? rawSvg = _rawSvgStringCache[assetPath];
-      if (rawSvg == null) {
-        rawSvg = await rootBundle.loadString(assetPath);
-        if (_rawSvgStringCache.length > 300) {
-          _rawSvgStringCache.clear();
+        pic = info.picture;
+      } else {
+        String? rawSvg = _rawSvgStringCache[assetPath];
+        if (rawSvg == null) {
+          rawSvg = await rootBundle.loadString(assetPath);
+          if (_rawSvgStringCache.length > 300) {
+            _rawSvgStringCache.clear();
+          }
+          _rawSvgStringCache[assetPath] = rawSvg;
         }
-        _rawSvgStringCache[assetPath] = rawSvg;
+
+        // Smart fill for closed vector paths: replace fill="none" with fill="currentColor"
+        final String filledSvg =
+            rawSvg.replaceAll('fill="none"', 'fill="currentColor"');
+        final PictureInfo info = await vg.loadPicture(
+          SvgStringLoader(filledSvg, theme: const SvgTheme(currentColor: Color(0xFFFFFFFF))),
+          null,
+        );
+        pic = info.picture;
       }
 
-      // Smart fill for closed vector paths: replace fill="none" with fill="currentColor"
-      final String filledSvg =
-          rawSvg.replaceAll('fill="none"', 'fill="currentColor"');
-      final PictureInfo info = await vg.loadPicture(
-        SvgStringLoader(filledSvg, theme: SvgTheme(currentColor: color)),
-        null,
-      );
-      return info.picture;
+      if (_uncoloredPictureCache.length > 500) {
+        _uncoloredPictureCache.clear();
+      }
+      _uncoloredPictureCache[cacheKey] = pic;
+      return pic;
     } catch (_) {
       return null;
     }
@@ -250,34 +267,6 @@ class WallpaperImageCache {
           color: primaryIconColor,
           filled: config.filled,
         );
-      }
-
-      // Populate paletteSvgPictures for multi-tone palette/accent coloring
-      if (config.colorMode == WallpaperColorMode.palette ||
-          config.colorMode == WallpaperColorMode.tonalAccent) {
-        final List<String> activeRoles =
-            ChatWallpaperPainter.resolveActiveRoles(config);
-        final String sampleAsset = iconsToLoad.isNotEmpty
-            ? 'assets/svg/pattern_icons/$folder/${iconsToLoad.first}.svg'
-            : (config.svgAssetPath ?? '');
-        if (sampleAsset.isNotEmpty) {
-          paletteSvgPictures = <String, ui.Picture>{};
-          for (final String role in activeRoles) {
-            final Color roleColor = WallpaperColorResolver.resolveIconColor(
-              scheme,
-              role,
-              config.iconAlpha,
-            );
-            final ui.Picture? pic = await loadPatternSvg(
-              assetPath: sampleAsset,
-              color: roleColor,
-              filled: config.filled,
-            );
-            if (pic != null) {
-              paletteSvgPictures[role] = pic;
-            }
-          }
-        }
       }
     } else if (config.iconSource == IconSource.niosMess) {
       if (!config.useAllIcons &&

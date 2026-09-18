@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
@@ -22,18 +23,18 @@ Future<void> showStartDirectChatDialog(BuildContext context) async {
 }
 
 /// Adaptive modal for Group / Channel creation:
-/// - Mobile / narrow screens (< 720dp): Material 3 Expressive Bottom Sheet modal.
-/// - Desktop / wide screens (>= 720dp): Centered Material 3 Expressive Dialog card.
+/// - Mobile / narrow screens (< Breakpoints.medium): Material 3 Expressive Bottom Sheet modal.
+/// - Desktop / wide screens (>= Breakpoints.medium): Centered Material 3 Expressive Dialog card.
 Future<void> showCreateChatModal(
   BuildContext context, {
   required String chatType,
 }) {
-  final bool isWide = MediaQuery.sizeOf(context).width >= 720;
+  final bool isWide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
   if (isWide) {
     return showCreateChatDialog(context, initialType: chatType);
   }
 
-  return AppBottomSheets.show<void>(
+  return AppModal.showSheet<void>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
@@ -62,36 +63,20 @@ Future<void> showCreateChatDialog(
   BuildContext context, {
   String initialType = 'group',
 }) {
-  return showDialog<void>(
+  return AppModal.showDialog<void>(
     context: context,
-    barrierDismissible: true,
+    maxWidth: 520,
+    maxHeight: 660,
     builder: (BuildContext ctx) {
-      final ColorScheme scheme = Theme.of(ctx).colorScheme;
-      return Dialog(
-        backgroundColor: scheme.surfaceContainerHigh,
-        elevation: 10,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
-          side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.20),
-          ),
-        ),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520, maxHeight: 660),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: CreateChatWizardView(
-              initialType: initialType,
-              isDialog: true,
-              lockType: true,
-              onClose: () => Navigator.of(ctx).pop(),
-              onChatCreated: (int chatId) {
-                Navigator.of(ctx).pop();
-                context.push('/chat/$chatId');
-              },
-            ),
-          ),
-        ),
+      return CreateChatWizardView(
+        initialType: initialType,
+        isDialog: true,
+        lockType: true,
+        onClose: () => Navigator.of(ctx).pop(),
+        onChatCreated: (int chatId) {
+          Navigator.of(ctx).pop();
+          context.push('/chat/$chatId');
+        },
       );
     },
   );
@@ -269,31 +254,16 @@ Future<String?> showCreateChatMenu(BuildContext context) {
   }
 
   if (isWide) {
-    return showDialog<String>(
+    return AppModal.showDialog<String>(
       context: context,
-      barrierDismissible: true,
-      builder: (BuildContext ctx) {
-        final ColorScheme scheme = Theme.of(ctx).colorScheme;
-        return Dialog(
-          backgroundColor: scheme.surfaceContainerHigh,
-          elevation: 0,
-          shape: RoundedSuperellipseBorder(
-            borderRadius: BorderRadius.circular(28),
-            side: BorderSide(
-              color: scheme.outlineVariant.withValues(alpha: 0.18),
-            ),
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: buildContent(ctx),
-          ),
-        );
-      },
+      maxWidth: 480,
+      builder: buildContent,
     );
   }
 
-  return AppBottomSheets.show<String>(
+  return AppModal.showSheet<String>(
     context: context,
+    showDragHandle: true,
     builder: buildContent,
   );
 }

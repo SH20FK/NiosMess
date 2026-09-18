@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/in_app_notification_provider.dart';
@@ -40,6 +41,7 @@ class OtaUpdateState {
   final int receivedBytes;
   final int totalBytes;
   final String? downloadedApkPath;
+  String? get downloadedFilePath => downloadedApkPath;
   final AppUpdateInfo? updateInfo;
   final String? errorMessage;
 
@@ -86,6 +88,16 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
     );
   }
 
+  Future<File> _resolveTargetFile(String version) async {
+    final Directory tempDir = await getTemporaryDirectory();
+    final String safeVer = version.replaceAll('+', '_');
+    final String ext =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows
+            ? 'exe'
+            : 'apk';
+    return File('${tempDir.path}/niosmess_$safeVer.$ext');
+  }
+
   Future<void> checkForUpdate() async {
     if (state.status == OtaStatus.checking ||
         state.status == OtaStatus.downloading) {
@@ -99,18 +111,16 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
       final AppUpdateInfo info = await service.checkForUpdate();
 
       if (info.hasUpdate) {
-        // Check if APK was already downloaded and is ready
-        final Directory tempDir = await getTemporaryDirectory();
-        final String safeVer = info.latestVersion.replaceAll('+', '_');
-        final File apkFile = File('${tempDir.path}/niosmess_$safeVer.apk');
+        // Check if update package was already downloaded and is ready
+        final File updateFile = await _resolveTargetFile(info.latestVersion);
 
-        if (await apkFile.exists()) {
-          final int length = await apkFile.length();
+        if (await updateFile.exists()) {
+          final int length = await updateFile.length();
           if (info.apkSize != null && length == info.apkSize && length > 1000000) {
             state = state.copyWith(
               status: OtaStatus.readyToInstall,
               updateInfo: info,
-              downloadedApkPath: apkFile.path,
+              downloadedApkPath: updateFile.path,
               progress: 1.0,
             );
             return;
@@ -142,27 +152,25 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
     if (kIsWeb) {
       state = state.copyWith(
         status: OtaStatus.error,
-        errorMessage: 'Установка APK не поддерживается в веб-версии.',
+        errorMessage: 'Установка обновлений не поддерживается в веб-версии.',
       );
       return;
     }
 
     // Check if already downloaded
-    final Directory tempDir = await getTemporaryDirectory();
-    final String safeVer = targetInfo.latestVersion.replaceAll('+', '_');
-    final File apkFile = File('${tempDir.path}/niosmess_$safeVer.apk');
+    final File updateFile = await _resolveTargetFile(targetInfo.latestVersion);
 
-    if (await apkFile.exists()) {
-      final int length = await apkFile.length();
+    if (await updateFile.exists()) {
+      final int length = await updateFile.length();
       if (targetInfo.apkSize != null && length == targetInfo.apkSize && length > 1000000) {
         state = state.copyWith(
           status: OtaStatus.readyToInstall,
-          downloadedApkPath: apkFile.path,
+          downloadedApkPath: updateFile.path,
           progress: 1.0,
           receivedBytes: length,
           totalBytes: length,
         );
-        _notifyDownloadComplete(targetInfo, apkFile.path);
+        _notifyDownloadComplete(targetInfo, updateFile.path);
         return;
       }
     }
@@ -213,19 +221,19 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
       final int total = streamedResponse.contentLength ?? (targetInfo.apkSize ?? 0);
       int received = 0;
 
-      if (await apkFile.exists()) {
+      if (await updateFile.exists()) {
         try {
-          await apkFile.delete();
+          await updateFile.delete();
         } catch (_) {}
       }
 
-      final IOSink sink = apkFile.openWrite();
+      final IOSink sink = updateFile.openWrite();
 
       await for (final List<int> chunk in streamedResponse.stream) {
         if (state.status != OtaStatus.downloading) {
           await sink.close();
           try {
-            await apkFile.delete();
+            await updateFile.delete();
           } catch (_) {}
           _cancelProgressNotification();
           return;
@@ -261,13 +269,13 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
 
       state = state.copyWith(
         status: OtaStatus.readyToInstall,
-        downloadedApkPath: apkFile.path,
+        downloadedApkPath: updateFile.path,
         progress: 1.0,
         receivedBytes: total > 0 ? total : received,
         totalBytes: total > 0 ? total : received,
       );
 
-      _notifyDownloadComplete(targetInfo, apkFile.path);
+      _notifyDownloadComplete(targetInfo, updateFile.path);
     } catch (e) {
       debugPrint('[OtaUpdateNotifier] Download error: $e');
       state = state.copyWith(
@@ -291,7 +299,10 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
     _cancelProgressNotification();
   }
 
-  Future<void> installApk({BuildContext? context}) async {
+  Future<void> installApk({BuildContext? context}) async =>
+      installUpdate(context: context);
+
+  Future<void> installUpdate({BuildContext? context}) async {
     final String? path = state.downloadedApkPath;
     if (path == null || path.isEmpty) {
       if (state.updateInfo != null) {
@@ -300,13 +311,45 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
       return;
     }
 
-    final File apkFile = File(path);
-    if (!await apkFile.exists()) {
+    final File updateFile = File(path);
+    if (!await updateFile.exists()) {
       state = state.copyWith(
         status: OtaStatus.available,
         errorMessage: 'Файл обновления не найден. Загрузка перезапущена.',
       );
       startDownload();
+      return;
+    }
+
+    // Windows silent OTA installation:
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      state = state.copyWith(status: OtaStatus.installing);
+      try {
+        // Run Inno Setup installer detached in silent mode:
+        // /VERYSILENT: completely background installation without wizard UI
+        // /SP-: skips "This will install... Do you wish to continue?" prompt
+        // /SUPPRESSMSGBOXES: suppresses any message boxes
+        // /NORESTART: prevents system reboot
+        await Process.start(
+          path,
+          <String>[
+            '/VERYSILENT',
+            '/SP-',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART',
+          ],
+          mode: ProcessStartMode.detached,
+        );
+
+        // Instant clean exit so Inno Setup can overwrite files without file locks
+        exit(0);
+      } catch (e) {
+        debugPrint('[OtaUpdateNotifier] Windows installer execution failed: $e');
+        state = state.copyWith(
+          status: OtaStatus.readyToInstall,
+          errorMessage: 'Не удалось запустить установщик: $e',
+        );
+      }
       return;
     }
 
@@ -355,57 +398,18 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
   }
 
   Future<void> _showPermissionDialog(BuildContext context) async {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    await showDialog<void>(
+    final bool confirmed = await AppModal.confirm(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-        ),
-        icon: Icon(
-          Icons.security_rounded,
-          size: 36,
-          color: scheme.primary,
-        ),
-        title: Text(
-          'Разрешение на установку',
-          style: textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        content: Text(
+      icon: Icons.security_rounded,
+      title: 'Разрешение на установку',
+      message:
           'Для обновления приложения необходимо включить пункт «Разрешить установку из этого источника» для NiosMess в настройках безопасности Android.',
-          style: textTheme.bodyMedium?.copyWith(
-            color: scheme.onSurfaceVariant,
-            height: 1.4,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        actionsAlignment: MainAxisAlignment.spaceBetween,
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              'Отмена',
-              style: Theme.of(ctx)
-                  .textTheme
-                  .labelLarge
-                  ?.copyWith(color: scheme.outline),
-            ),
-          ),
-          FilledButton.tonal(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              openAppSettings();
-            },
-            child: const Text('Открыть настройки'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Настройки',
+      cancelLabel: 'Отмена',
     );
+    if (confirmed) {
+      await openAppSettings();
+    }
   }
 
   void _showProgressNotification(AppUpdateInfo targetInfo, double progress) {

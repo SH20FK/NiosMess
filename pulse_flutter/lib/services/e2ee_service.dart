@@ -26,16 +26,21 @@ class E2eeSessionInfo {
 }
 
 class E2eeService {
+  late final Future<void> ready;
+
   E2eeService() {
     // Restore verified-peer map so MITM detection survives restarts.
     // Static maps make repeat calls idempotent.
-    unawaited(loadVerifiedPeers());
+    ready = loadVerifiedPeers();
   }
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final X25519 _x25519 = X25519();
   final DoubleRatchetService _dr = DoubleRatchetService();
   final Ed25519IdentityService _ed = Ed25519IdentityService();
+
+  /// Revision counter for reactive UI updates across screens and widgets.
+  final ValueNotifier<int> revision = ValueNotifier<int>(0);
 
   static const String _privateKeyStorageKey = 'e2ee.private_key';
   static const String _publicKeyStorageKey = 'e2ee.public_key';
@@ -270,12 +275,31 @@ class E2eeService {
     required String theirPublicKeyBase64,
     bool isInitiator = false,
   }) async {
+    await ready;
     if (_sessions.containsKey(chatId)) {
-      return _sessions[chatId];
+      final session = _sessions[chatId]!;
+      if (session.peerStaticDh.isNotEmpty &&
+          session.peerStaticDh != theirPublicKeyBase64) {
+        debugPrint('[E2eeService] Peer DH key changed for chat $chatId, resetting memory session');
+        await resetSession(chatId, clearVerifiedPeer: true);
+        return null;
+      }
+      return session;
     }
 
     final loaded = await _loadSession(chatId);
     if (loaded != null) {
+      if (loaded.peerStaticDh.isNotEmpty &&
+          loaded.peerStaticDh != theirPublicKeyBase64) {
+        debugPrint('[E2eeService] Peer DH key changed for chat $chatId, resetting persisted session');
+        await resetSession(chatId, clearVerifiedPeer: true);
+        return null;
+      }
+      // Ensure peerStaticDh is recorded if it was empty from older JSON
+      if (loaded.peerStaticDh.isEmpty) {
+        loaded.peerStaticDh = theirPublicKeyBase64;
+        await _saveSession(chatId, loaded);
+      }
       _sessions[chatId] = loaded;
       _sessionStatus[chatId] = E2eeSessionStatus.secured;
       return loaded;
@@ -303,9 +327,11 @@ class E2eeService {
       theirStaticPublic: theirStatic,
       peerStaticEdB64: theirEdPublicKeyBase64,
     );
+    session.peerStaticDh = theirPublicKeyBase64;
 
     _sessions[chatId] = session;
     _sessionStatus[chatId] = E2eeSessionStatus.connecting;
+    revision.value++;
   }
 
   /// Initiator received the responder's HELO (their ephemeral DH pub).
@@ -330,11 +356,13 @@ class E2eeService {
         _verifiedPeers[chatId] != theirEdPublicKeyBase64) {
       debugPrint('[E2eeService] MITM DETECTED: peer Ed25519 key changed for chat $chatId');
       _sessionStatus[chatId] = E2eeSessionStatus.compromised;
+      revision.value++;
       return;
     }
 
     pending.peerStaticEd = theirEdPublicKeyBase64;
     _sessionStatus[chatId] = E2eeSessionStatus.secured;
+    revision.value++;
     await _saveSession(chatId, pending);
   }
 
@@ -388,6 +416,7 @@ class E2eeService {
     );
     if (!valid) {
       _sessionStatus[chatId] = E2eeSessionStatus.compromised;
+      revision.value++;
       return;
     }
 
@@ -396,6 +425,7 @@ class E2eeService {
       if (_verifiedPeers[chatId] != theirEdPublicKeyBase64) {
         debugPrint('[E2eeService] MITM DETECTED: peer Ed25519 key changed for chat $chatId');
         _sessionStatus[chatId] = E2eeSessionStatus.compromised;
+        revision.value++;
         return;
       }
     }
@@ -419,9 +449,11 @@ class E2eeService {
       theirEphemeralPublic: theirEphemeral,
       peerStaticEdB64: theirEdPublicKeyBase64,
     );
+    session.peerStaticDh = theirPublicKeyBase64;
 
     _sessions[chatId] = session;
     _sessionStatus[chatId] = E2eeSessionStatus.secured;
+    revision.value++;
     await _saveSession(chatId, session);
   }
 
@@ -451,10 +483,12 @@ class E2eeService {
   }
 
   Future<void> verifyPeer(int chatId) async {
+    await ready;
     final session = _sessions[chatId];
     if (session == null) return;
     _verifiedPeers[chatId] = session.peerStaticEd;
     await _saveVerifiedPeers();
+    revision.value++;
   }
 
   bool isPeerVerified(int chatId) {
@@ -462,6 +496,7 @@ class E2eeService {
   }
 
   Future<E2eeSessionInfo> getSessionInfo(int chatId) async {
+    await ready;
     final status = _sessionStatus[chatId] ?? E2eeSessionStatus.none;
     final isVerified = _verifiedPeers.containsKey(chatId);
     List<({String word, String color})>? words;
@@ -502,6 +537,7 @@ class E2eeService {
       _verifiedPeers.remove(chatId);
       await _saveVerifiedPeers();
     }
+    revision.value++;
     await _storage.delete(key: '$_sessionPrefix$chatId');
   }
 
@@ -509,7 +545,7 @@ class E2eeService {
     _sessions.clear();
     _sharedSecrets.clear();
     _sessionStatus.clear();
-    _verifiedPeers.clear();
+    revision.value++;
   }
 
   // ─── Persistence ──────────────────────────────────────────────

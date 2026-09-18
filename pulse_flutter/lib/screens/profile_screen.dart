@@ -9,6 +9,8 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/storage/local_storage_service.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
+import 'package:pulse_flutter/core/modal/app_date_picker.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -1318,7 +1320,6 @@ class _EditProfileSheet extends ConsumerStatefulWidget {
     this.initialBirthday,
     this.initialWorkingHours,
     this.onUploadAvatar,
-    this.isDialog = false,
   });
 
   final String initialName;
@@ -1328,7 +1329,6 @@ class _EditProfileSheet extends ConsumerStatefulWidget {
   final String? initialBirthday;
   final WorkingHours? initialWorkingHours;
   final Future<void> Function()? onUploadAvatar;
-  final bool isDialog;
 
   static Future<bool?> show(
     BuildContext context, {
@@ -1342,29 +1342,21 @@ class _EditProfileSheet extends ConsumerStatefulWidget {
   }) {
     final bool isWide = MediaQuery.sizeOf(context).width >= 600;
     if (isWide) {
-      return showDialog<bool>(
+      return AppModal.showDialog<bool>(
         context: context,
-        builder: (BuildContext ctx) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 780),
-            child: _EditProfileSheet(
-              initialName: initialName,
-              initialUsername: initialUsername,
-              initialBio: initialBio,
-              initialPhoneNumber: initialPhoneNumber,
-              initialBirthday: initialBirthday,
-              initialWorkingHours: initialWorkingHours,
-              onUploadAvatar: onUploadAvatar,
-              isDialog: true,
-            ),
-          ),
+        builder: (BuildContext ctx) => _EditProfileSheet(
+          initialName: initialName,
+          initialUsername: initialUsername,
+          initialBio: initialBio,
+          initialPhoneNumber: initialPhoneNumber,
+          initialBirthday: initialBirthday,
+          initialWorkingHours: initialWorkingHours,
+          onUploadAvatar: onUploadAvatar,
         ),
       );
     }
 
-    return AppBottomSheets.show<bool>(
+    return AppModal.showSheet<bool>(
       context: context,
       builder: (BuildContext ctx) => _EditProfileSheet(
         initialName: initialName,
@@ -1374,7 +1366,6 @@ class _EditProfileSheet extends ConsumerStatefulWidget {
         initialBirthday: initialBirthday,
         initialWorkingHours: initialWorkingHours,
         onUploadAvatar: onUploadAvatar,
-        isDialog: false,
       ),
     );
   }
@@ -1456,7 +1447,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
   Future<void> _selectBirthday() async {
     final DateTime initialDate = DateTime.tryParse(birthdayController.text) ??
         DateTime(2000, 1, 1);
-    final DateTime? picked = await showDatePicker(
+    final DateTime? picked = await AppDatePicker.show(
       context: context,
       initialDate: initialDate,
       firstDate: DateTime(1900),
@@ -1714,36 +1705,11 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
-        borderRadius: widget.isDialog
-            ? BorderRadius.circular(28)
-            : const BorderRadius.vertical(top: Radius.circular(28)),
-        border: widget.isDialog
-            ? Border.all(
-                color: scheme.outlineVariant.withValues(alpha: isDark ? 0.2 : 0.3),
-                width: 1,
-              )
-            : null,
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            // Drag handle on mobile
-            if (!widget.isDialog) ...<Widget>[
-              const SizedBox(height: 10),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ],
+    return SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
 
             // Top Header Bar
             Padding(
@@ -2027,7 +1993,6 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

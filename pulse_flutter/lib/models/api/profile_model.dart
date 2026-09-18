@@ -1,73 +1,9 @@
-import 'package:flutter/foundation.dart';
+import 'package:pulse_flutter/models/api/ai_quota_model.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/status_emoji_model.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
 
-@immutable
-class ApiAiUsage {
-  const ApiAiUsage({
-    required this.limitTokens,
-    required this.usedTokens,
-    required this.remainingTokens,
-    required this.usedPercent,
-    required this.windowHours,
-    this.resetsAt,
-  });
-
-  final int limitTokens;
-  final int usedTokens;
-  final int remainingTokens;
-  final double usedPercent;
-  final int windowHours;
-  final DateTime? resetsAt;
-
-  factory ApiAiUsage.fromJson(Map<String, dynamic> json) {
-    final int limit = (json['limit_tokens'] as num?)?.toInt() ?? 200000;
-    final int used = (json['used_tokens'] as num?)?.toInt() ?? 0;
-    final int remaining =
-        (json['remaining_tokens'] as num?)?.toInt() ?? (limit - used);
-    final double rawPercent = (json['used_percent'] as num?)?.toDouble() ??
-        (limit > 0 ? (used / limit) * 100.0 : 0.0);
-    final int windowHours = (json['window_hours'] as num?)?.toInt() ?? 72;
-    return ApiAiUsage(
-      limitTokens: limit,
-      usedTokens: used,
-      remainingTokens: remaining,
-      usedPercent: rawPercent.clamp(0.0, 100.0),
-      windowHours: windowHours,
-      resetsAt: json['resets_at'] != null
-          ? DateTime.tryParse(json['resets_at'].toString())
-          : null,
-    );
-  }
-
-  Map<String, dynamic> toJson() => <String, dynamic>{
-        'limit_tokens': limitTokens,
-        'used_tokens': usedTokens,
-        'remaining_tokens': remainingTokens,
-        'used_percent': usedPercent,
-        'window_hours': windowHours,
-        if (resetsAt != null) 'resets_at': resetsAt!.toIso8601String(),
-      };
-
-  ApiAiUsage copyWith({
-    int? limitTokens,
-    int? usedTokens,
-    int? remainingTokens,
-    double? usedPercent,
-    int? windowHours,
-    DateTime? resetsAt,
-  }) {
-    return ApiAiUsage(
-      limitTokens: limitTokens ?? this.limitTokens,
-      usedTokens: usedTokens ?? this.usedTokens,
-      remainingTokens: remainingTokens ?? this.remainingTokens,
-      usedPercent: usedPercent ?? this.usedPercent,
-      windowHours: windowHours ?? this.windowHours,
-      resetsAt: resetsAt ?? this.resetsAt,
-    );
-  }
-}
+export 'package:pulse_flutter/models/api/ai_quota_model.dart';
 
 class ApiProfile {
   const ApiProfile({
@@ -220,18 +156,18 @@ class ApiProfile {
       workingHours: workingHours,
       visibleBadgeIds: visibleBadgeIds,
       aiUsage: json['ai_usage'] is Map
-          ? ApiAiUsage.fromJson(
+          ? AiQuota.fromJson(
               (json['ai_usage'] as Map).map(
                 (dynamic k, dynamic v) => MapEntry(k.toString(), v),
               ),
             )
-          : const ApiAiUsage(
-              limitTokens: 200000,
-              usedTokens: 0,
-              remainingTokens: 200000,
-              usedPercent: 0.0,
-              windowHours: 72,
-            ),
+          : (json['ai'] is Map
+              ? AiQuota.fromJson(
+                  (json['ai'] as Map).map(
+                    (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+                  ),
+                )
+              : null),
       isBlockedByMe: json['is_blocked_by_me'] as bool? ?? false,
       isBlockedByUser: json['is_blocked_by_user'] as bool? ?? false,
       isBlocked: json['is_blocked'] as bool? ??

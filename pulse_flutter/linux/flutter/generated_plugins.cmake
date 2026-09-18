@@ -4,14 +4,19 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_linux
+  desktop_drop
   dynamic_color
   emoji_picker_flutter
   flutter_secure_storage_linux
   flutter_webrtc
   gtk
   open_file_linux
+  pasteboard
   record_linux
+  screen_retriever_linux
+  tray_manager
   url_launcher_linux
+  window_manager
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

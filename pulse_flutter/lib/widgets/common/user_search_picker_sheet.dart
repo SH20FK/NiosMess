@@ -264,7 +264,7 @@ class _UserSearchPickerSheetState extends ConsumerState<UserSearchPickerSheet> {
         ),
         Flexible(
           child: ListView.separated(
-            shrinkWrap: true,
+            shrinkWrap: false,
             itemCount: filtered.length,
             separatorBuilder: (_, _) => const Divider(height: 1, indent: 56),
             itemBuilder: (BuildContext context, int index) {
@@ -346,7 +346,7 @@ class _UserSearchPickerSheetState extends ConsumerState<UserSearchPickerSheet> {
         final int totalCount = users.length + directOffset;
 
         return ListView.separated(
-          shrinkWrap: true,
+          shrinkWrap: false,
           itemCount: totalCount,
           separatorBuilder: (_, _) => const Divider(height: 1, indent: 56),
           itemBuilder: (BuildContext context, int index) {

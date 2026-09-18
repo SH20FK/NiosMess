@@ -5100,4 +5100,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get wallpaperDiscardConfirmBody => 'Все несохранённые изменения обоев будут потеряны.';
   @override
   String get wallpaperDiscardConfirmAction => 'Сбросить изменения';
+  @override
+  String get wallpaperPacksTitle => 'Тематические наборы';
+  @override
+  String get wallpaperSymbolsStyle => 'Стиль символов';
+  @override
+  String get wallpaperRevert => 'Вернуть';
+  @override
+  String get wallpaperMockupUserMessage => 'NiosMess Обои';
+  @override
+  String get wallpaperMockupPartnerMessage => 'Material 3 Expressive';
 }

@@ -185,7 +185,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
         ),
         if (_hasKey)
           SettingsSection(
-            title: 'Опасная зона',
+            title: context.l10n.profileDangerZone,
             children: [
               SettingsTile(
                 icon: Icons.delete_sweep_rounded,

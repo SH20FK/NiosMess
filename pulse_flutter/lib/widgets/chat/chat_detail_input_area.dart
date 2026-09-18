@@ -11,6 +11,44 @@ import 'package:pulse_flutter/widgets/chat/chat_input_bar.dart';
 import 'package:pulse_flutter/widgets/chat/inline_query_overlay.dart';
 import 'package:pulse_flutter/widgets/chat/spamblock_banner.dart';
 
+@immutable
+class ChatComposerState {
+  const ChatComposerState({
+    this.replyToMessageId,
+    this.replyPreviewText,
+    this.editingMessageId,
+    this.editingOriginalText,
+    this.isAiProcessing = false,
+  });
+
+  final int? replyToMessageId;
+  final String? replyPreviewText;
+  final int? editingMessageId;
+  final String? editingOriginalText;
+  final bool isAiProcessing;
+
+  bool get isEditing => editingMessageId != null;
+  bool get hasReply => replyToMessageId != null;
+
+  ChatComposerState copyWith({
+    int? Function()? replyToMessageId,
+    String? Function()? replyPreviewText,
+    int? Function()? editingMessageId,
+    String? Function()? editingOriginalText,
+    bool? isAiProcessing,
+  }) {
+    return ChatComposerState(
+      replyToMessageId: replyToMessageId != null ? replyToMessageId() : this.replyToMessageId,
+      replyPreviewText: replyPreviewText != null ? replyPreviewText() : this.replyPreviewText,
+      editingMessageId: editingMessageId != null ? editingMessageId() : this.editingMessageId,
+      editingOriginalText: editingOriginalText != null ? editingOriginalText() : this.editingOriginalText,
+      isAiProcessing: isAiProcessing ?? this.isAiProcessing,
+    );
+  }
+
+  static const ChatComposerState empty = ChatComposerState();
+}
+
 class ChatDetailInputArea extends ConsumerWidget {
   const ChatDetailInputArea({
     super.key,
@@ -46,6 +84,8 @@ class ChatDetailInputArea extends ConsumerWidget {
     this.isBlockedByUser = false,
     this.onUnblockUser,
     this.onCancelAi,
+    this.onEditLastMessage,
+    this.onAttachFiles,
   });
 
   final bool canPostInChannel;
@@ -86,6 +126,8 @@ class ChatDetailInputArea extends ConsumerWidget {
   final void Function(ApiSticker sticker)? onSendSticker;
   final bool hapticsEnabled;
   final bool sendOnEnter;
+  final VoidCallback? onEditLastMessage;
+  final void Function(List<String> filePaths, {bool sendAsDocument})? onAttachFiles;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -292,6 +334,8 @@ class ChatDetailInputArea extends ConsumerWidget {
                       onCircleSend: onCircleSend,
                       hapticsEnabled: hapticsEnabled,
                       sendOnEnter: sendOnEnter,
+                      onEditLastMessage: onEditLastMessage,
+                      onAttachFiles: onAttachFiles,
                     ),
                   ),
                 ],

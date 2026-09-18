@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -539,100 +540,60 @@ class _MediaGridPickerState extends State<MediaGridPicker>
   void _showAlbumSelector() {
     if (_albums.isEmpty) return;
     HapticService.tap();
-    showModalBottomSheet<void>(
+    AppModal.showSheet<void>(
       context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      title: 'Альбомы',
       builder: (BuildContext ctx) {
         final ColorScheme scheme = Theme.of(ctx).colorScheme;
         final TextTheme textTheme = Theme.of(ctx).textTheme;
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const SizedBox(height: 8),
-              Container(
-                width: 36,
-                height: 4,
+        return ListView.builder(
+          shrinkWrap: true,
+          itemCount: _albums.length,
+          itemBuilder: (BuildContext context, int index) {
+            final AssetPathEntity album = _albums[index];
+            final bool isSelected = album.id == _recentAlbum?.id;
+            return ListTile(
+              leading: Container(
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _AlbumLeadingThumbnail(
+                  album: album,
+                  scheme: scheme,
                 ),
               ),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: <Widget>[
-                    Text(
-                      'Альбомы',
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+              title: Text(
+                album.name,
+                style: textTheme.bodyLarge?.copyWith(
+                  fontWeight:
+                      isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color:
+                      isSelected ? scheme.primary : scheme.onSurface,
+                ),
+              ),
+              trailing: FutureBuilder<int>(
+                future: album.assetCountAsync,
+                builder:
+                    (BuildContext context, AsyncSnapshot<int> snapshot) {
+                  return Text(
+                    snapshot.hasData ? '${snapshot.data}' : '',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _albums.length,
-                  itemBuilder: (BuildContext context, int index) {
-                    final AssetPathEntity album = _albums[index];
-                    final bool isSelected = album.id == _recentAlbum?.id;
-                    return ListTile(
-                      leading: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: _AlbumLeadingThumbnail(
-                          album: album,
-                          scheme: scheme,
-                        ),
-                      ),
-                      title: Text(
-                        album.name,
-                        style: textTheme.bodyLarge?.copyWith(
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color:
-                              isSelected ? scheme.primary : scheme.onSurface,
-                        ),
-                      ),
-                      trailing: FutureBuilder<int>(
-                        future: album.assetCountAsync,
-                        builder:
-                            (BuildContext context, AsyncSnapshot<int> snapshot) {
-                          return Text(
-                            snapshot.hasData ? '${snapshot.data}' : '',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          );
-                        },
-                      ),
-                      selected: isSelected,
-                      onTap: () {
-                        Navigator.of(ctx).pop();
-                        _switchAlbum(album);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+              selected: isSelected,
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _switchAlbum(album);
+              },
+            );
+          },
         );
       },
     );

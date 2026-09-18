@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pulse_flutter/core/motion/container_transform_transition.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/screens/chat_detail_screen.dart';
 import 'package:pulse_flutter/screens/chat_manage_screen.dart';
@@ -41,6 +40,7 @@ import 'package:pulse_flutter/screens/settings_wallpaper_screen.dart';
 import 'package:pulse_flutter/screens/settings_chats_screen.dart';
 import 'package:pulse_flutter/screens/calls/active_call_screen.dart';
 import 'package:pulse_flutter/screens/calls/outgoing_call_screen.dart';
+import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
 class AppRouter {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -80,23 +80,33 @@ Page<void> _m3eEntryPage(GoRouterState state, Widget child, {LocalKey? pageKey})
 }
 
 Page<void> _chatDetailPage(GoRouterState state, Widget child, {LocalKey? pageKey}) {
-  final Object? extra = state.extra;
-  final NavigationOrigin? origin = extra is NavigationOrigin ? extra : null;
-
-  if (origin == null) {
-    return _m3eEntryPage(state, child, pageKey: pageKey);
-  }
-
   return CustomTransitionPage<void>(
     key: pageKey ?? state.pageKey,
     child: child,
-    transitionDuration: const Duration(milliseconds: 400),
-    reverseTransitionDuration: const Duration(milliseconds: 300),
+    transitionDuration: const Duration(milliseconds: 280),
+    reverseTransitionDuration: const Duration(milliseconds: 240),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return ContainerTransformTransition(
-        animation: animation,
-        origin: origin,
-        child: child,
+      final Animation<Offset> slideAnim = Tween<Offset>(
+        begin: const Offset(0.08, 0.0),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(
+        parent: animation,
+        curve: M3SpringCurves.expressiveDecel,
+        reverseCurve: Curves.easeInCubic,
+      ));
+
+      final Animation<double> fadeAnim = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOut,
+        reverseCurve: Curves.easeIn,
+      );
+
+      return SlideTransition(
+        position: slideAnim,
+        child: FadeTransition(
+          opacity: fadeAnim,
+          child: child,
+        ),
       );
     },
   );
@@ -123,13 +133,36 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       final AuthState authState = ref.read(authProvider);
       if (!authState.hydrated) return null;
       final bool isAuth = authState.isAuthenticated;
+      final Uri uri = state.uri;
+
+      // Handle custom scheme (niosmess://...) or absolute web URLs (https://ni-os.ru/...)
+      if (uri.scheme == 'niosmess' ||
+          (uri.hasScheme && (uri.host == 'ni-os.ru' || uri.host == 'www.ni-os.ru'))) {
+        final String? resolved = AppUrlLauncher.resolveInternalAppRoute(uri);
+        if (resolved != null && resolved != uri.toString() && resolved != uri.path) {
+          if (!isAuth) {
+            savedDeepLink = resolved;
+            return '/login';
+          }
+          return resolved;
+        }
+      }
+
       final String path = state.uri.path;
 
       final bool isPublic = path == '/' ||
           path == '/web' ||
           path == '/login' ||
           path == '/onboarding' ||
-          path.startsWith('/legal');
+          path.startsWith('/legal') ||
+          path.startsWith('/w/') ||
+          path == '/w' ||
+          path == '/wallpaper' ||
+          path.startsWith('/u/') ||
+          path.startsWith('/c/') ||
+          path.startsWith('/g/') ||
+          path.startsWith('/stickers/') ||
+          path.startsWith('/join');
 
       if (!isAuth && !isPublic) {
         // Save the intended deep link so we can resume it after login (РОУТ-3)
@@ -200,6 +233,25 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/c/:slug',
         redirect: (context, state) => '/u/${state.pathParameters['slug']}',
+      ),
+      GoRoute(
+        path: '/w/:code',
+        redirect: (context, state) =>
+            '/settings/wallpaper?code=${state.pathParameters['code']}',
+      ),
+      GoRoute(
+        path: '/w',
+        redirect: (context, state) {
+          final String? code = state.uri.queryParameters['code'];
+          return code != null ? '/settings/wallpaper?code=$code' : '/settings/wallpaper';
+        },
+      ),
+      GoRoute(
+        path: '/wallpaper',
+        redirect: (context, state) {
+          final String? code = state.uri.queryParameters['code'];
+          return code != null ? '/settings/wallpaper?code=$code' : '/settings/wallpaper';
+        },
       ),
       GoRoute(
         path: '/chat/:chatId',

@@ -12,20 +12,23 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class StickerSetModal extends ConsumerStatefulWidget {
   const StickerSetModal({
-    super.key,
     this.stickerSet,
     this.setId,
+    this.stickerId,
     this.onStickerSelected,
+    super.key,
   });
 
   final ApiStickerSet? stickerSet;
   final int? setId;
+  final int? stickerId;
   final void Function(ApiSticker sticker)? onStickerSelected;
 
   static Future<void> show(
     BuildContext context, {
     ApiStickerSet? stickerSet,
     int? setId,
+    int? stickerId,
     void Function(ApiSticker sticker)? onStickerSelected,
   }) {
     return AppBottomSheets.show<void>(
@@ -33,6 +36,7 @@ class StickerSetModal extends ConsumerStatefulWidget {
       builder: (BuildContext ctx) => StickerSetModal(
         stickerSet: stickerSet,
         setId: setId,
+        stickerId: stickerId,
         onStickerSelected: onStickerSelected,
       ),
     );
@@ -45,6 +49,7 @@ class StickerSetModal extends ConsumerStatefulWidget {
 class _StickerSetModalState extends ConsumerState<StickerSetModal> {
   bool _isActionLoading = false;
   bool _isFetchingSet = false;
+  bool _hasFetchError = false;
   ApiStickerSet? _fetchedSet;
 
   @override
@@ -55,7 +60,12 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
 
   Future<void> _fetchSetIfNeeded() async {
     final int? targetId = widget.setId ?? widget.stickerSet?.id;
-    if (targetId == null || targetId <= 0) return;
+    final int? targetStickerId = widget.stickerId;
+
+    if ((targetId == null || targetId <= 0) &&
+        (targetStickerId == null || targetStickerId <= 0)) {
+      return;
+    }
 
     // If sticker set with stickers is already provided, check if it has stickers
     if (widget.stickerSet != null && widget.stickerSet!.stickers.isNotEmpty) {
@@ -65,7 +75,11 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
     final List<ApiStickerSet>? installed = ref.read(stickerSetsProvider).value;
     if (installed != null) {
       final ApiStickerSet? cached = installed.cast<ApiStickerSet?>().firstWhere(
-            (ApiStickerSet? s) => s?.id == targetId && (s?.stickers.isNotEmpty == true),
+            (ApiStickerSet? s) =>
+                ((targetId != null && s?.id == targetId) ||
+                 (targetStickerId != null &&
+                  s?.stickers.any((ApiSticker st) => st.id == targetStickerId) == true)) &&
+                (s?.stickers.isNotEmpty == true),
             orElse: () => null,
           );
       if (cached != null) {
@@ -74,20 +88,35 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
       }
     }
 
-    setState(() => _isFetchingSet = true);
+    setState(() {
+      _isFetchingSet = true;
+      _hasFetchError = false;
+    });
+
     try {
-      final ApiStickerSet? fetched =
-          await ref.read(stickerRepositoryProvider).getStickerSet(targetId);
+      ApiStickerSet? fetched;
+      if (targetId != null && targetId > 0) {
+        fetched =
+            await ref.read(stickerRepositoryProvider).getStickerSet(targetId);
+      } else if (targetStickerId != null && targetStickerId > 0) {
+        fetched = await ref
+            .read(stickerRepositoryProvider)
+            .getStickerSetForSticker(targetStickerId);
+      }
       if (mounted) {
         setState(() {
           _fetchedSet = fetched;
           _isFetchingSet = false;
+          _hasFetchError = fetched == null;
         });
       }
     } catch (e) {
       debugPrint('[StickerSetModal] Failed to fetch set: $e');
       if (mounted) {
-        setState(() => _isFetchingSet = false);
+        setState(() {
+          _isFetchingSet = false;
+          _hasFetchError = true;
+        });
       }
     }
   }
@@ -100,14 +129,30 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
     final List<ApiStickerSet> installedSets =
         ref.watch(stickerSetsProvider).value ?? const <ApiStickerSet>[];
 
-    // Resolve current sticker set
-    ApiStickerSet? currentSet = widget.stickerSet ?? _fetchedSet;
-    final int? targetId = widget.setId ?? widget.stickerSet?.id;
-    if (currentSet == null && targetId != null) {
+    // Resolve current sticker set with reliable precedence
+    final ApiStickerSet? provided = widget.stickerSet;
+    ApiStickerSet? currentSet;
+    if (provided != null && provided.stickers.isNotEmpty) {
+      currentSet = provided;
+    } else if (_fetchedSet != null && _fetchedSet!.stickers.isNotEmpty) {
+      currentSet = _fetchedSet;
+    } else {
+      currentSet = _fetchedSet ?? provided;
+    }
+
+    final int? targetId =
+        widget.setId ?? widget.stickerSet?.id ?? _fetchedSet?.id;
+    final int? targetStickerId = widget.stickerId;
+    if ((currentSet == null || currentSet.stickers.isEmpty) &&
+        (targetId != null || targetStickerId != null)) {
       for (final ApiStickerSet s in installedSets) {
-        if (s.id == targetId) {
-          currentSet = s;
-          break;
+        if ((targetId != null && s.id == targetId) ||
+            (targetStickerId != null &&
+             s.stickers.any((ApiSticker st) => st.id == targetStickerId))) {
+          if (s.stickers.isNotEmpty) {
+            currentSet = s;
+            break;
+          }
         }
       }
     }
@@ -115,13 +160,41 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
     if (_isFetchingSet && (currentSet == null || currentSet.stickers.isEmpty)) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-        child: AppLoadingIndicator(
-          color: scheme.primary,
+        child: Center(
+          child: AppLoadingIndicator(
+            color: scheme.primary,
+          ),
         ),
       );
     }
 
-    if (currentSet == null) {
+    if (_hasFetchError && (currentSet == null || currentSet.stickers.isEmpty)) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.cloud_off_rounded,
+                size: 48, color: scheme.error),
+            const SizedBox(height: 16),
+            Text(
+              'Не удалось загрузить стикерпак',
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.tonalIcon(
+              onPressed: _fetchSetIfNeeded,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Повторить попытку'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (currentSet == null || currentSet.stickers.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
@@ -131,7 +204,7 @@ class _StickerSetModalState extends ConsumerState<StickerSetModal> {
                 size: 48, color: scheme.onSurfaceVariant),
             const SizedBox(height: 16),
             Text(
-              'Стикерпак не найден',
+              currentSet == null ? 'Стикерпак не найден' : 'В наборе нет стикеров',
               style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),

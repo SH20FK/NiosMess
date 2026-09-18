@@ -159,7 +159,10 @@ class AppUrlLauncher {
     }
 
     if (uri.scheme == 'niosmess') {
-      if (uri.host.isNotEmpty && !path.startsWith('/${uri.host}')) {
+      if (uri.host.isNotEmpty &&
+          uri.host != 'ni-os.ru' &&
+          uri.host != 'www.ni-os.ru' &&
+          !path.startsWith('/${uri.host}')) {
         path = '/${uri.host}$path';
       }
     }
@@ -220,11 +223,18 @@ class AppUrlLauncher {
     // /w/{code} (Nios Weave procedural wallpaper link)
     if (path.startsWith('/w/')) {
       final String code = path.substring(3);
-      if (code.isNotEmpty) return '/settings/wallpaper?code=$code';
+      if (code.isNotEmpty) {
+        final Map<String, String> qp = Map<String, String>.from(uri.queryParameters);
+        qp['code'] = code;
+        return Uri(path: '/settings/wallpaper', queryParameters: qp).toString();
+      }
     }
     if (path == '/wallpaper') {
       final String? code = uri.queryParameters['code'];
-      if (code != null && code.isNotEmpty) return '/settings/wallpaper?code=$code';
+      if (code != null && code.isNotEmpty) {
+        final Map<String, String> qp = Map<String, String>.from(uri.queryParameters);
+        return Uri(path: '/settings/wallpaper', queryParameters: qp).toString();
+      }
       return '/settings/wallpaper';
     }
 

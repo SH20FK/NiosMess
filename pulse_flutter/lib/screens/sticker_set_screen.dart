@@ -189,196 +189,216 @@ class _StickerSetScreenState extends ConsumerState<StickerSetScreen> {
   ) {
     final ApiStickerSet set = _stickerSet!;
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.screenHorizontalPadding,
-        vertical: 16,
-      ),
-      children: <Widget>[
-        // Header Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.14),
-            ),
+    return CustomScrollView(
+      slivers: <Widget>[
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppConstants.screenHorizontalPadding,
+            16,
+            AppConstants.screenHorizontalPadding,
+            18,
           ),
-          child: Row(
-            children: <Widget>[
-              // Cover
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: set.coverSticker != null
-                    ? CachedNetworkImage(
-                        imageUrl: set.coverSticker!.resolvedUrl,
-                        fit: BoxFit.contain,
-                        memCacheWidth: 200,
-                        memCacheHeight: 200,
-                        errorWidget: (_, _, _) => Icon(
-                          Icons.sticky_note_2_outlined,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      )
-                    : Icon(
-                        Icons.sticky_note_2_outlined,
-                        color: scheme.onSurfaceVariant,
-                      ),
-              ),
-              const SizedBox(width: 16),
-              // Titles
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      set.title.isNotEmpty ? set.title : set.name,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 17,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                // Header Card
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.14),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${set.stickers.length} стикеров • @${set.name}',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      // Cover
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: set.coverSticker != null
+                            ? CachedNetworkImage(
+                                imageUrl: set.coverSticker!.resolvedUrl,
+                                fit: BoxFit.contain,
+                                memCacheWidth: 200,
+                                memCacheHeight: 200,
+                                errorWidget: (_, _, _) => Icon(
+                                  Icons.sticky_note_2_outlined,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              )
+                            : Icon(
+                                Icons.sticky_note_2_outlined,
+                                color: scheme.onSurfaceVariant,
+                              ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: 16),
+                      // Titles
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              set.title.isNotEmpty ? set.title : set.name,
+                              style: textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 17,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${set.stickers.length} стикеров • @${set.name}',
+                              style: textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Action Buttons: Add/Remove + (if owner) Add stickers
+                Row(
+                  children: <Widget>[
+                    if (set.isOwner == true) ...<Widget>[
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          onPressed: () {
+                            HapticService.tap();
+                            AddStickerDialog.show(
+                              context,
+                              setId: set.id,
+                              setTitle: set.title,
+                            );
+                          },
+                          icon: const Icon(Icons.add_photo_alternate_rounded, size: 18),
+                          label: const Text('Добавить'),
+                          style: FilledButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            minimumSize: const Size(0, 46),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(
+                      child: isInstalled
+                          ? OutlinedButton.icon(
+                              onPressed: _isActionLoading ? null : () => _toggleSave(true),
+                              icon: _isActionLoading
+                                  ? const AppLoadingIndicator(size: 16)
+                                  : const Icon(Icons.delete_outline_rounded, size: 18),
+                              label: const Text('Удалить из коллекции'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: scheme.error,
+                                side: BorderSide(
+                                  color: scheme.error.withValues(alpha: 0.5),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                minimumSize: const Size(0, 46),
+                              ),
+                            )
+                          : FilledButton.icon(
+                              onPressed: _isActionLoading ? null : () => _toggleSave(false),
+                              icon: _isActionLoading
+                                  ? AppLoadingIndicator(
+                                      size: 16,
+                                      color: scheme.onPrimary,
+                                    )
+                                  : const Icon(Icons.add_rounded, size: 18),
+                              label: const Text('Добавить в коллекцию'),
+                              style: FilledButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                minimumSize: const Size(0, 46),
+                              ),
+                            ),
                     ),
                   ],
                 ),
-              ),
-            ],
+
+                // Stickers Grid Empty State
+                if (set.stickers.isEmpty) ...<Widget>[
+                  const SizedBox(height: 18),
+                  Container(
+                    padding: const EdgeInsets.all(32),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'В этом наборе пока нет стикеров',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 14),
-
-        // Action Buttons: Add/Remove + (if owner) Add stickers
-        Row(
-          children: <Widget>[
-            if (set.isOwner == true) ...<Widget>[
-              Expanded(
-                child: FilledButton.tonalIcon(
-                  onPressed: () {
-                    HapticService.tap();
-                    AddStickerDialog.show(
-                      context,
-                      setId: set.id,
-                      setTitle: set.title,
-                    );
-                  },
-                  icon: const Icon(Icons.add_photo_alternate_rounded, size: 18),
-                  label: const Text('Добавить'),
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
+        if (set.stickers.isNotEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              AppConstants.screenHorizontalPadding,
+              0,
+              AppConstants.screenHorizontalPadding,
+              16,
+            ),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (BuildContext context, int index) {
+                  final ApiSticker sticker = set.stickers[index];
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    minimumSize: const Size(0, 46),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-            ],
-            Expanded(
-              child: isInstalled
-                  ? OutlinedButton.icon(
-                      onPressed: _isActionLoading ? null : () => _toggleSave(true),
-                      icon: _isActionLoading
-                          ? const AppLoadingIndicator(size: 16)
-                          : const Icon(Icons.delete_outline_rounded, size: 18),
-                      label: const Text('Удалить из коллекции'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: scheme.error,
-                        side: BorderSide(
-                          color: scheme.error.withValues(alpha: 0.5),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        minimumSize: const Size(0, 46),
+                    clipBehavior: Clip.antiAlias,
+                    child: CachedNetworkImage(
+                      imageUrl: sticker.resolvedUrl,
+                      fit: BoxFit.contain,
+                      memCacheWidth: 200,
+                      memCacheHeight: 200,
+                      placeholder: (_, _) => AppLoadingIndicator(
+                        size: 20,
+                        color: scheme.primary.withValues(alpha: 0.3),
                       ),
-                    )
-                  : FilledButton.icon(
-                      onPressed: _isActionLoading ? null : () => _toggleSave(false),
-                      icon: _isActionLoading
-                          ? AppLoadingIndicator(
-                              size: 16,
-                              color: scheme.onPrimary,
-                            )
-                          : const Icon(Icons.add_rounded, size: 18),
-                      label: const Text('Добавить в коллекцию'),
-                      style: FilledButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                      errorWidget: (_, _, _) => Center(
+                        child: Text(
+                          sticker.emoji.isNotEmpty ? sticker.emoji : '🖼️',
+                          style: const TextStyle(fontSize: 28),
                         ),
-                        minimumSize: const Size(0, 46),
                       ),
                     ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-
-        // Stickers Grid
-        if (set.stickers.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(32),
-            alignment: Alignment.center,
-            child: Text(
-              'В этом наборе пока нет стикеров',
-              style: textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
+                  );
+                },
+                childCount: set.stickers.length,
               ),
             ),
-          )
-        else
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1,
-            ),
-            itemCount: set.stickers.length,
-            itemBuilder: (BuildContext context, int index) {
-              final ApiSticker sticker = set.stickers[index];
-              return Container(
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: CachedNetworkImage(
-                  imageUrl: sticker.resolvedUrl,
-                  fit: BoxFit.contain,
-                  memCacheWidth: 200,
-                  memCacheHeight: 200,
-                  placeholder: (_, _) => AppLoadingIndicator(
-                    size: 20,
-                    color: scheme.primary.withValues(alpha: 0.3),
-                  ),
-                  errorWidget: (_, _, _) => Center(
-                    child: Text(
-                      sticker.emoji.isNotEmpty ? sticker.emoji : '🖼️',
-                      style: const TextStyle(fontSize: 28),
-                    ),
-                  ),
-                ),
-              );
-            },
           ),
       ],
     );

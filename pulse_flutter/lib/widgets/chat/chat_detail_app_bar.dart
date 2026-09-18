@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/models/api/status_emoji_model.dart';
+import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/widgets/profile/responsive_profile_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/status_emoji_badge.dart';
@@ -167,6 +169,14 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (isSecret) ...<Widget>[
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.lock_rounded,
+                            size: 14,
+                            color: scheme.tertiary,
+                          ),
+                        ],
                         if (statusEmoji != null) ...<Widget>[
                           StatusEmojiBadge(emoji: statusEmoji!, size: 16),
                         ],
@@ -223,13 +233,56 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: <Widget>[
         if (isSecret)
-          IconButton(
-            onPressed: onSecurityTap,
-            icon: Icon(
-              Icons.security_rounded,
-              color: scheme.primary,
-            ),
-            tooltip: context.l10n.e2eeEncryptionTitle,
+          Consumer(
+            builder: (BuildContext context, WidgetRef ref, _) {
+              final E2eeService e2ee = ref.watch(e2eeServiceProvider);
+              return ValueListenableBuilder<int>(
+                valueListenable: e2ee.revision,
+                builder: (BuildContext context, int _, Widget? child) {
+                  final E2eeSessionStatus status = e2ee.getSessionStatus(chatId);
+                  final bool isPeerVerified = e2ee.isPeerVerified(chatId);
+
+                  Color iconColor;
+                  IconData iconData;
+                  String tooltip;
+
+                  switch (status) {
+                    case E2eeSessionStatus.compromised:
+                      iconColor = scheme.error;
+                      iconData = Icons.gpp_bad_rounded;
+                      tooltip = 'Внимание: угроза безопасности!';
+                      break;
+                    case E2eeSessionStatus.connecting:
+                      iconColor = scheme.primary;
+                      iconData = Icons.sync_lock_rounded;
+                      tooltip = 'Double Ratchet: установка...';
+                      break;
+                    case E2eeSessionStatus.secured:
+                      if (isPeerVerified) {
+                        iconColor = scheme.tertiary;
+                        iconData = Icons.verified_user_rounded;
+                        tooltip = 'Double Ratchet: верифицирован';
+                      } else {
+                        iconColor = scheme.primary;
+                        iconData = Icons.security_rounded;
+                        tooltip = 'Double Ratchet: защищено';
+                      }
+                      break;
+                    case E2eeSessionStatus.none:
+                      iconColor = scheme.onSurfaceVariant;
+                      iconData = Icons.lock_clock_rounded;
+                      tooltip = context.l10n.e2eeEncryptionTitle;
+                      break;
+                  }
+
+                  return IconButton(
+                    onPressed: onSecurityTap,
+                    icon: Icon(iconData, color: iconColor),
+                    tooltip: tooltip,
+                  );
+                },
+              );
+            },
           ),
         if (_showCallButtons) ...[
           IconButton(

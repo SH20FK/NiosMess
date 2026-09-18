@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -78,6 +79,8 @@ class M3OrganicBackground extends ConsumerWidget {
                         isDark: isDark,
                         blurSigma: (tier == PerformanceTier.tierA) ? 54.0 : 16.0,
                         isTierB: tier == PerformanceTier.tierB,
+                        devicePixelRatio:
+                            MediaQuery.maybeDevicePixelRatioOf(context)?.clamp(1.0, 2.0) ?? 1.0,
                       ),
                     ),
                   ),
@@ -288,10 +291,11 @@ class _BlobsCacheKey {
     required this.isDark,
     required this.blurSigma,
     required this.isTierB,
+    required this.devicePixelRatio,
   });
 
-  final double width;
-  final double height;
+  final int width;
+  final int height;
   final Color primary;
   final Color secondary;
   final Color tertiary;
@@ -299,6 +303,7 @@ class _BlobsCacheKey {
   final bool isDark;
   final double blurSigma;
   final bool isTierB;
+  final double devicePixelRatio;
 
   @override
   bool operator ==(Object other) {
@@ -312,7 +317,8 @@ class _BlobsCacheKey {
         other.primaryContainer == primaryContainer &&
         other.isDark == isDark &&
         other.blurSigma == blurSigma &&
-        other.isTierB == isTierB;
+        other.isTierB == isTierB &&
+        other.devicePixelRatio == devicePixelRatio;
   }
 
   @override
@@ -326,6 +332,7 @@ class _BlobsCacheKey {
         isDark,
         blurSigma,
         isTierB,
+        devicePixelRatio,
       );
 }
 
@@ -335,24 +342,31 @@ class _OrganicBlobsPainter extends CustomPainter {
     required this.isDark,
     this.blurSigma = 54.0,
     this.isTierB = false,
+    this.devicePixelRatio = 1.0,
   });
 
   final ColorScheme scheme;
   final bool isDark;
   final double blurSigma;
   final bool isTierB;
+  final double devicePixelRatio;
 
-  static final Map<_BlobsCacheKey, ui.Picture> _cache = <_BlobsCacheKey, ui.Picture>{};
+  static final Map<_BlobsCacheKey, ui.Image> _cache = <_BlobsCacheKey, ui.Image>{};
   static const int _maxCacheSize = 4;
-  static ui.Picture? _cachedPicture(_BlobsCacheKey key) => _cache[key];
+  static ui.Image? _cachedImage(_BlobsCacheKey key) => _cache[key];
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.width <= 0 || size.height <= 0) return;
 
+    final int pixelWidth =
+        math.max(64, (((size.width * devicePixelRatio).ceil() + 15) ~/ 16) * 16);
+    final int pixelHeight =
+        math.max(64, (((size.height * devicePixelRatio).ceil() + 15) ~/ 16) * 16);
+
     final key = _BlobsCacheKey(
-      width: size.width,
-      height: size.height,
+      width: pixelWidth,
+      height: pixelHeight,
       primary: scheme.primary,
       secondary: scheme.secondary,
       tertiary: scheme.tertiary,
@@ -360,31 +374,45 @@ class _OrganicBlobsPainter extends CustomPainter {
       isDark: isDark,
       blurSigma: blurSigma,
       isTierB: isTierB,
+      devicePixelRatio: devicePixelRatio,
     );
 
-    final ui.Picture? cached = _cachedPicture(key);
+    final ui.Image? cached = _cachedImage(key);
     if (cached != null) {
       // Re-insert to keep LRU fresh
       _cache.remove(key);
       _cache[key] = cached;
-      canvas.drawPicture(cached);
+      canvas.drawImageRect(
+        cached,
+        Rect.fromLTWH(0, 0, cached.width.toDouble(), cached.height.toDouble()),
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Paint(),
+      );
       return;
     }
 
     final recorder = ui.PictureRecorder();
     final recordingCanvas =
-        Canvas(recorder, Rect.fromLTWH(0, 0, size.width, size.height));
+        Canvas(recorder, Rect.fromLTWH(0, 0, pixelWidth.toDouble(), pixelHeight.toDouble()));
+    recordingCanvas.scale(pixelWidth / size.width, pixelHeight / size.height);
     _paintBlobs(recordingCanvas, size);
-    final newPicture = recorder.endRecording();
+    final picture = recorder.endRecording();
+    final ui.Image newImage = picture.toImageSync(pixelWidth, pixelHeight);
+    picture.dispose();
 
     if (_cache.length >= _maxCacheSize) {
       final oldestKey = _cache.keys.first;
-      final oldPicture = _cache.remove(oldestKey);
-      oldPicture?.dispose();
+      final oldImage = _cache.remove(oldestKey);
+      oldImage?.dispose();
     }
-    _cache[key] = newPicture;
+    _cache[key] = newImage;
 
-    canvas.drawPicture(newPicture);
+    canvas.drawImageRect(
+      newImage,
+      Rect.fromLTWH(0, 0, newImage.width.toDouble(), newImage.height.toDouble()),
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Paint(),
+    );
   }
 
   void _paintBlobs(Canvas canvas, Size size) {
@@ -470,6 +498,7 @@ class _OrganicBlobsPainter extends CustomPainter {
     return oldDelegate.scheme != scheme ||
         oldDelegate.isDark != isDark ||
         oldDelegate.blurSigma != blurSigma ||
-        oldDelegate.isTierB != isTierB;
+        oldDelegate.isTierB != isTierB ||
+        oldDelegate.devicePixelRatio != devicePixelRatio;
   }
 }

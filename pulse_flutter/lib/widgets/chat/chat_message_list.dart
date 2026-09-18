@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
+import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -12,6 +13,7 @@ import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_modal.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -153,7 +155,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
   final Map<int, GlobalKey> _messageKeys = <int, GlobalKey>{};
   final Set<int> _animatedMessageIds = <int>{};
   Timer? _highlightTimer;
-  int? _highlightedMessageId;
+  final ValueNotifier<int?> _highlightedIdNotifier = ValueNotifier<int?>(null);
 
   void _syncCaches(List<ApiMessage> messages) {
     if (identical(messages, _cachedMessages)) return;
@@ -188,61 +190,60 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
   @override
   void dispose() {
     _highlightTimer?.cancel();
+    _highlightedIdNotifier.dispose();
     super.dispose();
   }
 
   void _scrollToMessage(int messageId) {
     _highlightTimer?.cancel();
-    setState(() => _highlightedMessageId = messageId);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final GlobalKey? key = _messageKeys[messageId];
-      if (key != null && key.currentContext != null) {
-        Scrollable.ensureVisible(
-          key.currentContext!,
-          alignment: 0.3,
+    _highlightedIdNotifier.value = messageId;
+
+    final GlobalKey? key = _messageKeys[messageId];
+    if (key != null && key.currentContext != null) {
+      Scrollable.ensureVisible(
+        key.currentContext!,
+        alignment: 0.3,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOutCubic,
+      );
+    } else {
+      final int? builderIndex = _idToIndexCache?[messageId];
+      final List<ApiMessage> messages = widget.messages;
+      if (builderIndex != null && widget.scrollController.hasClients && messages.isNotEmpty) {
+        final double maxScroll = widget.scrollController.position.maxScrollExtent;
+        final double estimatedItemHeight = (maxScroll / messages.length).clamp(50.0, 300.0);
+        final double targetOffset = (builderIndex * estimatedItemHeight).clamp(
+          0.0,
+          maxScroll,
+        );
+        widget.scrollController
+            .animateTo(
+          targetOffset,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOutCubic,
-        );
-      } else {
-        final int? builderIndex = _idToIndexCache?[messageId];
-        final List<ApiMessage> messages = widget.messages;
-        if (builderIndex != null && widget.scrollController.hasClients && messages.isNotEmpty) {
-          final double maxScroll = widget.scrollController.position.maxScrollExtent;
-          final double estimatedItemHeight = (maxScroll / messages.length).clamp(50.0, 300.0);
-          final double targetOffset = (builderIndex * estimatedItemHeight).clamp(
-            0.0,
-            maxScroll,
-          );
-          widget.scrollController
-              .animateTo(
-            targetOffset,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOutCubic,
-          )
-              .then((_) {
+        )
+            .then((_) {
+          if (!mounted) return;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              final GlobalKey? updatedKey = _messageKeys[messageId];
-              if (updatedKey != null && updatedKey.currentContext != null) {
-                Scrollable.ensureVisible(
-                  updatedKey.currentContext!,
-                  alignment: 0.3,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOutCubic,
-                );
-              }
-            });
+            final GlobalKey? updatedKey = _messageKeys[messageId];
+            if (updatedKey != null && updatedKey.currentContext != null) {
+              Scrollable.ensureVisible(
+                updatedKey.currentContext!,
+                alignment: 0.3,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOutCubic,
+              );
+            }
           });
-        }
+        });
       }
+    }
 
-      _highlightTimer = Timer(const Duration(milliseconds: 1600), () {
-        if (mounted && _highlightedMessageId == messageId) {
-          setState(() => _highlightedMessageId = null);
-        }
-      });
+    _highlightTimer = Timer(const Duration(milliseconds: 1600), () {
+      if (mounted && _highlightedIdNotifier.value == messageId) {
+        _highlightedIdNotifier.value = null;
+      }
     });
   }
 
@@ -252,6 +253,15 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
     final List<_MessageLayoutData> layout = _layoutCache!;
     final Map<int, ApiMessage> byId = _byIdCache!;
 
+    final PerformanceTier tier = ref.watch(
+      adaptivePerformanceProvider.select((s) => s.tier),
+    );
+    final double cacheExtent = switch (tier) {
+      PerformanceTier.tierC => 250.0,
+      PerformanceTier.tierB => 500.0,
+      PerformanceTier.tierA => 750.0,
+    };
+
     final DateTime now = AppTimeSettings.now();
 
     return RepaintBoundary(
@@ -259,8 +269,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
         controller: widget.scrollController,
         reverse: true,
         // ignore: deprecated_member_use
-        cacheExtent: 700,
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        cacheExtent: cacheExtent,
+        padding: const EdgeInsets.fromLTRB(16, 48, 16, 56),
         addAutomaticKeepAlives: false,
         addRepaintBoundaries: false,
         itemCount: messages.length,
@@ -344,6 +354,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
           double? progress,
           int? bytesSent,
           int? totalBytes,
+          required bool animateHighlight,
         }) {
           return MessageBubble(
             key: ValueKey<int>(message.id),
@@ -380,21 +391,28 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             onStickerTap: () {
               final int? targetSetId =
                   message.resolvedStickerSetId ?? message.sticker?.setId;
+              final int? stickerId = message.sticker?.id;
               if (targetSetId != null && targetSetId > 0) {
-                StickerSetModal.show(context, setId: targetSetId);
-              } else if (message.sticker?.id != null) {
+                StickerSetModal.show(context, setId: targetSetId, stickerId: stickerId);
+              } else if (stickerId != null && stickerId > 0) {
                 final List<ApiStickerSet> sets =
                     ref.read(stickerSetsProvider).value ??
                         const <ApiStickerSet>[];
                 for (final ApiStickerSet s in sets) {
-                  if (s.stickers.any((ApiSticker st) => st.id == message.sticker!.id)) {
-                    StickerSetModal.show(context, stickerSet: s, setId: s.id);
+                  if (s.stickers.any((ApiSticker st) => st.id == stickerId)) {
+                    StickerSetModal.show(
+                      context,
+                      stickerSet: s,
+                      setId: s.id,
+                      stickerId: stickerId,
+                    );
                     return;
                   }
                 }
-                if (message.sticker?.setId != null && message.sticker!.setId! > 0) {
-                  StickerSetModal.show(context, setId: message.sticker!.setId);
-                }
+                // Fallback: look up by sticker ID directly on server
+                StickerSetModal.show(context, stickerId: stickerId);
+              } else {
+                AppToast.showError(context, 'Стикерпак не найден');
               }
             },
             mediaDuration: mediaDuration,
@@ -425,28 +443,38 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             replyMarkup: message.replyMarkup,
             onCallbackQuery: (String data) =>
                 widget.onCallbackQuery(message, data),
-            animateHighlight: message.id == _highlightedMessageId,
+            animateHighlight: animateHighlight,
           );
         }
 
-        final Widget bubble = isLocalSending
-            ? Consumer(
-                builder: (context, ref, _) {
-                  final uploadTask = ref.watch(
-                    uploadTaskProvider(message.id.toString()),
-                  );
-                  return buildBubble(
-                    progress: uploadTask?.progress ?? 0.0,
-                    bytesSent: uploadTask?.bytesSent,
-                    totalBytes: uploadTask != null && uploadTask.fileSize > 0
-                        ? uploadTask.fileSize
-                        : message.mediaSize,
-                  );
-                },
-              )
-            : buildBubble(progress: null);
-
         final Key itemKey = _messageKeys.putIfAbsent(message.id, GlobalKey.new);
+
+        final Widget bubble = ValueListenableBuilder<int?>(
+          valueListenable: _highlightedIdNotifier,
+          builder: (BuildContext context, int? highlightedId, Widget? _) {
+            final bool isHighlighted = message.id == highlightedId;
+            return isLocalSending
+                ? Consumer(
+                    builder: (context, ref, _) {
+                      final uploadTask = ref.watch(
+                        uploadTaskProvider(message.id.toString()),
+                      );
+                      return buildBubble(
+                        progress: uploadTask?.progress ?? 0.0,
+                        bytesSent: uploadTask?.bytesSent,
+                        totalBytes: uploadTask != null && uploadTask.fileSize > 0
+                            ? uploadTask.fileSize
+                            : message.mediaSize,
+                        animateHighlight: isHighlighted,
+                      );
+                    },
+                  )
+                : buildBubble(
+                    progress: null,
+                    animateHighlight: isHighlighted,
+                  );
+          },
+        );
 
         final Widget animatedBubble = KeyedSubtree(
           key: itemKey,

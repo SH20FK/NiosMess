@@ -2,13 +2,19 @@ import 'package:pulse_flutter/widgets/chat/chat_detail_app_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_fab.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
 import 'package:pulse_flutter/widgets/chat/e2ee_verification_sheet.dart';
+import 'package:pulse_flutter/widgets/chat/e2ee_status_card.dart';
+import 'package:pulse_flutter/widgets/chat/chat_message_edge_fade.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:universal_io/io.dart';
+import 'package:pulse_flutter/core/services/desktop_pasteboard_service.dart';
+import 'package:pulse_flutter/widgets/chat/desktop_drag_drop_area.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/bot_detector.dart';
+import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/theme/nios_chroma.dart';
 import 'package:pulse_flutter/providers/chat_wallpaper_provider.dart';
 import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_background.dart';
@@ -91,20 +97,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   Timer? _draftSaveTimer;
   bool _showDraftRestoredBanner = false;
 
-  int? _replyToMessageId;
-  String? _replyPreviewText;
+  final ValueNotifier<ChatComposerState> _composerNotifier =
+      ValueNotifier<ChatComposerState>(const ChatComposerState());
 
-  // Inline edit mode
-  int? _editingMessageId;
-  String? _editingOriginalText;
+  int? get _replyToMessageId => _composerNotifier.value.replyToMessageId;
+  String? get _replyPreviewText => _composerNotifier.value.replyPreviewText;
+  int? get _editingMessageId => _composerNotifier.value.editingMessageId;
+  String? get _editingOriginalText => _composerNotifier.value.editingOriginalText;
+  bool get _isAiProcessing => _composerNotifier.value.isAiProcessing;
 
   // Scroll-to-bottom FAB
   final ValueNotifier<bool> _showScrollToBottomNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<int> _unreadWhileScrolledNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> _loadingOlderNotifier = ValueNotifier<bool>(false);
 
-  bool _isInputEmpty = true;
-  bool _isAiProcessing = false;
   SmoothTextStreamer? _aiTextStreamer;
   StreamSubscription<String>? _aiStreamSubscription;
 
@@ -113,10 +119,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   // Screenshot protection overlay
   OverlayEntry? _screenshotOverlay;
-
-  // TR-8: Transition animation tracking to defer heavy frame
-  bool _isTransitionActive = false;
-  Animation<double>? _routeAnimation;
 
   int? get _chatId => int.tryParse(widget.chatId);
 
@@ -285,37 +287,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (cid != null) PushNotificationService.setCurrentChat(cid);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (!_isTransitionActive) {
-        _restoreDraft();
-        _applySecureFlag();
-        _refreshNow();
-      }
+      _restoreDraft();
+      _applySecureFlag();
+      _refreshNow();
     });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final Animation<double>? anim = ModalRoute.of(context)?.animation;
-    if (anim != null && !anim.isCompleted && _routeAnimation != anim) {
-      _routeAnimation = anim;
-      _isTransitionActive = true;
-      anim.addStatusListener(_onRouteAnimationStatus);
-    }
-  }
-
-  void _onRouteAnimationStatus(AnimationStatus status) {
-    if (status == AnimationStatus.completed) {
-      _routeAnimation?.removeStatusListener(_onRouteAnimationStatus);
-      if (mounted) {
-        setState(() {
-          _isTransitionActive = false;
-        });
-        _restoreDraft();
-        _applySecureFlag();
-        _refreshNow();
-      }
-    }
   }
 
   bool _isSecret = false;
@@ -408,7 +383,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       } catch (_) {}
     }
     PushNotificationService.setCurrentChat(null);
-    _routeAnimation?.removeStatusListener(_onRouteAnimationStatus);
     WidgetsBinding.instance.removeObserver(this);
     _secretPollTimer?.cancel();
     _aiStreamSubscription?.cancel();
@@ -417,6 +391,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _showScrollToBottomNotifier.dispose();
     _unreadWhileScrolledNotifier.dispose();
     _loadingOlderNotifier.dispose();
+    _composerNotifier.dispose();
     _draftSaveTimer?.cancel();
     _saveDraft();
     _scrollController.removeListener(_onScroll);
@@ -462,11 +437,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         AppToast.showError(context, context.l10n.e2eeHandshakeNoPeerKey);
         return;
       }
-      final edPubB64 = await e2ee.getEdPublicKeyBase64();
       await e2ee.initiateHandshake(
         chatId: chatId,
         theirPublicKeyBase64: chat.partnerPublicKey!,
-        theirEdPublicKeyBase64: edPubB64,
       );
       final msg = await e2ee.createHandshakeMessage(chatId);
       await ref.read(chatMessagesProvider(chatId).notifier).sendHandshakeMessage(
@@ -502,11 +475,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   void _onInputChanged() {
     final bool isEmpty = _inputController.text.trim().isEmpty;
     _scheduleDraftSave();
-    if (_isInputEmpty != isEmpty) {
-      setState(() {
-        _isInputEmpty = isEmpty;
-      });
-    }
     ref.read(inlineQueryProvider.notifier).onInputChanged(
       chatId: _chatId,
       text: _inputController.text,
@@ -524,7 +492,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _draftSaveTimer = Timer(const Duration(milliseconds: 500), _saveDraft);
   }
 
-  Future<void> _processTextWithAi(String action, {String? targetLanguage}) async {
+  Future<void> _processTextWithAi(AiAction action, {String? targetLanguage}) async {
     final String currentText = _inputController.text.trim();
     if (currentText.isEmpty) return;
 
@@ -533,9 +501,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final String backupText = _inputController.text;
     bool hasReceivedFirstChunk = false;
 
-    setState(() {
-      _isAiProcessing = true;
-    });
+    _composerNotifier.value = _composerNotifier.value.copyWith(isAiProcessing: true);
 
     _aiTextStreamer = SmoothTextStreamer(
       onUpdate: (String rendered, bool isFinished) {
@@ -545,34 +511,32 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           TextPosition(offset: rendered.length),
         );
         if (isFinished) {
-          setState(() {
-            _isAiProcessing = false;
-          });
+          _composerNotifier.value = _composerNotifier.value.copyWith(isAiProcessing: false);
         }
       },
       onDone: (String fullText) {
         if (!mounted) return;
-        setState(() {
-          _isAiProcessing = false;
-        });
+        _composerNotifier.value = _composerNotifier.value.copyWith(isAiProcessing: false);
       },
       onError: (dynamic error) {
         if (!mounted) return;
         if (!hasReceivedFirstChunk) {
           _inputController.text = backupText;
         }
-        setState(() {
-          _isAiProcessing = false;
-        });
+        _composerNotifier.value = _composerNotifier.value.copyWith(isAiProcessing: false);
         AppToast.showError(context, error);
       },
     );
 
     try {
-      final Stream<String> stream = ref.read(aiRepositoryProvider).streamRewriteText(
+      final AiRewriteRequest request = AiRewriteRequest(
         text: currentText,
-        mode: action,
+        action: action,
         targetLanguage: targetLanguage,
+      );
+
+      final Stream<String> stream = ref.read(aiRepositoryProvider).streamRewriteText(
+        request: request,
       );
 
       _aiStreamSubscription = stream.listen(
@@ -611,18 +575,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _aiTextStreamer?.cancel();
     _aiTextStreamer?.dispose();
     _aiTextStreamer = null;
-    if (mounted && _isAiProcessing) {
-      setState(() {
-        _isAiProcessing = false;
-      });
+    if (_isAiProcessing) {
+      _composerNotifier.value = _composerNotifier.value.copyWith(isAiProcessing: false);
     }
   }
 
   void _showAiBottomSheet(BuildContext context, ColorScheme scheme) {
-    if (_isInputEmpty) return;
-    AppBottomSheets.show<void>(
+    if (_inputController.text.trim().isEmpty) return;
+    AppModal.showSheet<void>(
       context: context,
-      
       builder: (BuildContext ctx) {
         final TextTheme tt = Theme.of(ctx).textTheme;
         return SafeArea(
@@ -647,9 +608,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                         final usage = ref.watch(
                           authProvider.select((a) => a.profile?.aiUsage),
                         );
-                        if (usage == null) return const SizedBox.shrink();
-                        final double remainingPercent =
-                            (100.0 - usage.usedPercent).clamp(0.0, 100.0);
+                        if (usage == null || !usage.isAvailable) {
+                          return const SizedBox.shrink();
+                        }
+                        final double remainingPercent = usage.remainingPercent;
                         final String pctStr = remainingPercent.toStringAsFixed(
                           remainingPercent.truncateToDouble() == remainingPercent ? 0 : 1,
                         );
@@ -668,11 +630,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                               Icon(Icons.bolt_rounded, size: 14, color: scheme.primary),
                               const SizedBox(width: 4),
                               Text(
-                                '$pctStr% токенов',
+                                '$pctStr% символов',
                                 style: tt.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: scheme.onSurface,
-                                ),
+                                    fontWeight: FontWeight.w600,
+                                    color: scheme.onSurface,
+                                  ),
                               ),
                             ],
                           ),
@@ -692,7 +654,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                         scheme: scheme,
                         onTap: () {
                           Navigator.of(ctx).pop();
-                          _processTextWithAi('correct');
+                          _processTextWithAi(AiAction.correct);
                         },
                       ),
                     ),
@@ -704,7 +666,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                         scheme: scheme,
                         onTap: () {
                           Navigator.of(ctx).pop();
-                          _processTextWithAi('formalize');
+                          _processTextWithAi(AiAction.rewriteFormal);
                         },
                       ),
                     ),
@@ -727,28 +689,28 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                       label: const Text('🇬🇧 English'),
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        _processTextWithAi('translate', targetLanguage: 'English');
+                        _processTextWithAi(AiAction.translate, targetLanguage: 'en');
                       },
                     ),
                     ActionChip(
                       label: const Text('🇪🇸 Español'),
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        _processTextWithAi('translate', targetLanguage: 'Spanish');
+                        _processTextWithAi(AiAction.translate, targetLanguage: 'es');
                       },
                     ),
                     ActionChip(
                       label: const Text('🇨🇳 中文'),
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        _processTextWithAi('translate', targetLanguage: 'Chinese');
+                        _processTextWithAi(AiAction.translate, targetLanguage: 'zh');
                       },
                     ),
                     ActionChip(
                       label: const Text('🇷🇺 Русский'),
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        _processTextWithAi('translate', targetLanguage: 'Russian');
+                        _processTextWithAi(AiAction.translate, targetLanguage: 'ru');
                       },
                     ),
                   ],
@@ -861,10 +823,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           TextPosition(offset: originalText.length),
         );
         if (replyId != null && originalReplyPreview != null) {
-          setState(() {
-            _replyToMessageId = replyId;
-            _replyPreviewText = originalReplyPreview;
-          });
+          _composerNotifier.value = _composerNotifier.value.copyWith(
+            replyToMessageId: () => replyId,
+            replyPreviewText: () => originalReplyPreview,
+          );
         }
         final String errorStr = error.toString().toLowerCase();
         if (errorStr.contains('not accept direct messages') ||
@@ -1076,11 +1038,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? chatId = _chatId;
     if (chatId == null) return;
     // Enter inline edit mode instead of showing AlertDialog
-    setState(() {
-      _editingMessageId = message.id;
-      _editingOriginalText = message.content;
-      _inputController.text = message.content;
-    });
+    _composerNotifier.value = _composerNotifier.value.copyWith(
+      editingMessageId: () => message.id,
+      editingOriginalText: () => message.content,
+      replyToMessageId: () => null,
+      replyPreviewText: () => null,
+    );
+    _inputController.text = message.content;
     // Put cursor at end
     _inputController.selection = TextSelection.fromPosition(
       TextPosition(offset: _inputController.text.length),
@@ -1106,25 +1070,82 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           .editMessage(editId, edited);
     } catch (error) {
       if (!mounted) return;
-      setState(() {
-        _editingMessageId = editId;
-        _editingOriginalText = originalText;
-        _inputController.text = originalDraft;
-        _inputController.selection = TextSelection.fromPosition(
-          TextPosition(offset: originalDraft.length),
-        );
-      });
+      _composerNotifier.value = _composerNotifier.value.copyWith(
+        editingMessageId: () => editId,
+        editingOriginalText: () => originalText,
+      );
+      _inputController.text = originalDraft;
+      _inputController.selection = TextSelection.fromPosition(
+        TextPosition(offset: originalDraft.length),
+      );
       AppToast.showError(context, error);
     }
   }
 
   void _cancelEdit() {
     if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
-    setState(() {
-      _editingMessageId = null;
-      _editingOriginalText = null;
-      _inputController.clear();
-    });
+    _composerNotifier.value = _composerNotifier.value.copyWith(
+      editingMessageId: () => null,
+      editingOriginalText: () => null,
+    );
+    _inputController.clear();
+  }
+
+  void _editLastMessage() {
+    final int? chatId = _chatId;
+    if (chatId == null) return;
+    final authState = ref.read(authProvider);
+    final int myUserId = authState.session?.userId ?? -1;
+    final List<ApiMessage> messages =
+        ref.read(chatMessagesProvider(chatId)).value ?? const <ApiMessage>[];
+
+    for (final ApiMessage message in messages) {
+      if (message.senderId == myUserId &&
+          !message.isDeleted &&
+          !message.isFailed &&
+          message.msgType == 'text' &&
+          message.content.trim().isNotEmpty) {
+        _editMessage(message);
+        break;
+      }
+    }
+  }
+
+  Future<void> _uploadDesktopFiles(
+    List<String> filePaths, {
+    bool sendAsDocument = false,
+  }) async {
+    final int? chatId = _chatId;
+    if (chatId == null || filePaths.isEmpty) return;
+    final String initialText = _inputController.text;
+    if (mounted) _inputController.clear();
+
+    for (int i = 0; i < filePaths.length; i++) {
+      final String filePath = filePaths[i];
+      final File file = File(filePath);
+      if (!await file.exists()) continue;
+      final int size = await file.length();
+      final String filename = filePath.split(RegExp(r'[/\\]')).last;
+      final FileTypeInfo typeInfo = FileTypeDetector.detect(fileName: filename);
+      final String mediaSubtype = sendAsDocument
+          ? 'document'
+          : (typeInfo.isImage
+              ? 'image'
+              : (typeInfo.isVideo
+                  ? 'video'
+                  : (typeInfo.isAudio ? 'audio' : 'document')));
+
+      _uploadAndSend(
+        chatId: chatId,
+        filePath: filePath,
+        bytes: null,
+        filename: filename,
+        mediaSubtype: mediaSubtype,
+        fileSize: size,
+        text: i == 0 ? initialText : '',
+        showSentSnackBar: false,
+      );
+    }
   }
 
   Future<void> _deleteMessage(ApiMessage message) async {
@@ -1182,19 +1203,19 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     final String author = _resolveReplyAuthor(message, myUserId);
     final String snippet = _resolveReplySnippet(message);
-    setState(() {
-      _replyToMessageId = message.id;
-      _replyPreviewText =
-          '$author: ${snippet.length > 80 ? "${snippet.substring(0, 80)}..." : snippet}';
-    });
+    _composerNotifier.value = _composerNotifier.value.copyWith(
+      replyToMessageId: () => message.id,
+      replyPreviewText: () =>
+          '$author: ${snippet.length > 80 ? "${snippet.substring(0, 80)}..." : snippet}',
+    );
   }
 
   void _clearReply() {
     if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
-    setState(() {
-      _replyToMessageId = null;
-      _replyPreviewText = null;
-    });
+    _composerNotifier.value = _composerNotifier.value.copyWith(
+      replyToMessageId: () => null,
+      replyPreviewText: () => null,
+    );
   }
 
   Future<void> _forwardMessage(ApiMessage message) async {
@@ -1256,45 +1277,52 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     required bool isChannel,
     required bool amAdminOrOwner,
   }) async {
-    await AppBottomSheets.show<void>(
+    final MessageActionResult? result =
+        await AppBottomSheets.show<MessageActionResult>(
       context: context,
       isScrollControlled: true,
-      
-      builder: (BuildContext ctx) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(ctx).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      builder: (BuildContext ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
         ),
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          ),
-          child: MessageContextMenuSheet(
-            message: message,
-            isMine: isMine,
-            isChannel: isChannel,
-            amAdminOrOwner: amAdminOrOwner,
-            isSecret: ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret == true,
-            onReact: (String emoji) => _react(message, emoji),
-            onShowAllReactions: () => _showAllReactionsPicker(message),
-            onReply: () => _setReply(message),
-            onCopy: () {
-              Clipboard.setData(ClipboardData(text: message.content));
-              AppToast.showInfo(context, context.l10n.chatMessageTextCopied);
-            },
-            onForward: () => _forwardMessage(message),
-            onComments: () {
-              final int? chatId = _chatId;
-              if (chatId == null) return;
-              context.push('/channel/$chatId/post/${message.id}/comments');
-            },
-            onEdit: () => _editMessage(message),
-            onDelete: () => _deleteMessage(message),
-            onReport: () => _showReportMessageDialog(message),
-          ),
+        child: MessageContextMenuSheet(
+          message: message,
+          isMine: isMine,
+          isChannel: isChannel,
+          amAdminOrOwner: amAdminOrOwner,
+          isSecret: ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret == true,
         ),
       ),
     );
+
+    if (result == null || !mounted) return;
+
+    switch (result.type) {
+      case MessageActionType.react:
+        if (result.emoji != null) {
+          _react(message, result.emoji!);
+        }
+      case MessageActionType.showAllReactions:
+        _showAllReactionsPicker(message);
+      case MessageActionType.reply:
+        _setReply(message);
+      case MessageActionType.copy:
+        Clipboard.setData(ClipboardData(text: message.content));
+        AppToast.showInfo(context, context.l10n.chatMessageTextCopied);
+      case MessageActionType.forward:
+        _forwardMessage(message);
+      case MessageActionType.comments:
+        final int? chatId = _chatId;
+        if (chatId != null) {
+          context.push('/channel/$chatId/post/${message.id}/comments');
+        }
+      case MessageActionType.edit:
+        _editMessage(message);
+      case MessageActionType.delete:
+        _deleteMessage(message);
+      case MessageActionType.report:
+        _showReportMessageDialog(message);
+    }
   }
 
   void _showReportMessageDialog(ApiMessage message) {
@@ -1417,18 +1445,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     style: tt.titleMedium,
                   ),
                 ),
-                GridView.count(
-                  crossAxisCount: 8,
-                  shrinkWrap: true,
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 4,
-                  childAspectRatio: 1.1,
-                  physics: const NeverScrollableScrollPhysics(),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
                   children: _allReactionEmojis.map((String emoji) {
                     return InkWell(
                       onTap: () => Navigator.of(ctx).pop(emoji),
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
+                        width: 40,
+                        height: 40,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: (message.reactions[emoji] ?? 0) > 0
@@ -1935,7 +1961,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             chatId: chatId,
           )
         : baseScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
     final String? directUsername = _resolveDirectUsername(
       chat,
       currentMessages,
@@ -1955,13 +1980,44 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               : context.l10n.chatTitleFallback(chatId));
 
     final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
-    final Widget content = PopScope(
-      canPop: !widget.isDesktopSplit && canRoutePop,
-      onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (didPop) return;
-        _goBack();
+    final Widget content = CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          final composer = _composerNotifier.value;
+          if (composer.editingMessageId != null) {
+            _cancelEdit();
+          } else if (composer.replyToMessageId != null) {
+            _clearReply();
+          } else if (!widget.isDesktopSplit && canRoutePop) {
+            _goBack();
+          }
+        },
+        const SingleActivator(LogicalKeyboardKey.keyV, control: true): () {
+          unawaited(() async {
+            final List<String> files =
+                await DesktopPasteboardService.getClipboardFilesOrImage();
+            if (files.isNotEmpty && mounted) {
+              _uploadDesktopFiles(files);
+            }
+          }());
+        },
+        const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () {
+          unawaited(() async {
+            final List<String> files =
+                await DesktopPasteboardService.getClipboardFilesOrImage();
+            if (files.isNotEmpty && mounted) {
+              _uploadDesktopFiles(files);
+            }
+          }());
+        },
       },
-      child: Scaffold(
+      child: PopScope(
+        canPop: !widget.isDesktopSplit && canRoutePop,
+        onPopInvokedWithResult: (bool didPop, Object? result) {
+          if (didPop) return;
+          _goBack();
+        },
+        child: Scaffold(
         appBar: ChatDetailAppBar(
           chatId: chatId,
           isDesktopSplit: widget.isDesktopSplit,
@@ -1971,7 +2027,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           statusEmoji: chat?.partnerStatusEmoji,
           isGroup: isGroup,
           isChannel: isChannel,
-          isSecret: chat?.isSecret == true,
+          isSecret: chat?.isSecret == true || _isSecret,
           directUsername: directUsername,
           autoDeleteDuration: chat?.formattedAutoDeleteDuration,
           isVerified: chat?.isVerified == true ||
@@ -2000,12 +2056,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             ),
           ),
         ),
-      body: _isTransitionActive
-          ? ColoredBox(
-              color: scheme.surface,
-              child: const SizedBox.expand(),
-            )
-          : PulseScaffoldBody(
+      body: DesktopDragDropArea(
+        onFilesDropped: _uploadDesktopFiles,
+        child: PulseScaffoldBody(
         animatedBackdrop: false,
         expand: true,
         bottomSafe: false,
@@ -2025,32 +2078,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     return OfflineBanner(isOffline: isOffline);
                   },
                 ),
-                if (chat?.isSecret == true)
-                  GestureDetector(
+                if (chat?.isSecret == true || _isSecret)
+                  E2eeStatusCard(
+                    chatId: chatId,
                     onTap: _showE2eeVerification,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      color: scheme.primaryContainer.withValues(alpha: 0.35),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: <Widget>[
-                          Icon(Icons.lock_rounded, size: 14, color: scheme.primary),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              context.l10n.chatE2eeBanner,
-                              style: textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                                height: 1.3,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(Icons.chevron_right_rounded, size: 14, color: scheme.onSurfaceVariant),
-                        ],
-                      ),
-                    ),
                   ),
                 // Loading older messages indicator at top
                 ValueListenableBuilder<bool>(
@@ -2184,6 +2215,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                       );
                     },
                   ),
+                  // Top and bottom edge fades for smooth message dissolution
+                  ChatMessageTopFade(color: scheme.surface),
+                  ChatMessageBottomFade(color: scheme.surface),
                   // Scroll-to-bottom FAB overlay
                   ValueListenableBuilder<bool>(
                     valueListenable: _showScrollToBottomNotifier,
@@ -2213,68 +2247,75 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 (ref.watch(privacyProvider).isUserBlocked(partnerId) || (chat?.isBlockedByMe ?? false));
             final bool isBlockedByUser = isDirectChat && (chat?.isBlockedByUser ?? false);
 
-            return ChatDetailInputArea(
-              chatId: chatId,
-              isBlockedByMe: isBlockedByMe,
-              isBlockedByUser: isBlockedByUser,
-              onUnblockUser: partnerId != null
-                  ? () async {
-                      HapticService.confirm();
-                      final bool success = await ref
-                          .read(privacyProvider.notifier)
-                          .unblockUser(partnerId);
-                      if (!context.mounted) return;
-                      if (success) {
-                        AppToast.showSuccess(context, context.l10n.userUnblockedSuccess);
-                      }
+            return ValueListenableBuilder<ChatComposerState>(
+              valueListenable: _composerNotifier,
+              builder: (BuildContext context, ChatComposerState composerState, Widget? _) {
+                return ChatDetailInputArea(
+                  chatId: chatId,
+                  isBlockedByMe: isBlockedByMe,
+                  isBlockedByUser: isBlockedByUser,
+                  onUnblockUser: partnerId != null
+                      ? () async {
+                          HapticService.confirm();
+                          final bool success = await ref
+                              .read(privacyProvider.notifier)
+                              .unblockUser(partnerId);
+                          if (!context.mounted) return;
+                          if (success) {
+                            AppToast.showSuccess(context, context.l10n.userUnblockedSuccess);
+                          }
+                        }
+                      : null,
+                  onCancelAi: _cancelAiProcessing,
+                  onSendSticker: _sendSticker,
+                  onSendInlineResult: (InlineQueryResult result) {
+                    _inputController.text = result.messageText;
+                    _sendMessage();
+                  },
+                  canPostInChannel: canPostInChannel,
+                  showDraftRestoredBanner: _showDraftRestoredBanner,
+                  onClearDraft: () {
+                    final int? cid = _chatId;
+                    if (cid != null) {
+                      _draftStorage.remove(cid);
                     }
-                  : null,
-              onCancelAi: _cancelAiProcessing,
-              onSendSticker: _sendSticker,
-              onSendInlineResult: (InlineQueryResult result) {
-                _inputController.text = result.messageText;
-                _sendMessage();
+                    _inputController.clear();
+                    setState(() {
+                      _showDraftRestoredBanner = false;
+                    });
+                  },
+                  uploadingMedia:
+                      ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
+                  inputController: _inputController,
+                  inputFocusNode: _inputFocusNode,
+                  isAiProcessing: composerState.isAiProcessing,
+                  editingMessageId: composerState.editingMessageId,
+                  editingOriginalText: composerState.editingOriginalText,
+                  replyToMessageId: composerState.replyToMessageId,
+                  replyPreviewText: composerState.replyPreviewText,
+                  onSend: _sendMessage,
+                  onCommitEdit: _commitEdit,
+                  onCancelEdit: _cancelEdit,
+                  onClearReply: _clearReply,
+                  onAttachMedia: _pickAndUploadMedia,
+                  onAiPressed: () => _showAiBottomSheet(context, scheme),
+                  onVoiceSend: _sendVoiceMessage,
+                  onCircleSend: _sendCircleVideo,
+                  hapticsEnabled:
+                      ref.watch(uiSettingsProvider.select((s) => s.haptics)),
+                  sendOnEnter:
+                      ref.watch(uiSettingsProvider.select((s) => s.sendOnEnter)),
+                  isSpamBlocked: ref.watch(authProvider
+                      .select((a) => a.profile?.isRestrictedBySpamBlock ?? false)),
+                  spamBlockUntil: ref.watch(
+                      authProvider.select((a) => a.profile?.spamBlockUntil)),
+                  spamBlockReason: ref.watch(
+                      authProvider.select((a) => a.profile?.spamBlockReason)),
+                  onContactSupport: () => context.push('/chat/support'),
+                  onEditLastMessage: _editLastMessage,
+                  onAttachFiles: _uploadDesktopFiles,
+                );
               },
-              canPostInChannel: canPostInChannel,
-              showDraftRestoredBanner: _showDraftRestoredBanner,
-              onClearDraft: () {
-                final int? cid = _chatId;
-                if (cid != null) {
-                  _draftStorage.remove(cid);
-                }
-                _inputController.clear();
-                setState(() {
-                  _showDraftRestoredBanner = false;
-                });
-              },
-              uploadingMedia:
-                  ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
-              inputController: _inputController,
-              inputFocusNode: _inputFocusNode,
-              isAiProcessing: _isAiProcessing,
-              editingMessageId: _editingMessageId,
-              editingOriginalText: _editingOriginalText,
-              replyToMessageId: _replyToMessageId,
-              replyPreviewText: _replyPreviewText,
-              onSend: _sendMessage,
-              onCommitEdit: _commitEdit,
-              onCancelEdit: _cancelEdit,
-              onClearReply: _clearReply,
-              onAttachMedia: _pickAndUploadMedia,
-              onAiPressed: () => _showAiBottomSheet(context, scheme),
-              onVoiceSend: _sendVoiceMessage,
-              onCircleSend: _sendCircleVideo,
-              hapticsEnabled:
-                  ref.watch(uiSettingsProvider.select((s) => s.haptics)),
-              sendOnEnter:
-                  ref.watch(uiSettingsProvider.select((s) => s.sendOnEnter)),
-              isSpamBlocked: ref.watch(authProvider
-                  .select((a) => a.profile?.isRestrictedBySpamBlock ?? false)),
-              spamBlockUntil: ref.watch(
-                  authProvider.select((a) => a.profile?.spamBlockUntil)),
-              spamBlockReason: ref.watch(
-                  authProvider.select((a) => a.profile?.spamBlockReason)),
-              onContactSupport: () => context.push('/chat/support'),
             );
           },
         ),
@@ -2283,9 +2324,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           ],
         ),
       ),
-      backgroundColor: scheme.surface,
     ),
-  );
+    backgroundColor: scheme.surface,
+    ),
+  ),
+);
 
   if (scheme == baseScheme) {
     return content;

@@ -38,6 +38,9 @@ class AppUpdateInfo {
   /// File size in bytes, if reported by update service.
   final int? apkSize;
 
+  /// Generic file size in bytes (alias to apkSize for cross-platform support).
+  int? get fileSize => apkSize;
+
   /// Date and time when the release was published.
   final DateTime? publishedAt;
 }
@@ -89,6 +92,15 @@ class AppUpdateService {
   /// Canonical fallback direct download URL for latest APK.
   String get _canonicalApkUrl =>
       'https://github.com/$repoOwner/$repoName/releases/download/latest/niosmess.apk';
+
+  /// Platform-aware canonical download URL for latest release binary.
+  String get _canonicalDownloadUrl {
+    final bool isWindows =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+    return isWindows
+        ? 'https://github.com/$repoOwner/$repoName/releases/download/latest/niosmess-windows-setup.exe'
+        : _canonicalApkUrl;
+  }
 
   /// Compares two Semantic Versioning strings (e.g. "3.49.1+102" vs "3.47.0+98").
   /// Returns `true` if [latest] is strictly greater than [current].
@@ -350,22 +362,49 @@ class AppUpdateService {
           final List<dynamic> assets =
               decoded['assets'] as List<dynamic>? ?? <dynamic>[];
 
+          final bool isWindows =
+              !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+          Map<String, dynamic>? selectedAsset;
+
           for (final dynamic asset in assets) {
             if (asset is Map<String, dynamic>) {
-              final String name = (asset['name'] as String? ?? '').toLowerCase();
-              if (name.endsWith('.apk')) {
-                final String? url = asset['browser_download_url'] as String?;
-                if (url != null && url.isNotEmpty) {
-                  downloadUrl = url;
+              final String name =
+                  (asset['name'] as String? ?? '').toLowerCase();
+              if (isWindows) {
+                if (name.endsWith('.exe')) {
+                  // Prefer explicit setup or installer exe
+                  if (name.contains('setup') ||
+                      name.contains('installer') ||
+                      selectedAsset == null) {
+                    selectedAsset = asset;
+                  }
                 }
-                apkSize = asset['size'] as int?;
+              } else {
+                if (name.endsWith('.apk')) {
+                  selectedAsset = asset;
+                  break;
+                }
               }
             }
+          }
+
+          if (selectedAsset != null) {
+            final String? url =
+                selectedAsset['browser_download_url'] as String?;
+            if (url != null && url.isNotEmpty) {
+              downloadUrl = url;
+            }
+            apkSize = selectedAsset['size'] as int?;
           }
         }
       }
     } catch (e) {
       debugPrint('[AppUpdateService] Error fetching release metadata: $e');
+    }
+
+    if (downloadUrl.isEmpty &&
+        isNewerVersion(latestVersion, fullCurrentVersion)) {
+      downloadUrl = _canonicalDownloadUrl;
     }
 
     if (latestVersion.isEmpty) {

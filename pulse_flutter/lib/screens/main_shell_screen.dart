@@ -288,8 +288,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
       return;
     }
 
-    // Rasterize BEFORE the route change, while the current layer is fresh.
-    _tabTransition.captureOutgoing();
     _lastBackPressTime = null;
 
     if (!_activatedTabs.contains(nextIndex)) {
@@ -416,12 +414,12 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         final bool tabMotion =
             !tier.isTierC && !MediaQuery.disableAnimationsOf(context);
 
-        final Widget body = TabSharedAxisSwitcher(
+        final Widget body = M3TabPageSwitcher(
           index: currentIndex,
           controller: _tabTransition,
           animate: tabMotion,
-          shift: tier.isTierA ? 0.14 : 0.10,
-          duration: tier.isTierA ? M3Durations.medium2 : M3Durations.medium1,
+          slideDistance: tier.isTierA ? 12.0 : 8.0,
+          duration: tier.isTierA ? M3Durations.medium1 : M3Durations.short4,
           children: List<Widget>.generate(pages.length, (int index) {
             if (!_activatedTabs.contains(index)) {
               return const SizedBox.shrink();
