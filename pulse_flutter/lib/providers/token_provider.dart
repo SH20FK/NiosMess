@@ -7,7 +7,7 @@ Map<String, String> cachedAuthHeaders() {
   return {'Authorization': 'Bearer $_cachedToken'};
 }
 
-class AuthTokenNotifier extends Notifier<String?> {
+class SessionAccessTokenNotifier extends Notifier<String?> {
   @override
   String? build() => null;
 
@@ -22,5 +22,16 @@ class AuthTokenNotifier extends Notifier<String?> {
   }
 }
 
-final NotifierProvider<AuthTokenNotifier, String?> authTokenProvider =
-    NotifierProvider<AuthTokenNotifier, String?>(AuthTokenNotifier.new);
+/// Canonical provider for user session access token.
+/// Distinct from AI quota/character limits to eliminate naming drift.
+final NotifierProvider<SessionAccessTokenNotifier, String?> sessionAccessTokenProvider =
+    NotifierProvider<SessionAccessTokenNotifier, String?>(
+  SessionAccessTokenNotifier.new,
+);
+
+/// Backward-compatibility alias for [sessionAccessTokenProvider].
+final NotifierProvider<SessionAccessTokenNotifier, String?> authTokenProvider =
+    sessionAccessTokenProvider;
+
+/// Backward-compatibility type alias for [SessionAccessTokenNotifier].
+typedef AuthTokenNotifier = SessionAccessTokenNotifier;

@@ -143,7 +143,7 @@ class AuthNotifier extends Notifier<AuthState> {
     }
 
     if (session != null && session.accessToken.isNotEmpty) {
-      ref.read(authTokenProvider.notifier).setToken(session.accessToken);
+      ref.read(sessionAccessTokenProvider.notifier).setToken(session.accessToken);
     }
 
     state = state.copyWith(hydrated: true, session: session);
@@ -162,12 +162,12 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> _saveSession(AuthSession session) async {
     final String serialized = jsonEncode(session.toJson());
     await _storage.write(key: _sessionKey, value: serialized);
-    ref.read(authTokenProvider.notifier).setToken(session.accessToken);
+    ref.read(sessionAccessTokenProvider.notifier).setToken(session.accessToken);
   }
 
   Future<void> _clearSessionStorage() async {
     await _storage.delete(key: _sessionKey);
-    ref.read(authTokenProvider.notifier).clear();
+    ref.read(sessionAccessTokenProvider.notifier).clear();
   }
 
   Future<AuthActionResult> loginWithOAuth({

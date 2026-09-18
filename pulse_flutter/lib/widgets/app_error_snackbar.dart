@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/error/error_handler.dart';
-import 'package:pulse_flutter/core/localization/l10n.dart';
-
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 class AppErrorSnackbar extends ConsumerWidget {

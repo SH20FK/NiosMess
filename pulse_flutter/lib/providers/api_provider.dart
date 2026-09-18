@@ -16,7 +16,7 @@ final Provider<ApiClient> apiClientProvider = Provider<ApiClient>((Ref ref) {
 
   return ApiClient(
     baseUrl: normalizedBase,
-    readToken: () => ref.read(authTokenProvider),
+    readToken: () => ref.read(sessionAccessTokenProvider),
     onUnauthorized: () {
       ref.read(authProvider.notifier).logout();
     },
