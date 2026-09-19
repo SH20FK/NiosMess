@@ -83,17 +83,14 @@ Page<void> _chatDetailPage(GoRouterState state, Widget child, {LocalKey? pageKey
   return CustomTransitionPage<void>(
     key: pageKey ?? state.pageKey,
     child: child,
-    transitionDuration: const Duration(milliseconds: 280),
-    reverseTransitionDuration: const Duration(milliseconds: 240),
+    transitionDuration: const Duration(milliseconds: 240),
+    reverseTransitionDuration: const Duration(milliseconds: 200),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final Animation<Offset> slideAnim = Tween<Offset>(
-        begin: const Offset(0.08, 0.0),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(
+      final Animation<double> curvedAnim = CurvedAnimation(
         parent: animation,
-        curve: M3SpringCurves.expressiveDecel,
+        curve: Curves.easeOutCubic,
         reverseCurve: Curves.easeInCubic,
-      ));
+      );
 
       final Animation<double> fadeAnim = CurvedAnimation(
         parent: animation,
@@ -101,12 +98,19 @@ Page<void> _chatDetailPage(GoRouterState state, Widget child, {LocalKey? pageKey
         reverseCurve: Curves.easeIn,
       );
 
-      return SlideTransition(
-        position: slideAnim,
-        child: FadeTransition(
-          opacity: fadeAnim,
-          child: child,
-        ),
+      return AnimatedBuilder(
+        animation: curvedAnim,
+        builder: (context, child) {
+          final double dx = (1.0 - curvedAnim.value) * 12.0;
+          return Transform.translate(
+            offset: Offset(dx, 0.0),
+            child: FadeTransition(
+              opacity: fadeAnim,
+              child: child,
+            ),
+          );
+        },
+        child: child,
       );
     },
   );

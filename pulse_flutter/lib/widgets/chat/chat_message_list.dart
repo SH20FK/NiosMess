@@ -7,11 +7,9 @@ import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dar
 import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
-import 'package:pulse_flutter/models/api/sticker_model.dart';
-import 'package:pulse_flutter/providers/sticker_provider.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
-import 'package:pulse_flutter/widgets/chat/sticker_set_modal.dart';
+import 'package:pulse_flutter/widgets/chat/sticker_set_details_sheet.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
@@ -89,6 +87,8 @@ class ChatMessageList extends ConsumerStatefulWidget {
     required this.amAdminOrOwner,
     required this.isChannel,
     this.isGroup = false,
+    this.bottomPadding = 56.0,
+    this.topPadding = 48.0,
     this.onOpenComments,
     this.onReactionTap,
     required this.onOpenMedia,
@@ -113,6 +113,8 @@ class ChatMessageList extends ConsumerStatefulWidget {
   final bool amAdminOrOwner;
   final bool isChannel;
   final bool isGroup;
+  final double bottomPadding;
+  final double topPadding;
   final void Function(ApiMessage message, String emoji)? onReactionTap;
   final void Function(ApiMessage)? onOpenComments;
   final void Function(ApiMessage) onOpenMedia;
@@ -270,7 +272,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
         reverse: true,
         // ignore: deprecated_member_use
         cacheExtent: cacheExtent,
-        padding: const EdgeInsets.fromLTRB(16, 48, 16, 56),
+        padding: EdgeInsets.fromLTRB(16, widget.topPadding, 16, widget.bottomPadding),
         addAutomaticKeepAlives: false,
         addRepaintBoundaries: false,
         itemCount: messages.length,
@@ -389,28 +391,13 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             isSticker: isSticker,
             sticker: message.sticker,
             onStickerTap: () {
-              final int? targetSetId =
-                  message.resolvedStickerSetId ?? message.sticker?.setId;
               final int? stickerId = message.sticker?.id;
-              if (targetSetId != null && targetSetId > 0) {
-                StickerSetModal.show(context, setId: targetSetId, stickerId: stickerId);
-              } else if (stickerId != null && stickerId > 0) {
-                final List<ApiStickerSet> sets =
-                    ref.read(stickerSetsProvider).value ??
-                        const <ApiStickerSet>[];
-                for (final ApiStickerSet s in sets) {
-                  if (s.stickers.any((ApiSticker st) => st.id == stickerId)) {
-                    StickerSetModal.show(
-                      context,
-                      stickerSet: s,
-                      setId: s.id,
-                      stickerId: stickerId,
-                    );
-                    return;
-                  }
-                }
-                // Fallback: look up by sticker ID directly on server
-                StickerSetModal.show(context, stickerId: stickerId);
+              if (stickerId != null && stickerId > 0) {
+                StickerSetDetailsSheet.showForSticker(
+                  context,
+                  stickerId: stickerId,
+                  knownSetId: message.resolvedStickerSetId ?? message.sticker?.setId,
+                );
               } else {
                 AppToast.showError(context, 'Стикерпак не найден');
               }

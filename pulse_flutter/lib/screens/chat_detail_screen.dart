@@ -1,9 +1,10 @@
 import 'package:pulse_flutter/widgets/chat/chat_detail_app_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_fab.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
+import 'package:pulse_flutter/widgets/chat/chat_viewport.dart';
+import 'package:pulse_flutter/widgets/chat/chat_empty_state.dart';
 import 'package:pulse_flutter/widgets/chat/e2ee_verification_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/e2ee_status_card.dart';
-import 'package:pulse_flutter/widgets/chat/chat_message_edge_fade.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:universal_io/io.dart';
@@ -26,9 +27,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/smooth_text_streamer.dart';
-import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
@@ -2058,232 +2057,214 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         ),
       body: DesktopDragDropArea(
         onFilesDropped: _uploadDesktopFiles,
-        child: PulseScaffoldBody(
-        animatedBackdrop: false,
-        expand: true,
-        bottomSafe: false,
-        child: Stack(
-          children: <Widget>[
-            Positioned.fill(
-              child: ChatWallpaperBackground(
-                chatId: widget.chatId.toString(),
+        child: ChatViewport(
+          wallpaper: ChatWallpaperBackground(
+            chatId: widget.chatId.toString(),
+          ),
+          topBanner: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Consumer(
+                builder: (BuildContext context, WidgetRef ref, _) {
+                  final bool isOffline =
+                      !(ref.watch(connectivityProvider).value ?? true);
+                  return OfflineBanner(isOffline: isOffline);
+                },
               ),
-            ),
-            Column(
-              children: <Widget>[
-                Consumer(
-                  builder: (BuildContext context, WidgetRef ref, _) {
-                    final bool isOffline =
-                        !(ref.watch(connectivityProvider).value ?? true);
-                    return OfflineBanner(isOffline: isOffline);
-                  },
-                ),
-                if (chat?.isSecret == true || _isSecret)
-                  E2eeStatusCard(
-                    chatId: chatId,
-                    onTap: _showE2eeVerification,
-                  ),
-                // Loading older messages indicator at top
-                ValueListenableBuilder<bool>(
-                  valueListenable: _loadingOlderNotifier,
-                  builder: (context, isLoading, _) => AnimatedSize(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOut,
-                    child: isLoading
-                        ? const AppLoadingIndicator(size: 24)
-                        : const SizedBox.shrink(),
-                  ),
-                ),
-                Expanded(
-                  child: Stack(
-                    children: <Widget>[
-                      messagesAsync.when(
-                    data: (List<ApiMessage> messages) {
-                      if (messages.isEmpty) {
-                        final bool isSecretChat = chat?.isSecret == true || _isSecret;
-                        if (isSecretChat) {
-                          return ChatStateSurface.secret(
-                            title: context.l10n.secretChatTitle,
-                            description: context.l10n.secretChatDesc,
-                            features: <String>[
-                              context.l10n.secretChatFeature1,
-                              context.l10n.secretChatFeature2,
-                              context.l10n.secretChatFeature3,
-                              context.l10n.secretChatFeature4,
-                            ],
-                            actionLabel: context.l10n.chatSendFirst,
-                            onAction: () => _inputFocusNode.requestFocus(),
-                          );
-                        }
-
-                        return ChatStateSurface.empty(
-                          title: context.l10n.chatNoMessages,
-                          description: context.l10n.chatSendFirst,
-                          actionLabel: context.l10n.chatSendFirst,
-                          onAction: () => _inputFocusNode.requestFocus(),
-                        );
-                      }
-
-                      return ChatMessageList(
-                        messages: messages,
-                        scrollController: _scrollController,
-                        authUserId: myUserId,
-                        amAdminOrOwner: amAdminOrOwner,
-                        isChannel: isChannel,
-                        isGroup: isGroup,
-                        onOpenComments: (ApiMessage msg) {
-                          context.push('/channel/$chatId/post/${msg.id}/comments');
-                        },
-                        onReactionTap: (ApiMessage msg, String emoji) =>
-                            _react(msg, emoji),
-                        onOpenMedia: _handleOpenMediaFor,
-                        onLongPressMedia: _handleLongPressMediaFor,
-                        onLongPress: _handleLongPressFor,
-                        onSwipeToReply: _setReply,
-                        onCallbackQuery: (ApiMessage message, String data) {
-                          final int? cid = _chatId;
-                          if (cid == null) return;
-                          ref.read(chatMessagesProvider(cid).notifier).sendCallbackQuery(message.id, data);
-                        },
-                        onRetrySend: _retrySend,
-                        displayTextBuilder: _displayText,
-                        mediaUrlBuilder: _mediaUrlFor,
-                        isImageMediaBuilder: _isImageMedia,
-                        mediaLabelBuilder: _mediaLabel,
-                        replyPreviewBuilder: _replyPreviewFor,
-                        dateSeparatorBuilder: _dateSeparator,
-                        animatedMessageBuilder: ({required int messageId, required bool animate, required bool isMine, required Widget child}) {
-                          return _AnimatedMessage(
-                            key: ValueKey<int>(messageId),
-                            animate: animate,
-                            isMine: isMine,
-                            child: child,
-                          );
-                        },
-                      );
-                    },
-                    loading: () => const MessageListSkeleton(),
-                    error: (Object error, StackTrace trace) {
-                      return ChatStateSurface.error(
-                        title: context.l10n.chatConnecting,
-                        description: context.l10n.chatReconnecting,
-                        actionLabel: context.l10n.refreshAction,
-                        onAction: () => ref.invalidate(
-                          chatMessagesProvider(chatId),
-                        ),
-                      );
-                    },
-                  ),
-                  // Top and bottom edge fades for smooth message dissolution
-                  ChatMessageTopFade(color: scheme.surface),
-                  ChatMessageBottomFade(color: scheme.surface),
-                  // Scroll-to-bottom FAB overlay
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _showScrollToBottomNotifier,
-                    builder: (context, showScroll, child) {
-                      return ValueListenableBuilder<int>(
-                        valueListenable: _unreadWhileScrolledNotifier,
-                        builder: (context, unreadCount, _) {
-                          return ChatDetailScrollToBottomFAB(
-                            show: showScroll,
-                            chatId: chatId,
-                            unreadCount: unreadCount,
-                            onPressed: _scrollToBottom,
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-        Builder(
-          builder: (BuildContext ctx) {
-            final bool isDirectChat = chat?.chatType == 'direct';
-            final int? partnerId = chat?.partnerUserId ??
-                (directUsername != null ? members.where((m) => m.userId != myUserId).firstOrNull?.userId : null);
-            final bool isBlockedByMe = isDirectChat && partnerId != null &&
-                (ref.watch(privacyProvider).isUserBlocked(partnerId) || (chat?.isBlockedByMe ?? false));
-            final bool isBlockedByUser = isDirectChat && (chat?.isBlockedByUser ?? false);
-
-            return ValueListenableBuilder<ChatComposerState>(
-              valueListenable: _composerNotifier,
-              builder: (BuildContext context, ChatComposerState composerState, Widget? _) {
-                return ChatDetailInputArea(
+              if (chat?.isSecret == true || _isSecret)
+                E2eeStatusCard(
                   chatId: chatId,
-                  isBlockedByMe: isBlockedByMe,
-                  isBlockedByUser: isBlockedByUser,
-                  onUnblockUser: partnerId != null
-                      ? () async {
-                          HapticService.confirm();
-                          final bool success = await ref
-                              .read(privacyProvider.notifier)
-                              .unblockUser(partnerId);
-                          if (!context.mounted) return;
-                          if (success) {
-                            AppToast.showSuccess(context, context.l10n.userUnblockedSuccess);
-                          }
-                        }
-                      : null,
-                  onCancelAi: _cancelAiProcessing,
-                  onSendSticker: _sendSticker,
-                  onSendInlineResult: (InlineQueryResult result) {
-                    _inputController.text = result.messageText;
-                    _sendMessage();
+                  onTap: _showE2eeVerification,
+                ),
+              ValueListenableBuilder<bool>(
+                valueListenable: _loadingOlderNotifier,
+                builder: (context, isLoading, _) => AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  child: isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 6),
+                          child: Center(child: AppLoadingIndicator(size: 24)),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ),
+            ],
+          ),
+          messagesBuilder: (BuildContext context, double composerHeight) {
+            return messagesAsync.when(
+              data: (List<ApiMessage> messages) {
+                if (messages.isEmpty) {
+                  final bool isSecretChat = chat?.isSecret == true || _isSecret;
+                  if (isSecretChat) {
+                    return ChatEmptyState.secret(
+                      title: context.l10n.secretChatTitle,
+                      description: context.l10n.secretChatDesc,
+                      actionLabel: context.l10n.chatSendFirst,
+                      onAction: () => _inputFocusNode.requestFocus(),
+                    );
+                  }
+
+                  return ChatEmptyState.empty(
+                    title: context.l10n.chatNoMessages,
+                    description: context.l10n.chatSendFirst,
+                    actionLabel: context.l10n.chatSendFirst,
+                    onAction: () => _inputFocusNode.requestFocus(),
+                  );
+                }
+
+                return ChatMessageList(
+                  messages: messages,
+                  scrollController: _scrollController,
+                  authUserId: myUserId,
+                  amAdminOrOwner: amAdminOrOwner,
+                  isChannel: isChannel,
+                  isGroup: isGroup,
+                  bottomPadding: composerHeight + 8.0,
+                  topPadding: 48.0,
+                  onOpenComments: (ApiMessage msg) {
+                    context.push('/channel/$chatId/post/${msg.id}/comments');
                   },
-                  canPostInChannel: canPostInChannel,
-                  showDraftRestoredBanner: _showDraftRestoredBanner,
-                  onClearDraft: () {
+                  onReactionTap: (ApiMessage msg, String emoji) =>
+                      _react(msg, emoji),
+                  onOpenMedia: _handleOpenMediaFor,
+                  onLongPressMedia: _handleLongPressMediaFor,
+                  onLongPress: _handleLongPressFor,
+                  onSwipeToReply: _setReply,
+                  onCallbackQuery: (ApiMessage message, String data) {
                     final int? cid = _chatId;
-                    if (cid != null) {
-                      _draftStorage.remove(cid);
-                    }
-                    _inputController.clear();
-                    setState(() {
-                      _showDraftRestoredBanner = false;
-                    });
+                    if (cid == null) return;
+                    ref.read(chatMessagesProvider(cid).notifier).sendCallbackQuery(message.id, data);
                   },
-                  uploadingMedia:
-                      ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
-                  inputController: _inputController,
-                  inputFocusNode: _inputFocusNode,
-                  isAiProcessing: composerState.isAiProcessing,
-                  editingMessageId: composerState.editingMessageId,
-                  editingOriginalText: composerState.editingOriginalText,
-                  replyToMessageId: composerState.replyToMessageId,
-                  replyPreviewText: composerState.replyPreviewText,
-                  onSend: _sendMessage,
-                  onCommitEdit: _commitEdit,
-                  onCancelEdit: _cancelEdit,
-                  onClearReply: _clearReply,
-                  onAttachMedia: _pickAndUploadMedia,
-                  onAiPressed: () => _showAiBottomSheet(context, scheme),
-                  onVoiceSend: _sendVoiceMessage,
-                  onCircleSend: _sendCircleVideo,
-                  hapticsEnabled:
-                      ref.watch(uiSettingsProvider.select((s) => s.haptics)),
-                  sendOnEnter:
-                      ref.watch(uiSettingsProvider.select((s) => s.sendOnEnter)),
-                  isSpamBlocked: ref.watch(authProvider
-                      .select((a) => a.profile?.isRestrictedBySpamBlock ?? false)),
-                  spamBlockUntil: ref.watch(
-                      authProvider.select((a) => a.profile?.spamBlockUntil)),
-                  spamBlockReason: ref.watch(
-                      authProvider.select((a) => a.profile?.spamBlockReason)),
-                  onContactSupport: () => context.push('/chat/support'),
-                  onEditLastMessage: _editLastMessage,
-                  onAttachFiles: _uploadDesktopFiles,
+                  onRetrySend: _retrySend,
+                  displayTextBuilder: _displayText,
+                  mediaUrlBuilder: _mediaUrlFor,
+                  isImageMediaBuilder: _isImageMedia,
+                  mediaLabelBuilder: _mediaLabel,
+                  replyPreviewBuilder: _replyPreviewFor,
+                  dateSeparatorBuilder: _dateSeparator,
+                  animatedMessageBuilder: ({required int messageId, required bool animate, required bool isMine, required Widget child}) {
+                    return _AnimatedMessage(
+                      key: ValueKey<int>(messageId),
+                      animate: animate,
+                      isMine: isMine,
+                      child: child,
+                    );
+                  },
+                );
+              },
+              loading: () => const MessageListSkeleton(),
+              error: (Object error, StackTrace trace) {
+                return ChatEmptyState.error(
+                  title: context.l10n.chatConnecting,
+                  description: context.l10n.chatReconnecting,
+                  actionLabel: context.l10n.refreshAction,
+                  onAction: () => ref.invalidate(
+                    chatMessagesProvider(chatId),
+                  ),
                 );
               },
             );
           },
-        ),
-      ],
-            ),
-          ],
+          floatingActionButton: ValueListenableBuilder<bool>(
+            valueListenable: _showScrollToBottomNotifier,
+            builder: (context, showScroll, child) {
+              return ValueListenableBuilder<int>(
+                valueListenable: _unreadWhileScrolledNotifier,
+                builder: (context, unreadCount, _) {
+                  return ChatDetailScrollToBottomFAB(
+                    show: showScroll,
+                    chatId: chatId,
+                    unreadCount: unreadCount,
+                    onPressed: _scrollToBottom,
+                  );
+                },
+              );
+            },
+          ),
+          composer: Builder(
+            builder: (BuildContext ctx) {
+              final bool isDirectChat = chat?.chatType == 'direct';
+              final int? partnerId = chat?.partnerUserId ??
+                  (directUsername != null ? members.where((m) => m.userId != myUserId).firstOrNull?.userId : null);
+              final bool isBlockedByMe = isDirectChat && partnerId != null &&
+                  (ref.watch(privacyProvider).isUserBlocked(partnerId) || (chat?.isBlockedByMe ?? false));
+              final bool isBlockedByUser = isDirectChat && (chat?.isBlockedByUser ?? false);
+
+              return ValueListenableBuilder<ChatComposerState>(
+                valueListenable: _composerNotifier,
+                builder: (BuildContext context, ChatComposerState composerState, Widget? _) {
+                  return ChatDetailInputArea(
+                    chatId: chatId,
+                    isBlockedByMe: isBlockedByMe,
+                    isBlockedByUser: isBlockedByUser,
+                    onUnblockUser: partnerId != null
+                        ? () async {
+                            HapticService.confirm();
+                            final bool success = await ref
+                                .read(privacyProvider.notifier)
+                                .unblockUser(partnerId);
+                            if (!context.mounted) return;
+                            if (success) {
+                              AppToast.showSuccess(context, context.l10n.userUnblockedSuccess);
+                            }
+                          }
+                        : null,
+                    onCancelAi: _cancelAiProcessing,
+                    onSendSticker: _sendSticker,
+                    onSendInlineResult: (InlineQueryResult result) {
+                      _inputController.text = result.messageText;
+                      _sendMessage();
+                    },
+                    canPostInChannel: canPostInChannel,
+                    showDraftRestoredBanner: _showDraftRestoredBanner,
+                    onClearDraft: () {
+                      final int? cid = _chatId;
+                      if (cid != null) {
+                        _draftStorage.remove(cid);
+                      }
+                      _inputController.clear();
+                      setState(() {
+                        _showDraftRestoredBanner = false;
+                      });
+                    },
+                    uploadingMedia:
+                        ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
+                    inputController: _inputController,
+                    inputFocusNode: _inputFocusNode,
+                    isAiProcessing: composerState.isAiProcessing,
+                    editingMessageId: composerState.editingMessageId,
+                    editingOriginalText: composerState.editingOriginalText,
+                    replyToMessageId: composerState.replyToMessageId,
+                    replyPreviewText: composerState.replyPreviewText,
+                    onSend: _sendMessage,
+                    onCommitEdit: _commitEdit,
+                    onCancelEdit: _cancelEdit,
+                    onClearReply: _clearReply,
+                    onAttachMedia: _pickAndUploadMedia,
+                    onAiPressed: () => _showAiBottomSheet(context, scheme),
+                    onVoiceSend: _sendVoiceMessage,
+                    onCircleSend: _sendCircleVideo,
+                    hapticsEnabled:
+                        ref.watch(uiSettingsProvider.select((s) => s.haptics)),
+                    sendOnEnter:
+                        ref.watch(uiSettingsProvider.select((s) => s.sendOnEnter)),
+                    isSpamBlocked: ref.watch(authProvider
+                        .select((a) => a.profile?.isRestrictedBySpamBlock ?? false)),
+                    spamBlockUntil: ref.watch(
+                        authProvider.select((a) => a.profile?.spamBlockUntil)),
+                    spamBlockReason: ref.watch(
+                        authProvider.select((a) => a.profile?.spamBlockReason)),
+                    onContactSupport: () => context.push('/chat/support'),
+                    onEditLastMessage: _editLastMessage,
+                    onAttachFiles: _uploadDesktopFiles,
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
-    ),
     backgroundColor: scheme.surface,
     ),
   ),
@@ -2301,7 +2282,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 }
 
 // ── Animated message entrance widget ────────────────────────────────────────
-class _AnimatedMessage extends ConsumerStatefulWidget {
+class _AnimatedMessage extends StatefulWidget {
   const _AnimatedMessage({
     super.key,
     required this.animate,
@@ -2314,15 +2295,15 @@ class _AnimatedMessage extends ConsumerStatefulWidget {
   final Widget child;
 
   @override
-  ConsumerState<_AnimatedMessage> createState() => _AnimatedMessageState();
+  State<_AnimatedMessage> createState() => _AnimatedMessageState();
 }
 
-class _AnimatedMessageState extends ConsumerState<_AnimatedMessage>
+class _AnimatedMessageState extends State<_AnimatedMessage>
     with SingleTickerProviderStateMixin {
   AnimationController? _controller;
   Animation<double>? _fade;
   Animation<double>? _scale;
-  Animation<Offset>? _slide;
+  Animation<double>? _slideY;
 
   @override
   void initState() {
@@ -2330,33 +2311,16 @@ class _AnimatedMessageState extends ConsumerState<_AnimatedMessage>
     if (widget.animate) {
       final ctrl = AnimationController(
         vsync: this,
-        duration: M3Durations.medium3,
+        duration: const Duration(milliseconds: 200),
       );
       _controller = ctrl;
-      _fade = CurvedAnimation(
+      final CurvedAnimation curve = CurvedAnimation(
         parent: ctrl,
-        curve: const Interval(0.0, 0.65, curve: M3SpringCurves.gentle),
+        curve: Curves.easeOutCubic,
       );
-
-      // MOM-1: Physical spring entrance from composer / origin
-      if (widget.isMine) {
-        _scale = Tween<double>(begin: 0.35, end: 1.0).animate(
-          CurvedAnimation(parent: ctrl, curve: M3SpringCurves.emphasized),
-        );
-        _slide = Tween<Offset>(
-          begin: const Offset(0.10, 0.35),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(parent: ctrl, curve: M3SpringCurves.emphasized));
-        TriSync.pop(ref: ref, context: context);
-      } else {
-        _scale = Tween<double>(begin: 0.55, end: 1.0).animate(
-          CurvedAnimation(parent: ctrl, curve: M3SpringCurves.spatial),
-        );
-        _slide = Tween<Offset>(
-          begin: const Offset(-0.06, 0.20),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(parent: ctrl, curve: M3SpringCurves.spatial));
-      }
+      _fade = Tween<double>(begin: 0.0, end: 1.0).animate(curve);
+      _scale = Tween<double>(begin: 0.98, end: 1.0).animate(curve);
+      _slideY = Tween<double>(begin: 10.0, end: 0.0).animate(curve);
       ctrl.forward();
     }
   }
@@ -2372,16 +2336,23 @@ class _AnimatedMessageState extends ConsumerState<_AnimatedMessage>
     if (!widget.animate || _controller == null) {
       return widget.child;
     }
-    return FadeTransition(
-      opacity: _fade!,
-      child: SlideTransition(
-        position: _slide!,
-        child: ScaleTransition(
-          scale: _scale!,
-          alignment: widget.isMine ? Alignment.bottomRight : Alignment.bottomLeft,
-          child: widget.child,
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: _controller!,
+      builder: (BuildContext context, Widget? child) {
+        return Opacity(
+          opacity: _fade!.value,
+          child: Transform.translate(
+            offset: Offset(0, _slideY!.value),
+            child: Transform.scale(
+              scale: _scale!.value,
+              alignment:
+                  widget.isMine ? Alignment.bottomRight : Alignment.bottomLeft,
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }

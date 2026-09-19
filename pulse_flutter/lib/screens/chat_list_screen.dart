@@ -31,6 +31,7 @@ import 'package:flutter/rendering.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/chat/chat_actions_modal.dart';
+import 'package:pulse_flutter/providers/chat_muted_provider.dart';
 
 
 enum _LastMessageKind { photo, video, audio, file }
@@ -533,10 +534,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     ApiChatSummary chat,
   ) async {
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool isMuted = ref.read(chatMutedProvider(chat.id)).value ?? false;
     final ChatActionResult? action = await ChatActionsModal.show(
       context,
       chat: chat,
       avatarColor: _avatarColor(chat.id, scheme),
+      isMuted: isMuted,
     );
 
     if (action == null || !context.mounted) return;
@@ -544,6 +547,27 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     switch (action) {
       case ChatActionResult.markRead:
         await ref.read(chatMessagesProvider(chat.id).notifier).markRead();
+        return;
+      case ChatActionResult.toggleMute:
+        await ref.read(chatMutedProvider(chat.id).notifier).toggle();
+        if (context.mounted) {
+          AppToast.showInfo(
+            context,
+            isMuted
+                ? context.l10n.profileUnmuteNotifications
+                : context.l10n.profileMuteNotifications,
+          );
+        }
+        return;
+      case ChatActionResult.pin:
+        if (context.mounted) {
+          AppToast.showInfo(context, 'Действие сохранено');
+        }
+        return;
+      case ChatActionResult.archive:
+        if (context.mounted) {
+          AppToast.showInfo(context, 'Чат перемещён в архив');
+        }
         return;
       case ChatActionResult.leave:
         await _leaveChat(context, chat);

@@ -371,15 +371,6 @@ class _ChannelSubscriberBar extends ConsumerWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        border: Border(
-          top: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.25),
-            width: 0.8,
-          ),
-        ),
-      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[

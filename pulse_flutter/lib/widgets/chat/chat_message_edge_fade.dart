@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 class ChatMessageTopFade extends StatelessWidget {
   const ChatMessageTopFade({
     this.height = 44.0,
+    this.top = 0.0,
     this.color,
     super.key,
   });
 
   final double height;
+  final double top;
   final Color? color;
 
   @override
@@ -18,7 +20,7 @@ class ChatMessageTopFade extends StatelessWidget {
     final Color surfaceColor = color ?? Theme.of(context).colorScheme.surface;
 
     return Positioned(
-      top: 0,
+      top: top,
       left: 0,
       right: 0,
       height: height,
@@ -43,20 +45,23 @@ class ChatMessageTopFade extends StatelessWidget {
 /// Bottom edge fade above the chat input composer area.
 class ChatMessageBottomFade extends StatelessWidget {
   const ChatMessageBottomFade({
-    this.height = 56.0,
+    this.height = 84.0,
+    this.bottom = 0.0,
     this.color,
     super.key,
   });
 
   final double height;
+  final double bottom;
   final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final Color surfaceColor = color ?? Theme.of(context).colorScheme.surface;
+    final Color surfaceColor =
+        color ?? Theme.of(context).colorScheme.surfaceContainerLow;
 
     return Positioned(
-      bottom: 0,
+      bottom: bottom,
       left: 0,
       right: 0,
       height: height,

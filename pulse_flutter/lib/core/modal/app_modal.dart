@@ -179,6 +179,55 @@ class AppModal {
     );
   }
 
+  /// Displays an adaptive actions sheet (mobile bottom sheet, desktop centered dialog).
+  static Future<T?> showActions<T>({
+    required BuildContext context,
+    Widget? header,
+    required List<Widget> actions,
+    Widget? destructiveAction,
+    double? maxWidth = 380,
+    WidgetRef? ref,
+  }) async {
+    final bool isWide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
+
+    Widget buildContent(BuildContext ctx) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(16, isWide ? 16 : 8, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            if (header != null) ...<Widget>[
+              header,
+              const SizedBox(height: 12),
+            ],
+            ...actions,
+            if (destructiveAction != null) ...<Widget>[
+              const SizedBox(height: 8),
+              destructiveAction,
+            ],
+          ],
+        ),
+      );
+    }
+
+    if (isWide) {
+      return showDialog<T>(
+        context: context,
+        maxWidth: maxWidth,
+        builder: buildContent,
+      );
+    } else {
+      return showSheet<T>(
+        context: context,
+        maxWidth: maxWidth,
+        showDragHandle: true,
+        ref: ref,
+        builder: buildContent,
+      );
+    }
+  }
+
   /// Displays an adaptive confirmation dialog / sheet.
   static Future<bool> confirm({
     required BuildContext context,

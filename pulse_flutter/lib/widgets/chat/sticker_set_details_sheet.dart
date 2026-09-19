@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/services/sticker_set_resolver.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -25,6 +26,25 @@ class StickerSetDetailsSheet extends ConsumerStatefulWidget {
   final int? setId;
   final int? stickerId;
   final void Function(ApiSticker sticker)? onStickerSelected;
+
+  /// Canonical single entry point to display a sticker set for a specific sticker.
+  /// Uses [StickerSetResolver] under the hood to ensure consistent caching,
+  /// error handling, and to guarantee that empty sheets are never shown.
+  static Future<void> showForSticker(
+    BuildContext context, {
+    required int stickerId,
+    int? knownSetId,
+    void Function(ApiSticker sticker)? onStickerSelected,
+  }) {
+    return AppBottomSheets.show<void>(
+      context: context,
+      builder: (BuildContext ctx) => StickerSetDetailsSheet(
+        setId: knownSetId,
+        stickerId: stickerId,
+        onStickerSelected: onStickerSelected,
+      ),
+    );
+  }
 
   static Future<void> show(
     BuildContext context, {
@@ -100,24 +120,19 @@ class _StickerSetDetailsSheetState extends ConsumerState<StickerSetDetailsSheet>
     });
 
     try {
-      ApiStickerSet? fetched;
-      if (targetId != null && targetId > 0) {
-        fetched =
-            await ref.read(stickerRepositoryProvider).getStickerSet(targetId);
-      } else if (targetStickerId != null && targetStickerId > 0) {
-        fetched = await ref
-            .read(stickerRepositoryProvider)
-            .getStickerSetForSticker(targetStickerId);
-      }
+      final ApiStickerSet? fetched = await ref.read(stickerSetResolverProvider).resolveForSticker(
+            stickerId: targetStickerId ?? 0,
+            knownSetId: targetId,
+          );
       if (mounted) {
         setState(() {
           _fetchedSet = fetched;
           _isFetchingSet = false;
-          _hasFetchError = fetched == null;
+          _hasFetchError = fetched == null || fetched.stickers.isEmpty;
         });
       }
     } catch (e) {
-      debugPrint('[StickerSetDetailsSheet] Failed to fetch set: $e');
+      debugPrint('[StickerSetDetailsSheet] Failed to resolve set: $e');
       if (mounted) {
         setState(() {
           _isFetchingSet = false;

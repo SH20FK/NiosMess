@@ -8,8 +8,7 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
 import 'package:pulse_flutter/widgets/chat/add_sticker_dialog.dart';
 import 'package:pulse_flutter/widgets/chat/create_sticker_set_dialog.dart';
-import 'package:pulse_flutter/widgets/chat/sticker_set_modal.dart';
-import 'package:pulse_flutter/widgets/common/touch_container.dart';
+import 'package:pulse_flutter/widgets/chat/sticker_set_details_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 /// Material 3 Expressive Sticker Picker View with fluid spring physics,
@@ -162,10 +161,10 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
 
         return Column(
           children: <Widget>[
-            // Expressive compact pack header bar
+            // Expressive compact pack header bar with single overflow action
             _buildPackHeader(context, currentSet, scheme, textTheme),
 
-            // Main stickers area
+            // Main stickers area - clean grid of stickers only
             Expanded(
               child: currentSet.stickers.isEmpty
                   ? _buildEmptySetState(context, currentSet, scheme, textTheme)
@@ -179,21 +178,15 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
                         crossAxisSpacing: 8,
                         childAspectRatio: 1.0,
                       ),
-                      // Stickers + inline quick-add tile at the end
-                      itemCount: currentSet.stickers.length + 1,
+                      itemCount: currentSet.stickers.length,
                       itemBuilder: (BuildContext context, int index) {
-                        if (index == currentSet.stickers.length) {
-                          // Quick-add sticker tile at end of pack
-                          return _buildAddStickerTile(context, scheme, currentSet);
-                        }
-
                         final ApiSticker sticker = currentSet.stickers[index];
                         return _ExpressiveStickerTile(
                           sticker: sticker,
                           onTap: () => _sendSticker(sticker),
                           onLongPress: () {
                             HapticService.confirm();
-                            StickerSetModal.show(
+                            StickerSetDetailsSheet.show(
                               context,
                               stickerSet: currentSet,
                               onStickerSelected: _sendSticker,
@@ -212,53 +205,6 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
     );
   }
 
-  Widget _buildAddStickerTile(
-    BuildContext context,
-    ColorScheme scheme,
-    ApiStickerSet currentSet,
-  ) {
-    return TouchContainer(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () {
-        HapticService.tap();
-        AddStickerDialog.show(
-          context,
-          setId: currentSet.id,
-          setTitle: currentSet.title,
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh.withValues(alpha: 0.35),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.35),
-            width: 1.2,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(
-              Icons.add_photo_alternate_outlined,
-              size: 24,
-              color: scheme.primary,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Добавить',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: scheme.primary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildPackHeader(
     BuildContext context,
     ApiStickerSet currentSet,
@@ -266,10 +212,10 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
     TextTheme textTheme,
   ) {
     return Container(
-      height: 42,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow.withValues(alpha: 0.65),
+        color: scheme.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
             color: scheme.outlineVariant.withValues(alpha: 0.15),
@@ -280,11 +226,11 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
       child: Row(
         children: <Widget>[
           Container(
-            width: 26,
-            height: 26,
+            width: 24,
+            height: 24,
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
             clipBehavior: Clip.antiAlias,
             child: currentSet.coverSticker != null
@@ -295,13 +241,13 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
                     memCacheHeight: 64,
                     errorWidget: (_, _, _) => Icon(
                       Icons.sticky_note_2_outlined,
-                      size: 15,
+                      size: 14,
                       color: scheme.onSurfaceVariant,
                     ),
                   )
                 : Icon(
                     Icons.sticky_note_2_outlined,
-                    size: 15,
+                    size: 14,
                     color: scheme.onSurfaceVariant,
                   ),
           ),
@@ -323,63 +269,69 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: scheme.secondaryContainer.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${currentSet.stickers.length}',
-                    style: textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onSecondaryContainer,
-                      fontSize: 10,
-                    ),
+                Text(
+                  '${currentSet.stickers.length}',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.65),
+                    fontSize: 11,
                   ),
                 ),
               ],
             ),
           ),
-          FilledButton.tonalIcon(
-            onPressed: () {
-              HapticService.tap();
-              AddStickerDialog.show(
-                context,
-                setId: currentSet.id,
-                setTitle: currentSet.title,
+          // Single unified overflow action menu
+          MenuAnchor(
+            builder: (BuildContext context, MenuController controller, Widget? child) {
+              return IconButton(
+                onPressed: () {
+                  HapticService.tap();
+                  if (controller.isOpen) {
+                    controller.close();
+                  } else {
+                    controller.open();
+                  }
+                },
+                icon: const Icon(Icons.more_horiz_rounded, size: 18),
+                tooltip: 'Параметры',
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                padding: EdgeInsets.zero,
+                style: IconButton.styleFrom(
+                  foregroundColor: scheme.onSurfaceVariant,
+                ),
               );
             },
-            icon: const Icon(Icons.add_rounded, size: 15),
-            label: const Text(
-              'Добавить',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-            ),
-            style: FilledButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+            menuChildren: <Widget>[
+              MenuItemButton(
+                leadingIcon: const Icon(Icons.info_outline_rounded, size: 18),
+                onPressed: () {
+                  StickerSetDetailsSheet.show(
+                    context,
+                    stickerSet: currentSet,
+                    onStickerSelected: _sendSticker,
+                  );
+                },
+                child: const Text('О наборе'),
               ),
-            ),
-          ),
-          const SizedBox(width: 2),
-          IconButton(
-            onPressed: () {
-              HapticService.tap();
-              StickerSetModal.show(
-                context,
-                stickerSet: currentSet,
-                onStickerSelected: _sendSticker,
-              );
-            },
-            icon: const Icon(Icons.info_outline_rounded, size: 17),
-            tooltip: 'О стикерпаке',
-            visualDensity: VisualDensity.compact,
-            style: IconButton.styleFrom(
-              foregroundColor: scheme.onSurfaceVariant,
-            ),
+              MenuItemButton(
+                leadingIcon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                onPressed: () {
+                  AddStickerDialog.show(
+                    context,
+                    setId: currentSet.id,
+                    setTitle: currentSet.title,
+                  );
+                },
+                child: const Text('Добавить стикеры'),
+              ),
+              MenuItemButton(
+                leadingIcon: const Icon(Icons.playlist_add_rounded, size: 18),
+                onPressed: () {
+                  CreateStickerSetDialog.show(context);
+                },
+                child: const Text('Создать стикерпак'),
+              ),
+            ],
           ),
         ],
       ),
@@ -460,7 +412,7 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
     ColorScheme scheme,
   ) {
     return Container(
-      height: 52,
+      height: 48,
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
         border: Border(
@@ -474,28 +426,10 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
         controller: _dockScrollController,
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        itemCount: sets.length + 1,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        itemCount: sets.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (BuildContext context, int index) {
-          if (index == sets.length) {
-            return IconButton(
-              onPressed: () {
-                HapticService.tap();
-                CreateStickerSetDialog.show(context);
-              },
-              icon: const Icon(Icons.add_rounded, size: 20),
-              tooltip: 'Создать стикерпак',
-              style: IconButton.styleFrom(
-                backgroundColor: scheme.surfaceContainerHighest,
-                foregroundColor: scheme.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            );
-          }
-
           final ApiStickerSet s = sets[index];
           final bool isSelected = index == activeIndex;
 

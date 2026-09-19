@@ -18,7 +18,7 @@ import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/chat/inline_keyboard_view.dart';
-import 'package:pulse_flutter/widgets/chat/sticker_set_modal.dart';
+import 'package:pulse_flutter/widgets/chat/sticker_set_details_sheet.dart';
 import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -607,8 +607,12 @@ class MessageBubble extends ConsumerWidget {
           HapticService.tap();
           if (onStickerTap != null) {
             onStickerTap!();
-          } else if (sticker?.setId != null) {
-            StickerSetModal.show(context, setId: sticker!.setId);
+          } else if (sticker != null) {
+            StickerSetDetailsSheet.showForSticker(
+              context,
+              stickerId: sticker!.id,
+              knownSetId: sticker!.setId,
+            );
           }
         },
         onDoubleTap: onReactionTap != null
