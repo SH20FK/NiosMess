@@ -30,8 +30,10 @@ class ChatMessageTopFade extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
+              stops: const <double>[0.0, 0.4, 1.0],
               colors: <Color>[
-                surfaceColor,
+                surfaceColor.withValues(alpha: 0.90),
+                surfaceColor.withValues(alpha: 0.35),
                 surfaceColor.withValues(alpha: 0.0),
               ],
             ),
@@ -42,23 +44,31 @@ class ChatMessageTopFade extends StatelessWidget {
   }
 }
 
-/// Bottom edge fade above the chat input composer area.
+/// Dynamic bottom edge fade under the chat input composer area.
+/// Extends from above the composer all the way to screen bottom (0.0),
+/// creating a seamless Telegram-style floating composer experience.
 class ChatMessageBottomFade extends StatelessWidget {
   const ChatMessageBottomFade({
-    this.height = 84.0,
+    this.height = 136.0,
     this.bottom = 0.0,
+    this.fadeOverhang = 64.0,
     this.color,
     super.key,
   });
 
   final double height;
   final double bottom;
+  final double fadeOverhang;
   final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final Color surfaceColor =
         color ?? Theme.of(context).colorScheme.surfaceContainerLow;
+
+    final double safeHeight = height <= 0 ? 1.0 : height;
+    final double overhangRatio =
+        (fadeOverhang / safeHeight).clamp(0.12, 0.65);
 
     return Positioned(
       bottom: bottom,
@@ -71,9 +81,19 @@ class ChatMessageBottomFade extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
+              stops: <double>[
+                0.0,
+                overhangRatio * 0.45,
+                overhangRatio,
+                overhangRatio + (1.0 - overhangRatio) * 0.45,
+                1.0,
+              ],
               colors: <Color>[
                 surfaceColor.withValues(alpha: 0.0),
-                surfaceColor,
+                surfaceColor.withValues(alpha: 0.15),
+                surfaceColor.withValues(alpha: 0.65),
+                surfaceColor.withValues(alpha: 0.82),
+                surfaceColor.withValues(alpha: 0.94),
               ],
             ),
           ),

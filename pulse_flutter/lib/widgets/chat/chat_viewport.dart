@@ -63,7 +63,7 @@ class ChatViewport extends StatefulWidget {
     this.topBanner,
     this.floatingActionButton,
     this.composerSurfaceColor,
-    this.bottomFadeHeight = 84.0,
+    this.bottomFadeHeight = 64.0,
     this.topFadeHeight = 44.0,
   });
 
@@ -86,7 +86,7 @@ class ChatViewport extends StatefulWidget {
   /// Custom color for composer surface and bottom fade gradient
   final Color? composerSurfaceColor;
 
-  /// Height of dynamic bottom edge fade (72..104 dp)
+  /// Overhang height of dynamic bottom edge fade above composer (56..84 dp)
   final double bottomFadeHeight;
 
   /// Height of top edge fade
@@ -140,14 +140,15 @@ class _ChatViewportState extends State<ChatViewport> {
           ),
         ),
 
-        // 4. Dynamic bottom edge fade (anchored directly to top boundary of composer)
+        // 4. Dynamic bottom edge fade (anchored to bottom 0, extending behind composer)
         ChatMessageBottomFade(
-          bottom: _composerHeight,
-          height: widget.bottomFadeHeight,
+          bottom: 0.0,
+          height: _composerHeight + widget.bottomFadeHeight,
+          fadeOverhang: widget.bottomFadeHeight,
           color: composerSurface,
         ),
 
-        // 5. Unified composer surface
+        // 5. Unified floating composer surface
         Positioned(
           left: 0,
           right: 0,
@@ -155,21 +156,10 @@ class _ChatViewportState extends State<ChatViewport> {
           child: _MeasureSize(
             onSizeChange: _onComposerSizeChanged,
             child: RepaintBoundary(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: composerSurface,
-                  border: Border(
-                    top: BorderSide(
-                      color: scheme.outlineVariant.withValues(alpha: 0.2),
-                      width: 0.5,
-                    ),
-                  ),
-                ),
-                child: SafeArea(
-                  top: false,
-                  bottom: true,
-                  child: widget.composer,
-                ),
+              child: SafeArea(
+                top: false,
+                bottom: true,
+                child: widget.composer,
               ),
             ),
           ),
