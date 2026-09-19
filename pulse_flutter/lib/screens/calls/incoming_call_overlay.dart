@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
@@ -72,6 +73,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
   void dispose() {
     _slideController.dispose();
     _pulseController.dispose();
+    ref.read(appSoundProvider).stopLoop();
     super.dispose();
   }
 
@@ -82,8 +84,12 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     if (incoming != null && _lastIncoming == null) {
       _lastIncoming = incoming;
       _slideController.forward();
-      Future.microtask(() => HapticService.notification());
+      Future.microtask(() {
+        HapticService.notification();
+        ref.read(appSoundProvider).startLoop(SoundEvent.callIncoming);
+      });
     } else if (incoming == null && _lastIncoming != null) {
+      ref.read(appSoundProvider).stopLoop();
       _slideController.reverse().then((_) {
         if (mounted) setState(() => _lastIncoming = null);
       });

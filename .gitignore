@@ -64,7 +64,10 @@ referens/
 nul
 *.log
 *.ogg
-!pulse_flutter/assets/sounds/
+!pulse_flutter/assets/sounds/*.ogg
+!assets/sounds/*.ogg
+!pulse_flutter/assets/sounds/manifest.json
+
 temp.txt
 audit.py
 audit_results.json
@@ -83,6 +86,7 @@ apk_full_log.txt
 serviceAccountKey.json
 
 # === Local-only docs / scripts (keep locally, not in repo) ===
+tgsettref/
 goal.md
 design.md
 ДОКУМЕНТАЦИЯ.md

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
@@ -54,10 +55,16 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
       return;
     }
 
+    CallSessionState lastState = session.currentData.state;
     _timerNotifier.value = session.currentData.durationSeconds;
     _stateSubscription = session.stateStream.listen((CallSessionData data) {
       if (!mounted) return;
+      if (data.state == CallSessionState.connected && lastState != CallSessionState.connected) {
+        ref.read(appSoundProvider).playEvent(SoundEvent.callConnected);
+      }
+      lastState = data.state;
       if (data.state == CallSessionState.ended) {
+        ref.read(appSoundProvider).playEvent(SoundEvent.callEnded);
         if (data.fatalError != null) {
           AppToast.showError(context, data.fatalError!);
         }
@@ -86,6 +93,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
 
   Future<void> _endCall() async {
     HapticService.confirm();
+    ref.read(appSoundProvider).playEvent(SoundEvent.callEnded);
     final manager = ref.read(callSessionProvider);
     await manager?.end();
     if (mounted) _popOrGoHome();

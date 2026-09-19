@@ -672,7 +672,16 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       if (PushNotificationService.currentChatId == _chatId) {
         unawaited(markRead());
       } else {
-        await _playNotificationSound();
+        final String? myUsername = ref.read(authProvider).session?.username;
+        final bool isMention = (myUsername != null &&
+                myUsername.isNotEmpty &&
+                finalMessage.content.contains('@$myUsername')) ||
+            (finalMessage.replyToId != null &&
+                state.value?.any((m) =>
+                    m.id == finalMessage.replyToId &&
+                    m.senderId == myUserId) ==
+                    true);
+        await _playNotificationSound(isMention: isMention);
       }
     }
   }
@@ -920,9 +929,12 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
   }
 
-  Future<void> _playNotificationSound({double volume = 0.9}) async {
+  Future<void> _playNotificationSound({double? volume, bool isMention = false}) async {
     if (!ref.read(uiSettingsProvider).notifications) return;
-    await ref.read(appSoundProvider).play(AppSound.message, volume: volume);
+    await ref.read(appSoundProvider).playEvent(
+      isMention ? SoundEvent.mention : SoundEvent.messageReceive,
+      volume: volume,
+    );
   }
 
   Future<void> refresh() async {
@@ -1090,6 +1102,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       List<ApiMessage> next = List<ApiMessage>.from(current)..add(optimisticMessage);
       next.sort(_compareMessages);
       state = AsyncData<List<ApiMessage>>(next);
+      unawaited(ref.read(appSoundProvider).playEvent(
+        msgType == 'sticker' ? SoundEvent.stickerSend : SoundEvent.messageSend,
+      ));
     }
 
     try {

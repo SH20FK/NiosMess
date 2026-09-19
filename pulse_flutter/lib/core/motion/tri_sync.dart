@@ -114,10 +114,10 @@ class TriSync {
           sound.playReaction();
           break;
         case TriSyncEvent.dismiss:
-          sound.play(AppSound.navigation);
+          sound.playEvent(SoundEvent.cancel);
           break;
         case TriSyncEvent.reaction:
-          sound.play(AppSound.message);
+          sound.playEvent(SoundEvent.reaction);
           break;
         case TriSyncEvent.destructive:
           break;

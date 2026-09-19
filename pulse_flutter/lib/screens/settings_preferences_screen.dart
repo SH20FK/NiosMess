@@ -55,6 +55,9 @@ class SettingsPreferencesScreen extends ConsumerWidget {
               value: settings.soundEffects,
               onChanged: (bool value) {
                 ref.read(uiSettingsProvider.notifier).setSoundEffects(value);
+                if (value) {
+                  ref.read(appSoundProvider).playEvent(SoundEvent.toggleOn);
+                }
               },
             ),
             if (settings.soundEffects)
@@ -79,7 +82,7 @@ class SettingsPreferencesScreen extends ConsumerWidget {
                         ref.read(uiSettingsProvider.notifier).setSoundVolume(value);
                       },
                       onChangeEnd: (double value) {
-                        ref.read(appSoundProvider).play(AppSound.message, volume: value);
+                        ref.read(appSoundProvider).playEvent(SoundEvent.messageReceive, volume: value);
                       },
                     ),
                   ],

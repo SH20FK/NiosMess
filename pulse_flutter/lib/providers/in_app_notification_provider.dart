@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
@@ -50,7 +50,7 @@ class InAppNotificationNotifier extends Notifier<InAppNotificationItem?> {
         HapticService.tap();
       }
       if (uiSettings.soundEffects) {
-        ref.read(appSoundProvider).play(AppSound.message);
+        ref.read(appSoundProvider).playEvent(SoundEvent.messageReceive);
       }
     } catch (_) {}
 
