@@ -1,62 +1,324 @@
-TERMS OF SERVICE
+# TERMS OF SERVICE
 
-Last Updated: June 29, 2026
+**Last Updated: September 19, 2026**
 
-These Terms of Service (hereinafter referred to as the "Agreement") govern the relationship between the Administration of the NiosMess service (hereinafter referred to as the "Administration", "we", "us") and any individual using the service (hereinafter referred to as the "User", "you").
+These Terms of Service (the **"Terms"**) govern the relationship between the administration and operator of NiosMess (**"NiosMess"**, **"Administration"**, **"we"**, **"us"**, **"our"**) and any person who accesses or uses NiosMess (**"User"**, **"you"**, **"your"**).
 
-By registering in NiosMess or using its functionality, you unconditionally agree to the terms of this Agreement. If you do not agree with any of the terms, you must immediately cease using the service.
+By creating an account, accessing, or using NiosMess, you agree to be bound by these Terms. If you do not agree, you must not use the Service.
 
-1. GENERAL PROVISIONS
-1.1. Subject of the Agreement. The Administration grants the User a non-exclusive right to use the NiosMess messenger, including private and secret chats, groups, channels, and the NiosGram publication feed (hereinafter referred to as the "Service"), on an "as is" basis.
-1.2. Age Restrictions. The Service is intended for individuals over 13 years of age (for residents of the EU/EEA — over 16 years of age, unless local member state law allows for a lower age). If you are under the specified age, you are not permitted to use the Service without the consent of your parents or legal guardians.
-1.3. Changes to the Agreement. The Administration reserves the right to modify the Agreement at any time without prior notice. Continued use of the Service after changes are made constitutes acceptance of such changes.
+## 1. GENERAL PROVISIONS
 
-2. RIGHTS AND OBLIGATIONS OF THE USER
-2.1. Account Responsibility. The User bears full responsibility for the security of their credentials (password, 2FA codes) and for all actions performed under their account.
-2.2. The User is prohibited from:
-- Using the Service for any illegal purposes, including, but not limited to: promoting terrorism, extremism, selling narcotics, weapons, and distributing child sexual abuse material (CSAM).
-- Engaging in bulk sending of unsolicited messages (spam) or advertising without the consent of the recipients.
-- Compromising the security of the Service (hacking, DDoS attacks, exploiting software vulnerabilities, distributing malware).
-- Impersonating other individuals, representatives of the Administration, state bodies, or organizations to mislead others (phishing, scamming).
-- Publicly posting (in channels, groups, or the NiosGram feed) personal data of third parties (doxxing) or content that violates third-party intellectual property rights.
-- Using automated scripts (bots) to parse user data or artificially inflate reactions/comments in NiosGram.
+### 1.1. The Service
 
-3. MODERATION SYSTEM AND TYPES OF SANCTIONS
-The Administration reserves the right to limit access to the Service if the User violates the terms of this Agreement. NiosMess provides for 3 (three) levels of sanctions:
+NiosMess is an online messenger available at ni-os.ru and through its official clients. It includes:
 
-3.1. Spamblock (Communication Restriction)
-Description: Temporary or permanent restriction of the account's ability to initiate new dialogues with users who have not added you to their contacts, as well as a restriction on creating public posts in NiosGram.
-Reason: Bulk complaints from users about spam, suspicious activity, automated messaging, or intrusive advertising.
-Removal: May be lifted automatically after the expiration of the period set by algorithms, or after review by the Administration.
+- private one-to-one chats;
+- Secret Chats protected by end-to-end encryption (E2EE);
+- group chats and public or private channels;
+- **NiosGram**, a publication feed with posts, reactions and comments, with a public web view at ni-os.ru/niosgram;
+- file, media, voice and video-message sharing;
+- audio and video calls;
+- reactions, stickers and **custom emoji** (including emoji packs);
+- **NiosAI Lite**, the built-in AI assistant, reachable by the `@ai` / `@nios_ai` mention or in a direct chat with the bot;
+- the **Bot API**, which lets developers create bots with commands, inline keyboards and callback buttons;
+- **Nios+**, an optional paid subscription with higher limits;
+- **Nios ID**, the account and sign-in system used by NiosMess;
+- profile, session, privacy and security management;
+- other functionality introduced from time to time.
 
-3.2. Account Freeze (Temporary Block)
-Description: Complete suspension of access to account functionality (you cannot log into the profile, read, or send messages). Account data, chats, and posts remain preserved on the server.
-Reason: Suspicion of account compromise (password leak), abnormal activity, or moderate violations of the Agreement (systematic insults, exploiting interface bugs).
-Removal: Freezing is reversible. To restore access, the User must contact Support and verify their identity or resolve the cause of the violation.
+Collectively, these are the **"Service."**
 
-3.3. Permanent Ban (Irreversible Block)
-Description: Complete, final, and indefinite termination of access to the account without the right to recovery. All active sessions are terminated. Public content of the user (in NiosGram) is subject to deletion.
-Reason: Gross violations of applicable law, distribution or mention of any type of pornography, financial fraud, terrorist threats, trade of prohibited substances, or systematic circumvention of previous blocks.
-Removal: A permanent ban is not subject to appeal or reversal. Support does not process applications for permanently blocked accounts.
+### 1.2. License
 
-4. PRIVACY AND E2EE (END-TO-END ENCRYPTION)
-4.1. Secret Chats. Messages sent in NiosMess Secret Chats are protected by end-to-end encryption (E2EE). The Administration does not have the technical capability to read, decrypt, or grant third parties access to such messages.
-4.2. No E2EE Moderation. The Administration does not moderate the contents of Secret Chats. However, upon receiving a report from one of the participants of a secret chat with evidence of violations (using the built-in report feature for a specific message or forwarding messages to moderators), the Administration reserves the right to apply the sanctions described in Section 3 to the violator.
-4.3. Public Content. Content published in the NiosGram feed, public channels, and groups is not encrypted with E2EE and is subject to automated and manual moderation for violations of the Service rules.
+Subject to these Terms, the Administration grants you a limited, personal, non-exclusive, non-transferable, revocable right to use the Service for its intended purposes. This does not transfer ownership of NiosMess, its software, infrastructure, trademarks, design, source code or other intellectual property to you.
 
-5. LIMITATION OF LIABILITY (DISCLAIMER OF LIABILITY)
-5.1. "As Is" Principle. The Service is provided on an "as is" basis. The Administration does not guarantee uninterrupted operation of the Service, the absence of errors, or the preservation of data (especially cached encryption keys in the local storage of the device).
-5.2. User Content. The Administration is not responsible for any information posted by Users. All opinions, files, and media transmitted through the Service are the sole responsibility of the persons who published them.
-5.3. Loss of Access. The Administration is not responsible for the User's loss of access to Secret Chats in the event of device loss, session reset, or using the "Reset E2EE Keys" function in the settings.
-5.4. Damages. Under no circumstances shall the Administration be liable for any direct, indirect, incidental, or consequential damages (including lost profits) arising out of the use or inability to use the Service.
+### 1.3. Eligibility and Age
 
-6. INTELLECTUAL PROPERTY
-6.1. The User retains the rights to all content they upload or publish in NiosMess.
-6.2. By publishing content in public sections (NiosGram), the User grants the Administration a global, non-exclusive license to display, store, and transmit this content as part of the Service's operation.
+You may use NiosMess only if you are legally permitted to enter into this agreement under the laws that apply to you. Users must be at least **13 years old**, or such higher age as applicable law requires. Where the law requires parental or guardian consent for a minor to use an online service, that consent must be obtained before use. The Administration may restrict or delete accounts it reasonably believes belong to persons below the minimum age.
 
-7. FINAL PROVISIONS
-7.1. This Agreement is governed by and construed in accordance with the laws of the Republic of Cyprus. All disputes arising in connection with this Agreement shall be subject to the jurisdiction of the courts at the location of the Administration.
-7.2. All potential disputes arising from this Agreement shall be resolved through pre-trial correspondence via email.
-7.3. If any provision of this Agreement is found by a court to be invalid, the remaining provisions shall remain in full force and effect.
+### 1.4. Regional Availability
 
-Support Service: niosmess@gmail.com
+The Administration may restrict or block access to the Service from certain countries or regions where required by law, sanctions, or operational or security considerations.
+
+### 1.5. Changes to the Service
+
+NiosMess may add, modify, suspend, restrict, replace or remove any feature at any time. The Administration does not guarantee that any feature will remain available indefinitely. Significant changes may be announced in the Service or by other appropriate means.
+
+### 1.6. Changes to These Terms
+
+The Administration may update these Terms. The current version shows the date of the latest revision. For material changes we may give notice in the Service. Continued use after updated Terms take effect means you accept them. If you do not agree, you must stop using the Service.
+
+## 2. ACCOUNTS
+
+### 2.1. Registration
+
+Most features require an account. Registration uses an email address and a username, and may involve email verification codes. You agree to provide accurate information and not to register using information intended to impersonate another person or organization. Usernames are unique, and the Administration may reclaim, change or refuse usernames that are misleading, impersonating, offensive or infringing.
+
+### 2.2. Account Security
+
+You are responsible for the security of your account, including passwords, verification and two-factor codes, active sessions, recovery information, authentication tokens and authorized devices. You must not knowingly give your credentials to unauthorized persons. If you suspect a compromise, terminate unknown sessions, change your credentials and contact NiosMess Support.
+
+### 2.3. Ownership Verification
+
+To recover, secure or unfreeze an account, the Administration may request information reasonably sufficient to verify ownership. Restoration is not guaranteed where ownership cannot be reliably established.
+
+### 2.4. Account Transfer
+
+Accounts may not be sold, rented, traded or transferred without the Administration's authorization. Accounts reasonably believed to have been transferred in violation of this section may be restricted.
+
+### 2.5. Bots
+
+A bot is an automated account created through the Bot API. The person who created a bot is responsible for it and for everything it does. Bots do not have NiosGram profiles. See Section 9 for bot rules.
+
+## 3. ACCEPTABLE USE
+
+You may use NiosMess only for lawful purposes and in accordance with these Terms. You may not use the Service to:
+
+**Illegal activity.** Facilitate, organize, promote or materially assist illegal activity, including terrorism, violent extremism, unlawful weapons or narcotics trafficking, human trafficking, financial fraud, child sexual abuse or exploitation, distribution of child sexual abuse material (CSAM), or other conduct prohibited by applicable law.
+
+**Abuse and threats.** Make credible threats of serious violence, coordinate unlawful physical harm, or engage in targeted harassment.
+
+**Fraud and impersonation.** Engage in phishing, scams, fraudulent schemes, or impersonation intended to mislead, including pretending to represent NiosMess, its staff, government bodies, companies or other persons without authorization.
+
+**Spam.** Send unsolicited bulk messages, or repeatedly contact users for advertising or solicitation they have not asked for.
+
+**Malware.** Knowingly distribute malware, credential stealers, ransomware, destructive payloads, or files designed to compromise devices or accounts.
+
+**Attacks on NiosMess.** Attempt unauthorized access, exploit vulnerabilities, run DDoS attacks, disrupt the Service, bypass access controls, abuse internal or undocumented APIs, or interfere with NiosMess infrastructure, including call, signalling and relay infrastructure.
+
+**Ban evasion.** Bypass enforcement by creating replacement accounts, using third-party accounts, technical manipulation, or repeated attempts to regain access after a permanent ban.
+
+**Doxxing.** Publicly disclose another person's personal or identifying information without authorization.
+
+**Intellectual property violations.** Distribute content that infringes copyright, trademarks or trade secrets without authorization. This includes custom emoji, stickers and images you do not have the right to use.
+
+**Automated abuse.** Use bots, scripts or scrapers to collect user data without authorization, inflate reactions, views, comments or subscriptions, create accounts in bulk, generate abusive traffic, or interfere with normal operation. Automation that NiosMess explicitly supports, such as the Bot API used according to Section 9, is permitted.
+
+Good-faith security research authorized by the Administration is not a violation only because it involves security testing (see Section 14).
+
+### 3.1. Resource Usage and Limits
+
+The Service has technical limits, for example on file size, custom emoji size and duration, the number of public groups, public channels and emoji packs you can own, and AI usage. Current limits are shown in the Service and depend on whether you have an active Nios+ subscription (see Section 8). The Administration may throttle or restrict activity that places unreasonable load on its infrastructure.
+
+## 4. USER CONTENT
+
+### 4.1. Ownership
+
+You retain ownership of content you create and submit, subject to third-party rights. NiosMess does not acquire ownership of your original content solely because it passes through the Service.
+
+### 4.2. Responsibility
+
+You are responsible for what you upload, send, publish or distribute, and you represent that you have the rights and permissions to do so.
+
+### 4.3. Public Content License
+
+When you publish content in public areas, including public NiosGram posts, public channels, public groups and public custom emoji packs, you grant the Administration a worldwide, non-exclusive, royalty-free license to store, host, reproduce, transmit, technically process, display and distribute that content, only as reasonably necessary to operate, provide, secure and maintain the Service. Public NiosGram posts may also be shown on the public web view and may be visible to people without an account. The license ends when the content is deleted, except that temporary technical copies, caches and backups may persist for a reasonable period.
+
+### 4.4. Private Content
+
+Private communications do not become public merely because they pass through NiosMess. How they are handled depends on the type of chat (Section 5), these Terms and the NiosMess Privacy Policy.
+
+### 4.5. Custom Emoji
+
+Custom emoji are small images or short animations (currently up to 512 KB and 8 seconds) you upload for inline use in messages, buttons and profile text. You must own or be licensed to use what you upload. Emoji packs you mark public may be added and used by other Users. The Administration may remove or unlist emoji and packs that violate these Terms.
+
+## 5. ENCRYPTION: REGULAR CHATS AND SECRET CHATS
+
+### 5.1. Regular Chats
+
+Messages in regular private chats, groups and channels are encrypted in transit and stored encrypted on NiosMess servers. However, this is **server-side encryption**: the encryption keys are held by the Service. This is **not** end-to-end encryption. The Administration therefore has the technical ability to access the content of regular chats, and may do so only where reasonably necessary to operate and secure the Service, investigate reports and abuse, protect users, or comply with applicable law. Do not use regular chats for information that must be unreadable by the Service.
+
+### 5.2. Secret Chats
+
+Secret Chats use end-to-end encryption for supported message content. Where correctly implemented and used, the content is intended to be readable only by the participants' devices. The Administration does not intentionally keep the ability to decrypt properly encrypted Secret Chat content using only the data stored on its servers.
+
+### 5.3. Limits of E2EE
+
+End-to-end encryption does not hide all technical data. Information needed for operation, delivery, abuse prevention and account security (for example account identifiers, timing, participants and message size) may exist separately from encrypted content. Secret Chats are tied to device-specific keys and may not be available on every device or client. The characteristics of Secret Chats may change as the Service develops.
+
+### 5.4. Access to Secret Chat Content
+
+The Administration may receive Secret Chat content where a participant reports a message, forwards content to moderators, the content is available on a participant's own device, or the content is otherwise supplied to the Service outside the encrypted conversation. The Administration does not proactively inspect properly encrypted Secret Chat content, but may act on evidence supplied by a participant or that otherwise lawfully becomes available.
+
+### 5.5. Loss of Keys
+
+The Administration is not responsible for the inability to access encrypted content caused by device loss or reset, deletion of local keys, session termination, reinstalling the application, use of a key reset feature, or corruption of local storage. Secret Chat content cannot be recovered by the Administration.
+
+## 6. NIOSAI AND AI FEATURES
+
+### 6.1. What NiosAI Is
+
+NiosAI Lite is an AI assistant built into NiosMess. It generates answers automatically and may be used in a direct chat with the bot or, where enabled, by mentioning `@ai` or `@nios_ai` in a group or channel.
+
+### 6.2. Group and Channel Use
+
+Use of `@ai` in a group or channel is **off by default** and can be enabled or disabled by the chat's administrators. When it is enabled, messages that mention the assistant, and their AI replies, are visible to all members of that chat. Only the person who asked can use the buttons on their own AI reply.
+
+### 6.3. Quota
+
+AI usage is measured in **characters** (your prompt, the system instructions sent with it, any short conversation context, and the reply) within a sliding **72-hour window**. The current allowance is 50,000 characters for regular Users and 200,000 characters with an active Nios+ subscription. When the allowance is used up, the assistant stops answering until the window resets. Limits may change, and the Service shows the current values.
+
+### 6.4. Third-Party Processing
+
+To answer, the text you send to NiosAI (and short recent context for that chat) is transmitted to a third-party AI provider, currently Polza.ai, which routes requests to a language model. Do not send to NiosAI anything you would not want processed by such a provider. NiosAI conversations are not end-to-end encrypted and must not be used in Secret Chats. Short conversation context is kept only temporarily in the Service's memory and is cleared on request or when the Service restarts.
+
+### 6.5. Accuracy
+
+AI output can be wrong, incomplete, outdated or inappropriate. NiosAI is not a source of professional medical, legal, financial or safety advice. You are responsible for how you use its output, and the Administration is not liable for decisions made in reliance on it.
+
+### 6.6. Identity
+
+NiosAI Lite is a NiosMess assistant. It is not a human and does not speak for the Administration.
+
+## 7. BOTS AND THE BOT API
+
+Developers may create bots through the Bot API (commands, inline keyboards, callback and colored buttons, message sending). Bot developers must:
+
+- clearly identify bots as bots and not impersonate people, NiosMess staff or other services;
+- not use bots for spam, scraping, credential collection, phishing, malware distribution or any activity prohibited in Section 3;
+- respect rate limits and not overload the Service;
+- protect their bot tokens and are responsible for any use of a leaked token;
+- collect and use User data only as needed for the bot's function and in accordance with applicable law.
+
+The Administration may limit, suspend or remove any bot, and may restrict its developer's account, for violations. Bots created by third parties are not operated or endorsed by NiosMess.
+
+## 8. NIOS+ SUBSCRIPTION AND PAYMENTS
+
+### 8.1. What Nios+ Provides
+
+Nios+ is an optional paid subscription that raises certain limits (currently file size, AI allowance, and the numbers of public groups, public channels and emoji packs you can own) and provides other features shown in the Service. Limits and features may change.
+
+### 8.2. Trial
+
+Each account may activate a one-time trial of Nios+ for 1 day. The trial can be used once per account and cannot be activated while Nios+ is already active.
+
+### 8.3. Payment
+
+Nios+ payments are processed through third-party payment providers, currently YooMoney. The price, duration and payment method are shown before you pay. By paying you confirm you are authorized to use the chosen payment method. The Administration does not store your full card details.
+
+### 8.4. Expiry and Grace Period
+
+When Nios+ expires, your account returns to the regular limits. You then have a **5-day grace period**. If you have not renewed by the end of the grace period, public groups and public channels you own above the regular limit are switched to private, and public emoji packs above the regular limit are made unlisted. **Nothing is deleted** because of a downgrade, and you can restore public status by renewing Nios+ while staying within the limits that then apply.
+
+### 8.5. Refunds
+
+Payments for Nios+ are generally non-refundable once the subscription period has started, except where a refund is required by mandatory law or the Administration decides otherwise in a specific case. Mandatory consumer rights remain unaffected.
+
+### 8.6. Nios+ and Account Deletion
+
+An account with an active Nios+ subscription cannot start deletion; you must first cancel Nios+ (see Section 15).
+
+## 9. MODERATION AND ENFORCEMENT
+
+The Administration may investigate suspected violations and take action where reasonably necessary to protect Users, the Service or third parties. Decisions may consider the severity and frequency of the violation, prior history, available evidence, risk to others, abuse of technical systems and context. Sanctions need not be applied in sequence, and a serious violation may lead to immediate suspension or permanent termination.
+
+Chat administrators may also restrict or ban members within their own groups and channels under the tools the Service provides. Those decisions are made by chat administrators, not by the Administration.
+
+## 10. TYPES OF SANCTIONS
+
+### 10.1. Spamblock
+
+A Spamblock restricts an account's communication abilities, which may include starting new conversations with people who have not added you, sending certain categories of messages, publishing public content or posting in NiosGram. It may be imposed because of spam reports, automated messaging, unsolicited advertising, suspicious patterns or abnormal volumes. It has a stated reason and may be temporary (with an end date), indefinite, expire automatically, or be lifted after review.
+
+### 10.2. Account Freeze
+
+An Account Freeze temporarily suspends access to some or all account functionality; a frozen User may be unable to sign in, read chats, send messages, publish content or change the account. Account data may remain stored during a freeze. Causes include suspected compromise, leaked credentials, abnormal login activity, suspicious automation, repeated moderate violations, exploitation of bugs, or investigation of serious abuse. A freeze may be reversible if the User secures the account, verifies ownership, ends compromised sessions and follows reasonable security instructions.
+
+### 10.3. Permanent Ban
+
+A Permanent Ban ends the User's access to the account indefinitely. The Administration may end sessions, disable authentication, prevent restoration, remove public content and restrict replacement accounts. Reasons include serious or repeated violations, in particular child sexual abuse or exploitation, CSAM, serious fraud, terrorism, unlawful trafficking, distribution of sexual-exploitation material, large-scale malicious activity, deliberate compromise of NiosMess infrastructure, repeated ban evasion and repeated serious violations after earlier sanctions.
+
+Permanent bans are generally final. The Administration may nevertheless review a ban where credible evidence shows a technical error, account compromise, mistaken identity, an administrative error or other exceptional circumstances. A review does not guarantee restoration.
+
+## 11. REPORTS AND EVIDENCE
+
+Users may report conduct they believe violates these Terms, including messages, posts, account information, media, links, screenshots and technical evidence. Intentionally false or manipulated reports are themselves abuse of the Service. The Administration may decline to act on reports without sufficient evidence.
+
+## 12. SERVICE AVAILABILITY, BACKUPS AND DATA LOSS
+
+### 12.1. "As Is"
+
+The Service is provided **"as is"** and **"as available"**. To the maximum extent permitted by law, the Administration does not guarantee uninterrupted or error-free operation, permanent availability of any feature, compatibility with every device, preservation of every message or file, or absence of security incidents or data loss.
+
+### 12.2. Maintenance and Discontinuation
+
+The Administration may suspend or limit parts of the Service for maintenance, security updates, infrastructure changes, emergency repairs, migration, abuse mitigation or testing. It may discontinue the Service or any major part of it and, where reasonably practical, give advance notice.
+
+### 12.3. Backups
+
+NiosMess makes backups, and may use replication and caching, to improve reliability. It does not guarantee that all User content can always be recovered. Backups are not a substitute for keeping your own copies of important files. Secret Chat content cannot be recovered.
+
+## 13. THIRD-PARTY SERVICES
+
+The Service depends on or links to third parties, including payment providers (YooMoney), push-notification providers (Firebase Cloud Messaging), AI providers (Polza.ai and the models it routes to), email delivery providers, and external content and websites. The Administration does not control them and is not responsible for their availability, terms, policies, security or content. Use of third-party services may be governed by their own terms.
+
+## 14. INTELLECTUAL PROPERTY AND SECURITY RESEARCH
+
+### 14.1. NiosMess IP
+
+Unless stated otherwise, NiosMess and related intellectual property belong to the Administration or its licensors, including software, source code, compiled applications, logos, trademarks, visual design, interface components, graphics, documentation, proprietary protocols and service names. You may not copy, resell, sublicense, reverse engineer, distribute or commercially exploit them except where the law expressly permits or the Administration authorizes in writing.
+
+### 14.2. Security Research
+
+You must not exploit vulnerabilities in a way that harms Users, accesses data without authorization, disrupts the Service or causes damage. If NiosMess runs an authorized vulnerability-disclosure program, researchers must follow its rules. The Administration distinguishes good-faith research from malicious exploitation by conduct, intent, scope and impact. Vulnerabilities can be reported to niosmess@gmail.com.
+
+## 15. ACCOUNT DELETION AND TERMINATION
+
+### 15.1. Deletion by the User
+
+You may stop using NiosMess at any time. You may request account deletion in the Service. To start deletion you must first cancel any active Nios+ subscription. After you request deletion your account enters a **31-day grace period**, during which deletion is pending and you can cancel it. When the grace period ends without cancellation, the account is permanently deleted, and this cascades to your account information, messages you sent, media, reactions, posts, comments, sessions, blocks and privacy rules, subscriptions, notification tokens, reports about you and related records, on a best-effort basis. Deletion may result in permanent loss of chats, contacts, public content, media, Secret Chat keys and settings. Certain records, backup copies and technical logs may remain for a limited period where reasonably necessary for technical, security, legal or operational purposes. Details concerning personal data are in the NiosMess Privacy Policy.
+
+### 15.2. Termination by the Administration
+
+The Administration may suspend, restrict or terminate access where reasonably necessary because of violations of these Terms, risk to the security of the platform, legal requirements, account compromise, abuse, repeated enforcement violations or operational necessity. Where appropriate it may apply a less severe restriction instead of full termination.
+
+### 15.3. Effect of Termination
+
+On termination your right to use the Service ends, active sessions may be terminated, access to data may be restricted or removed, public content may be deleted, and Secret Chat access may become permanently unavailable. Provisions that by their nature should survive termination survive, including those on intellectual property, disclaimers, limitation of liability, governing law, dispute resolution and, where technically necessary, licenses.
+
+## 16. DISCLAIMER OF WARRANTIES
+
+To the maximum extent permitted by law, NiosMess is provided without warranties of any kind, express or implied. The Administration does not warrant that the Service will meet every User's requirements, that messages will always be delivered, that files will never be lost, that calls will always connect or be of any particular quality, that AI output will be accurate, that encryption implementations will never contain vulnerabilities, that the Service will stay compatible with future devices or systems, or that third-party integrations will remain available. Nothing in these Terms excludes warranties or protections that cannot legally be excluded.
+
+## 17. LIMITATION OF LIABILITY
+
+To the maximum extent permitted by law, the Administration is not liable for indirect, incidental, special, punitive or consequential damages arising from use of, or inability to use, NiosMess, including lost profits, lost business opportunities, lost data, loss of reputation, device damage caused by third-party content, loss of access to encrypted content, and loss resulting from reliance on AI output. The Administration is not responsible for the independent actions of Users, bot developers, chat administrators or third parties. Nothing in these Terms excludes or limits liability where the law prohibits it, and mandatory consumer rights remain unaffected.
+
+## 18. USER RESPONSIBILITY
+
+Users are responsible for their own actions on NiosMess. The Administration is not responsible merely because another User transmitted unlawful, offensive, inaccurate, harmful or infringing content. This does not limit obligations the Administration may independently have under applicable law.
+
+## 19. PRIVACY
+
+Use of NiosMess involves processing of information about Users. That processing is governed by the separate **NiosMess Privacy Policy**, which these Terms do not replace.
+
+## 20. OTHER SERVICE RULES
+
+The Administration may publish additional rules for particular features, such as Community Guidelines, NiosGram rules, developer and Bot API rules, copyright reporting procedures, moderation policies and security-research rules. Where such rules apply to a feature you use, they form part of the conditions for that feature, and where they conflict with these Terms about that specialized feature, the more specific rule applies to it.
+
+## 21. GENERAL
+
+**No waiver.** Failure to enforce a provision on one occasion does not waive the right to enforce it later, and not sanctioning one violation does not permit similar ones.
+
+**Severability.** If a provision is held invalid or unenforceable, the rest remains in effect, and the invalid provision is interpreted as closely as possible to its original lawful purpose.
+
+**Assignment.** Users may not transfer their rights or obligations under these Terms without the Administration's authorization. The Administration may transfer its rights and obligations as part of a restructuring, acquisition, merger, transfer of the Service, or transfer to an affiliated or successor entity, subject to applicable law.
+
+**Entire agreement.** These Terms, together with the policies expressly incorporated in them, are the entire agreement between you and the Administration about the Service and replace earlier versions on the same subject.
+
+## 22. GOVERNING LAW AND DISPUTES
+
+These Terms are governed by and interpreted under the laws of the **Republic of Cyprus**, except where mandatory provisions of applicable law require otherwise. Nothing in these Terms deprives a consumer of protections granted by the mandatory law of their country of residence.
+
+Before starting formal proceedings, Users are encouraged to contact the Administration and try to resolve the dispute by written correspondence. Disputes are subject to the jurisdiction of the competent courts at the location of the Administration, to the extent permitted by applicable law. Where mandatory consumer law gives a User the right to bring proceedings elsewhere, these Terms do not remove that right.
+
+## 23. LANGUAGE
+
+These Terms may be provided in several languages. Where permitted by applicable law, the English version controls if translations differ.
+
+## 24. CONTACT
+
+Questions about these Terms may be sent to:
+
+**NiosMess Support**
+**Email:** niosmess@gmail.com
