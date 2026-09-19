@@ -67,6 +67,7 @@ Future<void> showCreateChatDialog(
     context: context,
     maxWidth: 520,
     maxHeight: 660,
+    // elevation: 0 (M3 flat dialog via AppModal)
     builder: (BuildContext ctx) {
       return CreateChatWizardView(
         initialType: initialType,

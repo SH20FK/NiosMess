@@ -29,6 +29,8 @@ class ApiProfile {
     this.isBlocked = false,
     this.isOnline = false,
     this.lastSeen,
+    this.isNiosPlusCustom,
+    this.niosPlusTrialUsed = false,
   });
 
   final int id;
@@ -53,6 +55,15 @@ class ApiProfile {
   final bool isBlocked;
   final bool isOnline;
   final DateTime? lastSeen;
+  final bool? isNiosPlusCustom;
+  final bool niosPlusTrialUsed;
+
+  bool get isNiosPlus =>
+      isNiosPlusCustom == true ||
+      badges.any((ApiBadge b) =>
+          b.name.toLowerCase().contains('plus') ||
+          b.name.toLowerCase().contains('premium') ||
+          b.name.toLowerCase() == 'nios_plus');
 
   bool get isRestrictedBySpamBlock {
     if (spamBlock == true) return true;
@@ -178,6 +189,10 @@ class ApiProfile {
       lastSeen: json['last_seen'] != null
           ? DateTime.tryParse(json['last_seen'].toString())
           : null,
+      isNiosPlusCustom: json['is_nios_plus'] as bool? ?? json['is_plus'] as bool?,
+      niosPlusTrialUsed: json['nios_plus_trial_used'] as bool? ??
+          json['trial_used'] as bool? ??
+          false,
     );
   }
 

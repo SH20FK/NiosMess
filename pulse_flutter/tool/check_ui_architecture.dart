@@ -150,6 +150,35 @@ void main() {
     hasSessionTokenProvider,
   );
 
+  // 8. Desktop Split Motion Contract Check
+  final File mainShellFile = File('lib/screens/main_shell_screen.dart');
+  final String mainShellContent = mainShellFile.readAsStringSync();
+  final bool hasDesktopSplitMotion = mainShellContent.contains('AnimatedSwitcher(') &&
+      mainShellContent.contains('M3SpringCurves.expressiveDecel');
+  report(
+    'Desktop split right panel has local AnimatedSwitcher with expressiveDecel',
+    hasDesktopSplitMotion,
+  );
+
+  // 9. Bottom Nav Motion Contract Check
+  final File bottomNavFile = File('lib/widgets/app_bottom_nav.dart');
+  final String bottomNavContent = bottomNavFile.readAsStringSync();
+  final bool hasMonotonicIndicator = bottomNavContent.contains('M3SpringCurves.expressiveDecel') &&
+      !bottomNavContent.contains('math.sin(math.pi * _controller.value');
+  report(
+    'Bottom nav traveling indicator uses in-phase monotonic expressiveDecel',
+    hasMonotonicIndicator,
+  );
+
+  // 10. Chat Route Symmetrical Duration Check
+  final File appRouterFile = File('lib/router/app_router.dart');
+  final String appRouterContent = appRouterFile.readAsStringSync();
+  final bool hasSymmetricalChatRoute = appRouterContent.contains('reverseTransitionDuration: const Duration(milliseconds: 240)');
+  report(
+    'Chat route uses symmetrical 240ms forward and reverse transitions',
+    hasSymmetricalChatRoute,
+  );
+
   print('\n=== Summary ===');
   print('Passed: $passed / ${passed + failed}');
   if (failed > 0) {

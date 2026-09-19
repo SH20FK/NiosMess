@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
-
-
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
@@ -22,6 +22,99 @@ class SettingsPrivacyScreen extends ConsumerWidget {
   });
 
   final bool isEmbedded;
+
+  static String _formatSelfDestructPeriod(int months) {
+    switch (months) {
+      case 1:
+        return '1 месяц';
+      case 3:
+        return '3 месяца';
+      case 6:
+        return '6 месяцев';
+      case 12:
+        return '1 год';
+      case 24:
+        return '2 года';
+      default:
+        return '$months мес.';
+    }
+  }
+
+  Future<void> _showSelfDestructPicker(
+    BuildContext context,
+    WidgetRef ref,
+    int current,
+  ) async {
+    HapticService.tap();
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    await AppBottomSheets.show<void>(
+      context: context,
+      builder: (BuildContext ctx) {
+        const List<int> options = <int>[1, 3, 6, 12, 24];
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: scheme.outlineVariant.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  'Самоликвидация аккаунта',
+                  style: textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Если вы ни разу не войдёте в NiosMess в течение этого срока, ваш аккаунт и все данные будут безвозвратно удалены.',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ...options.map((int months) {
+                  final bool isSelected = months == current;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      _formatSelfDestructPeriod(months),
+                      style: textTheme.bodyLarge?.copyWith(
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                        color: isSelected ? scheme.primary : scheme.onSurface,
+                      ),
+                    ),
+                    trailing: isSelected
+                        ? Icon(Icons.check_circle_rounded, color: scheme.primary)
+                        : null,
+                    onTap: () {
+                      HapticService.confirm();
+                      ref
+                          .read(uiSettingsProvider.notifier)
+                          .setAccountSelfDestructMonths(months);
+                      Navigator.of(ctx).pop();
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   void _openRule(BuildContext context, String key) {
     context.push('/settings/privacy/rule/$key');
@@ -200,10 +293,54 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                 }
               },
             ),
+            SettingsSwitchTile(
+              icon: Icons.link_rounded,
+              title: 'Предпросмотр ссылок в секретных чатах',
+              subtitle: 'Генерировать предпросмотр для отправляемых веб-ссылок',
+              iconColor: scheme.primary,
+              value: settings.linkPreviewsInSecretChats,
+              onChanged: (bool value) {
+                ref
+                    .read(uiSettingsProvider.notifier)
+                    .setLinkPreviewsInSecretChats(value);
+              },
+            ),
+            SettingsSwitchTile(
+              icon: Icons.screenshot_rounded,
+              title: 'Защита от снимков экрана',
+              subtitle: 'Блокировать скриншоты и запись экрана в секретных чатах',
+              iconColor: scheme.primary,
+              value: settings.secureScreenshotsInSecretChats,
+              onChanged: (bool value) {
+                ref
+                    .read(uiSettingsProvider.notifier)
+                    .setSecureScreenshotsInSecretChats(value);
+              },
+            ),
           ],
         ),
 
-        // 5. Фоновая работа
+        // 5. Удалить мой аккаунт
+        SettingsSection(
+          title: 'Удалить мой аккаунт',
+          subtitle: 'Автоматическое удаление аккаунта при длительном отсутствии',
+          children: <Widget>[
+            SettingsTile(
+              icon: Icons.delete_forever_rounded,
+              title: 'Если я не захожу',
+              subtitle: 'Срок отсутствия до полной очистки данных',
+              value: _formatSelfDestructPeriod(settings.accountSelfDestructMonths),
+              iconColor: scheme.error,
+              onTap: () => _showSelfDestructPicker(
+                context,
+                ref,
+                settings.accountSelfDestructMonths,
+              ),
+            ),
+          ],
+        ),
+
+        // 6. Фоновая работа
         SettingsSection(
           title: context.l10n.settingsBackgroundTitle,
           subtitle: context.l10n.settingsBackgroundSubtitle,

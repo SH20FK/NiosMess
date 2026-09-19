@@ -14,6 +14,8 @@ enum SettingsSectionId {
   about,
   e2ee,
   sessions,
+  energySaving,
+  plus,
 }
 
 class DesktopSettingsSectionNotifier extends Notifier<SettingsSectionId> {

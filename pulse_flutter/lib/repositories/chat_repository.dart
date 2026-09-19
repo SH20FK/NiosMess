@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/core/utils/cancellation_token.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/chat_actions_models.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
@@ -421,6 +422,19 @@ class ChatRepository {
     return UploadChunkResult.fromJson(map);
   }
 
+  static Stream<List<int>> _createChunkedStream(
+    Uint8List bytes, {
+    int chunkSize = 64 * 1024,
+    CancellationToken? cancellationToken,
+  }) async* {
+    for (int i = 0; i < bytes.length; i += chunkSize) {
+      cancellationToken?.throwIfCancelled();
+      final int end =
+          (i + chunkSize < bytes.length) ? i + chunkSize : bytes.length;
+      yield bytes.sublist(i, end);
+    }
+  }
+
   Future<String> uploadStreamInChunks({
     Uint8List? bytes,
     String? filePath,
@@ -428,7 +442,11 @@ class ChatRepository {
     required String mediaSubtype,
     required int fileSize,
     required void Function(int sent, int total) onProgress,
+    void Function(UploadStage stage)? onStageChanged,
+    CancellationToken? cancellationToken,
+    String? localId,
   }) async {
+    cancellationToken?.throwIfCancelled();
     if (fileSize <= 0 && (bytes == null || bytes.isEmpty)) {
       throw Exception('File is empty');
     }
@@ -439,9 +457,10 @@ class ChatRepository {
     }
 
     // Server accepts only "media", "voice", or "circle". Map "photo", "video", "document" to "media".
-    final String serverSubtype = (mediaSubtype == 'voice' || mediaSubtype == 'circle')
-        ? mediaSubtype
-        : 'media';
+    final String serverSubtype =
+        (mediaSubtype == 'voice' || mediaSubtype == 'circle')
+            ? mediaSubtype
+            : 'media';
 
     try {
       return await _httpMultipartUpload(
@@ -452,9 +471,18 @@ class ChatRepository {
         fileSize: fileSize,
         token: token,
         onProgress: onProgress,
+        onStageChanged: onStageChanged,
+        cancellationToken: cancellationToken,
+        localId: localId,
       );
     } catch (e) {
-      debugPrint('[chat_repository] HTTP upload failed: $e, falling back to WS chunked upload...');
+      if (cancellationToken?.isCancelled == true ||
+          e is UploadCancelledException) {
+        throw const UploadCancelledException();
+      }
+      debugPrint(
+        '[chat_repository] HTTP upload failed: $e, falling back to WS chunked upload...',
+      );
       return await _wsChunkedUpload(
         bytes: bytes,
         filePath: filePath,
@@ -462,6 +490,8 @@ class ChatRepository {
         mediaSubtype: serverSubtype,
         fileSize: fileSize,
         onProgress: onProgress,
+        onStageChanged: onStageChanged,
+        cancellationToken: cancellationToken,
       );
     }
   }
@@ -474,24 +504,40 @@ class ChatRepository {
     required int fileSize,
     required String token,
     required void Function(int sent, int total) onProgress,
+    void Function(UploadStage stage)? onStageChanged,
+    CancellationToken? cancellationToken,
+    String? localId,
   }) async {
+    cancellationToken?.throwIfCancelled();
     final uploadUrl = '${ApiConstants.origin}/api/files/upload';
     final uri = Uri.parse(uploadUrl);
 
     final request = http.MultipartRequest('POST', uri);
     request.headers['Authorization'] = 'Bearer $token';
+    if (localId != null && localId.isNotEmpty) {
+      request.headers['X-Upload-Local-Id'] = localId;
+    }
     request.fields['media_subtype'] = mediaSubtype;
 
     if (filePath != null && filePath.isNotEmpty) {
       final File file = File(filePath);
-      final int actualSize = (await file.exists()) ? await file.length() : fileSize;
+      final int actualSize =
+          (await file.exists()) ? await file.length() : fileSize;
       if (actualSize == 0 && bytes != null && bytes.isNotEmpty) {
-        // Fall back to bytes if file is empty/inaccessible
-        final Stream<List<int>> source = Stream.fromIterable([bytes]);
+        // Fall back to chunked bytes if file is empty/inaccessible
+        final Stream<List<int>> source = _createChunkedStream(
+          bytes,
+          cancellationToken: cancellationToken,
+        );
         int sent = 0;
         final Stream<List<int>> counted = source.transform(
           StreamTransformer<List<int>, List<int>>.fromHandlers(
             handleData: (List<int> chunk, EventSink<List<int>> sink) {
+              if (cancellationToken?.isCancelled == true) {
+                sink.addError(const UploadCancelledException());
+                sink.close();
+                return;
+              }
               sent += chunk.length;
               onProgress(sent, bytes.length);
               sink.add(chunk);
@@ -512,6 +558,11 @@ class ChatRepository {
         final Stream<List<int>> counted = source.transform(
           StreamTransformer<List<int>, List<int>>.fromHandlers(
             handleData: (List<int> chunk, EventSink<List<int>> sink) {
+              if (cancellationToken?.isCancelled == true) {
+                sink.addError(const UploadCancelledException());
+                sink.close();
+                return;
+              }
               sent += chunk.length;
               onProgress(sent, actualSize);
               sink.add(chunk);
@@ -528,11 +579,19 @@ class ChatRepository {
         );
       }
     } else if (bytes != null && bytes.isNotEmpty) {
-      final Stream<List<int>> source = Stream.fromIterable([bytes]);
+      final Stream<List<int>> source = _createChunkedStream(
+        bytes,
+        cancellationToken: cancellationToken,
+      );
       int sent = 0;
       final Stream<List<int>> counted = source.transform(
         StreamTransformer<List<int>, List<int>>.fromHandlers(
           handleData: (List<int> chunk, EventSink<List<int>> sink) {
+            if (cancellationToken?.isCancelled == true) {
+              sink.addError(const UploadCancelledException());
+              sink.close();
+              return;
+            }
             sent += chunk.length;
             onProgress(sent, bytes.length);
             sink.add(chunk);
@@ -552,20 +611,35 @@ class ChatRepository {
     }
 
     onProgress(0, fileSize > 0 ? fileSize : 1);
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-
-    if (response.statusCode != 200) {
-      throw Exception('Upload failed: ${response.statusCode} ${response.body}');
+    final client = http.Client();
+    void cancelHandler() {
+      client.close();
     }
 
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    if (body['status'] != 'success') {
-      throw Exception('Upload failed: ${response.body}');
-    }
+    cancellationToken?.addListener(cancelHandler);
 
-    onProgress(fileSize, fileSize);
-    return body['upload_id'] as String;
+    try {
+      final streamedResponse = await client.send(request);
+      cancellationToken?.throwIfCancelled();
+      onStageChanged?.call(UploadStage.processing);
+      final response = await http.Response.fromStream(streamedResponse);
+      cancellationToken?.throwIfCancelled();
+
+      if (response.statusCode != 200) {
+        throw Exception('Upload failed: ${response.statusCode} ${response.body}');
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (body['status'] != 'success') {
+        throw Exception('Upload failed: ${response.body}');
+      }
+
+      onProgress(fileSize, fileSize);
+      return body['upload_id'] as String;
+    } finally {
+      cancellationToken?.removeListener(cancelHandler);
+      client.close();
+    }
   }
 
   Future<String> _wsChunkedUpload({
@@ -575,7 +649,10 @@ class ChatRepository {
     required String mediaSubtype,
     required int fileSize,
     required void Function(int sent, int total) onProgress,
+    void Function(UploadStage stage)? onStageChanged,
+    CancellationToken? cancellationToken,
   }) async {
+    cancellationToken?.throwIfCancelled();
     final Uint8List fileBytes;
     if (bytes != null && bytes.isNotEmpty) {
       fileBytes = bytes;
@@ -590,6 +667,7 @@ class ChatRepository {
       throw Exception('No file path or bytes provided for upload');
     }
 
+    cancellationToken?.throwIfCancelled();
     final int actualFileSize = fileBytes.length;
     if (actualFileSize <= 0) {
       throw Exception('File data is empty');
@@ -604,10 +682,14 @@ class ChatRepository {
       fileSize: actualFileSize,
       mediaSubtype: mediaSubtype,
     );
+    cancellationToken?.throwIfCancelled();
 
     for (int i = 0; i < totalChunks; i++) {
+      cancellationToken?.throwIfCancelled();
       final int start = i * chunkSize;
-      final int end = (start + chunkSize > actualFileSize) ? actualFileSize : start + chunkSize;
+      final int end = (start + chunkSize > actualFileSize)
+          ? actualFileSize
+          : start + chunkSize;
       final List<int> chunk = fileBytes.sublist(start, end);
       await uploadChunk(
         uploadId: init.uploadId,
@@ -615,9 +697,11 @@ class ChatRepository {
         chunk: chunk,
         filename: filename,
       );
+      cancellationToken?.throwIfCancelled();
       onProgress(end, actualFileSize);
     }
 
+    onStageChanged?.call(UploadStage.processing);
     onProgress(actualFileSize, actualFileSize);
     return init.uploadId;
   }

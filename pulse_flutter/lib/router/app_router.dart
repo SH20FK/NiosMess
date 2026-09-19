@@ -18,6 +18,9 @@ import 'package:pulse_flutter/screens/onboarding_screen.dart';
 import 'package:pulse_flutter/screens/post_comments_screen.dart';
 import 'package:pulse_flutter/screens/public_profile_screen.dart';
 import 'package:pulse_flutter/screens/sticker_set_screen.dart';
+import 'package:pulse_flutter/screens/contacts_screen.dart';
+import 'package:pulse_flutter/screens/settings_energy_saving_screen.dart';
+import 'package:pulse_flutter/screens/settings_plus_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
@@ -58,20 +61,21 @@ Page<void> _m3eEntryPage(GoRouterState state, Widget child, {LocalKey? pageKey})
   return CustomTransitionPage<void>(
     key: pageKey ?? state.pageKey,
     child: child,
-    transitionDuration: const Duration(milliseconds: 320),
-    reverseTransitionDuration: const Duration(milliseconds: 260),
+    transitionDuration: const Duration(milliseconds: 280),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       final curvedAnimation = CurvedAnimation(
         parent: animation,
-        curve: M3SpringCurves.spatial,
+        curve: M3SpringCurves.expressiveDecel,
+        reverseCurve: Curves.easeInCubic,
       );
       return FadeTransition(
         opacity: CurvedAnimation(
           parent: animation,
-          curve: const Interval(0.0, 0.7, curve: Curves.linear),
+          curve: const Interval(0.0, 0.75, curve: Curves.easeOut),
         ),
         child: ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnimation),
+          scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnimation),
           child: child,
         ),
       );
@@ -84,33 +88,29 @@ Page<void> _chatDetailPage(GoRouterState state, Widget child, {LocalKey? pageKey
     key: pageKey ?? state.pageKey,
     child: child,
     transitionDuration: const Duration(milliseconds: 240),
-    reverseTransitionDuration: const Duration(milliseconds: 200),
+    reverseTransitionDuration: const Duration(milliseconds: 240),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final Animation<double> curvedAnim = CurvedAnimation(
+      final Animation<Offset> slideAnim = Tween<Offset>(
+        begin: const Offset(0.03, 0.0), // ~12dp subtle translation
+        end: Offset.zero,
+      ).animate(CurvedAnimation(
+        parent: animation,
+        curve: M3SpringCurves.expressiveDecel,
+        reverseCurve: Curves.easeInCubic,
+      ));
+
+      final Animation<double> fadeAnim = CurvedAnimation(
         parent: animation,
         curve: Curves.easeOutCubic,
         reverseCurve: Curves.easeInCubic,
       );
 
-      final Animation<double> fadeAnim = CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOut,
-        reverseCurve: Curves.easeIn,
-      );
-
-      return AnimatedBuilder(
-        animation: curvedAnim,
-        builder: (context, child) {
-          final double dx = (1.0 - curvedAnim.value) * 12.0;
-          return Transform.translate(
-            offset: Offset(dx, 0.0),
-            child: FadeTransition(
-              opacity: fadeAnim,
-              child: child,
-            ),
-          );
-        },
-        child: child,
+      return SlideTransition(
+        position: slideAnim,
+        child: FadeTransition(
+          opacity: fadeAnim,
+          child: child,
+        ),
       );
     },
   );
@@ -217,6 +217,18 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             initialErrorDescription: state.uri.queryParameters['error_description'],
           ),
         ),
+      ),
+      GoRoute(
+        path: '/contacts',
+        pageBuilder: (context, state) => _page(state, const ContactsScreen(), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/main/contacts',
+        redirect: (context, state) => '/contacts',
+      ),
+      GoRoute(
+        path: '/main/profile',
+        redirect: (context, state) => '/main/settings',
       ),
       GoRoute(
         path: '/main/:tab',
@@ -379,9 +391,17 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         redirect: (context, state) {
           final String? section = state.uri.queryParameters['section'];
           return section != null
-              ? '/main/profile?section=$section'
-              : '/main/profile';
+              ? '/main/settings?section=$section'
+              : '/main/settings';
         },
+      ),
+      GoRoute(
+        path: '/settings/energy-saving',
+        pageBuilder: (context, state) => _page(state, const SettingsEnergySavingScreen(), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/settings/plus',
+        pageBuilder: (context, state) => _page(state, const SettingsPlusScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/appearance',

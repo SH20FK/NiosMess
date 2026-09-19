@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -298,13 +300,27 @@ Future<bool?> showAppConfirmDialog({
         actions: <AppDialogAction>[
           AppDialogAction(
             label: cancelLabel,
-            onPressed: () => Navigator.of(dialogContext).pop(false),
+            onPressed: () {
+              try {
+                ProviderScope.containerOf(dialogContext, listen: false)
+                    .read(appSoundProvider)
+                    .playEvent(SoundEvent.cancel);
+              } catch (_) {}
+              Navigator.of(dialogContext).pop(false);
+            },
           ),
           AppDialogAction(
             label: confirmLabel,
             isPrimary: !destructive,
             destructive: destructive,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
+            onPressed: () {
+              try {
+                ProviderScope.containerOf(dialogContext, listen: false)
+                    .read(appSoundProvider)
+                    .playEvent(SoundEvent.confirm);
+              } catch (_) {}
+              Navigator.of(dialogContext).pop(true);
+            },
           ),
         ],
       );

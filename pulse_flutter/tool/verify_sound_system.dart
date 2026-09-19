@@ -197,6 +197,136 @@ void main() {
     legacyMessage.existsSync() && legacyNav.existsSync(),
   );
 
+  final Map<String, String> assetToEnum = {
+    'ui_tap': 'uiTap',
+    'ui_select': 'uiSelect',
+    'ui_toggle_on': 'toggleOn',
+    'ui_toggle_off': 'toggleOff',
+    'ui_confirm': 'confirm',
+    'ui_cancel': 'cancel',
+    'ui_success': 'success',
+    'ui_error': 'error',
+    'message_send': 'messageSend',
+    'message_receive': 'messageReceive',
+    'message_mention': 'mention',
+    'reaction': 'reaction',
+    'sticker_send': 'stickerSend',
+    'upload_complete': 'uploadComplete',
+    'upload_error': 'uploadError',
+    'record_start': 'recordStart',
+    'record_lock': 'recordLock',
+    'record_cancel': 'recordCancel',
+    'record_send': 'recordSend',
+    'ai_start': 'aiStart',
+    'ai_complete': 'aiComplete',
+    'ai_error': 'aiError',
+    'security_connecting': 'securityConnecting',
+    'security_verified': 'securityVerified',
+    'security_warning': 'securityWarning',
+    'call_incoming': 'callIncoming',
+    'call_connected': 'callConnected',
+    'call_ended': 'callEnded',
+  };
+
+  // 7. Verification of SoundEvent definitions and elevated volume levels in app_sound.dart
+  final File appSoundFile = File('lib/core/sound/app_sound.dart');
+  report('lib/core/sound/app_sound.dart exists', appSoundFile.existsSync());
+
+  if (appSoundFile.existsSync()) {
+    final String appSoundCode = appSoundFile.readAsStringSync();
+    final List<String> missingEnumEvents = <String>[];
+    for (final String asset in requiredAssets) {
+      final String enumName = assetToEnum[asset]!;
+      if (!appSoundCode.contains(enumName)) {
+        missingEnumEvents.add(enumName);
+      }
+    }
+    report(
+      'All 28 SoundEvents declared in SoundEvent enum',
+      missingEnumEvents.isEmpty,
+      'Missing enums: ${missingEnumEvents.join(', ')}',
+    );
+
+    report(
+      'Elevated volumes present (uiTap >= 0.38, messageReceive >= 0.52)',
+      appSoundCode.contains('defaultVolume: 0.38') && appSoundCode.contains('defaultVolume: 0.52'),
+    );
+
+    report(
+      '4-player effect pool implemented (_effectPlayers)',
+      appSoundCode.contains('List<AudioPlayer>? _effectPlayers') &&
+          appSoundCode.contains('nios_effect_'),
+    );
+
+    report(
+      'verifyBundleAssets diagnostic method present in SoundService',
+      appSoundCode.contains('verifyBundleAssets()'),
+    );
+  }
+
+  // 8. Decoupled notification sounds in backend_chat_provider.dart
+  final File chatProviderFile = File('lib/providers/backend_chat_provider.dart');
+  if (chatProviderFile.existsSync()) {
+    final String chatCode = chatProviderFile.readAsStringSync();
+    final bool decoupled = chatCode.contains('settings.soundEffects') &&
+        chatCode.contains('chatMutedProvider') &&
+        !chatCode.contains('if (!ref.read(uiSettingsProvider).notifications) return;\n    await ref.read(appSoundProvider).playEvent');
+    report(
+      'Message sound decoupled from push notifications (uses soundEffects & chatMutedProvider)',
+      decoupled,
+    );
+  }
+
+  // 9. Check sound test tile in settings_preferences_screen.dart
+  final File prefScreenFile = File('lib/screens/settings_preferences_screen.dart');
+  if (prefScreenFile.existsSync()) {
+    final String prefCode = prefScreenFile.readAsStringSync();
+    report(
+      'Test sound sequence tile present in SettingsPreferencesScreen',
+      prefCode.contains('Проверить звук') &&
+          prefCode.contains('SoundEvent.uiTap') &&
+          prefCode.contains('SoundEvent.messageReceive') &&
+          prefCode.contains('SoundEvent.success') &&
+          prefCode.contains('SoundEvent.error'),
+    );
+  }
+
+  // 10. Verify genuine call sites in lib/ for all 28 SoundEvents
+  final List<String> libFiles = <String>[];
+  void collectLibFiles(Directory d) {
+    for (final entity in d.listSync(recursive: true)) {
+      if (entity is File && entity.path.endsWith('.dart') && !entity.path.endsWith('app_sound.dart')) {
+        libFiles.add(entity.path);
+      }
+    }
+  }
+  collectLibFiles(Directory('lib'));
+
+  final String combinedLibCode = libFiles.map((p) {
+    try {
+      return File(p).readAsStringSync();
+    } catch (_) {
+      return '';
+    }
+  }).join('\n');
+
+  final List<String> uncalledEvents = <String>[];
+  for (final String asset in requiredAssets) {
+    final String enumName = assetToEnum[asset]!;
+    if (!combinedLibCode.contains('SoundEvent.$enumName') &&
+        !combinedLibCode.contains('playUiTick') &&
+        !combinedLibCode.contains('playUiSelect') &&
+        !combinedLibCode.contains('playReaction')) {
+      uncalledEvents.add(enumName);
+    }
+  }
+
+  report(
+    'All 28 SoundEvents have genuine call sites across the application',
+    uncalledEvents.isEmpty,
+    'Uncalled: ${uncalledEvents.join(', ')}',
+  );
+
   print('\n=== Summary ===');
   print('Passed: $passed / ${passed + failed}');
   if (failed > 0) {

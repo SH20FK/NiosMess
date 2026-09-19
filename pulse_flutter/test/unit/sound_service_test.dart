@@ -62,6 +62,8 @@ class MockAudioplayersPlatform extends AudioplayersPlatformInterface {
   @override
   Future<void> setReleaseMode(String playerId, ReleaseMode releaseMode) async {}
 
+  final List<({String playerId, String url})> playedSources = <({String playerId, String url})>[];
+
   @override
   Future<void> setSourceBytes(
     String playerId,
@@ -80,6 +82,7 @@ class MockAudioplayersPlatform extends AudioplayersPlatformInterface {
     bool? isLocal,
     String? mimeType,
   }) async {
+    playedSources.add((playerId: playerId, url: url));
     _controllers[playerId]?.add(
       const AudioEvent(eventType: AudioEventType.prepared, isPrepared: true),
     );
@@ -133,6 +136,27 @@ void main() {
     );
   });
 
+  group('SoundEvent Enum', () {
+    test('defines all 28 semantic events with calibrated volumes', () {
+      expect(SoundEvent.values.length, 28);
+      expect(SoundEvent.uiTap.defaultVolume, 0.38);
+      expect(SoundEvent.uiSelect.defaultVolume, 0.42);
+      expect(SoundEvent.toggleOn.defaultVolume, 0.42);
+      expect(SoundEvent.toggleOff.defaultVolume, 0.38);
+      expect(SoundEvent.messageReceive.defaultVolume, 0.52);
+      expect(SoundEvent.messageSend.defaultVolume, 0.48);
+      expect(SoundEvent.mention.defaultVolume, 0.65);
+      expect(SoundEvent.callIncoming.defaultVolume, 0.85);
+
+      for (final SoundEvent event in SoundEvent.values) {
+        expect(event.assetPath, startsWith('sounds/'));
+        expect(event.assetPath, endsWith('.ogg'));
+        expect(event.defaultVolume, greaterThanOrEqualTo(0.35));
+        expect(event.defaultVolume, lessThanOrEqualTo(1.0));
+      }
+    });
+  });
+
   group('AppSound Enum', () {
     test('sound enum defines valid assets', () {
       expect(AppSound.message.assetPath, 'sounds/message.ogg');
@@ -179,6 +203,12 @@ void main() {
       await expectLater(soundService.initialize(), completes);
     });
 
+    test('all 28 SoundEvent items can be played without error', () async {
+      for (final SoundEvent event in SoundEvent.values) {
+        await expectLater(soundService.playEvent(event), completes);
+      }
+    });
+
     test('play, playUiTick, startLoop, stopLoop run without throwing', () async {
       await expectLater(soundService.play(AppSound.message), completes);
       await expectLater(soundService.playUiTick(), completes);
@@ -189,6 +219,21 @@ void main() {
       await expectLater(soundService.play(AppSound.message), completes);
       await expectLater(soundService.playUiTick(), completes);
       await expectLater(soundService.startLoop(AppSound.navigation), completes);
+    });
+
+    test('effect pool distributes rapid normal events without collisions', () async {
+      final mock = AudioplayersPlatformInterface.instance as MockAudioplayersPlatform;
+      mock.playedSources.clear();
+
+      // Play 4 normal events rapidly
+      await soundService.playEvent(SoundEvent.messageSend);
+      await soundService.playEvent(SoundEvent.messageReceive);
+      await soundService.playEvent(SoundEvent.uploadComplete);
+      await soundService.playEvent(SoundEvent.aiComplete);
+
+      expect(mock.playedSources.length, 4);
+      final playerIds = mock.playedSources.map((s) => s.playerId).toList();
+      expect(playerIds, containsAll(<String>['nios_effect_0', 'nios_effect_1', 'nios_effect_2', 'nios_effect_3']));
     });
 
     test('dispose cleans up gracefully and can be called multiple times', () async {

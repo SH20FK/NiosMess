@@ -930,7 +930,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   Future<void> _playNotificationSound({double? volume, bool isMention = false}) async {
-    if (!ref.read(uiSettingsProvider).notifications) return;
+    final UiSettingsState settings = ref.read(uiSettingsProvider);
+    if (!settings.soundEffects) return;
+    final bool isMuted = ref.read(chatMutedProvider(_chatId)).value ?? false;
+    if (isMuted) return;
     await ref.read(appSoundProvider).playEvent(
       isMention ? SoundEvent.mention : SoundEvent.messageReceive,
       volume: volume,
@@ -1436,6 +1439,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       return m.copyWith(reactions: newReactions);
     }).toList(growable: false);
     state = AsyncData<List<ApiMessage>>(optimisticNext);
+    unawaited(ref.read(appSoundProvider).playEvent(SoundEvent.reaction));
 
     try {
       await ref.read(chatRepositoryProvider).toggleReaction(_chatId, messageId, emoji: emoji);

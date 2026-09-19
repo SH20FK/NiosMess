@@ -14,7 +14,6 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
 import 'package:pulse_flutter/screens/chat_list_screen.dart';
 import 'package:pulse_flutter/screens/chat_detail_screen.dart';
-import 'package:pulse_flutter/screens/contacts_screen.dart';
 import 'package:pulse_flutter/screens/niosgram_screen.dart';
 import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
@@ -49,9 +48,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     with WidgetsBindingObserver {
   static const List<String> _tabs = <String>[
     'chats',
-    'contacts',
     'niosgram',
-    'profile',
+    'settings',
   ];
 
   late final Set<int> _activatedTabs;
@@ -61,7 +59,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   double _desktopChatListWidth = 360.0;
   DateTime? _lastBackPressTime;
   Timer? _startupTimer;
-  Timer? _prewarmTimer;
 
   @override
   void initState() {
@@ -71,12 +68,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _runStartupSequence();
-      _prewarmTimer = Timer(const Duration(milliseconds: 1500), () {
-        if (!mounted) return;
-        setState(() {
-          _activatedTabs.addAll(<int>[0, 1, 2, 3]);
-        });
-      });
     });
   }
 
@@ -271,12 +262,15 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   @override
   void dispose() {
     _startupTimer?.cancel();
-    _prewarmTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  int _tabIndex(String tab) => _tabs.contains(tab) ? _tabs.indexOf(tab) : 0;
+  int _tabIndex(String tab) {
+    if (tab == 'settings' || tab == 'profile') return 2;
+    if (tab == 'niosgram') return 1;
+    return 0;
+  }
 
   void _onTapTab(int nextIndex) {
     if (nextIndex < 0 || nextIndex >= _tabs.length) {
@@ -305,6 +299,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     return M3SpeedDialFab(
       visible: isVisible,
       heroTag: 'compose_chat_fab',
+      onSelectContacts: () {
+        context.push('/contacts');
+      },
       onSelectGroup: () {
         showCreateChatModal(context, chatType: 'group');
       },
@@ -389,21 +386,38 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                   },
                 ),
                 Expanded(
-                  child: desktopChatId != null
-                      ? ChatDetailScreen(
-                          key: ValueKey<int>(desktopChatId),
-                          chatId: desktopChatId.toString(),
-                          isDesktopSplit: true,
-                        )
-                      : _buildDesktopEmptyChatPlaceholder(context),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    switchInCurve: M3SpringCurves.expressiveDecel,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.015, 0.0), // ~12dp subtle slide
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: desktopChatId != null
+                        ? ChatDetailScreen(
+                            key: ValueKey<int>(desktopChatId),
+                            chatId: desktopChatId.toString(),
+                            isDesktopSplit: true,
+                          )
+                        : KeyedSubtree(
+                            key: const ValueKey<String>('desktop_empty_chat'),
+                            child: _buildDesktopEmptyChatPlaceholder(context),
+                          ),
+                  ),
                 ),
               ],
             )
           else
             const ChatListScreen(),
-          isWide
-              ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 780), child: const ContactsScreen()))
-              : const ContactsScreen(),
           isWide
               ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 820), child: const NiosgramScreen()))
               : const NiosgramScreen(),
@@ -467,19 +481,14 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                             label: Text(context.l10n.tabChats),
                           ),
                           NavigationRailDestination(
-                            icon: const Icon(Icons.people_outline_rounded),
-                            selectedIcon: const Icon(Icons.people_rounded),
-                            label: Text(context.l10n.tabContacts),
-                          ),
-                          NavigationRailDestination(
                             icon: const Icon(Icons.grid_view_rounded),
                             selectedIcon: const Icon(Icons.grid_view_rounded),
                             label: Text(context.l10n.tabNiosgram),
                           ),
                           NavigationRailDestination(
-                            icon: const Icon(Icons.person_outline_rounded),
-                            selectedIcon: const Icon(Icons.person_rounded),
-                            label: Text(context.l10n.tabProfile),
+                            icon: const Icon(Icons.settings_outlined),
+                            selectedIcon: const Icon(Icons.settings_rounded),
+                            label: Text(context.l10n.tabSettings),
                           ),
                         ],
                       ),

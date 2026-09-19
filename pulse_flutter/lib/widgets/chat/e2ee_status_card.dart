@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
@@ -59,6 +60,9 @@ class E2eeStatusCard extends ConsumerWidget {
             color: bg,
             onTap: () {
               HapticService.tap();
+              if (isCompromised) {
+                ref.read(appSoundProvider).playEvent(SoundEvent.securityWarning);
+              }
               onTap();
             },
             child: Container(

@@ -244,7 +244,54 @@ class SettingsRegistry {
       ],
     ),
 
-    // 9. About App
+    // 9. Energy Saving
+    SettingsNavNode(
+      id: 'energy_saving',
+      title: (AppLocalizations l) => 'Энергосбережение',
+      subtitle: (AppLocalizations l) => 'Батарея, анимации стикеров и эмодзи',
+      icon: Icons.battery_saver_rounded,
+      group: SettingsGroup.motion,
+      route: '/settings/energy-saving',
+      sectionId: SettingsSectionId.energySaving,
+      keywords: const <String>[
+        'энергосбережение',
+        'батарея',
+        'аккумулятор',
+        'анимации',
+        'стикеры',
+        'эмодзи',
+        'battery',
+        'energy',
+        'power',
+        'save',
+        'animation',
+      ],
+    ),
+
+    // 10. Nios Plus & AI
+    SettingsNavNode(
+      id: 'plus',
+      title: (AppLocalizations l) => 'Nios Plus & AI',
+      subtitle: (AppLocalizations l) => 'Подписка, безлимитный ИИ и файлы до 4 ГБ',
+      icon: Icons.stars_rounded,
+      group: SettingsGroup.plus,
+      route: '/settings/plus',
+      sectionId: SettingsSectionId.plus,
+      keywords: const <String>[
+        'plus',
+        'nios plus',
+        'премиум',
+        'подписка',
+        'ии',
+        'ai',
+        'триал',
+        'trial',
+        'premium',
+        'лимиты',
+      ],
+    ),
+
+    // 11. About App
     SettingsNavNode(
       id: 'about',
       title: (AppLocalizations l) => l.settingsSupportAboutTitle,

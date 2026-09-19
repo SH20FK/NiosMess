@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/settings/pressable_surface.dart';
 
@@ -240,7 +241,14 @@ class SettingsListItem extends ConsumerWidget {
             }
             return null;
           }),
-          onChanged: enabled && onChanged != null ? (bool v) => onChanged!(v) : null,
+          onChanged: enabled && onChanged != null
+              ? (bool v) {
+                  ref.read(appSoundProvider).playEvent(
+                        v ? SoundEvent.toggleOn : SoundEvent.toggleOff,
+                      );
+                  onChanged!(v);
+                }
+              : null,
         );
         break;
       case SettingsListItemType.value:
@@ -276,7 +284,15 @@ class SettingsListItem extends ConsumerWidget {
     );
 
     final VoidCallback? effectiveTap = type == SettingsListItemType.toggle
-        ? (onChanged != null && enabled ? () => onChanged!(!(boolValue ?? false)) : null)
+        ? (onChanged != null && enabled
+            ? () {
+                final bool nextVal = !(boolValue ?? false);
+                ref.read(appSoundProvider).playEvent(
+                      nextVal ? SoundEvent.toggleOn : SoundEvent.toggleOff,
+                    );
+                onChanged!(nextVal);
+              }
+            : null)
         : onTap;
 
     return Semantics(
@@ -288,6 +304,7 @@ class SettingsListItem extends ConsumerWidget {
         onTap: effectiveTap,
         onLongPress: enabled ? onLongPress : null,
         enabled: enabled && (effectiveTap != null || onLongPress != null),
+        playFeedback: type != SettingsListItemType.toggle,
         borderRadius: AppRadii.mdRadius,
         color: isSelected
             ? scheme.secondaryContainer.withValues(alpha: 0.80)

@@ -24,6 +24,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabProfile => 'Profile';
 
   @override
+  String get tabSettings => 'Settings';
+
+  @override
   String get commonCreate => 'Create';
 
   @override

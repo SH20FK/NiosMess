@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
@@ -43,9 +44,13 @@ class AdaptiveGlass extends ConsumerWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final BorderRadius radius = borderRadius ?? BorderRadius.circular(20);
 
+    final bool isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
     // Tier C / PowerSaver: fully opaque tonal surface (0.98 alpha)
-    // Tier A/B: clean M3 Expressive tonal surface (0.92 alpha)
-    final double alpha = (tier == PerformanceTier.tierC) ? 0.98 : 0.92;
+    // Tier A/B: clean M3 Expressive tonal surface (0.92 alpha on mobile, 0.96 on Windows)
+    final double alpha = (tier == PerformanceTier.tierC)
+        ? 0.98
+        : (isWindows ? 0.96 : 0.92);
     Widget content = Container(
       padding: padding,
       decoration: BoxDecoration(
@@ -61,8 +66,10 @@ class AdaptiveGlass extends ConsumerWidget {
       child: child,
     );
 
-    // Live BackdropFilter is ONLY permitted on Tier A for static panels outside scrollables
-    final bool enableBackdrop = (tier == PerformanceTier.tierA) &&
+    // Live BackdropFilter is ONLY permitted on Tier A for static panels outside scrollables on non-Windows platforms.
+    // On Windows Desktop, live BackdropFilter is strictly disabled to prevent DWM/raster readback stalls.
+    final bool enableBackdrop = !isWindows &&
+        (tier == PerformanceTier.tierA) &&
         isStaticPanel &&
         (inScrollable != true) &&
         tierASigma > 0.0;

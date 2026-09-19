@@ -10,6 +10,9 @@ import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/app_error_banner.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 IconData _deviceIcon(String deviceInfo) {
   final String lower = deviceInfo.toLowerCase();
@@ -161,11 +164,104 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       ? _sessions!.reduce((a, b) => a.lastActive.isAfter(b.lastActive) ? a : b).id
       : null;
 
+  String _formatAutoTerminateDays(int days) {
+    switch (days) {
+      case 7:
+        return '1 неделя';
+      case 30:
+        return '1 месяц';
+      case 90:
+        return '3 месяца';
+      case 180:
+        return '6 месяцев';
+      case 365:
+        return '1 год';
+      default:
+        return '$days дн.';
+    }
+  }
+
+  Future<void> _showAutoTerminatePicker(
+    BuildContext context,
+    int current,
+  ) async {
+    HapticService.tap();
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    await AppBottomSheets.show<void>(
+      context: context,
+      builder: (BuildContext ctx) {
+        const List<int> options = <int>[7, 30, 90, 180, 365];
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: scheme.outlineVariant.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  'Завершать неактивные сеансы',
+                  style: textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Сеансы на других устройствах, не проявляющие активности указанное время, будут завершены автоматически.',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ...options.map((int days) {
+                  final bool isSelected = days == current;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      _formatAutoTerminateDays(days),
+                      style: textTheme.bodyLarge?.copyWith(
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                        color: isSelected ? scheme.primary : scheme.onSurface,
+                      ),
+                    ),
+                    trailing: isSelected
+                        ? Icon(Icons.check_circle_rounded, color: scheme.primary)
+                        : null,
+                    onTap: () {
+                      HapticService.confirm();
+                      ref
+                          .read(uiSettingsProvider.notifier)
+                          .setAutoTerminateSessionsDays(days);
+                      Navigator.of(ctx).pop();
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final int? currentSessionId = _currentSessionId;
+    final UiSettingsState settings = ref.watch(uiSettingsProvider);
 
     return SettingsShell(
       title: context.l10n.sessionsTitle,
@@ -176,6 +272,23 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
           illustrationCategory: SettingsIllustrationCategory.sessions,
           subtitle: context.l10n.sessionsBannerSubtitle,
           iconColor: scheme.primary,
+        ),
+        SettingsSection(
+          title: 'Автоматическое завершение сеансов',
+          subtitle: 'Удаление неактивных подключений на других устройствах',
+          children: <Widget>[
+            SettingsTile(
+              icon: Icons.timer_outlined,
+              title: 'Если неактивен',
+              subtitle: 'Завершать сеансы при отсутствии активности',
+              value: _formatAutoTerminateDays(settings.autoTerminateSessionsDays),
+              iconColor: scheme.primary,
+              onTap: () => _showAutoTerminatePicker(
+                context,
+                settings.autoTerminateSessionsDays,
+              ),
+            ),
+          ],
         ),
         if (_loading)
           const Padding(

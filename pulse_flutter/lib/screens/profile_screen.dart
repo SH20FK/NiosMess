@@ -35,6 +35,8 @@ import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/settings_storage_screen.dart';
+import 'package:pulse_flutter/screens/settings_energy_saving_screen.dart';
+import 'package:pulse_flutter/screens/settings_plus_screen.dart';
 import 'package:pulse_flutter/screens/settings_system_device_screen.dart';
 import 'package:pulse_flutter/services/settings/settings_registry.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -292,6 +294,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final bool isRussian =
           Localizations.localeOf(context).languageCode == 'ru';
       return isRussian ? 'Русский' : 'English';
+    } else if (node.id == 'energy_saving') {
+      return settings.energySavingThreshold == 0
+          ? 'Выкл'
+          : '${settings.energySavingThreshold}%';
     } else if (node.id == 'about') {
       return AppConstants.appVersionWithPrefix;
     }
@@ -310,6 +316,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       case SettingsGroup.motion:
         return scheme.secondary;
       case SettingsGroup.storage:
+        return scheme.tertiary;
+      case SettingsGroup.plus:
         return scheme.tertiary;
       case SettingsGroup.about:
         return scheme.onSurfaceVariant;
@@ -906,7 +914,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         scrolledUnderElevation: 0,
         centerTitle: false,
         title: Text(
-          context.l10n.tabProfile,
+          context.l10n.tabSettings,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.6,
@@ -1228,6 +1236,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         return const E2eeSettingsScreen(isEmbedded: true);
       case SettingsSectionId.sessions:
         return const SessionsScreen(isEmbedded: true);
+      case SettingsSectionId.energySaving:
+        return const SettingsEnergySavingScreen(isEmbedded: true);
+      case SettingsSectionId.plus:
+        return const SettingsPlusScreen(isEmbedded: true);
     }
   }
 

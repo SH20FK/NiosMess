@@ -70,35 +70,51 @@ class _ChatWallpaperBackgroundState extends ConsumerState<ChatWallpaperBackgroun
     if (config.imagePath != null && config.imagePath!.isNotEmpty && !kIsWeb) {
       final io.File file = io.File(config.imagePath!);
       if (file.existsSync()) {
+        final Size screenSize = MediaQuery.sizeOf(context);
+        final double pixelRatio = MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0);
+        final int targetCacheWidth = (screenSize.width * pixelRatio).round().clamp(360, 1920);
+        final int targetCacheHeight = (screenSize.height * pixelRatio).round().clamp(640, 2160);
+        final bool isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
         Widget img = Image.file(
           file,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
+          cacheWidth: targetCacheWidth,
+          cacheHeight: targetCacheHeight,
           alignment: Alignment.center,
           errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
         );
-        if (config.imageBlur > 0.01) {
+
+        // On Windows Desktop, live full-screen ImageFilter.blur stalls the compositor.
+        // Replace live blur with an elegant contrast-preserving tonal scrim.
+        if (config.imageBlur > 0.01 && !isWindows) {
           img = ImageFiltered(
             imageFilter: ui.ImageFilter.blur(
-              sigmaX: config.imageBlur,
-              sigmaY: config.imageBlur,
+              sigmaX: config.imageBlur.clamp(0.0, 16.0),
+              sigmaY: config.imageBlur.clamp(0.0, 16.0),
             ),
             child: img,
           );
         }
-        if (config.imageDim > 0.01) {
+
+        final double effectiveDim = (isWindows && config.imageBlur > 0.01
+            ? (config.imageDim + 0.12)
+            : config.imageDim).clamp(0.0, 0.95);
+
+        if (effectiveDim > 0.01) {
           img = Stack(
             fit: StackFit.expand,
             children: <Widget>[
               img,
               ColoredBox(
-                color: scheme.scrim.withValues(alpha: config.imageDim.clamp(0.0, 0.95)),
+                color: scheme.scrim.withValues(alpha: effectiveDim),
               ),
             ],
           );
         }
-        photoLayer = img;
+        photoLayer = RepaintBoundary(child: img);
       }
     }
 

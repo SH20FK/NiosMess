@@ -102,12 +102,33 @@ class UiSettingsState {
     this.doubleTapReactionEmoji = '❤️',
     this.autoDownloadWifi = true,
     this.autoDownloadCellular = false,
+    this.autoDownloadRoaming = false,
     this.messageBubbleRadius = 16.0,
     this.uiCornerRadius = 20.0,
     this.camera2Api = true,
     this.showPerformanceOverlay = false,
     this.debugRepaintRainbow = false,
     this.paletteStyle = PaletteStyle.expressive,
+    this.hideBubbleTails = false,
+    this.replaceEditedWithIcon = false,
+    this.chatListDensity = 'standard',
+    this.videoSeekSeconds = 10,
+    this.autoPauseVideoOnBackground = true,
+    this.energySavingThreshold = 20,
+    this.animateStickers = true,
+    this.animateEmoji = true,
+    this.chatEffectsEnabled = true,
+    this.streamMedia = true,
+    this.saveToGalleryPrivate = false,
+    this.saveToGalleryGroups = false,
+    this.saveToGalleryChannels = false,
+    this.badgeCountMessages = true,
+    this.badgeIncludeMuted = false,
+    this.inAppNotificationPreview = true,
+    this.accountSelfDestructMonths = 6,
+    this.linkPreviewsInSecretChats = false,
+    this.secureScreenshotsInSecretChats = true,
+    this.autoTerminateSessionsDays = 90,
   });
 
   VisualThemeSettings get visualTheme => VisualThemeSettings(
@@ -145,12 +166,33 @@ class UiSettingsState {
       doubleTapReactionEmoji = '❤️',
       autoDownloadWifi = true,
       autoDownloadCellular = false,
+      autoDownloadRoaming = false,
       messageBubbleRadius = 16.0,
       uiCornerRadius = 20.0,
       camera2Api = true,
       showPerformanceOverlay = false,
       debugRepaintRainbow = false,
-      paletteStyle = PaletteStyle.expressive;
+      paletteStyle = PaletteStyle.expressive,
+      hideBubbleTails = false,
+      replaceEditedWithIcon = false,
+      chatListDensity = 'standard',
+      videoSeekSeconds = 10,
+      autoPauseVideoOnBackground = true,
+      energySavingThreshold = 20,
+      animateStickers = true,
+      animateEmoji = true,
+      chatEffectsEnabled = true,
+      streamMedia = true,
+      saveToGalleryPrivate = false,
+      saveToGalleryGroups = false,
+      saveToGalleryChannels = false,
+      badgeCountMessages = true,
+      badgeIncludeMuted = false,
+      inAppNotificationPreview = true,
+      accountSelfDestructMonths = 6,
+      linkPreviewsInSecretChats = false,
+      secureScreenshotsInSecretChats = true,
+      autoTerminateSessionsDays = 90;
 
   final ThemeMode themeMode;
   final Color seedColor;
@@ -175,12 +217,33 @@ class UiSettingsState {
   final String doubleTapReactionEmoji;
   final bool autoDownloadWifi;
   final bool autoDownloadCellular;
+  final bool autoDownloadRoaming;
   final double messageBubbleRadius;
   final double uiCornerRadius;
   final bool camera2Api;
   final bool showPerformanceOverlay;
   final bool debugRepaintRainbow;
   final PaletteStyle paletteStyle;
+  final bool hideBubbleTails;
+  final bool replaceEditedWithIcon;
+  final String chatListDensity;
+  final int videoSeekSeconds;
+  final bool autoPauseVideoOnBackground;
+  final int energySavingThreshold;
+  final bool animateStickers;
+  final bool animateEmoji;
+  final bool chatEffectsEnabled;
+  final bool streamMedia;
+  final bool saveToGalleryPrivate;
+  final bool saveToGalleryGroups;
+  final bool saveToGalleryChannels;
+  final bool badgeCountMessages;
+  final bool badgeIncludeMuted;
+  final bool inAppNotificationPreview;
+  final int accountSelfDestructMonths;
+  final bool linkPreviewsInSecretChats;
+  final bool secureScreenshotsInSecretChats;
+  final int autoTerminateSessionsDays;
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
@@ -208,12 +271,33 @@ class UiSettingsState {
     String? doubleTapReactionEmoji,
     bool? autoDownloadWifi,
     bool? autoDownloadCellular,
+    bool? autoDownloadRoaming,
     double? messageBubbleRadius,
     double? uiCornerRadius,
     bool? camera2Api,
     bool? showPerformanceOverlay,
     bool? debugRepaintRainbow,
     PaletteStyle? paletteStyle,
+    bool? hideBubbleTails,
+    bool? replaceEditedWithIcon,
+    String? chatListDensity,
+    int? videoSeekSeconds,
+    bool? autoPauseVideoOnBackground,
+    int? energySavingThreshold,
+    bool? animateStickers,
+    bool? animateEmoji,
+    bool? chatEffectsEnabled,
+    bool? streamMedia,
+    bool? saveToGalleryPrivate,
+    bool? saveToGalleryGroups,
+    bool? saveToGalleryChannels,
+    bool? badgeCountMessages,
+    bool? badgeIncludeMuted,
+    bool? inAppNotificationPreview,
+    int? accountSelfDestructMonths,
+    bool? linkPreviewsInSecretChats,
+    bool? secureScreenshotsInSecretChats,
+    int? autoTerminateSessionsDays,
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -244,6 +328,8 @@ class UiSettingsState {
       autoDownloadWifi: autoDownloadWifi ?? this.autoDownloadWifi,
       autoDownloadCellular:
           autoDownloadCellular ?? this.autoDownloadCellular,
+      autoDownloadRoaming:
+          autoDownloadRoaming ?? this.autoDownloadRoaming,
       messageBubbleRadius: messageBubbleRadius ?? this.messageBubbleRadius,
       uiCornerRadius: uiCornerRadius ?? this.uiCornerRadius,
       camera2Api: camera2Api ?? this.camera2Api,
@@ -252,6 +338,34 @@ class UiSettingsState {
       debugRepaintRainbow:
           debugRepaintRainbow ?? this.debugRepaintRainbow,
       paletteStyle: paletteStyle ?? this.paletteStyle,
+      hideBubbleTails: hideBubbleTails ?? this.hideBubbleTails,
+      replaceEditedWithIcon: replaceEditedWithIcon ?? this.replaceEditedWithIcon,
+      chatListDensity: chatListDensity ?? this.chatListDensity,
+      videoSeekSeconds: videoSeekSeconds ?? this.videoSeekSeconds,
+      autoPauseVideoOnBackground:
+          autoPauseVideoOnBackground ?? this.autoPauseVideoOnBackground,
+      energySavingThreshold:
+          energySavingThreshold ?? this.energySavingThreshold,
+      animateStickers: animateStickers ?? this.animateStickers,
+      animateEmoji: animateEmoji ?? this.animateEmoji,
+      chatEffectsEnabled: chatEffectsEnabled ?? this.chatEffectsEnabled,
+      streamMedia: streamMedia ?? this.streamMedia,
+      saveToGalleryPrivate: saveToGalleryPrivate ?? this.saveToGalleryPrivate,
+      saveToGalleryGroups: saveToGalleryGroups ?? this.saveToGalleryGroups,
+      saveToGalleryChannels:
+          saveToGalleryChannels ?? this.saveToGalleryChannels,
+      badgeCountMessages: badgeCountMessages ?? this.badgeCountMessages,
+      badgeIncludeMuted: badgeIncludeMuted ?? this.badgeIncludeMuted,
+      inAppNotificationPreview:
+          inAppNotificationPreview ?? this.inAppNotificationPreview,
+      accountSelfDestructMonths:
+          accountSelfDestructMonths ?? this.accountSelfDestructMonths,
+      linkPreviewsInSecretChats:
+          linkPreviewsInSecretChats ?? this.linkPreviewsInSecretChats,
+      secureScreenshotsInSecretChats:
+          secureScreenshotsInSecretChats ?? this.secureScreenshotsInSecretChats,
+      autoTerminateSessionsDays:
+          autoTerminateSessionsDays ?? this.autoTerminateSessionsDays,
     );
   }
 
@@ -287,9 +401,30 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _doubleTapReactionEmojiKey = 'ui.doubleTapReactionEmoji';
   static const String _autoDownloadWifiKey = 'ui.autoDownloadWifi';
   static const String _autoDownloadCellularKey = 'ui.autoDownloadCellular';
+  static const String _autoDownloadRoamingKey = 'ui.autoDownloadRoaming';
   static const String _messageBubbleRadiusKey = 'ui.messageBubbleRadius';
   static const String _uiCornerRadiusKey = 'ui.cornerRadius';
   static const String _camera2ApiKey = 'ui.camera2Api';
+  static const String _hideBubbleTailsKey = 'ui.hideBubbleTails';
+  static const String _replaceEditedWithIconKey = 'ui.replaceEditedWithIcon';
+  static const String _chatListDensityKey = 'ui.chatListDensity';
+  static const String _videoSeekSecondsKey = 'ui.videoSeekSeconds';
+  static const String _autoPauseVideoKey = 'ui.autoPauseVideo';
+  static const String _energySavingThresholdKey = 'ui.energySavingThreshold';
+  static const String _animateStickersKey = 'ui.animateStickers';
+  static const String _animateEmojiKey = 'ui.animateEmoji';
+  static const String _chatEffectsEnabledKey = 'ui.chatEffects';
+  static const String _streamMediaKey = 'ui.streamMedia';
+  static const String _saveToGalleryPrivateKey = 'ui.saveGalleryPrivate';
+  static const String _saveToGalleryGroupsKey = 'ui.saveGalleryGroups';
+  static const String _saveToGalleryChannelsKey = 'ui.saveGalleryChannels';
+  static const String _badgeCountMessagesKey = 'ui.badgeCountMessages';
+  static const String _badgeIncludeMutedKey = 'ui.badgeIncludeMuted';
+  static const String _inAppNotificationPreviewKey = 'ui.inAppNotificationPreview';
+  static const String _accountSelfDestructMonthsKey = 'ui.accountSelfDestructMonths';
+  static const String _linkPreviewsSecretKey = 'ui.linkPreviewsSecret';
+  static const String _secureScreenshotsSecretKey = 'ui.secureScreenshotsSecret';
+  static const String _autoTerminateSessionsDaysKey = 'ui.autoTerminateSessionsDays';
 
   static SharedPreferences? cachedPrefs;
   bool _loaded = false;
@@ -355,11 +490,53 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
           prefs.getBool(_autoDownloadWifiKey) ?? defaults.autoDownloadWifi,
       autoDownloadCellular:
           prefs.getBool(_autoDownloadCellularKey) ?? defaults.autoDownloadCellular,
+      autoDownloadRoaming:
+          prefs.getBool(_autoDownloadRoamingKey) ?? defaults.autoDownloadRoaming,
       messageBubbleRadius:
           prefs.getDouble(_messageBubbleRadiusKey) ?? defaults.messageBubbleRadius,
       uiCornerRadius:
           prefs.getDouble(_uiCornerRadiusKey) ?? defaults.uiCornerRadius,
       camera2Api: prefs.getBool(_camera2ApiKey) ?? defaults.camera2Api,
+      hideBubbleTails:
+          prefs.getBool(_hideBubbleTailsKey) ?? defaults.hideBubbleTails,
+      replaceEditedWithIcon:
+          prefs.getBool(_replaceEditedWithIconKey) ?? defaults.replaceEditedWithIcon,
+      chatListDensity:
+          prefs.getString(_chatListDensityKey) ?? defaults.chatListDensity,
+      videoSeekSeconds:
+          prefs.getInt(_videoSeekSecondsKey) ?? defaults.videoSeekSeconds,
+      autoPauseVideoOnBackground:
+          prefs.getBool(_autoPauseVideoKey) ?? defaults.autoPauseVideoOnBackground,
+      energySavingThreshold:
+          prefs.getInt(_energySavingThresholdKey) ?? defaults.energySavingThreshold,
+      animateStickers:
+          prefs.getBool(_animateStickersKey) ?? defaults.animateStickers,
+      animateEmoji:
+          prefs.getBool(_animateEmojiKey) ?? defaults.animateEmoji,
+      chatEffectsEnabled:
+          prefs.getBool(_chatEffectsEnabledKey) ?? defaults.chatEffectsEnabled,
+      streamMedia:
+          prefs.getBool(_streamMediaKey) ?? defaults.streamMedia,
+      saveToGalleryPrivate:
+          prefs.getBool(_saveToGalleryPrivateKey) ?? defaults.saveToGalleryPrivate,
+      saveToGalleryGroups:
+          prefs.getBool(_saveToGalleryGroupsKey) ?? defaults.saveToGalleryGroups,
+      saveToGalleryChannels:
+          prefs.getBool(_saveToGalleryChannelsKey) ?? defaults.saveToGalleryChannels,
+      badgeCountMessages:
+          prefs.getBool(_badgeCountMessagesKey) ?? defaults.badgeCountMessages,
+      badgeIncludeMuted:
+          prefs.getBool(_badgeIncludeMutedKey) ?? defaults.badgeIncludeMuted,
+      inAppNotificationPreview:
+          prefs.getBool(_inAppNotificationPreviewKey) ?? defaults.inAppNotificationPreview,
+      accountSelfDestructMonths:
+          prefs.getInt(_accountSelfDestructMonthsKey) ?? defaults.accountSelfDestructMonths,
+      linkPreviewsInSecretChats:
+          prefs.getBool(_linkPreviewsSecretKey) ?? defaults.linkPreviewsInSecretChats,
+      secureScreenshotsInSecretChats:
+          prefs.getBool(_secureScreenshotsSecretKey) ?? defaults.secureScreenshotsInSecretChats,
+      autoTerminateSessionsDays:
+          prefs.getInt(_autoTerminateSessionsDaysKey) ?? defaults.autoTerminateSessionsDays,
     );
   }
 
@@ -592,6 +769,11 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     _persistKey(_autoDownloadCellularKey, value);
   }
 
+  void setAutoDownloadRoaming(bool value) {
+    state = state.copyWith(autoDownloadRoaming: value);
+    _persistKey(_autoDownloadRoamingKey, value);
+  }
+
   void setCamera2Api(bool value) {
     state = state.copyWith(camera2Api: value);
     _persistKey(_camera2ApiKey, value);
@@ -608,6 +790,106 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
 
   void setDebugRepaintRainbow(bool value) {
     state = state.copyWith(debugRepaintRainbow: value);
+  }
+
+  void setHideBubbleTails(bool value) {
+    state = state.copyWith(hideBubbleTails: value);
+    _persistKey(_hideBubbleTailsKey, value);
+  }
+
+  void setReplaceEditedWithIcon(bool value) {
+    state = state.copyWith(replaceEditedWithIcon: value);
+    _persistKey(_replaceEditedWithIconKey, value);
+  }
+
+  void setChatListDensity(String value) {
+    state = state.copyWith(chatListDensity: value);
+    _persistKey(_chatListDensityKey, value);
+  }
+
+  void setVideoSeekSeconds(int value) {
+    state = state.copyWith(videoSeekSeconds: value);
+    _persistKey(_videoSeekSecondsKey, value);
+  }
+
+  void setAutoPauseVideoOnBackground(bool value) {
+    state = state.copyWith(autoPauseVideoOnBackground: value);
+    _persistKey(_autoPauseVideoKey, value);
+  }
+
+  void setEnergySavingThreshold(int value) {
+    state = state.copyWith(energySavingThreshold: value);
+    _persistKey(_energySavingThresholdKey, value);
+  }
+
+  void setAnimateStickers(bool value) {
+    state = state.copyWith(animateStickers: value);
+    _persistKey(_animateStickersKey, value);
+  }
+
+  void setAnimateEmoji(bool value) {
+    state = state.copyWith(animateEmoji: value);
+    _persistKey(_animateEmojiKey, value);
+  }
+
+  void setChatEffectsEnabled(bool value) {
+    state = state.copyWith(chatEffectsEnabled: value);
+    _persistKey(_chatEffectsEnabledKey, value);
+  }
+
+  void setStreamMedia(bool value) {
+    state = state.copyWith(streamMedia: value);
+    _persistKey(_streamMediaKey, value);
+  }
+
+  void setSaveToGalleryPrivate(bool value) {
+    state = state.copyWith(saveToGalleryPrivate: value);
+    _persistKey(_saveToGalleryPrivateKey, value);
+  }
+
+  void setSaveToGalleryGroups(bool value) {
+    state = state.copyWith(saveToGalleryGroups: value);
+    _persistKey(_saveToGalleryGroupsKey, value);
+  }
+
+  void setSaveToGalleryChannels(bool value) {
+    state = state.copyWith(saveToGalleryChannels: value);
+    _persistKey(_saveToGalleryChannelsKey, value);
+  }
+
+  void setBadgeCountMessages(bool value) {
+    state = state.copyWith(badgeCountMessages: value);
+    _persistKey(_badgeCountMessagesKey, value);
+  }
+
+  void setBadgeIncludeMuted(bool value) {
+    state = state.copyWith(badgeIncludeMuted: value);
+    _persistKey(_badgeIncludeMutedKey, value);
+  }
+
+  void setInAppNotificationPreview(bool value) {
+    state = state.copyWith(inAppNotificationPreview: value);
+    _persistKey(_inAppNotificationPreviewKey, value);
+  }
+
+  void setAccountSelfDestructMonths(int value) {
+    state = state.copyWith(accountSelfDestructMonths: value);
+    _persistKey(_accountSelfDestructMonthsKey, value);
+  }
+
+  void setLinkPreviewsInSecretChats(bool value) {
+    state = state.copyWith(linkPreviewsInSecretChats: value);
+    _persistKey(_linkPreviewsSecretKey, value);
+  }
+
+  void setSecureScreenshotsInSecretChats(bool value) {
+    state = state.copyWith(secureScreenshotsInSecretChats: value);
+    _persistKey(_secureScreenshotsSecretKey, value);
+  }
+
+  void setAutoTerminateSessionsDays(int value) {
+    state = state.copyWith(autoTerminateSessionsDays: value);
+    _persistKey(_autoTerminateSessionsDaysKey, value);
   }
 
   /// Resets all settings fields safely to [UiSettingsState.defaults()],
@@ -644,9 +926,30 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.remove(_doubleTapReactionEmojiKey),
       prefs.remove(_autoDownloadWifiKey),
       prefs.remove(_autoDownloadCellularKey),
+      prefs.remove(_autoDownloadRoamingKey),
       prefs.remove(_messageBubbleRadiusKey),
       prefs.remove(_uiCornerRadiusKey),
       prefs.remove(_camera2ApiKey),
+      prefs.remove(_hideBubbleTailsKey),
+      prefs.remove(_replaceEditedWithIconKey),
+      prefs.remove(_chatListDensityKey),
+      prefs.remove(_videoSeekSecondsKey),
+      prefs.remove(_autoPauseVideoKey),
+      prefs.remove(_energySavingThresholdKey),
+      prefs.remove(_animateStickersKey),
+      prefs.remove(_animateEmojiKey),
+      prefs.remove(_chatEffectsEnabledKey),
+      prefs.remove(_streamMediaKey),
+      prefs.remove(_saveToGalleryPrivateKey),
+      prefs.remove(_saveToGalleryGroupsKey),
+      prefs.remove(_saveToGalleryChannelsKey),
+      prefs.remove(_badgeCountMessagesKey),
+      prefs.remove(_badgeIncludeMutedKey),
+      prefs.remove(_inAppNotificationPreviewKey),
+      prefs.remove(_accountSelfDestructMonthsKey),
+      prefs.remove(_linkPreviewsSecretKey),
+      prefs.remove(_secureScreenshotsSecretKey),
+      prefs.remove(_autoTerminateSessionsDaysKey),
     ]);
   }
 }

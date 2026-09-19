@@ -1,16 +1,17 @@
 import 'package:pulse_flutter/widgets/chat/chat_detail_app_bar.dart';
-import 'package:pulse_flutter/widgets/chat/chat_detail_fab.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
 import 'package:pulse_flutter/widgets/chat/chat_viewport.dart';
 import 'package:pulse_flutter/widgets/chat/chat_empty_state.dart';
+import 'package:pulse_flutter/widgets/chat/chat_scroll_coordinator.dart';
+import 'package:pulse_flutter/widgets/chat/chat_overlay_layer.dart';
 import 'package:pulse_flutter/widgets/chat/e2ee_verification_sheet.dart';
-import 'package:pulse_flutter/widgets/chat/e2ee_status_card.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/services/desktop_pasteboard_service.dart';
 import 'package:pulse_flutter/widgets/chat/desktop_drag_drop_area.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -33,7 +34,6 @@ import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -59,9 +59,7 @@ import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/core/utils/screen_security_service.dart';
-import 'package:pulse_flutter/widgets/offline_banner.dart';
 import 'package:pulse_flutter/widgets/chat/chat_state_surface.dart';
-import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -87,7 +85,8 @@ class ChatDetailScreen extends ConsumerStatefulWidget {
 class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     with WidgetsBindingObserver {
   final TextEditingController _inputController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
+  late final ChatScrollCoordinator _scrollCoordinator;
+  ScrollController get _scrollController => _scrollCoordinator.scrollController;
   late final FocusNode _inputFocusNode;
 
   // Cache providers that may be needed in dispose()
@@ -105,9 +104,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   String? get _editingOriginalText => _composerNotifier.value.editingOriginalText;
   bool get _isAiProcessing => _composerNotifier.value.isAiProcessing;
 
-  // Scroll-to-bottom FAB
-  final ValueNotifier<bool> _showScrollToBottomNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<int> _unreadWhileScrolledNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> _loadingOlderNotifier = ValueNotifier<bool>(false);
 
   SmoothTextStreamer? _aiTextStreamer;
@@ -277,7 +273,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _draftStorage = ref.read(draftStorageProvider); // cache before dispose
-    _scrollController.addListener(_onScroll);
+    _scrollCoordinator = ChatScrollCoordinator(
+      onNearTop: _autoLoadOlderMessages,
+      onReachedBottom: () {
+        final int? cid = _chatId;
+        if (cid != null) {
+          unawaited(ref.read(chatMessagesProvider(cid).notifier).markRead());
+          ref.read(chatsProvider.notifier).markChatAsRead(cid);
+        }
+      },
+    );
     _inputController.addListener(_onInputChanged);
     _inputFocusNode = FocusNode()..addListener(() {
       if (mounted) setState(() {});
@@ -320,29 +325,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     } catch (_) {}
   }
 
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final double offset = _scrollController.offset;
-    final double maxExtent = _scrollController.position.maxScrollExtent;
-    // Since list is reversed, offset > threshold means scrolled UP (away from latest)
-    final bool shouldShow = offset > 300;
-    if (shouldShow != _showScrollToBottomNotifier.value) {
-      _showScrollToBottomNotifier.value = shouldShow;
-    }
-    if (offset <= 60 && _unreadWhileScrolledNotifier.value != 0) {
-      _unreadWhileScrolledNotifier.value = 0;
-      final int? cid = _chatId;
-      if (cid != null) {
-        unawaited(ref.read(chatMessagesProvider(cid).notifier).markRead());
-        ref.read(chatsProvider.notifier).markChatAsRead(cid);
-      }
-    }
-    // Auto-load older messages when near the top (end of reversed list)
-    if (offset > maxExtent - 400 && !_loadingOlderNotifier.value) {
-      _autoLoadOlderMessages();
-    }
-  }
-
   Future<void> _autoLoadOlderMessages() async {
     if (_loadingOlderNotifier.value) return;
     _loadingOlderNotifier.value = true;
@@ -357,19 +339,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (ref.read(uiSettingsProvider).haptics) {
       HapticService.tap();
     }
-    _unreadWhileScrolledNotifier.value = 0;
     final int? cid = _chatId;
     if (cid != null) {
       unawaited(ref.read(chatMessagesProvider(cid).notifier).markRead());
       ref.read(chatsProvider.notifier).markChatAsRead(cid);
     }
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeOutCubic,
-      );
-    }
+    _scrollCoordinator.scrollToBottom();
   }
 
   @override
@@ -387,16 +362,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _aiStreamSubscription?.cancel();
     _aiTextStreamer?.dispose();
     _removeScreenshotOverlay();
-    _showScrollToBottomNotifier.dispose();
-    _unreadWhileScrolledNotifier.dispose();
+    _scrollCoordinator.dispose();
     _loadingOlderNotifier.dispose();
     _composerNotifier.dispose();
     _draftSaveTimer?.cancel();
     _saveDraft();
-    _scrollController.removeListener(_onScroll);
     _inputController.removeListener(_onInputChanged);
     _inputController.dispose();
-    _scrollController.dispose();
     _inputFocusNode.dispose();
     ref.read(inlineQueryProvider.notifier).clear();
     if (_isSecret) {
@@ -436,6 +408,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         AppToast.showError(context, context.l10n.e2eeHandshakeNoPeerKey);
         return;
       }
+      ref.read(appSoundProvider).playEvent(SoundEvent.securityConnecting);
       await e2ee.initiateHandshake(
         chatId: chatId,
         theirPublicKeyBase64: chat.partnerPublicKey!,
@@ -501,6 +474,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     bool hasReceivedFirstChunk = false;
 
     _composerNotifier.value = _composerNotifier.value.copyWith(isAiProcessing: true);
+    ref.read(appSoundProvider).playEvent(SoundEvent.aiStart);
 
     _aiTextStreamer = SmoothTextStreamer(
       onUpdate: (String rendered, bool isFinished) {
@@ -523,6 +497,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           _inputController.text = backupText;
         }
         _composerNotifier.value = _composerNotifier.value.copyWith(isAiProcessing: false);
+        ref.read(appSoundProvider).playEvent(SoundEvent.aiError);
         AppToast.showError(context, error);
       },
     );
@@ -549,10 +524,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             if (!hasReceivedFirstChunk) {
               _inputController.text = backupText;
             }
+            ref.read(appSoundProvider).playEvent(SoundEvent.aiError);
             AppToast.showError(context, error);
           }
         },
         onDone: () {
+          ref.read(appSoundProvider).playEvent(SoundEvent.aiComplete);
           _aiTextStreamer?.completeStream();
         },
         cancelOnError: true,
@@ -563,6 +540,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         if (!hasReceivedFirstChunk) {
           _inputController.text = backupText;
         }
+        ref.read(appSoundProvider).playEvent(SoundEvent.aiError);
         AppToast.showError(context, e);
       }
     }
@@ -1935,10 +1913,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       final List<ApiMessage>? prevList = previous?.value;
       final List<ApiMessage>? nextList = next.value;
       if (prevList != null && nextList != null && nextList.length > prevList.length) {
-        if (_showScrollToBottomNotifier.value) {
-          final int added = nextList.length - prevList.length;
-          _unreadWhileScrolledNotifier.value += added;
-        }
+        _scrollCoordinator.onIncomingMessages(nextList.length - prevList.length);
       }
     });
     final List<ApiMessage> currentMessages =
@@ -2061,35 +2036,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           wallpaper: ChatWallpaperBackground(
             chatId: widget.chatId.toString(),
           ),
-          topBanner: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Consumer(
-                builder: (BuildContext context, WidgetRef ref, _) {
-                  final bool isOffline =
-                      !(ref.watch(connectivityProvider).value ?? true);
-                  return OfflineBanner(isOffline: isOffline);
-                },
-              ),
-              if (chat?.isSecret == true || _isSecret)
-                E2eeStatusCard(
-                  chatId: chatId,
-                  onTap: _showE2eeVerification,
-                ),
-              ValueListenableBuilder<bool>(
-                valueListenable: _loadingOlderNotifier,
-                builder: (context, isLoading, _) => AnimatedSize(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOut,
-                  child: isLoading
-                      ? const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 6),
-                          child: Center(child: AppLoadingIndicator(size: 24)),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ),
-            ],
+          topBanner: ChatTopBannerLayer(
+            chatId: chatId,
+            isSecret: chat?.isSecret == true || _isSecret,
+            loadingOlderNotifier: _loadingOlderNotifier,
+            onE2eeTap: _showE2eeVerification,
           ),
           messagesBuilder: (BuildContext context, double composerHeight) {
             return messagesAsync.when(
@@ -2166,22 +2117,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               },
             );
           },
-          floatingActionButton: ValueListenableBuilder<bool>(
-            valueListenable: _showScrollToBottomNotifier,
-            builder: (context, showScroll, child) {
-              return ValueListenableBuilder<int>(
-                valueListenable: _unreadWhileScrolledNotifier,
-                builder: (context, unreadCount, _) {
-                  return ChatDetailScrollToBottomFAB(
-                    show: showScroll,
-                    chatId: chatId,
-                    unreadCount: unreadCount,
-                    onPressed: _scrollToBottom,
-                  );
-                },
-              );
-            },
-          ),
+          floatingActionButton: _scrollCoordinator.buildFab(chatId: chatId),
           composer: Builder(
             builder: (BuildContext ctx) {
               final bool isDirectChat = chat?.chatType == 'direct';

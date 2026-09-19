@@ -714,10 +714,10 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                             httpHeaders: cachedAuthHeaders(),
                             fit: BoxFit.cover,
                             width: double.infinity,
-                            memCacheWidth: 960,
-                            memCacheHeight: 1280,
-                            fadeInDuration: const Duration(milliseconds: 250),
-                            fadeOutDuration: const Duration(milliseconds: 150),
+                            memCacheWidth: 600,
+                            memCacheHeight: 800,
+                            fadeInDuration: const Duration(milliseconds: 200),
+                            fadeOutDuration: const Duration(milliseconds: 100),
                             placeholder: (_, _) =>
                                 _MediaPlaceholderShimmer(scheme: scheme),
                             errorWidget: (_, _, _) =>
@@ -736,10 +736,10 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                           httpHeaders: cachedAuthHeaders(),
                           fit: BoxFit.cover,
                           width: double.infinity,
-                          memCacheWidth: 960,
-                          memCacheHeight: 1280,
-                          fadeInDuration: const Duration(milliseconds: 250),
-                          fadeOutDuration: const Duration(milliseconds: 150),
+                          memCacheWidth: 600,
+                          memCacheHeight: 800,
+                          fadeInDuration: const Duration(milliseconds: 200),
+                          fadeOutDuration: const Duration(milliseconds: 100),
                           placeholder: (_, _) =>
                               _MediaPlaceholderShimmer(scheme: scheme),
                           errorWidget: (_, _, _) =>

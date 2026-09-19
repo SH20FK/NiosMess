@@ -9,6 +9,7 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 class SettingsStorageScreen extends ConsumerStatefulWidget {
   const SettingsStorageScreen({
@@ -245,6 +246,102 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
           ],
         ),
         const SizedBox(height: 24),
+
+        // 1. Media Auto-Download
+        SettingsSection(
+          title: 'Автозагрузка медиа',
+          subtitle: 'Управление трафиком и загрузкой файлов',
+          children: <Widget>[
+            SettingsSwitchTile(
+              icon: Icons.wifi_rounded,
+              title: 'Через сеть Wi-Fi',
+              subtitle: 'Автоматически скачивать фото, видео и голосовые сообщения',
+              iconColor: scheme.primary,
+              value: ref.watch(uiSettingsProvider.select((s) => s.autoDownloadWifi)),
+              onChanged: (bool val) {
+                ref.read(uiSettingsProvider.notifier).setAutoDownloadWifi(val);
+              },
+            ),
+            SettingsSwitchTile(
+              icon: Icons.signal_cellular_alt_rounded,
+              title: 'Через мобильную сеть',
+              subtitle: 'Экономия трафика: загрузка медиафайлов',
+              iconColor: scheme.primary,
+              value: ref.watch(uiSettingsProvider.select((s) => s.autoDownloadCellular)),
+              onChanged: (bool val) {
+                ref.read(uiSettingsProvider.notifier).setAutoDownloadCellular(val);
+              },
+            ),
+            SettingsSwitchTile(
+              icon: Icons.airplanemode_active_rounded,
+              title: 'В роуминге',
+              subtitle: 'Полное отключение автоматической загрузки медиа',
+              iconColor: scheme.primary,
+              value: ref.watch(uiSettingsProvider.select((s) => s.autoDownloadRoaming)),
+              onChanged: (bool val) {
+                ref.read(uiSettingsProvider.notifier).setAutoDownloadRoaming(val);
+              },
+            ),
+          ],
+        ),
+
+        // 2. Save to Gallery
+        SettingsSection(
+          title: 'Сохранять в галерею',
+          subtitle: 'Автоматическое сохранение входящих фото и видео на устройство',
+          children: <Widget>[
+            SettingsSwitchTile(
+              icon: Icons.person_outline_rounded,
+              title: 'Личные чаты',
+              subtitle: 'Сохранять фото и видео из личных переписок',
+              iconColor: scheme.secondary,
+              value: ref.watch(uiSettingsProvider.select((s) => s.saveToGalleryPrivate)),
+              onChanged: (bool val) {
+                ref.read(uiSettingsProvider.notifier).setSaveToGalleryPrivate(val);
+              },
+            ),
+            SettingsSwitchTile(
+              icon: Icons.group_outlined,
+              title: 'Группы',
+              subtitle: 'Сохранять фото и видео из групповых чатов',
+              iconColor: scheme.secondary,
+              value: ref.watch(uiSettingsProvider.select((s) => s.saveToGalleryGroups)),
+              onChanged: (bool val) {
+                ref.read(uiSettingsProvider.notifier).setSaveToGalleryGroups(val);
+              },
+            ),
+            SettingsSwitchTile(
+              icon: Icons.campaign_outlined,
+              title: 'Каналы',
+              subtitle: 'Сохранять фото и видео из публичных и приватных каналов',
+              iconColor: scheme.secondary,
+              value: ref.watch(uiSettingsProvider.select((s) => s.saveToGalleryChannels)),
+              onChanged: (bool val) {
+                ref.read(uiSettingsProvider.notifier).setSaveToGalleryChannels(val);
+              },
+            ),
+          ],
+        ),
+
+        // 3. Streaming
+        SettingsSection(
+          title: 'Потоковое воспроизведение',
+          subtitle: 'Проигрывание видео и аудио без ожидания полной загрузки',
+          children: <Widget>[
+            SettingsSwitchTile(
+              icon: Icons.play_circle_outline_rounded,
+              title: 'Стриминг медиа',
+              subtitle: 'Начинать воспроизведение сразу, подгружая медиафайл частями',
+              iconColor: scheme.tertiary,
+              value: ref.watch(uiSettingsProvider.select((s) => s.streamMedia)),
+              onChanged: (bool val) {
+                ref.read(uiSettingsProvider.notifier).setStreamMedia(val);
+              },
+            ),
+          ],
+        ),
+
+        // 4. Secret chats and encryption (E2EE)
         SettingsSection(
           title: 'Секретные чаты и шифрование (E2EE)',
           subtitle: 'Управление локальным хранилищем расшифрованных сообщений сквозного шифрования',

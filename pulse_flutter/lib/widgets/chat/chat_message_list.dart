@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
@@ -258,10 +259,11 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
     final PerformanceTier tier = ref.watch(
       adaptivePerformanceProvider.select((s) => s.tier),
     );
+    final bool isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
     final double cacheExtent = switch (tier) {
       PerformanceTier.tierC => 250.0,
-      PerformanceTier.tierB => 500.0,
-      PerformanceTier.tierA => 750.0,
+      PerformanceTier.tierB => isWindows ? 350.0 : 500.0,
+      PerformanceTier.tierA => isWindows ? 350.0 : 750.0,
     };
 
     final DateTime now = AppTimeSettings.now();
@@ -356,6 +358,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
           double? progress,
           int? bytesSent,
           int? totalBytes,
+          UploadTask? uploadTask,
+          int? queuePosition,
           required bool animateHighlight,
         }) {
           return MessageBubble(
@@ -418,6 +422,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             uploadProgress: progress,
             uploadBytesSent: bytesSent,
             uploadTotalBytes: totalBytes,
+            uploadTask: uploadTask,
+            uploadQueuePosition: queuePosition,
             localId: isLocalSending ? message.id.toString() : null,
             onOpenMedia: hasMedia ? () => widget.onOpenMedia(message) : null,
             onLongPressMedia: hasMedia
@@ -443,8 +449,12 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             return isLocalSending
                 ? Consumer(
                     builder: (context, ref, _) {
+                      final String localIdStr = message.id.toString();
                       final uploadTask = ref.watch(
-                        uploadTaskProvider(message.id.toString()),
+                        uploadTaskProvider(localIdStr),
+                      );
+                      final int queuePosition = ref.watch(
+                        uploadQueuePositionProvider(localIdStr),
                       );
                       return buildBubble(
                         progress: uploadTask?.progress ?? 0.0,
@@ -452,6 +462,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
                         totalBytes: uploadTask != null && uploadTask.fileSize > 0
                             ? uploadTask.fileSize
                             : message.mediaSize,
+                        uploadTask: uploadTask,
+                        queuePosition: queuePosition,
                         animateHighlight: isHighlighted,
                       );
                     },

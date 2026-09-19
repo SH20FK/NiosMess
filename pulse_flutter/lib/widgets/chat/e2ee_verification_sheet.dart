@@ -7,6 +7,7 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -66,6 +67,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
       final e2ee = ref.read(e2eeServiceProvider);
       await e2ee.verifyPeer(widget.chatId);
       if (!mounted) return;
+      ref.read(appSoundProvider).playEvent(SoundEvent.securityVerified);
       AppToast.showSuccess(context, context.l10n.e2eePeerVerified);
       setState(() => _refreshSession());
     } catch (e) {

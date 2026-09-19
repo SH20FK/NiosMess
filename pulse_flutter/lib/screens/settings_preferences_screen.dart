@@ -60,7 +60,7 @@ class SettingsPreferencesScreen extends ConsumerWidget {
                 }
               },
             ),
-            if (settings.soundEffects)
+            if (settings.soundEffects) ...<Widget>[
               Padding(
                 padding: const EdgeInsets.fromLTRB(68, 0, 24, 12),
                 child: Column(
@@ -88,6 +88,23 @@ class SettingsPreferencesScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              SettingsTile(
+                icon: Icons.play_circle_outline_rounded,
+                title: 'Проверить звук',
+                subtitle: 'Тестовая цепочка: тап, сообщение, успех, ошибка',
+                iconColor: scheme.primary,
+                onTap: () async {
+                  final SoundService sound = ref.read(appSoundProvider);
+                  await sound.playEvent(SoundEvent.uiTap);
+                  await Future<void>.delayed(const Duration(milliseconds: 350));
+                  await sound.playEvent(SoundEvent.messageReceive);
+                  await Future<void>.delayed(const Duration(milliseconds: 400));
+                  await sound.playEvent(SoundEvent.success);
+                  await Future<void>.delayed(const Duration(milliseconds: 400));
+                  await sound.playEvent(SoundEvent.error);
+                },
+              ),
+            ],
             SettingsSwitchTile(
               icon: Icons.vibration_rounded,
               title: context.l10n.settingsHapticFeedback,

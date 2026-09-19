@@ -14,6 +14,7 @@ enum SettingsGroup {
   storage,
   motion,
   language,
+  plus,
   about;
 
   String localizedTitle(AppLocalizations l10n) {
@@ -34,6 +35,8 @@ enum SettingsGroup {
         return 'Движение и энергосбережение';
       case SettingsGroup.language:
         return l10n.profileLanguage;
+      case SettingsGroup.plus:
+        return 'Nios Plus & AI';
       case SettingsGroup.about:
         return l10n.settingsSupportAboutTitle;
     }

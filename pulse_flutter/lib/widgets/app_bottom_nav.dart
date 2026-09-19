@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -44,7 +43,7 @@ class TravelingNavIndicator extends StatefulWidget {
 class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _spatial;
+  late final Animation<double> _curveAnim;
   double _from = 0.0;
 
   @override
@@ -55,9 +54,9 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
       vsync: this,
       duration: widget.duration,
     )..value = 1.0;
-    _spatial = CurvedAnimation(
+    _curveAnim = CurvedAnimation(
       parent: _controller,
-      curve: M3SpringCurves.spatial,
+      curve: M3SpringCurves.expressiveDecel,
     );
   }
 
@@ -69,7 +68,7 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
     }
     if (oldWidget.index == widget.index) return;
     if (_controller.isAnimating) {
-      final double currentT = _spatial.value;
+      final double currentT = _curveAnim.value;
       _from = ui.lerpDouble(_from, oldWidget.index.toDouble(), currentT) ??
           oldWidget.index.toDouble();
     } else {
@@ -107,11 +106,11 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
         return AnimatedBuilder(
           animation: _controller,
           builder: (BuildContext context, Widget? child) {
-            final double t = _spatial.value;
-            // Squash and stretch: computed from linear time _controller.value
-            // to ensure peak at midpoint and settling at 1.0 without negative jerk.
-            final double wobble =
-                math.sin(math.pi * _controller.value.clamp(0.0, 1.0)) * travel;
+            final double t = _curveAnim.value.clamp(0.0, 1.0);
+            // Squash and stretch: perfectly in-phase with monotonic curve progress `t`.
+            // Peaks at t=0.5 (center of transit) and smoothly rests at 0.0 at both endpoints,
+            // eliminating phase lag and out-of-phase jerk from separate sin() oscillator.
+            final double wobble = (4.0 * t * (1.0 - t)).clamp(0.0, 1.0) * travel;
             final double pillW = baseWidth * (1.0 + widget.stretch * wobble);
             final double pillH = widget.pillHeight * (1.0 - 0.16 * wobble);
             final double fromX = slotCenterX(_from);
@@ -147,7 +146,7 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
   }
 }
 
-class AppBottomNav extends ConsumerWidget {
+class AppBottomNav extends ConsumerStatefulWidget {
   const AppBottomNav({
     required this.currentIndex,
     required this.onTap,
@@ -160,7 +159,30 @@ class AppBottomNav extends ConsumerWidget {
   final bool hapticsEnabled;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppBottomNav> createState() => _AppBottomNavState();
+}
+
+class _AppBottomNavState extends ConsumerState<AppBottomNav> {
+  DateTime _lastTapTime = DateTime.fromMillisecondsSinceEpoch(0);
+
+  void _handleTap(int index) {
+    final DateTime now = DateTime.now();
+    if (now.difference(_lastTapTime).inMilliseconds < 120) {
+      return; // Ignore rapid burst taps within 120ms to protect transition phase
+    }
+    _lastTapTime = now;
+
+    if (ref.read(uiSettingsProvider).soundEffects) {
+      unawaited(ref.read(appSoundProvider).playUiTick());
+    }
+    if (widget.hapticsEnabled && index != widget.currentIndex) {
+      HapticService.tap();
+    }
+    widget.onTap(index);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final int totalUnread = ref.watch(
       totalUnreadCountProvider.select((int c) => c > 99 ? 99 : c),
     );
@@ -181,19 +203,14 @@ class AppBottomNav extends ConsumerWidget {
         badge: totalUnread,
       ),
       _NavItem(
-        context.l10n.tabContacts,
-        Icons.people_outline_rounded,
-        Icons.people_rounded,
-      ),
-      _NavItem(
         context.l10n.tabNiosgram,
         Icons.grid_view_rounded,
         Icons.grid_view_rounded,
       ),
       _NavItem(
-        context.l10n.tabProfile,
-        Icons.person_outline_rounded,
-        Icons.person_rounded,
+        context.l10n.tabSettings,
+        Icons.settings_outlined,
+        Icons.settings_rounded,
       ),
     ];
 
@@ -217,7 +234,7 @@ class AppBottomNav extends ConsumerWidget {
             right: 0,
             height: 34,
             child: TravelingNavIndicator(
-              index: currentIndex,
+              index: widget.currentIndex,
               count: items.length,
               color: scheme.secondaryContainer,
               animate: animate,
@@ -230,7 +247,7 @@ class AppBottomNav extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: List<Widget>.generate(items.length, (int index) {
               final _NavItem item = items[index];
-              final bool isSelected = index == currentIndex;
+              final bool isSelected = index == widget.currentIndex;
 
               final Color slotColor = isSelected
                   ? scheme.onSecondaryContainer
@@ -253,6 +270,17 @@ class AppBottomNav extends ConsumerWidget {
                 ),
               );
 
+              // Subtle scale (1.00 -> 1.02) without aggressive bouncing
+              final Widget animatedIcon = animate
+                  ? AnimatedScale(
+                      duration: duration,
+                      curve: Curves.easeOutCubic,
+                      scale: isSelected ? 1.02 : 1.0,
+                      child: iconWidget,
+                    )
+                  : iconWidget;
+
+              // Decouple badge from icon transition to avoid restarting badge animations
               final Widget badgedIcon = item.badge > 0
                   ? Badge(
                       label: Text(
@@ -263,18 +291,9 @@ class AppBottomNav extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      child: iconWidget,
+                      child: animatedIcon,
                     )
-                  : iconWidget;
-
-              final Widget animatedIcon = animate
-                  ? AnimatedScale(
-                      duration: duration,
-                      curve: M3SpringCurves.gentle,
-                      scale: isSelected ? 1.06 : 1.0,
-                      child: badgedIcon,
-                    )
-                  : badgedIcon;
+                  : animatedIcon;
 
               final Widget labelWidget = AnimatedDefaultTextStyle(
                 duration: animate ? duration : Duration.zero,
@@ -299,17 +318,9 @@ class AppBottomNav extends ConsumerWidget {
                   selected: isSelected,
                   button: true,
                   child: InkResponse(
-                    onTap: () {
-                      if (ref.read(uiSettingsProvider).soundEffects) {
-                        unawaited(ref.read(appSoundProvider).playUiTick());
-                      }
-                      if (hapticsEnabled && index != currentIndex) {
-                        HapticService.tap();
-                      }
-                      onTap(index);
-                    },
+                    onTap: () => _handleTap(index),
                     radius: 36,
-                    splashColor: scheme.primary.withValues(alpha: 0.12),
+                    splashColor: scheme.primary.withValues(alpha: 0.08),
                     highlightColor: Colors.transparent,
                     containedInkWell: true,
                     customBorder: RoundedRectangleBorder(
@@ -320,7 +331,7 @@ class AppBottomNav extends ConsumerWidget {
                       children: <Widget>[
                         SizedBox(
                           height: 34,
-                          child: Center(child: animatedIcon),
+                          child: Center(child: badgedIcon),
                         ),
                         const SizedBox(height: 4),
                         SizedBox(

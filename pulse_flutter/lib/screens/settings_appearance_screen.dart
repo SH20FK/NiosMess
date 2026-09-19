@@ -14,6 +14,10 @@ import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:pulse_flutter/core/network/api_constants.dart';
+import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
@@ -121,6 +125,9 @@ class _AppearanceScreen extends ConsumerWidget {
     final bool optimizeForWeakDevices = ref.watch(
       uiSettingsProvider.select((UiSettingsState s) => s.optimizeForWeakDevices),
     );
+    final bool hideBubbleTails = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.hideBubbleTails),
+    );
 
     final PerformanceTier tier = ref.watch(
       adaptivePerformanceProvider.select((AdaptivePerformanceState s) => s.tier),
@@ -160,6 +167,7 @@ class _AppearanceScreen extends ConsumerWidget {
             predictiveBackEnabled: predictiveBackEnabled,
             predictiveBackStrength: predictiveBackStrength,
             optimizeForWeakDevices: optimizeForWeakDevices,
+            hideBubbleTails: hideBubbleTails,
           ),
         );
       },
@@ -183,6 +191,7 @@ class _AppearanceScreen extends ConsumerWidget {
     required bool predictiveBackEnabled,
     required double predictiveBackStrength,
     required bool optimizeForWeakDevices,
+    required bool hideBubbleTails,
   }) {
     final Widget heroBanner = _ConnectedMeshAndPaletteBanner(
       scheme: scheme,
@@ -260,7 +269,27 @@ class _AppearanceScreen extends ConsumerWidget {
             ref.read(uiSettingsProvider.notifier).setFontScale(scale);
           },
         ),
+
+        // Flat Bubbles / Hide Tails Switch
+        SettingsSwitchTile(
+          icon: Icons.bubble_chart_rounded,
+          title: 'Скрывать хвосты у сообщений',
+          subtitle: 'Плоские пузыри сообщений без уголков-указателей',
+          iconColor: scheme.primary,
+          value: hideBubbleTails,
+          onChanged: (bool v) {
+            ref.read(uiSettingsProvider.notifier).setHideBubbleTails(v);
+          },
+        ),
       ],
+    );
+
+    final Widget chatPreview = _RealChatAppearancePreview(
+      scheme: scheme,
+      messageBubbleRadius: messageBubbleRadius,
+      fontScale: fontScale,
+      hideBubbleTails: hideBubbleTails,
+      pureBlackOled: pureBlackOled,
     );
 
     final Widget contrastSection = SettingsSection(
@@ -356,6 +385,8 @@ class _AppearanceScreen extends ConsumerWidget {
                           heroBanner,
                           const SizedBox(height: 16),
                           themeCard,
+                          const SizedBox(height: 16),
+                          chatPreview,
                         ],
                       ),
                     ),
@@ -389,6 +420,8 @@ class _AppearanceScreen extends ConsumerWidget {
               heroBanner,
               const SizedBox(height: 14),
               themeCard,
+              const SizedBox(height: 16),
+              chatPreview,
               const SizedBox(height: 16),
               geometrySection,
               const SizedBox(height: 16),
@@ -1675,6 +1708,260 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RealChatAppearancePreview extends StatelessWidget {
+  const _RealChatAppearancePreview({
+    required this.scheme,
+    required this.messageBubbleRadius,
+    required this.fontScale,
+    required this.hideBubbleTails,
+    required this.pureBlackOled,
+  });
+
+  final ColorScheme scheme;
+  final double messageBubbleRadius;
+  final AppFontScale fontScale;
+  final bool hideBubbleTails;
+  final bool pureBlackOled;
+
+  @override
+  Widget build(BuildContext context) {
+    final double textScale = fontScale.scale;
+    final double radius = messageBubbleRadius;
+    final double tailRadius = hideBubbleTails ? radius : 4.0;
+
+    final BorderRadius incomingBorderRadius = BorderRadius.only(
+      topLeft: Radius.circular(radius),
+      topRight: Radius.circular(radius),
+      bottomLeft: Radius.circular(tailRadius),
+      bottomRight: Radius.circular(radius),
+    );
+
+    final BorderRadius outgoingBorderRadius = BorderRadius.only(
+      topLeft: Radius.circular(radius),
+      topRight: Radius.circular(radius),
+      bottomLeft: Radius.circular(radius),
+      bottomRight: Radius.circular(tailRadius),
+    );
+
+    return RepaintBoundary(
+      child: Container(
+        decoration: BoxDecoration(
+          color: pureBlackOled
+              ? Colors.black
+              : scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.22),
+            width: 1,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // Header info
+            Row(
+              children: <Widget>[
+                Icon(
+                  Icons.chat_bubble_rounded,
+                  size: 16,
+                  color: scheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Предпросмотр чата',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Message 1: @sh20fk -> "бурмалда" (Incoming, Left)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                PulseAvatar(
+                  name: 'SH20FK',
+                  avatarUrl: ApiConstants.resolve('uploads/avatars/2_c2f4f060ec9a46d0bca21906bbe62137.jpg'),
+                  radius: 16,
+                  fallbackColor: scheme.primaryContainer,
+                  textColor: scheme.onPrimaryContainer,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHigh,
+                      borderRadius: incomingBorderRadius,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          'SH20FK',
+                          style: TextStyle(
+                            fontSize: 12 * textScale,
+                            fontWeight: FontWeight.w700,
+                            color: scheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: <Widget>[
+                            Text(
+                              'бурмалда',
+                              style: TextStyle(
+                                fontSize: 15 * textScale,
+                                color: scheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              '12:42',
+                              style: TextStyle(
+                                fontSize: 10 * textScale,
+                                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Message 2: @sanlsan -> "што?" (Outgoing, Right)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: outgoingBorderRadius,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          'sanlsan',
+                          style: TextStyle(
+                            fontSize: 12 * textScale,
+                            fontWeight: FontWeight.w700,
+                            color: scheme.onPrimary.withValues(alpha: 0.9),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: <Widget>[
+                            Text(
+                              'што?',
+                              style: TextStyle(
+                                fontSize: 15 * textScale,
+                                fontWeight: FontWeight.w500,
+                                color: scheme.onPrimary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Text(
+                                  '12:43',
+                                  style: TextStyle(
+                                    fontSize: 10 * textScale,
+                                    color: scheme.onPrimary.withValues(alpha: 0.75),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.done_all_rounded,
+                                  size: 14,
+                                  color: scheme.onPrimary.withValues(alpha: 0.85),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                PulseAvatar(
+                  name: 'sanlsan',
+                  avatarUrl: ApiConstants.resolve('uploads/avatars/41_436afa1490cd4317a5d0160b04558620.jpg'),
+                  radius: 16,
+                  fallbackColor: scheme.secondaryContainer,
+                  textColor: scheme.onSecondaryContainer,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Message 3: Real Sticker from Backend (set 5, id 2)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                PulseAvatar(
+                  name: 'SH20FK',
+                  avatarUrl: ApiConstants.resolve('uploads/avatars/2_c2f4f060ec9a46d0bca21906bbe62137.jpg'),
+                  radius: 16,
+                  fallbackColor: scheme.primaryContainer,
+                  textColor: scheme.onPrimaryContainer,
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: CachedNetworkImage(
+                    imageUrl: ApiConstants.resolve('uploads/stickers/5/6a5cee050cdb4f3c82bb9352ed7f665f.png'),
+                    fit: BoxFit.contain,
+                    placeholder: (context, url) => const Center(
+                      child: AppLoadingIndicator(size: 20),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Center(
+                        child: Text('✨', style: TextStyle(fontSize: 32)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

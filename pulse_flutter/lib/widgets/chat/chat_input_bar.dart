@@ -5,6 +5,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/services/desktop_pasteboard_service.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -20,7 +22,7 @@ import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
-class ChatInputBar extends StatefulWidget {
+class ChatInputBar extends ConsumerStatefulWidget {
   const ChatInputBar({
     required this.inputController,
     required this.inputFocusNode,
@@ -73,10 +75,10 @@ class ChatInputBar extends StatefulWidget {
   final bool sendOnEnter;
 
   @override
-  State<ChatInputBar> createState() => _ChatInputBarState();
+  ConsumerState<ChatInputBar> createState() => _ChatInputBarState();
 }
 
-class _ChatInputBarState extends State<ChatInputBar>
+class _ChatInputBarState extends ConsumerState<ChatInputBar>
     with WidgetsBindingObserver {
   bool _showEmojiPicker = false;
   int _pickerTabIndex = 0;
@@ -405,6 +407,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       }
       _elapsedNotifier.value = Duration.zero;
       _dragOffsetNotifier.value = Offset.zero;
+      ref.read(appSoundProvider).playEvent(SoundEvent.recordStart);
       setState(() {
         _isRecording = true;
         _isRecordingLocked = false;
@@ -419,6 +422,7 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   Future<void> _sendVoiceRecording() async {
     HapticService.confirm();
+    ref.read(appSoundProvider).playEvent(SoundEvent.recordSend);
     final String? path = await VoiceRecorderService.stopRecording();
     if (mounted) {
       _waveformBuffer.clear();
@@ -435,6 +439,7 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   Future<void> _cancelVoiceRecording() async {
     HapticService.destructive();
+    ref.read(appSoundProvider).playEvent(SoundEvent.recordCancel);
     await VoiceRecorderService.cancelRecording();
     if (mounted) {
       _waveformBuffer.clear();
@@ -1178,6 +1183,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                 await _sendVoiceRecording();
               } else {
                 await _startVoiceRecording();
+                ref.read(appSoundProvider).playEvent(SoundEvent.recordLock);
                 setState(() => _isRecordingLocked = true);
               }
             }
@@ -1212,6 +1218,7 @@ class _ChatInputBarState extends State<ChatInputBar>
           // Real-time lock detection: lock as soon as threshold is crossed
           if (details.localOffsetFromOrigin.dy < -60 && !_isRecordingLocked) {
             HapticService.confirm();
+            ref.read(appSoundProvider).playEvent(SoundEvent.recordLock);
             setState(() => _isRecordingLocked = true);
           }
         },

@@ -50,6 +50,7 @@ server_core/
 
 # === Agent / Tool artifacts ===
 .agents/
+AGENTS.md
 .antigravitycli/
 .codegraph/
 .cursor/
@@ -91,6 +92,10 @@ goal.md
 design.md
 ДОКУМЕНТАЦИЯ.md
 ДОКУМЕТАЦИЯ БОТЫ.md
+NiosMess*.md
+NIOSMESS_*.md
+pulse_flutter/AUDIT_REPORT.md
+pulse_flutter/docs/
 NiosMess_Setup.iss
 update_script.ps1
 dev_proxy.py

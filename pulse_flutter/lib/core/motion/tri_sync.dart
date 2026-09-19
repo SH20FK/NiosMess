@@ -107,8 +107,10 @@ class TriSync {
     if (soundEnabled && sound != null) {
       switch (event) {
         case TriSyncEvent.tap:
-        case TriSyncEvent.snap:
           sound.playUiTick();
+          break;
+        case TriSyncEvent.snap:
+          sound.playUiSelect();
           break;
         case TriSyncEvent.pop:
           sound.playReaction();
@@ -120,6 +122,7 @@ class TriSync {
           sound.playEvent(SoundEvent.reaction);
           break;
         case TriSyncEvent.destructive:
+          sound.playEvent(SoundEvent.error);
           break;
       }
     }

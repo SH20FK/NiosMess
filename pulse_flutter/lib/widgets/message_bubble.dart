@@ -87,6 +87,8 @@ class MessageBubble extends ConsumerWidget {
     this.uploadTotalBytes,
     this.mediaSize,
     this.localId,
+    this.uploadTask,
+    this.uploadQueuePosition,
     this.isChannel = false,
     this.commentsCount = 0,
     this.onOpenComments,
@@ -140,6 +142,8 @@ class MessageBubble extends ConsumerWidget {
   final int? uploadTotalBytes;
   final int? mediaSize;
   final String? localId;
+  final UploadTask? uploadTask;
+  final int? uploadQueuePosition;
   final bool isChannel;
   final int commentsCount;
   final VoidCallback? onOpenComments;
@@ -698,13 +702,26 @@ class MessageBubble extends ConsumerWidget {
                       ),
                       if (isMine) ...<Widget>[
                         const SizedBox(width: 3),
-                        Icon(
-                          isRead
-                              ? Icons.done_all_rounded
-                              : Icons.done_rounded,
-                          size: 12,
-                          color: scheme.onPrimary,
-                        ),
+                        if (isFailed)
+                          Icon(
+                            Icons.error_outline_rounded,
+                            size: 12,
+                            color: scheme.error,
+                          )
+                        else if (isSending)
+                          Icon(
+                            Icons.access_time_rounded,
+                            size: 11,
+                            color: scheme.onPrimary.withValues(alpha: 0.85),
+                          )
+                        else
+                          Icon(
+                            isRead
+                                ? Icons.done_all_rounded
+                                : Icons.done_rounded,
+                            size: 12,
+                            color: scheme.onPrimary,
+                          ),
                       ],
                     ],
                   ),
@@ -767,6 +784,8 @@ class MessageBubble extends ConsumerWidget {
               isEdited: isEdited,
               isDeleted: isDeleted,
               isRead: isRead,
+              isSending: isSending,
+              isFailed: isFailed,
               formattedTime: formattedTime,
               scheme: scheme,
               textTheme: textTheme,
@@ -775,19 +794,27 @@ class MessageBubble extends ConsumerWidget {
               e2eeFileKey: e2eeFileKey,
               onLongPress: onLongPressMedia,
             ),
-            if (isSending)
+            if (isSending || isFailed)
               Positioned.fill(
                 child: ClipOval(
                   child: _UploadProgressOverlay(
+                    stage: uploadTask?.stage ??
+                        (isFailed ? UploadStage.failed : UploadStage.uploading),
+                    metrics: uploadTask?.metrics,
+                    queuePosition: uploadQueuePosition,
                     progress: uploadProgress,
                     bytesSent: uploadBytesSent,
                     totalBytes: uploadTotalBytes ?? mediaSize,
                     isMine: isMine,
                     scheme: scheme,
+                    isCircle: true,
+                    onRetry: isMine && onRetrySend != null ? onRetrySend : null,
                     onCancel: isMine && localId != null
                         ? () {
                             HapticService.destructive();
-                            ref.read(uploadQueueProvider.notifier).cancel(localId!);
+                            ref
+                                .read(uploadQueueProvider.notifier)
+                                .cancel(localId!);
                           }
                         : null,
                   ),
@@ -846,6 +873,73 @@ class MessageBubble extends ConsumerWidget {
           radius: radius,
         );
       }
+      final Widget imageWidget;
+      if (isSending &&
+          uploadTask?.bytes != null &&
+          uploadTask!.bytes!.isNotEmpty) {
+        imageWidget = Image.memory(
+          uploadTask!.bytes!,
+          width: 220,
+          height: 180,
+          fit: BoxFit.cover,
+        );
+      } else if (isSending &&
+          uploadTask?.filePath != null &&
+          uploadTask!.filePath.isNotEmpty) {
+        final File localFile = File(uploadTask!.filePath);
+        imageWidget = Image.file(
+          localFile,
+          width: 220,
+          height: 180,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => WsCachedImage(
+            e2eeFileKey: e2eeFileKey,
+            mediaUrl: urls.first,
+            chatId: chatId,
+            isE2ee: isE2ee,
+            width: 220,
+            height: 180,
+            fit: BoxFit.cover,
+          ),
+        );
+      } else {
+        imageWidget = WsCachedImage(
+          e2eeFileKey: e2eeFileKey,
+          mediaUrl: urls.first,
+          chatId: chatId,
+          isE2ee: isE2ee,
+          width: 220,
+          height: 180,
+          fit: BoxFit.cover,
+          placeholder: (BuildContext context) => SizedBox(
+            width: 220,
+            height: 180,
+            child: Center(
+              child: AppLoadingIndicator(
+                color: isMine ? scheme.onPrimary : scheme.primary,
+              ),
+            ),
+          ),
+          errorWidget: (BuildContext context, Object error) {
+            return Container(
+              width: 220,
+              height: 180,
+              alignment: Alignment.center,
+              color: isMine
+                  ? scheme.onPrimary.withValues(alpha: 0.12)
+                  : scheme.surfaceContainerHigh,
+              child: Semantics(
+                label: context.l10n.chatImageUnavailable,
+                child: Text(
+                  context.l10n.chatImageUnavailable,
+                  style: textTheme.bodySmall?.copyWith(color: textColor),
+                ),
+              ),
+            );
+          },
+        );
+      }
+
       return Stack(
         children: [
           InkWell(
@@ -856,57 +950,36 @@ class MessageBubble extends ConsumerWidget {
               borderRadius: BorderRadius.circular(radius),
               child: Hero(
                 tag: 'media_${urls.first}',
-                child: WsCachedImage(
-                  e2eeFileKey: e2eeFileKey,
-                  mediaUrl: urls.first,
-                  chatId: chatId,
-                  isE2ee: isE2ee,
-                  width: 220,
-                  height: 180,
-                  fit: BoxFit.cover,
-                  placeholder: (BuildContext context) => SizedBox(
-                    width: 220,
-                    height: 180,
-                    child: Center(
-                      child: AppLoadingIndicator(
-                        color: isMine ? scheme.onPrimary : scheme.primary,
-                      ),
-                    ),
-                  ),
-                  errorWidget: (BuildContext context, Object error) {
-                    return Container(
-                      width: 220,
-                      height: 180,
-                      alignment: Alignment.center,
-                      color: isMine
-                          ? scheme.onPrimary.withValues(alpha: 0.12)
-                          : scheme.surfaceContainerHigh,
-                      child: Semantics(
-                        label: context.l10n.chatImageUnavailable,
-                        child: Text(
-                          context.l10n.chatImageUnavailable,
-                          style: textTheme.bodySmall?.copyWith(color: textColor),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                child: imageWidget,
               ),
             ),
           ),
-          if (isSending)
-            _UploadProgressOverlay(
-              progress: uploadProgress,
-              bytesSent: uploadBytesSent,
-              totalBytes: uploadTotalBytes ?? mediaSize,
-              isMine: isMine,
-              scheme: scheme,
-              onCancel: isMine && localId != null
-                  ? () {
-                      HapticService.destructive();
-                      ref.read(uploadQueueProvider.notifier).cancel(localId!);
-                    }
-                  : null,
+          if (isSending || isFailed)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(radius),
+                child: _UploadProgressOverlay(
+                  stage: uploadTask?.stage ??
+                      (isFailed ? UploadStage.failed : UploadStage.uploading),
+                  metrics: uploadTask?.metrics,
+                  queuePosition: uploadQueuePosition,
+                  progress: uploadProgress,
+                  bytesSent: uploadBytesSent,
+                  totalBytes: uploadTotalBytes ?? mediaSize,
+                  isMine: isMine,
+                  scheme: scheme,
+                  isCircle: false,
+                  onRetry: isMine && onRetrySend != null ? onRetrySend : null,
+                  onCancel: isMine && localId != null
+                      ? () {
+                          HapticService.destructive();
+                          ref
+                              .read(uploadQueueProvider.notifier)
+                              .cancel(localId!);
+                        }
+                      : null,
+                ),
+              ),
             ),
         ],
       );
@@ -923,19 +996,39 @@ class MessageBubble extends ConsumerWidget {
     final int? sent = uploadBytesSent;
 
     final String progressSubtitle;
-    if (total != null && total > 0) {
+    if (isFailed || uploadTask?.stage == UploadStage.failed) {
+      progressSubtitle = 'Не удалось отправить';
+    } else if (uploadTask?.stage == UploadStage.queued) {
+      progressSubtitle = 'В очереди · позиция ${uploadQueuePosition ?? 1}';
+    } else if (uploadTask?.stage == UploadStage.processing) {
+      progressSubtitle = 'Обработка файла...';
+    } else if (uploadTask?.stage == UploadStage.sendingMessage) {
+      progressSubtitle = 'Отправка сообщения...';
+    } else if (total != null && total > 0) {
+      final String speedStr = UploadSpeedTracker.formatSpeed(
+        uploadTask?.metrics.smoothedBytesPerSecond ?? 0,
+      );
+      final String etaStr =
+          UploadSpeedTracker.formatEta(uploadTask?.metrics.eta);
+      final List<String> parts = <String>[];
       if (sent != null && sent > 0) {
-        progressSubtitle = '$percent% • ${FileTypeDetector.formatFileSize(sent)} из ${FileTypeDetector.formatFileSize(total)}';
+        parts.add(
+          '$percent% • ${FileTypeDetector.formatFileSize(sent)} из ${FileTypeDetector.formatFileSize(total)}',
+        );
       } else {
-        progressSubtitle = '$percent% из ${FileTypeDetector.formatFileSize(total)}';
+        parts.add('$percent% из ${FileTypeDetector.formatFileSize(total)}');
       }
+      if (speedStr.isNotEmpty) parts.add(speedStr);
+      if (etaStr.isNotEmpty) parts.add(etaStr);
+      progressSubtitle = parts.join(' · ');
     } else {
       progressSubtitle = '$percent% • Загрузка...';
     }
 
     final String normalSubtitle;
     if (mediaSize != null && mediaSize! > 0) {
-      normalSubtitle = '${typeInfo.label} • ${FileTypeDetector.formatFileSize(mediaSize!)}';
+      normalSubtitle =
+          '${typeInfo.label} • ${FileTypeDetector.formatFileSize(mediaSize!)}';
     } else {
       normalSubtitle = '${typeInfo.label} • ${context.l10n.chatTapToPreview}';
     }
@@ -956,21 +1049,56 @@ class MessageBubble extends ConsumerWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              if (isSending)
+              if (isFailed)
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: scheme.errorContainer,
+                    borderRadius: BorderRadius.circular(
+                      (radius * 0.8).clamp(4.0, 14.0),
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.error_outline_rounded,
+                    color: scheme.onErrorContainer,
+                    size: 22,
+                  ),
+                )
+              else if (isSending)
                 SizedBox(
                   width: 40,
                   height: 40,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      CircularProgressIndicator(
-                        value: p > 0.01 ? p : null,
-                        strokeWidth: 3.0,
-                        strokeCap: StrokeCap.round,
-                        color: isMine ? scheme.onPrimary : scheme.primary,
-                        backgroundColor: (isMine ? scheme.onPrimary : scheme.primary)
-                            .withValues(alpha: 0.2),
-                      ),
+                      if (uploadTask?.stage == UploadStage.queued)
+                        Icon(
+                          Icons.hourglass_top_rounded,
+                          size: 20,
+                          color: isMine ? scheme.onPrimary : scheme.primary,
+                        )
+                      else if (uploadTask?.stage == UploadStage.processing ||
+                          uploadTask?.stage == UploadStage.sendingMessage)
+                        CircularProgressIndicator(
+                          strokeWidth: 3.0,
+                          strokeCap: StrokeCap.round,
+                          color: isMine ? scheme.onPrimary : scheme.primary,
+                          backgroundColor:
+                              (isMine ? scheme.onPrimary : scheme.primary)
+                                  .withValues(alpha: 0.2),
+                        )
+                      else
+                        CircularProgressIndicator(
+                          value: p > 0.01 ? p : null,
+                          strokeWidth: 3.0,
+                          strokeCap: StrokeCap.round,
+                          color: isMine ? scheme.onPrimary : scheme.primary,
+                          backgroundColor:
+                              (isMine ? scheme.onPrimary : scheme.primary)
+                                  .withValues(alpha: 0.2),
+                        ),
                       if (isMine && localId != null)
                         Material(
                           color: Colors.transparent,
@@ -978,13 +1106,16 @@ class MessageBubble extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(20),
                             onTap: () {
                               HapticService.destructive();
-                              ref.read(uploadQueueProvider.notifier).cancel(localId!);
+                              ref
+                                  .read(uploadQueueProvider.notifier)
+                                  .cancel(localId!);
                             },
                             child: Padding(
                               padding: const EdgeInsets.all(6),
                               child: Icon(
                                 Icons.close_rounded,
-                                color: isMine ? scheme.onPrimary : scheme.primary,
+                                color:
+                                    isMine ? scheme.onPrimary : scheme.primary,
                                 size: 18,
                               ),
                             ),
@@ -997,15 +1128,18 @@ class MessageBubble extends ConsumerWidget {
                 InkWell(
                   onTap: onOpenMedia,
                   onLongPress: onLongPressMedia,
-                  borderRadius: BorderRadius.circular((radius * 0.8).clamp(4.0, 14.0)),
+                  borderRadius: BorderRadius.circular(
+                    (radius * 0.8).clamp(4.0, 14.0),
+                  ),
                   child: Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: (isMine ? scheme.onPrimary : scheme.primary).withValues(
-                        alpha: 0.12,
+                      color: (isMine ? scheme.onPrimary : scheme.primary)
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(
+                        (radius * 0.8).clamp(4.0, 14.0),
                       ),
-                      borderRadius: BorderRadius.circular((radius * 0.8).clamp(4.0, 14.0)),
                     ),
                     alignment: Alignment.center,
                     child: Icon(
@@ -1020,14 +1154,17 @@ class MessageBubble extends ConsumerWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: InkWell(
-                  onTap: isSending ? null : onOpenMedia,
-                  onLongPress: isSending ? null : onLongPressMedia,
+                  onTap: (isSending || isFailed) ? null : onOpenMedia,
+                  onLongPress:
+                      (isSending || isFailed) ? null : onLongPressMedia,
                   borderRadius: BorderRadius.circular(6),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        (mediaLabel ?? context.l10n.chatOpenAttachment).trim().isEmpty
+                        (mediaLabel ?? context.l10n.chatOpenAttachment)
+                                .trim()
+                                .isEmpty
                             ? context.l10n.chatOpenAttachment
                             : mediaLabel!,
                         maxLines: 1,
@@ -1039,18 +1176,22 @@ class MessageBubble extends ConsumerWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        isSending ? progressSubtitle : normalSubtitle,
+                        (isSending || isFailed)
+                            ? progressSubtitle
+                            : normalSubtitle,
                         style: textTheme.labelSmall?.copyWith(
-                          color: isMine
-                              ? scheme.onPrimary.withValues(alpha: 0.82)
-                              : scheme.onSurfaceVariant,
+                          color: isFailed
+                              ? scheme.error
+                              : (isMine
+                                  ? scheme.onPrimary.withValues(alpha: 0.82)
+                                  : scheme.onSurfaceVariant),
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-              if (!isSending) ...[
+              if (!isSending && !isFailed) ...[
                 const SizedBox(width: 4),
                 IconButton(
                   icon: Icon(
@@ -1065,12 +1206,65 @@ class MessageBubble extends ConsumerWidget {
               ],
             ],
           ),
-          if (isSending) ...[
+          if (isFailed) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (onRetrySend != null)
+                  TextButton.icon(
+                    onPressed: onRetrySend,
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text(
+                      'Повторить',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      minimumSize: const Size(0, 28),
+                      foregroundColor:
+                          isMine ? scheme.onPrimary : scheme.primary,
+                    ),
+                  ),
+                if (isMine && localId != null) ...[
+                  const SizedBox(width: 4),
+                  TextButton(
+                    onPressed: () {
+                      HapticService.destructive();
+                      ref.read(uploadQueueProvider.notifier).cancel(localId!);
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      minimumSize: const Size(0, 28),
+                      foregroundColor: isMine
+                          ? scheme.onPrimary.withValues(alpha: 0.8)
+                          : scheme.onSurfaceVariant,
+                    ),
+                    child: const Text(
+                      'Отменить',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ] else if (isSending) ...[
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: p > 0.01 ? p : null,
+                value: (uploadTask?.stage == UploadStage.processing ||
+                        uploadTask?.stage == UploadStage.sendingMessage)
+                    ? null
+                    : (uploadTask?.stage == UploadStage.queued
+                        ? 0.0
+                        : (p > 0.01 ? p : null)),
                 minHeight: 4,
                 borderRadius: BorderRadius.circular(4),
                 backgroundColor: (isMine ? scheme.onPrimary : scheme.primary)
@@ -1727,6 +1921,8 @@ class _CircleVideoInlinePlayer extends StatefulWidget {
     required this.isEdited,
     required this.isDeleted,
     required this.isRead,
+    this.isSending = false,
+    this.isFailed = false,
     required this.formattedTime,
     required this.scheme,
     required this.textTheme,
@@ -1743,6 +1939,8 @@ class _CircleVideoInlinePlayer extends StatefulWidget {
   final bool isEdited;
   final bool isDeleted;
   final bool isRead;
+  final bool isSending;
+  final bool isFailed;
   final String formattedTime;
   final ColorScheme scheme;
   final TextTheme textTheme;
@@ -1926,6 +2124,8 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
                   isEdited: widget.isEdited,
                   isDeleted: widget.isDeleted,
                   isRead: widget.isRead,
+                  isSending: widget.isSending,
+                  isFailed: widget.isFailed,
                   formattedTime: widget.formattedTime,
                   scheme: widget.scheme,
                   textTheme: widget.textTheme,
@@ -2092,20 +2292,30 @@ class _MediaCarouselState extends State<_MediaCarousel> {
 
 class _UploadProgressOverlay extends StatelessWidget {
   const _UploadProgressOverlay({
+    required this.stage,
+    this.metrics,
+    this.queuePosition,
     required this.progress,
     this.bytesSent,
     this.totalBytes,
     required this.isMine,
     required this.scheme,
+    this.isCircle = false,
     this.onCancel,
+    this.onRetry,
   });
 
+  final UploadStage stage;
+  final UploadMetrics? metrics;
+  final int? queuePosition;
   final double? progress;
   final int? bytesSent;
   final int? totalBytes;
   final bool isMine;
   final ColorScheme scheme;
+  final bool isCircle;
   final VoidCallback? onCancel;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -2113,81 +2323,257 @@ class _UploadProgressOverlay extends StatelessWidget {
     final int percent = (p * 100).toInt();
 
     final String progressLabel;
-    if (totalBytes != null && totalBytes! > 0) {
-      if (bytesSent != null && bytesSent! > 0) {
-        progressLabel = '$percent% • ${FileTypeDetector.formatFileSize(bytesSent!)} / ${FileTypeDetector.formatFileSize(totalBytes!)}';
-      } else {
-        progressLabel = '$percent% • ${FileTypeDetector.formatFileSize(totalBytes!)}';
-      }
+    if (stage == UploadStage.failed) {
+      progressLabel = 'Не удалось отправить';
+    } else if (stage == UploadStage.queued) {
+      progressLabel = 'В очереди · позиция ${queuePosition ?? 1}';
+    } else if (stage == UploadStage.processing) {
+      progressLabel = 'Обработка...';
+    } else if (stage == UploadStage.sendingMessage) {
+      progressLabel = 'Отправка...';
+    } else if (stage == UploadStage.uploading) {
+      final String speedStr = UploadSpeedTracker.formatSpeed(
+        metrics?.smoothedBytesPerSecond ?? 0,
+      );
+      final String etaStr = UploadSpeedTracker.formatEta(metrics?.eta);
+      final List<String> parts = <String>['$percent%'];
+      if (speedStr.isNotEmpty) parts.add(speedStr);
+      if (etaStr.isNotEmpty) parts.add(etaStr);
+      progressLabel = parts.join(' · ');
     } else {
       progressLabel = '$percent%';
     }
 
-    return Center(
-      child: Material(
-        color: Colors.transparent,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest.withValues(alpha: 0.85),
-                shape: BoxShape.circle,
-              ),
-              child: Stack(
-                alignment: Alignment.center,
+    return Container(
+      color: Colors.black.withValues(alpha: 0.38),
+      child: Stack(
+        children: [
+          Center(
+            child: Material(
+              color: Colors.transparent,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    width: 44,
-                    height: 44,
-                    child: CircularProgressIndicator(
-                      value: p > 0.01 ? p : null,
-                      strokeWidth: 3.2,
-                      strokeCap: StrokeCap.round,
-                      backgroundColor: scheme.onSurface.withValues(alpha: 0.2),
-                      valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
-                    ),
-                  ),
-                  if (onCancel != null)
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: Icon(Icons.close_rounded, color: scheme.onSurface, size: 22),
-                      onPressed: onCancel,
-                      tooltip: 'Отменить',
-                    )
-                  else
-                    Text(
-                      '$percent%',
-                      style: TextStyle(
-                        color: scheme.onSurface,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                  if (stage == UploadStage.failed) ...[
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: scheme.errorContainer.withValues(alpha: 0.92),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.refresh_rounded,
+                        color: scheme.onErrorContainer,
+                        size: 26,
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest.withValues(
+                          alpha: 0.88,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        progressLabel,
+                        style: TextStyle(
+                          color: scheme.error,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (onRetry != null)
+                          GestureDetector(
+                            onTap: onRetry,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: scheme.primary,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Повторить',
+                                style: TextStyle(
+                                  color: scheme.onPrimary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (onRetry != null && onCancel != null)
+                          const SizedBox(width: 8),
+                        if (onCancel != null)
+                          GestureDetector(
+                            onTap: onCancel,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.88),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Отменить',
+                                style: TextStyle(
+                                  color: scheme.onSurface,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ] else ...[
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest.withValues(
+                          alpha: 0.88,
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (stage == UploadStage.queued)
+                            Icon(
+                              Icons.hourglass_top_rounded,
+                              size: 22,
+                              color: scheme.primary,
+                            )
+                          else if (stage == UploadStage.processing ||
+                              stage == UploadStage.sendingMessage)
+                            SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3.0,
+                                strokeCap: StrokeCap.round,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  scheme.primary,
+                                ),
+                                backgroundColor: scheme.onSurface.withValues(
+                                  alpha: 0.2,
+                                ),
+                              ),
+                            )
+                          else
+                            SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: CircularProgressIndicator(
+                                value: p > 0.01 ? p : null,
+                                strokeWidth: 3.2,
+                                strokeCap: StrokeCap.round,
+                                backgroundColor: scheme.onSurface.withValues(
+                                  alpha: 0.2,
+                                ),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  scheme.primary,
+                                ),
+                              ),
+                            ),
+                          if (onCancel != null && stage != UploadStage.queued)
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: scheme.onSurface,
+                                size: 20,
+                              ),
+                              onPressed: onCancel,
+                              tooltip: 'Отменить',
+                            )
+                          else if (onCancel != null &&
+                              stage == UploadStage.queued)
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: scheme.onSurface,
+                                size: 18,
+                              ),
+                              onPressed: onCancel,
+                              tooltip: 'Отменить',
+                            )
+                          else
+                            Text(
+                              '$percent%',
+                              style: TextStyle(
+                                color: scheme.onSurface,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest.withValues(
+                          alpha: 0.88,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        progressLabel,
+                        style: TextStyle(
+                          color: scheme.onSurface,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest.withValues(alpha: 0.88),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                progressLabel,
-                style: TextStyle(
-                  color: scheme.onSurface,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
+          ),
+          if (!isCircle && stage != UploadStage.failed)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(
+                value: (stage == UploadStage.processing ||
+                        stage == UploadStage.sendingMessage)
+                    ? null
+                    : (stage == UploadStage.queued ? 0.0 : (p > 0.01 ? p : null)),
+                minHeight: 3.0,
+                backgroundColor: scheme.surfaceContainerHighest.withValues(
+                  alpha: 0.4,
                 ),
+                valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

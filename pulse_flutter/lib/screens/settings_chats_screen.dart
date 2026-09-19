@@ -207,7 +207,146 @@ class SettingsChatsScreen extends ConsumerWidget {
           ],
         ),
 
-        // 5. Chat wallpaper & visual
+        // 5. Video playback
+        SettingsSection(
+          title: 'Воспроизведение видео',
+          subtitle: 'Управление перемоткой и поведением плеера',
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Шаг быстрой перемотки',
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Интервал пропуска при двойном тапе по краям видеоплеера',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<int>(
+                      showSelectedIcon: false,
+                      segments: const <ButtonSegment<int>>[
+                        ButtonSegment<int>(value: 5, label: Text('5 сек')),
+                        ButtonSegment<int>(value: 10, label: Text('10 сек')),
+                        ButtonSegment<int>(value: 15, label: Text('15 сек')),
+                      ],
+                      selected: <int>{settings.videoSeekSeconds},
+                      onSelectionChanged: (Set<int> selected) {
+                        HapticService.tap();
+                        ref
+                            .read(uiSettingsProvider.notifier)
+                            .setVideoSeekSeconds(selected.first);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SettingsSwitchTile(
+              icon: Icons.pause_circle_outline_rounded,
+              title: 'Пауза при сворачивании',
+              subtitle: 'Автоматически приостанавливать видео при переходе в фоновый режим',
+              iconColor: scheme.primary,
+              value: settings.autoPauseVideoOnBackground,
+              onChanged: (bool value) {
+                ref
+                    .read(uiSettingsProvider.notifier)
+                    .setAutoPauseVideoOnBackground(value);
+              },
+            ),
+          ],
+        ),
+
+        // 6. Message & Chat list display
+        SettingsSection(
+          title: 'Отображение и список чатов',
+          subtitle: 'Стилизация облачков сообщений и компактность интерфейса',
+          children: <Widget>[
+            SettingsSwitchTile(
+              icon: Icons.chat_bubble_outline_rounded,
+              title: 'Скрывать «хвостики» сообщений',
+              subtitle: 'Убирает заострённые уголки у входящих и исходящих облачков',
+              iconColor: scheme.primary,
+              value: settings.hideBubbleTails,
+              onChanged: (bool value) {
+                ref
+                    .read(uiSettingsProvider.notifier)
+                    .setHideBubbleTails(value);
+              },
+            ),
+            SettingsSwitchTile(
+              icon: Icons.edit_note_rounded,
+              title: 'Иконка для изменённых сообщений',
+              subtitle: 'Показывать компактный значок карандаша вместо надписи «изменено»',
+              iconColor: scheme.primary,
+              value: settings.replaceEditedWithIcon,
+              onChanged: (bool value) {
+                ref
+                    .read(uiSettingsProvider.notifier)
+                    .setReplaceEditedWithIcon(value);
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Плотность списка чатов',
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Размер отступов и миниатюр на главном экране',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<String>(
+                      showSelectedIcon: false,
+                      segments: const <ButtonSegment<String>>[
+                        ButtonSegment<String>(
+                          value: 'standard',
+                          label: Text('Стандартная'),
+                          icon: Icon(Icons.view_agenda_outlined, size: 18),
+                        ),
+                        ButtonSegment<String>(
+                          value: 'compact',
+                          label: Text('Компактная'),
+                          icon: Icon(Icons.view_headline_rounded, size: 18),
+                        ),
+                      ],
+                      selected: <String>{settings.chatListDensity},
+                      onSelectionChanged: (Set<String> selected) {
+                        HapticService.tap();
+                        ref
+                            .read(uiSettingsProvider.notifier)
+                            .setChatListDensity(selected.first);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        // 7. Chat wallpaper & visual
         SettingsSection(
           title: context.l10n.settingsChatsWallpaperSection,
           subtitle: context.l10n.settingsChatsWallpaperSectionDesc,

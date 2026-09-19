@@ -128,6 +128,10 @@ abstract class AppLocalizations {
   /// **'Profile'**
   String get tabProfile;
 
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get tabSettings;
+
   /// No description provided for @commonCreate.
   ///
   /// In en, this message translates to:

@@ -312,7 +312,7 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
         cacheWidth = null;
         cacheHeight = (widget.height! * dpr).round();
       } else {
-        cacheWidth = 1080;
+        cacheWidth = 720;
         cacheHeight = null;
       }
     }

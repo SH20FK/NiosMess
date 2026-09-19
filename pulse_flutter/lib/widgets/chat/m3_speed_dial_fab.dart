@@ -17,6 +17,7 @@ class M3SpeedDialFab extends StatefulWidget {
   const M3SpeedDialFab({
     required this.onSelectGroup,
     required this.onSelectChannel,
+    this.onSelectContacts,
     this.visible = true,
     this.heroTag = 'compose_chat_fab',
     super.key,
@@ -24,6 +25,7 @@ class M3SpeedDialFab extends StatefulWidget {
 
   final VoidCallback onSelectGroup;
   final VoidCallback onSelectChannel;
+  final VoidCallback? onSelectContacts;
   final bool visible;
   final Object? heroTag;
 
@@ -167,14 +169,14 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: <Widget>[
-                        // Action 2: New Channel
+                        // Action: New Channel
                         _buildActionItem(
                           context: context,
                           label: context.l10n.groupNewChannel,
                           icon: Icons.campaign_rounded,
                           iconColor: scheme.onTertiaryContainer,
                           containerColor: scheme.tertiaryContainer,
-                          delayProgress: (progress - 0.2).clamp(0.0, 0.8) / 0.8,
+                          delayProgress: (progress - 0.3).clamp(0.0, 0.7) / 0.7,
                           onTap: () {
                             HapticService.tap();
                             _close();
@@ -183,20 +185,37 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
                         ),
                         const SizedBox(height: 12),
 
-                        // Action 1: New Group
+                        // Action: New Group
                         _buildActionItem(
                           context: context,
                           label: context.l10n.groupNewGroup,
                           icon: Icons.groups_rounded,
                           iconColor: scheme.onPrimaryContainer,
                           containerColor: scheme.primaryContainer,
-                          delayProgress: progress.clamp(0.0, 1.0),
+                          delayProgress: (progress - 0.15).clamp(0.0, 0.85) / 0.85,
                           onTap: () {
                             HapticService.tap();
                             _close();
                             widget.onSelectGroup();
                           },
                         ),
+                        if (widget.onSelectContacts != null) ...<Widget>[
+                          const SizedBox(height: 12),
+                          // Action: Contacts
+                          _buildActionItem(
+                            context: context,
+                            label: context.l10n.tabContacts,
+                            icon: Icons.people_alt_rounded,
+                            iconColor: scheme.onSecondaryContainer,
+                            containerColor: scheme.secondaryContainer,
+                            delayProgress: progress.clamp(0.0, 1.0),
+                            onTap: () {
+                              HapticService.tap();
+                              _close();
+                              widget.onSelectContacts!();
+                            },
+                          ),
+                        ],
                         const SizedBox(height: 14),
 
                         // Overlay active FAB copy sitting above scrim
