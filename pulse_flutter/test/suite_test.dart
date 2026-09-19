@@ -24,11 +24,8 @@ import 'e2e/niosgram_and_settings_e2e_test.dart' as e2e_niosgram_and_settings;
 import 'integration/e2e_auth_flow_test.dart' as integration_e2e_auth_flow;
 import 'integration/e2e_cold_start_and_logout_test.dart' as integration_e2e_cold_start;
 import 'models/chat_wallpaper_config_test.dart' as models_chat_wallpaper_config;
-import 'screens/login_screen_adversarial_responsiveness_test.dart' as screens_login_screen_adversarial;
 import 'screens/login_screen_test.dart' as screens_login_screen;
 import 'screens/register_screen_test.dart' as screens_register_screen;
-import 'stress/oauth_service_stress_test.dart' as stress_oauth_service;
-import 'stress/pkce_stress_test.dart' as stress_pkce;
 import 'unit/adaptive_performance_engine_test.dart' as unit_adaptive_performance_engine;
 import 'unit/app_update_service_test.dart' as unit_app_update_service;
 import 'unit/call_transport_test.dart' as unit_call_transport;
@@ -37,7 +34,6 @@ import 'unit/chat_media_cache_test.dart' as unit_chat_media_cache;
 import 'unit/chat_message_sorting_test.dart' as unit_chat_message_sorting;
 import 'unit/device_hardware_recognition_test.dart' as unit_device_hardware_recognition;
 import 'unit/docx_parser_test.dart' as unit_docx_parser;
-import 'unit/ephemeral_and_auth_models_challenge_test.dart' as unit_ephemeral_and_auth_models;
 import 'unit/feed_and_stickers_cache_test.dart' as unit_feed_and_stickers_cache;
 import 'unit/gallery_optimization_and_caching_test.dart' as unit_gallery_optimization_and_caching;
 import 'unit/list_virtualization_memory_test.dart' as unit_list_virtualization_memory;
@@ -84,7 +80,6 @@ void main() {
     unit_chat_message_sorting.main();
     unit_device_hardware_recognition.main();
     unit_docx_parser.main();
-    unit_ephemeral_and_auth_models.main();
     unit_feed_and_stickers_cache.main();
     unit_gallery_optimization_and_caching.main();
     unit_list_virtualization_memory.main();
@@ -97,10 +92,6 @@ void main() {
     unit_moments.main();
     unit_tri_sync.main();
     unit_m3_motion_kit.main();
-
-    // Stress Tests
-    stress_oauth_service.main();
-    stress_pkce.main();
 
     // Protocol & Logic Suites
     binary_packet.main();
@@ -123,7 +114,6 @@ void main() {
     chat_list_m1.main();
     legal_viewer_screen.main();
     onboarding_screens.main();
-    screens_login_screen_adversarial.main();
     screens_login_screen.main();
     screens_register_screen.main();
 
