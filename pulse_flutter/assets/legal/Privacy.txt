@@ -1,65 +1,150 @@
-PRIVACY AND PERSONAL DATA PROCESSING POLICY OF THE "NIOSMESS" SERVICE
+# PRIVACY AND PERSONAL DATA PROCESSING POLICY OF THE "NIOSMESS" SERVICE
 
-Effective Date: June 29, 2026
+**Effective Date: September 19, 2026**
 
-This Privacy Policy (hereinafter referred to as the "Policy") defines the procedure for processing and protecting personal data of users of the NiosMess service (hereinafter referred to as the "Service", "Messenger") carried out by the Service Administration (hereinafter referred to as the "Operator") in accordance with the EU General Data Protection Regulation (GDPR) and other applicable data protection laws.
+This Privacy Policy (the **"Policy"**) explains how the administration of the NiosMess service (the **"Operator"**, **"we"**, **"us"**) collects, uses, stores, shares and protects the personal data of users of NiosMess (the **"Service"**, the **"Messenger"**) in accordance with the EU General Data Protection Regulation (GDPR) and other applicable data protection laws. It should be read together with the NiosMess Terms of Service.
 
-1. Terms and Definitions
-Operator — The Administration of the NiosMess Service, which independently or jointly with other parties organizes and carries out the processing of personal data.
-User — Any individual registered in the Messenger and using its features.
-Personal Data (PD) — Any information relating to an identified or identifiable natural person (data subject).
-End-to-End Encryption (E2EE) — A data transmission method where only the Users participating in the communication have access to the messages. The Operator does not possess decryption keys and has no access to the content of such messages.
+## 1. Terms and Definitions
 
-2. Legal Basis for Processing Personal Data
-The Operator processes Users' personal data based on the following legal grounds:
-- The User's consent to the processing of their personal data, expressed by performing affirmative actions (checking the tick-box during registration).
-- Performance of the Terms of Service to which the User is a party.
-- Legitimate interests of the Operator (such as fraud prevention, ensuring Service security and stability).
+**Operator** — the Administration of the NiosMess Service, which determines the purposes and means of processing personal data.
 
-3. List of Processed Personal Data
-The Operator processes the following data of the User:
-- Email address;
-- Username and Display Name;
-- Profile description ("About Me" / Bio);
-- Profile image (Avatar);
-- Network identifiers: IP address, device type and model, operating system, cookies, and local storage technologies (LocalStorage, IndexedDB) for session analytics and security purposes;
-- Files and media voluntarily uploaded by the User to public channels, groups, or chats without end-to-end encryption.
+**User** — any individual who has an account in the Messenger and uses its features.
 
-Important Note on Secret Chats (E2EE):
-The Operator processes Secret Chat messages exclusively in encrypted form (as unreadable encrypted data blocks) and transfers them between Users' devices. Decryption keys are stored solely locally on the Users' devices. Due to the architecture of E2EE, the Operator has no technical ability to decrypt, read, modify, or store the contents of Secret Chats in an unencrypted format.
+**Personal Data (PD)** — any information relating to an identified or identifiable natural person.
 
-4. Purposes of Processing Personal Data
-Personal data of Users is processed solely for the following purposes:
-- Registration and identification of the User within the Service;
-- Providing the core functionality of the messenger (message delivery, creation of groups and channels, publishing posts in the NiosGram feed);
-- Ensuring account security, including sending two-factor authentication (2FA) codes;
-- Moderation of public content in accordance with the Terms of Service (ToS) and applicable laws;
-- Technical support and handling inquiries in case of account freeze.
+**End-to-End Encryption (E2EE)** — a method of transmission in which only the participants' devices can read the messages. It is used in Secret Chats only.
 
-5. Collection, Storage, and Deletion of Personal Data
-5.1. Data Location: The Operator hosts and processes the personal data of Users on secure servers located in the Netherlands (European Union) in compliance with the EU General Data Protection Regulation (GDPR).
-5.2. Personal data is collected directly when the User fills out registration forms and during the use of the Messenger.
-5.3. Personal data is stored in a form that allows identification of the data subject for no longer than is necessary for the purposes of its processing.
-5.4. Upon account deletion by the User or upon a valid erasure request, all personal data of the User is permanently deleted or anonymized within 30 calendar days, except where a longer retention period is required by applicable law.
+**Server-side encryption** — encryption of stored data where the keys are held by the Operator. This is what protects regular (non-secret) chats.
 
-6. Disclosure of Personal Data to Third Parties and International Transfers
-6.1. The Operator does not transfer personal data of Users to third parties without their explicit consent, except when necessary to comply with applicable law or to respond to lawful requests from law enforcement agencies.
-6.2. Any international transfer of personal data outside the European Economic Area (EEA) is carried out in accordance with applicable laws, using Standard Contractual Clauses (SCCs) or other appropriate safeguards to ensure an adequate level of data protection.
+## 2. Legal Basis for Processing
 
-7. Rights of Users (Data Subjects)
-Under the GDPR, the User has the right:
-- To access their personal data and receive a copy of the processed data;
-- To request rectification, restriction, or erasure ("right to be forgotten") of their personal data if it is incomplete, outdated, inaccurate, or unlawfully obtained;
-- To withdraw consent to the processing of personal data at any time by sending a request to the Operator. Withdrawal of consent results in the deletion of the Messenger account;
-- To data portability;
-- To object to the processing of their data;
-- To lodge a complaint with a supervisory data protection authority.
+We process personal data on these grounds:
 
-8. Protection of Personal Data
-The Operator takes necessary and sufficient legal, organizational, and technical measures to protect personal data from unauthorized or accidental access, destruction, alteration, blocking, copying, distribution, as well as from other unlawful actions of third parties in accordance with international information security standards.
+- **Consent** of the User, expressed by an affirmative action (ticking the box at registration), and for optional data such as a phone number or birthday that you choose to add.
+- **Performance of a contract** — the Terms of Service to which you are a party (providing the Messenger, Nios+ and related features).
+- **Legitimate interests** of the Operator — preventing fraud and abuse, ensuring the security and stability of the Service, and handling reports.
+- **Legal obligation** — where we must keep or disclose data under applicable law.
 
-9. Amendments to the Privacy Policy
-The Operator has the right to make changes to this Policy. The new version of the Policy takes effect from the moment it is posted on the Service website, unless otherwise provided by the new version.
+## 3. Personal Data We Process
 
-10. Contact Information
-For inquiries, withdrawal of consent, or obtaining information regarding the processing of personal data, the User may contact the Operator via email at: niosmess@gmail.com.
+### 3.1. Data you provide
+
+- email address (required for registration and verification);
+- username and display name;
+- password, stored only as a hash;
+- profile description ("About me" / Bio), avatar (image or short video), status emoji, and optionally a phone number, birthday and working hours, if you choose to add them;
+- messages, posts, comments, reactions, files, voice and video messages and other media you send or publish;
+- custom emoji and emoji packs you upload;
+- content you send to NiosAI Lite (see Section 3.4);
+- reports and support requests you submit.
+
+### 3.2. Data generated by using the Service
+
+- account identifier (username, internal user ID and Nios ID);
+- account state: verified, two-factor authentication enabled, frozen, banned, spamblock and its reason and duration, pending deletion;
+- Nios+ status: trial used, expiry date, grace period;
+- chat memberships, contact and block lists, privacy settings, subscriptions to channels;
+- AI usage counters (characters used in the current window);
+- verification and 2FA codes, kept temporarily;
+- public encryption keys of your devices and sessions (for Secret Chats).
+
+### 3.3. Technical data
+
+- for each session: device type and model, operating system and app or browser information, IP address, session creation and last-activity time, and session expiry;
+- push-notification tokens (Firebase Cloud Messaging) so that notifications can reach your device;
+- cookies and local storage technologies (LocalStorage, IndexedDB) in the web client, used to keep you signed in, remember interface settings and keep the Service secure;
+- for audio and video calls, connection metadata required to set up the call (signalling data and network addresses). Call audio and video are exchanged directly between participants or relayed through our TURN server when a direct connection is impossible; **we do not record calls**.
+
+### 3.4. NiosAI Lite
+
+When you use NiosAI Lite, the text you send, the instructions attached to it and short recent conversation context for that chat are transmitted to a third-party AI provider (currently Polza.ai, which routes the request to a language model) to generate a reply. The provider processes this data under its own terms. Short conversation context is kept only in the Service's temporary memory (a few recent turns per chat), is cleared on request, and is lost when the Service restarts. Do not send sensitive information to NiosAI.
+
+### 3.5. Payments
+
+Nios+ payments are handled by a third-party payment provider (currently YooMoney). We receive confirmation of payment and its status; we do not receive or store your full card details.
+
+### 3.6. What we do not collect
+
+We do not use advertising trackers, we do not sell personal data, and we do not build advertising profiles.
+
+## 4. Regular Chats and Secret Chats
+
+**Regular chats** (private chats, groups, channels) are encrypted in transit and stored encrypted on our servers with server-side keys held by the Operator. This is **not** end-to-end encryption, so the Operator has the technical ability to access their content. We do this only where reasonably necessary to operate and secure the Service, investigate reports and abuse, protect users, or comply with law.
+
+**Secret Chats** use end-to-end encryption. We handle Secret Chat messages only as encrypted data that we pass between devices. Decryption keys are held on your devices, and we do not have the technical ability to read the content from data stored on our servers. Non-content technical data (such as participants, timing and message size) is still necessary for delivery and abuse prevention. Secret Chat content cannot be recovered by us if you lose your keys.
+
+## 5. Purposes of Processing
+
+We process personal data only to:
+
+- register and identify you and let you sign in;
+- provide the core Messenger features: delivering messages, groups and channels, NiosGram, files and media, calls, custom emoji, bots;
+- provide NiosAI Lite and apply its usage limits;
+- provide Nios+ and process payment status and limits;
+- secure accounts, including sending verification and two-factor authentication codes, detecting suspicious sign-ins and managing sessions;
+- moderate content and enforce the Terms of Service (spamblock, freeze, ban), including handling reports;
+- provide technical support, including for frozen accounts;
+- send service notifications and push notifications;
+- comply with legal obligations.
+
+## 6. Public Content and Visibility
+
+Content you publish in public places, including public NiosGram posts, public channels and groups, public custom emoji packs, and your public profile (username, display name, bio, avatar), can be seen by other Users and, for public NiosGram posts shown on the public web page, by people without an account. Messages in a group or channel are visible to its members. Your privacy settings control who can see certain profile details. Once others have seen or copied public content, we cannot control what they do with it.
+
+## 7. Storage, Location and Retention
+
+**7.1. Location.** Personal data is hosted and processed on servers located in **Germany (European Union)**, operated by the Operator.
+
+**7.2. Retention.** We keep personal data in a form that identifies you no longer than necessary for the purposes above:
+
+- account and profile data — while your account exists;
+- messages and media — until you or the chat deletes them, or your account is deleted;
+- session data — while the session is active, and until it expires or is ended;
+- verification codes — temporarily, until they expire;
+- moderation and security records — as long as needed to enforce the Terms, prevent repeat abuse and meet legal obligations.
+
+**7.3. Backups.** We make regular backups for reliability. Data that has been deleted from the live Service can remain in backup copies until those backups are overwritten or removed, and it is not used for any other purpose.
+
+**7.4. Deletion.** You can request account deletion in the Service (you must first cancel an active Nios+ subscription). The account then enters a **31-day grace period** during which deletion is pending and you can cancel it. If you do not cancel, the account and the personal data linked to it (profile, messages you sent, media, reactions, posts, comments, sessions, blocks and privacy rules, subscriptions, notification tokens and related records) are permanently deleted, except where longer retention is required by law, and subject to Section 7.3. Content you posted in other people's chats may remain visible to them in the form of their own copies.
+
+## 8. Sharing and International Transfers
+
+**8.1.** We do not sell your personal data and do not transfer it to third parties without a legal basis, except:
+
+- **service providers** who process data on our behalf to run the Service: push-notification delivery (Firebase Cloud Messaging), email delivery for verification codes, AI processing (Polza.ai and the model providers it uses), and payment processing (YooMoney);
+- **other Users**, to the extent you make information visible to them (Section 6);
+- **authorities**, when required by applicable law or in response to a lawful request from a competent authority;
+- **successors**, in the event of a restructuring, merger or transfer of the Service, subject to applicable law.
+
+**8.2.** Some providers may process data outside the European Economic Area (for example Firebase, which is operated by Google). Any such transfer is carried out in accordance with applicable law, using an adequacy decision, Standard Contractual Clauses or other appropriate safeguards.
+
+## 9. Your Rights
+
+Under the GDPR you have the right to:
+
+- **access** your personal data and receive a copy;
+- **rectify** inaccurate or incomplete data (much of it you can edit in your profile);
+- **erase** your data ("right to be forgotten"), for example by deleting your account (Section 7.4);
+- **restrict** processing in the cases provided by law;
+- **data portability**;
+- **object** to processing based on legitimate interests;
+- **withdraw consent** at any time, by contacting us. Withdrawal of consent does not affect earlier lawful processing, and because the Messenger cannot work without your account data, it leads to deletion of your account;
+- **lodge a complaint** with a supervisory data protection authority.
+
+To use these rights, write to niosmess@gmail.com. We may need to verify that the request comes from the account owner, and we will reply within the time limits set by applicable law.
+
+## 10. Children
+
+The Service is intended for people aged **13 and over** (or a higher age where the law requires it). We do not knowingly collect personal data of younger children. If you believe a child under the minimum age has an account, contact us and we will delete it.
+
+## 11. Security
+
+We use legal, organizational and technical measures to protect personal data against unauthorized or accidental access, destruction, alteration, blocking, copying, disclosure and other unlawful acts. These include encrypted connections, server-side encryption of stored messages, hashed passwords, end-to-end encryption for Secret Chats, optional two-factor authentication, and session controls that let you review and end sessions. No system is completely secure, and you are responsible for protecting your password, verification codes and devices.
+
+## 12. Amendments
+
+We may change this Policy. The new version takes effect when it is posted on the Service website and shows its own effective date, unless it states otherwise. For material changes we may notify you through the Service. Continued use after the change means you accept the new version; if you do not agree, you must stop using the Service and may delete your account.
+
+## 13. Contact Information
+
+For questions, requests to exercise your rights, withdrawal of consent, or information about the processing of personal data, contact the Operator by email: **niosmess@gmail.com**.
