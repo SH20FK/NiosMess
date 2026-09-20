@@ -119,6 +119,7 @@ class EncryptedMessageCache {
     int? userId,
     bool isSecretChat = false,
   }) async {
+    if (!Hive.isBoxOpen(_boxName)) return;
     try {
       final SecretKey key = await _getOrCreateKey();
       final List<int> keyBytes = await key.extractBytes();
@@ -152,6 +153,7 @@ class EncryptedMessageCache {
   }
 
   static Future<List<ApiMessage>> loadMessages(int chatId, {int? userId}) async {
+    if (!Hive.isBoxOpen(_boxName)) return [];
     try {
       final Box<String> hiveBox = Hive.box<String>(_boxName);
       String? encoded = hiveBox.get(_chatKey(chatId, userId));
