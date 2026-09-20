@@ -149,7 +149,7 @@ class UiSettingsState {
       compactMode = false,
       haptics = true,
       hideOnline = false,
-      soundEffects = true,
+      soundEffects = false,
       soundVolume = 0.85,
       localeCode = null,
       timeZoneMode = AppTimeZoneMode.auto,

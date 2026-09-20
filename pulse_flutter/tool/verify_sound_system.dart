@@ -123,30 +123,11 @@ void main() {
 
   // 4. Master raw variations check
   final Directory masterDir = Directory('assets/sounds/master');
-  final List<String> incompleteMasters = <String>[];
-
-  if (masterDir.existsSync()) {
-    for (final String asset in requiredAssets) {
-      final Directory assetMasterDir = Directory('assets/sounds/master/$asset');
-      if (!assetMasterDir.existsSync()) {
-        incompleteMasters.add('$asset (missing dir)');
-      } else {
-        final int variants = assetMasterDir
-            .listSync()
-            .whereType<File>()
-            .where((f) => f.path.contains('variant_'))
-            .length;
-        if (variants < 5) {
-          incompleteMasters.add('$asset ($variants/5 variants)');
-        }
-      }
-    }
-  }
 
   report(
-    'Master directory contains all 5 variations for all 28 assets',
-    incompleteMasters.isEmpty,
-    'Incomplete: ${incompleteMasters.join(', ')}',
+    'Obsolete ElevenLabs AI master directory eliminated (bundle size optimized)',
+    !masterDir.existsSync(),
+    'Master directory still present at ${masterDir.path}',
   );
 
   // 5. Secret leak verification
