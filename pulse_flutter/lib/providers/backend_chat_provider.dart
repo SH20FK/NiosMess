@@ -781,6 +781,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     final List<ApiMessage> result = <ApiMessage>[];
 
+    final Map<int, ApiMessage> alreadyDecrypted = <int, ApiMessage>{
+      for (final ApiMessage m in state.value ?? const <ApiMessage>[])
+        if (m.isDecrypted && m.id > 0) m.id: m,
+    };
+
     for (int i = 0; i < messages.length; i++) {
       final ApiMessage msg = messages[i];
 
@@ -791,6 +796,12 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         if (msg.senderId != myUserId) {
           await _handleIncomingHelo(helo, partnerPublicKey);
         }
+        continue;
+      }
+
+      final ApiMessage? known = alreadyDecrypted[msg.id];
+      if (known != null) {
+        result.add(known);
         continue;
       }
 

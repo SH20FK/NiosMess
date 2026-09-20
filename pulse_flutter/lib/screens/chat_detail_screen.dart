@@ -227,7 +227,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   void _startSecretPollTimer() {
     _secretPollTimer?.cancel();
-    _secretPollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _secretPollTimer = Timer.periodic(const Duration(seconds: 20), (_) {
       _pollSecretChat();
     });
   }
