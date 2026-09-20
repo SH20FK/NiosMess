@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/storage/chat_media_cache.dart';
+import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:pulse_flutter/core/storage/notification_storage.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
@@ -601,13 +602,35 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   void _handleDeletedIncomingMessage(ApiMessage message) {
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
     final int index = current.indexWhere((ApiMessage m) => m.id == message.id);
-    if (index == -1) return;
+    unawaited(ChatMediaCache.removeMediaMessage(_chatId, message.id));
+    if (index == -1) {
+      unawaited(_purgeFromCache(message.id));
+      return;
+    }
 
     final List<ApiMessage> updated = List<ApiMessage>.from(current)
       ..removeAt(index);
     state = AsyncData<List<ApiMessage>>(updated);
     _saveToCache(updated);
-    unawaited(ChatMediaCache.removeMediaMessage(_chatId, message.id));
+  }
+
+  Future<void> _purgeFromCache(int messageId) async {
+    try {
+      final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+      final int? userId = myUserId > 0 ? myUserId : null;
+      final List<ApiMessage> cached =
+          await EncryptedMessageCache.loadMessages(_chatId, userId: userId);
+      if (!cached.any((ApiMessage m) => m.id == messageId)) return;
+      final ApiChatSummary? chat = ref.read(chatByIdProvider(_chatId));
+      await EncryptedMessageCache.saveMessages(
+        _chatId,
+        cached.where((ApiMessage m) => m.id != messageId).toList(),
+        userId: userId,
+        isSecretChat: chat?.isSecret == true,
+      );
+    } catch (e) {
+      debugPrint('[backend_chat_provider.dart] Purge cached message error: $e');
+    }
   }
 
   void _handleReactionPush(ApiMessage message, String rawEmoji,
@@ -1391,9 +1414,19 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     try {
       await ref.read(chatRepositoryProvider).deleteMessage(_chatId, messageId);
       await _saveToCache(optimisticNext);
+      unawaited(ChatMediaCache.removeMediaMessage(_chatId, messageId));
       final ApiMessage deletedStub = _stubMessage(messageId, _chatId, isDeleted: true);
       ref.read(chatsProvider.notifier)._handleDeletedPush(deletedStub);
     } catch (e) {
+      if (e is ApiException &&
+          e.message.toLowerCase().contains('message not found')) {
+        await _saveToCache(optimisticNext);
+        unawaited(ChatMediaCache.removeMediaMessage(_chatId, messageId));
+        final ApiMessage deletedStub =
+            _stubMessage(messageId, _chatId, isDeleted: true);
+        ref.read(chatsProvider.notifier)._handleDeletedPush(deletedStub);
+        return;
+      }
       if (target != null) {
         final List<ApiMessage> latest = List<ApiMessage>.from(state.value ?? const <ApiMessage>[]);
         if (!latest.any((m) => m.id == messageId)) {
