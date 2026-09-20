@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
@@ -21,7 +23,33 @@ class SettingsPlusScreen extends ConsumerStatefulWidget {
 
 class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
   bool _claimingTrial = false;
-  int _selectedTierIndex = 1; // 12 months selected by default
+  bool _loadingStatus = true;
+  Map<String, dynamic>? _status;
+  int _selectedTierIndex = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatus();
+  }
+
+  Future<void> _loadStatus() async {
+    try {
+      final dynamic res = await ref
+          .read(webSocketClientProvider)
+          .request('get_my_limits', payload: <String, dynamic>{});
+      if (mounted) {
+        setState(() {
+          _status = res is Map ? Map<String, dynamic>.from(res) : null;
+          _loadingStatus = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingStatus = false);
+      }
+    }
+  }
 
   Future<void> _claimTrial() async {
     if (_claimingTrial) return;
@@ -29,25 +57,21 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
     HapticService.selection();
 
     try {
-      final ws = ref.read(webSocketClientProvider);
-      final response = await ws.request('claim_nios_plus_trial', payload: <String, dynamic>{});
-      
-      final bool success = response['status'] == 'ok' || response['success'] == true;
-      if (success) {
-        await ref.read(authProvider.notifier).refreshProfile();
-        if (mounted) {
-          AppToast.showSuccess(
-            context,
-            'Бесплатный пробный период Nios+ на 1 день успешно активирован!',
-          );
-        }
-      } else {
-        final String msg = response['message']?.toString() ??
-            response['error']?.toString() ??
-            'Пробный период уже использован или недоступен';
-        if (mounted) {
-          AppToast.showInfo(context, msg);
-        }
+      await ref
+          .read(webSocketClientProvider)
+          .request('claim_nios_plus_trial', payload: <String, dynamic>{});
+      await ref.read(authProvider.notifier).refreshProfile();
+      await _loadStatus();
+      if (mounted) {
+        AppToast.showSuccess(
+          context,
+          'Пробный период Nios+ на 1 день активирован',
+        );
+      }
+    } on ApiException catch (e) {
+      await _loadStatus();
+      if (mounted) {
+        AppToast.showInfo(context, e.message);
       }
     } catch (e) {
       if (mounted) {
@@ -60,6 +84,9 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
     }
   }
 
+  DateTime? _parseDate(Object? raw) =>
+      raw == null ? null : DateTime.tryParse(raw.toString());
+
   void _onBuyPressed() {
     HapticService.tap();
     AppToast.showInfo(context, 'Пока не реализовано)');
@@ -71,8 +98,16 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    final bool isPlus = auth.profile?.isNiosPlus ?? false;
-    final bool trialUsed = auth.profile?.niosPlusTrialUsed ?? false;
+    final Map<String, dynamic>? status = _status;
+    final bool isPlus = status != null
+        ? status['is_nios_plus'] == true
+        : (auth.profile?.isNiosPlus ?? false);
+    final bool trialUsed = status != null
+        ? status['nios_plus_trial_used'] == true
+        : (auth.profile?.niosPlusTrialUsed ?? false);
+    final bool inGrace = status?['in_grace_period'] == true;
+    final DateTime? expiresAt = _parseDate(status?['nios_plus_expires_at']);
+    final DateTime? graceUntil = _parseDate(status?['grace_until']);
 
     return SettingsShell(
       title: 'Nios Plus & AI',
@@ -136,15 +171,18 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
               const SizedBox(height: 6),
               Text(
                 isPlus
-                    ? 'Ваша подписка Nios Plus активна'
-                    : 'Максимальная скорость, безлимитный ИИ и эксклюзивные возможности',
+                    ? 'Спасибо, что поддерживаете NiosMess!'
+                    : 'Больше места для файлов, больше запросов к ИИ и расширенные лимиты',
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
                   height: 1.35,
                 ),
               ),
-              if (isPlus) ...<Widget>[
+              if (_loadingStatus) ...<Widget>[
+                const SizedBox(height: 16),
+                const AppLoadingIndicator(size: 22),
+              ] else if (isPlus) ...<Widget>[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -158,7 +196,7 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
                       Icon(Icons.check_circle_rounded, size: 16, color: scheme.onPrimaryContainer),
                       const SizedBox(width: 6),
                       Text(
-                        'Подписка активна',
+                        'Nios Plus активен',
                         style: textTheme.labelMedium?.copyWith(
                           color: scheme.onPrimaryContainer,
                           fontWeight: FontWeight.w700,
@@ -167,7 +205,29 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
                     ],
                   ),
                 ),
-              ] else if (!trialUsed) ...<Widget>[
+                if (expiresAt != null) ...<Widget>[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Действует до ${formatFullDateTime(expiresAt)}',
+                    style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ] else if (inGrace) ...<Widget>[
+                const SizedBox(height: 12),
+                Text(
+                  graceUntil != null
+                      ? 'Подписка закончилась. Расширенные лимиты сохраняются до ${formatFullDateTime(graceUntil)}'
+                      : 'Подписка закончилась, идёт льготный период',
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ] else if (trialUsed) ...<Widget>[
+                const SizedBox(height: 12),
+                Text(
+                  'Пробный период уже использован',
+                  style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ] else ...<Widget>[
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
@@ -199,51 +259,50 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
           ),
         ),
 
-        // Features list
         SettingsSection(
-          title: 'Возможности Nios Plus',
+          title: 'Что даёт Nios Plus',
           children: <Widget>[
             SettingsListItem.value(
               icon: Icons.upload_file_rounded,
-              title: 'Файлы до 4 ГБ',
-              subtitle: 'Отправка тяжелых видео, архивов и документов без сжатия',
+              title: 'Файлы до 100 МБ',
+              subtitle: 'Вместо 30 МБ на бесплатном тарифе',
               iconColor: scheme.primary,
             ),
             SettingsListItem.value(
               icon: Icons.auto_awesome_rounded,
-              title: 'Безлимитный ИИ',
-              subtitle: 'Неограниченные запросы к ассистенту и генерации',
+              title: '200 000 символов ИИ за 72 часа',
+              subtitle: 'Вместо 50 000 — в четыре раза больше запросов к ассистенту',
               iconColor: scheme.tertiary,
             ),
             SettingsListItem.value(
-              icon: Icons.speed_rounded,
-              title: 'Максимальная скорость',
-              subtitle: 'Приоритетная пропускная способность при загрузке медиа',
+              icon: Icons.campaign_rounded,
+              title: '220 публичных каналов и 220 групп',
+              subtitle: 'Вместо 110 каналов и 110 групп',
               iconColor: scheme.primary,
             ),
             SettingsListItem.value(
-              icon: Icons.verified_rounded,
-              title: 'Значок профиля и статус-эмодзи',
-              subtitle: 'Уникальная галочка и премиальные эмодзи рядом с именем',
+              icon: Icons.emoji_emotions_rounded,
+              title: '100 наборов эмодзи',
+              subtitle: 'Вместо 50 собственных наборов',
               iconColor: scheme.secondary,
             ),
             SettingsListItem.value(
-              icon: Icons.folder_special_rounded,
-              title: 'Удвоенные лимиты',
-              subtitle: 'До 1000 каналов, 100 папок чатов и 10 закрепленных диалогов',
-              iconColor: scheme.primary,
+              icon: Icons.verified_rounded,
+              title: 'Статус-эмодзи рядом с именем',
+              subtitle: 'Любой значок из официальных наборов, видно всем собеседникам',
+              iconColor: scheme.tertiary,
             ),
             SettingsListItem.value(
-              icon: Icons.animation_rounded,
-              title: 'Эксклюзивные стикеры и реакции',
-              subtitle: 'Анимации во весь экран и доступ к закрытым наборам',
-              iconColor: scheme.tertiary,
+              icon: Icons.shield_moon_rounded,
+              title: 'Льготный период 5 дней',
+              subtitle: 'После окончания подписки ничего не удаляется — лимиты сжимаются только спустя пять дней',
+              iconColor: scheme.primary,
             ),
           ],
         ),
 
         // Pricing Tiers (if not already subscribed)
-        if (!isPlus) ...<Widget>[
+        if (!isPlus && !_loadingStatus) ...<Widget>[
           const SizedBox(height: 16),
           SettingsSection(
             title: 'Тарифные планы',
