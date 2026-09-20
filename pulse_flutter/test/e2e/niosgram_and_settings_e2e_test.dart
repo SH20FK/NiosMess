@@ -467,6 +467,12 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
+      SharedPreferences.setMockInitialValues(
+        <String, Object>{'ui.soundEffects': true},
+      );
+      UiSettingsNotifier.cachedPrefs = await SharedPreferences.getInstance();
+      addTearDown(() => UiSettingsNotifier.cachedPrefs = null);
+
       await tester.pumpWidget(_buildE2eApp(router: router, niosgramNotifier: niosgramNotifier));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));

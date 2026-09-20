@@ -59,8 +59,6 @@ Future<int?> navigateToDirectChat(
         } catch (_) {}
       }
 
-      // A secret chat is keyed to the recipient's *device*, so we need their
-      // published key, not ours.
       if (userId == null || userId <= 0) {
         debugPrint('[navigateToDirectChat] secret chat needs a target user id');
         return null;

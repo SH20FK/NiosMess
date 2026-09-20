@@ -86,13 +86,8 @@ class WebrtcCallService {
 
   // ── Звонящий (Caller) ─────────────────────────────────────────────
 
-  /// Adopts the `start_call` the caller already issued and waits for the
-  /// callee to answer.
-  ///
-  /// [startResponse] is the server's handler result (call_access_token,
-  /// signal_url, ice_servers, ...). Per spec the caller does NOT connect
-  /// media here: it stays in [CallState.calling] until the server broadcasts
-  /// `call_joined`.
+  /// Adopts the `start_call` already issued by the caller and stays in
+  /// [CallState.calling] until the server broadcasts `call_joined`.
   Future<void> adoptStart(
     Map<String, dynamic> startResponse, {
     String? peerDisplayName,
@@ -537,8 +532,6 @@ class WebrtcCallService {
   Future<void> hangUp() async {
     if (chatId != null && roomId != null) {
       try {
-        // The server rejects end_call without message_id, and then never
-        // tells the other side the call is over.
         await sendWsAction('end_call', <String, dynamic>{
           'chat_id': chatId,
           'room_id': roomId,

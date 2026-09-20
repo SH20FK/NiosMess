@@ -139,9 +139,6 @@ class ChatRepository {
     if (publicKey != null && publicKey.isNotEmpty) {
       payload['public_key'] = publicKey;
     }
-    // Must be the *recipient's* device key: the server stores it as the peer
-    // side of the secret chat, and sending our own key there hides the chat
-    // from the recipient and breaks the shared secret.
     if (targetPublicKey != null && targetPublicKey.isNotEmpty) {
       payload['target_public_key'] = targetPublicKey;
     }

@@ -353,6 +353,12 @@ void main() {
 
     testWidgets('1.12 SettingsPreferencesScreen instantiates with Volume Slider',
         (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues(
+        <String, Object>{'ui.soundEffects': true},
+      );
+      UiSettingsNotifier.cachedPrefs = await SharedPreferences.getInstance();
+      addTearDown(() => UiSettingsNotifier.cachedPrefs = null);
+
       await tester.pumpWidget(
         _wrapWithApp(const SettingsPreferencesScreen(isEmbedded: true)),
       );

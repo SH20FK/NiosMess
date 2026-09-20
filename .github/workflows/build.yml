@@ -284,6 +284,7 @@ jobs:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'latest' }}
           name: NiosMess v${{ needs.build-android.outputs.app_version }}
           body_path: dist/changelog_release.txt
-          make_latest: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          make_latest: ${{ !contains(github.ref_name, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

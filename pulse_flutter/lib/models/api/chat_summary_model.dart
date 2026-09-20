@@ -10,8 +10,6 @@ String? _parsePartnerPublicKey(Map<String, dynamic> json) {
   final withUser = json['with_user'];
   if (withUser is Map) {
     final String? key = withUser['public_key'] as String?;
-    // get_chat sends with_user without the key; fall through instead of
-    // reporting the partner as having none.
     if (key != null && key.isNotEmpty) return key;
   }
   return json['partner_public_key'] as String?;

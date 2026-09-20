@@ -51,10 +51,6 @@ class CallSessionManager {
         final dynamic res = await ref
             .read(webSocketClientProvider)
             .request(action, payload: payload);
-        // request() resolves with the full envelope
-        // {action, payload, request_id, error}; the handler result the call
-        // service needs (call_access_token, signal_url, ice_servers, ...)
-        // lives inside `payload`.
         final Map<String, dynamic> envelope = asStringMap(res);
         final dynamic inner = envelope['payload'];
         return inner is Map ? asStringMap(inner) : envelope;
@@ -191,11 +187,7 @@ class CallSessionManager {
     }
   }
 
-  /// Start outgoing call flow.
-  ///
-  /// [startResponse] is the handler result of the `start_call` request the
-  /// caller already issued: re-sending it here would open a second room and
-  /// leave the first one to time out and kill the live call.
+  /// Start outgoing call flow
   Future<void> start({
     required Map<String, dynamic> startResponse,
     String? peerDisplayName,
