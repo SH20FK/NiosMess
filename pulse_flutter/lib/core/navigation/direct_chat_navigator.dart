@@ -24,11 +24,23 @@ Future<int?> navigateToDirectChat(
 }) async {
   final String cleanUsername = username.trim().toLowerCase();
 
+  String? myPublicKey;
+  if (isSecret) {
+    try {
+      myPublicKey = await ref.read(e2eeServiceProvider).getPublicKeyBase64();
+    } catch (_) {}
+  }
+
   // 1. Fast path: chat ID already known or found in local chats list
   final int? fastId = isSecret
       ? ref.read(chatsProvider).value?.where((ApiChatSummary c) {
+          final String? partnerKey = c.partnerPublicKey;
+          final bool usableKey = partnerKey != null &&
+              partnerKey.isNotEmpty &&
+              partnerKey != myPublicKey;
           return c.chatType == 'direct' &&
               c.isSecret &&
+              usableKey &&
               c.username?.trim().toLowerCase() == cleanUsername;
         }).firstOrNull?.id
       : ((knownChatId != null && knownChatId > 0)
@@ -51,8 +63,8 @@ Future<int?> navigateToDirectChat(
     String? publicKey;
     String? targetPublicKey;
     if (isSecret) {
-      final E2eeService e2ee = ref.read(e2eeServiceProvider);
-      publicKey = await e2ee.getPublicKeyBase64();
+      publicKey = myPublicKey ??
+          await ref.read(e2eeServiceProvider).getPublicKeyBase64();
       if (publicKey.isNotEmpty) {
         try {
           await ref.read(authRepositoryProvider).setPublicKey(publicKey);
