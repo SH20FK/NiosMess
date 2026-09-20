@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:typed_data';
 
-import 'package:cryptography/cryptography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/bot_detector.dart';
 import 'package:pulse_flutter/models/api/call_models.dart';
@@ -11,7 +9,6 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
-import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/services/permission_service.dart';
 
 /// Why [startOutgoingCall] or [startIncomingCall] refused to start.
@@ -25,31 +22,6 @@ class CallStartException implements Exception {
 
   @override
   String toString() => 'CallStartException($failure${cause == null ? '' : ': $cause'})';
-}
-
-/// Derives the shared fallback media key for a call from the ECDH secret
-/// with the chat partner. Falls back to a random key for chats without a
-/// known partner key — real per-sender media keys come from the in-call
-/// ECDH exchange anyway.
-Future<Uint8List> deriveCallMediaKey(
-  WidgetRef ref, {
-  required int chatId,
-  required int callId,
-}) async {
-  final E2eeService e2ee = ref.read(e2eeServiceProvider);
-  final String? partnerKey =
-      ref.read(chatByIdProvider(chatId))?.partnerPublicKey;
-  try {
-    if (partnerKey != null && partnerKey.isNotEmpty) {
-      final SecretKey key = await e2ee.deriveCallKey(
-        callId,
-        theirPublicKeyBase64: partnerKey,
-      );
-      return Uint8List.fromList(await key.extractBytes());
-    }
-  } catch (_) {}
-  final SecretKey random = await AesGcm.with256bits().newSecretKey();
-  return Uint8List.fromList(await random.extractBytes());
 }
 
 /// Shared bootstrap for outgoing calls (chat screen and /call/dm/:username
@@ -76,7 +48,7 @@ Future<int> startOutgoingCall({
 
   bool isListener = false;
   final bool perm =
-      await PermissionService().requestCallPermissions(video: isVideo);
+      await PermissionService().requestCallPermissions(video: false);
   if (!perm) {
     // Spec: "Если микрофон и камера недоступны, клиент всё равно подключается слушателем."
     isListener = true;
@@ -125,7 +97,7 @@ Future<int> startOutgoingCall({
     chatId: chatId,
     callId: callId,
     roomId: roomId,
-    isVideo: isVideo,
+    isVideo: false,
     direction: CallDirection.outgoing,
     displayName: nickname,
     peerName: peerName ?? chat?.name,
@@ -158,7 +130,7 @@ Future<void> startIncomingCall({
 }) async {
   bool isListener = false;
   final bool perm =
-      await PermissionService().requestCallPermissions(video: isVideo);
+      await PermissionService().requestCallPermissions(video: false);
   if (!perm) {
     isListener = true;
   }
@@ -178,7 +150,7 @@ Future<void> startIncomingCall({
     chatId: chatId,
     callId: callId,
     roomId: roomId,
-    isVideo: isVideo,
+    isVideo: false,
     direction: CallDirection.incoming,
     displayName: nickname,
     peerName: peerName ?? chat?.name,

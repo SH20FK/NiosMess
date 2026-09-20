@@ -103,12 +103,12 @@ class CallSession {
     }
   }
 
-  void setMuted(bool muted) {
+  Future<void> setMuted(bool muted) async {
     _isMuted = muted;
     _emitState();
   }
 
-  void setSpeakerOn(bool on) {
+  Future<void> setSpeakerOn(bool on) async {
     _isSpeakerOn = on;
     _emitState();
   }
