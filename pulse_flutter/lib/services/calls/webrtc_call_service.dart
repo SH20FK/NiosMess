@@ -22,6 +22,9 @@ enum CallState {
 /// - Deterministic offerer decision (`mySignalId < peerId`)
 /// - ICE candidate buffering and ICE restart
 /// - Microphones, cameras, speakerphones, and renderers
+const Duration _mediaTimeout = Duration(seconds: 15);
+const Duration _signalTimeout = Duration(seconds: 15);
+
 class WebrtcCallService {
   WebrtcCallService({required this.sendWsAction});
 
@@ -264,7 +267,7 @@ class WebrtcCallService {
                 'height': <String, dynamic>{'ideal': maxH},
               }
             : false,
-      });
+      }).timeout(_mediaTimeout);
     } catch (e) {
       debugPrint('[WebrtcCallService] getUserMedia failed: $e. Falling back to audio-only');
       if (isVideo) {
@@ -276,7 +279,7 @@ class WebrtcCallService {
             'autoGainControl': true,
           },
           'video': false,
-        });
+        }).timeout(_mediaTimeout);
       }
     }
 
@@ -325,7 +328,7 @@ class WebrtcCallService {
       },
     );
 
-    await _signal!.ready;
+    await _signal!.ready.timeout(_signalTimeout);
     _startHeartbeat();
 
     state = CallState.connected;
