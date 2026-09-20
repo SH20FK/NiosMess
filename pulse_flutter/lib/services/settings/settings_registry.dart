@@ -272,7 +272,7 @@ class SettingsRegistry {
     SettingsNavNode(
       id: 'plus',
       title: (AppLocalizations l) => 'Nios Plus & AI',
-      subtitle: (AppLocalizations l) => 'Подписка, безлимитный ИИ и файлы до 4 ГБ',
+      subtitle: (AppLocalizations l) => 'Подписка, расширенные лимиты ИИ и файлы до 100 МБ',
       icon: Icons.stars_rounded,
       group: SettingsGroup.plus,
       route: '/settings/plus',

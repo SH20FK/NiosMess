@@ -77,10 +77,25 @@ Future<int?> navigateToDirectChat(
       }
       final ApiPublicKeyResult keys =
           await ref.read(authRepositoryProvider).getPublicKey(userId);
-      targetPublicKey = keys.devices
-          .map((ApiKeyDevice d) => d.publicKey)
-          .where((String k) => k.isNotEmpty)
-          .firstOrNull;
+      final List<ApiKeyDevice> candidates = keys.devices
+          .where((ApiKeyDevice d) => d.publicKey.isNotEmpty)
+          .toList()
+        ..sort((ApiKeyDevice a, ApiKeyDevice b) =>
+            b.sessionId.compareTo(a.sessionId));
+      final Set<String> knownKeys = <String>{
+        for (final ApiChatSummary c in ref.read(chatsProvider).value ?? const <ApiChatSummary>[])
+          if (c.chatType == 'direct' &&
+              c.isSecret &&
+              c.username?.trim().toLowerCase() == cleanUsername &&
+              (c.partnerPublicKey ?? '').isNotEmpty &&
+              c.partnerPublicKey != publicKey)
+            c.partnerPublicKey!,
+      };
+      targetPublicKey = candidates
+              .where((ApiKeyDevice d) => knownKeys.contains(d.publicKey))
+              .firstOrNull
+              ?.publicKey ??
+          candidates.firstOrNull?.publicKey;
       if (targetPublicKey == null) {
         debugPrint('[navigateToDirectChat] user $userId has no E2EE device key');
         return null;
