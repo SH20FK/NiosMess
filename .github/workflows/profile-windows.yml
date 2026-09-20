@@ -1,0 +1,37 @@
+name: Profile Windows Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  profile:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+        working-directory: pulse_flutter
+
+      - run: flutter --version
+        working-directory: pulse_flutter
+
+      - run: flutter build windows --profile
+        working-directory: pulse_flutter
+
+      - name: Zip profile build
+        shell: pwsh
+        run: |
+          $src = "pulse_flutter/build/windows/x64/runner/Profile"
+          if (-not (Test-Path $src)) { throw "Profile output not found at $src" }
+          Compress-Archive -Path "$src/*" -DestinationPath niosmess-windows-profile.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: niosmess-windows-profile
+          path: niosmess-windows-profile.zip
+          retention-days: 7
