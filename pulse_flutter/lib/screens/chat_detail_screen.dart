@@ -58,6 +58,7 @@ import 'package:pulse_flutter/widgets/message_context_menu_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
+import 'package:pulse_flutter/core/services/desktop_window_service.dart';
 import 'package:pulse_flutter/core/utils/screen_security_service.dart';
 import 'package:pulse_flutter/widgets/chat/chat_state_surface.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
@@ -295,9 +296,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_isSecret) return;
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (DesktopWindowService.isDesktop) {
+      _removeScreenshotOverlay();
+      return;
+    }
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
       _showScreenshotOverlay();
-    } else if (state == AppLifecycleState.resumed) {
+    } else {
       _removeScreenshotOverlay();
     }
   }
