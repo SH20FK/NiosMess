@@ -16,6 +16,9 @@ import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/invite_models.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/models/api/upload_models.dart';
+import 'package:pulse_flutter/models/blob_store_models.dart';
+import 'package:pulse_flutter/services/blob_hasher.dart';
+import 'package:pulse_flutter/services/blob_store_service.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
 class ChatRepository {
@@ -318,7 +321,11 @@ class ChatRepository {
       payload['reply_to_id'] = replyToId;
     }
     if (uploadId != null) {
-      payload['upload_id'] = uploadId;
+      if (uploadId.startsWith('blb_')) {
+        payload['blob_id'] = uploadId;
+      } else {
+        payload['upload_id'] = uploadId;
+      }
     }
 
     if (e2eeContent != null && e2eeContent.isNotEmpty) {
@@ -462,14 +469,14 @@ class ChatRepository {
             ? mediaSubtype
             : 'media';
 
+    // 1. Try modern Content-Addressed Storage (NiosBlobStore) with instant dedup
     try {
-      return await _httpMultipartUpload(
+      return await _blobStoreUpload(
         bytes: bytes,
         filePath: filePath,
         filename: filename,
         mediaSubtype: serverSubtype,
         fileSize: fileSize,
-        token: token,
         onProgress: onProgress,
         onStageChanged: onStageChanged,
         cancellationToken: cancellationToken,
@@ -481,18 +488,159 @@ class ChatRepository {
         throw const UploadCancelledException();
       }
       debugPrint(
-        '[chat_repository] HTTP upload failed: $e, falling back to WS chunked upload...',
+        '[chat_repository] BlobStore CAS upload failed ($e), falling back to HTTP multipart...',
       );
-      return await _wsChunkedUpload(
-        bytes: bytes,
+      try {
+        return await _httpMultipartUpload(
+          bytes: bytes,
+          filePath: filePath,
+          filename: filename,
+          mediaSubtype: serverSubtype,
+          fileSize: fileSize,
+          token: token,
+          onProgress: onProgress,
+          onStageChanged: onStageChanged,
+          cancellationToken: cancellationToken,
+          localId: localId,
+        );
+      } catch (e2) {
+        if (cancellationToken?.isCancelled == true ||
+            e2 is UploadCancelledException) {
+          throw const UploadCancelledException();
+        }
+        debugPrint(
+          '[chat_repository] HTTP upload failed ($e2), falling back to WS chunked upload...',
+        );
+        return await _wsChunkedUpload(
+          bytes: bytes,
+          filePath: filePath,
+          filename: filename,
+          mediaSubtype: serverSubtype,
+          fileSize: fileSize,
+          onProgress: onProgress,
+          onStageChanged: onStageChanged,
+          cancellationToken: cancellationToken,
+        );
+      }
+    }
+  }
+
+  Future<String> _blobStoreUpload({
+    Uint8List? bytes,
+    String? filePath,
+    required String filename,
+    required String mediaSubtype,
+    required int fileSize,
+    required void Function(int sent, int total) onProgress,
+    void Function(UploadStage stage)? onStageChanged,
+    CancellationToken? cancellationToken,
+    String? localId,
+  }) async {
+    cancellationToken?.throwIfCancelled();
+    onStageChanged?.call(UploadStage.hashing);
+
+    // 1. Fast streaming SHA-256 in background Isolate
+    final BlobHashResult hashResult = await BlobHasher.hashFile(
+      filePath: filePath,
+      bytes: bytes,
+    );
+    cancellationToken?.throwIfCancelled();
+
+    final BlobStoreService blobService = _ref.read(blobStoreServiceProvider);
+
+    // 2. Client-side deduplication check
+    onStageChanged?.call(UploadStage.checking);
+    final BlobCheckResult check = await blobService.checkDedup(
+      BlobCheckRequest(
+        contentHash: hashResult.contentHash,
+        size: hashResult.fileSize,
+        mimeType: _guessMime(filename),
+        chunkSize: hashResult.chunkSize,
+        chunkCount: hashResult.chunkCount,
+      ),
+    );
+    cancellationToken?.throwIfCancelled();
+
+    // Instant deduplication hit!
+    if (check.alreadyExists && check.status == 'ready') {
+      onProgress(hashResult.fileSize, hashResult.fileSize);
+      onStageChanged?.call(UploadStage.processing);
+      return check.blobId;
+    }
+
+    // 3. Resumable chunked upload
+    onStageChanged?.call(UploadStage.uploading);
+    final List<int> missing = check.missingChunks;
+    int bytesUploaded = (hashResult.chunkCount - missing.length) * hashResult.chunkSize;
+    if (bytesUploaded > hashResult.fileSize) bytesUploaded = hashResult.fileSize;
+    onProgress(bytesUploaded, hashResult.fileSize);
+
+    for (final int chunkIdx in missing) {
+      cancellationToken?.throwIfCancelled();
+      final Uint8List chunkData = await BlobStoreService.sliceChunkBytes(
         filePath: filePath,
-        filename: filename,
-        mediaSubtype: serverSubtype,
-        fileSize: fileSize,
-        onProgress: onProgress,
-        onStageChanged: onStageChanged,
+        bytes: bytes,
+        chunkIndex: chunkIdx,
+        chunkSize: hashResult.chunkSize,
+        totalSize: hashResult.fileSize,
+      );
+
+      final String? chunkHash = chunkIdx < hashResult.chunkHashes.length
+          ? hashResult.chunkHashes[chunkIdx]
+          : null;
+
+      await blobService.uploadChunk(
+        blobId: check.blobId,
+        chunkIndex: chunkIdx,
+        bytes: chunkData,
+        chunkHash: chunkHash,
         cancellationToken: cancellationToken,
       );
+
+      bytesUploaded += chunkData.length;
+      if (bytesUploaded > hashResult.fileSize) bytesUploaded = hashResult.fileSize;
+      onProgress(bytesUploaded, hashResult.fileSize);
+    }
+
+    // 4. Finalize & assemble CAS blob on server
+    onStageChanged?.call(UploadStage.processing);
+    final BlobCommitResult commit = await blobService.commitBlob(
+      blobId: check.blobId,
+      cancellationToken: cancellationToken,
+    );
+
+    return commit.blobId;
+  }
+
+  static String _guessMime(String filename) {
+    final String ext = filename.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'gif':
+        return 'image/gif';
+      case 'mp4':
+        return 'video/mp4';
+      case 'mov':
+        return 'video/quicktime';
+      case 'mp3':
+        return 'audio/mpeg';
+      case 'ogg':
+      case 'opus':
+        return 'audio/ogg';
+      case 'pdf':
+        return 'application/pdf';
+      case 'zip':
+        return 'application/zip';
+      case 'txt':
+        return 'text/plain';
+      default:
+        return 'application/octet-stream';
     }
   }
 

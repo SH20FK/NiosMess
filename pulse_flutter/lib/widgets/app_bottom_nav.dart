@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -20,8 +21,8 @@ class TravelingNavIndicator extends StatefulWidget {
     required this.count,
     required this.color,
     required this.animate,
-    this.stretch = 0.34,
-    this.duration = M3Durations.medium2,
+    this.stretch = 0.22,
+    this.duration = const Duration(milliseconds: 220),
     this.pillHeight = 34.0,
     this.maxPillWidth = 72.0,
     super.key,
@@ -215,13 +216,16 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
     ];
 
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final Duration duration =
-        tier.isTierA ? M3Durations.medium2 : M3Durations.medium1;
-    final double stretch = tier.isTierA
-        ? 0.34
-        : tier.isTierB
-            ? 0.18
-            : 0.0;
+    final bool isDesktop = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux);
+    final Duration duration = isDesktop
+        ? const Duration(milliseconds: 180)
+        : (tier.isTierA
+            ? const Duration(milliseconds: 220)
+            : const Duration(milliseconds: 180));
+    final double stretch = tier.isTierA ? 0.22 : 0.0;
 
     final Widget navBarContent = SizedBox(
       height: 80,
@@ -270,16 +274,6 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
                 ),
               );
 
-              // Subtle scale (1.00 -> 1.02) without aggressive bouncing
-              final Widget animatedIcon = animate
-                  ? AnimatedScale(
-                      duration: duration,
-                      curve: Curves.easeOutCubic,
-                      scale: isSelected ? 1.02 : 1.0,
-                      child: iconWidget,
-                    )
-                  : iconWidget;
-
               // Decouple badge from icon transition to avoid restarting badge animations
               final Widget badgedIcon = item.badge > 0
                   ? Badge(
@@ -291,9 +285,9 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      child: animatedIcon,
+                      child: iconWidget,
                     )
-                  : animatedIcon;
+                  : iconWidget;
 
               final Widget labelWidget = AnimatedDefaultTextStyle(
                 duration: animate ? duration : Duration.zero,

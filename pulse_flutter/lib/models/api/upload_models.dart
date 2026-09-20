@@ -5,6 +5,12 @@ enum UploadStage {
   /// File is queued and waiting for an available concurrent upload slot.
   queued,
 
+  /// Fast background isolate is computing whole-file and chunk SHA-256 hashes.
+  hashing,
+
+  /// Checking if an identical blob already exists on server for instant dedup.
+  checking,
+
   /// Bytes are actively streaming over the network to the server.
   uploading,
 

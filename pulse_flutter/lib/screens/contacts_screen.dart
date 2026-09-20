@@ -29,7 +29,7 @@ import 'package:pulse_flutter/widgets/contacts/online_presence_radar.dart';
 import 'package:pulse_flutter/widgets/profile/my_qr_code_sheet.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
-import 'package:pulse_flutter/widgets/nav/tab_shared_axis_switcher.dart';
+import 'package:pulse_flutter/widgets/nav/m3_route_tab_switcher.dart';
 import 'package:pulse_flutter/widgets/profile/responsive_profile_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -433,9 +433,9 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               ),
             ),
 
-            // Content: Calls or Contacts (M3TabPageSwitcher preserves scroll position and animates cleanly)
+            // Content: Calls or Contacts (M3RouteTabSwitcher preserves scroll position and animates cleanly)
             Expanded(
-              child: M3TabPageSwitcher(
+              child: M3RouteTabSwitcher(
                 index: _selectedTab.index,
                 controller: _tabTransition,
                 duration: M3Durations.medium1,

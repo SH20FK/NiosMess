@@ -3,8 +3,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/router/app_router.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/models/nios_link_models.dart';
+import 'package:pulse_flutter/services/nios_link_service.dart';
 
 /// Centralized URL and Deep Link router for NiosMess.
 ///
@@ -140,7 +143,7 @@ class AppUrlLauncher {
 
   /// Checks if a given [uri] belongs to the NiosMess ecosystem.
   static bool isInternalNiosLink(Uri uri) {
-    if (uri.scheme == 'niosmess') return true;
+    if (uri.scheme == 'niosmess' || uri.scheme == 'nios') return true;
     final String host = uri.host.toLowerCase();
     return host == 'ni-os.ru' ||
         host == 'www.ni-os.ru' ||
@@ -151,6 +154,20 @@ class AppUrlLauncher {
 
   /// Resolves an internal [uri] to a relative GoRouter path.
   static String? resolveInternalAppRoute(Uri uri) {
+    // 0. NiosLink Protocol dispatch (nios://... or https://ni-os.ru/l/...)
+    final NiosLinkParsed? niosLink = NiosLinkService.parseLink(uri.toString());
+    if (niosLink != null && niosLink.isValid) {
+      final BuildContext? ctx = AppRouter.navigatorKey.currentContext;
+      if (ctx != null) {
+        final ProviderContainer container =
+            ProviderScope.containerOf(ctx, listen: false);
+        container
+            .read(niosLinkServiceProvider)
+            .handleIncomingLink(ctx, uri.toString());
+        return null;
+      }
+    }
+
     String path = uri.path;
 
     // Support URLs with hash routing (e.g. 'https://ni-os.ru/#/u/alice' or '/web#/u/alice')

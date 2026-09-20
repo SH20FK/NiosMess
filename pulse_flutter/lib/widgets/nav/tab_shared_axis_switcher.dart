@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
-import 'package:pulse_flutter/widgets/nav/m3_tab_page_switcher.dart';
+import 'package:pulse_flutter/widgets/nav/m3_route_tab_switcher.dart';
 
-export 'package:pulse_flutter/widgets/nav/m3_tab_page_switcher.dart';
+export 'package:pulse_flutter/widgets/nav/m3_route_tab_switcher.dart';
 
-/// Legacy alias for [M3TabPageSwitcher].
+/// Legacy alias for [M3RouteTabSwitcher].
 class TabSharedAxisSwitcher extends StatelessWidget {
   const TabSharedAxisSwitcher({
     required this.index,
@@ -12,7 +11,7 @@ class TabSharedAxisSwitcher extends StatelessWidget {
     required this.controller,
     this.animate = true,
     this.shift = 0.14,
-    this.duration = M3Durations.medium1,
+    this.duration,
     super.key,
   });
 
@@ -21,11 +20,11 @@ class TabSharedAxisSwitcher extends StatelessWidget {
   final TabTransitionController controller;
   final bool animate;
   final double shift;
-  final Duration duration;
+  final Duration? duration;
 
   @override
   Widget build(BuildContext context) {
-    return M3TabPageSwitcher(
+    return M3RouteTabSwitcher(
       index: index,
       controller: controller,
       animate: animate,

@@ -32,6 +32,7 @@ import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dar
 import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
+import 'package:pulse_flutter/widgets/nav/m3_route_tab_switcher.dart';
 import 'package:pulse_flutter/widgets/nav/tab_shared_axis_switcher.dart';
 import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
 
@@ -46,7 +47,7 @@ class MainShellScreen extends ConsumerStatefulWidget {
 
 class _MainShellScreenState extends ConsumerState<MainShellScreen>
     with WidgetsBindingObserver {
-  static const List<String> _tabs = <String>[
+  static const List<String> _tabs = [
     'chats',
     'niosgram',
     'settings',
@@ -54,6 +55,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
   late final Set<int> _activatedTabs;
   final TabTransitionController _tabTransition = TabTransitionController();
+  bool _isTabTransitionRunning = false;
 
   bool _biometricLocked = false;
   double _desktopChatListWidth = 360.0;
@@ -428,19 +430,28 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         final bool tabMotion =
             !tier.isTierC && !MediaQuery.disableAnimationsOf(context);
 
-        final Widget body = M3TabPageSwitcher(
+        final Widget body = M3RouteTabSwitcher(
           index: currentIndex,
           controller: _tabTransition,
           animate: tabMotion,
-          slideDistance: tier.isTierA ? 12.0 : 8.0,
-          duration: tier.isTierA ? M3Durations.medium1 : M3Durations.short4,
+          slideDistance: tier.isTierA ? (isWide ? 14.0 : 20.0) : 12.0,
+          duration: tier.isTierA
+              ? (isWide
+                  ? const Duration(milliseconds: 180)
+                  : const Duration(milliseconds: 220))
+              : const Duration(milliseconds: 180),
+          onTransitionStateChanged: (bool running) {
+            if (mounted && _isTabTransitionRunning != running) {
+              setState(() => _isTabTransitionRunning = running);
+            }
+          },
           children: List<Widget>.generate(pages.length, (int index) {
             if (!_activatedTabs.contains(index)) {
               return const SizedBox.shrink();
             }
             final bool isActive = index == currentIndex;
             return TickerMode(
-              enabled: isActive,
+              enabled: isActive && !_isTabTransitionRunning,
               child: RepaintBoundary(child: pages[index]),
             );
           }),

@@ -45,6 +45,7 @@ import 'unit/sticker_formatter_test.dart' as unit_sticker_formatter;
 import 'unit/morphing_brand_mark_test.dart' as unit_morphing_brand_mark;
 import 'unit/moments_test.dart' as unit_moments;
 import 'unit/tri_sync_test.dart' as unit_tri_sync;
+import 'unit/nios_link_and_blob_store_test.dart' as unit_nios_link_and_blob_store;
 import 'widgets/adaptive_glass_test.dart' as widgets_adaptive_glass;
 import 'm3e_design_audit_test.dart' as m3e_design_audit;
 import 'widgets/chat_list_header_and_performance_test.dart' as widgets_chat_list_header;
@@ -91,6 +92,7 @@ void main() {
     unit_morphing_brand_mark.main();
     unit_moments.main();
     unit_tri_sync.main();
+    unit_nios_link_and_blob_store.main();
     unit_m3_motion_kit.main();
 
     // Protocol & Logic Suites
