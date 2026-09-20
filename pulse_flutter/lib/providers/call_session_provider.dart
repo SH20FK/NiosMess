@@ -19,6 +19,9 @@ final callSessionProvider =
   CallSessionNotifier.new,
 );
 
+/// Long-lived [Ref] for call sessions, which outlive the widget that started them.
+final callRefProvider = Provider<Ref>((Ref ref) => ref);
+
 class CallSessionNotifier extends Notifier<CallSessionManager?> {
   @override
   CallSessionManager? build() => null;
@@ -103,6 +106,9 @@ class CallSessionManager {
   }
 
   CallSessionState get state => currentData.state;
+
+  bool get isActive =>
+      state != CallSessionState.idle && state != CallSessionState.ended;
   int get durationSeconds => currentData.durationSeconds;
   bool get isMuted => currentData.isMuted;
   bool get isSpeakerOn => currentData.isSpeakerOn;

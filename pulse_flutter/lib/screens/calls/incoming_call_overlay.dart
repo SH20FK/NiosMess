@@ -239,7 +239,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     ref.read(incomingCallProvider.notifier).set(null);
     unawaited(PushNotificationService.cancelCallNotification());
 
-    final isAlreadyInCall = ref.read(callSessionProvider) != null;
+    final isAlreadyInCall = ref.read(callSessionProvider)?.isActive ?? false;
     if (isAlreadyInCall) {
       if (context.mounted) {
         AppToast.showError(context, 'Уже идет другой звонок');

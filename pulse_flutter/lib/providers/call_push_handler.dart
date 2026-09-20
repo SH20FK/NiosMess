@@ -7,7 +7,6 @@ import 'package:pulse_flutter/providers/call_incoming_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
-import 'package:pulse_flutter/services/calls/call_session.dart';
 
 class CallPushHandler extends Notifier<void> {
   StreamSubscription<dynamic>? _sub;
@@ -78,10 +77,7 @@ class CallPushHandler extends Notifier<void> {
     }
 
     // Busy check: if currently in another call, reject the new incoming call
-    final CallSessionState? activeState = currentSession?.state;
-    if (activeState != null &&
-        activeState != CallSessionState.idle &&
-        activeState != CallSessionState.ended) {
+    if (currentSession?.isActive ?? false) {
       debugPrint('[CallPushHandler] User busy: declining new incoming call $roomId');
       unawaited(ref.read(callRepositoryProvider).decline(
             chatId: chatId,

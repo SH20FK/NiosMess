@@ -93,7 +93,7 @@ Future<int> startOutgoingCall({
   }
 
   final CallSessionManager manager = CallSessionManager(
-    ref: ref,
+    ref: ref.read(callRefProvider),
     chatId: chatId,
     callId: callId,
     roomId: roomId,
@@ -146,7 +146,7 @@ Future<void> startIncomingCall({
   final chat = ref.read(chatByIdProvider(chatId));
 
   final CallSessionManager manager = CallSessionManager(
-    ref: ref,
+    ref: ref.read(callRefProvider),
     chatId: chatId,
     callId: callId,
     roomId: roomId,
