@@ -11,6 +11,43 @@ import 'ws_stub.dart'
     if (dart.library.io) 'ws_io.dart'
     if (dart.library.html) 'ws_web.dart';
 
+const int _kCryptoIsolateThresholdBytes = 64 * 1024;
+
+Future<Map<String, dynamic>> _decryptEnvelopeWorker(
+    Map<String, dynamic> job) async {
+  final List<int> ciphertext = base64Decode(job['ciphertext'] as String);
+  final List<int> iv = base64Decode(job['iv'] as String);
+  final List<int> tag = base64Decode(job['tag'] as String);
+  final List<int> decrypted = await AesGcm.with256bits().decrypt(
+    SecretBox(ciphertext, nonce: iv, mac: Mac(tag)),
+    secretKey: SecretKey(job['key'] as List<int>),
+  );
+  final String decryptedStr = utf8.decode(decrypted);
+  try {
+    return jsonDecode(decryptedStr) as Map<String, dynamic>;
+  } catch (_) {
+    return jsonDecode(utf8.decode(base64Decode(decryptedStr)))
+        as Map<String, dynamic>;
+  }
+}
+
+Future<Map<String, dynamic>> _encryptEnvelopeWorker(
+    Map<String, dynamic> job) async {
+  final String base64Json = base64Encode(utf8.encode(job['json'] as String));
+  final SecretBox secretBox = await AesGcm.with256bits().encrypt(
+    utf8.encode(base64Json),
+    secretKey: SecretKey(job['key'] as List<int>),
+  );
+  return <String, dynamic>{
+    'encrypted': true,
+    'data': <String, dynamic>{
+      'ciphertext': base64Encode(secretBox.cipherText),
+      'iv': base64Encode(secretBox.nonce),
+      'tag': base64Encode(secretBox.mac.bytes),
+    },
+  };
+}
+
 class WebSocketClient {
   WebSocketClient({
     required this.baseUrl,
@@ -31,8 +68,9 @@ class WebSocketClient {
   Completer<void>? _connectionReadyCompleter;
 
   // Encryption
-  final AesGcm _algorithm = AesGcm.with256bits();
   SecretKey? _secretKey;
+  SecretKey? _keyBytesOwner;
+  List<int>? _keyBytesCache;
 
   // Request matching
   final Uuid _uuid = Uuid();
@@ -434,33 +472,32 @@ class WebSocketClient {
     return response['payload'];
   }
 
+  Future<List<int>> _secretKeyBytes() async {
+    final SecretKey? key = _secretKey;
+    if (key == null) {
+      throw ApiException(statusCode: 0, message: 'Connection to server lost');
+    }
+    final List<int>? cached = _keyBytesCache;
+    if (cached != null && identical(_keyBytesOwner, key)) {
+      return cached;
+    }
+    final List<int> bytes = await key.extractBytes();
+    _keyBytesOwner = key;
+    _keyBytesCache = bytes;
+    return bytes;
+  }
+
   Future<Map<String, dynamic>> _encryptMessage(
       Map<String, dynamic> msg) async {
     final String jsonStr = jsonEncode(msg);
-    // Protocol: server expects base64(json) as AES-GCM plaintext, not raw json.
-    final String base64Json = base64Encode(utf8.encode(jsonStr));
-    final List<int> messageBytes = utf8.encode(base64Json);
-
-    final SecretBox secretBox = await _algorithm.encrypt(
-      messageBytes,
-      secretKey: _secretKey!,
-    );
-
-    final String ciphertextB64 = base64Encode(secretBox.cipherText);
-    final String ivB64 = base64Encode(secretBox.nonce);
-    final String tagB64 = base64Encode(secretBox.mac.bytes);
-
-    debugPrint('[WebSocketClient] Encrypted: iv=${ivB64.length}chars, '
-        'ct=${ciphertextB64.length}chars, tag=${tagB64.length}chars');
-
-    return <String, dynamic>{
-      'encrypted': true,
-      'data': <String, dynamic>{
-        'ciphertext': ciphertextB64,
-        'iv': ivB64,
-        'tag': tagB64,
-      },
+    final Map<String, dynamic> job = <String, dynamic>{
+      'key': await _secretKeyBytes(),
+      'json': jsonStr,
     };
+    if (!kIsWeb && jsonStr.length >= _kCryptoIsolateThresholdBytes) {
+      return compute(_encryptEnvelopeWorker, job);
+    }
+    return _encryptEnvelopeWorker(job);
   }
 
   Future<Map<String, dynamic>> _decryptMessage(
@@ -473,23 +510,16 @@ class WebSocketClient {
       throw StateError('Missing ciphertext, iv, or tag in encrypted message');
     }
 
-    final List<int> ciphertext = base64Decode(ciphertextB64);
-    final List<int> iv = base64Decode(ivB64);
-    final List<int> tag = base64Decode(tagB64);
-
-    final SecretBox secretBox = SecretBox(ciphertext, nonce: iv, mac: Mac(tag));
-    final List<int> decrypted =
-        await _algorithm.decrypt(secretBox, secretKey: _secretKey!);
-
-    final String decryptedStr = utf8.decode(decrypted);
-    // Protocol: server encrypts base64(json), so decrypted text is a base64 string.
-    // Try raw JSON first for forward-compatibility, then base64-decode.
-    try {
-      return jsonDecode(decryptedStr) as Map<String, dynamic>;
-    } catch (_) {
-      final String jsonStr = utf8.decode(base64Decode(decryptedStr));
-      return jsonDecode(jsonStr) as Map<String, dynamic>;
+    final Map<String, dynamic> job = <String, dynamic>{
+      'key': await _secretKeyBytes(),
+      'ciphertext': ciphertextB64,
+      'iv': ivB64,
+      'tag': tagB64,
+    };
+    if (!kIsWeb && ciphertextB64.length >= _kCryptoIsolateThresholdBytes) {
+      return compute(_decryptEnvelopeWorker, job);
     }
+    return _decryptEnvelopeWorker(job);
   }
 
   void sendRaw(String data) {
