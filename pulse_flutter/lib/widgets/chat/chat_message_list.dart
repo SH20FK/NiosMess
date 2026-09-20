@@ -17,8 +17,8 @@ import 'package:pulse_flutter/widgets/message_bubble.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 
-class _MessageLayoutData {
-  const _MessageLayoutData({
+class MessageLayoutData {
+  const MessageLayoutData({
     required this.showDateSep,
     required this.isPrevSame,
     required this.isNextSame,
@@ -29,55 +29,144 @@ class _MessageLayoutData {
   final bool isNextSame;
 }
 
-List<_MessageLayoutData> _precomputeLayout(List<ApiMessage> messages) {
-  final int len = messages.length;
-  final List<_MessageLayoutData> layout = List<_MessageLayoutData>.filled(
-    len,
-    const _MessageLayoutData(showDateSep: false, isPrevSame: false, isNextSame: false),
-  );
+/// Incremental message layout store to eliminate O(n) layout recomputations on each message update.
+class MessageLayoutStore {
+  final List<ApiMessage> messages = <ApiMessage>[];
+  final List<MessageLayoutData> layout = <MessageLayoutData>[];
+  final Map<int, ApiMessage> byId = <int, ApiMessage>{};
+  final Map<int, int> idToIndex = <int, int>{};
 
-  for (int i = 0; i < len; i++) {
-    final ApiMessage message = messages[i];
-    bool showDateSep = false;
-    bool isPrevSame = false;
-    bool isNextSame = false;
+  static bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
-    if (i == 0) {
-      showDateSep = true;
-    } else {
-      final ApiMessage prev = messages[i - 1];
-      final DateTime messageDate = message.resolvedSentAt;
-      final DateTime prevDate = prev.resolvedSentAt;
-      showDateSep =
-          messageDate.day != prevDate.day ||
-          messageDate.month != prevDate.month ||
-          messageDate.year != prevDate.year;
-    }
+  MessageLayoutData _computeSingle(int i, List<ApiMessage> list) {
+    final ApiMessage msg = list[i];
+    final bool showDateSep = (i == 0)
+        ? true
+        : !_isSameDay(msg.resolvedSentAt, list[i - 1].resolvedSentAt);
 
-    if (i > 0 && !showDateSep) {
-      final ApiMessage prev = messages[i - 1];
-      isPrevSame =
-          prev.senderId == message.senderId && !prev.isDeleted;
-    }
+    final bool isPrevSame = (i > 0 && !showDateSep)
+        ? (list[i - 1].senderId == msg.senderId && !list[i - 1].isDeleted)
+        : false;
 
-    if (i < len - 1) {
-      final ApiMessage next = messages[i + 1];
-      isNextSame =
-          next.resolvedSentAt.day == message.resolvedSentAt.day &&
-          next.resolvedSentAt.month == message.resolvedSentAt.month &&
-          next.resolvedSentAt.year == message.resolvedSentAt.year &&
-          next.senderId == message.senderId &&
-          !next.isDeleted;
-    }
+    final bool isNextSame = (i < list.length - 1)
+        ? (_isSameDay(list[i + 1].resolvedSentAt, msg.resolvedSentAt) &&
+            list[i + 1].senderId == msg.senderId &&
+            !list[i + 1].isDeleted)
+        : false;
 
-    layout[i] = _MessageLayoutData(
+    return MessageLayoutData(
       showDateSep: showDateSep,
       isPrevSame: isPrevSame,
       isNextSame: isNextSame,
     );
   }
 
-  return layout;
+  void reset(List<ApiMessage> newMessages) {
+    messages.clear();
+    layout.clear();
+    byId.clear();
+    idToIndex.clear();
+
+    messages.addAll(newMessages);
+    final int len = newMessages.length;
+    for (int i = 0; i < len; i++) {
+      layout.add(_computeSingle(i, newMessages));
+      final ApiMessage m = newMessages[i];
+      byId[m.id] = m;
+      idToIndex[m.id] = len - 1 - i;
+    }
+  }
+
+  /// Synchronizes current state with updated list [nextMessages] using O(1)/O(k) fast-paths.
+  void sync(List<ApiMessage> nextMessages) {
+    if (messages.isEmpty || nextMessages.isEmpty) {
+      reset(nextMessages);
+      return;
+    }
+
+    final int oldLen = messages.length;
+    final int newLen = nextMessages.length;
+
+    // 1. O(1) Fast-path: Single message append at the end (new incoming message)
+    if (newLen == oldLen + 1 && nextMessages[0].id == messages[0].id) {
+      if (nextMessages[oldLen - 1].id == messages[oldLen - 1].id) {
+        final ApiMessage newMsg = nextMessages[newLen - 1];
+        messages.add(newMsg);
+
+        final int prevIdx = oldLen - 1;
+        layout[prevIdx] = _computeSingle(prevIdx, messages);
+        layout.add(_computeSingle(oldLen, messages));
+
+        byId[newMsg.id] = newMsg;
+        for (int i = 0; i < newLen; i++) {
+          idToIndex[messages[i].id] = newLen - 1 - i;
+        }
+        return;
+      }
+    }
+
+    // 2. O(k) Fast-path: Prepend older history at the beginning (pagination)
+    if (newLen > oldLen && nextMessages[newLen - 1].id == messages[oldLen - 1].id) {
+      final int prependedCount = newLen - oldLen;
+      if (nextMessages[prependedCount].id == messages[0].id) {
+        final List<ApiMessage> prepended = nextMessages.sublist(0, prependedCount);
+        messages.insertAll(0, prepended);
+
+        final List<MessageLayoutData> prependedLayout = <MessageLayoutData>[];
+        for (int i = 0; i < prependedCount; i++) {
+          prependedLayout.add(_computeSingle(i, messages));
+        }
+        layout.insertAll(0, prependedLayout);
+        layout[prependedCount] = _computeSingle(prependedCount, messages);
+
+        byId.clear();
+        idToIndex.clear();
+        for (int i = 0; i < newLen; i++) {
+          final ApiMessage m = messages[i];
+          byId[m.id] = m;
+          idToIndex[m.id] = newLen - 1 - i;
+        }
+        return;
+      }
+    }
+
+    // 3. O(1) Fast-path: Single in-place update (edited, read status, reactions)
+    if (newLen == oldLen) {
+      int diffIndex = -1;
+      int diffCount = 0;
+      for (int i = 0; i < oldLen; i++) {
+        if (!identical(messages[i], nextMessages[i])) {
+          diffCount++;
+          diffIndex = i;
+          if (diffCount > 1) break;
+        }
+      }
+      if (diffCount == 1) {
+        final ApiMessage oldMsg = messages[diffIndex];
+        final ApiMessage updatedMsg = nextMessages[diffIndex];
+        messages[diffIndex] = updatedMsg;
+        byId.remove(oldMsg.id);
+        byId[updatedMsg.id] = updatedMsg;
+        if (oldMsg.id != updatedMsg.id) {
+          idToIndex.remove(oldMsg.id);
+          idToIndex[updatedMsg.id] = newLen - 1 - diffIndex;
+        }
+
+        if (diffIndex > 0) {
+          layout[diffIndex - 1] = _computeSingle(diffIndex - 1, messages);
+        }
+        layout[diffIndex] = _computeSingle(diffIndex, messages);
+        if (diffIndex < newLen - 1) {
+          layout[diffIndex + 1] = _computeSingle(diffIndex + 1, messages);
+        }
+        return;
+      }
+    }
+
+    // Fallback: full reset
+    reset(nextMessages);
+  }
 }
 
 class ChatMessageList extends ConsumerStatefulWidget {
@@ -151,43 +240,27 @@ class ChatMessageList extends ConsumerStatefulWidget {
 }
 
 class _ChatMessageListState extends ConsumerState<ChatMessageList> {
-  List<_MessageLayoutData>? _layoutCache;
-  List<ApiMessage>? _cachedMessages;
-  Map<int, ApiMessage>? _byIdCache;
-  Map<int, int>? _idToIndexCache;
-  final Map<int, GlobalKey> _messageKeys = <int, GlobalKey>{};
+  final MessageLayoutStore _store = MessageLayoutStore();
+  Map<int, int>? get _idToIndexCache => _store.idToIndex;
+  GlobalKey? _activeTargetKey;
+  int? _activeTargetMessageId;
   final Set<int> _animatedMessageIds = <int>{};
   Timer? _highlightTimer;
   final ValueNotifier<int?> _highlightedIdNotifier = ValueNotifier<int?>(null);
 
-  void _syncCaches(List<ApiMessage> messages) {
-    if (identical(messages, _cachedMessages)) return;
-    _cachedMessages = messages;
-    _layoutCache = _precomputeLayout(messages);
-    final Map<int, ApiMessage> byId = <int, ApiMessage>{};
-    final Map<int, int> idToIndex = <int, int>{};
-    final int len = messages.length;
-    for (int i = 0; i < len; i++) {
-      final ApiMessage m = messages[i];
-      byId[m.id] = m;
-      idToIndex[m.id] = len - 1 - i;
-    }
-    _byIdCache = byId;
-    _idToIndexCache = idToIndex;
-    _messageKeys.removeWhere((int id, _) => !byId.containsKey(id));
-  }
-
   @override
   void initState() {
     super.initState();
-    _syncCaches(widget.messages);
+    _store.reset(widget.messages);
     _animatedMessageIds.addAll(widget.messages.map((ApiMessage m) => m.id));
   }
 
   @override
   void didUpdateWidget(ChatMessageList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _syncCaches(widget.messages);
+    if (!identical(widget.messages, oldWidget.messages)) {
+      _store.sync(widget.messages);
+    }
   }
 
   @override
@@ -200,61 +273,77 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
   void _scrollToMessage(int messageId) {
     _highlightTimer?.cancel();
     _highlightedIdNotifier.value = messageId;
+    _activeTargetMessageId = messageId;
+    _activeTargetKey = GlobalKey(debugLabel: 'target_msg_$messageId');
+    if (mounted) setState(() {});
 
-    final GlobalKey? key = _messageKeys[messageId];
-    if (key != null && key.currentContext != null) {
-      Scrollable.ensureVisible(
-        key.currentContext!,
-        alignment: 0.3,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOutCubic,
-      );
-    } else {
-      final int? builderIndex = _idToIndexCache?[messageId];
-      final List<ApiMessage> messages = widget.messages;
-      if (builderIndex != null && widget.scrollController.hasClients && messages.isNotEmpty) {
-        final double maxScroll = widget.scrollController.position.maxScrollExtent;
-        final double estimatedItemHeight = (maxScroll / messages.length).clamp(50.0, 300.0);
-        final double targetOffset = (builderIndex * estimatedItemHeight).clamp(
-          0.0,
-          maxScroll,
-        );
-        widget.scrollController
-            .animateTo(
-          targetOffset,
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final GlobalKey? key = _activeTargetKey;
+      if (key != null && key.currentContext != null) {
+        Scrollable.ensureVisible(
+          key.currentContext!,
+          alignment: 0.3,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOutCubic,
-        )
-            .then((_) {
-          if (!mounted) return;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
+        );
+      } else {
+        final int? builderIndex = _idToIndexCache?[messageId];
+        final List<ApiMessage> messages = _store.messages;
+        if (builderIndex != null && widget.scrollController.hasClients && messages.isNotEmpty) {
+          final double maxScroll = widget.scrollController.position.maxScrollExtent;
+          final double estimatedItemHeight = (maxScroll / messages.length).clamp(50.0, 300.0);
+          final double targetOffset = (builderIndex * estimatedItemHeight).clamp(
+            0.0,
+            maxScroll,
+          );
+          widget.scrollController
+              .animateTo(
+            targetOffset,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOutCubic,
+          )
+              .then((_) {
             if (!mounted) return;
-            final GlobalKey? updatedKey = _messageKeys[messageId];
-            if (updatedKey != null && updatedKey.currentContext != null) {
-              Scrollable.ensureVisible(
-                updatedKey.currentContext!,
-                alignment: 0.3,
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOutCubic,
-              );
-            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              final GlobalKey? updatedKey = _activeTargetKey;
+              if (updatedKey != null && updatedKey.currentContext != null) {
+                final RenderBox? box = updatedKey.currentContext!.findRenderObject() as RenderBox?;
+                if (box != null && mounted) {
+                  final Offset pos = box.localToGlobal(Offset.zero);
+                  final double screenHeight = MediaQuery.sizeOf(context).height;
+                  // Single coordinator check: only correct if misaligned outside visible bounds
+                  if (pos.dy < 48 || pos.dy > screenHeight - 120) {
+                    Scrollable.ensureVisible(
+                      updatedKey.currentContext!,
+                      alignment: 0.3,
+                      duration: const Duration(milliseconds: 150),
+                      curve: Curves.easeInOutCubic,
+                    );
+                  }
+                }
+              }
+            });
           });
-        });
+        }
       }
-    }
+    });
 
     _highlightTimer = Timer(const Duration(milliseconds: 1600), () {
       if (mounted && _highlightedIdNotifier.value == messageId) {
         _highlightedIdNotifier.value = null;
+        _activeTargetMessageId = null;
+        _activeTargetKey = null;
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<ApiMessage> messages = widget.messages;
-    final List<_MessageLayoutData> layout = _layoutCache!;
-    final Map<int, ApiMessage> byId = _byIdCache!;
+    final List<ApiMessage> messages = _store.messages;
+    final List<MessageLayoutData> layout = _store.layout;
+    final Map<int, ApiMessage> byId = _store.byId;
 
     final PerformanceTier tier = ref.watch(
       adaptivePerformanceProvider.select((s) => s.tier),
@@ -281,7 +370,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
       itemBuilder: (BuildContext context, int index) {
         final int reversedIndex = messages.length - 1 - index;
         final ApiMessage message = messages[reversedIndex];
-        final _MessageLayoutData data = layout[reversedIndex];
+        final MessageLayoutData data = layout[reversedIndex];
 
         final bool isMine = message.senderId == widget.authUserId;
 
@@ -440,7 +529,9 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
           );
         }
 
-        final Key itemKey = _messageKeys.putIfAbsent(message.id, GlobalKey.new);
+        final Key itemKey = (message.id == _activeTargetMessageId)
+            ? (_activeTargetKey ??= GlobalKey(debugLabel: 'target_msg_${message.id}'))
+            : ValueKey<int>(message.id);
 
         final Widget bubble = ValueListenableBuilder<int?>(
           valueListenable: _highlightedIdNotifier,

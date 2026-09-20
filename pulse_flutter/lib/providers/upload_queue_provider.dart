@@ -91,6 +91,9 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
       <String, CancellationToken>{};
   final Map<String, UploadSpeedTracker> _speedTrackers =
       <String, UploadSpeedTracker>{};
+  final Map<String, DateTime> _lastUiUpdates = <String, DateTime>{};
+  final Map<String, double> _lastReportedProgress = <String, double>{};
+  static const Duration _uiProgressInterval = Duration(milliseconds: 80);
 
   @override
   Map<String, UploadTask> build() {
@@ -211,18 +214,34 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
                   0.0,
                   0.99,
                 );
-                state = {
-                  ...state,
-                  localId: currentTask.copyWith(
-                    progress: cappedProgress,
-                    bytesSent: sent,
-                    stage: UploadStage.uploading,
-                    metrics: metrics,
-                  ),
-                };
+
+                final DateTime now = DateTime.now();
+                final DateTime? lastUpdate = _lastUiUpdates[localId];
+                final double lastProgress = _lastReportedProgress[localId] ?? 0.0;
+                final double progressDelta = (cappedProgress - lastProgress).abs();
+
+                final bool shouldPublish = lastUpdate == null ||
+                    now.difference(lastUpdate) >= _uiProgressInterval ||
+                    progressDelta >= 0.01 ||
+                    cappedProgress >= 0.99;
+
+                if (shouldPublish) {
+                  _lastUiUpdates[localId] = now;
+                  _lastReportedProgress[localId] = cappedProgress;
+                  state = {
+                    ...state,
+                    localId: currentTask.copyWith(
+                      progress: cappedProgress,
+                      bytesSent: sent,
+                      stage: UploadStage.uploading,
+                      metrics: metrics,
+                    ),
+                  };
+                }
               }
             },
             onStageChanged: (UploadStage stage) {
+              _lastUiUpdates[localId] = DateTime.now();
               final currentTask = state[localId];
               if (currentTask != null) {
                 state = {
@@ -239,6 +258,10 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
           );
 
       if (cancelToken.isCancelled) {
+        _cancellationTokens.remove(localId);
+        _speedTrackers.remove(localId);
+        _lastUiUpdates.remove(localId);
+        _lastReportedProgress.remove(localId);
         return;
       }
 
@@ -280,6 +303,8 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
 
         _cancellationTokens.remove(localId);
         _speedTrackers.remove(localId);
+        _lastUiUpdates.remove(localId);
+        _lastReportedProgress.remove(localId);
 
         unawaited(
           ref.read(appSoundProvider).playEvent(SoundEvent.uploadComplete),
@@ -290,6 +315,8 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
     } catch (e, st) {
       _cancellationTokens.remove(localId);
       _speedTrackers.remove(localId);
+      _lastUiUpdates.remove(localId);
+      _lastReportedProgress.remove(localId);
 
       if (cancelToken.isCancelled || e is UploadCancelledException) {
         debugPrint('[UploadQueue] Upload cancelled for $localId');
@@ -350,6 +377,8 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
     _cancellationTokens[localId]?.cancel();
     _cancellationTokens.remove(localId);
     _speedTrackers.remove(localId);
+    _lastUiUpdates.remove(localId);
+    _lastReportedProgress.remove(localId);
     state = {...state}..remove(localId);
     final int tempId = int.tryParse(localId) ?? 0;
     ref
@@ -390,7 +419,24 @@ final uploadQueueProvider =
     );
 
 final uploadTaskProvider = Provider.family<UploadTask?, String>((ref, localId) {
-  return ref.watch(uploadQueueProvider)[localId];
+  return ref.watch(uploadQueueProvider.select((queue) => queue[localId]));
+});
+
+/// Topology key representing currently pending/queued uploads in FIFO order.
+/// String value changes ONLY when tasks enter or exit pending/queued state.
+/// Riverpod will NOT notify subscribers on intermediate progress updates!
+final uploadQueueTopologyKeyProvider = Provider<String>((ref) {
+  return ref.watch(uploadQueueProvider.select((queue) {
+    final StringBuffer buffer = StringBuffer();
+    for (final MapEntry<String, UploadTask> entry in queue.entries) {
+      if (entry.value.status == UploadStatus.pending ||
+          entry.value.stage == UploadStage.queued) {
+        buffer.write(entry.key);
+        buffer.write(',');
+      }
+    }
+    return buffer.toString();
+  }));
 });
 
 /// 1-based position in queue for pending uploads. Returns 0 if active or not in queue.
@@ -398,17 +444,19 @@ final uploadQueuePositionProvider = Provider.family<int, String>((
   ref,
   localId,
 ) {
-  final queue = ref.watch(uploadQueueProvider);
-  final List<String> pendingKeys = queue.entries
-      .where(
-        (MapEntry<String, UploadTask> e) =>
-            e.value.status == UploadStatus.pending ||
-            e.value.stage == UploadStage.queued,
-      )
-      .map((MapEntry<String, UploadTask> e) => e.key)
-      .toList();
-  final int index = pendingKeys.indexOf(localId);
+  final String topologyKey = ref.watch(uploadQueueTopologyKeyProvider);
+  if (topologyKey.isEmpty) return 0;
+  final List<String> keys = topologyKey.split(',');
+  final int index = keys.indexOf(localId);
   return index >= 0 ? index + 1 : 0;
+});
+
+/// Whether the chat has any pending or transferring upload tasks.
+/// Returns a primitive bool so consumers (like Composer) don't rebuild on progress updates!
+final hasActiveChatUploadsProvider = Provider.family<bool, int>((ref, chatId) {
+  return ref.watch(uploadQueueProvider.select((queue) {
+    return queue.values.any((UploadTask t) => t.chatId == chatId && !_isTerminal(t));
+  }));
 });
 
 /// Tasks of one chat that are still pending or transferring.

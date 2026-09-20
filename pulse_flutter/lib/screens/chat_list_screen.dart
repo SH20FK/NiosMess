@@ -349,7 +349,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             addRepaintBoundaries: false,
             findChildIndexCallback: (Key key) {
               if (key is! ValueKey<int>) return null;
-              return idToIndex[key.value];
+              final int id = key.value;
+              return idToIndex[id];
             },
             childCount: searched.length,
           ),

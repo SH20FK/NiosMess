@@ -331,6 +331,7 @@ class _OrganicBlobsPainter extends CustomPainter {
   final double devicePixelRatio;
 
   static final Map<_BlobsCacheKey, ui.Image> _cache = <_BlobsCacheKey, ui.Image>{};
+  static final Set<_BlobsCacheKey> _pendingRenders = <_BlobsCacheKey>{};
   static const int _maxCacheSize = 4;
   static ui.Image? _cachedImage(_BlobsCacheKey key) => _cache[key];
 
@@ -370,28 +371,37 @@ class _OrganicBlobsPainter extends CustomPainter {
       return;
     }
 
-    final recorder = ui.PictureRecorder();
-    final recordingCanvas =
-        Canvas(recorder, Rect.fromLTWH(0, 0, pixelWidth.toDouble(), pixelHeight.toDouble()));
-    recordingCanvas.scale(pixelWidth / size.width, pixelHeight / size.height);
-    _paintBlobs(recordingCanvas, size);
-    final picture = recorder.endRecording();
-    final ui.Image newImage = picture.toImageSync(pixelWidth, pixelHeight);
-    picture.dispose();
+    // Direct canvas paint for first frame without blocking UI with synchronous toImageSync!
+    _paintBlobs(canvas, size);
 
-    if (_cache.length >= _maxCacheSize) {
-      final oldestKey = _cache.keys.first;
-      final oldImage = _cache.remove(oldestKey);
-      oldImage?.dispose();
+    // Schedule async rasterization to ui.Image for subsequent frames
+    if (!_pendingRenders.contains(key)) {
+      _pendingRenders.add(key);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          final recorder = ui.PictureRecorder();
+          final recordingCanvas = Canvas(
+            recorder,
+            Rect.fromLTWH(0, 0, pixelWidth.toDouble(), pixelHeight.toDouble()),
+          );
+          recordingCanvas.scale(pixelWidth / size.width, pixelHeight / size.height);
+          _paintBlobs(recordingCanvas, size);
+          final picture = recorder.endRecording();
+          final ui.Image newImage = await picture.toImage(pixelWidth, pixelHeight);
+          picture.dispose();
+
+          if (_cache.length >= _maxCacheSize) {
+            final oldestKey = _cache.keys.first;
+            final oldImage = _cache.remove(oldestKey);
+            oldImage?.dispose();
+          }
+          _cache[key] = newImage;
+        } catch (_) {
+        } finally {
+          _pendingRenders.remove(key);
+        }
+      });
     }
-    _cache[key] = newImage;
-
-    canvas.drawImageRect(
-      newImage,
-      Rect.fromLTWH(0, 0, newImage.width.toDouble(), newImage.height.toDouble()),
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint(),
-    );
   }
 
   void _paintBlobs(Canvas canvas, Size size) {

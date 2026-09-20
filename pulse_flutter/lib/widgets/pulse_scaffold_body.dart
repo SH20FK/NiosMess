@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -68,96 +67,6 @@ class PulseScaffoldBody extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-class _BackdropCacheKey {
-  const _BackdropCacheKey({
-    required this.width,
-    required this.height,
-    required this.primaryColor,
-    required this.brightness,
-    required this.devicePixelRatio,
-    required this.isWeakDevice,
-  });
-
-  final int width;
-  final int height;
-  final int primaryColor;
-  final Brightness brightness;
-  final double devicePixelRatio;
-  final bool isWeakDevice;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is _BackdropCacheKey &&
-          width == other.width &&
-          height == other.height &&
-          primaryColor == other.primaryColor &&
-          brightness == other.brightness &&
-          devicePixelRatio == other.devicePixelRatio &&
-          isWeakDevice == other.isWeakDevice;
-
-  @override
-  int get hashCode => Object.hash(
-        width,
-        height,
-        primaryColor,
-        brightness,
-        devicePixelRatio,
-        isWeakDevice,
-      );
-}
-
-class _BackdropImageCache {
-  static _BackdropCacheKey? _cachedKey;
-  static ui.Image? _cachedImage;
-
-  static ui.Image? getSync(_BackdropCacheKey key) {
-    if (_cachedKey == key && _cachedImage != null) {
-      return _cachedImage;
-    }
-    return null;
-  }
-
-  static ui.Image renderSync({
-    required int width,
-    required int height,
-    required double devicePixelRatio,
-    required bool isWeakDevice,
-    required ColorScheme scheme,
-    required Brightness brightness,
-  }) {
-    final ui.PictureRecorder recorder = ui.PictureRecorder();
-    final Canvas canvas = Canvas(recorder);
-    final Size size = Size(width.toDouble(), height.toDouble());
-
-    final _BackdropPainter painter = _BackdropPainter(
-      t: 0.5,
-      scheme: scheme,
-      brightness: brightness,
-      isWeakDevice: isWeakDevice,
-    );
-    painter.paint(canvas, size);
-
-    final ui.Picture picture = recorder.endRecording();
-    final ui.Image image = picture.toImageSync(width, height);
-    picture.dispose();
-
-    if (_cachedImage != null && _cachedImage != image) {
-      _cachedImage!.dispose();
-    }
-    _cachedKey = _BackdropCacheKey(
-      width: width,
-      height: height,
-      primaryColor: scheme.primary.toARGB32(),
-      brightness: brightness,
-      devicePixelRatio: devicePixelRatio,
-      isWeakDevice: isWeakDevice,
-    );
-    _cachedImage = image;
-    return image;
   }
 }
 
@@ -250,41 +159,20 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
             return const SizedBox.shrink();
           }
 
-          final double rawDpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0;
-          final double dpr = rawDpr.clamp(1.0, 2.0);
-          final int rawW = (constraints.maxWidth * (isWeak ? 1.0 : dpr)).ceil();
-          final int rawH = (constraints.maxHeight * (isWeak ? 1.0 : dpr)).ceil();
-          final int width = math.max(64, ((rawW + 15) ~/ 16) * 16);
-          final int height = math.max(64, ((rawH + 15) ~/ 16) * 16);
-
-          final _BackdropCacheKey key = _BackdropCacheKey(
-            width: width,
-            height: height,
-            primaryColor: scheme.primary.toARGB32(),
-            brightness: brightness,
-            devicePixelRatio: isWeak ? 1.0 : dpr,
-            isWeakDevice: isWeak,
-          );
-
-          ui.Image? image = _BackdropImageCache.getSync(key);
-          image ??= _BackdropImageCache.renderSync(
-            width: width,
-            height: height,
-            devicePixelRatio: isWeak ? 1.0 : dpr,
-            isWeakDevice: isWeak,
-            scheme: scheme,
-            brightness: brightness,
-          );
-
-          final Widget staticImage = RawImage(
-            image: image,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
+          final Widget staticBackdrop = RepaintBoundary(
+            child: CustomPaint(
+              size: Size(constraints.maxWidth, constraints.maxHeight),
+              painter: _BackdropPainter(
+                t: 0.5,
+                scheme: scheme,
+                brightness: brightness,
+                isWeakDevice: isWeak,
+              ),
+            ),
           );
 
           if (!shouldAnimate) {
-            return staticImage;
+            return staticBackdrop;
           }
 
           return AnimatedBuilder(
@@ -299,7 +187,7 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
                 child: child,
               );
             },
-            child: staticImage,
+            child: staticBackdrop,
           );
         },
       ),

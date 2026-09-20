@@ -86,7 +86,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     with WidgetsBindingObserver {
   final TextEditingController _inputController = TextEditingController();
   late final ChatScrollCoordinator _scrollCoordinator;
-  ScrollController get _scrollController => _scrollCoordinator.scrollController;
   late final FocusNode _inputFocusNode;
 
   // Cache providers that may be needed in dispose()
@@ -117,32 +116,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   int? get _chatId => int.tryParse(widget.chatId);
 
-  String _chatSubtitle(
-    ApiChatSummary? chat,
-    bool isChannel,
-    bool isGroup, {
-    String? directUsername,
-  }) {
-    if (chat == null) return '';
-    final String description = chat.description.trim();
-    final String memberCount = context.l10n.chatMemberCount(chat.membersCount);
-    if (isChannel) {
-      return description.isEmpty ? memberCount : '$memberCount • $description';
-    }
-    if (isGroup) {
-      return description.isEmpty ? memberCount : '$memberCount • $description';
-    }
-    if (chat.chatType == 'direct') {
-      final String username = (directUsername ?? chat.username ?? '').trim();
-      if (username.isEmpty) {
-        return description;
-      }
-      if (description.isEmpty) return '@$username';
-      return '@$username • $description';
-    }
-    return memberCount;
-  }
-
   void _goBack() {
     if (widget.isDesktopSplit) {
       ref.read(desktopSelectedChatProvider.notifier).setSelectedChat(null);
@@ -163,64 +136,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     } catch (_) {
       Navigator.maybePop(context);
     }
-  }
-
-  String? _resolveDirectUsername(
-    ApiChatSummary? chat,
-    List<ApiMessage> messages,
-    List<ApiChatMember> members,
-    int myUserId,
-  ) {
-    if (chat?.chatType == 'group' || chat?.chatType == 'channel') return null;
-    final String chatUsername = (chat?.username ?? '').trim();
-    if (chatUsername.isNotEmpty) return chatUsername;
-
-    for (final ApiChatMember member in members) {
-      if (member.userId != myUserId && member.username.trim().isNotEmpty) {
-        return member.username.trim();
-      }
-    }
-
-    for (final ApiMessage message in messages.reversed) {
-      if (message.senderId != myUserId &&
-          message.senderUsername.trim().isNotEmpty) {
-        return message.senderUsername.trim();
-      }
-    }
-
-    return null;
-  }
-
-  IconData _chatHeaderIcon(bool isChannel, bool isGroup) {
-    if (isChannel) return Icons.campaign_rounded;
-    if (isGroup) return Icons.groups_rounded;
-    return Icons.person_rounded;
-  }
-
-  String _resolveDirectDisplayName(
-    ApiChatSummary? chat,
-    List<ApiMessage> messages,
-    List<ApiChatMember> members,
-    int myUserId,
-    int chatId,
-  ) {
-    final String chatName = (chat?.name ?? '').trim();
-    if (chatName.isNotEmpty) return chatName;
-
-    for (final ApiChatMember member in members) {
-      if (member.userId != myUserId && member.displayName.trim().isNotEmpty) {
-        return member.displayName.trim();
-      }
-    }
-
-    for (final ApiMessage message in messages.reversed) {
-      if (message.senderId != myUserId &&
-          message.senderDisplayName.trim().isNotEmpty) {
-        return message.senderDisplayName.trim();
-      }
-    }
-
-    return context.l10n.chatTitleFallback(chatId);
   }
 
   String _dateSeparatorLabel(DateTime resolvedDate, DateTime now) {
@@ -1878,80 +1793,51 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       );
     }
 
-    final int myUserId = ref.watch(
-      authProvider.select((a) => a.session?.userId ?? -1),
-    );
-    final chat = ref.watch(chatByIdProvider(chatId));
-    ref.listen<ApiChatSummary?>(chatByIdProvider(chatId), (prev, next) {
-      final bool wasSecret = prev?.isSecret == true;
-      final bool isSecret = next?.isSecret == true;
-      if (isSecret != wasSecret) {
-        _isSecret = isSecret;
-        ScreenSecurityService.setSecureFlag(enabled: isSecret);
-        if (isSecret) {
-          _startSecretPollTimer();
-        } else {
-          _secretPollTimer?.cancel();
+    // React only to secret chat flag changes for security overlay / polling
+    ref.listen<bool>(
+      chatByIdProvider(chatId).select((c) => c?.isSecret == true),
+      (previous, isSecret) {
+        if (isSecret != _isSecret) {
+          _isSecret = isSecret;
+          ScreenSecurityService.setSecureFlag(enabled: isSecret);
+          if (isSecret) {
+            _startSecretPollTimer();
+          } else {
+            _secretPollTimer?.cancel();
+          }
         }
-      }
-    });
-    if (chat?.isSecret == true && !_isSecret) {
+      },
+    );
+
+    final (String? chatType, String chatName, bool isSecretChat) = ref.watch(
+      chatByIdProvider(chatId).select((c) => (
+        c?.chatType,
+        c?.name ?? '',
+        c?.isSecret == true,
+      )),
+    );
+
+    final bool isSecret = isSecretChat || _isSecret;
+    if (isSecret && !_isSecret) {
       _isSecret = true;
       ScreenSecurityService.setSecureFlag(enabled: true);
       _startSecretPollTimer();
     }
-    final bool isChannel = chat?.chatType == 'channel';
-    final bool isGroup = chat?.chatType == 'group';
-
-    final String myRole = ref.watch(myChatRoleProvider(chatId));
-    final bool amAdminOrOwner = myRole == 'admin' || myRole == 'owner';
-    final bool canPostInChannel = !isChannel || amAdminOrOwner;
-    final AsyncValue<List<ApiMessage>> messagesAsync = ref.watch(
-      chatMessagesProvider(chatId),
-    );
-    ref.listen<AsyncValue<List<ApiMessage>>>(chatMessagesProvider(chatId), (previous, next) {
-      final List<ApiMessage>? prevList = previous?.value;
-      final List<ApiMessage>? nextList = next.value;
-      if (prevList != null && nextList != null && nextList.length > prevList.length) {
-        _scrollCoordinator.onIncomingMessages(nextList.length - prevList.length);
-      }
-    });
-    final List<ApiMessage> currentMessages =
-        messagesAsync.value ?? const <ApiMessage>[];
-    final List<ApiChatMember> members =
-        ref.watch(chatMembersProvider(chatId)).value ?? const <ApiChatMember>[];
 
     final ColorScheme baseScheme = Theme.of(context).colorScheme;
-    final wallpaperState = ref.watch(chatWallpaperProvider);
-    final chatWallpaper = wallpaperState.forChat(chatId.toString());
-    final bool hasCustomWallpaper = chatWallpaper != wallpaperState.global ||
-        chatWallpaper.imagePath != null;
+    final bool hasCustomWallpaper = ref.watch(chatWallpaperProvider.select((s) {
+      final cw = s.forChat(chatId.toString());
+      return cw != s.global || cw.imagePath != null;
+    }));
 
-    final bool isDirect = chat?.chatType == 'direct' && !isGroup && !isChannel;
+    final bool isDirect = chatType == 'direct';
     final ColorScheme scheme = (isDirect && NiosChroma.shouldApply(hasCustomWallpaper: hasCustomWallpaper))
         ? NiosChroma.resolveChromaScheme(
             userScheme: baseScheme,
-            partnerId: chat?.name.isNotEmpty == true ? chat!.name : chatId.toString(),
+            partnerId: chatName.isNotEmpty ? chatName : chatId.toString(),
             chatId: chatId,
           )
         : baseScheme;
-    final String? directUsername = _resolveDirectUsername(
-      chat,
-      currentMessages,
-      members,
-      myUserId,
-    );
-    final String title = chat?.chatType == 'direct'
-        ? _resolveDirectDisplayName(
-            chat,
-            currentMessages,
-            members,
-            myUserId,
-            chatId,
-          )
-        : ((chat?.name ?? '').trim().isNotEmpty
-              ? chat!.name.trim()
-              : context.l10n.chatTitleFallback(chatId));
 
     final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
     final Widget content = CallbackShortcuts(
@@ -1992,87 +1878,36 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           _goBack();
         },
         child: Scaffold(
-        appBar: ChatDetailAppBar(
-          chatId: chatId,
-          isDesktopSplit: widget.isDesktopSplit,
-          title: title,
-          avatarUrl: chat?.avatarUrl,
-          headerIcon: _chatHeaderIcon(isChannel, isGroup),
-          statusEmoji: chat?.partnerStatusEmoji,
-          isGroup: isGroup,
-          isChannel: isChannel,
-          isSecret: chat?.isSecret == true || _isSecret,
-          directUsername: directUsername,
-          autoDeleteDuration: chat?.formattedAutoDeleteDuration,
-          isVerified: chat?.isVerified == true ||
-              chat?.username?.toLowerCase() == 'support' ||
-              directUsername?.toLowerCase() == 'support',
-          isBot: chat?.chatType == 'bot' ||
-              BotDetector.isBot(chat?.username) ||
-              BotDetector.isBot(directUsername),
-          isOnline: chat?.chatType == 'direct' && chat?.isOnline == true,
-          onBack: () {
-            if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
-            _goBack();
-          },
-          onVoiceCall: _startVoiceCall,
-          onVideoCall: _startVideoCall,
-          onSecurityTap: _showE2eeVerification,
-          typingSubtitle: _TypingSubtitle(
+          appBar: _ChatHeaderScope(
             chatId: chatId,
-            isOnline: chat?.isOnline == true,
-            isDirect: chat?.chatType == 'direct' && !isGroup && !isChannel,
-            fallback: _chatSubtitle(
-              chat,
-              isChannel,
-              isGroup,
-              directUsername: directUsername,
-            ),
+            isDesktopSplit: widget.isDesktopSplit,
+            isSecret: isSecret,
+            onBack: () {
+              if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+              _goBack();
+            },
+            onVoiceCall: _startVoiceCall,
+            onVideoCall: _startVideoCall,
+            onSecurityTap: _showE2eeVerification,
           ),
-        ),
-      body: DesktopDragDropArea(
-        onFilesDropped: _uploadDesktopFiles,
-        child: ChatViewport(
-          wallpaper: ChatWallpaperBackground(
-            chatId: widget.chatId.toString(),
-          ),
-          topBanner: ChatTopBannerLayer(
-            chatId: chatId,
-            isSecret: chat?.isSecret == true || _isSecret,
-            loadingOlderNotifier: _loadingOlderNotifier,
-            onE2eeTap: _showE2eeVerification,
-          ),
-          messagesBuilder: (BuildContext context, double composerHeight) {
-            return messagesAsync.when(
-              data: (List<ApiMessage> messages) {
-                if (messages.isEmpty) {
-                  final bool isSecretChat = chat?.isSecret == true || _isSecret;
-                  if (isSecretChat) {
-                    return ChatEmptyState.secret(
-                      title: context.l10n.secretChatTitle,
-                      description: context.l10n.secretChatDesc,
-                      actionLabel: context.l10n.chatSendFirst,
-                      onAction: () => _inputFocusNode.requestFocus(),
-                    );
-                  }
-
-                  return ChatEmptyState.empty(
-                    title: context.l10n.chatNoMessages,
-                    description: context.l10n.chatSendFirst,
-                    actionLabel: context.l10n.chatSendFirst,
-                    onAction: () => _inputFocusNode.requestFocus(),
-                  );
-                }
-
-                return ChatMessageList(
-                  messages: messages,
-                  scrollController: _scrollController,
-                  authUserId: myUserId,
-                  amAdminOrOwner: amAdminOrOwner,
-                  isChannel: isChannel,
-                  isGroup: isGroup,
-                  bottomPadding: composerHeight + 8.0,
-                  topPadding: 48.0,
+          body: DesktopDragDropArea(
+            onFilesDropped: _uploadDesktopFiles,
+            child: ChatViewport(
+              wallpaper: ChatWallpaperBackground(
+                chatId: widget.chatId.toString(),
+              ),
+              topBanner: ChatTopBannerLayer(
+                chatId: chatId,
+                isSecret: isSecret,
+                loadingOlderNotifier: _loadingOlderNotifier,
+                onE2eeTap: _showE2eeVerification,
+              ),
+              messagesBuilder: (BuildContext context, double composerHeight) {
+                return _ChatMessagesScope(
+                  chatId: chatId,
+                  scrollCoordinator: _scrollCoordinator,
+                  inputFocusNode: _inputFocusNode,
+                  composerHeight: composerHeight,
                   onOpenComments: (ApiMessage msg) {
                     context.push('/channel/$chatId/post/${msg.id}/comments');
                   },
@@ -2082,11 +1917,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   onLongPressMedia: _handleLongPressMediaFor,
                   onLongPress: _handleLongPressFor,
                   onSwipeToReply: _setReply,
-                  onCallbackQuery: (ApiMessage message, String data) {
-                    final int? cid = _chatId;
-                    if (cid == null) return;
-                    ref.read(chatMessagesProvider(cid).notifier).sendCallbackQuery(message.id, data);
-                  },
                   onRetrySend: _retrySend,
                   displayTextBuilder: _displayText,
                   mediaUrlBuilder: _mediaUrlFor,
@@ -2094,128 +1924,473 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   mediaLabelBuilder: _mediaLabel,
                   replyPreviewBuilder: _replyPreviewFor,
                   dateSeparatorBuilder: _dateSeparator,
-                  animatedMessageBuilder: ({required int messageId, required bool animate, required bool isMine, required Widget child}) {
-                    return _AnimatedMessage(
-                      key: ValueKey<int>(messageId),
-                      animate: animate,
-                      isMine: isMine,
-                      child: child,
-                    );
-                  },
                 );
               },
-              loading: () => const MessageListSkeleton(),
-              error: (Object error, StackTrace trace) {
-                return ChatEmptyState.error(
-                  title: context.l10n.chatConnecting,
-                  description: context.l10n.chatReconnecting,
-                  actionLabel: context.l10n.refreshAction,
-                  onAction: () => ref.invalidate(
-                    chatMessagesProvider(chatId),
-                  ),
-                );
-              },
-            );
-          },
-          floatingActionButton: _scrollCoordinator.buildFab(chatId: chatId),
-          composer: Builder(
-            builder: (BuildContext ctx) {
-              final bool isDirectChat = chat?.chatType == 'direct';
-              final int? partnerId = chat?.partnerUserId ??
-                  (directUsername != null ? members.where((m) => m.userId != myUserId).firstOrNull?.userId : null);
-              final bool isBlockedByMe = isDirectChat && partnerId != null &&
-                  (ref.watch(privacyProvider).isUserBlocked(partnerId) || (chat?.isBlockedByMe ?? false));
-              final bool isBlockedByUser = isDirectChat && (chat?.isBlockedByUser ?? false);
-
-              return ValueListenableBuilder<ChatComposerState>(
-                valueListenable: _composerNotifier,
-                builder: (BuildContext context, ChatComposerState composerState, Widget? _) {
-                  return ChatDetailInputArea(
-                    chatId: chatId,
-                    isBlockedByMe: isBlockedByMe,
-                    isBlockedByUser: isBlockedByUser,
-                    onUnblockUser: partnerId != null
-                        ? () async {
-                            HapticService.confirm();
-                            final bool success = await ref
-                                .read(privacyProvider.notifier)
-                                .unblockUser(partnerId);
-                            if (!context.mounted) return;
-                            if (success) {
-                              AppToast.showSuccess(context, context.l10n.userUnblockedSuccess);
-                            }
-                          }
-                        : null,
-                    onCancelAi: _cancelAiProcessing,
-                    onSendSticker: _sendSticker,
-                    onSendInlineResult: (InlineQueryResult result) {
-                      _inputController.text = result.messageText;
-                      _sendMessage();
-                    },
-                    canPostInChannel: canPostInChannel,
-                    showDraftRestoredBanner: _showDraftRestoredBanner,
-                    onClearDraft: () {
-                      final int? cid = _chatId;
-                      if (cid != null) {
-                        _draftStorage.remove(cid);
-                      }
-                      _inputController.clear();
-                      setState(() {
-                        _showDraftRestoredBanner = false;
-                      });
-                    },
-                    uploadingMedia:
-                        ref.watch(activeChatUploadsProvider(chatId)).isNotEmpty,
-                    inputController: _inputController,
-                    inputFocusNode: _inputFocusNode,
-                    isAiProcessing: composerState.isAiProcessing,
-                    editingMessageId: composerState.editingMessageId,
-                    editingOriginalText: composerState.editingOriginalText,
-                    replyToMessageId: composerState.replyToMessageId,
-                    replyPreviewText: composerState.replyPreviewText,
-                    onSend: _sendMessage,
-                    onCommitEdit: _commitEdit,
-                    onCancelEdit: _cancelEdit,
-                    onClearReply: _clearReply,
-                    onAttachMedia: _pickAndUploadMedia,
-                    onAiPressed: () => _showAiBottomSheet(context, scheme),
-                    onVoiceSend: _sendVoiceMessage,
-                    onCircleSend: _sendCircleVideo,
-                    hapticsEnabled:
-                        ref.watch(uiSettingsProvider.select((s) => s.haptics)),
-                    sendOnEnter:
-                        ref.watch(uiSettingsProvider.select((s) => s.sendOnEnter)),
-                    isSpamBlocked: ref.watch(authProvider
-                        .select((a) => a.profile?.isRestrictedBySpamBlock ?? false)),
-                    spamBlockUntil: ref.watch(
-                        authProvider.select((a) => a.profile?.spamBlockUntil)),
-                    spamBlockReason: ref.watch(
-                        authProvider.select((a) => a.profile?.spamBlockReason)),
-                    onContactSupport: () => context.push('/chat/support'),
-                    onEditLastMessage: _editLastMessage,
-                    onAttachFiles: _uploadDesktopFiles,
-                  );
+              floatingActionButton: _scrollCoordinator.buildFab(chatId: chatId),
+              composer: _ChatComposerScope(
+                chatId: chatId,
+                composerNotifier: _composerNotifier,
+                inputController: _inputController,
+                inputFocusNode: _inputFocusNode,
+                showDraftRestoredBanner: _showDraftRestoredBanner,
+                onClearDraft: () {
+                  final int? cid = _chatId;
+                  if (cid != null) {
+                    _draftStorage.remove(cid);
+                  }
+                  _inputController.clear();
+                  setState(() {
+                    _showDraftRestoredBanner = false;
+                  });
                 },
-              );
-            },
+                onSend: _sendMessage,
+                onCommitEdit: _commitEdit,
+                onCancelEdit: _cancelEdit,
+                onClearReply: _clearReply,
+                onAttachMedia: _pickAndUploadMedia,
+                onAiPressed: (ctx, sc) => _showAiBottomSheet(ctx, sc),
+                onVoiceSend: (p) => unawaited(_sendVoiceMessage(p)),
+                onCircleSend: (p) => unawaited(_sendCircleVideo(p)),
+                onCancelAi: _cancelAiProcessing,
+                onSendSticker: (s) => unawaited(_sendSticker(s)),
+                onEditLastMessage: _editLastMessage,
+                onAttachFiles: _uploadDesktopFiles,
+                scheme: scheme,
+              ),
+            ),
           ),
+          backgroundColor: scheme.surface,
         ),
       ),
-    backgroundColor: scheme.surface,
-    ),
-  ),
-);
+    );
 
-  if (scheme == baseScheme) {
-    return content;
-  }
+    if (scheme == baseScheme) {
+      return content;
+    }
 
-  return Theme(
-    data: Theme.of(context).copyWith(colorScheme: scheme),
-    child: content,
-  );
+    return Theme(
+      data: Theme.of(context).copyWith(colorScheme: scheme),
+      child: content,
+    );
   }
 }
+
+// ── Isolated Header Scope ──────────────────────────────────────────────────
+class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
+  const _ChatHeaderScope({
+    required this.chatId,
+    required this.isDesktopSplit,
+    required this.isSecret,
+    required this.onBack,
+    required this.onVoiceCall,
+    required this.onVideoCall,
+    required this.onSecurityTap,
+  });
+
+  final int chatId;
+  final bool isDesktopSplit;
+  final bool isSecret;
+  final VoidCallback onBack;
+  final VoidCallback? onVoiceCall;
+  final VoidCallback? onVideoCall;
+  final VoidCallback? onSecurityTap;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  static IconData chatHeaderIcon(bool isChannel, bool isGroup) {
+    if (isChannel) return Icons.campaign_rounded;
+    if (isGroup) return Icons.groups_rounded;
+    return Icons.person_rounded;
+  }
+
+  static String chatSubtitle(
+    BuildContext context,
+    ApiChatSummary? chat,
+    bool isChannel,
+    bool isGroup, {
+    String? directUsername,
+  }) {
+    if (chat == null) return '';
+    final String description = chat.description.trim();
+    final String memberCount = context.l10n.chatMemberCount(chat.membersCount);
+    if (isChannel) {
+      return description.isEmpty ? memberCount : '$memberCount • $description';
+    }
+    if (isGroup) {
+      return description.isEmpty ? memberCount : '$memberCount • $description';
+    }
+    if (chat.chatType == 'direct') {
+      final String username = (directUsername ?? chat.username ?? '').trim();
+      if (username.isEmpty) {
+        return description;
+      }
+      if (description.isEmpty) return '@$username';
+      return '@$username • $description';
+    }
+    return memberCount;
+  }
+
+  static String? resolveDirectUsername(
+    ApiChatSummary? chat,
+    List<ApiChatMember> members,
+    int myUserId,
+  ) {
+    if (chat?.chatType == 'group' || chat?.chatType == 'channel') return null;
+    final String chatUsername = (chat?.username ?? '').trim();
+    if (chatUsername.isNotEmpty) return chatUsername;
+
+    for (final ApiChatMember member in members) {
+      if (member.userId != myUserId && member.username.trim().isNotEmpty) {
+        return member.username.trim();
+      }
+    }
+    return null;
+  }
+
+  static String resolveDirectDisplayName(
+    BuildContext context,
+    ApiChatSummary? chat,
+    List<ApiChatMember> members,
+    int myUserId,
+    int chatId,
+  ) {
+    final String chatName = (chat?.name ?? '').trim();
+    if (chatName.isNotEmpty) return chatName;
+
+    for (final ApiChatMember member in members) {
+      if (member.userId != myUserId && member.displayName.trim().isNotEmpty) {
+        return member.displayName.trim();
+      }
+    }
+    return context.l10n.chatTitleFallback(chatId);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chat = ref.watch(chatByIdProvider(chatId));
+    final List<ApiChatMember> members =
+        ref.watch(chatMembersProvider(chatId)).value ?? const <ApiChatMember>[];
+    final int myUserId = ref.watch(
+      authProvider.select((a) => a.session?.userId ?? -1),
+    );
+
+    final bool isChannel = chat?.chatType == 'channel';
+    final bool isGroup = chat?.chatType == 'group';
+    final String? directUsername = resolveDirectUsername(chat, members, myUserId);
+    final String title = chat?.chatType == 'direct'
+        ? resolveDirectDisplayName(context, chat, members, myUserId, chatId)
+        : ((chat?.name ?? '').trim().isNotEmpty
+            ? chat!.name.trim()
+            : context.l10n.chatTitleFallback(chatId));
+
+    return ChatDetailAppBar(
+      chatId: chatId,
+      isDesktopSplit: isDesktopSplit,
+      title: title,
+      avatarUrl: chat?.avatarUrl,
+      headerIcon: chatHeaderIcon(isChannel, isGroup),
+      statusEmoji: chat?.partnerStatusEmoji,
+      isGroup: isGroup,
+      isChannel: isChannel,
+      isSecret: chat?.isSecret == true || isSecret,
+      directUsername: directUsername,
+      autoDeleteDuration: chat?.formattedAutoDeleteDuration,
+      isVerified: chat?.isVerified == true ||
+          chat?.username?.toLowerCase() == 'support' ||
+          directUsername?.toLowerCase() == 'support',
+      isBot: chat?.chatType == 'bot' ||
+          BotDetector.isBot(chat?.username) ||
+          BotDetector.isBot(directUsername),
+      isOnline: chat?.chatType == 'direct' && chat?.isOnline == true,
+      onBack: onBack,
+      onVoiceCall: onVoiceCall,
+      onVideoCall: onVideoCall,
+      onSecurityTap: onSecurityTap,
+      typingSubtitle: _TypingSubtitle(
+        chatId: chatId,
+        isOnline: chat?.isOnline == true,
+        isDirect: chat?.chatType == 'direct' && !isGroup && !isChannel,
+        fallback: chatSubtitle(
+          context,
+          chat,
+          isChannel,
+          isGroup,
+          directUsername: directUsername,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Isolated Messages Scope ────────────────────────────────────────────────
+class _ChatMessagesScope extends ConsumerWidget {
+  const _ChatMessagesScope({
+    required this.chatId,
+    required this.scrollCoordinator,
+    required this.inputFocusNode,
+    required this.composerHeight,
+    required this.onOpenComments,
+    required this.onReactionTap,
+    required this.onOpenMedia,
+    required this.onLongPressMedia,
+    required this.onLongPress,
+    required this.onSwipeToReply,
+    required this.onRetrySend,
+    required this.displayTextBuilder,
+    required this.mediaUrlBuilder,
+    required this.isImageMediaBuilder,
+    required this.mediaLabelBuilder,
+    required this.replyPreviewBuilder,
+    required this.dateSeparatorBuilder,
+  });
+
+  final int chatId;
+  final ChatScrollCoordinator scrollCoordinator;
+  final FocusNode inputFocusNode;
+  final double composerHeight;
+  final void Function(ApiMessage) onOpenComments;
+  final void Function(ApiMessage, String) onReactionTap;
+  final void Function(ApiMessage) onOpenMedia;
+  final void Function(ApiMessage, bool isMine, bool amAdminOrOwner) onLongPressMedia;
+  final void Function(ApiMessage, bool isMine, bool isChannel, bool amAdminOrOwner) onLongPress;
+  final void Function(ApiMessage) onSwipeToReply;
+  final void Function(ApiMessage) onRetrySend;
+  final String Function(ApiMessage) displayTextBuilder;
+  final String? Function(ApiMessage) mediaUrlBuilder;
+  final bool Function(ApiMessage, String url) isImageMediaBuilder;
+  final String? Function(ApiMessage, String url) mediaLabelBuilder;
+  final String? Function(ApiMessage, Map<int, ApiMessage> byId) replyPreviewBuilder;
+  final Widget Function(DateTime date, DateTime now) dateSeparatorBuilder;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<AsyncValue<List<ApiMessage>>>(chatMessagesProvider(chatId), (previous, next) {
+      final List<ApiMessage>? prevList = previous?.value;
+      final List<ApiMessage>? nextList = next.value;
+      if (prevList != null && nextList != null && nextList.length > prevList.length) {
+        scrollCoordinator.onIncomingMessages(nextList.length - prevList.length);
+      }
+    });
+
+    final AsyncValue<List<ApiMessage>> messagesAsync = ref.watch(chatMessagesProvider(chatId));
+    final int myUserId = ref.watch(authProvider.select((a) => a.session?.userId ?? -1));
+    final (bool isChannel, bool isGroup, bool isSecret) = ref.watch(
+      chatByIdProvider(chatId).select((c) => (
+        c?.chatType == 'channel',
+        c?.chatType == 'group',
+        c?.isSecret == true,
+      )),
+    );
+    final String myRole = ref.watch(myChatRoleProvider(chatId));
+    final bool amAdminOrOwner = myRole == 'admin' || myRole == 'owner';
+
+    return messagesAsync.when(
+      data: (List<ApiMessage> messages) {
+        if (messages.isEmpty) {
+          if (isSecret) {
+            return ChatEmptyState.secret(
+              title: context.l10n.secretChatTitle,
+              description: context.l10n.secretChatDesc,
+              actionLabel: context.l10n.chatSendFirst,
+              onAction: () => inputFocusNode.requestFocus(),
+            );
+          }
+
+          return ChatEmptyState.empty(
+            title: context.l10n.chatNoMessages,
+            description: context.l10n.chatSendFirst,
+            actionLabel: context.l10n.chatSendFirst,
+            onAction: () => inputFocusNode.requestFocus(),
+          );
+        }
+
+        return ChatMessageList(
+          messages: messages,
+          scrollController: scrollCoordinator.scrollController,
+          authUserId: myUserId,
+          amAdminOrOwner: amAdminOrOwner,
+          isChannel: isChannel,
+          isGroup: isGroup,
+          bottomPadding: composerHeight + 8.0,
+          topPadding: 48.0,
+          onOpenComments: onOpenComments,
+          onReactionTap: onReactionTap,
+          onOpenMedia: onOpenMedia,
+          onLongPressMedia: onLongPressMedia,
+          onLongPress: onLongPress,
+          onSwipeToReply: onSwipeToReply,
+          onCallbackQuery: (ApiMessage message, String data) {
+            ref.read(chatMessagesProvider(chatId).notifier).sendCallbackQuery(message.id, data);
+          },
+          onRetrySend: onRetrySend,
+          displayTextBuilder: displayTextBuilder,
+          mediaUrlBuilder: mediaUrlBuilder,
+          isImageMediaBuilder: isImageMediaBuilder,
+          mediaLabelBuilder: mediaLabelBuilder,
+          replyPreviewBuilder: replyPreviewBuilder,
+          dateSeparatorBuilder: dateSeparatorBuilder,
+          animatedMessageBuilder: ({
+            required int messageId,
+            required bool animate,
+            required bool isMine,
+            required Widget child,
+          }) {
+            return _AnimatedMessage(
+              key: ValueKey<int>(messageId),
+              animate: animate,
+              isMine: isMine,
+              child: child,
+            );
+          },
+        );
+      },
+      loading: () => const MessageListSkeleton(),
+      error: (Object error, StackTrace trace) {
+        return ChatEmptyState.error(
+          title: context.l10n.chatConnecting,
+          description: context.l10n.chatReconnecting,
+          actionLabel: context.l10n.refreshAction,
+          onAction: () => ref.invalidate(chatMessagesProvider(chatId)),
+        );
+      },
+    );
+  }
+}
+
+// ── Isolated Composer Scope ────────────────────────────────────────────────
+class _ChatComposerScope extends ConsumerWidget {
+  const _ChatComposerScope({
+    required this.chatId,
+    required this.composerNotifier,
+    required this.inputController,
+    required this.inputFocusNode,
+    required this.showDraftRestoredBanner,
+    required this.onClearDraft,
+    required this.onSend,
+    required this.onCommitEdit,
+    required this.onCancelEdit,
+    required this.onClearReply,
+    required this.onAttachMedia,
+    required this.onAiPressed,
+    required this.onVoiceSend,
+    required this.onCircleSend,
+    required this.onCancelAi,
+    required this.onSendSticker,
+    required this.onEditLastMessage,
+    required this.onAttachFiles,
+    required this.scheme,
+  });
+
+  final int chatId;
+  final ValueNotifier<ChatComposerState> composerNotifier;
+  final TextEditingController inputController;
+  final FocusNode inputFocusNode;
+  final bool showDraftRestoredBanner;
+  final VoidCallback onClearDraft;
+  final VoidCallback onSend;
+  final VoidCallback onCommitEdit;
+  final VoidCallback onCancelEdit;
+  final VoidCallback onClearReply;
+  final VoidCallback onAttachMedia;
+  final void Function(BuildContext, ColorScheme) onAiPressed;
+  final void Function(String) onVoiceSend;
+  final void Function(String)? onCircleSend;
+  final VoidCallback onCancelAi;
+  final void Function(ApiSticker) onSendSticker;
+  final VoidCallback onEditLastMessage;
+  final void Function(List<String>, {bool sendAsDocument})? onAttachFiles;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (bool isChannel, bool isDirect, int? partnerUserId, bool isBlockedByMeChat, bool isBlockedByUser) = ref.watch(
+      chatByIdProvider(chatId).select((c) => (
+        c?.chatType == 'channel',
+        c?.chatType == 'direct',
+        c?.partnerUserId,
+        c?.isBlockedByMe ?? false,
+        c?.isBlockedByUser ?? false,
+      )),
+    );
+
+    final String myRole = ref.watch(myChatRoleProvider(chatId));
+    final bool canPostInChannel = !isChannel || myRole == 'admin' || myRole == 'owner';
+
+    final int? partnerId = partnerUserId;
+    final bool isBlockedByMe = isDirect && partnerId != null &&
+        (ref.watch(privacyProvider).isUserBlocked(partnerId) || isBlockedByMeChat);
+
+    final bool hasActiveUploads = ref.watch(hasActiveChatUploadsProvider(chatId));
+    final bool hapticsEnabled = ref.watch(uiSettingsProvider.select((s) => s.haptics));
+    final bool sendOnEnter = ref.watch(uiSettingsProvider.select((s) => s.sendOnEnter));
+
+    final (bool isSpamBlocked, DateTime? spamBlockUntil, String? spamBlockReason) = ref.watch(
+      authProvider.select((a) => (
+        a.profile?.isRestrictedBySpamBlock ?? false,
+        a.profile?.spamBlockUntil,
+        a.profile?.spamBlockReason,
+      )),
+    );
+
+    return ValueListenableBuilder<ChatComposerState>(
+      valueListenable: composerNotifier,
+      builder: (BuildContext context, ChatComposerState composerState, Widget? _) {
+        return ChatDetailInputArea(
+          chatId: chatId,
+          isBlockedByMe: isBlockedByMe,
+          isBlockedByUser: isDirect && isBlockedByUser,
+          onUnblockUser: partnerId != null
+              ? () async {
+                  HapticService.confirm();
+                  final bool success = await ref
+                      .read(privacyProvider.notifier)
+                      .unblockUser(partnerId);
+                  if (!context.mounted) return;
+                  if (success) {
+                    AppToast.showSuccess(context, context.l10n.userUnblockedSuccess);
+                  }
+                }
+              : null,
+          onCancelAi: onCancelAi,
+          onSendSticker: onSendSticker,
+          onSendInlineResult: (InlineQueryResult result) {
+            inputController.text = result.messageText;
+            onSend();
+          },
+          canPostInChannel: canPostInChannel,
+          showDraftRestoredBanner: showDraftRestoredBanner,
+          onClearDraft: onClearDraft,
+          uploadingMedia: hasActiveUploads,
+          inputController: inputController,
+          inputFocusNode: inputFocusNode,
+          isAiProcessing: composerState.isAiProcessing,
+          editingMessageId: composerState.editingMessageId,
+          editingOriginalText: composerState.editingOriginalText,
+          replyToMessageId: composerState.replyToMessageId,
+          replyPreviewText: composerState.replyPreviewText,
+          onSend: onSend,
+          onCommitEdit: onCommitEdit,
+          onCancelEdit: onCancelEdit,
+          onClearReply: onClearReply,
+          onAttachMedia: onAttachMedia,
+          onAiPressed: () => onAiPressed(context, scheme),
+          onVoiceSend: onVoiceSend,
+          onCircleSend: onCircleSend,
+          hapticsEnabled: hapticsEnabled,
+          sendOnEnter: sendOnEnter,
+          isSpamBlocked: isSpamBlocked,
+          spamBlockUntil: spamBlockUntil,
+          spamBlockReason: spamBlockReason,
+          onContactSupport: () => context.push('/chat/support'),
+          onEditLastMessage: onEditLastMessage,
+          onAttachFiles: onAttachFiles,
+        );
+      },
+    );
+  }
+}
+
 
 // ── Animated message entrance widget ────────────────────────────────────────
 class _AnimatedMessage extends StatefulWidget {

@@ -1,4 +1,5 @@
 import 'dart:ui' show FrameTiming;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/performance/frame_timing_monitor.dart';
@@ -121,6 +122,8 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
   bool _observerRegistered = false;
   double _detectedRefreshRate = 60.0;
 
+  DateTime? _warmupUntil;
+
   FrameTimingMonitor get monitor => _monitor;
 
   @override
@@ -130,9 +133,14 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
     final double budget = FrameTimingMonitor.computeBudgetMs(_detectedRefreshRate);
     final double fps = FrameTimingMonitor.computeTargetFps(_detectedRefreshRate);
 
-    // Initial tier based on hardware capabilities
+    // Initial tier based on hardware capabilities with Windows warm-up
     PerformanceMode initialMode = PerformanceMode.balanced;
-    if (_detectedRefreshRate >= 110.0) {
+    final bool isWindowsDesktop =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+    if (isWindowsDesktop) {
+      initialMode = PerformanceMode.balanced;
+      _warmupUntil = DateTime.now().add(const Duration(seconds: 3));
+    } else if (_detectedRefreshRate >= 110.0) {
       initialMode = PerformanceMode.flagship;
     } else if (_detectedRefreshRate < 70.0) {
       initialMode = PerformanceMode.balanced;
@@ -289,9 +297,11 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
         isDegraded = false;
         _monitor.markUpgraded(currentTime: now);
       } else if (currentMode == PerformanceMode.balanced && _detectedRefreshRate >= 90.0) {
-        currentMode = PerformanceMode.flagship;
-        isDegraded = false;
-        _monitor.markUpgraded(currentTime: now);
+        if (_warmupUntil == null || !now.isBefore(_warmupUntil!)) {
+          currentMode = PerformanceMode.flagship;
+          isDegraded = false;
+          _monitor.markUpgraded(currentTime: now);
+        }
       }
     }
 

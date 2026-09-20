@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -38,7 +39,18 @@ class _WallpaperCacheKey {
 class WallpaperImageCache {
   const WallpaperImageCache._();
 
-  static const int _kMaxCacheEntries = 16;
+  static int maxMemoryBudgetBytes = kIsWeb
+      ? (32 * 1024 * 1024)
+      : (defaultTargetPlatform == TargetPlatform.windows ||
+              defaultTargetPlatform == TargetPlatform.macOS ||
+              defaultTargetPlatform == TargetPlatform.linux)
+          ? (64 * 1024 * 1024)
+          : (32 * 1024 * 1024);
+
+  static int _currentCacheBytes = 0;
+  static int get currentCacheBytes => _currentCacheBytes;
+  static int get entryCount => _lruCache.length;
+
   static final Map<_WallpaperCacheKey, ui.Image> _lruCache =
       <_WallpaperCacheKey, ui.Image>{};
   static final Map<_WallpaperCacheKey, Future<ui.Image>> _inFlightFutures =
@@ -194,16 +206,40 @@ class WallpaperImageCache {
   }
 
   static void _putCache(_WallpaperCacheKey key, ui.Image image) {
+    final int imageBytes = image.width * image.height * 4;
     final ui.Image? existing = _lruCache.remove(key);
     if (existing != null && existing != image) {
+      _currentCacheBytes -= existing.width * existing.height * 4;
       existing.dispose();
     }
-    while (_lruCache.length >= _kMaxCacheEntries) {
+
+    while ((_currentCacheBytes + imageBytes > maxMemoryBudgetBytes ||
+            _lruCache.length >= 3) &&
+        _lruCache.isNotEmpty) {
       final _WallpaperCacheKey oldestKey = _lruCache.keys.first;
       final ui.Image? evicted = _lruCache.remove(oldestKey);
-      evicted?.dispose();
+      if (evicted != null) {
+        _currentCacheBytes -= evicted.width * evicted.height * 4;
+        evicted.dispose();
+      }
     }
+
     _lruCache[key] = image;
+    _currentCacheBytes += imageBytes;
+  }
+
+  /// Evicts cached images belonging to previous wallpaper configurations.
+  static void evictExcept(ChatWallpaperConfig activeConfig) {
+    final List<_WallpaperCacheKey> keysToRemove = _lruCache.keys
+        .where((k) => k.config != activeConfig)
+        .toList();
+    for (final k in keysToRemove) {
+      final ui.Image? evicted = _lruCache.remove(k);
+      if (evicted != null) {
+        _currentCacheBytes -= evicted.width * evicted.height * 4;
+        evicted.dispose();
+      }
+    }
   }
 
   static Future<ui.Image> _doRender({
@@ -312,5 +348,6 @@ class WallpaperImageCache {
     }
     _lruCache.clear();
     _inFlightFutures.clear();
+    _currentCacheBytes = 0;
   }
 }

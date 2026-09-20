@@ -34,6 +34,8 @@ import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
+import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
+import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 
 final RegExp _interactiveTokenRegExp = RegExp(
   r"""((?:https?:\/\/|niosmess:\/\/|tg:\/\/)[^\s<>"'\)]+|\b(?:t\.me|telegram\.me|ni-os\.ru)\/[^\s<>"'\)]+|@([a-zA-Z0-9_]{3,32}))""",
@@ -1965,7 +1967,30 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
     super.didChangeDependencies();
     final bool isTickerActive = TickerMode.valuesOf(context).enabled;
     if (!isTickerActive && _videoController != null && _playing) {
+      AnimatedMediaControllerPool.instance.notifyPaused(widget.videoUrl);
       _videoController!.pause();
+    }
+  }
+
+  void _playWithPool() {
+    if (_videoController == null) return;
+    final bool allowed = AnimatedMediaControllerPool.instance.requestPlay(
+      id: widget.videoUrl,
+      tier: PerformanceTier.tierA,
+      isUserInitiated: true,
+      onPause: () {
+        if (mounted && _videoController != null && _playing) {
+          _videoController!.pause();
+        }
+      },
+      onResume: () {
+        if (mounted && _videoController != null && !_playing && TickerMode.valuesOf(context).enabled) {
+          _videoController!.play();
+        }
+      },
+    );
+    if (allowed) {
+      _videoController!.play();
     }
   }
 
@@ -2017,22 +2042,24 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
       await _initVideo();
       if (!mounted || _videoController == null) return;
       setState(() => _showThumbnail = false);
-      _videoController!.play();
+      _playWithPool();
       return;
     }
     if (!_initialized || _videoController == null) return;
     if (_showThumbnail) {
       setState(() => _showThumbnail = false);
-      _videoController!.play();
+      _playWithPool();
     } else if (_playing) {
+      AnimatedMediaControllerPool.instance.notifyPaused(widget.videoUrl);
       _videoController!.pause();
     } else {
-      _videoController!.play();
+      _playWithPool();
     }
   }
 
   @override
   void dispose() {
+    AnimatedMediaControllerPool.instance.notifyDisposed(widget.videoUrl);
     _videoController?.removeListener(_onVideoStateChange);
     _videoController?.pause();
     _videoController?.dispose();
@@ -2579,15 +2606,15 @@ class _UploadProgressOverlay extends StatelessWidget {
   }
 }
 
-class _StickerVideoPlayer extends StatefulWidget {
+class _StickerVideoPlayer extends ConsumerStatefulWidget {
   const _StickerVideoPlayer({required this.url});
   final String url;
 
   @override
-  State<_StickerVideoPlayer> createState() => _StickerVideoPlayerState();
+  ConsumerState<_StickerVideoPlayer> createState() => _StickerVideoPlayerState();
 }
 
-class _StickerVideoPlayerState extends State<_StickerVideoPlayer> {
+class _StickerVideoPlayerState extends ConsumerState<_StickerVideoPlayer> {
   VideoPlayerController? _controller;
   bool _isInit = false;
 
@@ -2602,8 +2629,31 @@ class _StickerVideoPlayerState extends State<_StickerVideoPlayer> {
     super.didChangeDependencies();
     final bool isTickerActive = TickerMode.valuesOf(context).enabled;
     if (!isTickerActive && _controller != null && _controller!.value.isPlaying) {
+      AnimatedMediaControllerPool.instance.notifyPaused(widget.url);
       _controller!.pause();
     } else if (isTickerActive && _controller != null && _isInit && !_controller!.value.isPlaying) {
+      _requestPlay();
+    }
+  }
+
+  void _requestPlay() {
+    if (_controller == null) return;
+    final PerformanceTier tier = ref.read(adaptivePerformanceProvider).tier;
+    final bool allowed = AnimatedMediaControllerPool.instance.requestPlay(
+      id: widget.url,
+      tier: tier,
+      onPause: () {
+        if (mounted && _controller != null && _controller!.value.isPlaying) {
+          _controller!.pause();
+        }
+      },
+      onResume: () {
+        if (mounted && _controller != null && !_controller!.value.isPlaying && TickerMode.valuesOf(context).enabled) {
+          _controller!.play();
+        }
+      },
+    );
+    if (allowed && mounted && TickerMode.valuesOf(context).enabled) {
       _controller!.play();
     }
   }
@@ -2616,7 +2666,7 @@ class _StickerVideoPlayerState extends State<_StickerVideoPlayer> {
       await _controller!.setLooping(true);
       await _controller!.setVolume(0.0);
       if (mounted && TickerMode.valuesOf(context).enabled) {
-        await _controller!.play();
+        _requestPlay();
       }
       if (mounted) setState(() => _isInit = true);
     } catch (_) {
@@ -2626,6 +2676,7 @@ class _StickerVideoPlayerState extends State<_StickerVideoPlayer> {
 
   @override
   void dispose() {
+    AnimatedMediaControllerPool.instance.notifyDisposed(widget.url);
     _controller?.pause();
     _controller?.dispose();
     super.dispose();

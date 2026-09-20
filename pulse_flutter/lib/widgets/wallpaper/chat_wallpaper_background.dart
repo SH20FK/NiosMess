@@ -29,6 +29,9 @@ class _ChatWallpaperBackgroundState extends ConsumerState<ChatWallpaperBackgroun
   int? _lastHeight;
   bool _isRendering = false;
 
+  static final Set<String> _invalidPhotoPaths = <String>{};
+  static final Set<String> _validatedPhotoPaths = <String>{};
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -67,25 +70,38 @@ class _ChatWallpaperBackgroundState extends ConsumerState<ChatWallpaperBackgroun
     }
 
     Widget? photoLayer;
-    if (config.imagePath != null && config.imagePath!.isNotEmpty && !kIsWeb) {
-      final io.File file = io.File(config.imagePath!);
-      if (file.existsSync()) {
-        final Size screenSize = MediaQuery.sizeOf(context);
-        final double pixelRatio = MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0);
-        final int targetCacheWidth = (screenSize.width * pixelRatio).round().clamp(360, 1920);
-        final int targetCacheHeight = (screenSize.height * pixelRatio).round().clamp(640, 2160);
-        final bool isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+    final String? imagePath = config.imagePath;
+    if (imagePath != null && imagePath.isNotEmpty && !kIsWeb && !_invalidPhotoPaths.contains(imagePath)) {
+      final io.File file = io.File(imagePath);
+      if (!_validatedPhotoPaths.contains(imagePath)) {
+        file.exists().then((bool exists) {
+          if (!exists) {
+            _invalidPhotoPaths.add(imagePath);
+          } else {
+            _validatedPhotoPaths.add(imagePath);
+          }
+        });
+      }
 
-        Widget img = Image.file(
-          file,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          cacheWidth: targetCacheWidth,
-          cacheHeight: targetCacheHeight,
-          alignment: Alignment.center,
-          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-        );
+      final Size screenSize = MediaQuery.sizeOf(context);
+      final double pixelRatio = MediaQuery.devicePixelRatioOf(context).clamp(1.0, 2.0);
+      final int targetCacheWidth = (screenSize.width * pixelRatio).round().clamp(360, 1920);
+      final int targetCacheHeight = (screenSize.height * pixelRatio).round().clamp(640, 2160);
+      final bool isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
+      Widget img = Image.file(
+        file,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        cacheWidth: targetCacheWidth,
+        cacheHeight: targetCacheHeight,
+        alignment: Alignment.center,
+        errorBuilder: (context, error, stackTrace) {
+          _invalidPhotoPaths.add(imagePath);
+          return const SizedBox.shrink();
+        },
+      );
 
         // On Windows Desktop, live full-screen ImageFilter.blur stalls the compositor.
         // Replace live blur with an elegant contrast-preserving tonal scrim.
@@ -116,7 +132,6 @@ class _ChatWallpaperBackgroundState extends ConsumerState<ChatWallpaperBackgroun
         }
         photoLayer = RepaintBoundary(child: img);
       }
-    }
 
     return RepaintBoundary(
       child: Stack(

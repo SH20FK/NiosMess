@@ -239,6 +239,12 @@ class FrameTimingMonitor {
     if (values.isEmpty) return 0.0;
     if (values.length == 1) return values.first;
     final List<double> sorted = List<double>.from(values)..sort();
+    return _computeFromSorted(sorted, percentile);
+  }
+
+  static double _computeFromSorted(List<double> sorted, double percentile) {
+    if (sorted.isEmpty) return 0.0;
+    if (sorted.length == 1) return sorted.first;
     final double rank = percentile * (sorted.length - 1);
     final int lowerIndex = rank.floor();
     final int upperIndex = rank.ceil();
@@ -247,50 +253,102 @@ class FrameTimingMonitor {
     return sorted[lowerIndex] + (sorted[upperIndex] - sorted[lowerIndex]) * fraction;
   }
 
-  double get p50BuildMs => computePercentile(
-        currentMetrics.map((m) => m.buildDurationMs).toList(growable: false),
-        0.50,
-      );
+  DateTime? _lastPercentileCalcTime;
+  double _cachedP50Build = 0.0;
+  double _cachedP90Build = 0.0;
+  double _cachedP99Build = 0.0;
+  double _cachedP50Raster = 0.0;
+  double _cachedP90Raster = 0.0;
+  double _cachedP99Raster = 0.0;
+  double _cachedP50Total = 0.0;
+  double _cachedP90Total = 0.0;
+  double _cachedP99Total = 0.0;
 
-  double get p90BuildMs => computePercentile(
-        currentMetrics.map((m) => m.buildDurationMs).toList(growable: false),
-        0.90,
-      );
+  void _ensurePercentiles([DateTime? currentTime]) {
+    final DateTime now = currentTime ?? _nowProvider();
+    if (_lastPercentileCalcTime != null &&
+        now.difference(_lastPercentileCalcTime!) < const Duration(seconds: 1)) {
+      return;
+    }
+    _lastPercentileCalcTime = now;
+    final List<FrameMetric> metrics = currentMetrics;
+    if (metrics.isEmpty) {
+      _cachedP50Build = 0.0;
+      _cachedP90Build = 0.0;
+      _cachedP99Build = 0.0;
+      _cachedP50Raster = 0.0;
+      _cachedP90Raster = 0.0;
+      _cachedP99Raster = 0.0;
+      _cachedP50Total = 0.0;
+      _cachedP90Total = 0.0;
+      _cachedP99Total = 0.0;
+      return;
+    }
 
-  double get p99BuildMs => computePercentile(
-        currentMetrics.map((m) => m.buildDurationMs).toList(growable: false),
-        0.99,
-      );
+    final List<double> builds =
+        metrics.map((m) => m.buildDurationMs).toList(growable: false)..sort();
+    final List<double> rasters =
+        metrics.map((m) => m.rasterDurationMs).toList(growable: false)..sort();
+    final List<double> totals =
+        metrics.map((m) => m.totalSpanMs).toList(growable: false)..sort();
 
-  double get p50RasterMs => computePercentile(
-        currentMetrics.map((m) => m.rasterDurationMs).toList(growable: false),
-        0.50,
-      );
+    _cachedP50Build = _computeFromSorted(builds, 0.50);
+    _cachedP90Build = _computeFromSorted(builds, 0.90);
+    _cachedP99Build = _computeFromSorted(builds, 0.99);
 
-  double get p90RasterMs => computePercentile(
-        currentMetrics.map((m) => m.rasterDurationMs).toList(growable: false),
-        0.90,
-      );
+    _cachedP50Raster = _computeFromSorted(rasters, 0.50);
+    _cachedP90Raster = _computeFromSorted(rasters, 0.90);
+    _cachedP99Raster = _computeFromSorted(rasters, 0.99);
 
-  double get p99RasterMs => computePercentile(
-        currentMetrics.map((m) => m.rasterDurationMs).toList(growable: false),
-        0.99,
-      );
+    _cachedP50Total = _computeFromSorted(totals, 0.50);
+    _cachedP90Total = _computeFromSorted(totals, 0.90);
+    _cachedP99Total = _computeFromSorted(totals, 0.99);
+  }
 
-  double get p50TotalMs => computePercentile(
-        currentMetrics.map((m) => m.totalSpanMs).toList(growable: false),
-        0.50,
-      );
+  double get p50BuildMs {
+    _ensurePercentiles();
+    return _cachedP50Build;
+  }
 
-  double get p90TotalMs => computePercentile(
-        currentMetrics.map((m) => m.totalSpanMs).toList(growable: false),
-        0.90,
-      );
+  double get p90BuildMs {
+    _ensurePercentiles();
+    return _cachedP90Build;
+  }
 
-  double get p99TotalMs => computePercentile(
-        currentMetrics.map((m) => m.totalSpanMs).toList(growable: false),
-        0.99,
-      );
+  double get p99BuildMs {
+    _ensurePercentiles();
+    return _cachedP99Build;
+  }
+
+  double get p50RasterMs {
+    _ensurePercentiles();
+    return _cachedP50Raster;
+  }
+
+  double get p90RasterMs {
+    _ensurePercentiles();
+    return _cachedP90Raster;
+  }
+
+  double get p99RasterMs {
+    _ensurePercentiles();
+    return _cachedP99Raster;
+  }
+
+  double get p50TotalMs {
+    _ensurePercentiles();
+    return _cachedP50Total;
+  }
+
+  double get p90TotalMs {
+    _ensurePercentiles();
+    return _cachedP90Total;
+  }
+
+  double get p99TotalMs {
+    _ensurePercentiles();
+    return _cachedP99Total;
+  }
 
   /// Number of frames where UI thread build exceeded [budgetMs].
   int getUiJankFrames(double budgetMs) {
@@ -401,5 +459,6 @@ class FrameTimingMonitor {
     _consecutiveSevereJankFrames = 0;
     _downgradeCooldownUntil = null;
     _upgradeCooldownUntil = null;
+    _lastPercentileCalcTime = null;
   }
 }
