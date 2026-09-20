@@ -34,9 +34,7 @@ class DesktopWindowService with WindowListener, TrayListener {
       await windowManager.ensureInitialized();
 
       const WindowOptions windowOptions = WindowOptions(
-        size: Size(1100, 750),
         minimumSize: Size(680, 520),
-        center: true,
         skipTaskbar: false,
         titleBarStyle: TitleBarStyle.normal,
         title: 'NiosMess',

@@ -27,8 +27,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   int screen_width = GetSystemMetrics(SM_CXSCREEN);
   int screen_height = GetSystemMetrics(SM_CYSCREEN);
-  int window_width = 1280;
-  int window_height = 720;
+  int window_width = 1100;
+  int window_height = 750;
   Win32Window::Point origin((screen_width - window_width) / 2, (screen_height - window_height) / 2);
   Win32Window::Size size(window_width, window_height);
   if (!window.Create(L"NiosMess", origin, size)) {

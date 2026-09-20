@@ -141,7 +141,7 @@ jobs:
           if not changelog:
               changelog = '• Повышение стабильности и производительности\n• Исправление мелких ошибок'
 
-          with open('build/app/outputs/flutter-apk/version.json', 'w', encoding='utf-8') as f:
+          with open('version.json', 'w', encoding='utf-8') as f:
               json.dump({
                   'version': '$VERSION',
                   'tag_name': 'latest',
@@ -167,7 +167,7 @@ jobs:
         with:
           name: release-metadata
           path: |
-            pulse_flutter/build/app/outputs/flutter-apk/version.json
+            pulse_flutter/version.json
             pulse_flutter/changelog_release.txt
           retention-days: 7
 
@@ -286,5 +286,6 @@ jobs:
           body_path: dist/changelog_release.txt
           prerelease: ${{ contains(github.ref_name, '-') }}
           make_latest: ${{ !contains(github.ref_name, '-') }}
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
