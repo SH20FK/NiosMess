@@ -126,5 +126,53 @@ void main() {
       expect(find.byType(LegalViewerScreen), findsOneWidget);
       expect(find.text('Понятно, закрыть'), findsOneWidget);
     });
+
+    testWidgets('Renders Markdown legal text with subsections, definitions and email chips', (WidgetTester tester) async {
+      const String sampleMarkdown = '''
+# PRIVACY AND PERSONAL DATA PROCESSING POLICY
+
+**Effective Date: September 19, 2026**
+
+This is preamble text with **bold** highlights.
+
+## 1. Terms and Definitions
+
+**Operator** — the Administration of NiosMess.
+
+**User** — any registered individual.
+
+## 2. Personal Data
+
+### 2.1. Data you provide
+- email address
+- **display name**
+
+## 3. Security and E2EE Encryption
+All secret chats are end-to-end encrypted.
+> **Important Note:** We do not record calls.
+
+## 4. Contact
+For questions write to: niosmess@gmail.com
+''';
+
+      await tester.pumpWidget(_buildTestWidget(LegalDocType.privacy, initialContent: sampleMarkdown));
+      await tester.pumpAndSettle();
+
+      // Verify sections are parsed
+      expect(find.text('Terms and Definitions'), findsWidgets);
+      expect(find.text('Personal Data'), findsWidgets);
+      expect(find.text('Security and E2EE Encryption'), findsWidgets);
+      expect(find.text('Contact'), findsWidgets);
+
+      // Verify definition term
+      expect(find.text('Operator'), findsOneWidget);
+      expect(find.text('User'), findsOneWidget);
+
+      // Verify subsection header
+      expect(find.text('Data you provide'), findsOneWidget);
+
+      // Verify interactive email copy action chip
+      expect(find.text('Скопировать: niosmess@gmail.com'), findsOneWidget);
+    });
   });
 }
