@@ -135,7 +135,12 @@ Future<int> startOutgoingCall({
     gatewayInfo: gatewayInfo,
   );
   ref.read(callSessionProvider.notifier).setSession(manager);
-  unawaited(manager.start(peerDisplayName: peerName ?? chat?.name));
+  final Map<String, dynamic> startResponse =
+      payload is Map ? Map<String, dynamic>.from(payload) : result;
+  unawaited(manager.start(
+    startResponse: startResponse,
+    peerDisplayName: peerName ?? chat?.name,
+  ));
   return callId;
 }
 

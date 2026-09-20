@@ -49,6 +49,7 @@ Future<int?> navigateToDirectChat(
   // 2. Slow path: resolve asynchronously without full-screen interstitial
   try {
     String? publicKey;
+    String? targetPublicKey;
     if (isSecret) {
       final E2eeService e2ee = ref.read(e2eeServiceProvider);
       publicKey = await e2ee.getPublicKeyBase64();
@@ -57,6 +58,23 @@ Future<int?> navigateToDirectChat(
           await ref.read(authRepositoryProvider).setPublicKey(publicKey);
         } catch (_) {}
       }
+
+      // A secret chat is keyed to the recipient's *device*, so we need their
+      // published key, not ours.
+      if (userId == null || userId <= 0) {
+        debugPrint('[navigateToDirectChat] secret chat needs a target user id');
+        return null;
+      }
+      final ApiPublicKeyResult keys =
+          await ref.read(authRepositoryProvider).getPublicKey(userId);
+      targetPublicKey = keys.devices
+          .map((ApiKeyDevice d) => d.publicKey)
+          .where((String k) => k.isNotEmpty)
+          .firstOrNull;
+      if (targetPublicKey == null) {
+        debugPrint('[navigateToDirectChat] user $userId has no E2EE device key');
+        return null;
+      }
     }
 
     final DirectChatOpenResult? result = await ref.read(chatRepositoryProvider).openDirectChat(
@@ -64,6 +82,7 @@ Future<int?> navigateToDirectChat(
       userId: userId,
       isSecret: isSecret,
       publicKey: publicKey,
+      targetPublicKey: targetPublicKey,
     );
 
     if (result == null || result.chatId <= 0) {

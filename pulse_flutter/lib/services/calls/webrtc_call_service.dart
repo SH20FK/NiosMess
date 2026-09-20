@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -87,52 +86,38 @@ class WebrtcCallService {
 
   // ── Звонящий (Caller) ─────────────────────────────────────────────
 
-  /// Initiates an outgoing call to [chat].
+  /// Adopts the `start_call` the caller already issued and waits for the
+  /// callee to answer.
   ///
-  /// Sends `start_call` via main WS and enters [CallState.calling] waiting for `call_joined`.
-  Future<void> startCall(
-    int chat, {
-    bool video = false,
+  /// [startResponse] is the server's handler result (call_access_token,
+  /// signal_url, ice_servers, ...). Per spec the caller does NOT connect
+  /// media here: it stays in [CallState.calling] until the server broadcasts
+  /// `call_joined`.
+  Future<void> adoptStart(
+    Map<String, dynamic> startResponse, {
     String? peerDisplayName,
   }) async {
     if (state != CallState.idle) return;
-    roomId = _randomRoomId();
-    chatId = chat;
-    isVideo = video;
-    peerName = peerDisplayName;
-    state = CallState.calling;
-    isSpeakerOn = video;
-    isMuted = false;
-    onChanged?.call();
 
-    try {
-      final Map<String, dynamic> r = await sendWsAction('start_call', <String, dynamic>{
-        'chat_id': chat,
-        'room_id': roomId,
-        'is_video': video,
-      });
-
-      final dynamic error = r['error'];
-      if (error != null) {
-        throw Exception(error.toString());
-      }
-
-      final dynamic msgIdRaw = r['message_id'] ?? (r['payload'] is Map ? r['payload']['message_id'] : null);
-      if (msgIdRaw is num) {
-        messageId = msgIdRaw.toInt();
-      } else if (msgIdRaw is String) {
-        messageId = int.tryParse(msgIdRaw);
-      }
-
-      _pendingStartResponse = r;
-      // Per spec: The caller does NOT connect media immediately.
-      // Caller stays in "calling" until the callee accepts and the server broadcasts "call_joined".
-      onChanged?.call();
-    } catch (e) {
-      debugPrint('[WebrtcCallService] startCall failed: $e');
-      await reset();
-      rethrow;
+    final dynamic error = startResponse['error'];
+    if (error != null) {
+      throw Exception(error.toString());
     }
+
+    peerName = peerDisplayName ?? peerName;
+    state = CallState.calling;
+    isSpeakerOn = isVideo;
+    isMuted = false;
+
+    final dynamic msgIdRaw = startResponse['message_id'];
+    if (msgIdRaw is num) {
+      messageId = msgIdRaw.toInt();
+    } else if (msgIdRaw is String) {
+      messageId = int.tryParse(msgIdRaw) ?? messageId;
+    }
+
+    _pendingStartResponse = startResponse;
+    onChanged?.call();
   }
 
   /// Event from main WS: `call_joined`
@@ -542,7 +527,7 @@ class WebrtcCallService {
   void _startHeartbeat() {
     _heartbeat?.cancel();
     _heartbeat = Timer.periodic(const Duration(seconds: 25), (_) {
-      _sendSignal(<String, dynamic>{'type': 'ping'});
+      _sendSignal(<String, dynamic>{'type': 'heartbeat'});
     });
   }
 
@@ -552,9 +537,14 @@ class WebrtcCallService {
   Future<void> hangUp() async {
     if (chatId != null && roomId != null) {
       try {
+        // The server rejects end_call without message_id, and then never
+        // tells the other side the call is over.
         await sendWsAction('end_call', <String, dynamic>{
           'chat_id': chatId,
           'room_id': roomId,
+          'message_id': messageId,
+          'duration': durationSeconds,
+          'was_missed': state != CallState.connected,
         });
       } catch (e) {
         debugPrint('[WebrtcCallService] end_call WS action failed: $e');
@@ -672,10 +662,5 @@ class WebrtcCallService {
       } catch (_) {}
       localStream = null;
     }
-  }
-
-  static String _randomRoomId() {
-    final Random r = Random.secure();
-    return List<String>.generate(16, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
   }
 }

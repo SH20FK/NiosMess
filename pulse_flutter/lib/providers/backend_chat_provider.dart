@@ -419,7 +419,14 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     final int idx = current.indexWhere((ApiChatSummary c) => c.id == chat.id);
     final List<ApiChatSummary> updated = List<ApiChatSummary>.from(current);
     if (idx != -1) {
-      updated[idx] = chat;
+      // get_chat omits with_user.public_key, so a plain refresh would drop the
+      // partner key a secret chat needs to encrypt and decrypt.
+      final String? knownKey = current[idx].partnerPublicKey;
+      final bool keyMissing =
+          chat.partnerPublicKey == null || chat.partnerPublicKey!.isEmpty;
+      updated[idx] = (keyMissing && knownKey != null && knownKey.isNotEmpty)
+          ? chat.copyWith(partnerPublicKey: knownKey)
+          : chat;
     } else {
       updated.insert(0, chat);
     }
