@@ -82,6 +82,22 @@ _E2eeHelo? _parseHeloMessage(ApiMessage message) {
 }
 
 class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
+  Timer? _persistTimer;
+  List<ApiChatSummary>? _pendingChats;
+
+  void _persistChats(List<ApiChatSummary> chats) {
+    _pendingChats = chats;
+    _persistTimer ??= Timer(const Duration(seconds: 2), () {
+      _persistTimer = null;
+      final List<ApiChatSummary>? snapshot = _pendingChats;
+      _pendingChats = null;
+      if (snapshot == null) return;
+      try {
+        unawaited(ref.read(cacheServiceProvider).saveChats(snapshot));
+      } catch (_) {}
+    });
+  }
+
   @override
   Future<List<ApiChatSummary>> build() async {
     final bool authenticated = ref.watch(
@@ -96,6 +112,9 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     WebSocketPushDispatcher.registerGlobal(_handlePushEvent);
     ref.onDispose(() {
       WebSocketPushDispatcher.unregisterGlobal();
+      _persistTimer?.cancel();
+      _persistTimer = null;
+      _pendingChats = null;
     });
 
     // Load cache immediately
@@ -153,7 +172,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       isBlocked: isBlocked || chat.isBlockedByMe,
     );
     state = AsyncData<List<ApiChatSummary>>(updated);
-    ref.read(cacheServiceProvider).saveChats(updated);
+    _persistChats(updated);
   }
 
   void _handleUserStatusPush(int chatId, int userId, bool isOnline) {
@@ -192,7 +211,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       if (chat.unreadCount != 0) {
         updated[index] = chat.copyWith(unreadCount: 0);
         state = AsyncData<List<ApiChatSummary>>(updated);
-        ref.read(cacheServiceProvider).saveChats(updated);
+        _persistChats(updated);
       }
     } else {
       // Peer read the chat: mark our last message as read
@@ -203,7 +222,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
           lastMessage: chat.lastMessage!.copyWith(isRead: true),
         );
         state = AsyncData<List<ApiChatSummary>>(updated);
-        ref.read(cacheServiceProvider).saveChats(updated);
+        _persistChats(updated);
       }
     }
   }
@@ -226,7 +245,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       ),
     );
     state = AsyncData<List<ApiChatSummary>>(updated);
-    ref.read(cacheServiceProvider).saveChats(updated);
+    _persistChats(updated);
   }
 
   void _handleReactionPush(ApiMessage message, String rawEmoji, {required bool added}) {
@@ -255,7 +274,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       lastMessage: chat.lastMessage!.copyWith(reactions: reactions),
     );
     state = AsyncData<List<ApiChatSummary>>(updated);
-    ref.read(cacheServiceProvider).saveChats(updated);
+    _persistChats(updated);
   }
 
   void _handleEditedPush(ApiMessage message) {
@@ -271,7 +290,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     final List<ApiChatSummary> updated = List<ApiChatSummary>.from(currentChats);
     updated[index] = chat.copyWith(lastMessage: message);
     state = AsyncData<List<ApiChatSummary>>(updated);
-    ref.read(cacheServiceProvider).saveChats(updated);
+    _persistChats(updated);
   }
 
   void _handleNewMessagePush(ApiMessage message) {
@@ -304,7 +323,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       });
 
       state = AsyncData<List<ApiChatSummary>>(updated);
-      ref.read(cacheServiceProvider).saveChats(updated);
+      _persistChats(updated);
 
       if (message.senderId != myUserId && isCurrentChatOpen) {
         // Chat is currently open: automatically mark read on backend in real time
@@ -382,7 +401,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       }
       final List<ApiChatSummary> chats = await ref.read(chatRepositoryProvider).listChats(publicKey: publicKey);
       // Save cache
-      await ref.read(cacheServiceProvider).saveChats(chats);
+      _persistChats(chats);
       return chats;
     } catch (e) {
       final List<ApiChatSummary>? currentData = state.value;
@@ -430,7 +449,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       updated.insert(0, chat);
     }
     state = AsyncData<List<ApiChatSummary>>(updated);
-    ref.read(cacheServiceProvider).saveChats(updated);
+    _persistChats(updated);
   }
 
   void setChatBlockedByUser(int chatId, bool isBlocked) {
@@ -446,7 +465,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       isBlocked: isBlocked || chat.isBlockedByMe,
     );
     state = AsyncData<List<ApiChatSummary>>(updated);
-    ref.read(cacheServiceProvider).saveChats(updated);
+    _persistChats(updated);
   }
 
   void markChatAsRead(int chatId) {
@@ -459,7 +478,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     final List<ApiChatSummary> updated = List<ApiChatSummary>.from(current);
     updated[idx] = chat.copyWith(unreadCount: 0);
     state = AsyncData<List<ApiChatSummary>>(updated);
-    ref.read(cacheServiceProvider).saveChats(updated);
+    _persistChats(updated);
   }
 }
 
@@ -522,6 +541,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   final int _chatId;
   int _sendCounter = 0;
 
+  Timer? _cacheFlushTimer;
+  List<ApiMessage>? _pendingCacheSnapshot;
+  bool _cacheWriteInFlight = false;
+
   @override
   Future<List<ApiMessage>> build() async {
     final bool authenticated = ref.watch(
@@ -536,6 +559,13 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     WebSocketPushDispatcher.registerChat(_chatId, handlePush);
     ref.onDispose(() {
       WebSocketPushDispatcher.unregisterChat(_chatId);
+      _cacheFlushTimer?.cancel();
+      _cacheFlushTimer = null;
+      final List<ApiMessage>? pending = _pendingCacheSnapshot;
+      _pendingCacheSnapshot = null;
+      if (pending != null) {
+        unawaited(_writeCache(pending));
+      }
     });
 
     // Load cache immediately
@@ -942,6 +972,29 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   Future<void> _saveToCache(List<ApiMessage> messages) async {
+    _pendingCacheSnapshot = messages;
+    if (_cacheFlushTimer != null || _cacheWriteInFlight) return;
+    _cacheFlushTimer = Timer(const Duration(seconds: 2), _flushCache);
+  }
+
+  Future<void> _flushCache() async {
+    _cacheFlushTimer = null;
+    final List<ApiMessage>? snapshot = _pendingCacheSnapshot;
+    _pendingCacheSnapshot = null;
+    if (snapshot == null) return;
+
+    _cacheWriteInFlight = true;
+    try {
+      await _writeCache(snapshot);
+    } finally {
+      _cacheWriteInFlight = false;
+      if (_pendingCacheSnapshot != null && _cacheFlushTimer == null) {
+        _cacheFlushTimer = Timer(const Duration(seconds: 2), _flushCache);
+      }
+    }
+  }
+
+  Future<void> _writeCache(List<ApiMessage> messages) async {
     try {
       final int myUserId = ref.read(authProvider).session?.userId ?? -1;
       final ApiChatSummary? chat = ref.read(chatByIdProvider(_chatId));

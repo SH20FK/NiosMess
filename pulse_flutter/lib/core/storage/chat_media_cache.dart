@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -12,6 +14,7 @@ class ChatMediaCache {
   const ChatMediaCache._();
 
   static const String _boxName = 'chat_shared_media_v1';
+  static const int _maxCachedMedia = 300;
   static bool _initialized = false;
 
   static final RegExp _urlRegExp = RegExp(
@@ -130,15 +133,26 @@ class ChatMediaCache {
           byId[m.id] = m;
         }
       }
+
+      bool changed = false;
       for (final ApiMessage m in newMedia) {
-        byId[m.id] = m;
+        final ApiMessage? previous = byId[m.id];
+        if (previous == null ||
+            jsonEncode(previous.toJson()) != jsonEncode(m.toJson())) {
+          byId[m.id] = m;
+          changed = true;
+        }
       }
+      if (!changed && byId.length <= _maxCachedMedia) return;
 
       final List<ApiMessage> merged = byId.values.toList()
         ..sort((ApiMessage a, ApiMessage b) => b.sentAt.compareTo(a.sentAt));
+      final List<ApiMessage> capped = merged.length > _maxCachedMedia
+          ? merged.sublist(0, _maxCachedMedia)
+          : merged;
 
       final List<Map<String, dynamic>> jsonList =
-          merged.map((ApiMessage m) => m.toJson()).toList(growable: false);
+          capped.map((ApiMessage m) => m.toJson()).toList(growable: false);
 
       await box.put('chat_$chatId', jsonList);
     } catch (e) {
