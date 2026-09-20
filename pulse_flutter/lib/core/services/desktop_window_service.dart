@@ -150,9 +150,9 @@ class DesktopWindowService with WindowListener, TrayListener {
 
   /// Resets taskbar flashing once user returns or focuses the window.
   Future<void> stopTaskbarFlashing() async {
-    if (!isWindows) return;
+    if (!isWindows || !_isFlashing) return;
+    _isFlashing = false;
     try {
-      _isFlashing = false;
       await WindowsTaskbar.resetFlashTaskbarAppIcon();
     } catch (_) {}
   }
