@@ -59,7 +59,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
-    );
+    )..repeat();
 
     _pulseScale = Tween<double>(begin: 1.0, end: 1.45).animate(
       CurvedAnimation(parent: _pulseController, curve: M3SpringCurves.gentle),
@@ -84,9 +84,6 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     if (incoming != null && _lastIncoming == null) {
       _lastIncoming = incoming;
       _slideController.forward();
-      if (!_pulseController.isAnimating) {
-        _pulseController.repeat();
-      }
       Future.microtask(() {
         HapticService.notification();
         ref.read(appSoundProvider).startLoop(SoundEvent.callIncoming);
@@ -99,12 +96,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     }
 
     final data = _lastIncoming;
-    if (data == null) {
-      if (_pulseController.isAnimating) {
-        _pulseController.stop();
-      }
-      return const SizedBox.shrink();
-    }
+    if (data == null) return const SizedBox.shrink();
 
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;

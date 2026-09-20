@@ -293,7 +293,12 @@ class _PulseAppState extends ConsumerState<PulseApp> {
                         SizedBox.expand(
                           child: child ?? const SizedBox.shrink(),
                         ),
-                        const IncomingCallOverlay(),
+                        Consumer(
+                          builder: (BuildContext context, WidgetRef ref, _) =>
+                              ref.watch(incomingCallProvider) == null
+                                  ? const SizedBox.shrink()
+                                  : const IncomingCallOverlay(),
+                        ),
                         const CallOverlay(),
                         const InAppNotificationBannerOverlay(),
                       ],

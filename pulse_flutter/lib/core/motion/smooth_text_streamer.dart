@@ -76,9 +76,9 @@ class SmoothTextStreamer {
     final int remaining = target.length - _currentRendered.length;
 
     if (remaining <= 0) {
+      timer.cancel();
+      _ticker = null;
       if (_isStreamCompleted) {
-        timer.cancel();
-        _ticker = null;
         onUpdate(_currentRendered, true);
         onDone?.call(_currentRendered);
       }

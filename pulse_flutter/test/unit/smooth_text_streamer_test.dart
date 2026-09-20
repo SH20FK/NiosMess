@@ -70,6 +70,28 @@ void main() {
       streamer.dispose();
     });
 
+    test('stops ticking when drained while the remote stream is still open', () async {
+      final streamer = SmoothTextStreamer(
+        onUpdate: (text, isFinished) {},
+      );
+
+      streamer.appendChunk('Hi');
+      expect(streamer.isActive, isTrue);
+
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(streamer.isActive, isFalse);
+
+      streamer.appendChunk(' again');
+      expect(streamer.isActive, isTrue);
+      streamer.completeStream();
+
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(streamer.currentText, 'Hi again');
+      expect(streamer.isActive, isFalse);
+
+      streamer.dispose();
+    });
+
     test('completeStream with finalFullText catches up differences', () async {
       final completer = Completer<String>();
 

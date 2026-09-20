@@ -40,6 +40,7 @@ import 'unit/list_virtualization_memory_test.dart' as unit_list_virtualization_m
 import 'unit/oauth_service_test.dart' as unit_oauth_service;
 import 'unit/pkce_test.dart' as unit_pkce;
 import 'unit/shared_media_classification_test.dart' as unit_shared_media_classification;
+import 'unit/smooth_text_streamer_test.dart' as unit_smooth_text_streamer;
 import 'unit/sound_service_test.dart' as unit_sound_service;
 import 'unit/sticker_formatter_test.dart' as unit_sticker_formatter;
 import 'unit/morphing_brand_mark_test.dart' as unit_morphing_brand_mark;
@@ -87,6 +88,7 @@ void main() {
     unit_oauth_service.main();
     unit_pkce.main();
     unit_shared_media_classification.main();
+    unit_smooth_text_streamer.main();
     unit_sound_service.main();
     unit_sticker_formatter.main();
     unit_morphing_brand_mark.main();

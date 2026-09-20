@@ -1,6 +1,3 @@
-import 'dart:async';
-import 'dart:ui' show FrameTiming;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -28,10 +25,6 @@ class DesktopWindowService with WindowListener, TrayListener {
   bool _initialized = false;
   bool _isFlashing = false;
 
-  Timer? _renderWatchdog;
-  DateTime _lastPresentedFrame = DateTime.now();
-  bool _healingRender = false;
-
   /// Initializes window bounds, constraints, system tray, and taskbar integration.
   Future<void> initialize() async {
     if (!isDesktop || _initialized) return;
@@ -57,49 +50,8 @@ class DesktopWindowService with WindowListener, TrayListener {
       windowManager.addListener(this);
 
       await _setupSystemTray();
-      _startRenderWatchdog();
     } catch (e) {
       debugPrint('[DesktopWindowService] Window initialization failed: $e');
-    }
-  }
-
-  void _startRenderWatchdog() {
-    if (!isWindows || _renderWatchdog != null) return;
-    WidgetsBinding.instance.addTimingsCallback(_onFrameTimings);
-    _renderWatchdog =
-        Timer.periodic(const Duration(seconds: 2), (_) => _checkRenderStall());
-  }
-
-  void _onFrameTimings(List<FrameTiming> timings) {
-    if (timings.isNotEmpty) {
-      _lastPresentedFrame = DateTime.now();
-    }
-  }
-
-  Future<void> _checkRenderStall() async {
-    if (_healingRender) return;
-
-    final Duration stalled = DateTime.now().difference(_lastPresentedFrame);
-    if (stalled < const Duration(seconds: 6)) {
-      WidgetsBinding.instance.scheduleFrame();
-      return;
-    }
-
-    _healingRender = true;
-    try {
-      if (await windowManager.isMinimized() || !await windowManager.isVisible()) {
-        _lastPresentedFrame = DateTime.now();
-        return;
-      }
-      debugPrint('[DesktopWindowService] Render stalled for '
-          '${stalled.inSeconds}s, forcing a surface resize');
-      final Size current = await windowManager.getSize();
-      await windowManager.setSize(Size(current.width + 1, current.height));
-      await windowManager.setSize(current);
-      _lastPresentedFrame = DateTime.now();
-    } catch (_) {
-    } finally {
-      _healingRender = false;
     }
   }
 
@@ -172,9 +124,6 @@ class DesktopWindowService with WindowListener, TrayListener {
   Future<void> quitApp() async {
     if (!isDesktop) return;
     try {
-      _renderWatchdog?.cancel();
-      _renderWatchdog = null;
-      WidgetsBinding.instance.removeTimingsCallback(_onFrameTimings);
       windowManager.removeListener(this);
       trayManager.removeListener(this);
       await windowManager.destroy();
