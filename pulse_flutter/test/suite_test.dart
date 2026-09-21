@@ -29,6 +29,7 @@ import 'screens/register_screen_test.dart' as screens_register_screen;
 import 'unit/adaptive_performance_engine_test.dart' as unit_adaptive_performance_engine;
 import 'unit/app_update_service_test.dart' as unit_app_update_service;
 import 'unit/call_transport_test.dart' as unit_call_transport;
+import 'unit/quic_transport_stub_test.dart' as unit_quic_transport_stub;
 import 'unit/chat_creation_flow_test.dart' as unit_chat_creation_flow;
 import 'unit/chat_media_cache_test.dart' as unit_chat_media_cache;
 import 'unit/chat_message_sorting_test.dart' as unit_chat_message_sorting;
@@ -77,6 +78,7 @@ void main() {
     unit_adaptive_performance_engine.main();
     unit_app_update_service.main();
     unit_call_transport.main();
+    unit_quic_transport_stub.main();
     unit_chat_creation_flow.main();
     unit_chat_media_cache.main();
     unit_chat_message_sorting.main();

@@ -21,6 +21,7 @@ class CallSession {
     required this.aesKeyBytes,
     this.onCameraReady,
     this.isListener = false,
+    this.callAccessToken,
   });
 
   final int chatId;
@@ -33,6 +34,7 @@ class CallSession {
   final Uint8List aesKeyBytes;
   final void Function(CameraController?)? onCameraReady;
   final bool isListener;
+  final String? callAccessToken;
 
   final WsCallTransport _transport = WsCallTransport();
   final StreamController<CallSessionData> _stateController =
@@ -40,6 +42,10 @@ class CallSession {
 
   CallSessionState _state = CallSessionState.idle;
   int _durationSeconds = 0;
+
+  /// Web stub: the browser build has no SFU media path, so a call is never
+  /// considered answered here. Kept for API parity with the io implementation.
+  bool get wasAnswered => false;
   Timer? _durationTimer;
   StreamSubscription<void>? _connSub;
   StreamSubscription<void>? _disconnSub;

@@ -1131,20 +1131,39 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     // For media in secret chats the DR plaintext is the file-key envelope,
     // not the visible text.
     final String e2eePlain = e2eePlaintext ?? trimmed;
-    if (chat?.isSecret == true &&
-        chat?.partnerPublicKey != null &&
-        e2eePlain.isNotEmpty) {
+    if (chat?.isSecret == true) {
+      // Fail closed: in a secret chat every message MUST leave encrypted. If
+      // anything here is missing we throw instead of falling through to a
+      // plaintext send, which the server would happily store.
       final e2eeService = ref.read(e2eeServiceProvider);
       await e2eeService.ready;
+
+      String? partnerKey = chat?.partnerPublicKey;
+      if (partnerKey == null || partnerKey.isEmpty) {
+        await ensureSecretHandshake();
+        partnerKey = ref.read(chatByIdProvider(_chatId))?.partnerPublicKey;
+      }
+      if (partnerKey == null || partnerKey.isEmpty) {
+        throw StateError(
+          'Секретный чат: ключ собеседника не получен. Сообщение не отправлено, чтобы не уйти открытым текстом.',
+        );
+      }
+
+      if (e2eePlain.isEmpty) {
+        throw StateError(
+          'Секретный чат: нечего шифровать, отправка отменена.',
+        );
+      }
+
       DoubleRatchetSession? session = await e2eeService.getOrCreateSession(
         chatId: _chatId,
-        theirPublicKeyBase64: chat!.partnerPublicKey!,
+        theirPublicKeyBase64: partnerKey,
       );
       if (session == null) {
         await ensureSecretHandshake();
         session = await e2eeService.getOrCreateSession(
           chatId: _chatId,
-          theirPublicKeyBase64: chat.partnerPublicKey!,
+          theirPublicKeyBase64: partnerKey,
         );
       }
       if (session == null) {
@@ -1448,9 +1467,37 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     state = AsyncData<List<ApiMessage>>(optimisticNext);
 
     try {
+      // Editing has to respect the same fail-closed rule as sending: in a
+      // secret chat the new body is encrypted client-side before it leaves.
+      String? editE2ee;
+      final ApiChatSummary? editChat = ref.read(chatByIdProvider(_chatId));
+      if (editChat?.isSecret == true) {
+        final e2eeService = ref.read(e2eeServiceProvider);
+        await e2eeService.ready;
+        String? partnerKey = editChat?.partnerPublicKey;
+        if (partnerKey == null || partnerKey.isEmpty) {
+          await ensureSecretHandshake();
+          partnerKey = ref.read(chatByIdProvider(_chatId))?.partnerPublicKey;
+        }
+        final DoubleRatchetSession? session =
+            (partnerKey == null || partnerKey.isEmpty)
+                ? null
+                : await e2eeService.getOrCreateSession(
+                    chatId: _chatId,
+                    theirPublicKeyBase64: partnerKey,
+                  );
+        if (session == null) {
+          throw StateError('Secret chat: peer key unavailable, edit cancelled.');
+        }
+        editE2ee = await e2eeService.encryptE2EEMessageDR(
+          plaintext: trimmed,
+          chatId: _chatId,
+        );
+      }
+
       final ApiMessage? edited = await ref
           .read(chatRepositoryProvider)
-          .editMessage(_chatId, messageId, content: trimmed);
+          .editMessage(_chatId, messageId, content: trimmed, e2eeContent: editE2ee);
 
       if (edited != null) {
         final List<ApiMessage> confirmed = List<ApiMessage>.from(state.value ?? const <ApiMessage>[])

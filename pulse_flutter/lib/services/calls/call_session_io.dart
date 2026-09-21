@@ -42,6 +42,7 @@ class CallSession {
     this.onRemoteParticipantLeft,
     this.onCameraReady,
     this.isListener = false,
+    this.callAccessToken,
   }) : aesKey = SecretKey(aesKeyBytes);
 
   final int chatId;
@@ -53,6 +54,10 @@ class CallSession {
   final String? peerName;
   final SecretKey aesKey;
   final bool isListener;
+
+  /// `call_access_token` issued by the backend for this call; the SFU verifies
+  /// it once CALLS_REQUIRE_TOKEN is enabled server-side.
+  final String? callAccessToken;
 
   OnStateChanged? onStateChanged;
   OnIncomingAudio? onIncomingAudio;
@@ -90,6 +95,13 @@ class CallSession {
   /// Kept on the session so the UI can display an error instead of silently
   /// popping back to the chat.
   String? _fatalError;
+
+  /// True once another participant is actually present in the room. This is
+  /// the "the call was answered" signal: the transport connects (and the SFU
+  /// assigns a client id) while the callee is still ringing, so the previous
+  /// check marked never-answered calls as completed.
+  bool _peerSeen = false;
+  bool get wasAnswered => _peerSeen;
 
   CallSessionState _state = CallSessionState.idle;
   late bool _isMuted = isListener;
@@ -169,7 +181,7 @@ class CallSession {
     }
 
     // Fallback to TCP WebSocket
-    transport = WsCallTransport();
+    transport = WsCallTransport(accessToken: callAccessToken);
     _transport = transport;
 
     _setupTransportListeners(transport);
@@ -267,6 +279,12 @@ class CallSession {
       _remoteParticipants[idx] = participant;
     } else {
       _remoteParticipants.add(participant);
+    }
+    if (!_peerSeen) {
+      // Talk time is measured from the moment a peer is really here, not from
+      // the transport connect that happens while the phone is still ringing.
+      _peerSeen = true;
+      _elapsedSeconds = 0;
     }
     onRemoteParticipantJoined?.call(participant);
     _triggerStateUpdate();
@@ -441,7 +459,7 @@ class CallSession {
     await Future.delayed(delay);
     if (_ended) return;
 
-    final transport = WsCallTransport();
+    final transport = WsCallTransport(accessToken: callAccessToken);
     _transport = transport;
     _setupTransportListeners(transport);
 
@@ -566,7 +584,22 @@ class CallSession {
     } catch (_) {}
   }
 
+  bool _audioPipelinesActive = false;
+
   Future<void> _startAudioPipeline() async {
+    // Reconnect and re-join both land on `inCall`; without this guard a second
+    // pair of pipelines is created while the first is still running, which
+    // doubles mic capture, doubles playback and resets the duration timer.
+    if (_audioPipelinesActive ||
+        _audioPipeline != null ||
+        _audioOutput != null) {
+      return;
+    }
+    _audioPipelinesActive = true;
+
+    // libopus has to be loaded before any decoder/encoder is constructed.
+    await AudioPipeline.ensureOpus();
+
     _audioOutput = AudioOutputPipeline();
     await _audioOutput!.start();
 
@@ -666,6 +699,7 @@ class CallSession {
   }
 
   Future<void> _stopAudioPipeline() async {
+    _audioPipelinesActive = false;
     await _audioPipeline?.stop();
     _audioPipeline = null;
     await _audioOutput?.stop();
@@ -692,6 +726,7 @@ class CallSession {
     // Mark ended first so the WS disconnect notification below does not
     // trigger a reconnect on a disposed session.
     _ended = true;
+    _audioPipelinesActive = false;
     _heartbeatTimer?.cancel();
     _durationTimer?.cancel();
     _audioPipeline?.dispose();

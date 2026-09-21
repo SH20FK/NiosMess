@@ -20,8 +20,12 @@ class QuicCallTransport implements CallTransport {
     required String roomId,
     required String nickname,
   }) async {
+    // This transport has no backend yet, so it must NOT report a
+    // disconnect: nothing ever connected. A spurious onDisconnected made
+    // CallSession spawn a second (WS) transport while the first was still
+    // being awaited, which left two audio pipelines running (doubled audio,
+    // reset duration timer).
     await Future<void>.delayed(const Duration(milliseconds: 100));
-    _disconnectedController.add(null);
     return TransportConnectResult.failed;
   }
 

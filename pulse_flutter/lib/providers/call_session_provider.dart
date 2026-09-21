@@ -4,6 +4,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/call_models.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
@@ -76,6 +77,10 @@ class CallSessionManager {
 
   Timer? _soloTimer;
   bool _ended = false;
+
+  /// Set once the peer is in the room, so the ringback loop and the
+  /// "connected" cue fire exactly once per call.
+  bool _answerHandled = false;
   bool _renderersReady = false;
 
   Stream<CallSessionData> get stateStream => _stateController.stream;
@@ -154,6 +159,7 @@ class CallSessionManager {
       peerName: peerName,
       aesKeyBytes: await _deriveMediaKey(),
       isListener: isListener,
+      callAccessToken: gatewayInfo?.callAccessToken,
     );
     _session = session;
     _sessionSub = session.stateStream.listen(_onSessionData);
@@ -165,6 +171,13 @@ class CallSessionManager {
       _stateController.add(currentData);
     }
     ref.read(callSessionProvider.notifier).notify();
+
+    // Ringback ends the moment the other side is actually in the room.
+    if (!_answerHandled && (_session?.wasAnswered ?? false)) {
+      _answerHandled = true;
+      unawaited(ref.read(appSoundProvider).stopLoop());
+      unawaited(ref.read(appSoundProvider).playEvent(SoundEvent.callConnected));
+    }
 
     if (data.state == CallSessionState.connected) {
       if (data.remoteParticipants.isEmpty) {
@@ -202,6 +215,8 @@ class CallSessionManager {
     required Map<String, dynamic> startResponse,
     String? peerDisplayName,
   }) async {
+    // Outgoing calls get a ringback loop while the peer's phone is ringing.
+    unawaited(ref.read(appSoundProvider).startLoop(SoundEvent.callIncoming));
     try {
       await _connect();
     } catch (e) {
@@ -254,7 +269,9 @@ class CallSessionManager {
         'room_id': roomId,
         'message_id': callId,
         'duration': data.durationSeconds,
-        'was_missed': data.state != CallSessionState.connected,
+        // Answered = a peer really joined the room (see CallSession.wasAnswered),
+        // not merely "the transport connected".
+        'was_missed': !(_session?.wasAnswered ?? false),
       });
     } catch (e) {
       debugPrint('[CallSessionManager] end_call failed: $e');
@@ -306,6 +323,7 @@ class CallSessionManager {
   void _cleanup() {
     _soloTimer?.cancel();
     _soloTimer = null;
+    unawaited(ref.read(appSoundProvider).stopLoop());
   }
 
   void dispose() {

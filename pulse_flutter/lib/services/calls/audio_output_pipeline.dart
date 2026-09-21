@@ -7,6 +7,8 @@ import 'package:audioplayers/audioplayers.dart' hide AVAudioSessionCategory;
 import 'package:flutter/foundation.dart';
 import 'package:opus_codec_dart/opus_codec_dart.dart';
 
+import 'audio_pipeline.dart';
+
 /// Decodes Opus frames and plays back PCM with a bounded jitter buffer.
 ///
 /// Design goals (fixes for the previous implementation):
@@ -27,6 +29,8 @@ class AudioOutputPipeline {
     this.channels = 1,
     this.frameTime = FrameTime.ms20,
     this.bufferDurationMs = 60,
+    this.playbackChunkMs = 160,
+    this.minStartMs = 120,
     this.maxBufferMs = 800,
   });
 
@@ -34,6 +38,15 @@ class AudioOutputPipeline {
   final int channels;
   final FrameTime frameTime;
   final int bufferDurationMs;
+
+  /// How much PCM is handed to the platform per playback call. The previous
+  /// 60 ms chunks restarted the player ~16 times a second, which is exactly
+  /// what made the sound choppy; 160 ms chunks cut that by ~3x.
+  final int playbackChunkMs;
+
+  /// Jitter-buffer depth required before playback starts. Without it a single
+  /// late packet produced an audible gap in the first seconds of a call.
+  final int minStartMs;
   final int maxBufferMs;
 
   SimpleOpusDecoder? _decoder;
@@ -66,15 +79,26 @@ class AudioOutputPipeline {
   }
 
   Future<void> _initDecoder() async {
-    try {
-      _decoder = SimpleOpusDecoder(
-        sampleRate: sampleRate,
-        channels: channels,
-      );
-      debugPrint('[AudioOutput] Opus decoder initialized');
-    } catch (e) {
-      debugPrint('[AudioOutput] Decoder init failed: $e');
+    // The native opus library must be loaded before a decoder can be built.
+    // The decoder used to be constructed before the encoder pipeline had
+    // loaded libopus, which left the first call of an app session with no
+    // incoming audio at all. Ensure the library, then retry once.
+    for (int attempt = 0; attempt < 2; attempt++) {
+      try {
+        _decoder = SimpleOpusDecoder(
+          sampleRate: sampleRate,
+          channels: channels,
+        );
+        debugPrint('[AudioOutput] Opus decoder initialized');
+        return;
+      } catch (e) {
+        debugPrint(
+          '[AudioOutput] Decoder init failed (attempt ${attempt + 1}): $e',
+        );
+        await AudioPipeline.ensureOpus();
+      }
     }
+    debugPrint('[AudioOutput] Decoder unavailable - incoming audio dropped');
   }
 
   Future<void> _configureAudioSession() async {
@@ -123,17 +147,20 @@ class AudioOutputPipeline {
     if (_pcmBuffer.isEmpty || _player == null || _stopped) return;
     if (_isPlaying) return;
 
-    final int chunkSamples =
-        sampleRate ~/ (1000 ~/ bufferDurationMs) * channels;
-    // Add a small headroom beyond the tick so the buffer starts draining
-    // immediately and keeps up.
-    final int chunkBytes = chunkSamples * 2;
-    if (_pcmBuffer.length < chunkBytes ~/ 2) return;
+    final int bytesPerMs = sampleRate * channels * 2 ~/ 1000;
+    final int minStartBytes = bytesPerMs * minStartMs;
+    // Jitter buffer: hold playback until the minimum depth is buffered.
+    if (_pcmBuffer.length < minStartBytes) return;
 
+    final int chunkBytes = math.max(bytesPerMs * playbackChunkMs, minStartBytes);
     final int takeBytes = math.min(chunkBytes, _pcmBuffer.length);
     final List<int> chunk = _pcmBuffer.take(takeBytes).toList();
     _pcmBuffer.removeRange(0, takeBytes);
-
+    if (_pcmBuffer.isNotEmpty) {
+      debugPrint(
+        '[AudioOutput] playing ${takeBytes ~/ 2} samples, buffered ${_pcmBuffer.length ~/ 2}',
+      );
+    }
     _playPcm(chunk);
   }
 
@@ -143,7 +170,8 @@ class AudioOutputPipeline {
       final Uint8List wav = _buildWav(pcm16);
       final source = BytesSource(wav);
 
-      await _player!.stop();
+      // play() replaces the current source by itself; the extra stop() call
+      // used to add an audible click on every chunk boundary.
       await _player!.play(source);
 
       // Watchdog: the platform can swallow onPlayerComplete (e.g. play()

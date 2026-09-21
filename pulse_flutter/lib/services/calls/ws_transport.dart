@@ -10,7 +10,11 @@ import 'call_transport.dart';
 /// Connects to the NiosCalls SFU via WebSocket at wss://c.ni-os.ru:4433/ws
 /// (port matches the reference web client; the SFU accepts HTTP/WS on 4433).
 class WsCallTransport implements CallTransport {
-  WsCallTransport();
+  WsCallTransport({this.accessToken});
+
+  /// `call_access_token` issued by the backend for this call. The SFU verifies
+  /// it once CALLS_REQUIRE_TOKEN is enabled on the server.
+  final String? accessToken;
 
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _subscription;
@@ -38,8 +42,11 @@ class WsCallTransport implements CallTransport {
     required String nickname,
   }) async {
     try {
+      final String tokenPart = (accessToken == null || accessToken!.isEmpty)
+          ? ''
+          : '&token=${Uri.encodeComponent(accessToken!)}';
       final Uri uri = Uri.parse(
-        'wss://c.ni-os.ru/ws?room=$roomId&nick=${Uri.encodeComponent(nickname)}',
+        'wss://c.ni-os.ru/ws?room=$roomId&nick=${Uri.encodeComponent(nickname)}$tokenPart',
       );
       _channel = WebSocketChannel.connect(uri);
 

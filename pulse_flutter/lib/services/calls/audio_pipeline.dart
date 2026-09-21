@@ -24,27 +24,38 @@ class AudioPipeline {
   bool _stopped = false;
 
   static bool _opusInitialized = false;
+  static Future<void>? _opusInitFuture;
+
+  /// Idempotent, retry-safe initialisation of the bundled libopus.
+  ///
+  /// Decoders and encoders may only be constructed after this completes.
+  /// The previous implementation latched a boolean *before* the load attempt,
+  /// so a single failure disabled audio for the whole app session.
+  static Future<void> ensureOpus() {
+    if (_opusInitialized) return Future<void>.value();
+    return _opusInitFuture ??= _initOpusOnce();
+  }
+
+  static Future<void> _initOpusOnce() async {
+    try {
+      final lib = await opus.load();
+      initOpus(lib);
+      _opusInitialized = true;
+      debugPrint('[AudioPipeline] Opus initialized');
+    } catch (e) {
+      _opusInitFuture = null; // allow a later retry
+      debugPrint('[AudioPipeline] Opus init failed: $e');
+    }
+  }
 
   Future<void> start() async {
     if (_started) return;
     _started = true;
     _stopped = false;
 
-    await _initOpus();
+    await ensureOpus();
     await _configureAudioSession();
     await _startMicStream();
-  }
-
-  Future<void> _initOpus() async {
-    if (_opusInitialized) return;
-    _opusInitialized = true;
-    try {
-      final lib = await opus.load();
-      initOpus(lib);
-      debugPrint('[AudioPipeline] Opus initialized');
-    } catch (e) {
-      debugPrint('[AudioPipeline] Opus init failed: $e');
-    }
   }
 
   Future<void> _configureAudioSession() async {

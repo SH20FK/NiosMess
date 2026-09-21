@@ -861,21 +861,28 @@ class ChatRepository {
     int chatId,
     int messageId, {
     required String content,
+    String? e2eeContent,
   }) async {
     final String trimmed = content.trim();
     if (trimmed.isEmpty) {
       return null;
     }
 
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'chat_id': chatId,
+      'message_id': messageId,
+    };
+    if (e2eeContent != null && e2eeContent.isNotEmpty) {
+      payload['e2ee_content'] = e2eeContent;
+    } else {
+      payload['content'] = trimmed;
+    }
+
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request(
           'edit_message',
-          payload: <String, dynamic>{
-            'chat_id': chatId,
-            'message_id': messageId,
-            'content': trimmed,
-          },
+          payload: payload,
         );
 
     if (response is! Map) {
