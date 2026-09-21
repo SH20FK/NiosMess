@@ -485,6 +485,13 @@ class CallSession {
 
   void _handleRemoteEnd() {
     _ended = true;
+    // The call ended on the other side (or the ringing timed out) before the
+    // peer ever joined: give the user a reason instead of silently closing.
+    if (!_peerSeen) {
+      _fatalError = direction == CallDirection.outgoing
+          ? 'Абонент не ответил или отклонил вызов'
+          : 'Вызов завершён до ответа';
+    }
     _heartbeatTimer?.cancel();
     _durationTimer?.cancel();
     _transport?.disconnect();
