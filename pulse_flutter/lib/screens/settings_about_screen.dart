@@ -12,6 +12,8 @@ import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/constants/build_info.dart';
 import 'package:pulse_flutter/core/constants/team.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
@@ -24,9 +26,7 @@ import 'package:pulse_flutter/repositories/support_repository.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/widgets/about/morphing_brand_mark.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
-import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
 
 /// Screen "About Application" redesigned in full Material 3 Expressive style.
 ///
@@ -957,13 +957,11 @@ class _OtaUpdateCardWidget extends ConsumerWidget {
               // Progress bar during download
               if (isDownloading) ...<Widget>[
                 const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: AppRadii.of(context).smRadius,
-                  child: LinearProgressIndicator(
-                    value: otaState.progress > 0 ? otaState.progress : null,
-                    color: scheme.primary,
-                    backgroundColor: scheme.surfaceContainerHighest,
-                  ),
+                AppLoadingIndicator(
+                  value: otaState.progress > 0 ? otaState.progress : null,
+                  minHeight: 6,
+                  color: scheme.primary,
+                  backgroundColor: scheme.surfaceContainerHighest,
                 ),
                 if (otaState.totalBytes > 0) ...<Widget>[
                   const SizedBox(height: 4),

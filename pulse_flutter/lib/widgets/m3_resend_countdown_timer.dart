@@ -5,7 +5,6 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
-/// Material 3 Expressive Resend Countdown Timer.
 ///
 /// Displays a smooth animated circular progress ring with countdown text.
 /// When the countdown expires, triggers medium impact haptics and switches to
@@ -122,10 +121,9 @@ class _M3ResendCountdownTimerState extends State<M3ResendCountdownTimer> {
             SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(
+              child: AppLoadingIndicator(
                 value: progress,
-                strokeWidth: 2.5,
-                strokeCap: StrokeCap.round,
+                minHeight: 3,
                 color: scheme.primary,
                 backgroundColor:
                     scheme.surfaceContainerHighest.withValues(alpha: 0.6),

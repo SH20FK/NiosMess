@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
+import 'package:pulse_flutter/core/network/web_socket_client.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -21,15 +23,13 @@ import 'package:pulse_flutter/widgets/chat/inline_keyboard_view.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_details_sheet.dart';
 import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
-import 'package:pulse_flutter/core/network/web_socket_client.dart';
-import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/utils/message_formatter.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
@@ -1083,23 +1083,15 @@ class MessageBubble extends ConsumerWidget {
                         )
                       else if (uploadTask?.stage == UploadStage.processing ||
                           uploadTask?.stage == UploadStage.sendingMessage)
-                        CircularProgressIndicator(
-                          strokeWidth: 3.0,
-                          strokeCap: StrokeCap.round,
+                        AppLoadingIndicator(
+                          size: 22,
                           color: isMine ? scheme.onPrimary : scheme.primary,
-                          backgroundColor:
-                              (isMine ? scheme.onPrimary : scheme.primary)
-                                  .withValues(alpha: 0.2),
                         )
                       else
-                        CircularProgressIndicator(
+                        AppLoadingIndicator(
+                          size: 22,
                           value: p > 0.01 ? p : null,
-                          strokeWidth: 3.0,
-                          strokeCap: StrokeCap.round,
                           color: isMine ? scheme.onPrimary : scheme.primary,
-                          backgroundColor:
-                              (isMine ? scheme.onPrimary : scheme.primary)
-                                  .withValues(alpha: 0.2),
                         ),
                       if (isMine && localId != null)
                         Material(
@@ -1260,7 +1252,7 @@ class MessageBubble extends ConsumerWidget {
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
+              child: AppLoadingIndicator(
                 value: (uploadTask?.stage == UploadStage.processing ||
                         uploadTask?.stage == UploadStage.sendingMessage)
                     ? null
@@ -1268,12 +1260,9 @@ class MessageBubble extends ConsumerWidget {
                         ? 0.0
                         : (p > 0.01 ? p : null)),
                 minHeight: 4,
-                borderRadius: BorderRadius.circular(4),
                 backgroundColor: (isMine ? scheme.onPrimary : scheme.primary)
                     .withValues(alpha: 0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  isMine ? scheme.onPrimary : scheme.primary,
-                ),
+                color: isMine ? scheme.onPrimary : scheme.primary,
               ),
             ),
           ],
@@ -2493,12 +2482,9 @@ class _UploadProgressOverlay extends StatelessWidget {
                             SizedBox(
                               width: 40,
                               height: 40,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 3.0,
-                                strokeCap: StrokeCap.round,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  scheme.primary,
-                                ),
+                              child: AppLoadingIndicator(
+                                size: 40,
+                                color: scheme.primary,
                                 backgroundColor: scheme.onSurface.withValues(
                                   alpha: 0.2,
                                 ),
@@ -2508,16 +2494,13 @@ class _UploadProgressOverlay extends StatelessWidget {
                             SizedBox(
                               width: 40,
                               height: 40,
-                              child: CircularProgressIndicator(
+                              child: AppLoadingIndicator(
+                                size: 40,
                                 value: p > 0.01 ? p : null,
-                                strokeWidth: 3.2,
-                                strokeCap: StrokeCap.round,
                                 backgroundColor: scheme.onSurface.withValues(
                                   alpha: 0.2,
                                 ),
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  scheme.primary,
-                                ),
+                                color: scheme.primary,
                               ),
                             ),
                           if (onCancel != null && stage != UploadStage.queued)
@@ -2588,16 +2571,16 @@ class _UploadProgressOverlay extends StatelessWidget {
               bottom: 0,
               left: 0,
               right: 0,
-              child: LinearProgressIndicator(
+              child: AppLoadingIndicator(
                 value: (stage == UploadStage.processing ||
                         stage == UploadStage.sendingMessage)
                     ? null
                     : (stage == UploadStage.queued ? 0.0 : (p > 0.01 ? p : null)),
                 minHeight: 3.0,
+                color: scheme.primary,
                 backgroundColor: scheme.surfaceContainerHighest.withValues(
                   alpha: 0.4,
                 ),
-                valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
               ),
             ),
         ],

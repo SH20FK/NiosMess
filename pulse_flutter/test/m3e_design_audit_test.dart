@@ -194,4 +194,51 @@ void main() {
       expect(checkColor, isNot(equals(Colors.white)));
     });
   });
+
+group('M3 Expressive Guardrails: forbidden patterns', () {
+  List<String> libSources() {
+    final List<String> found = <String>[];
+    void walk(Directory dir) {
+      for (final FileSystemEntity entity in dir.listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        if (entity.path.contains('app_localizations')) continue;
+        found.add(entity.path);
+      }
+    }
+
+    walk(Directory('lib'));
+    return found;
+  }
+
+  test('lib/ has no raw blur outside the allowed backdrops', () {
+    final List<String> offenders = <String>[];
+    for (final String path in libSources()) {
+      final String src = File(path).readAsStringSync();
+      if (src.contains('BackdropFilter') || src.contains('MaskFilter.blur')) {
+        offenders.add(path);
+      }
+    }
+    final bool onlyAllowed = offenders.every((String p) =>
+        p.endsWith('pulse_scaffold_body.dart') ||
+        p.endsWith('adaptive_glass.dart') ||
+        p.endsWith('m3_organic_background.dart'));
+    expect(onlyAllowed, isTrue, reason: 'unexpected blur usage: $offenders');
+  });
+
+  test('lib/ has no bare progress indicators', () {
+    final RegExp bare =
+        RegExp(r'CircularProgressIndicator\(|LinearProgressIndicator\(');
+    final List<String> offenders = <String>[];
+    for (final String path in libSources()) {
+      final String src = File(path).readAsStringSync();
+      if (bare.hasMatch(src)) offenders.add(path);
+    }
+    // The single allowed site is AppLoadingIndicator itself: it owns the
+    // deterministic linear track for the whole app.
+    final bool onlyAllowed = offenders.every(
+        (String p) => p.endsWith('pulse_loading_indicator.dart'));
+    expect(onlyAllowed, isTrue,
+        reason: 'use AppLoadingIndicator instead: $offenders');
+  });
+});
 }

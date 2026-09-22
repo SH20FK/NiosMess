@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
-/// An expressive Material 3 bottom sheet informing the user about an available update
 /// with release notes, live streaming progress, and seamless background download capability.
 class AppUpdateDialog extends ConsumerWidget {
   const AppUpdateDialog({
@@ -177,12 +176,11 @@ class AppUpdateDialog extends ConsumerWidget {
           if (isDownloading) ...<Widget>[
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
+              child: AppLoadingIndicator(
                 value: otaState.progress > 0 ? otaState.progress : null,
                 minHeight: 8,
-                borderRadius: BorderRadius.circular(8),
+                color: scheme.primary,
                 backgroundColor: scheme.surfaceContainerHighest,
-                valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
               ),
             ),
             const SizedBox(height: 10),

@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+
 /// Backward-compatibility hook for legacy callers expecting [TabTransitionController].
 class TabTransitionController {
   /// No-op in modern M3RouteTabSwitcher (raster captures are eliminated).
@@ -56,7 +58,6 @@ class M3RouteTabSwitcher extends StatefulWidget {
 class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late Animation<double> _curve;
 
   int _currentIndex = 0;
   int? _outgoingIndex;
@@ -89,10 +90,7 @@ class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
       duration: _effectiveDuration,
     )..addStatusListener(_onStatus);
 
-    _curve = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    );
+
   }
 
   void _onStatus(AnimationStatus status) {
@@ -168,28 +166,46 @@ class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
       );
     }
 
-    // Animating state: incoming page slides and fades; outgoing page strictly fades in place.
+    // Animating state: M3 Expressive "fade through". The outgoing page fades
+    // out fast; the incoming page fades and scales in only after the old page
+    // is mostly gone. The two pages are never half-transparent at the same
+    // time - that overlap was what made the switch look like a mushy crossfade.
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final double width = constraints.maxWidth;
         final double effectiveDistance = _effectiveSlideDistance;
         final double dxFraction = width > 0 ? (effectiveDistance / width) : 0.0;
-        final double initialSlide = _direction * dxFraction;
+
+        final Animation<double> outgoingFade = Tween<double>(begin: 1.0, end: 0.0)
+            .animate(CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.0, 0.40, curve: Curves.easeInCubic),
+        ));
+
+        final Animation<double> incomingFade = Tween<double>(begin: 0.0, end: 1.0)
+            .animate(CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.35, 1.0, curve: M3SpringCurves.expressiveDecel),
+        ));
+
+        final Animation<double> incomingScale = Tween<double>(begin: 0.965, end: 1.0)
+            .animate(CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.35, 1.0, curve: M3SpringCurves.expressiveDecel),
+        ));
 
         final Animation<Offset> incomingSlide = Tween<Offset>(
-          begin: Offset(initialSlide, 0.0),
+          begin: Offset(_direction * dxFraction, 0.0),
           end: Offset.zero,
-        ).animate(_curve);
-
-        final Animation<double> outgoingFade = Tween<double>(
-          begin: 1.0,
-          end: 0.0,
-        ).animate(_curve);
+        ).animate(CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.35, 1.0, curve: M3SpringCurves.expressiveDecel),
+        ));
 
         return Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            // Outgoing page: strictly fading out in place (0 slide translation), touches ignored
+            // Outgoing page: fades out in place, touches ignored.
             if (_outgoingIndex != null &&
                 _outgoingIndex! >= 0 &&
                 _outgoingIndex! < widget.children.length)
@@ -200,12 +216,15 @@ class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
                 ),
               ),
 
-            // Incoming page: fading and smoothly gliding in from direction
-            SlideTransition(
-              position: incomingSlide,
-              child: FadeTransition(
-                opacity: _curve,
-                child: widget.children[_currentIndex],
+            // Incoming page: delayed fade + subtle scale-up + directional slide.
+            FadeTransition(
+              opacity: incomingFade,
+              child: ScaleTransition(
+                scale: incomingScale,
+                child: SlideTransition(
+                  position: incomingSlide,
+                  child: widget.children[_currentIndex],
+                ),
               ),
             ),
           ],
