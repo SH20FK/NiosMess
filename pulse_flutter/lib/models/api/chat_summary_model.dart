@@ -15,6 +15,9 @@ String? _parsePartnerPublicKey(Map<String, dynamic> json) {
   return json['partner_public_key'] as String?;
 }
 
+bool _parseKeyMismatch(Map<String, dynamic> json) =>
+    _parseBool(json['key_mismatch']);
+
 class ApiChatSummary {
   const ApiChatSummary({
     required this.id,
@@ -26,6 +29,7 @@ class ApiChatSummary {
     this.avatarUrl,
     this.lastMessage,
     this.partnerBadges = const <ApiBadge>[],
+    this.keyMismatch = false,
     this.partnerStatusEmoji,
     this.description = '',
     this.commentsEnabled,
@@ -53,6 +57,10 @@ class ApiChatSummary {
   final String? avatarUrl;
   final ApiMessage? lastMessage;
   final List<ApiBadge> partnerBadges;
+
+  /// True when the requesting session's device key differs from the key bound
+  /// to this secret chat (server hint: rebind before using the chat).
+  final bool keyMismatch;
   final ApiStatusEmoji? partnerStatusEmoji;
   final String description;
   final bool? commentsEnabled;
@@ -193,6 +201,7 @@ class ApiChatSummary {
       inviteLink: json['invite_link'] as String?,
       shareLink: json['share_link'] as String?,
       isSecret: _parseBool(json['is_secret']),
+      keyMismatch: _parseKeyMismatch(json),
       partnerPublicKey: _parsePartnerPublicKey(json),
       isPrivate: _parseBool(json['is_private']),
       inviteToken: json['invite_token'] as String?,
@@ -213,6 +222,7 @@ class ApiChatSummary {
   }
 
   ApiChatSummary copyWith({
+    bool? keyMismatch,
     int? id,
     String? chatType,
     String? name,
@@ -256,6 +266,7 @@ class ApiChatSummary {
       inviteLink: inviteLink ?? this.inviteLink,
       shareLink: shareLink ?? this.shareLink,
       isSecret: isSecret ?? this.isSecret,
+      keyMismatch: keyMismatch ?? this.keyMismatch,
       partnerPublicKey: partnerPublicKey ?? this.partnerPublicKey,
       isPrivate: isPrivate ?? this.isPrivate,
       inviteToken: inviteToken ?? this.inviteToken,

@@ -400,6 +400,22 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         debugPrint('[backend_chat_provider] Get public key error: $e');
       }
       final List<ApiChatSummary> chats = await ref.read(chatRepositoryProvider).listChats(publicKey: publicKey);
+      // Wave: rebind secret chats whose bound device key changed (peer
+      // re-logged in). The server marks them with keyMismatch and returns the
+      // fresh verified key via partnerPublicKey.
+      for (final ApiChatSummary c in chats) {
+        if (c.isSecret && c.keyMismatch) {
+          try {
+            await ref.read(e2eeServiceProvider).resetSession(c.id);
+            debugPrint(
+              '[backend_chat_provider] Rebinding secret chat ${c.id}: '
+              'peer key changed, ratchet session reset',
+            );
+          } catch (e) {
+            debugPrint('[backend_chat_provider] Rebind failed for ${c.id}: $e');
+          }
+        }
+      }
       // Save cache
       _persistChats(chats);
       return chats;
@@ -439,12 +455,18 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     final int idx = current.indexWhere((ApiChatSummary c) => c.id == chat.id);
     final List<ApiChatSummary> updated = List<ApiChatSummary>.from(current);
     if (idx != -1) {
-      final String? knownKey = current[idx].partnerPublicKey;
+      final ApiChatSummary known = current[idx];
+      final String? knownKey = known.partnerPublicKey;
       final bool keyMissing =
           chat.partnerPublicKey == null || chat.partnerPublicKey!.isEmpty;
-      updated[idx] = (keyMissing && knownKey != null && knownKey.isNotEmpty)
-          ? chat.copyWith(partnerPublicKey: knownKey)
-          : chat;
+      final bool badgesMissing =
+          chat.partnerBadges.isEmpty && known.partnerBadges.isNotEmpty;
+      updated[idx] = chat.copyWith(
+        partnerPublicKey: (keyMissing && knownKey != null && knownKey.isNotEmpty)
+            ? knownKey
+            : null,
+        partnerBadges: badgesMissing ? known.partnerBadges : null,
+      );
     } else {
       updated.insert(0, chat);
     }
