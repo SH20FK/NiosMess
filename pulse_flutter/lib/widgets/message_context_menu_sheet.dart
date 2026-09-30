@@ -123,8 +123,8 @@ class MessageContextMenuSheet extends StatelessWidget {
       },
     ));
 
-    // Copy text
-    if (message.content.trim().isNotEmpty && !message.isDeleted) {
+    // Copy text (disabled in secret chats for anti-leak protection)
+    if (!isSecret && message.content.trim().isNotEmpty && !message.isDeleted) {
       list.add(_ActionListTile(
         icon: Icons.copy_rounded,
         title: context.l10n.chatCopyText,

@@ -566,6 +566,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   Timer? _cacheFlushTimer;
   List<ApiMessage>? _pendingCacheSnapshot;
   bool _cacheWriteInFlight = false;
+  Timer? _ephemeralEvictionTimer;
 
   @override
   Future<List<ApiMessage>> build() async {
@@ -583,6 +584,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       WebSocketPushDispatcher.unregisterChat(_chatId);
       _cacheFlushTimer?.cancel();
       _cacheFlushTimer = null;
+      _ephemeralEvictionTimer?.cancel();
+      _ephemeralEvictionTimer = null;
       final List<ApiMessage>? pending = _pendingCacheSnapshot;
       _pendingCacheSnapshot = null;
       if (pending != null) {
@@ -602,6 +605,12 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
     final List<ApiMessage> messages = await _fetch();
     unawaited(ensureSecretHandshake());
+    _ephemeralEvictionTimer?.cancel();
+    _ephemeralEvictionTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _evictExpiredMessages(),
+    );
+    _evictExpiredMessages();
     return messages;
   }
 
@@ -1004,6 +1013,29 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
   }
 
+  void _evictExpiredMessages() {
+    final List<ApiMessage>? current = state.value;
+    if (current == null || current.isEmpty) return;
+    bool hasExpiring = false;
+    for (int i = 0; i < current.length; i++) {
+      if (current[i].expiresAt != null) {
+        hasExpiring = true;
+        break;
+      }
+    }
+    if (!hasExpiring) return;
+
+    final DateTime now = DateTime.now().toUtc();
+    final List<ApiMessage> valid = current.where((ApiMessage m) {
+      if (m.expiresAt == null) return true;
+      return m.expiresAt!.isAfter(now);
+    }).toList();
+    if (valid.length != current.length) {
+      state = AsyncData<List<ApiMessage>>(valid);
+      unawaited(_saveToCache(valid));
+    }
+  }
+
   Future<void> _saveToCache(List<ApiMessage> messages) async {
     _pendingCacheSnapshot = messages;
     if (_cacheFlushTimer != null || _cacheWriteInFlight) return;
@@ -1183,10 +1215,15 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       );
       if (session == null) {
         await ensureSecretHandshake();
-        session = await e2eeService.getOrCreateSession(
-          chatId: _chatId,
-          theirPublicKeyBase64: partnerKey,
-        );
+        for (int i = 0; i < 6 && session == null; i++) {
+          session = await e2eeService.getOrCreateSession(
+            chatId: _chatId,
+            theirPublicKeyBase64: partnerKey,
+          );
+          if (session == null) {
+            await Future<void>.delayed(const Duration(milliseconds: 500));
+          }
+        }
       }
       if (session == null) {
         throw StateError(

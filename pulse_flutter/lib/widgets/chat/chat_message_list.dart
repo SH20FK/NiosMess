@@ -415,7 +415,9 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
           );
         }
 
-        if (message.isSystemEvent) {
+        final bool isScreenshotMsg = message.content.startsWith('📷') ||
+            message.systemEventType == 'screenshot';
+        if (message.isSystemEvent || isScreenshotMsg) {
           final Widget systemPill = _SystemEventPill(
             message: message,
             formattedTime: formatMessageTime(message.sentAt),
@@ -458,6 +460,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             isMine: isMine,
             isE2ee: message.isE2ee,
             e2eeFileKey: message.e2eeFileKey,
+            expiresAt: message.expiresAt,
             isPrevSame: data.isPrevSame,
             isNextSame: data.isNextSame,
             formattedTime: formatMessageTime(message.sentAt),
@@ -801,6 +804,18 @@ class _SystemEventPill extends StatelessWidget {
         ? message.content
         : 'Системное уведомление';
 
+    final bool isScreenshot = message.systemEventType == 'screenshot' ||
+        message.content.startsWith('📷') ||
+        message.content.toLowerCase().contains('скриншот') ||
+        message.content.toLowerCase().contains('снимок экрана') ||
+        message.content.toLowerCase().contains('screenshot');
+    final IconData icon = isScreenshot
+        ? Icons.camera_alt_outlined
+        : Icons.info_outline_rounded;
+    final Color iconColor = isScreenshot
+        ? scheme.error
+        : scheme.primary;
+
     return Center(
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
@@ -811,14 +826,16 @@ class _SystemEventPill extends StatelessWidget {
               : scheme.surfaceContainerHigh.withValues(alpha: 0.80),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.25),
+            color: isScreenshot
+                ? scheme.error.withValues(alpha: 0.35)
+                : scheme.outlineVariant.withValues(alpha: 0.25),
             width: 0.8,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.info_outline_rounded, size: 16, color: scheme.primary),
+            Icon(icon, size: 16, color: iconColor),
             const SizedBox(width: 8),
             Flexible(
               child: Text(

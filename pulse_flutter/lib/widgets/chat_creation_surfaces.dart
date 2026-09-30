@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/navigation/direct_chat_navigator.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
@@ -19,6 +22,32 @@ Future<void> showStartDirectChatDialog(BuildContext context) async {
   );
   if (user != null && context.mounted && user.username.isNotEmpty) {
     context.push('/chat/dm/${Uri.encodeComponent(user.username)}');
+  }
+}
+
+Future<void> showStartSecretChatDialog(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final ApiSearchUser? user = await showUserSearchPickerSheet(
+    context,
+    title: 'Новый секретный чат',
+    subtitle: 'Выберите собеседника для защищённого E2EE-общения',
+    hintText: context.l10n.chatCreatePersonalUsernameHint,
+    allowCustomUsername: true,
+  );
+  if (user != null && context.mounted && user.username.isNotEmpty) {
+    AppToast.showInfo(context, context.l10n.profileConnectingDirect);
+    final int? chatId = await navigateToDirectChat(
+      context,
+      ref,
+      username: user.username,
+      userId: user.id,
+      isSecret: true,
+    );
+    if ((chatId == null || chatId <= 0) && context.mounted) {
+      AppToast.showError(context, 'Не удалось создать секретный чат');
+    }
   }
 }
 
@@ -238,6 +267,15 @@ Future<String?> showCreateChatMenu(BuildContext context) {
               subtitle: 'Чат для друзей, коллег или сообщества',
               iconContainerColor: scheme.primaryContainer,
               iconColor: scheme.onPrimaryContainer,
+            ),
+            const SizedBox(height: 10),
+            actionTile(
+              value: 'secret',
+              icon: Icons.lock_rounded,
+              title: 'Новый секретный чат',
+              subtitle: 'Сквозное E2EE-шифрование, без следов на сервере',
+              iconContainerColor: scheme.secondaryContainer,
+              iconColor: scheme.onSecondaryContainer,
             ),
             const SizedBox(height: 10),
             actionTile(

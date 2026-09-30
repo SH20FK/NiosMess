@@ -5,6 +5,7 @@ import 'package:pulse_flutter/widgets/chat/chat_empty_state.dart';
 import 'package:pulse_flutter/widgets/chat/chat_scroll_coordinator.dart';
 import 'package:pulse_flutter/widgets/chat/chat_overlay_layer.dart';
 import 'package:pulse_flutter/widgets/chat/e2ee_verification_sheet.dart';
+import 'package:pulse_flutter/widgets/chat/auto_delete_bottom_sheet.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:universal_io/io.dart';
@@ -239,6 +240,26 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     try {
       await ref.read(chatMessagesProvider(chatId).notifier).refresh();
     } catch (_) {}
+  }
+
+  DateTime? _lastScreenshotAlertTime;
+
+  void _handleScreenshotAction() {
+    if (!mounted) return;
+    final DateTime now = DateTime.now();
+    if (_lastScreenshotAlertTime != null &&
+        now.difference(_lastScreenshotAlertTime!).inSeconds < 5) {
+      return;
+    }
+    _lastScreenshotAlertTime = now;
+    HapticService.confirm();
+    AppToast.showInfo(context, 'В секретном чате зафиксирован снимок экрана');
+    final int? chatId = _chatId;
+    if (chatId != null) {
+      ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .send('📷 Снимок экрана был зафиксирован');
+    }
   }
 
   Future<void> _autoLoadOlderMessages() async {
@@ -1877,6 +1898,18 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             }
           }());
         },
+        if (isSecret) ...<ShortcutActivator, VoidCallback>{
+          const SingleActivator(LogicalKeyboardKey.printScreen):
+              _handleScreenshotAction,
+          const SingleActivator(LogicalKeyboardKey.keyS,
+              shift: true, meta: true): _handleScreenshotAction,
+          const SingleActivator(LogicalKeyboardKey.keyS,
+              shift: true, control: true): _handleScreenshotAction,
+          const SingleActivator(LogicalKeyboardKey.digit3,
+              shift: true, meta: true): _handleScreenshotAction,
+          const SingleActivator(LogicalKeyboardKey.digit4,
+              shift: true, meta: true): _handleScreenshotAction,
+        },
       },
       child: PopScope(
         canPop: !widget.isDesktopSplit && canRoutePop,
@@ -2114,6 +2147,14 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
       onVoiceCall: onVoiceCall,
       onVideoCall: onVideoCall,
       onSecurityTap: onSecurityTap,
+      onAutoDeleteTap: () {
+        AutoDeleteBottomSheet.show(
+          context,
+          chatId: chatId,
+          currentAutoDeleteSeconds: chat?.autoDeleteSeconds,
+          isSecret: chat?.isSecret == true || isSecret,
+        );
+      },
       typingSubtitle: _TypingSubtitle(
         chatId: chatId,
         isOnline: chat?.isOnline == true,

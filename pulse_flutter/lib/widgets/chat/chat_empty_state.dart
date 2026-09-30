@@ -120,6 +120,10 @@ class ChatEmptyState extends StatelessWidget {
       ChatEmptyStateVariant.empty => scheme.onPrimaryContainer,
     };
 
+    if (variant == ChatEmptyStateVariant.secret) {
+      return _buildSecretEmptyCard(context, scheme, textTheme);
+    }
+
     return Center(
       child: TweenAnimationBuilder<double>(
         tween: Tween<double>(begin: 0.0, end: 1.0),
@@ -198,6 +202,178 @@ class ChatEmptyState extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSecretEmptyCard(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme,
+  ) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.22),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: scheme.secondaryContainer.withValues(alpha: 0.75),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.lock_rounded,
+                    size: 26,
+                    color: scheme.onSecondaryContainer,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  title.isNotEmpty ? title : 'Секретный чат',
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description.isNotEmpty
+                      ? description
+                      : 'Здесь используется сквозное шифрование',
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 12.5,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Divider(
+                  height: 1,
+                  color: scheme.outlineVariant.withValues(alpha: 0.18),
+                ),
+                const SizedBox(height: 14),
+                _buildSecurityRow(
+                  scheme: scheme,
+                  textTheme: textTheme,
+                  icon: Icons.enhanced_encryption_rounded,
+                  title: 'Сквозное шифрование',
+                  subtitle: 'Curve25519 + Double Ratchet (AES-256)',
+                ),
+                const SizedBox(height: 10),
+                _buildSecurityRow(
+                  scheme: scheme,
+                  textTheme: textTheme,
+                  icon: Icons.cloud_off_rounded,
+                  title: 'Без следов на сервере',
+                  subtitle: 'Сервер передаёт только шифрованные данные',
+                ),
+                const SizedBox(height: 10),
+                _buildSecurityRow(
+                  scheme: scheme,
+                  textTheme: textTheme,
+                  icon: Icons.timer_outlined,
+                  title: 'Таймер самоуничтожения',
+                  subtitle: 'Сообщения сгорают после прочтения',
+                ),
+                const SizedBox(height: 10),
+                _buildSecurityRow(
+                  scheme: scheme,
+                  textTheme: textTheme,
+                  icon: Icons.block_rounded,
+                  title: 'Запрет пересылки и копирования',
+                  subtitle: 'Контент защищён от экспорта из чата',
+                ),
+                const SizedBox(height: 10),
+                _buildSecurityRow(
+                  scheme: scheme,
+                  textTheme: textTheme,
+                  icon: Icons.screenshot_outlined,
+                  title: 'Защита от скриншотов',
+                  subtitle: 'Уведомление при попытке фиксации экрана',
+                ),
+                if (actionLabel != null && onAction != null) ...<Widget>[
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonal(
+                      onPressed: onAction,
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      child: Text(
+                        actionLabel!,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSecurityRow({
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Icon(
+          icon,
+          size: 18,
+          color: scheme.secondary,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                title,
+                style: textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12.5,
+                  color: scheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                subtitle,
+                style: textTheme.bodySmall?.copyWith(
+                  fontSize: 11,
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -614,6 +614,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     if (action == null || !context.mounted) return;
 
     switch (action) {
+      case 'secret':
+        await showStartSecretChatDialog(context, ref);
+        return;
       case 'group':
       case 'channel':
         await showCreateChatModal(context, chatType: action);

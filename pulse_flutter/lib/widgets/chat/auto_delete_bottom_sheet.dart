@@ -14,21 +14,25 @@ class AutoDeleteBottomSheet extends ConsumerStatefulWidget {
     super.key,
     required this.chatId,
     this.currentAutoDeleteSeconds,
+    this.isSecret = false,
   });
 
   final int chatId;
   final int? currentAutoDeleteSeconds;
+  final bool isSecret;
 
   static Future<int?> show(
     BuildContext context, {
     required int chatId,
     int? currentAutoDeleteSeconds,
+    bool isSecret = false,
   }) {
     return AppBottomSheets.show<int?>(
       context: context,
       builder: (BuildContext ctx) => AutoDeleteBottomSheet(
         chatId: chatId,
         currentAutoDeleteSeconds: currentAutoDeleteSeconds,
+        isSecret: isSecret,
       ),
     );
   }
@@ -54,10 +58,32 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
     2592000, // 30 days
   ];
 
+  static const List<int> _secretPresetSeconds = <int>[
+    0, // Off
+    1, // 1 second
+    5, // 5 seconds
+    15, // 15 seconds
+    30, // 30 seconds
+    60, // 1 minute
+    3600, // 1 hour
+    86400, // 24 hours
+  ];
+
+  List<int> get _activePresets =>
+      widget.isSecret ? _secretPresetSeconds : _presetSeconds;
+
   String _getPresetLabel(BuildContext context, int seconds) {
     switch (seconds) {
       case 0:
         return context.l10n.autoDeleteOff;
+      case 1:
+        return '1 секунда';
+      case 5:
+        return '5 секунд';
+      case 15:
+        return '15 секунд';
+      case 30:
+        return '30 секунд';
       case 60:
         return context.l10n.autoDelete1Minute;
       case 300:
@@ -80,7 +106,7 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
     super.initState();
     final int initial = widget.currentAutoDeleteSeconds ?? 0;
     _selectedSeconds = initial;
-    if (initial > 0 && !_presetSeconds.contains(initial)) {
+    if (initial > 0 && !_activePresets.contains(initial)) {
       _isCustom = true;
       _customDays = (initial / 86400).clamp(1.0, 365.0);
     }
@@ -147,12 +173,18 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: scheme.primaryContainer,
+                    color: widget.isSecret
+                        ? scheme.secondaryContainer
+                        : scheme.primaryContainer,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    Icons.auto_delete_rounded,
-                    color: scheme.onPrimaryContainer,
+                    widget.isSecret
+                        ? Icons.timer_outlined
+                        : Icons.auto_delete_rounded,
+                    color: widget.isSecret
+                        ? scheme.onSecondaryContainer
+                        : scheme.onPrimaryContainer,
                     size: 22,
                   ),
                 ),
@@ -162,14 +194,18 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        context.l10n.autoDeleteTitle,
+                        widget.isSecret
+                            ? 'Таймер самоуничтожения'
+                            : context.l10n.autoDeleteTitle,
                         style: textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        context.l10n.autoDeleteSubtitle,
+                        widget.isSecret
+                            ? 'Сообщения в этом чате автоматически сгорают через выбранное время.'
+                            : context.l10n.autoDeleteSubtitle,
                         style: textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
@@ -182,7 +218,7 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
             const SizedBox(height: 20),
 
             // Presets
-            ..._presetSeconds.map((int seconds) {
+            ..._activePresets.map((int seconds) {
               final bool isSelected = !_isCustom && _selectedSeconds == seconds;
               final String title = _getPresetLabel(context, seconds);
 
@@ -190,12 +226,12 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? scheme.primaryContainer.withValues(alpha: 0.35)
+                      ? (widget.isSecret ? scheme.secondaryContainer : scheme.primaryContainer).withValues(alpha: 0.35)
                       : scheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isSelected
-                        ? scheme.primary
+                        ? (widget.isSecret ? scheme.secondary : scheme.primary)
                         : scheme.outlineVariant.withValues(alpha: 0.2),
                     width: isSelected ? 1.5 : 1.0,
                   ),
@@ -207,11 +243,11 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
                       title,
                       style: textTheme.bodyMedium?.copyWith(
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? scheme.primary : scheme.onSurface,
+                        color: isSelected ? (widget.isSecret ? scheme.secondary : scheme.primary) : scheme.onSurface,
                       ),
                     ),
                     trailing: isSelected
-                        ? Icon(Icons.check_circle_rounded, color: scheme.primary)
+                        ? Icon(Icons.check_circle_rounded, color: widget.isSecret ? scheme.secondary : scheme.primary)
                         : Icon(
                             Icons.radio_button_unchecked_rounded,
                             color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
@@ -229,6 +265,7 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
             }),
 
             // Custom duration option
+            if (!widget.isSecret)
             Container(
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(

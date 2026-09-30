@@ -31,6 +31,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onVoiceCall,
     this.onVideoCall,
     this.onSecurityTap,
+    this.onAutoDeleteTap,
   });
 
   final int chatId;
@@ -52,6 +53,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onVoiceCall;
   final VoidCallback? onVideoCall;
   final VoidCallback? onSecurityTap;
+  final VoidCallback? onAutoDeleteTap;
 
   bool get _showCallButtons =>
       !isChannel && !isBot && (onVoiceCall != null || onVideoCall != null);
@@ -182,34 +184,43 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                         ],
                         if (autoDeleteDuration != null) ...<Widget>[
                           const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                                  scheme.primaryContainer.withValues(alpha: 0.7),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Icon(
-                                  Icons.timer_outlined,
-                                  size: 11,
-                                  color: scheme.onPrimaryContainer,
-                                ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  autoDeleteDuration!,
-                                  style: textTheme.labelSmall?.copyWith(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: scheme.onPrimaryContainer,
+                          InkWell(
+                            onTap: onAutoDeleteTap,
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSecret
+                                    ? scheme.secondaryContainer.withValues(alpha: 0.7)
+                                    : scheme.primaryContainer.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Icon(
+                                    Icons.timer_outlined,
+                                    size: 11,
+                                    color: isSecret
+                                        ? scheme.onSecondaryContainer
+                                        : scheme.onPrimaryContainer,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    autoDeleteDuration!,
+                                    style: textTheme.labelSmall?.copyWith(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: isSecret
+                                          ? scheme.onSecondaryContainer
+                                          : scheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -224,7 +235,20 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: <Widget>[
-        if (isSecret)
+        if (isSecret) ...<Widget>[
+          IconButton(
+            onPressed: onAutoDeleteTap,
+            icon: Icon(
+              autoDeleteDuration != null
+                  ? Icons.timer_rounded
+                  : Icons.timer_outlined,
+              size: 20,
+              color: autoDeleteDuration != null
+                  ? scheme.secondary
+                  : scheme.onSurfaceVariant,
+            ),
+            tooltip: 'Таймер самоуничтожения',
+          ),
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 6),
@@ -234,6 +258,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
           ),
+        ],
         if (_showCallButtons) ...[
           IconButton(
             onPressed: onVoiceCall,

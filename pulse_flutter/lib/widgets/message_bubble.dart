@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -94,6 +95,7 @@ class MessageBubble extends ConsumerWidget {
     this.isChannel = false,
     this.commentsCount = 0,
     this.onOpenComments,
+    this.expiresAt,
     super.key,
   });
 
@@ -149,6 +151,7 @@ class MessageBubble extends ConsumerWidget {
   final bool isChannel;
   final int commentsCount;
   final VoidCallback? onOpenComments;
+  final DateTime? expiresAt;
 
   List<String> get mediaUrls {
     if (mediaUrl == null || mediaUrl!.trim().isEmpty) return [];
@@ -459,6 +462,7 @@ class MessageBubble extends ConsumerWidget {
                             formattedTime: formattedTime,
                             scheme: scheme,
                             textTheme: textTheme,
+                            expiresAt: expiresAt,
                           ),
                         )
                       else if (!hideFooter)
@@ -476,6 +480,7 @@ class MessageBubble extends ConsumerWidget {
                             formattedTime: formattedTime,
                             scheme: scheme,
                             textTheme: textTheme,
+                            expiresAt: expiresAt,
                           ),
                         ),
                       if (isChannel && onOpenComments != null) ...<Widget>[
@@ -694,6 +699,13 @@ class MessageBubble extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
+                      if (expiresAt != null) ...<Widget>[
+                        _SelfDestructCountdownPill(
+                          expiresAt: expiresAt!,
+                          color: scheme.onPrimary,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
                       Text(
                         formattedTime,
                         style: TextStyle(
@@ -794,6 +806,7 @@ class MessageBubble extends ConsumerWidget {
               chatId: chatId,
               wsClient: wsClient,
               e2eeFileKey: e2eeFileKey,
+              expiresAt: expiresAt,
               onLongPress: onLongPressMedia,
             ),
             if (isSending || isFailed)
@@ -1690,6 +1703,7 @@ class _MessageBubbleFooter extends StatelessWidget {
     required this.formattedTime,
     required this.scheme,
     required this.textTheme,
+    this.expiresAt,
     this.isSending = false,
     this.isFailed = false,
     this.onRetrySend,
@@ -1703,6 +1717,7 @@ class _MessageBubbleFooter extends StatelessWidget {
   final String formattedTime;
   final ColorScheme scheme;
   final TextTheme textTheme;
+  final DateTime? expiresAt;
   final bool isSending;
   final bool isFailed;
   final VoidCallback? onRetrySend;
@@ -1731,6 +1746,13 @@ class _MessageBubbleFooter extends StatelessWidget {
             color: scheme.tertiary.withValues(alpha: 0.7),
           ),
           const SizedBox(width: 3),
+        ],
+        if (expiresAt != null) ...[
+          _SelfDestructCountdownPill(
+            expiresAt: expiresAt!,
+            color: footerTextColor,
+          ),
+          const SizedBox(width: 4),
         ],
         if (isEdited)
           Text(
@@ -1776,6 +1798,84 @@ class _MessageBubbleFooter extends StatelessWidget {
               color: statusIconColor,
             ),
         ],
+      ],
+    );
+  }
+}
+
+class _SelfDestructCountdownPill extends StatefulWidget {
+  const _SelfDestructCountdownPill({
+    required this.expiresAt,
+    required this.color,
+  });
+
+  final DateTime expiresAt;
+  final Color color;
+
+  @override
+  State<_SelfDestructCountdownPill> createState() =>
+      _SelfDestructCountdownPillState();
+}
+
+class _SelfDestructCountdownPillState
+    extends State<_SelfDestructCountdownPill> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _SelfDestructCountdownPill oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.expiresAt != widget.expiresAt) {
+      _startTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _formatRemaining(Duration diff) {
+    if (diff.isNegative) return '0с';
+    final int secs = diff.inSeconds;
+    if (secs < 60) return '$secsс';
+    if (secs < 3600) return '${(secs / 60).ceil()}м';
+    return '${(secs / 3600).ceil()}ч';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Duration diff = widget.expiresAt.difference(DateTime.now().toUtc());
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(
+          Icons.local_fire_department_rounded,
+          size: 11,
+          color: widget.color,
+        ),
+        const SizedBox(width: 2),
+        Text(
+          _formatRemaining(diff),
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: widget.color,
+          ),
+        ),
       ],
     );
   }
@@ -1920,6 +2020,7 @@ class _CircleVideoInlinePlayer extends StatefulWidget {
     required this.chatId,
     required this.wsClient,
     this.e2eeFileKey,
+    this.expiresAt,
     this.onLongPress,
   });
 
@@ -1938,6 +2039,7 @@ class _CircleVideoInlinePlayer extends StatefulWidget {
   final int chatId;
   final WebSocketClient wsClient;
   final String? e2eeFileKey;
+  final DateTime? expiresAt;
   final VoidCallback? onLongPress;
 
   @override
@@ -2145,6 +2247,7 @@ class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
                   formattedTime: widget.formattedTime,
                   scheme: widget.scheme,
                   textTheme: widget.textTheme,
+                  expiresAt: widget.expiresAt,
                 ),
               ),
             ),

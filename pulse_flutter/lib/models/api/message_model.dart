@@ -65,6 +65,7 @@ class ApiMessage {
     this.isDecrypted = false,
     this.e2eeContent,
     this.e2eeFileKey,
+    this.expiresAt,
     this.isRead = false,
     this.systemEventType,
     this.systemEvent,
@@ -100,12 +101,22 @@ class ApiMessage {
   /// Base64 per-file AES key for E2EE media (local + cache only, comes from
   /// the decrypted message envelope, never sent to the server).
   final String? e2eeFileKey;
+  final DateTime? expiresAt;
   final bool isRead;
   final ApiSticker? sticker;
   final int? stickerSetId;
   final bool? isStickerExplicit;
   final String? systemEventType;
   final Map<String, dynamic>? systemEvent;
+
+  bool get isExpired =>
+      expiresAt != null && DateTime.now().toUtc().isAfter(expiresAt!);
+
+  Duration? get remainingLifetime {
+    if (expiresAt == null) return null;
+    final Duration diff = expiresAt!.difference(DateTime.now().toUtc());
+    return diff.isNegative ? Duration.zero : diff;
+  }
 
   bool get isEdited => editedAt != null;
 
@@ -182,6 +193,8 @@ class ApiMessage {
     bool clearE2eeContent = false,
     String? e2eeContent,
     String? e2eeFileKey,
+    DateTime? expiresAt,
+    bool clearExpiresAt = false,
     bool? isRead,
     String? systemEventType,
     Map<String, dynamic>? systemEvent,
@@ -217,6 +230,7 @@ class ApiMessage {
       isDecrypted: isDecrypted ?? this.isDecrypted,
       e2eeContent: clearE2eeContent ? null : (e2eeContent ?? this.e2eeContent),
       e2eeFileKey: e2eeFileKey ?? this.e2eeFileKey,
+      expiresAt: clearExpiresAt ? null : (expiresAt ?? this.expiresAt),
       isRead: isRead ?? this.isRead,
       systemEventType: systemEventType ?? this.systemEventType,
       systemEvent: systemEvent ?? this.systemEvent,
@@ -295,6 +309,9 @@ class ApiMessage {
       isDecrypted: isDecrypted,
       e2eeContent: e2eeContentRaw,
       e2eeFileKey: json['e2ee_file_key'] as String?,
+      expiresAt: json['expires_at'] != null
+          ? DateTime.tryParse(json['expires_at'].toString())?.toUtc()
+          : null,
       isRead: _parseBool(json['is_read']),
       sticker: json['sticker'] is Map
           ? ApiSticker.fromJson(
@@ -358,6 +375,7 @@ class ApiMessage {
       if (isStickerExplicit != null) 'is_sticker': isStickerExplicit,
       if (e2eeContent != null) 'e2ee_content': e2eeContent,
       if (e2eeFileKey != null) 'e2ee_file_key': e2eeFileKey,
+      if (expiresAt != null) 'expires_at': expiresAt!.toIso8601String(),
       if (replyMarkup != null) 'reply_markup': replyMarkup!.toJson(),
       if (systemEventType != null) 'system_event_type': systemEventType,
       if (systemEvent != null) 'system_event': systemEvent,

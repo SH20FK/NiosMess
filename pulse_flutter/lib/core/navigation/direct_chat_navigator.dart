@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -82,6 +83,20 @@ Future<int?> navigateToDirectChat(
           .toList()
         ..sort((ApiKeyDevice a, ApiKeyDevice b) =>
             b.sessionId.compareTo(a.sessionId));
+      // Only 32-byte X25519 keys drive the E2EE handshake. Legacy sessions
+      // stored RSA/SPKI blobs (~294 bytes) that crash X25519 with
+      // "expects a public key with 32 bytes".
+      bool usableX25519(String key) {
+        try {
+          return base64Decode(key).length == 32;
+        } on FormatException {
+          return false;
+        }
+      }
+
+      final List<ApiKeyDevice> usable = candidates
+          .where((ApiKeyDevice d) => usableX25519(d.publicKey))
+          .toList();
       final Set<String> knownKeys = <String>{
         for (final ApiChatSummary c in ref.read(chatsProvider).value ?? const <ApiChatSummary>[])
           if (c.chatType == 'direct' &&
@@ -91,11 +106,11 @@ Future<int?> navigateToDirectChat(
               c.partnerPublicKey != publicKey)
             c.partnerPublicKey!,
       };
-      targetPublicKey = candidates
+      targetPublicKey = usable
               .where((ApiKeyDevice d) => knownKeys.contains(d.publicKey))
               .firstOrNull
               ?.publicKey ??
-          candidates.firstOrNull?.publicKey;
+          usable.firstOrNull?.publicKey;
       if (targetPublicKey == null) {
         debugPrint('[navigateToDirectChat] user $userId has no E2EE device key');
         return null;
