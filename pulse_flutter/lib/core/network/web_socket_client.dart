@@ -225,7 +225,7 @@ class WebSocketClient {
   /// Immediately force a reconnection attempt without waiting for backoff.
   /// Used when the application resumes from background or network connectivity is restored.
   void reconnectNow() {
-    if (_closed) return;
+    _closed = false;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _reconnectAttempts = 0;
@@ -351,9 +351,15 @@ class WebSocketClient {
         if (completer != null) {
           if (error != null && error.isNotEmpty) {
             debugPrint('[WebSocketClient] Request $requestId error: $error');
-            if (error.toLowerCase().contains('unauthorized') ||
-                error.toLowerCase().contains('invalid token') ||
-                error.toLowerCase().contains('could not validate')) {
+            final String? resAction = msg['action'] as String?;
+            final bool isAuthAction = resAction == 'login' ||
+                resAction == 'login_nios_id' ||
+                resAction == 'verify_2fa' ||
+                resAction == 'register';
+            if (!isAuthAction &&
+                (error.toLowerCase().contains('unauthorized') ||
+                    error.toLowerCase().contains('invalid token') ||
+                    error.toLowerCase().contains('could not validate'))) {
               onUnauthorized?.call();
             }
             completer.completeError(
@@ -386,12 +392,16 @@ class WebSocketClient {
       try {
         return await _doRequest(action, payload: payload, timeout: timeout);
       } on ApiException catch (e) {
+        final String errLower = e.message.toLowerCase();
         final bool isConnectionFlake = e.statusCode == 0 ||
-            e.message.toLowerCase().contains('connection') ||
-            e.message.toLowerCase().contains('socket') ||
-            e.message.toLowerCase().contains('timed out');
-        if (isConnectionFlake && attempts <= maxRetries && !_closed) {
+            errLower.contains('connection') ||
+            errLower.contains('socket') ||
+            errLower.contains('timed out') ||
+            errLower.contains('disconnect') ||
+            errLower.contains('closed');
+        if (isConnectionFlake && attempts <= maxRetries) {
           debugPrint('[WebSocketClient] $action failed with ${e.message}, retrying ($attempts/$maxRetries)...');
+          _closed = false;
           _isSocketOpen = false;
           _secretKey = null;
           _isConnecting = false;
@@ -411,6 +421,13 @@ class WebSocketClient {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     await connect();
+
+    // Ensure we actually have the secret key before trying to send encrypted message
+    if (_secretKey == null && _connectionReadyCompleter != null) {
+      try {
+        await _connectionReadyCompleter!.future.timeout(const Duration(seconds: 8));
+      } catch (_) {}
+    }
 
     final int requestId = ++_requestIdCounter;
     final Completer<Map<String, dynamic>> completer =
@@ -473,9 +490,17 @@ class WebSocketClient {
   }
 
   Future<List<int>> _secretKeyBytes() async {
-    final SecretKey? key = _secretKey;
+    SecretKey? key = _secretKey;
     if (key == null) {
-      throw ApiException(statusCode: 0, message: 'Connection to server lost');
+      if (_isConnecting && _connectionReadyCompleter != null) {
+        try {
+          await _connectionReadyCompleter!.future.timeout(const Duration(seconds: 8));
+          key = _secretKey;
+        } catch (_) {}
+      }
+      if (key == null) {
+        throw ApiException(statusCode: 0, message: 'Connection to server lost');
+      }
     }
     final List<int>? cached = _keyBytesCache;
     if (cached != null && identical(_keyBytesOwner, key)) {

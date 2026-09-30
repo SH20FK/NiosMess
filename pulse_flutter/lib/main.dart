@@ -133,10 +133,14 @@ class _PulseAppState extends ConsumerState<PulseApp> {
           ref.read(webSocketClientProvider).reconnectNow();
         } catch (_) {}
         try {
-          ref.read(chatsProvider.notifier).refresh();
+          if (ref.read(authProvider).isAuthenticated) {
+            ref.read(chatsProvider.notifier).refresh();
+          }
         } catch (_) {}
         try {
-          ref.read(authProvider.notifier).refreshFcmTokenRegistration();
+          if (ref.read(authProvider).isAuthenticated) {
+            ref.read(authProvider.notifier).refreshFcmTokenRegistration();
+          }
         } catch (_) {}
       },
       onPause: () {

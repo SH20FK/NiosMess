@@ -17,6 +17,7 @@ import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/services/oauth_service.dart';
 import 'package:pulse_flutter/widgets/app_logo_mark.dart';
 import 'package:pulse_flutter/widgets/auth/auth_scaffold.dart';
@@ -182,6 +183,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() {
       _statusText = context.l10n.loginConnectingNiosMess;
     });
+
+    final wsClient = ref.read(webSocketClientProvider);
+    if (!wsClient.isConnected) {
+      try {
+        await wsClient.connect();
+      } catch (e) {
+        debugPrint('[LoginScreen] Pre-login connect error (will let request retry): $e');
+      }
+    }
 
     final AuthActionResult result = await ref
         .read(authProvider.notifier)
