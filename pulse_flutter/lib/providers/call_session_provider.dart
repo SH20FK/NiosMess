@@ -1,16 +1,14 @@
 import 'dart:async';
 
-import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/call_models.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
-import 'package:pulse_flutter/services/e2ee_service.dart';
 
 /// Provider for the current active call session manager.
 ///
@@ -37,7 +35,7 @@ class CallSessionNotifier extends Notifier<CallSessionManager?> {
   }
 }
 
-/// Orchestrates a 1:1 NiosCalls session (own protocol over the SFU) and wires
+/// Orchestrates a 1:1 NiosCalls WebRTC session and wires
 /// it into Riverpod plus the server-side call signalling.
 class CallSessionManager {
   CallSessionManager({
@@ -53,7 +51,7 @@ class CallSessionManager {
     this.peerUsername,
     this.isListener = false,
     this.gatewayInfo,
-  });
+  }) : _gatewayInfo = gatewayInfo;
 
   final dynamic ref;
   final int chatId;
@@ -67,8 +65,9 @@ class CallSessionManager {
   final String? peerUsername;
   final bool isListener;
   final ApiCallGatewayInfo? gatewayInfo;
+  ApiCallGatewayInfo? _gatewayInfo;
 
-  CallSession? _session;
+  WebRtcCallSession? _session;
   StreamSubscription<CallSessionData>? _sessionSub;
   final StreamController<CallSessionData> _stateController =
       StreamController<CallSessionData>.broadcast();
@@ -86,7 +85,7 @@ class CallSessionManager {
   Stream<CallSessionData> get stateStream => _stateController.stream;
 
   CallSessionData get currentData {
-    final CallSession? session = _session;
+    final WebRtcCallSession? session = _session;
     if (session == null) {
       return CallSessionData(
         state: CallSessionState.connecting,
@@ -128,38 +127,27 @@ class CallSessionManager {
     return asStringMap(res);
   }
 
-  Future<Uint8List> _deriveMediaKey() async {
-    try {
-      final String? partnerKey =
-          ref.read(chatByIdProvider(chatId))?.partnerPublicKey as String?;
-      if (partnerKey != null && partnerKey.isNotEmpty) {
-        final SecretKey key = await ref
-            .read(e2eeServiceProvider)
-            .deriveCallKey(callId, theirPublicKeyBase64: partnerKey);
-        return Uint8List.fromList(await key.extractBytes());
-      }
-    } catch (e) {
-      debugPrint('[CallSessionManager] media key derivation failed: $e');
-    }
-    final SecretKey fallback = await AesGcm.with256bits().newSecretKey();
-    return Uint8List.fromList(await fallback.extractBytes());
-  }
-
-  Future<CallSession> _ensureSession() async {
-    final CallSession? existing = _session;
+  Future<WebRtcCallSession> _ensureSession() async {
+    final WebRtcCallSession? existing = _session;
     if (existing != null) return existing;
 
-    final CallSession session = CallSession(
+    await initRenderers();
+
+    final WebRtcCallSession session = WebRtcCallSession(
       chatId: chatId,
       callId: callId,
       roomId: roomId,
-      isVideo: false,
+      isVideo: isVideo,
       direction: direction,
       displayName: displayName,
       peerName: peerName,
-      aesKeyBytes: await _deriveMediaKey(),
+      peerAvatarUrl: peerAvatarUrl,
+      peerUsername: peerUsername,
       isListener: isListener,
-      callAccessToken: gatewayInfo?.callAccessToken,
+      gatewayInfo: _gatewayInfo ?? gatewayInfo ?? ApiCallGatewayInfo.defaultFor(),
+      localRenderer: _localRenderer,
+      remoteRenderer: _remoteRenderer,
+      onStateChanged: _onSessionData,
     );
     _session = session;
     _sessionSub = session.stateStream.listen(_onSessionData);
@@ -205,8 +193,8 @@ class CallSessionManager {
   }
 
   Future<void> _connect() async {
-    final CallSession session = await _ensureSession();
-    await session.start(preferQuic: true);
+    final WebRtcCallSession session = await _ensureSession();
+    await session.start();
   }
 
   /// Starts the media session for an outgoing call. The server-side
@@ -241,6 +229,13 @@ class CallSessionManager {
       if (error != null) {
         throw Exception(error.toString());
       }
+      final Map<String, dynamic> payload =
+          response['payload'] is Map ? response['payload'] as Map<String, dynamic> : response;
+      if (payload.containsKey('call_access_token')) {
+        final bool isCallsTester =
+            ref.read(authProvider).profile?.isCallsTester ?? false;
+        _gatewayInfo = ApiCallGatewayInfo.fromJson(payload, isCallsTester: isCallsTester);
+      }
       await _connect();
     } catch (e) {
       debugPrint('[CallSessionManager] accept failed: $e');
@@ -269,7 +264,7 @@ class CallSessionManager {
         'room_id': roomId,
         'message_id': callId,
         'duration': data.durationSeconds,
-        // Answered = a peer really joined the room (see CallSession.wasAnswered),
+        // Answered = a peer really joined the room (see WebRtcCallSession.wasAnswered),
         // not merely "the transport connected".
         'was_missed': !(_session?.wasAnswered ?? false),
       });
@@ -291,9 +286,11 @@ class CallSessionManager {
 
   RTCVideoRenderer get localRenderer => _localRenderer;
   RTCVideoRenderer get remoteRenderer => _remoteRenderer;
-  bool get isLocalVideoEnabled => false;
-  MediaStream? get localStream => null;
-  Map<int, MediaStream> get remoteStreams => const <int, MediaStream>{};
+  bool get isLocalVideoEnabled => _session?.currentData.isSelfVideoEnabled ?? false;
+  MediaStream? get localStream => _session?.localStream;
+  Map<int, MediaStream> get remoteStreams => _session?.remoteStream != null
+      ? <int, MediaStream>{0: _session!.remoteStream!}
+      : const <int, MediaStream>{};
 
   Future<void> initRenderers() async {
     if (_renderersReady) return;
@@ -308,11 +305,18 @@ class CallSessionManager {
     unawaited(_session?.setMuted(muted));
   }
 
-  void toggleVideo({bool? enabled}) {}
+  void toggleVideo({bool? enabled}) {
+    final bool next = enabled ?? !isLocalVideoEnabled;
+    setLocalVideoEnabled(next);
+  }
 
-  void setLocalVideoEnabled(bool enabled) {}
+  void setLocalVideoEnabled(bool enabled) {
+    unawaited(_session?.setLocalVideoEnabled(enabled));
+  }
 
-  Future<void> switchCamera() async {}
+  Future<void> switchCamera() async {
+    await _session?.switchCamera();
+  }
 
   Future<void> toggleSpeaker({bool? speaker}) async {
     await _session?.setSpeakerOn(speaker ?? !isSpeakerOn);

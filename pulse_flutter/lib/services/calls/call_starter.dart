@@ -48,7 +48,7 @@ Future<int> startOutgoingCall({
 
   bool isListener = false;
   final bool perm =
-      await PermissionService().requestCallPermissions(video: false);
+      await PermissionService().requestCallPermissions(video: isVideo);
   if (!perm) {
     // Spec: "Если микрофон и камера недоступны, клиент всё равно подключается слушателем."
     isListener = true;
@@ -97,7 +97,7 @@ Future<int> startOutgoingCall({
     chatId: chatId,
     callId: callId,
     roomId: roomId,
-    isVideo: false,
+    isVideo: isVideo,
     direction: CallDirection.outgoing,
     displayName: nickname,
     peerName: peerName ?? chat?.name,
@@ -130,7 +130,7 @@ Future<void> startIncomingCall({
 }) async {
   bool isListener = false;
   final bool perm =
-      await PermissionService().requestCallPermissions(video: false);
+      await PermissionService().requestCallPermissions(video: isVideo);
   if (!perm) {
     isListener = true;
   }
@@ -150,7 +150,7 @@ Future<void> startIncomingCall({
     chatId: chatId,
     callId: callId,
     roomId: roomId,
-    isVideo: false,
+    isVideo: isVideo,
     direction: CallDirection.incoming,
     displayName: nickname,
     peerName: peerName ?? chat?.name,
