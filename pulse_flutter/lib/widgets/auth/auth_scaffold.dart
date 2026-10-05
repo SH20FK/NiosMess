@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_m3shapes/flutter_m3shapes.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -195,31 +193,6 @@ class AuthScaffold extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (badgeIcon != null)
-          Center(
-            child: M3Container(
-              Shapes.c9_sided_cookie,
-              width: 68,
-              height: 68,
-              color: scheme.primaryContainer,
-              child: Center(
-                child: Icon(
-                  badgeIcon,
-                  size: 32,
-                  color: scheme.onPrimaryContainer,
-                ),
-              ),
-            ),
-          )
-              .animate()
-              .scale(
-                begin: const Offset(0.8, 0.8),
-                end: const Offset(1, 1),
-                duration: const Duration(milliseconds: 360),
-                curve: M3SpringCurves.spatial,
-              )
-              .fadeIn(duration: const Duration(milliseconds: 280)),
-        if (badgeIcon != null) const SizedBox(height: 20),
         if (title != null)
           Text(
             title!,
@@ -227,7 +200,7 @@ class AuthScaffold extends StatelessWidget {
             style: TextStyle(
               fontFamily: AppFonts.headline,
               fontSize: 26,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w600,
               color: scheme.onSurface,
             ),
           ).animate().fadeIn(duration: const Duration(milliseconds: 300)),

@@ -925,12 +925,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ],
       ),
-    ).animate().scale(
-          begin: const Offset(0.96, 0.96),
-          end: const Offset(1, 1),
-          duration: const Duration(milliseconds: 300),
-          curve: M3SpringCurves.spatial,
-        ).fade(duration: const Duration(milliseconds: 250));
+    ).animate().fade(duration: const Duration(milliseconds: 250));
   }
 
   Widget _buildLegalFooter(ColorScheme scheme, TextTheme textTheme) {

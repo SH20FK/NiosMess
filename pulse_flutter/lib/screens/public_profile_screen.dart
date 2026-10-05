@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -767,14 +766,10 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   }) {
     final Widget content = Row(
       children: <Widget>[
-        M3Container(
-          Shapes.c9_sided_cookie,
+        SizedBox(
           width: 36,
           height: 36,
-          color: scheme.surfaceContainerHighest,
-          child: Center(
-            child: Icon(icon, size: 18, color: scheme.primary),
-          ),
+          child: Icon(icon, size: 20, color: scheme.onSurfaceVariant),
         ),
         const SizedBox(width: 12),
         Expanded(
