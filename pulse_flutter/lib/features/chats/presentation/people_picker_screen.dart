@@ -171,8 +171,10 @@ class _PeoplePickerScreenState extends ConsumerState<PeoplePickerScreen> {
 
               if (state.isSearching)
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: LinearProgressIndicator(minHeight: 2),
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Center(
+                    child: AppLoadingIndicator(size: 20),
+                  ),
                 ),
 
               // Content View

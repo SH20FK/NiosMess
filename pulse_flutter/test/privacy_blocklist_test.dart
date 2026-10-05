@@ -43,7 +43,7 @@ void main() {
     });
 
     test('PrivacyRule serialization and localized names', () {
-      expect(PrivacyRule.allKeys.length, 12);
+      expect(PrivacyRule.allKeys.length, 15);
       expect(PrivacyRule.localizedKeyName('calls'), 'Звонки');
 
       final PrivacyRule rule = PrivacyRule.fromJson(<String, dynamic>{
@@ -107,7 +107,7 @@ void main() {
       };
 
       final Map<String, PrivacyRule> rules = await repository.getPrivacy();
-      expect(rules.length, 12);
+      expect(rules.length, 15);
       expect(rules['calls']?.policy, PrivacyPolicy.contacts);
       expect(rules['calls']?.alwaysAllow, <int>[12]);
       expect(fakeWs.requests.last['action'], 'get_privacy');

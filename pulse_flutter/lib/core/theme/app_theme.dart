@@ -552,7 +552,7 @@ class VisualEffectBudget extends ThemeExtension<VisualEffectBudget> {
   /// Whether decorative gradients (hero mesh, radial glows) are permitted.
   final bool allowDecorativeGradient;
 
-  /// Whether real-time BackdropFilter / Blur is permitted (strictly media/calls only).
+  /// Whether real-time live background blur is permitted (strictly media/calls only).
   final bool allowLiveBlur;
 
   /// Whether accent-colored drop shadows (e.g. purple/pink glows) are permitted.

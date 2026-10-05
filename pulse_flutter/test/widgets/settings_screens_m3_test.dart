@@ -23,6 +23,8 @@ import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/l10n/app_localizations_ru.dart';
+import 'package:pulse_flutter/features/sessions/data/sessions_repository.dart';
+import 'package:pulse_flutter/features/sessions/domain/session_model.dart';
 import 'package:pulse_flutter/services/settings/settings_registry.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -88,6 +90,15 @@ class _StubPrivacyNotifier extends PrivacyNotifier {
   }
 }
 
+class _StubSessionsRepository extends SessionsRepository {
+  _StubSessionsRepository(super.ref);
+
+  @override
+  Future<({int? currentSessionId, List<AccountSession> sessions})> getSessions() async {
+    return (currentSessionId: 1, sessions: const <AccountSession>[]);
+  }
+}
+
 Widget _wrapWithApp(Widget child, {Size surfaceSize = const Size(800, 1000)}) {
   final ThemeData theme = AppTheme.themed(
     const VisualThemeSettings(
@@ -103,6 +114,7 @@ Widget _wrapWithApp(Widget child, {Size surfaceSize = const Size(800, 1000)}) {
     overrides: [
       authProvider.overrideWith(() => _FakeAuthNotifier()),
       authRepositoryProvider.overrideWith((ref) => _MockAuthRepository(ref)),
+      sessionsRepositoryProvider.overrideWith((ref) => _StubSessionsRepository(ref)),
       adaptivePerformanceProvider.overrideWith(_StubAdaptivePerformanceNotifier.new),
       privacyProvider.overrideWith(_StubPrivacyNotifier.new),
     ],
