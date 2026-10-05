@@ -2682,7 +2682,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get fluidPreviewM3Subtitle =>
-      'Новые индикаторы и плавные переходы уже доступны!';
+      'Новые индикаторы и плавные переходы уже доступны';
 
   @override
   String get profileAvatarUpdated => 'Аватар обновлён';
@@ -2723,7 +2723,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get niosgramEmptyFeed => 'Постов пока нет';
 
   @override
-  String get niosgramEmptyFeedDesc => 'Будь первым, кто поделится чем-то!';
+  String get niosgramEmptyFeedDesc => 'Будь первым, кто поделится чем-то';
 
   @override
   String get niosgramLoadMore => 'Загрузить ещё';
@@ -3259,7 +3259,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get e2eeMitmWarning =>
-      'ВНИМАНИЕ: Несовпадение ключа безопасности! Возможна MITM-атака!';
+      'ВНИМАНИЕ: Несовпадение ключа безопасности. Возможна MITM-атака';
 
   @override
   String get e2eeEraseConfirmBody =>
@@ -3702,10 +3702,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get aboutInstallMissingFile => 'Файл обновления не найден. Загрузка перезапущена.';
 
   @override
-  String get aboutEasterEggTitle => 'Секретный режим активирован!';
+  String get aboutEasterEggTitle => 'Секретный режим активирован';
 
   @override
-  String get aboutEasterEggMessage => 'Спасибо за участие в тестировании NiosMess!';
+  String get aboutEasterEggMessage => 'Спасибо за участие в тестировании NiosMess';
 
   @override
   String get aboutReportSubject => 'Тема обращения';
@@ -4225,19 +4225,19 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get chatCallsRestrictedByUser => 'Пользователь ограничил возможность звонков';
   @override
-  String chatPreviewStickerWithEmoji(Object emoji) => '🖼️ Стикер $emoji';
+  String chatPreviewStickerWithEmoji(Object emoji) => 'Стикер $emoji';
   @override
-  String get chatPreviewSticker => '🖼️ Стикер';
+  String get chatPreviewSticker => 'Стикер';
   @override
-  String chatPreviewVoiceWithDuration(Object duration) => '🎤 Голосовое сообщение ($duration)';
+  String chatPreviewVoiceWithDuration(Object duration) => 'Голосовое сообщение ($duration)';
   @override
-  String get chatPreviewVoice => '🎤 Голосовое сообщение';
+  String get chatPreviewVoice => 'Голосовое сообщение';
   @override
-  String get chatPreviewVideoNote => '📹 Видеосообщение';
+  String get chatPreviewVideoNote => 'Видеосообщение';
   @override
-  String get chatPreviewCall => '📞 Звонок';
+  String get chatPreviewCall => 'Звонок';
   @override
-  String get chatPreviewAttachment => '📎 Вложение';
+  String get chatPreviewAttachment => 'Вложение';
   @override
   String get chatPreviewMessage => 'Сообщение';
   @override

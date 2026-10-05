@@ -255,7 +255,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get verifyEmailDone => 'Done';
 
   @override
-  String get setupWelcomeTitle => 'Nice to meet you!';
+  String get setupWelcomeTitle => 'Nice to meet you';
 
   @override
   String get setupWelcomeBody =>
@@ -2649,7 +2649,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get botPollSubtitle => 'Poll for new bot messages and callbacks';
 
   @override
-  String get botCreated => 'Bot created!';
+  String get botCreated => 'Bot created';
 
   @override
   String get botCopied => 'Copied';
@@ -2659,7 +2659,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fluidPreviewM3Subtitle =>
-      'New indicators and smooth transitions are already available!';
+      'New indicators and smooth transitions are already available';
 
   @override
   String get profileAvatarUpdated => 'Avatar updated';
@@ -2700,7 +2700,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get niosgramEmptyFeed => 'No posts yet';
 
   @override
-  String get niosgramEmptyFeedDesc => 'Be the first to share something!';
+  String get niosgramEmptyFeedDesc => 'Be the first to share something';
 
   @override
   String get niosgramLoadMore => 'Load more';
@@ -3247,7 +3247,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get e2eeMitmWarning =>
-      'WARNING: Security key mismatch! Possible MITM attack!';
+      'WARNING: Security key mismatch. Possible MITM attack';
 
   @override
   String get chatMembersBanConfirmTitle => 'Ban member?';
@@ -3679,10 +3679,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutInstallMissingFile => 'Update file not found. Download restarted.';
 
   @override
-  String get aboutEasterEggTitle => 'Secret Mode Activated!';
+  String get aboutEasterEggTitle => 'Secret Mode Activated';
 
   @override
-  String get aboutEasterEggMessage => 'Thank you for testing NiosMess!';
+  String get aboutEasterEggMessage => 'Thank you for testing NiosMess';
 
   @override
   String get aboutReportSubject => 'Issue subject';
@@ -3691,7 +3691,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutReportDescription => 'Describe the bug or issue';
 
   @override
-  String get aboutReportSuccess => 'Bug report sent to developers. Thank you!';
+  String get aboutReportSuccess => 'Bug report sent to developers. Thank you';
 
   @override
   String get aboutReportError => 'Failed to send bug report. Please try again later.';
@@ -4201,19 +4201,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get chatCallsRestrictedByUser => 'User restricted incoming calls';
   @override
-  String chatPreviewStickerWithEmoji(Object emoji) => '🖼️ Sticker $emoji';
+  String chatPreviewStickerWithEmoji(Object emoji) => 'Sticker $emoji';
   @override
-  String get chatPreviewSticker => '🖼️ Sticker';
+  String get chatPreviewSticker => 'Sticker';
   @override
-  String chatPreviewVoiceWithDuration(Object duration) => '🎤 Voice message ($duration)';
+  String chatPreviewVoiceWithDuration(Object duration) => 'Voice message ($duration)';
   @override
-  String get chatPreviewVoice => '🎤 Voice message';
+  String get chatPreviewVoice => 'Voice message';
   @override
-  String get chatPreviewVideoNote => '📹 Video message';
+  String get chatPreviewVideoNote => 'Video message';
   @override
-  String get chatPreviewCall => '📞 Call';
+  String get chatPreviewCall => 'Call';
   @override
-  String get chatPreviewAttachment => '📎 Attachment';
+  String get chatPreviewAttachment => 'Attachment';
   @override
   String get chatPreviewMessage => 'Message';
   @override
@@ -4909,7 +4909,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shellPushNotificationsEnable => 'Enable';
   @override
   String get shellPushNotificationsSuccess =>
-      'Notifications enabled successfully!';
+      'Notifications enabled successfully';
   @override
   String get shellPressAgainToExit => 'Press back again to exit';
   @override

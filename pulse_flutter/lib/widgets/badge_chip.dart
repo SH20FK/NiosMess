@@ -281,13 +281,6 @@ class BadgeChip extends StatelessWidget {
         child = Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: scheme.primary.withValues(alpha: 0.35),
-                blurRadius: 10,
-                spreadRadius: -2,
-              ),
-            ],
           ),
           child: _buildIcon(resolved, scheme.primary, 18),
         );

@@ -110,7 +110,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     HapticService.confirm();
     AppToast.showSuccess(
       context,
-      '🎉 ${context.l10n.aboutEasterEggTitle} ${context.l10n.aboutEasterEggMessage}',
+      '${context.l10n.aboutEasterEggTitle} ${context.l10n.aboutEasterEggMessage}',
     );
   }
 

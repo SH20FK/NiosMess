@@ -179,13 +179,6 @@ class GroupProfileScreen extends ConsumerWidget {
                 border: Border.all(
                   color: scheme.outlineVariant.withValues(alpha: 0.16),
                 ),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.06),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
               ),
               padding: const EdgeInsets.all(20),
               child: Column(

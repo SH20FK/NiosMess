@@ -257,7 +257,6 @@ class _OtpBoxCell extends StatelessWidget {
 
     Color backgroundColor;
     Border border;
-    const List<BoxShadow> shadows = <BoxShadow>[];
 
     if (hasError) {
       backgroundColor = scheme.errorContainer.withValues(alpha: 0.25);
@@ -304,7 +303,6 @@ class _OtpBoxCell extends StatelessWidget {
           color: backgroundColor,
           borderRadius: BorderRadius.circular(18),
           border: border,
-          boxShadow: shadows,
         ),
         alignment: Alignment.center,
         child: isFilled

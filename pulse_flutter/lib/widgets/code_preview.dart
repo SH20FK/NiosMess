@@ -34,9 +34,6 @@ class CodePreview extends StatelessWidget {
                         ? scheme.primary
                         : scheme.outlineVariant.withValues(alpha: 0.3)),
               ),
-              boxShadow: isCurrent ? [
-                BoxShadow(color: scheme.primary.withValues(alpha: 0.1), blurRadius: 8, spreadRadius: 1)
-              ] : null,
             ),
             alignment: Alignment.center,
             child: Text(

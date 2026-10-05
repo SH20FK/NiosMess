@@ -321,15 +321,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                             ),
                           )
                         : null,
-                    boxShadow: isWide && !isDark
-                        ? <BoxShadow>[
-                            BoxShadow(
-                              color: scheme.shadow.withValues(alpha: 0.04),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
-                            ),
-                          ]
-                        : null,
                   ),
                   padding: EdgeInsets.all(isWide ? 20 : 0),
                   child: Column(

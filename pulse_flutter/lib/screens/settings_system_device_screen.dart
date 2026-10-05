@@ -120,7 +120,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               label: const Text('Повторить опрос'),
               style: FilledButton.styleFrom(
                 elevation: 0,
-                shape: const StadiumBorder(),
+                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
               ),
             ),
           ],

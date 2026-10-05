@@ -1334,13 +1334,6 @@ class _MusicPlayerState extends State<_MusicPlayer> {
                   ],
                 ),
                 borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.15),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
               ),
               child: Icon(
                 Icons.music_note_rounded,
@@ -1419,13 +1412,6 @@ class _MusicPlayerState extends State<_MusicPlayer> {
                   decoration: BoxDecoration(
                     color: scheme.primary,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: scheme.primary.withValues(alpha: 0.3),
-                        blurRadius: 16,
-                        spreadRadius: 2,
-                      ),
-                    ],
                   ),
                   child: _loading
                       ? AppLoadingIndicator(

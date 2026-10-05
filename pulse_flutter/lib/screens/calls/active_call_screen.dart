@@ -94,16 +94,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
             height: double.infinity,
             decoration: BoxDecoration(
               color: const Color(0xFF0D0F14),
-              gradient: RadialGradient(
-                center: const Alignment(0.0, -0.2),
-                radius: 1.1,
-                colors: [
-                  callScheme.error.withValues(alpha: 0.12),
-                  callScheme.surfaceContainerLowest,
-                  const Color(0xFF0B0C10),
-                ],
-                stops: const [0.0, 0.55, 1.0],
-              ),
+              
             ),
             child: SafeArea(
               child: Center(
@@ -215,16 +206,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
           height: double.infinity,
           decoration: BoxDecoration(
             color: const Color(0xFF0D0F14),
-            gradient: RadialGradient(
-              center: const Alignment(0.0, -0.25),
-              radius: 1.1,
-              colors: [
-                callScheme.primary.withValues(alpha: 0.16),
-                callScheme.tertiary.withValues(alpha: 0.06),
-                const Color(0xFF0B0C10),
-              ],
-              stops: const [0.0, 0.50, 1.0],
-            ),
+            
           ),
           child: SafeArea(
             child: Stack(

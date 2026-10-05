@@ -55,8 +55,8 @@ class _CommentsBottomSheetState extends ConsumerState<CommentsBottomSheet> {
             : 'Пользователь');
     final String snippet = message.isSticker
         ? (message.sticker?.emoji.isNotEmpty == true
-            ? '🖼️ Стикер ${message.sticker!.emoji}'
-            : '🖼️ Стикер')
+            ? 'Стикер ${message.sticker!.emoji}'
+            : 'Стикер')
         : (message.content.trim().isNotEmpty
             ? message.content.trim()
             : 'Сообщение');
@@ -159,8 +159,8 @@ class _CommentsBottomSheetState extends ConsumerState<CommentsBottomSheet> {
                                 : 'Пользователь';
                             final String pSnippet = parent.isSticker
                                 ? (parent.sticker?.emoji.isNotEmpty == true
-                                    ? '🖼️ Стикер ${parent.sticker!.emoji}'
-                                    : '🖼️ Стикер')
+                                    ? 'Стикер ${parent.sticker!.emoji}'
+                                    : 'Стикер')
                                 : (parent.content.trim().isNotEmpty
                                     ? parent.content.trim()
                                     : 'Сообщение');

@@ -111,14 +111,7 @@ class _RadialBackdrop extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: <Color>[
-            primary.withValues(alpha: 0.16),
-            accent.withValues(alpha: 0.06),
-            Colors.transparent,
-          ],
-          stops: const <double>[0.0, 0.6, 1.0],
-        ),
+        color: primary.withValues(alpha: 0.10),
       ),
     );
   }

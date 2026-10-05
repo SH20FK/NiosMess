@@ -336,7 +336,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         final String chatName = chat.name.isNotEmpty ? chat.name : 'NiosMess';
         final String body = message.content.isNotEmpty
             ? message.content
-            : (message.msgType == 'media' ? '📎 Media' : '...');
+            : (message.msgType == 'media' ? 'Вложение' : '...');
         NotificationStorage.createAndSave(
           title: chatName,
           body: body,
@@ -363,7 +363,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       if (message.senderId != myUserId && !isCurrentChatOpen) {
         final String body = message.content.isNotEmpty
             ? message.content
-            : (message.msgType == 'media' ? '📎 Media' : '...');
+            : (message.msgType == 'media' ? 'Вложение' : '...');
         NotificationStorage.createAndSave(
           title: 'NiosMess',
           body: body,

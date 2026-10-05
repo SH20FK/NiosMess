@@ -58,13 +58,6 @@ class AppDialog extends StatelessWidget {
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHigh.withValues(alpha: 0.90),
                 borderRadius: AppRadii.lgRadius,
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.16),
-                    blurRadius: 32,
-                    offset: const Offset(0, 18),
-                  ),
-                ],
               ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),

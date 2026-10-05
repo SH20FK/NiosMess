@@ -527,20 +527,10 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                         height: 76,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(22),
-                          gradient: _avatarBytes == null
-                              ? LinearGradient(
-                                  colors: isChannel
-                                      ? <Color>[
-                                          scheme.tertiaryContainer,
-                                          scheme.primaryContainer,
-                                        ]
-                                      : <Color>[
-                                          scheme.primaryContainer,
-                                          scheme.secondaryContainer,
-                                        ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                )
+                          color: _avatarBytes == null
+                              ? (isChannel
+                                  ? scheme.tertiaryContainer
+                                  : scheme.primaryContainer)
                               : null,
                           border: Border.all(
                             color: scheme.outlineVariant.withValues(alpha: 0.25),

@@ -238,14 +238,6 @@ class _NiosgramQuickCreateFab extends StatelessWidget {
           width: 58,
           height: 58,
           decoration: BoxDecoration(
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: scheme.primary.withValues(alpha: 0.30),
-                blurRadius: 14,
-                spreadRadius: 1,
-                offset: const Offset(0, 5),
-              ),
-            ],
           ),
           child: ClipPath(
             clipper: M3Clipper(Shapes.c9_sided_cookie),
@@ -333,13 +325,6 @@ class _NotificationsBell extends ConsumerWidget {
                   color: scheme.error,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: scheme.surface, width: 1.5),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: scheme.error.withValues(alpha: 0.35),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
                 ),
                 constraints:
                     const BoxConstraints(minWidth: 18, minHeight: 16),
@@ -727,15 +712,6 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
           ),
           width: 1,
         ),
-        boxShadow: isDark
-            ? null
-            : <BoxShadow>[
-                BoxShadow(
-                  color: scheme.shadow.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
       ),
       padding: EdgeInsets.all(_isExpanded ? 16 : 10),
       child: ClipRRect(

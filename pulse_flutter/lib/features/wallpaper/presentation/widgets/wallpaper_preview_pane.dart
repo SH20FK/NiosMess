@@ -118,7 +118,7 @@ class WallpaperPreviewPane extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        'Выглядит отлично! ✨',
+                        'Выглядит хорошо',
                         style: TextStyle(
                           color: scheme.onPrimary,
                           fontSize: 13,

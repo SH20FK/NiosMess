@@ -63,13 +63,6 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
                 color: scheme.outlineVariant.withValues(alpha: 0.35),
                 width: 1.0,
               ),
-              boxShadow: <BoxShadow>[
-                BoxShadow(
-                  color: scheme.shadow.withValues(alpha: 0.08),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
             ),
             child: child,
           ),
@@ -199,13 +192,6 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
                         color: scheme.outlineVariant.withValues(alpha: 0.40),
                         width: 1.5,
                       ),
-                      boxShadow: <BoxShadow>[
-                        BoxShadow(
-                          color: scheme.shadow.withValues(alpha: 0.12),
-                          blurRadius: 36,
-                          offset: const Offset(0, 12),
-                        ),
-                      ],
                     ),
                     child: SingleChildScrollView(
                       child: child,

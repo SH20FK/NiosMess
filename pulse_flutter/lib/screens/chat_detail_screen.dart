@@ -1666,15 +1666,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (mediaUrl != null && mediaUrl.trim().isNotEmpty) {
       final String caption = message.content.trim();
       if (_isImageMedia(message, mediaUrl)) {
-        return caption.isNotEmpty ? '📷 $caption' : context.l10n.chatPreviewPhoto;
+        return caption.isNotEmpty ? caption : context.l10n.chatPreviewPhoto;
       }
       if (_isVideoMedia(message, mediaUrl)) {
-        return caption.isNotEmpty ? '🎥 $caption' : context.l10n.chatPreviewVideo;
+        return caption.isNotEmpty ? caption : context.l10n.chatPreviewVideo;
       }
       final String name = (message.mediaName ?? '').trim();
       final String label =
           name.isNotEmpty ? name : _mediaLabel(message, mediaUrl);
-      return caption.isNotEmpty ? '📎 $label • $caption' : '📎 $label';
+      return caption.isNotEmpty ? '$label: $caption' : label;
     }
 
     if (message.isCallEvent) {

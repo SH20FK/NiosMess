@@ -131,16 +131,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
         height: double.infinity,
         decoration: BoxDecoration(
           color: const Color(0xFF0D0F14),
-          gradient: RadialGradient(
-            center: const Alignment(0.0, -0.28),
-            radius: 1.15,
-            colors: [
-              callScheme.primary.withValues(alpha: 0.18),
-              callScheme.tertiary.withValues(alpha: 0.07),
-              const Color(0xFF0B0C10),
-            ],
-            stops: const [0.0, 0.50, 1.0],
-          ),
+          
         ),
         child: SafeArea(
           child: Column(

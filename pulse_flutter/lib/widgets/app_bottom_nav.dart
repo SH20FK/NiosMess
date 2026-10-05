@@ -133,7 +133,7 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
                   child: DecoratedBox(
                     decoration: ShapeDecoration(
                       color: widget.color,
-                      shape: const StadiumBorder(),
+                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
                     ),
                     child: const SizedBox.expand(),
                   ),

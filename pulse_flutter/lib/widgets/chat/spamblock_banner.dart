@@ -76,13 +76,6 @@ class _SpamBlockBannerState extends State<SpamBlockBanner> {
           color: scheme.error.withValues(alpha: 0.35),
           width: 1.2,
         ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: scheme.error.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

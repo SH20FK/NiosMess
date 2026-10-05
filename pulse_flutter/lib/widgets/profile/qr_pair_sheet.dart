@@ -193,13 +193,6 @@ class _QrPairSheetState extends ConsumerState<QrPairSheet> {
               decoration: BoxDecoration(
                 color: const Color(0xFFFFFFFF),
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.15),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
               child: SizedBox(
                 width: 200,
