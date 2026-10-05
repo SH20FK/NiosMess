@@ -670,7 +670,6 @@ class _ColorOrbItem extends StatefulWidget {
 }
 
 class _ColorOrbItemState extends State<_ColorOrbItem> {
-  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -691,9 +690,6 @@ class _ColorOrbItemState extends State<_ColorOrbItem> {
       child: Tooltip(
         message: widget.label,
         child: Listener(
-          onPointerDown: (_) => setState(() => _isPressed = true),
-          onPointerUp: (_) => setState(() => _isPressed = false),
-          onPointerCancel: (_) => setState(() => _isPressed = false),
           child: GestureDetector(
             onTap: widget.onTap,
             child: AnimatedScale(
@@ -745,7 +741,6 @@ class _RainbowCustomOrbItem extends StatefulWidget {
 }
 
 class _RainbowCustomOrbItemState extends State<_RainbowCustomOrbItem> {
-  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -768,9 +763,6 @@ class _RainbowCustomOrbItemState extends State<_RainbowCustomOrbItem> {
       child: Tooltip(
         message: context.l10n.appearanceCustomColor,
         child: Listener(
-          onPointerDown: (_) => setState(() => _isPressed = true),
-          onPointerUp: (_) => setState(() => _isPressed = false),
-          onPointerCancel: (_) => setState(() => _isPressed = false),
           child: GestureDetector(
             onTap: widget.onTap,
             child: AnimatedScale(
@@ -1321,7 +1313,6 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
   late Color _selectedColor;
   late TextEditingController _hexController;
   String? _hexError;
-  Color? _pressedColor;
   bool _isApplyPressed = false;
 
   @override
@@ -1452,12 +1443,8 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
                       ? (isDark ? scheme.surface : scheme.outline)
                       : (isDark ? scheme.onSurface : scheme.surface))
                   : Colors.transparent;
-              final bool isPressed = _pressedColor == c;
 
               return Listener(
-                onPointerDown: (_) => setState(() => _pressedColor = c),
-                onPointerUp: (_) => setState(() => _pressedColor = null),
-                onPointerCancel: (_) => setState(() => _pressedColor = null),
                 child: GestureDetector(
                   onTap: () {
                     HapticService.tap();

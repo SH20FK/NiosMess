@@ -605,14 +605,10 @@ class _InteractiveBrandBadge extends StatefulWidget {
 }
 
 class _InteractiveBrandBadgeState extends State<_InteractiveBrandBadge> {
-  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
       onTap: () {
         HapticService.tap();
       },
@@ -798,7 +794,6 @@ class _InteractiveSpecTile extends StatefulWidget {
 }
 
 class _InteractiveSpecTileState extends State<_InteractiveSpecTile> {
-  bool _isPressed = false;
 
   void _onTap() {
     HapticService.tap();
@@ -809,9 +804,6 @@ class _InteractiveSpecTileState extends State<_InteractiveSpecTile> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
       onTap: _onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedScale(

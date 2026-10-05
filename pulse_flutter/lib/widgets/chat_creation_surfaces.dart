@@ -316,14 +316,10 @@ class _PressableScale extends StatefulWidget {
 }
 
 class _PressableScaleState extends State<_PressableScale> {
-  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
       onTap: widget.onTap,
       child: AnimatedScale(
         scale: 1.0,
