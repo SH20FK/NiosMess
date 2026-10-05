@@ -101,7 +101,7 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
               color: scheme.primary.withValues(alpha: isDark ? 0.18 : 0.10),
-              borderRadius: BorderRadius.circular(100),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: scheme.primary.withValues(alpha: isDark ? 0.35 : 0.25),
               ),

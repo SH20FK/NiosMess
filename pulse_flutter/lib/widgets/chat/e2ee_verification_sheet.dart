@@ -250,7 +250,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                           color: info.isVerified
                               ? scheme.tertiary.withValues(alpha: 0.15)
                               : scheme.primaryContainer.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(999),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           info.isVerified
