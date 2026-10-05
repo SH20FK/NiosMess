@@ -561,10 +561,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ? scheme.surfaceContainerLow
               : scheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.15 : 0.22),
-            width: 1,
-          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -627,9 +623,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Text(
                         displayName,
                         style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           fontSize: 19,
-                          letterSpacing: -0.3,
                           color: scheme.onSurface,
                         ),
                         maxLines: 1,
@@ -721,14 +716,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       decoration: BoxDecoration(
                         color: scheme.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: scheme.outlineVariant.withValues(alpha: 0.2),
-                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Icon(Icons.badge_outlined, size: 13, color: scheme.primary),
+                          Icon(Icons.badge_outlined, size: 13, color: scheme.onSurfaceVariant),
                           const SizedBox(width: 5),
                           Text(
                             'ID: $niosId',
@@ -764,14 +756,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       decoration: BoxDecoration(
                         color: scheme.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: scheme.outlineVariant.withValues(alpha: 0.2),
-                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Icon(Icons.phone_outlined, size: 13, color: scheme.primary),
+                          Icon(Icons.phone_outlined, size: 13, color: scheme.onSurfaceVariant),
                           const SizedBox(width: 5),
                           Text(
                             auth.profile!.phoneNumber!,
@@ -790,14 +779,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: scheme.outlineVariant.withValues(alpha: 0.2),
-                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        Icon(Icons.cake_outlined, size: 13, color: scheme.primary),
+                        Icon(Icons.cake_outlined, size: 13, color: scheme.onSurfaceVariant),
                         const SizedBox(width: 5),
                         Text(
                           auth.profile!.birthday!,
@@ -926,8 +912,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         title: Text(
           context.l10n.tabSettings,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.6,
+                fontWeight: FontWeight.w600,
                 color: scheme.onSurface,
               ),
         ),
@@ -1772,9 +1757,8 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                       context.l10n.profileEdit,
                       textAlign: TextAlign.center,
                       style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                         fontSize: 17,
-                        letterSpacing: -0.2,
                       ),
                     ),
                   ),
@@ -1831,7 +1815,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                                   child: Material(
                                     color: scheme.primary,
                                     shape: const CircleBorder(),
-                                    elevation: 2,
+                                    elevation: 0,
                                     child: InkWell(
                                       onTap: widget.onUploadAvatar,
                                       customBorder: const CircleBorder(),

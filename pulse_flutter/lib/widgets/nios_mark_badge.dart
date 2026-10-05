@@ -131,7 +131,7 @@ class _NiosMarkBadgeState extends ConsumerState<NiosMarkBadge>
                           Navigator.of(sheetContext).pop();
                           AppToast.showSuccess(
                             context,
-                            'Ссылка на Nios Mark скопирована!',
+                            'Ссылка на Nios Mark скопирована',
                           );
                         },
                         icon: const Icon(Icons.link_rounded, size: 20),
@@ -149,7 +149,7 @@ class _NiosMarkBadgeState extends ConsumerState<NiosMarkBadge>
                           Navigator.of(sheetContext).pop();
                           AppToast.showSuccess(
                             context,
-                            'Идентификатор марки скопирован!',
+                            'Идентификатор марки скопирован',
                           );
                         },
                         icon: const Icon(Icons.share_rounded, size: 20),

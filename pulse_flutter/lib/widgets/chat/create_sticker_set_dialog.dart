@@ -163,7 +163,7 @@ class _CreateStickerSetDialogState extends ConsumerState<CreateStickerSetDialog>
       await ref.read(stickerSetsProvider.notifier).refresh();
 
       if (mounted) {
-        AppToast.showSuccess(context, 'Стикерпак успешно создан!');
+        AppToast.showSuccess(context, 'Стикерпак успешно создан');
         Navigator.pop(context, newSet);
       }
     } catch (e) {

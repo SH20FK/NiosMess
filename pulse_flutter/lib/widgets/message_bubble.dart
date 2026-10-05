@@ -1017,7 +1017,7 @@ class MessageBubble extends ConsumerWidget {
     if (isFailed || uploadTask?.stage == UploadStage.failed) {
       progressSubtitle = 'Не удалось отправить';
     } else if (uploadTask?.stage == UploadStage.queued) {
-      progressSubtitle = 'В очереди · позиция ${uploadQueuePosition ?? 1}';
+      progressSubtitle = 'В очереди, позиция ${uploadQueuePosition ?? 1}';
     } else if (uploadTask?.stage == UploadStage.processing) {
       progressSubtitle = 'Обработка файла...';
     } else if (uploadTask?.stage == UploadStage.sendingMessage) {
@@ -1038,7 +1038,7 @@ class MessageBubble extends ConsumerWidget {
       }
       if (speedStr.isNotEmpty) parts.add(speedStr);
       if (etaStr.isNotEmpty) parts.add(etaStr);
-      progressSubtitle = parts.join(' · ');
+      progressSubtitle = parts.join(', ');
     } else {
       progressSubtitle = '$percent% • Загрузка...';
     }

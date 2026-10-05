@@ -41,7 +41,7 @@ class InlineQueryOverlay extends StatelessWidget {
 
     return Material(
       color: scheme.surfaceContainerHigh,
-      elevation: 4,
+      elevation: 0,
       shadowColor: scheme.shadow.withValues(alpha: 0.15),
       borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,

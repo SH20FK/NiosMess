@@ -72,8 +72,7 @@ class SettingsScaffold extends ConsumerWidget {
               child: Text(
                 title!,
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
+                      fontWeight: FontWeight.w600,
                       color: scheme.onSurface,
                     ),
               ),
@@ -217,24 +216,6 @@ class SettingsNavBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final Color resolvedColor = iconColor ?? scheme.primary;
-
-    final Widget leadingWidget = illustrationCategory != null
-        ? SettingsHeaderIllustration(
-            category: illustrationCategory!,
-            size: 48,
-            accentColor: iconColor,
-          )
-        : Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: resolvedColor.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon ?? Icons.settings_outlined, color: resolvedColor, size: 24),
-          );
 
     final bool hasTitle = title != null && title!.trim().isNotEmpty;
 
@@ -243,8 +224,6 @@ class SettingsNavBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          leadingWidget,
-          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,8 +233,7 @@ class SettingsNavBanner extends StatelessWidget {
                   Text(
                     title!,
                     style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
+                      fontWeight: FontWeight.w600,
                       color: scheme.onSurface,
                     ),
                   ),
@@ -310,15 +288,6 @@ class SettingsSection extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
-                    Container(
-                      width: 3.5,
-                      height: 14,
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: scheme.primary,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,14 +296,12 @@ class SettingsSection extends StatelessWidget {
                             title!,
                             style: isCard
                                 ? textTheme.labelLarge?.copyWith(
-                                    color: scheme.onSurfaceVariant.withValues(alpha: 0.90),
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.1,
+                                    color: scheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
                                   )
                                 : textTheme.labelSmall?.copyWith(
-                                    color: scheme.primary,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.8,
+                                    color: scheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
                                   ),
                           ),
                           if (subtitle != null) ...<Widget>[
@@ -357,16 +324,11 @@ class SettingsSection extends StatelessWidget {
           if (isCard)
             Builder(
               builder: (BuildContext ctx) {
-                final bool isDark = Theme.of(ctx).brightness == Brightness.dark;
                 final BorderRadius dynamicRadius = AppRadii.of(ctx).lgRadius;
                 return Container(
                   decoration: BoxDecoration(
                     color: scheme.surfaceContainerLow,
                     borderRadius: dynamicRadius,
-                    border: Border.all(
-                      color: scheme.outlineVariant.withValues(alpha: isDark ? 0.15 : 0.20),
-                      width: 1,
-                    ),
                   ),
                   child: ClipRRect(
                     borderRadius: dynamicRadius,
@@ -403,7 +365,7 @@ class SettingsSection extends StatelessWidget {
               height: 1,
               indent: SettingsListItem.dividerIndent,
               endIndent: 16,
-              color: scheme.outlineVariant.withValues(alpha: 0.10),
+              color: scheme.outlineVariant,
             ),
           );
         }

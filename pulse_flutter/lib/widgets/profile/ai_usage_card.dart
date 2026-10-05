@@ -142,7 +142,7 @@ class AiUsageIndicatorCard extends StatelessWidget {
 
     final String resetFormatted = _formatResetDate(context, usage.resetsAt);
     final String resetPart =
-        resetFormatted.isNotEmpty ? ' · сброс $resetFormatted' : '';
+        resetFormatted.isNotEmpty ? ', сброс $resetFormatted' : '';
     final String subtitleText =
         '$remainingCharsStr из $limitCharsStr символов$resetPart';
 

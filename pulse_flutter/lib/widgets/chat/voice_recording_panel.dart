@@ -217,7 +217,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
               color: scheme.primary,
               shape: const CircleBorder(),
               clipBehavior: Clip.antiAlias,
-              elevation: 2,
+              elevation: 0,
               child: InkWell(
                 onTap: () {
                   HapticService.confirm();
@@ -316,7 +316,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
             color: scheme.primary,
             shape: const CircleBorder(),
             clipBehavior: Clip.antiAlias,
-            elevation: 2,
+            elevation: 0,
             child: InkWell(
               onTap: () {
                 HapticService.confirm();

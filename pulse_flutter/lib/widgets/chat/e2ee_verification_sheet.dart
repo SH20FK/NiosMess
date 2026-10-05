@@ -406,7 +406,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Внимание: угроза безопасности!',
+                  'Внимание: угроза безопасности',
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: scheme.error,

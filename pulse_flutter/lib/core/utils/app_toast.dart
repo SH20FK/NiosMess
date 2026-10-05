@@ -105,7 +105,7 @@ class AppToast {
           borderRadius: BorderRadius.circular(16),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        elevation: 3,
+        elevation: 0,
         duration: duration ?? const Duration(seconds: 4),
       ),
     );
@@ -180,7 +180,7 @@ class AppToast {
           borderRadius: BorderRadius.circular(16),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        elevation: 3,
+        elevation: 0,
         duration: duration,
       ),
     );
@@ -221,7 +221,7 @@ class AppToast {
           borderRadius: BorderRadius.circular(12),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        elevation: 2,
+        elevation: 0,
         duration: const Duration(seconds: 3),
       ),
     );

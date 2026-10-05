@@ -2910,7 +2910,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'We could not resolve this user right now.';
 
   @override
-  String callRedirectStarting(Object username) => 'Calling $username…';
+  String callRedirectStarting(Object username) => 'Calling $username';
 
   @override
   String get e2eeHandshakeInitiated => 'Secure handshake initiated';
@@ -3324,7 +3324,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get biometricTitle => 'Biometrics';
 
   @override
-  String get biometricEnabled => 'Enabled — sign in with fingerprint/face';
+  String get biometricEnabled => 'Enabled, sign in with fingerprint/face';
 
   @override
   String get biometricDisabled => 'Disabled';
@@ -3803,14 +3803,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutFaqA3 =>
-      'Secret chats are tied to a specific device — keys are stored only on it. Losing a device means losing access to secret chat history. Regular chats are restored when you sign in from a new device.';
+      'Secret chats are tied to a specific device, keys are stored only on it. Losing a device means losing access to secret chat history. Regular chats are restored when you sign in from a new device.';
 
   @override
   String get aboutFaqQ4 => 'Can I use NiosMess on multiple devices?';
 
   @override
   String get aboutFaqA4 =>
-      'Yes, regular chats sync between devices. Secret chats do not — they are tied to one device. To communicate from a secret chat on a new device, you need to create a new secret chat with the same user.';
+      'Yes, regular chats sync between devices. Secret chats do not, they are tied to one device. To communicate from a secret chat on a new device, you need to create a new secret chat with the same user.';
 
   @override
   String get aboutFaqQ5 => 'How to join a group or channel?';
@@ -3853,7 +3853,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutFaqA10 =>
-      'Settings → About NiosMess → tap the Changelog tab → Report a Problem. Describe the issue — the email will be sent to support@ni-os.ru. Or write directly.';
+      'Settings → About NiosMess → tap the Changelog tab → Report a Problem. Describe the issue, the email will be sent to support@ni-os.ru. Or write directly.';
 
   @override
   String get aboutChangelogDateJune2026 => 'June 2026';
@@ -3889,7 +3889,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutChangelogV210C1 => 'Predictive back gesture (Android 13+)';
 
   @override
-  String get aboutChangelogV210C2 => 'Background modes — economy and reliable';
+  String get aboutChangelogV210C2 => 'Background modes, economy and reliable';
 
   @override
   String get aboutChangelogV210C3 => 'New themes and color schemes';
@@ -3921,7 +3921,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutChangelogV200C3 =>
-      'NiosGram — post feed with reactions and comments';
+      'NiosGram: post feed with reactions and comments';
 
   @override
   String get aboutChangelogV200C4 =>
@@ -4136,7 +4136,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String nativeFileFailed(Object error) => 'Failed to load file: $error';
   @override
-  String get routerNotFound => '404 — Page not found';
+  String get routerNotFound => '404: Page not found';
 
   @override
   String get unblockAction => 'Unblock';
@@ -4807,7 +4807,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get callsConnecting => 'Connecting...';
   @override
-  String get callListenerModeNotice => 'Microphone unavailable — connected in listener mode';
+  String get callListenerModeNotice => 'Microphone unavailable, connected in listener mode';
   @override
   String get profileMuteNotifications => 'Mute notifications';
   @override

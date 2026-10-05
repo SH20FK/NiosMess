@@ -40,7 +40,7 @@ class UploadProgressOverlay extends StatelessWidget {
     if (stage == UploadStage.failed) {
       progressLabel = 'Не удалось отправить';
     } else if (stage == UploadStage.queued) {
-      progressLabel = 'В очереди · позиция ${queuePosition ?? 1}';
+      progressLabel = 'В очереди, позиция ${queuePosition ?? 1}';
     } else if (stage == UploadStage.processing) {
       progressLabel = 'Обработка...';
     } else if (stage == UploadStage.sendingMessage) {
@@ -53,7 +53,7 @@ class UploadProgressOverlay extends StatelessWidget {
       final List<String> parts = <String>['$percent%'];
       if (speedStr.isNotEmpty) parts.add(speedStr);
       if (etaStr.isNotEmpty) parts.add(etaStr);
-      progressLabel = parts.join(' · ');
+      progressLabel = parts.join(', ');
     } else {
       progressLabel = '$percent%';
     }

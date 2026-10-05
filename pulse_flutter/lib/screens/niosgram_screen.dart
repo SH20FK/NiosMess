@@ -197,7 +197,7 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
           heroTag: 'niosgram_scroll_top',
           backgroundColor: scheme.surfaceContainerHigh,
           foregroundColor: scheme.onSurfaceVariant,
-          elevation: 2,
+          elevation: 0,
           onPressed: () {
             if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
             _scrollController.animateTo(

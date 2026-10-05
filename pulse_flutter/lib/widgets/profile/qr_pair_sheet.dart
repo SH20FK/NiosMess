@@ -86,7 +86,7 @@ class _QrPairSheetState extends ConsumerState<QrPairSheet> {
           setState(() {
             _isConfirmed = true;
           });
-          AppToast.showSuccess(context, 'Устройство успешно связано!');
+          AppToast.showSuccess(context, 'Устройство успешно связано');
           Future<void>.delayed(const Duration(milliseconds: 1500), () {
             if (mounted) Navigator.of(context).pop();
           });
@@ -150,7 +150,7 @@ class _QrPairSheetState extends ConsumerState<QrPairSheet> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Успешно авторизовано!',
+                    'Успешно авторизовано',
                     style: textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: scheme.onSurface,

@@ -229,7 +229,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
         AppToast.showSuccess(
           context,
           successCount == 1
-              ? 'Стикер успешно добавлен!'
+              ? 'Стикер успешно добавлен'
               : 'Добавлено стикеров: $successCount',
         );
         Navigator.pop(context, true);

@@ -459,7 +459,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final String typedPreview = kind == null
         ? preview
         : hasMessage
-        ? '${_lastMessageKindLabel(kind)} · $preview'
+        ? '${_lastMessageKindLabel(kind)}, $preview'
         : _lastMessageKindLabel(kind);
     final String description = chat.description.trim();
     if (chat.chatType == 'channel') {

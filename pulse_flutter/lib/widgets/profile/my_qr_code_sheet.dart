@@ -284,8 +284,8 @@ class MyQrCodeSheet extends ConsumerWidget {
               AppToast.showSuccess(
                 context,
                 isSelf
-                    ? 'Ваш персональный узор установлен как обои!'
-                    : 'Фирменный узор установлен как ваши обои!',
+                    ? 'Ваш персональный узор установлен как обои'
+                    : 'Фирменный узор установлен как ваши обои',
               );
             },
             icon: const Icon(Icons.wallpaper_rounded, size: 20),
