@@ -62,6 +62,42 @@ abstract final class AppRadii {
   }
 }
 
+/// Centralized Material 3 Expressive semantic component shapes.
+abstract final class AppShape {
+  /// Controls: buttons, input fields, segmented buttons (12.0 dp).
+  static const double control = 12.0;
+
+  /// Text fields, dropdowns, chips (16.0 dp).
+  static const double field = 16.0;
+
+  /// Cards, list groups, settings sections (20.0 dp).
+  static const double card = 20.0;
+
+  /// Dialogs and bottom sheet modals (24.0 dp).
+  static const double dialog = 24.0;
+
+  /// Media previews: thumbnails, image viewports, video tiles (16.0 dp).
+  static const double media = 16.0;
+
+  /// Message bubbles (20.0 dp).
+  static const double bubble = 20.0;
+
+  /// Pill: reserved strictly for chips, compact filter tags, and capsule status tags.
+  static const StadiumBorder pill = StadiumBorder();
+
+  static RoundedSuperellipseBorder controlBorder({BorderSide side = BorderSide.none}) =>
+      AppRadii.superellipse(control, side: side);
+
+  static RoundedSuperellipseBorder cardBorder({BorderSide side = BorderSide.none}) =>
+      AppRadii.superellipse(card, side: side);
+
+  static RoundedSuperellipseBorder dialogBorder({BorderSide side = BorderSide.none}) =>
+      AppRadii.superellipse(dialog, side: side);
+
+  static RoundedSuperellipseBorder mediaBorder({BorderSide side = BorderSide.none}) =>
+      AppRadii.superellipse(media, side: side);
+}
+
 /// Theme extension to propagate dynamic [uiCornerRadius] throughout widget tree.
 @immutable
 class AppRadiiTheme extends ThemeExtension<AppRadiiTheme> {

@@ -98,7 +98,7 @@ class _CreateStickerSetDialogState extends ConsumerState<CreateStickerSetDialog>
       HapticService.tap();
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Ошибка выбора файла: $e');
+        AppToast.showError(context, 'Ошибка выбора файла');
       }
     }
   }
@@ -168,7 +168,7 @@ class _CreateStickerSetDialogState extends ConsumerState<CreateStickerSetDialog>
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Не удалось создать стикерпак: $e');
+        AppToast.showError(context, 'Не удалось создать стикерпак');
       }
     } finally {
       if (mounted) {

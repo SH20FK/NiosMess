@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_m3shapes/flutter_m3shapes.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/vector_illustrations.dart';
 
 class EmptyFeedWidget extends StatelessWidget {
@@ -40,27 +41,29 @@ class EmptyFeedWidget extends StatelessWidget {
               if (illustration != null)
                 illustration!
               else if (icon != null)
-                M3Container(
-                  Shapes.c9_sided_cookie,
-                  width: 84,
-                  height: 84,
-                  color: scheme.primaryContainer.withValues(alpha: 0.7),
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(AppShape.card),
+                  ),
                   child: Center(
                     child: Icon(
                       icon,
-                      size: 38,
+                      size: 36,
                       color: scheme.onPrimaryContainer,
                     ),
                   ),
                 )
                     .animate()
                     .scale(
-                      begin: const Offset(0.85, 0.85),
+                      begin: const Offset(0.92, 0.92),
                       end: const Offset(1.0, 1.0),
-                      duration: 350.ms,
-                      curve: Curves.easeOutBack,
+                      duration: const Duration(milliseconds: 250),
+                      curve: M3SpringCurves.expressiveDecel,
                     )
-                    .fade(duration: 250.ms)
+                    .fade(duration: const Duration(milliseconds: 200))
               else
                 const EmptyFeedIllustration(size: 160),
 
@@ -160,7 +163,7 @@ class EmptyFeedWidget extends StatelessWidget {
                       vertical: 12,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(AppShape.control),
                     ),
                   ),
                 ),

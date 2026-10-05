@@ -231,7 +231,7 @@ class UploadProgressOverlay extends StatelessWidget {
                               '$percent%',
                               style: TextStyle(
                                 color: scheme.onSurface,
-                                fontSize: 10.5,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),

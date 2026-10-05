@@ -709,7 +709,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                     Text(
                       hasHours ? 'Рабочий день' : 'Выходной',
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: hasHours
                             ? scheme.primary
@@ -816,7 +816,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                           '${interval.start} — ${interval.end}',
                           style: textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w700,
-                            fontSize: 14.5,
+                            fontSize: 14,
                             letterSpacing: 0.2,
                           ),
                         ),
@@ -919,7 +919,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
               label: Text(
                 p['label']!,
                 style: TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
                   color: isActive ? scheme.onPrimary : scheme.onSurface,
                 ),

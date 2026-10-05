@@ -22,6 +22,17 @@ class AppTypography {
 
   static TextTheme get textTheme => build(const ColorScheme.light());
 
+  /// Formats a [TextStyle] to enforce tabular (monospaced) figures for timers,
+  /// badges, counters, and numerical metrics without changing the font family.
+  static TextStyle tabular(TextStyle base) {
+    return base.copyWith(
+      fontFeatures: <FontFeature>[
+        const FontFeature.tabularFigures(),
+        ...?base.fontFeatures,
+      ],
+    );
+  }
+
   static TextTheme build(ColorScheme scheme) {
     return TextTheme(
       // Display: Bricolage Grotesque (Expressive hero headlines)

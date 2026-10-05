@@ -1102,7 +1102,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
             Text(
               label,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 fontWeight:
                     isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected

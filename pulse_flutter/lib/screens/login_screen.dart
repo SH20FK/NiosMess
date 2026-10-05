@@ -679,7 +679,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     context.l10n.loginWaitingBrowserConfirmation,
                     style: TextStyle(
                       fontFamily: AppFonts.ui,
-                      fontSize: 13.5,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: scheme.onSurface,
                     ),
@@ -943,7 +943,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           context.l10n.loginAgreeTermsPrefix,
           style: TextStyle(
             fontFamily: AppFonts.body,
-            fontSize: 11.5,
+            fontSize: 12,
             color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
           ),
           textAlign: TextAlign.center,

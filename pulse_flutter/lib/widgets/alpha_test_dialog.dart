@@ -170,7 +170,7 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
               style: textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurfaceVariant,
                 height: 1.45,
-                fontSize: 13.5,
+                fontSize: 14,
               ),
               textAlign: TextAlign.center,
             ),
@@ -317,7 +317,7 @@ class _TelegramButton extends StatelessWidget {
                   style: const TextStyle(
                     color: Color(0xFF2AABEE),
                     fontWeight: FontWeight.w700,
-                    fontSize: 12.5,
+                    fontSize: 13,
                   ),
                 ),
               ),

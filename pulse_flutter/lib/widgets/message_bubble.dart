@@ -713,7 +713,7 @@ class MessageBubble extends ConsumerWidget {
                         formattedTime,
                         style: TextStyle(
                           color: scheme.onPrimary,
-                          fontSize: 10.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
                       ),

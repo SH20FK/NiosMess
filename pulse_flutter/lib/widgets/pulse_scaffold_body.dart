@@ -70,74 +70,13 @@ class PulseScaffoldBody extends StatelessWidget {
   }
 }
 
-class _PulseBackdrop extends ConsumerStatefulWidget {
+class _PulseBackdrop extends ConsumerWidget {
   const _PulseBackdrop({required this.animated});
 
   final bool animated;
 
   @override
-  ConsumerState<_PulseBackdrop> createState() => _PulseBackdropState();
-}
-
-class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
-    with SingleTickerProviderStateMixin {
-  AnimationController? _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.animated && !kIsWeb) {
-      _controller = AnimationController(
-        vsync: this,
-        duration: const Duration(seconds: 60),
-      );
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _syncAnimation();
-  }
-
-  @override
-  void didUpdateWidget(_PulseBackdrop oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.animated != oldWidget.animated) {
-      _syncAnimation();
-    }
-  }
-
-  void _syncAnimation() {
-    if (!mounted || kIsWeb) return;
-    final bool optimize = ref.read(
-      uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
-    );
-    final bool shouldAnimate = widget.animated && !optimize;
-
-    if (shouldAnimate) {
-      _controller ??= AnimationController(
-        vsync: this,
-        duration: const Duration(seconds: 60),
-      );
-      if (!_controller!.isAnimating) {
-        _controller!.repeat(reverse: true);
-      }
-    } else {
-      if (_controller != null && _controller!.isAnimating) {
-        _controller!.stop();
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     final Brightness brightness = theme.brightness;
@@ -149,9 +88,6 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
     );
     final bool isWeak = tier == PerformanceTier.tierC || optimize;
 
-    final bool shouldAnimate =
-        widget.animated && !isWeak && !kIsWeb && _controller != null;
-
     return RepaintBoundary(
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
@@ -159,35 +95,14 @@ class _PulseBackdropState extends ConsumerState<_PulseBackdrop>
             return const SizedBox.shrink();
           }
 
-          final Widget staticBackdrop = RepaintBoundary(
-            child: CustomPaint(
-              size: Size(constraints.maxWidth, constraints.maxHeight),
-              painter: _BackdropPainter(
-                t: 0.5,
-                scheme: scheme,
-                brightness: brightness,
-                isWeakDevice: isWeak,
-              ),
+          return CustomPaint(
+            size: Size(constraints.maxWidth, constraints.maxHeight),
+            painter: _BackdropPainter(
+              t: 0.5,
+              scheme: scheme,
+              brightness: brightness,
+              isWeakDevice: isWeak,
             ),
-          );
-
-          if (!shouldAnimate) {
-            return staticBackdrop;
-          }
-
-          return AnimatedBuilder(
-            animation: _controller!,
-            builder: (BuildContext context, Widget? child) {
-              final double t = _controller!.value * 2 * math.pi;
-              return Transform.translate(
-                offset: Offset(
-                  math.sin(t) * 10.0,
-                  math.cos(t * 0.7) * 6.0,
-                ),
-                child: child,
-              );
-            },
-            child: staticBackdrop,
           );
         },
       ),

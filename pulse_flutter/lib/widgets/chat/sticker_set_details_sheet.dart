@@ -400,7 +400,7 @@ class _StickerSetDetailsSheetState extends ConsumerState<StickerSetDetailsSheet>
                                     if (context.mounted) {
                                       AppToast.showError(
                                         context,
-                                        'Не удалось удалить: $e',
+                                        'Не удалось удалить стикерпак',
                                       );
                                     }
                                   } finally {
@@ -451,7 +451,7 @@ class _StickerSetDetailsSheetState extends ConsumerState<StickerSetDetailsSheet>
                                     if (context.mounted) {
                                       AppToast.showError(
                                         context,
-                                        'Не удалось добавить: $e',
+                                        'Не удалось добавить стикерпак',
                                       );
                                     }
                                   } finally {

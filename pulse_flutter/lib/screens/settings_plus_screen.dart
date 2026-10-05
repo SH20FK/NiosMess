@@ -75,7 +75,7 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Не удалось активировать пробный период: $e');
+        AppToast.showError(context, 'Не удалось активировать пробный период');
       }
     } finally {
       if (mounted) {

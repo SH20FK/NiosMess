@@ -347,7 +347,7 @@ class _NotificationsBell extends ConsumerWidget {
                   count > 99 ? '99+' : '$count',
                   style: TextStyle(
                     color: scheme.onError,
-                    fontSize: 9.5,
+                    fontSize: 10,
                     fontWeight: FontWeight.w800,
                   ),
                   textAlign: TextAlign.center,
@@ -526,7 +526,7 @@ class _NotificationsBell extends ConsumerWidget {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontSize: 12.5,
+                                  fontSize: 12,
                                   color: scheme.onSurfaceVariant,
                                 ),
                               ),
@@ -884,7 +884,7 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                                     int? maxLength}) =>
                                 null,
                             style:
-                                textTheme.bodyLarge?.copyWith(fontSize: 14.5),
+                                textTheme.bodyLarge?.copyWith(fontSize: 15),
                             decoration: InputDecoration(
                               hintText: context.l10n.postHint,
                               hintStyle: TextStyle(

@@ -174,7 +174,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Ошибка выбора файлов: $e');
+        AppToast.showError(context, 'Ошибка выбора файлов');
       }
     } finally {
       if (mounted) {
@@ -238,7 +238,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
       if (mounted) {
         AppToast.showError(
           context,
-          'Загружено $successCount из $total. Ошибка: $e',
+          'Загружено $successCount из $total. Произошла ошибка загрузки',
         );
         // Still refresh provider for partially uploaded stickers
         if (successCount > 0) {

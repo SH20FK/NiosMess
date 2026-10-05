@@ -175,7 +175,7 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Не удалось сохранить файл: $e');
+        AppToast.showError(context, 'Не удалось сохранить файл');
       }
     }
   }
@@ -1549,7 +1549,7 @@ class _DocumentInfoViewer extends StatelessWidget {
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    AppToast.showError(context, 'Не удалось открыть файл: $e');
+                    AppToast.showError(context, 'Не удалось открыть файл');
                   }
                 }
               },
@@ -1588,7 +1588,7 @@ class _DocumentInfoViewer extends StatelessWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      AppToast.showError(context, 'Ошибка сохранения: $e');
+                      AppToast.showError(context, 'Ошибка сохранения файла');
                     }
                   }
                 },

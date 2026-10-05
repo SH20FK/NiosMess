@@ -636,7 +636,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Ошибка выбора файлов: $e');
+        AppToast.showError(context, 'Ошибка выбора файлов');
       }
     }
   }

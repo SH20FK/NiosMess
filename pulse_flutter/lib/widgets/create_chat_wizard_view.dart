@@ -320,7 +320,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
       widget.onChatCreated?.call(result.chatId);
     } catch (error) {
       if (!mounted) return;
-      AppToast.showError(context, error.toString().replaceFirst(RegExp(r'^(Exception|StateError):\s*'), ''));
+      AppToast.showError(context, error);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -1345,7 +1345,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                     subtitle,
                     style: textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
-                      fontSize: 11.5,
+                      fontSize: 12,
                     ),
                   ),
                 ],

@@ -100,7 +100,7 @@ class ChatFilterBar extends ConsumerWidget {
                           color: selected
                               ? scheme.secondaryContainer
                               : scheme.onPrimary,
-                          fontSize: 10.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -124,7 +124,7 @@ class ChatFilterBar extends ConsumerWidget {
               labelStyle: TextStyle(
                 color: chipFg,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                fontSize: 13.5,
+                fontSize: 14,
               ),
               side: BorderSide(color: borderColor),
               shape: RoundedRectangleBorder(

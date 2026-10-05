@@ -55,7 +55,7 @@ class AppToast {
                       fontFamily: AppFonts.ui,
                       color: scheme.onErrorContainer,
                       fontWeight: FontWeight.w600,
-                      fontSize: 13.5,
+                      fontSize: 14,
                     ),
                   ),
                   if (formatted.description != null &&
@@ -163,7 +163,7 @@ class AppToast {
                   fontFamily: AppFonts.ui,
                   color: scheme.onSurface,
                   fontWeight: FontWeight.w500,
-                  fontSize: 13.5,
+                  fontSize: 14,
                 ),
               ),
             ),

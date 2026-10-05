@@ -149,7 +149,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                     context.l10n.shellPushNotificationsTitle,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 13.5,
+                      fontSize: 14,
                       color: scheme.onSurface,
                     ),
                   ),
@@ -581,7 +581,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               child: Text(
                 context.l10n.shellSelectChatToStart,
                 style: TextStyle(
-                  fontSize: 14.5,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: scheme.onSurface,
                 ),
@@ -591,7 +591,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
             Text(
               context.l10n.shellE2eeNotice,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),

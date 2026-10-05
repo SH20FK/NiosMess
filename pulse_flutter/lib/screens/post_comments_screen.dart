@@ -665,7 +665,7 @@ class _PinnedPostHeader extends StatelessWidget {
                         formatMessageTime(data.createdAt),
                         style: textTheme.labelSmall?.copyWith(
                           color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                          fontSize: 10.5,
+                          fontSize: 11,
                         ),
                       ),
                     ],
@@ -822,7 +822,7 @@ class CommentItemTile extends StatelessWidget {
                               child: Text(
                                 'Автор',
                                 style: textTheme.labelSmall?.copyWith(
-                                  fontSize: 9.5,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                   color: scheme.onPrimaryContainer,
                                 ),
@@ -848,7 +848,7 @@ class CommentItemTile extends StatelessWidget {
                             formatMessageTime(comment.sentAt),
                             style: textTheme.labelSmall?.copyWith(
                               color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                              fontSize: 10.5,
+                              fontSize: 11,
                             ),
                           ),
                         ],
@@ -901,7 +901,7 @@ class CommentItemTile extends StatelessWidget {
                                 ? comment.content.trim()
                                 : '[${comment.msgType}]'),
                         style: textTheme.bodyMedium?.copyWith(
-                          fontSize: 13.5,
+                          fontSize: 14,
                           height: 1.35,
                           color: comment.isDeleted
                               ? scheme.onSurfaceVariant.withValues(alpha: 0.6)
@@ -937,7 +937,7 @@ class CommentItemTile extends StatelessWidget {
                                 style: textTheme.labelSmall?.copyWith(
                                   color: scheme.primary,
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 11.5,
+                                  fontSize: 12,
                                 ),
                               ),
                             ],
@@ -965,7 +965,7 @@ class CommentItemTile extends StatelessWidget {
                                   style: textTheme.labelSmall?.copyWith(
                                     color: scheme.error,
                                     fontWeight: FontWeight.w500,
-                                    fontSize: 11.5,
+                                    fontSize: 12,
                                   ),
                                 ),
                               ],

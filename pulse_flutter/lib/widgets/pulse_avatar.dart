@@ -148,45 +148,16 @@ class PulseAvatar extends StatelessWidget {
   }
 }
 
-class _ShimmerPlaceholder extends StatefulWidget {
+class _ShimmerPlaceholder extends StatelessWidget {
   const _ShimmerPlaceholder({required this.radius, required this.background});
   final double radius;
   final Color background;
 
   @override
-  State<_ShimmerPlaceholder> createState() => _ShimmerPlaceholderState();
-}
-
-class _ShimmerPlaceholderState extends State<_ShimmerPlaceholder>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final double opacity = 0.5 + (_controller.value * 0.4);
-        return CircleAvatar(
-          radius: widget.radius,
-          backgroundColor: widget.background.withValues(alpha: opacity),
-        );
-      },
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: background.withValues(alpha: 0.65),
     );
   }
 }

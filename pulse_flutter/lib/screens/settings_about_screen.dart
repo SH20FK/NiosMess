@@ -292,7 +292,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                 ),
                 const SizedBox(width: 8),
                 _BrandLink(
-                  svgAsset: 'assets/svg/globe.svg',
+                  svgAsset: 'assets/svg/pattern_icons/lucide/globe.svg',
                   tooltip: 'ni-os.ru',
                   onTap: () => _openUrl('https://ni-os.ru'),
                 ),

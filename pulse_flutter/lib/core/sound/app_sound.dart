@@ -191,8 +191,8 @@ enum SoundEvent {
 
 /// Legacy enum for backward compatibility with existing tests and call sites.
 enum AppSound {
-  message('sounds/message.ogg', SoundEvent.messageReceive),
-  navigation('sounds/nav1.ogg', SoundEvent.uiTap);
+  message('sounds/message_receive.ogg', SoundEvent.messageReceive),
+  navigation('sounds/ui_tap.ogg', SoundEvent.uiTap);
 
   const AppSound(this.assetPath, this.event);
 

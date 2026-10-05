@@ -105,7 +105,7 @@ class _BadgePickerSheetState extends ConsumerState<BadgePickerSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      AppToast.showError(context, 'Ошибка сохранения бейджей: $e');
+      AppToast.showError(context, 'Ошибка сохранения бейджей');
     }
   }
 

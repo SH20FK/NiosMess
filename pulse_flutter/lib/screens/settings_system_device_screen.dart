@@ -516,7 +516,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               textAlign: TextAlign.center,
               style: textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w700,
-                fontSize: 10.5,
+                fontSize: 11,
                 color: scheme.onSurface,
               ),
             ),

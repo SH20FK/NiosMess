@@ -97,12 +97,12 @@ class AppTheme {
 
     final ThemeData theme = ThemeData(
       useMaterial3: true,
-      splashFactory: InkRipple.splashFactory,
       colorScheme: scheme,
       scaffoldBackgroundColor: isOled ? const Color(0xFF000000) : scheme.surface,
       textTheme: textTheme,
       extensions: <ThemeExtension<dynamic>>[
         AppRadiiTheme.fromCornerRadius(settings.uiCornerRadius),
+        const VisualEffectBudget(),
       ],
       appBarTheme: AppBarTheme(
         elevation: 0,
@@ -116,7 +116,9 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           elevation: 0,
-          shape: const StadiumBorder(),
+          shape: RoundedSuperellipseBorder(
+            borderRadius: BorderRadius.circular(AppShape.control),
+          ),
           backgroundColor: scheme.primary,
           foregroundColor: scheme.onPrimary,
           textStyle: textTheme.labelLarge,
@@ -137,7 +139,9 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: scheme.primary,
           textStyle: textTheme.labelLarge,
-          shape: const StadiumBorder(),
+          shape: RoundedSuperellipseBorder(
+            borderRadius: BorderRadius.circular(AppShape.control),
+          ),
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
@@ -534,3 +538,58 @@ class AppTheme {
     return theme;
   }
 }
+
+/// Theme extension enforcing strict visual resource budgets per surface to prevent AI slop.
+@immutable
+class VisualEffectBudget extends ThemeExtension<VisualEffectBudget> {
+  const VisualEffectBudget({
+    this.allowDecorativeGradient = false,
+    this.allowLiveBlur = false,
+    this.allowColoredShadow = false,
+    this.maxNestedSurfaces = 2,
+  });
+
+  /// Whether decorative gradients (hero mesh, radial glows) are permitted.
+  final bool allowDecorativeGradient;
+
+  /// Whether real-time BackdropFilter / Blur is permitted (strictly media/calls only).
+  final bool allowLiveBlur;
+
+  /// Whether accent-colored drop shadows (e.g. purple/pink glows) are permitted.
+  final bool allowColoredShadow;
+
+  /// Maximum nesting level for tonal / card surfaces.
+  final int maxNestedSurfaces;
+
+  @override
+  VisualEffectBudget copyWith({
+    bool? allowDecorativeGradient,
+    bool? allowLiveBlur,
+    bool? allowColoredShadow,
+    int? maxNestedSurfaces,
+  }) =>
+      VisualEffectBudget(
+        allowDecorativeGradient:
+            allowDecorativeGradient ?? this.allowDecorativeGradient,
+        allowLiveBlur: allowLiveBlur ?? this.allowLiveBlur,
+        allowColoredShadow: allowColoredShadow ?? this.allowColoredShadow,
+        maxNestedSurfaces: maxNestedSurfaces ?? this.maxNestedSurfaces,
+      );
+
+  @override
+  VisualEffectBudget lerp(ThemeExtension<VisualEffectBudget>? other, double t) {
+    if (other is! VisualEffectBudget) return this;
+    return VisualEffectBudget(
+      allowDecorativeGradient: t < 0.5
+          ? allowDecorativeGradient
+          : other.allowDecorativeGradient,
+      allowLiveBlur: t < 0.5 ? allowLiveBlur : other.allowLiveBlur,
+      allowColoredShadow:
+          t < 0.5 ? allowColoredShadow : other.allowColoredShadow,
+      maxNestedSurfaces:
+          (maxNestedSurfaces + (other.maxNestedSurfaces - maxNestedSurfaces) * t)
+              .round(),
+    );
+  }
+}
+

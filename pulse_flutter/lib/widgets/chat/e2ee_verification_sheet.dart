@@ -72,7 +72,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
       setState(() => _refreshSession());
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(context, '$e');
+      AppToast.showError(context, e);
     }
   }
 

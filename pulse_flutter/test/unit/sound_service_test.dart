@@ -159,8 +159,8 @@ void main() {
 
   group('AppSound Enum', () {
     test('sound enum defines valid assets', () {
-      expect(AppSound.message.assetPath, 'sounds/message.ogg');
-      expect(AppSound.navigation.assetPath, 'sounds/nav1.ogg');
+      expect(AppSound.message.assetPath, 'sounds/message_receive.ogg');
+      expect(AppSound.navigation.assetPath, 'sounds/ui_tap.ogg');
     });
   });
 

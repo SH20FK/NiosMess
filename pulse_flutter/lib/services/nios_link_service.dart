@@ -281,7 +281,7 @@ class NiosLinkService {
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.showError(context, e.toString().replaceAll('Exception: ', ''));
+        AppToast.showError(context, e);
       }
     }
 

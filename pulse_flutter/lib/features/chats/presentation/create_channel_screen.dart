@@ -72,7 +72,7 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      AppToast.showError(context, 'Ошибка при создании канала: $e');
+      AppToast.showError(context, 'Не удалось создать канал');
     }
   }
 

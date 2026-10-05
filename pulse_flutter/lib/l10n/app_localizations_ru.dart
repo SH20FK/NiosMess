@@ -255,7 +255,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get verifyEmailDone => 'Готово';
 
   @override
-  String get setupWelcomeTitle => 'Приятно познакомиться)!';
+  String get setupWelcomeTitle => 'Приятно познакомиться';
 
   @override
   String get setupWelcomeBody =>
@@ -1205,7 +1205,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatNoMessages => 'Сообщений пока нет';
 
   @override
-  String get chatSendFirst => 'Начните общение!';
+  String get chatSendFirst => 'Начните общение';
 
   @override
   String get chatLoadEarlier => 'Показать старые сообщения';
@@ -2367,7 +2367,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatCreatePersonalUsernameHint => 'username';
 
   @override
-  String get chatCreatePersonalStart => 'Начать';
+  String get chatCreatePersonalStart => 'Открыть диалог';
 
   @override
   String get chatCreatePersonalErrorEmpty =>
@@ -2672,7 +2672,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get botPollSubtitle => 'Опросить новые сообщения и колбэки';
 
   @override
-  String get botCreated => 'Бот создан!';
+  String get botCreated => 'Бот создан';
 
   @override
   String get botCopied => 'Скопировано';
@@ -2893,7 +2893,7 @@ class AppLocalizationsRu extends AppLocalizations {
       'Плавные переходы и чёткая иерархия сохраняют спокойствие общения даже в напряжённый день.';
 
   @override
-  String get onboardingGetStarted => 'Начать';
+  String get onboardingGetStarted => 'Войти в NiosMess';
 
   @override
   String get onboardingNext => 'Далее';
@@ -3714,7 +3714,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get aboutReportDescription => 'Опишите ошибку или проблему';
 
   @override
-  String get aboutReportSuccess => 'Отчёт отправлен разработчикам. Спасибо!';
+  String get aboutReportSuccess => 'Отчёт отправлен разработчикам. Спасибо.';
 
   @override
   String get aboutReportError => 'Не удалось отправить отчёт. Попробуйте позже.';
@@ -4931,7 +4931,7 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get shellPushNotificationsEnable => 'Включить';
   @override
-  String get shellPushNotificationsSuccess => 'Уведомления успешно включены!';
+  String get shellPushNotificationsSuccess => 'Уведомления успешно включены.';
   @override
   String get shellPressAgainToExit => 'Нажмите ещё раз для выхода';
   @override

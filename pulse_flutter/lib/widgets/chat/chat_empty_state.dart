@@ -258,7 +258,7 @@ class ChatEmptyState extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
-                    fontSize: 12.5,
+                    fontSize: 12,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -357,7 +357,7 @@ class ChatEmptyState extends StatelessWidget {
                 title,
                 style: textTheme.labelMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
+                  fontSize: 12,
                   color: scheme.onSurface,
                 ),
               ),

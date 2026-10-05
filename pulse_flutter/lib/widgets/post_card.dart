@@ -333,7 +333,7 @@ class _PostCardState extends ConsumerState<PostCard>
                                       text: '@${post.author.username}',
                                       style: textTheme.bodySmall?.copyWith(
                                         color: scheme.onSurfaceVariant,
-                                        fontSize: 12.5,
+                                        fontSize: 12,
                                       ),
                                     ),
                                     TextSpan(

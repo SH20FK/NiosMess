@@ -502,7 +502,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                             icon: const Icon(Icons.battery_charging_full_rounded, size: 16),
                             label: Text(
                               context.l10n.privacyBatteryOptimization,
-                              style: const TextStyle(fontSize: 12.5),
+                              style: const TextStyle(fontSize: 12),
                             ),
                           ),
                         ),
